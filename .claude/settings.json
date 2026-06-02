@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet --version)",
+      "Bash(export PATH=\"/c/Program Files/dotnet:$PATH\")",
+      "Bash(dotnet sln:*)",
+      "Bash(dotnet add:*)",
+      "Bash(npm install:*)",
+      "Bash(PGPASSWORD=\"P@ssw0rd\" \"/c/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -c \"CREATE DATABASE gndj OWNER gndj_admin;\")",
+      "Bash(PGPASSWORD=\"GndjDev2026!\" \"/c/Program Files/PostgreSQL/18/bin/psql.exe\" -U gndj_admin -d gndj -c \"SELECT code, name FROM security_profiles ORDER BY code;\")",
+      "Bash(dotnet build:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

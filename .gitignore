@@ -1,0 +1,33 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.vs/
+*.DotSettings.user
+
+# Node
+client/node_modules/
+client/dist/
+client/.vite/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+appsettings.Local.json
+
+# Docker
+pgdata/
+
+# Uploads
+uploads/

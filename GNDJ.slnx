@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GNDJ.Api/GNDJ.Api.csproj" />
+    <Project Path="src/GNDJ.Application/GNDJ.Application.csproj" />
+    <Project Path="src/GNDJ.Domain/GNDJ.Domain.csproj" />
+    <Project Path="src/GNDJ.Infrastructure/GNDJ.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GNDJ.Api.Tests/GNDJ.Api.Tests.csproj" />
+    <Project Path="tests/GNDJ.Application.Tests/GNDJ.Application.Tests.csproj" />
+    <Project Path="tests/GNDJ.Domain.Tests/GNDJ.Domain.Tests.csproj" />
+    <Project Path="tests/GNDJ.Infrastructure.Tests/GNDJ.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>
