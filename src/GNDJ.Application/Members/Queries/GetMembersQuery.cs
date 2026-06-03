@@ -31,17 +31,17 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
         if (!_currentUser.IsSuperAdmin)
         {
             var authorizedUnitIds = _currentUser.AuthorizedUnitIds;
-            query = query.Where(m => m.Assignments.Any(a => !a.IsDeleted && authorizedUnitIds.Contains(a.UnitId)));
+            query = query.Where(m => m.Assignments.Any(a => authorizedUnitIds.Contains(a.UnitId)));
         }
 
         // Filter: no active assignment (alumni)
         if (request.NoUnit == true)
-            query = query.Where(m => !m.Assignments.Any(a => !a.IsDeleted && a.EndDate == null));
+            query = query.Where(m => !m.Assignments.Any(a => a.EndDate == null));
         else if (request.UnitId.HasValue)
-            query = query.Where(m => m.Assignments.Any(a => !a.IsDeleted && a.UnitId == request.UnitId.Value && a.EndDate == null));
+            query = query.Where(m => m.Assignments.Any(a => a.UnitId == request.UnitId.Value && a.EndDate == null));
 
         if (request.TeamId.HasValue)
-            query = query.Where(m => m.Assignments.Any(a => !a.IsDeleted && a.TeamId == request.TeamId.Value && a.EndDate == null));
+            query = query.Where(m => m.Assignments.Any(a => a.TeamId == request.TeamId.Value && a.EndDate == null));
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
@@ -68,8 +68,8 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
                 m.Emails.Where(e => e.IsPrimary && !e.IsDeleted).Select(e => e.Address).FirstOrDefault(),
                 m.Phones.Where(p => p.IsPrimary && !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault(),
                 m.PhotoPath,
-                m.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(),
-                m.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Team != null ? a.Team.Name : null).FirstOrDefault()
+                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Code).FirstOrDefault(),
+                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Team != null ? a.Team.Name : null).FirstOrDefault()
             ));
 
         return await PaginatedList<MemberListDto>.CreateAsync(projected, request.Page, request.PageSize, cancellationToken);
