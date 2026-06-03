@@ -19,6 +19,42 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   Logout: { label: 'Déconnexion', color: 'bg-gray-100 text-gray-800' },
 }
 
+const ENTITY_LABELS: Record<string, string> = {
+  User: 'Utilisateur',
+  Member: 'Membre',
+  Unit: 'Unité',
+  Team: 'Équipe',
+  Association: 'Association',
+  UnitType: "Type d'unité",
+  FunctionalRole: 'Fonction',
+  SecurityProfile: 'Profil de sécurité',
+  MemberAssignment: 'Affectation',
+  MemberDocument: 'Document',
+  MemberCotisation: 'Cotisation',
+  DocumentType: 'Type de document',
+  Setting: 'Paramètre',
+  Guardian: 'Parent',
+  GuardianLink: 'Lien parent',
+}
+
+function entitySummary(log: AuditLogDto): string {
+  // Try to extract a meaningful label from newValues or oldValues
+  const json = log.newValues || log.oldValues
+  if (!json) return ''
+  try {
+    const obj = JSON.parse(json)
+    // Common field patterns
+    if (obj.Name) return obj.Name
+    if (obj.Email) return obj.Email
+    if (obj.Title) return obj.Title
+    if (obj.FirstName && obj.LastName) return `${obj.FirstName} ${obj.LastName}`
+    if (obj.ReceiptNumber) return obj.ReceiptNumber
+    if (obj.Code) return obj.Code
+    if (obj.Reason) return obj.Reason
+  } catch { /* ignore */ }
+  return ''
+}
+
 function formatJson(json: string | null): string {
   if (!json) return '—'
   try {
@@ -66,7 +102,7 @@ export default function AuditLogsPage() {
             <SelectTrigger className="w-44"><SelectValue placeholder="Toutes" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="_all">Toutes</SelectItem>
-              {filters?.entityTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              {filters?.entityTypes.map(t => <SelectItem key={t} value={t}>{ENTITY_LABELS[t] ?? t}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -125,8 +161,13 @@ export default function AuditLogsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm">{log.entityType}</span>
-                        {log.entityId && <span className="ml-1 text-xs text-muted-foreground">({log.entityId.slice(0, 8)}...)</span>}
+                        <div>
+                          <span className="text-sm">{ENTITY_LABELS[log.entityType] ?? log.entityType}</span>
+                          {(() => {
+                            const summary = entitySummary(log)
+                            return summary ? <span className="ml-1.5 text-xs text-muted-foreground">— {summary}</span> : null
+                          })()}
+                        </div>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{log.ipAddress ?? '—'}</TableCell>
                       <TableCell>
@@ -166,7 +207,7 @@ export default function AuditLogsPage() {
                 <div><span className="text-muted-foreground">Date :</span> {new Date(detail.timestamp).toLocaleString('fr-FR')}</div>
                 <div><span className="text-muted-foreground">Utilisateur :</span> {detail.userEmail ?? '—'}</div>
                 <div><span className="text-muted-foreground">Action :</span> {ACTION_LABELS[detail.action]?.label ?? detail.action}</div>
-                <div><span className="text-muted-foreground">Entité :</span> {detail.entityType}</div>
+                <div><span className="text-muted-foreground">Entité :</span> {ENTITY_LABELS[detail.entityType] ?? detail.entityType}{(() => { const s = entitySummary(detail); return s ? ` — ${s}` : '' })()}</div>
                 <div><span className="text-muted-foreground">ID Entité :</span> <span className="font-mono text-xs">{detail.entityId ?? '—'}</span></div>
                 <div><span className="text-muted-foreground">IP :</span> {detail.ipAddress ?? '—'}</div>
               </div>
