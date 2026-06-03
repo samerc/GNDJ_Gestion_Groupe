@@ -30,7 +30,9 @@ public class LogoutCommandHandler : IRequestHandler<LogoutCommand, Result<bool>>
         user.RefreshTokenExpiry = null;
 
         await _context.SaveChangesAsync(cancellationToken);
-        await _auditService.LogAsync("Logout", "User", user.Id, cancellationToken: cancellationToken);
+        await _auditService.LogAsync("Logout", "User", user.Id,
+            newValues: new { user.Email },
+            cancellationToken: cancellationToken);
 
         return Result<bool>.Success(true);
     }

@@ -28,7 +28,12 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
             .FirstOrDefaultAsync(u => u.Email == request.Email && u.IsActive, cancellationToken);
 
         if (user is null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
+        {
+            await _auditService.LogAsync("LoginFailed", "User", user?.Id,
+                newValues: new { Email = request.Email, Reason = user is null ? "Utilisateur introuvable" : "Mot de passe incorrect" },
+                cancellationToken: cancellationToken);
             return Result<AuthResponse>.Failure("Adresse courriel ou mot de passe incorrect.");
+        }
 
         // Load permissions from active assignments -> functional roles -> security profiles -> permissions
         var permissions = await LoadUserPermissions(user.Id, user.IsSuperAdmin, cancellationToken);
@@ -42,7 +47,9 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
         user.LastLoginAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
-        await _auditService.LogAsync("Login", "User", user.Id, cancellationToken: cancellationToken);
+        await _auditService.LogAsync("Login", "User", user.Id,
+            newValues: new { user.Email, MemberId = user.MemberId, Name = $"{user.Member.FirstName} {user.Member.LastName}" },
+            cancellationToken: cancellationToken);
 
         return Result<AuthResponse>.Success(new AuthResponse(
             user.Id, user.MemberId, user.Email, accessToken, refreshToken,

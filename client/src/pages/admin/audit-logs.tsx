@@ -15,6 +15,7 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   Update: { label: 'Modification', color: 'bg-blue-100 text-blue-800' },
   Delete: { label: 'Suppression', color: 'bg-red-100 text-red-800' },
   Login: { label: 'Connexion', color: 'bg-purple-100 text-purple-800' },
+  LoginFailed: { label: 'Échec connexion', color: 'bg-orange-100 text-orange-800' },
   Logout: { label: 'Déconnexion', color: 'bg-gray-100 text-gray-800' },
 }
 
@@ -105,6 +106,7 @@ export default function AuditLogsPage() {
                   <TableHead>Utilisateur</TableHead>
                   <TableHead>Action</TableHead>
                   <TableHead>Entité</TableHead>
+                  <TableHead>IP</TableHead>
                   <TableHead className="w-16" />
                 </TableRow>
               </TableHeader>
@@ -126,6 +128,7 @@ export default function AuditLogsPage() {
                         <span className="text-sm">{log.entityType}</span>
                         {log.entityId && <span className="ml-1 text-xs text-muted-foreground">({log.entityId.slice(0, 8)}...)</span>}
                       </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{log.ipAddress ?? '—'}</TableCell>
                       <TableCell>
                         <Button variant="ghost" size="icon" className="h-7 w-7">
                           <Eye className="h-3.5 w-3.5" />
