@@ -4,7 +4,7 @@ import { useFormValidation } from '@/hooks/use-form-validation'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useScoutStages, useCreateScoutStage, useUpdateScoutStage, useDeleteScoutStage, type ScoutStageDto, type ScoutStageFormData } from '@/services/progression-service'
 import { useBadges, useCreateBadge, useUpdateBadge, useDeleteBadge, type BadgeDto, type BadgeFormData } from '@/services/progression-service'
-import { useUnits } from '@/services/unit-service'
+import { useUnitTypes as useUnitTypesQuery } from '@/services/unit-type-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -19,21 +19,9 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Plus, Pencil, Trash2, Award, Star } from 'lucide-react'
 
-// Get distinct unit types from units
-function useUnitTypes() {
-  const { data: units } = useUnits({ pageSize: 100 })
-  if (!units) return []
-  const seen = new Map<string, { id: string; name: string }>()
-  for (const u of units.items) {
-    if (u.unitTypeId && !seen.has(u.unitTypeId)) {
-      seen.set(u.unitTypeId, { id: u.unitTypeId, name: u.unitTypeName })
-    }
-  }
-  return [...seen.values()]
-}
-
 export default function ProgressionPage() {
-  const unitTypes = useUnitTypes()
+  const { data: unitTypesData } = useUnitTypesQuery({ pageSize: 100 })
+  const unitTypes = unitTypesData?.items.map(ut => ({ id: ut.id, name: ut.name })) ?? []
   const [unitTypeFilter, setUnitTypeFilter] = useState<string>('')
 
   return (
