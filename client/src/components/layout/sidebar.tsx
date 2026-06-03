@@ -8,9 +8,11 @@ import {
   Building2,
   LayoutDashboard,
   Shield,
+  ShieldCheck,
   Landmark,
   FolderTree,
   FileText,
+  ScrollText,
   Settings2,
   ChevronsLeft,
   ChevronsRight,
@@ -37,6 +39,8 @@ const adminItems = [
   { path: '/admin/associations', label: 'Associations', icon: Landmark, permission: PERMISSIONS.ASSOCIATIONS_VIEW },
   { path: '/admin/unit-types', label: "Types d'unité", icon: FolderTree, permission: PERMISSIONS.UNIT_TYPES_VIEW },
   { path: '/admin/document-types', label: 'Types de documents', icon: FileText, permission: PERMISSIONS.DOCUMENT_TYPES_VIEW },
+  { path: '/admin/security-profiles', label: 'Profils de sécurité', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE },
+  { path: '/admin/audit-logs', label: 'Journal d\'audit', icon: ScrollText, permission: PERMISSIONS.AUDIT_VIEW },
   { path: '/admin/settings', label: 'Paramètres', icon: Settings2, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
 ]
 

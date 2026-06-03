@@ -125,8 +125,11 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] New permissions: document_types.*, documents.*, cotisations.*
 - [x] SeedMissingPermissionsAsync — auto-patches existing security profiles on startup
 
+### Phase 2b — Admin Tools (Complete)
+- [x] Audit log viewer (read-only, filters by entity/action/date, detail dialog with old/new JSON values)
+- [x] Security profiles admin (list profiles, checklist permission editor per profile, group toggle)
+
 ### Remaining
-- [ ] Audit log viewer
 - [ ] Badges system (Phase 3)
 - [ ] PDF exports — unit/team lists, member cards (Phase 3)
 - [ ] Annual transition (Phase 4)

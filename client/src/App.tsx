@@ -10,6 +10,8 @@ import UnitTypeDetailPage from '@/pages/admin/unit-type-detail'
 import RolesPage from '@/pages/admin/roles'
 import SettingsPage from '@/pages/admin/settings'
 import DocumentTypesPage from '@/pages/admin/document-types'
+import AuditLogsPage from '@/pages/admin/audit-logs'
+import SecurityProfilesPage from '@/pages/admin/security-profiles'
 import UnitsPage from '@/pages/units/index'
 import UnitDetailPage from '@/pages/units/detail'
 import MembersPage from '@/pages/members/index'
@@ -36,6 +38,8 @@ export default function App() {
             <Route path="/admin/unit-types/:id" element={<UnitTypeDetailPage />} />
             <Route path="/admin/roles" element={<RolesPage />} />
             <Route path="/admin/document-types" element={<DocumentTypesPage />} />
+            <Route path="/admin/security-profiles" element={<SecurityProfilesPage />} />
+            <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
           </Route>
         </Route>

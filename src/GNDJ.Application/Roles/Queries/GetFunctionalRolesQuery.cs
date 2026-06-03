@@ -1,4 +1,5 @@
 using GNDJ.Application.Common.Interfaces;
+using GNDJ.Application.Common.Models;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
@@ -50,5 +51,64 @@ public class GetSecurityProfilesQueryHandler : IRequestHandler<GetSecurityProfil
             .OrderBy(sp => sp.Name)
             .Select(sp => new SecurityProfileDto(sp.Id, sp.Name, sp.Code, sp.IsSystem))
             .ToListAsync(cancellationToken);
+    }
+}
+
+// Security profile detail (with permissions list)
+public record SecurityProfileDetailDto(Guid Id, string Name, string Code, string? Description, bool IsSystem, IReadOnlyList<string> Permissions, int RoleCount);
+
+public record GetSecurityProfileByIdQuery(Guid Id) : IRequest<SecurityProfileDetailDto?>;
+
+public class GetSecurityProfileByIdQueryHandler(IApplicationDbContext context) : IRequestHandler<GetSecurityProfileByIdQuery, SecurityProfileDetailDto?>
+{
+    public async ValueTask<SecurityProfileDetailDto?> Handle(GetSecurityProfileByIdQuery request, CancellationToken ct)
+    {
+        return await context.SecurityProfiles
+            .Where(sp => sp.Id == request.Id)
+            .Select(sp => new SecurityProfileDetailDto(
+                sp.Id, sp.Name, sp.Code, sp.Description, sp.IsSystem,
+                sp.Permissions.Select(p => p.Permission).OrderBy(p => p).ToList(),
+                sp.FunctionalRoles.Count(r => !r.IsDeleted)
+            ))
+            .FirstOrDefaultAsync(ct);
+    }
+}
+
+// Update security profile permissions
+public record UpdateSecurityProfilePermissionsCommand(Guid Id, List<string> Permissions) : IRequest<Result<bool>>;
+
+public class UpdateSecurityProfilePermissionsCommandHandler(IApplicationDbContext context, IAuditService auditService) : IRequestHandler<UpdateSecurityProfilePermissionsCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(UpdateSecurityProfilePermissionsCommand request, CancellationToken ct)
+    {
+        var profile = await context.SecurityProfiles
+            .Include(sp => sp.Permissions)
+            .FirstOrDefaultAsync(sp => sp.Id == request.Id, ct);
+
+        if (profile is null)
+            return Result<bool>.Failure("Profil de sécurité introuvable.");
+
+        var oldPerms = profile.Permissions.Select(p => p.Permission).OrderBy(p => p).ToList();
+
+        // Remove all existing permissions
+        context.SecurityProfilePermissions.RemoveRange(profile.Permissions);
+
+        // Add the new set
+        foreach (var perm in request.Permissions.Distinct())
+        {
+            context.SecurityProfilePermissions.Add(new Domain.Entities.SecurityProfilePermission
+            {
+                SecurityProfileId = profile.Id,
+                Permission = perm
+            });
+        }
+
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("Update", "SecurityProfile", profile.Id,
+            oldValues: new { Permissions = oldPerms },
+            newValues: new { Permissions = request.Permissions.OrderBy(p => p).ToList() },
+            cancellationToken: ct);
+
+        return Result<bool>.Success(true);
     }
 }

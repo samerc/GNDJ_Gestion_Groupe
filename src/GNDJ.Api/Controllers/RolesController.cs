@@ -59,4 +59,23 @@ public class SecurityProfilesController : BaseApiController
         var result = await Mediator.Send(new GetSecurityProfilesQuery());
         return Ok(result);
     }
+
+    [HttpGet("{id:guid}")]
+    [HasPermission(Permissions.RolesView)]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var result = await Mediator.Send(new GetSecurityProfileByIdQuery(id));
+        if (result is null) return NotFound(new { error = "Profil introuvable." });
+        return Ok(result);
+    }
+
+    [HttpPut("{id:guid}/permissions")]
+    [HasPermission(Permissions.RolesManage)]
+    public async Task<IActionResult> UpdatePermissions(Guid id, [FromBody] UpdateSecurityProfilePermissionsCommand command)
+    {
+        if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
 }
