@@ -1,5 +1,6 @@
 import { parseApiError } from '@/lib/error-utils'
 import { useState, useRef, useCallback } from 'react'
+import { useParams } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
@@ -190,6 +191,7 @@ function SortHeader({ label, field, current, dir, onSort }: { label: string; fie
 
 // ─── Main page ───────────────────────────
 export default function MembersPage() {
+  const { id: routeMemberId } = useParams<{ id: string }>()
   const pinnedNationalities = useSettingArray('pinned_nationalities')
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
@@ -197,7 +199,7 @@ export default function MembersPage() {
   const [unitFilter, setUnitFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState('lastname')
   const [sortDir, setSortDir] = useState('asc')
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(routeMemberId ?? null)
   const [leftWidth, setLeftWidth] = useState(340)
 
   // Create dialog

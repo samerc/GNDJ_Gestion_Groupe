@@ -15,7 +15,6 @@ import SecurityProfilesPage from '@/pages/admin/security-profiles'
 import UnitsPage from '@/pages/units/index'
 import UnitDetailPage from '@/pages/units/detail'
 import MembersPage from '@/pages/members/index'
-import MemberDetailPage from '@/pages/members/detail'
 import UnitDocumentsPage from '@/pages/unit-documents'
 
 export default function App() {
@@ -31,7 +30,7 @@ export default function App() {
             <Route path="/units" element={<UnitsPage />} />
             <Route path="/units/:id" element={<UnitDetailPage />} />
             <Route path="/members" element={<MembersPage />} />
-            <Route path="/members/:id" element={<MemberDetailPage />} />
+            <Route path="/members/:id" element={<MembersPage />} />
             <Route path="/unit-documents" element={<UnitDocumentsPage />} />
             <Route path="/admin/associations" element={<AssociationsPage />} />
             <Route path="/admin/unit-types" element={<UnitTypesPage />} />
