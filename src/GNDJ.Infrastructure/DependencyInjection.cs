@@ -46,6 +46,10 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAuditService, AuditService>();
 
+        // PDF services
+        QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+        services.AddSingleton<IReceiptService, ReceiptService>();
+
         // JWT Authentication
         var jwtSecret = configuration["Jwt:Secret"]!;
         var key = Encoding.UTF8.GetBytes(jwtSecret);

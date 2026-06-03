@@ -25,4 +25,6 @@ public class Member : BaseEntity
     public ICollection<GuardianLink> GuardianLinks { get; set; } = [];
     public ICollection<MemberRelationship> Relationships { get; set; } = [];
     public ICollection<MemberRelationship> InverseRelationships { get; set; } = [];
+    public ICollection<MemberDocument> Documents { get; set; } = [];
+    public ICollection<MemberCotisation> Cotisations { get; set; } = [];
 }

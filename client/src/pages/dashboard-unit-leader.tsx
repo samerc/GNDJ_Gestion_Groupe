@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
+import { MemberDocuments } from '@/components/members/member-documents'
+import { MemberCotisations } from '@/components/members/member-cotisations'
 import { cn } from '@/lib/utils'
 import { Users, UsersRound, Search, Phone, Mail, MapPin, GripVertical } from 'lucide-react'
 
@@ -54,6 +56,8 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
           <TabsTrigger value="famille">Famille</TabsTrigger>
           <TabsTrigger value="unites">Unités / Fonctions</TabsTrigger>
           <TabsTrigger value="medical">Médical</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="cotisations">Cotisations</TabsTrigger>
         </TabsList>
 
         <div className="flex-1 overflow-auto p-4">
@@ -125,6 +129,14 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
               <Field label="Notes médicales" value={member.medicalNotes} />
               <Field label="Notes générales" value={member.notes} />
             </div>
+          </TabsContent>
+
+          <TabsContent value="documents" className="mt-0">
+            <MemberDocuments memberId={memberId} />
+          </TabsContent>
+
+          <TabsContent value="cotisations" className="mt-0">
+            <MemberCotisations memberId={memberId} />
           </TabsContent>
         </div>
       </Tabs>

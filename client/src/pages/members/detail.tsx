@@ -17,6 +17,8 @@ import { useSettingArray, useSettingValue } from '@/services/settings-service'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
+import { MemberDocuments } from '@/components/members/member-documents'
+import { MemberCotisations } from '@/components/members/member-cotisations'
 import { ArrowLeft, Save, Phone, Mail, MapPin, Plus, Trash2 } from 'lucide-react'
 
 export default function MemberDetailPage() {
@@ -140,6 +142,8 @@ export default function MemberDetailPage() {
           <TabsTrigger value="assignments">Unités / Fonctions</TabsTrigger>
           <TabsTrigger value="famille">Famille</TabsTrigger>
           <TabsTrigger value="medical">Médical</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="cotisations">Cotisations</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-4">
@@ -270,6 +274,14 @@ export default function MemberDetailPage() {
 
         <TabsContent value="famille">
           <MemberGuardians memberId={id!} />
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <MemberDocuments memberId={id!} />
+        </TabsContent>
+
+        <TabsContent value="cotisations">
+          <MemberCotisations memberId={id!} />
         </TabsContent>
 
         <TabsContent value="medical" className="space-y-4">

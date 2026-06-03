@@ -6,11 +6,11 @@ import { PERMISSIONS } from '@/lib/constants'
 import {
   Users,
   Building2,
-  UsersRound,
   LayoutDashboard,
   Shield,
   Landmark,
   FolderTree,
+  FileText,
   Settings2,
   ChevronsLeft,
   ChevronsRight,
@@ -25,16 +25,18 @@ const adminNavItems = [
   { path: '/units', label: 'Unités', icon: Building2, permission: PERMISSIONS.UNITS_VIEW },
 ]
 
-// Unit leader nav
+// Unit leader nav — "Mon unité" and "Documents" only visible to CU (units.edit permission)
 const leaderNavItems = [
   { path: '/my-profile', label: 'Ma fiche', icon: Users, permission: null },
-  { path: '/', label: 'Mon unité', icon: Building2, permission: null },
+  { path: '/', label: 'Mon unité', icon: Building2, permission: PERMISSIONS.UNITS_EDIT },
+  { path: '/unit-documents', label: 'Documents', icon: FileText, permission: PERMISSIONS.DOCUMENTS_APPROVE },
 ]
 
 const adminItems = [
   { path: '/admin/roles', label: 'Fonctions', icon: Shield, permission: PERMISSIONS.ROLES_VIEW },
   { path: '/admin/associations', label: 'Associations', icon: Landmark, permission: PERMISSIONS.ASSOCIATIONS_VIEW },
   { path: '/admin/unit-types', label: "Types d'unité", icon: FolderTree, permission: PERMISSIONS.UNIT_TYPES_VIEW },
+  { path: '/admin/document-types', label: 'Types de documents', icon: FileText, permission: PERMISSIONS.DOCUMENT_TYPES_VIEW },
   { path: '/admin/settings', label: 'Paramètres', icon: Settings2, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
 ]
 

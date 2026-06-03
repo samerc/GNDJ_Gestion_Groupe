@@ -36,6 +36,20 @@ public static class Permissions
     public const string UnitTypesView = "unit_types.view";
     public const string UnitTypesManage = "unit_types.manage";
 
+    public const string DocumentTypesView = "document_types.view";
+    public const string DocumentTypesManage = "document_types.manage";
+
+    public const string DocumentsView = "documents.view";
+    public const string DocumentsCreate = "documents.create";
+    public const string DocumentsEdit = "documents.edit";
+    public const string DocumentsDelete = "documents.delete";
+    public const string DocumentsApprove = "documents.approve";
+
+    public const string CotisationsView = "cotisations.view";
+    public const string CotisationsCreate = "cotisations.create";
+    public const string CotisationsEdit = "cotisations.edit";
+    public const string CotisationsDelete = "cotisations.delete";
+
     public const string AuditView = "audit.view";
     public const string AdminHardDelete = "admin.hard_delete";
 
@@ -49,6 +63,9 @@ public static class Permissions
         RolesView, RolesManage,
         AssociationsView, AssociationsManage,
         UnitTypesView, UnitTypesManage,
+        DocumentTypesView, DocumentTypesManage,
+        DocumentsView, DocumentsCreate, DocumentsEdit, DocumentsDelete, DocumentsApprove,
+        CotisationsView, CotisationsCreate, CotisationsEdit, CotisationsDelete,
         AuditView, AdminHardDelete
     ];
 }

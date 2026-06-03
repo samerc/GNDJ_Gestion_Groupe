@@ -49,6 +49,7 @@ using (var scope = app.Services.CreateScope())
     var password = config["SuperAdmin:Password"] ?? "Admin123!";
     var passwordHash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
     await SeedData.SeedAsync(context, email, passwordHash);
+    await SeedData.SeedMissingPermissionsAsync(context);
     await SeedData.SeedMissingSettingsAsync(context);
 }
 

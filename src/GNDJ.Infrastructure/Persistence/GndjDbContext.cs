@@ -28,6 +28,9 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<GuardianEmail> GuardianEmails => Set<GuardianEmail>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Setting> Settings => Set<Setting>();
+    public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
+    public DbSet<MemberDocument> MemberDocuments => Set<MemberDocument>();
+    public DbSet<MemberCotisation> MemberCotisations => Set<MemberCotisation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

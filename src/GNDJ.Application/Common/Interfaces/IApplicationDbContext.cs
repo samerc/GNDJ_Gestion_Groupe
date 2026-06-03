@@ -25,6 +25,9 @@ public interface IApplicationDbContext
     DbSet<GuardianEmail> GuardianEmails { get; }
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<Setting> Settings { get; }
+    DbSet<DocumentType> DocumentTypes { get; }
+    DbSet<MemberDocument> MemberDocuments { get; }
+    DbSet<MemberCotisation> MemberCotisations { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -10,7 +10,7 @@ Web application for managing a Scout organization: members, units, teams, roles,
 - **Frontend**: React 19 + TypeScript + Vite, Shadcn/ui + Tailwind CSS v4, TanStack Query, Zustand, React Router v7
 - **Database**: PostgreSQL 18 (UUIDv7 primary keys)
 - **Auth**: Custom JWT + BCrypt (no ASP.NET Identity)
-- **PDF**: QuestPDF (Phase 3)
+- **PDF**: QuestPDF (receipt generation)
 
 ## Solution Structure
 ```
@@ -60,7 +60,7 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - Role-based sidebar: super admin sees all, unit leaders see Ma fiche + Mon unité only
 
 ## Database
-- 20 tables: associations, unit_types, units, teams, members, users, security_profiles, security_profile_permissions, functional_roles, member_assignments, member_relationships, member_phones, member_emails, member_addresses, guardians, guardian_links, guardian_phones, guardian_emails, audit_logs, settings
+- 23 tables: associations, unit_types, units, teams, members, users, security_profiles, security_profile_permissions, functional_roles, member_assignments, member_relationships, member_phones, member_emails, member_addresses, guardians, guardian_links, guardian_phones, guardian_emails, audit_logs, settings, document_types, member_documents, member_cotisations
 - Snake_case naming convention via EFCore.NamingConventions
 - Global soft-delete query filters on all BaseEntity types
 - Interceptors: AuditableEntityInterceptor (created/updated timestamps), SoftDeleteInterceptor (converts Delete to soft-delete)
@@ -73,12 +73,14 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - `patrick.doumit@scouts.gndj` / `Admin123!` — Chef d'unité Route
 - `nadine.boutros@scouts.gndj` / `Admin123!` — Chef d'unité Maîtrise
 
-## Current Phase: 1
+## Current Phase: 2
+
+### Phase 1 (Complete)
 - [x] Solution structure + project references
 - [x] NuGet packages installed (no vulnerabilities)
 - [x] React + Vite + Tailwind + Shadcn/ui initialized
 - [x] Frontend builds successfully
-- [x] Domain entities (20 entities + enums + interfaces)
+- [x] Domain entities (23 entities + enums + interfaces)
 - [x] Database layer (EF configs, interceptors, migration, seed data)
 - [x] Authentication backend (JWT + BCrypt, register/login/refresh/logout/me endpoints tested)
 - [x] Authentication frontend (Zustand store, api-client with token refresh, login/register pages, sidebar/header layout, React Router)
@@ -100,8 +102,31 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] Debounced search on all list pages
 - [x] Navy Doux color palette
 - [x] Collapsible sidebar with mobile hamburger
+
+### Phase 2 — Documents & Cotisations (Complete)
+- [x] Document types (dynamic, admin-managed with code, expiry/approval flags, isActive toggle)
+- [x] Member documents (upload, download, approve/reject workflow, expiry tracking)
+- [x] Member checklist view (Ma fiche — required docs with direct upload per type)
+- [x] CU Documents page (/unit-documents — matrix table: members × doc types + cotisation)
+- [x] Inline document preview (images + PDF) with approve/reject from popup
+- [x] Quick approve/reject directly from matrix cells (hover icons)
+- [x] Status changes allowed at any time (approve→reject, reject→approve)
+- [x] Zip download (all docs or filtered by doc type, organized by member folders)
+- [x] Member cotisations (per année scoute, multi-currency USD/LBP/EUR, receipt number auto-generation)
+- [x] Cotisation entry from CU matrix table (click cell → payment dialog)
+- [x] Receipt PDF generation (QuestPDF, A5 format, downloadable)
+- [x] Document/cotisation tabs on member detail + Ma fiche + unit leader dashboard
+- [x] Dashboard warnings (expiring documents, unpaid cotisations)
+- [x] Settings: max file size, allowed file types, default cotisation amount, current année scoute
+- [x] File upload validation (size + type from settings)
+- [x] Unit-scoped access on all document/cotisation operations
+- [x] Members can upload own documents + view/download own cotisation receipts
+- [x] Regular members redirected to Ma fiche (no unit page access)
+- [x] New permissions: document_types.*, documents.*, cotisations.*
+- [x] SeedMissingPermissionsAsync — auto-patches existing security profiles on startup
+
+### Remaining
 - [ ] Audit log viewer
-- [ ] Documents workflow (Phase 2)
 - [ ] Badges system (Phase 3)
-- [ ] PDF exports (Phase 3)
+- [ ] PDF exports — unit/team lists, member cards (Phase 3)
 - [ ] Annual transition (Phase 4)

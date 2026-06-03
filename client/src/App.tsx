@@ -9,10 +9,12 @@ import UnitTypesPage from '@/pages/admin/unit-types'
 import UnitTypeDetailPage from '@/pages/admin/unit-type-detail'
 import RolesPage from '@/pages/admin/roles'
 import SettingsPage from '@/pages/admin/settings'
+import DocumentTypesPage from '@/pages/admin/document-types'
 import UnitsPage from '@/pages/units/index'
 import UnitDetailPage from '@/pages/units/detail'
 import MembersPage from '@/pages/members/index'
 import MemberDetailPage from '@/pages/members/detail'
+import UnitDocumentsPage from '@/pages/unit-documents'
 
 export default function App() {
   return (
@@ -28,10 +30,12 @@ export default function App() {
             <Route path="/units/:id" element={<UnitDetailPage />} />
             <Route path="/members" element={<MembersPage />} />
             <Route path="/members/:id" element={<MemberDetailPage />} />
+            <Route path="/unit-documents" element={<UnitDocumentsPage />} />
             <Route path="/admin/associations" element={<AssociationsPage />} />
             <Route path="/admin/unit-types" element={<UnitTypesPage />} />
             <Route path="/admin/unit-types/:id" element={<UnitTypeDetailPage />} />
             <Route path="/admin/roles" element={<RolesPage />} />
+            <Route path="/admin/document-types" element={<DocumentTypesPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
           </Route>
         </Route>

@@ -1,13 +1,85 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, Navigate } from 'react-router'
 import { useAuthStore } from '@/stores/auth-store'
+import { PERMISSIONS } from '@/lib/constants'
 import { useAdminDashboard } from '@/services/dashboard-service'
+import { useExpiringDocuments } from '@/services/document-service'
+import { useUnpaidCotisations } from '@/services/cotisation-service'
+import { useSettingValue } from '@/services/settings-service'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import UnitLeaderDashboard from '@/pages/dashboard-unit-leader'
-import { Users, Building2, UsersRound, ClipboardList } from 'lucide-react'
+import { Users, Building2, UsersRound, ClipboardList, AlertTriangle, FileText, Receipt } from 'lucide-react'
+
+function DashboardAlerts() {
+  const navigate = useNavigate()
+  const currentSchoolYear = useSettingValue('cotisation.current_school_year') ?? '2025-2026'
+  const { data: expiringDocs } = useExpiringDocuments(30)
+  const { data: unpaidMembers } = useUnpaidCotisations(currentSchoolYear)
+
+  const hasAlerts = (expiringDocs && expiringDocs.length > 0) || (unpaidMembers && unpaidMembers.length > 0)
+  if (!hasAlerts) return null
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {expiringDocs && expiringDocs.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base text-orange-700">
+              <AlertTriangle className="h-4 w-4" />
+              Documents ({expiringDocs.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1.5 max-h-48 overflow-auto">
+              {expiringDocs.map(doc => (
+                <div key={doc.documentId}
+                  className="flex items-center gap-2 text-sm cursor-pointer hover:underline"
+                  onClick={() => navigate(`/members/${doc.memberId}`)}
+                >
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{doc.memberName}</span>
+                  <span className="text-muted-foreground">—</span>
+                  <span className="truncate text-muted-foreground">{doc.title}</span>
+                  <Badge variant={doc.isExpired ? 'destructive' : 'outline'} className="ml-auto shrink-0 text-xs">
+                    {doc.isExpired ? 'Expiré' : new Date(doc.expiryDate).toLocaleDateString('fr-FR')}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {unpaidMembers && unpaidMembers.length > 0 && (
+        <Card className="border-red-200 bg-red-50/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base text-red-700">
+              <Receipt className="h-4 w-4" />
+              Cotisations impayées ({unpaidMembers.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1.5 max-h-48 overflow-auto">
+              {unpaidMembers.map(m => (
+                <div key={m.memberId}
+                  className="flex items-center gap-2 text-sm cursor-pointer hover:underline"
+                  onClick={() => navigate(`/members/${m.memberId}`)}
+                >
+                  <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{m.memberName}</span>
+                  <span className="ml-auto shrink-0 text-xs text-muted-foreground">{m.unitName}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
 
 function AdminDashboard() {
   const navigate = useNavigate()
@@ -59,6 +131,8 @@ function AdminDashboard() {
         </Card>
       </div>
 
+      <DashboardAlerts />
+
       <Card>
         <CardHeader><CardTitle>Unités</CardTitle></CardHeader>
         <CardContent>
@@ -86,7 +160,7 @@ function AdminDashboard() {
 }
 
 export default function DashboardPage() {
-  const user = useAuthStore((s) => s.user)
+  const { user, hasPermission } = useAuthStore()
   const [selectedUnit, setSelectedUnit] = useState<string>('')
 
   if (!user) return <LoadingSpinner />
@@ -96,8 +170,10 @@ export default function DashboardPage() {
     return <AdminDashboard />
   }
 
+  const isUnitLeader = hasPermission(PERMISSIONS.UNITS_EDIT)
+
   // Unit leader with multiple units → unit picker + unit dashboard
-  if (user.unitAccess.length > 1) {
+  if (isUnitLeader && user.unitAccess.length > 1) {
     const unitId = selectedUnit || user.unitAccess[0]?.unitId
     return (
       <div className="space-y-4">
@@ -117,20 +193,10 @@ export default function DashboardPage() {
   }
 
   // Unit leader with single unit
-  if (user.unitAccess.length === 1) {
+  if (isUnitLeader && user.unitAccess.length === 1) {
     return <UnitLeaderDashboard unitId={user.unitAccess[0].unitId} />
   }
 
-  // Regular member with no unit access
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Tableau de bord</h1>
-      <Card>
-        <CardContent className="pt-6 text-center">
-          <p className="text-lg font-medium">Bienvenue, {user.firstName} {user.lastName}</p>
-          <p className="text-sm text-muted-foreground mt-1">Vous n'êtes actuellement assigné à aucune unité.</p>
-        </CardContent>
-      </Card>
-    </div>
-  )
+  // Regular member → redirect to Ma fiche
+  return <Navigate to="/my-profile" replace />
 }

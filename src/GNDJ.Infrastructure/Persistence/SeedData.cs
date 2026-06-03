@@ -22,14 +22,18 @@ public static class SeedData
             Permissions.TeamsView, Permissions.TeamsCreate, Permissions.TeamsEdit, Permissions.TeamsDelete,
             Permissions.AssignmentsView, Permissions.AssignmentsCreate, Permissions.AssignmentsEdit, Permissions.AssignmentsDelete,
             Permissions.RelationshipsView, Permissions.RelationshipsCreate, Permissions.RelationshipsEdit, Permissions.RelationshipsDelete,
-            Permissions.RolesView
+            Permissions.RolesView,
+            Permissions.DocumentsView, Permissions.DocumentsCreate, Permissions.DocumentsEdit, Permissions.DocumentsDelete, Permissions.DocumentsApprove,
+            Permissions.CotisationsView, Permissions.CotisationsCreate, Permissions.CotisationsEdit, Permissions.CotisationsDelete
         ]);
         var chefEquipeProfile = CreateProfile("Chef d'équipe", "chef-equipe", "Gestion d'une équipe",
         [
             Permissions.MembersView,
             Permissions.TeamsView,
             Permissions.AssignmentsView,
-            Permissions.RelationshipsView
+            Permissions.RelationshipsView,
+            Permissions.DocumentsView,
+            Permissions.CotisationsView
         ]);
         var animateurProfile = CreateProfile("Animateur", "animateur", "Membre actif avec accès en lecture",
         [
@@ -114,6 +118,46 @@ public static class SeedData
         await context.SaveChangesAsync();
     }
 
+    public static async Task SeedMissingPermissionsAsync(GndjDbContext context)
+    {
+        // Define which permissions each profile should have for the new document/cotisation features
+        var profilePermissions = new Dictionary<string, string[]>
+        {
+            ["super-admin"] = Permissions.All,
+            ["association-admin"] = Permissions.All.Where(p => p != Permissions.AdminHardDelete).ToArray(),
+            ["chef-unite"] =
+            [
+                Permissions.DocumentsView, Permissions.DocumentsCreate, Permissions.DocumentsEdit, Permissions.DocumentsDelete, Permissions.DocumentsApprove,
+                Permissions.CotisationsView, Permissions.CotisationsCreate, Permissions.CotisationsEdit, Permissions.CotisationsDelete,
+                Permissions.DocumentTypesView
+            ],
+            ["chef-equipe"] = [Permissions.DocumentsView, Permissions.CotisationsView],
+            ["read-only"] = Permissions.All.Where(p => p.EndsWith(".view")).ToArray(),
+        };
+
+        foreach (var (code, permissions) in profilePermissions)
+        {
+            var profile = await context.SecurityProfiles
+                .Include(p => p.Permissions)
+                .FirstOrDefaultAsync(p => p.Code == code);
+            if (profile is null) continue;
+
+            var existingPerms = profile.Permissions.Select(p => p.Permission).ToHashSet();
+            var missing = permissions.Where(p => !existingPerms.Contains(p)).ToList();
+
+            foreach (var perm in missing)
+            {
+                context.SecurityProfilePermissions.Add(new SecurityProfilePermission
+                {
+                    SecurityProfileId = profile.Id,
+                    Permission = perm
+                });
+            }
+        }
+
+        await context.SaveChangesAsync();
+    }
+
     public static async Task SeedMissingSettingsAsync(GndjDbContext context)
     {
         var existingKeys = await context.Settings.Select(s => s.Key).ToListAsync();
@@ -125,6 +169,10 @@ public static class SeedData
             new() { Key = "default_country", Value = "Liban", Category = "members", Label = "Pays par défaut", Description = "Pays utilisé par défaut pour les nouvelles adresses", ValueType = "string" },
             new() { Key = "pinned_professions", Value = "[\"Médecin\",\"Ingénieur\",\"Avocat\",\"Enseignant\",\"Commerçant\"]", Category = "famille", Label = "Professions épinglées", Description = "Professions affichées en premier dans la liste de sélection des parents", ValueType = "json_array" },
             new() { Key = "user_domain", Value = "scouts.gndj", Category = "general", Label = "Domaine utilisateur", Description = "Domaine utilisé pour générer les noms d'utilisateur (ex: prenom.nom@domaine)", ValueType = "string" },
+            new() { Key = "documents.max_file_size_mb", Value = "5", Category = "documents", Label = "Taille maximale de fichier (Mo)", Description = "Taille maximale autorisée pour les documents téléchargés, en mégaoctets", ValueType = "number" },
+            new() { Key = "documents.allowed_file_types", Value = "[\"pdf\",\"jpg\",\"jpeg\",\"png\"]", Category = "documents", Label = "Types de fichiers autorisés", Description = "Extensions de fichiers autorisées pour les documents", ValueType = "json_array" },
+            new() { Key = "cotisation.default_amount", Value = "100", Category = "cotisations", Label = "Montant de cotisation par défaut", Description = "Montant par défaut pour les nouvelles cotisations (en USD)", ValueType = "number" },
+            new() { Key = "cotisation.current_school_year", Value = "2025-2026", Category = "cotisations", Label = "Année scoute en cours", Description = "Année scoute utilisée par défaut pour les nouvelles cotisations", ValueType = "string" },
         };
 
         var missing = allSettings.Where(s => !existingKeys.Contains(s.Key)).ToList();
