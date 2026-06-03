@@ -138,6 +138,24 @@ public class DeleteScoutStageCommandHandler(IApplicationDbContext context, IAudi
     }
 }
 
+// Reorder stages
+public record ReorderScoutStagesCommand(List<Guid> OrderedIds) : IRequest<Result<bool>>;
+
+public class ReorderScoutStagesCommandHandler(IApplicationDbContext context) : IRequestHandler<ReorderScoutStagesCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(ReorderScoutStagesCommand request, CancellationToken ct)
+    {
+        var stages = await context.ScoutStages.Where(s => request.OrderedIds.Contains(s.Id)).ToListAsync(ct);
+        for (var i = 0; i < request.OrderedIds.Count; i++)
+        {
+            var stage = stages.FirstOrDefault(s => s.Id == request.OrderedIds[i]);
+            if (stage is not null) stage.DisplayOrder = i;
+        }
+        await context.SaveChangesAsync(ct);
+        return Result<bool>.Success(true);
+    }
+}
+
 // ─── Badge CRUD ────────────────────────────
 
 public record GetBadgesQuery(Guid? UnitTypeId) : IRequest<IReadOnlyList<BadgeDto>>;
@@ -246,6 +264,24 @@ public class DeleteBadgeCommandHandler(IApplicationDbContext context, IAuditServ
         context.Badges.Remove(entity);
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Delete", "Badge", entity.Id, oldValues: new { entity.Code, entity.Name }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
+// Reorder badges
+public record ReorderBadgesCommand(List<Guid> OrderedIds) : IRequest<Result<bool>>;
+
+public class ReorderBadgesCommandHandler(IApplicationDbContext context) : IRequestHandler<ReorderBadgesCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(ReorderBadgesCommand request, CancellationToken ct)
+    {
+        var badges = await context.Badges.Where(b => request.OrderedIds.Contains(b.Id)).ToListAsync(ct);
+        for (var i = 0; i < request.OrderedIds.Count; i++)
+        {
+            var badge = badges.FirstOrDefault(b => b.Id == request.OrderedIds[i]);
+            if (badge is not null) badge.DisplayOrder = i;
+        }
+        await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);
     }
 }

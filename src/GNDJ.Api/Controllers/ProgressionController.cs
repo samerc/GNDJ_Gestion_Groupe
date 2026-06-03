@@ -55,6 +55,15 @@ public class ScoutStagesController : BaseApiController
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return NoContent();
     }
+
+    [HttpPut("reorder")]
+    [HasPermission(Permissions.ProgressionManage)]
+    public async Task<IActionResult> Reorder([FromBody] ReorderScoutStagesCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
 }
 
 // ─── Badges ────────────────────────────────
@@ -103,6 +112,15 @@ public class BadgesController : BaseApiController
     public async Task<IActionResult> Delete(Guid id)
     {
         var result = await Mediator.Send(new DeleteBadgeCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    [HttpPut("reorder")]
+    [HasPermission(Permissions.ProgressionManage)]
+    public async Task<IActionResult> Reorder([FromBody] ReorderBadgesCommand command)
+    {
+        var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return NoContent();
     }

@@ -48,6 +48,14 @@ export function useDeleteScoutStage() {
   })
 }
 
+export function useReorderScoutStages() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (orderedIds: string[]) => apiClient.put('/scout-stages/reorder', { orderedIds }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['scout-stages'] }),
+  })
+}
+
 // ─── Badges ────────────────────────────────
 export interface BadgeDto {
   id: string; unitTypeId: string; unitTypeName: string; code: string; name: string
@@ -91,6 +99,14 @@ export function useDeleteBadge() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiClient.delete(`/badges/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['badges'] }),
+  })
+}
+
+export function useReorderBadges() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (orderedIds: string[]) => apiClient.put('/badges/reorder', { orderedIds }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['badges'] }),
   })
 }
