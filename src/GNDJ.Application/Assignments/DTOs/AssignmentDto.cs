@@ -7,6 +7,7 @@ public record AssignmentDto(
     string MemberLastName,
     Guid UnitId,
     string UnitName,
+    Guid UnitTypeId,
     Guid? TeamId,
     string? TeamName,
     Guid FunctionalRoleId,

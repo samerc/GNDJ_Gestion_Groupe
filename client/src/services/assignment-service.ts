@@ -9,6 +9,7 @@ export interface AssignmentDto {
   memberLastName: string
   unitId: string
   unitName: string
+  unitTypeId: string
   teamId: string | null
   teamName: string | null
   functionalRoleId: string

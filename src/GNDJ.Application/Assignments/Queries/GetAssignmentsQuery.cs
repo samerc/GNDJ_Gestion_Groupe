@@ -56,7 +56,7 @@ public class GetAssignmentsQueryHandler : IRequestHandler<GetAssignmentsQuery, P
             .ThenByDescending(a => a.StartDate)
             .Select(a => new AssignmentDto(
                 a.Id, a.MemberId, a.Member.FirstName, a.Member.LastName,
-                a.UnitId, a.Unit.Name,
+                a.UnitId, a.Unit.Name, a.Unit.UnitTypeId,
                 a.TeamId, a.Team != null ? a.Team.Name : null,
                 a.FunctionalRoleId, a.FunctionalRole.Name,
                 a.StartDate, a.EndDate, a.Notes,

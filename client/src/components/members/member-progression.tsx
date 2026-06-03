@@ -1,6 +1,7 @@
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
 import { useMemberProgressions, useCreateProgression, useDeleteProgression, useScoutStageList, useBadgeList, type MemberProgressionDto } from '@/services/progression-service'
+import { useAssignments } from '@/services/assignment-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
@@ -20,9 +21,16 @@ interface Props {
   unitTypeId?: string  // to load stages/badges for the right unit type
 }
 
-export function MemberProgression({ memberId, unitId, unitTypeId }: Props) {
+export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: propUnitTypeId }: Props) {
   const { hasPermission } = useAuthStore()
   const { data: progressions, isLoading } = useMemberProgressions(memberId)
+
+  // Auto-resolve unitId/unitTypeId from active assignment if not provided
+  const { data: assignmentsData } = useAssignments({ memberId, isActive: true, pageSize: 1 })
+  const activeAssignment = assignmentsData?.items[0]
+  const unitId = propUnitId ?? activeAssignment?.unitId
+  const unitTypeId = propUnitTypeId ?? activeAssignment?.unitTypeId
+
   const { data: stages } = useScoutStageList(unitTypeId ?? '')
   const createMutation = useCreateProgression(memberId)
   const deleteMutation = useDeleteProgression(memberId)
