@@ -20,6 +20,7 @@ import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
+import { MemberProgression } from '@/components/members/member-progression'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS } from '@/lib/options'
 import { cn } from '@/lib/utils'
 import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin } from 'lucide-react'
@@ -68,6 +69,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
           <TabsTrigger value="unites">Unités / Fonctions</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="cotisations">Cotisations</TabsTrigger>
+          <TabsTrigger value="progression">Progression</TabsTrigger>
           <TabsTrigger value="medical">Médical</TabsTrigger>
         </TabsList>
 
@@ -128,6 +130,10 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
 
           <TabsContent value="cotisations" className="mt-0">
             <MemberCotisations memberId={memberId} />
+          </TabsContent>
+
+          <TabsContent value="progression" className="mt-0">
+            <MemberProgression memberId={memberId} />
           </TabsContent>
 
           <TabsContent value="medical" className="mt-0">

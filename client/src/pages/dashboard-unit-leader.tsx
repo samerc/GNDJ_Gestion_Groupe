@@ -11,6 +11,7 @@ import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
+import { MemberProgression } from '@/components/members/member-progression'
 import { cn } from '@/lib/utils'
 import { Users, UsersRound, Search, Phone, Mail, MapPin, GripVertical } from 'lucide-react'
 
@@ -58,6 +59,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
           <TabsTrigger value="medical">Médical</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="cotisations">Cotisations</TabsTrigger>
+          <TabsTrigger value="progression">Progression</TabsTrigger>
         </TabsList>
 
         <div className="flex-1 overflow-auto p-4">
@@ -137,6 +139,10 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
 
           <TabsContent value="cotisations" className="mt-0">
             <MemberCotisations memberId={memberId} />
+          </TabsContent>
+
+          <TabsContent value="progression" className="mt-0">
+            <MemberProgression memberId={memberId} />
           </TabsContent>
         </div>
       </Tabs>

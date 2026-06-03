@@ -129,7 +129,14 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] Audit log viewer (read-only, filters by entity/action/date, detail dialog with old/new JSON values)
 - [x] Security profiles admin (list profiles, checklist permission editor per profile, group toggle)
 
+### Phase 3 — Progression & Badges (Complete)
+- [x] Scout stages (per unit type, ordered, isActive, isBadgeStage flag)
+- [x] Badges (per unit type, isActive, linked to badge-type stages)
+- [x] Member progressions (stage + optional badge, date, location, notes)
+- [x] Admin page: Progression scoute (tabbed: Étapes / Badges, filtered by unit type)
+- [x] Progression tab on member detail, CU dashboard, Ma fiche
+- [x] New permissions: progression.view, progression.manage
+
 ### Remaining
-- [ ] Badges system (Phase 3)
-- [ ] PDF exports — unit/team lists, member cards (Phase 3)
+- [ ] PDF exports — unit/team lists, member cards
 - [ ] Annual transition (Phase 4)

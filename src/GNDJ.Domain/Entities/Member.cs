@@ -27,4 +27,5 @@ public class Member : BaseEntity
     public ICollection<MemberRelationship> InverseRelationships { get; set; } = [];
     public ICollection<MemberDocument> Documents { get; set; } = [];
     public ICollection<MemberCotisation> Cotisations { get; set; } = [];
+    public ICollection<MemberProgression> Progressions { get; set; } = [];
 }

@@ -38,6 +38,8 @@ export const PERMISSIONS = {
   COTISATIONS_CREATE: 'cotisations.create',
   COTISATIONS_EDIT: 'cotisations.edit',
   COTISATIONS_DELETE: 'cotisations.delete',
+  PROGRESSION_VIEW: 'progression.view',
+  PROGRESSION_MANAGE: 'progression.manage',
   AUDIT_VIEW: 'audit.view',
   ADMIN_HARD_DELETE: 'admin.hard_delete',
 } as const

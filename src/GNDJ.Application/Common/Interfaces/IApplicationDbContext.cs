@@ -28,6 +28,9 @@ public interface IApplicationDbContext
     DbSet<DocumentType> DocumentTypes { get; }
     DbSet<MemberDocument> MemberDocuments { get; }
     DbSet<MemberCotisation> MemberCotisations { get; }
+    DbSet<ScoutStage> ScoutStages { get; }
+    DbSet<Badge> Badges { get; }
+    DbSet<MemberProgression> MemberProgressions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

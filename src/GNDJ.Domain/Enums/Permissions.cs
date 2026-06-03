@@ -50,6 +50,9 @@ public static class Permissions
     public const string CotisationsEdit = "cotisations.edit";
     public const string CotisationsDelete = "cotisations.delete";
 
+    public const string ProgressionView = "progression.view";
+    public const string ProgressionManage = "progression.manage";
+
     public const string AuditView = "audit.view";
     public const string AdminHardDelete = "admin.hard_delete";
 
@@ -66,6 +69,7 @@ public static class Permissions
         DocumentTypesView, DocumentTypesManage,
         DocumentsView, DocumentsCreate, DocumentsEdit, DocumentsDelete, DocumentsApprove,
         CotisationsView, CotisationsCreate, CotisationsEdit, CotisationsDelete,
+        ProgressionView, ProgressionManage,
         AuditView, AdminHardDelete
     ];
 }

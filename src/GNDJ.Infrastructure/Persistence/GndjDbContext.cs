@@ -31,6 +31,9 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
     public DbSet<MemberDocument> MemberDocuments => Set<MemberDocument>();
     public DbSet<MemberCotisation> MemberCotisations => Set<MemberCotisation>();
+    public DbSet<ScoutStage> ScoutStages => Set<ScoutStage>();
+    public DbSet<Badge> Badges => Set<Badge>();
+    public DbSet<MemberProgression> MemberProgressions => Set<MemberProgression>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

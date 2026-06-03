@@ -16,6 +16,7 @@ import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
+import { MemberProgression } from '@/components/members/member-progression'
 import { useSettingArray, useSettingValue } from '@/services/settings-service'
 import { parseApiError } from '@/lib/error-utils'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
@@ -121,6 +122,7 @@ export default function MyProfilePage() {
           <TabsTrigger value="medical">Médical</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="cotisations">Cotisations</TabsTrigger>
+          <TabsTrigger value="progression">Progression</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-4">
@@ -193,6 +195,10 @@ export default function MyProfilePage() {
 
         <TabsContent value="cotisations">
           <MemberCotisations memberId={memberId} />
+        </TabsContent>
+
+        <TabsContent value="progression">
+          <MemberProgression memberId={memberId} />
         </TabsContent>
 
         <TabsContent value="medical" className="space-y-4">

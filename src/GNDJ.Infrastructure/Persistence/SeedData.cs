@@ -129,9 +129,10 @@ public static class SeedData
             [
                 Permissions.DocumentsView, Permissions.DocumentsCreate, Permissions.DocumentsEdit, Permissions.DocumentsDelete, Permissions.DocumentsApprove,
                 Permissions.CotisationsView, Permissions.CotisationsCreate, Permissions.CotisationsEdit, Permissions.CotisationsDelete,
-                Permissions.DocumentTypesView
+                Permissions.DocumentTypesView,
+                Permissions.ProgressionView, Permissions.ProgressionManage
             ],
-            ["chef-equipe"] = [Permissions.DocumentsView, Permissions.CotisationsView],
+            ["chef-equipe"] = [Permissions.DocumentsView, Permissions.CotisationsView, Permissions.ProgressionView],
             ["read-only"] = Permissions.All.Where(p => p.EndsWith(".view")).ToArray(),
         };
 
