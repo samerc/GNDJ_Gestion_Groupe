@@ -16,9 +16,9 @@ public class DashboardController : BaseApiController
     }
 
     [HttpGet("admin")]
-    public async Task<IActionResult> GetAdminDashboard()
+    public async Task<IActionResult> GetAdminDashboard([FromQuery] string schoolYear = "2025-2026")
     {
-        var result = await Mediator.Send(new GetAdminDashboardQuery());
+        var result = await Mediator.Send(new GetAdminDashboardQuery(schoolYear));
         return Ok(result);
     }
 }

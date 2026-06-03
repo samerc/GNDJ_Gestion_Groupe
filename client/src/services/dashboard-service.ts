@@ -18,11 +18,18 @@ export interface UnitDashboardDto {
   teams: TeamRosterDto[]; unassignedMembers: RosterMemberDto[]
 }
 
-export interface UnitSummaryDto { id: string; name: string; unitTypeName: string; memberCount: number; teamCount: number; isActive: boolean }
+export interface UnitBreakdownDto { unitCode: string; unitName: string; memberCount: number; docCompliance: number }
+export interface AgeGroupDto { label: string; count: number }
 
 export interface AdminDashboardDto {
-  totalMembers: number; totalUnits: number; totalTeams: number; activeAssignments: number
-  units: UnitSummaryDto[]
+  totalMembers: number
+  boys: number
+  girls: number
+  membersWithoutUnit: number
+  unpaidCotisations: number
+  missingDocuments: number
+  unitBreakdown: UnitBreakdownDto[]
+  ageGroups: AgeGroupDto[]
 }
 
 export function useUnitDashboard(unitId: string | undefined) {
@@ -33,9 +40,9 @@ export function useUnitDashboard(unitId: string | undefined) {
   })
 }
 
-export function useAdminDashboard() {
+export function useAdminDashboard(schoolYear: string) {
   return useQuery({
-    queryKey: ['dashboard', 'admin'],
-    queryFn: () => apiClient.get<AdminDashboardDto>('/dashboard/admin').then(r => r.data),
+    queryKey: ['dashboard', 'admin', schoolYear],
+    queryFn: () => apiClient.get<AdminDashboardDto>('/dashboard/admin', { params: { schoolYear } }).then(r => r.data),
   })
 }

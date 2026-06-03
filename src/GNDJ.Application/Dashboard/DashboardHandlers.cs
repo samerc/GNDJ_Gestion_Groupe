@@ -118,15 +118,19 @@ public class GetUnitDashboardQueryHandler : IRequestHandler<GetUnitDashboardQuer
 // Summary for super admin / overview
 public record AdminDashboardDto(
     int TotalMembers,
-    int TotalUnits,
-    int TotalTeams,
-    int ActiveAssignments,
-    IReadOnlyList<UnitSummaryDto> Units
+    int Boys,
+    int Girls,
+    int MembersWithoutUnit,
+    int UnpaidCotisations,
+    int MissingDocuments,
+    IReadOnlyList<UnitBreakdownDto> UnitBreakdown,
+    IReadOnlyList<AgeGroupDto> AgeGroups
 );
 
-public record UnitSummaryDto(Guid Id, string Name, string UnitTypeName, int MemberCount, int TeamCount, bool IsActive);
+public record UnitBreakdownDto(string UnitCode, string UnitName, int MemberCount, int DocCompliance);
+public record AgeGroupDto(string Label, int Count);
 
-public record GetAdminDashboardQuery : IRequest<AdminDashboardDto>;
+public record GetAdminDashboardQuery(string SchoolYear) : IRequest<AdminDashboardDto>;
 
 public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQuery, AdminDashboardDto>
 {
@@ -136,21 +140,81 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
 
     public async ValueTask<AdminDashboardDto> Handle(GetAdminDashboardQuery request, CancellationToken cancellationToken)
     {
-        var totalMembers = await _context.Members.CountAsync(cancellationToken);
-        var totalUnits = await _context.Units.CountAsync(u => u.IsActive, cancellationToken);
-        var totalTeams = await _context.Teams.CountAsync(cancellationToken);
-        var activeAssignments = await _context.MemberAssignments.CountAsync(a => a.EndDate == null, cancellationToken);
+        var ct = cancellationToken;
 
+        // All members
+        var members = await _context.Members
+            .Select(m => new { m.Id, m.Gender, m.DateOfBirth, HasActiveAssignment = m.Assignments.Any(a => a.EndDate == null) })
+            .ToListAsync(ct);
+
+        var totalMembers = members.Count;
+        var boys = members.Count(m => m.Gender == "Masculin");
+        var girls = members.Count(m => m.Gender == "Féminin");
+        var withoutUnit = members.Count(m => !m.HasActiveAssignment);
+
+        // Active member IDs (have current assignment)
+        var activeMemberIds = members.Where(m => m.HasActiveAssignment).Select(m => m.Id).ToHashSet();
+
+        // Unpaid cotisations
+        var paidMemberIds = await _context.MemberCotisations
+            .Where(c => c.SchoolYear == request.SchoolYear)
+            .Select(c => c.MemberId)
+            .ToListAsync(ct);
+        var unpaidCotisations = activeMemberIds.Count(id => !paidMemberIds.Contains(id));
+
+        // Missing documents: active members who are missing at least one active doc type
+        var activeDocTypeCount = await _context.DocumentTypes.CountAsync(dt => dt.IsActive, ct);
+        var membersWithAllDocs = 0;
+        if (activeDocTypeCount > 0)
+        {
+            var memberDocCounts = await _context.MemberDocuments
+                .Where(d => activeMemberIds.Contains(d.MemberId) && d.DocumentType.IsActive)
+                .GroupBy(d => d.MemberId)
+                .Select(g => new { MemberId = g.Key, Count = g.Select(d => d.DocumentTypeId).Distinct().Count() })
+                .ToListAsync(ct);
+            membersWithAllDocs = memberDocCounts.Count(m => m.Count >= activeDocTypeCount);
+        }
+        var missingDocuments = activeMemberIds.Count - membersWithAllDocs;
+
+        // Unit breakdown with doc compliance
         var units = await _context.Units
+            .Where(u => u.IsActive)
             .OrderBy(u => u.Name)
-            .Select(u => new UnitSummaryDto(
-                u.Id, u.Name, u.UnitType.Name,
-                u.Assignments.Count(a => !a.IsDeleted && a.EndDate == null),
-                u.Teams.Count(t => !t.IsDeleted),
-                u.IsActive
-            ))
-            .ToListAsync(cancellationToken);
+            .Select(u => new
+            {
+                u.Code, u.Name,
+                MemberCount = u.Assignments.Count(a => a.EndDate == null),
+                MemberIds = u.Assignments.Where(a => a.EndDate == null).Select(a => a.MemberId).ToList()
+            })
+            .ToListAsync(ct);
 
-        return new AdminDashboardDto(totalMembers, totalUnits, totalTeams, activeAssignments, units);
+        var allUnitMemberIds = units.SelectMany(u => u.MemberIds).Distinct().ToList();
+        var docCountsByMember = await _context.MemberDocuments
+            .Where(d => allUnitMemberIds.Contains(d.MemberId) && d.DocumentType.IsActive)
+            .GroupBy(d => d.MemberId)
+            .Select(g => new { MemberId = g.Key, TypeCount = g.Select(d => d.DocumentTypeId).Distinct().Count() })
+            .ToDictionaryAsync(g => g.MemberId, g => g.TypeCount, ct);
+
+        var unitBreakdown = units.Select(u =>
+        {
+            var compliant = activeDocTypeCount > 0
+                ? u.MemberIds.Count(mid => docCountsByMember.GetValueOrDefault(mid, 0) >= activeDocTypeCount)
+                : u.MemberCount;
+            var pct = u.MemberCount > 0 ? (int)Math.Round(100.0 * compliant / u.MemberCount) : 100;
+            return new UnitBreakdownDto(u.Code, u.Name, u.MemberCount, pct);
+        }).ToList();
+
+        // Age groups
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var ageGroups = new List<AgeGroupDto>();
+        var withDob = members.Where(m => m.DateOfBirth.HasValue && m.HasActiveAssignment).ToList();
+        var ages = withDob.Select(m => today.Year - m.DateOfBirth!.Value.Year - (today.DayOfYear < m.DateOfBirth.Value.DayOfYear ? 1 : 0)).ToList();
+        ageGroups.Add(new AgeGroupDto("7-10 ans", ages.Count(a => a >= 7 && a <= 10)));
+        ageGroups.Add(new AgeGroupDto("11-14 ans", ages.Count(a => a >= 11 && a <= 14)));
+        ageGroups.Add(new AgeGroupDto("15-17 ans", ages.Count(a => a >= 15 && a <= 17)));
+        ageGroups.Add(new AgeGroupDto("18-21 ans", ages.Count(a => a >= 18 && a <= 21)));
+        ageGroups.Add(new AgeGroupDto("22+ ans", ages.Count(a => a >= 22)));
+
+        return new AdminDashboardDto(totalMembers, boys, girls, withoutUnit, unpaidCotisations, missingDocuments, unitBreakdown, ageGroups);
     }
 }
