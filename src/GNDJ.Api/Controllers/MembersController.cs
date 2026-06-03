@@ -22,9 +22,10 @@ public class MembersController : BaseApiController
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search, [FromQuery] Guid? unitId, [FromQuery] Guid? teamId,
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        [FromQuery] bool? noUnit, [FromQuery] string? sortBy, [FromQuery] string? sortDir,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        var result = await Mediator.Send(new GetMembersQuery(search, unitId, teamId, page, pageSize));
+        var result = await Mediator.Send(new GetMembersQuery(search, unitId, teamId, noUnit, sortBy, sortDir, page, pageSize));
         return Ok(result);
     }
 

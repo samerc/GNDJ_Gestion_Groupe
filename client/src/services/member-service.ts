@@ -12,6 +12,8 @@ export interface MemberListDto {
   primaryEmail: string | null
   primaryPhone: string | null
   photoPath: string | null
+  unitName: string | null
+  teamName: string | null
 }
 
 export interface MemberDetailDto {
@@ -53,7 +55,7 @@ export interface MemberFormData {
   notes?: string | null
 }
 
-export function useMembers(params: { search?: string; unitId?: string; teamId?: string; page?: number; pageSize?: number }) {
+export function useMembers(params: { search?: string; unitId?: string; teamId?: string; noUnit?: boolean; sortBy?: string; sortDir?: string; page?: number; pageSize?: number }) {
   return useQuery({
     queryKey: ['members', params],
     queryFn: () => apiClient.get<PaginatedResult<MemberListDto>>('/members', { params }).then(r => r.data),

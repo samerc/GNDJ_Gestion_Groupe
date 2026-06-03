@@ -1,44 +1,238 @@
 import { parseApiError } from '@/lib/error-utils'
-import { useState, useRef } from 'react'
-import { useNavigate } from 'react-router'
+import { useState, useRef, useCallback } from 'react'
+import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useMembers, useCreateMember, useDeleteMember, type MemberListDto, type MemberFormData } from '@/services/member-service'
-import { useDebounce } from '@/hooks/use-debounce'
+import { useMembers, useMember, useCreateMember, useDeleteMember, type MemberListDto, type MemberFormData } from '@/services/member-service'
+import { useUnits, type UnitListDto } from '@/services/unit-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RequiredLabel } from '@/components/shared/required-label'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { EmptyState } from '@/components/shared/empty-state'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { useSettingArray } from '@/services/settings-service'
+import { MemberAssignments } from '@/components/members/member-assignments'
+import { MemberGuardians } from '@/components/members/member-guardians'
+import { MemberDocuments } from '@/components/members/member-documents'
+import { MemberCotisations } from '@/components/members/member-cotisations'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS } from '@/lib/options'
-import { Plus, Trash2, Search, Users, Eye } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin } from 'lucide-react'
 
+function Field({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="text-sm font-medium">{value || '—'}</dd>
+    </div>
+  )
+}
+
+// ─── Member detail panel ─────────────────
+function MemberDetailPanel({ memberId }: { memberId: string }) {
+  const { data: member, isLoading } = useMember(memberId)
+
+  if (isLoading) return <div className="flex items-center justify-center h-full"><LoadingSpinner /></div>
+  if (!member) return null
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="shrink-0 border-b px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
+            {member.firstName[0]}{member.lastName[0]}
+          </div>
+          <div>
+            <h2 className="font-bold">{member.firstName} {member.lastName}</h2>
+            <p className="text-xs text-muted-foreground">
+              {member.cardNumber && `N° ${member.cardNumber}`}
+              {member.cardNumber && member.gender && ' — '}
+              {member.gender}
+              {member.dateOfBirth && ` — Né(e) le ${new Date(member.dateOfBirth).toLocaleDateString('fr-FR')}`}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <Tabs defaultValue="info" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="mx-4 mt-3 shrink-0 justify-start">
+          <TabsTrigger value="info">Informations</TabsTrigger>
+          <TabsTrigger value="contact">Contact</TabsTrigger>
+          <TabsTrigger value="famille">Famille</TabsTrigger>
+          <TabsTrigger value="unites">Unités / Fonctions</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="cotisations">Cotisations</TabsTrigger>
+          <TabsTrigger value="medical">Médical</TabsTrigger>
+        </TabsList>
+
+        <div className="flex-1 overflow-auto p-4">
+          <TabsContent value="info" className="mt-0">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <Field label="Prénom" value={member.firstName} />
+              <Field label="Nom" value={member.lastName} />
+              <Field label="Date de naissance" value={member.dateOfBirth ? new Date(member.dateOfBirth).toLocaleDateString('fr-FR') : null} />
+              <Field label="Sexe" value={member.gender} />
+              <Field label="N° Carte" value={member.cardNumber} />
+              <Field label="Nationalité" value={member.nationality} />
+              <Field label="Groupe sanguin" value={member.bloodType} />
+              <Field label="École" value={member.school} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="contact" className="mt-0">
+            <div className="grid gap-6 xl:grid-cols-3">
+              <div>
+                <h4 className="font-medium flex items-center gap-1.5 mb-2 text-sm"><Phone className="h-3.5 w-3.5" />Téléphones</h4>
+                {member.phones.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
+                  <div className="space-y-1.5">{member.phones.map(p => (
+                    <p key={p.id} className="text-sm">{p.countryCode} {p.number} <span className="text-muted-foreground">({p.type})</span></p>
+                  ))}</div>
+                )}
+              </div>
+              <div>
+                <h4 className="font-medium flex items-center gap-1.5 mb-2 text-sm"><Mail className="h-3.5 w-3.5" />Courriels</h4>
+                {member.emails.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
+                  <div className="space-y-1.5">{member.emails.map(e => (
+                    <p key={e.id} className="text-sm">{e.address} <span className="text-muted-foreground">({e.type})</span></p>
+                  ))}</div>
+                )}
+              </div>
+              <div>
+                <h4 className="font-medium flex items-center gap-1.5 mb-2 text-sm"><MapPin className="h-3.5 w-3.5" />Adresses</h4>
+                {member.addresses.length === 0 ? <p className="text-sm text-muted-foreground">Aucune</p> : (
+                  <div className="space-y-1.5">{member.addresses.map(a => (
+                    <p key={a.id} className="text-sm">{a.city}, {a.country} <span className="text-muted-foreground">({a.type})</span></p>
+                  ))}</div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="famille" className="mt-0">
+            <MemberGuardians memberId={memberId} />
+          </TabsContent>
+
+          <TabsContent value="unites" className="mt-0">
+            <MemberAssignments memberId={memberId} memberName="" />
+          </TabsContent>
+
+          <TabsContent value="documents" className="mt-0">
+            <MemberDocuments memberId={memberId} />
+          </TabsContent>
+
+          <TabsContent value="cotisations" className="mt-0">
+            <MemberCotisations memberId={memberId} />
+          </TabsContent>
+
+          <TabsContent value="medical" className="mt-0">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Groupe sanguin" value={member.bloodType} />
+              <Field label="Allergies" value={member.allergies} />
+              <Field label="Notes médicales" value={member.medicalNotes} />
+              <Field label="Notes générales" value={member.notes} />
+            </div>
+          </TabsContent>
+        </div>
+      </Tabs>
+    </div>
+  )
+}
+
+// ─── Drag handle ─────────────────────────
+function DragHandle({ onDrag }: { onDrag: (deltaX: number) => void }) {
+  const dragging = useRef(false)
+  const lastX = useRef(0)
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    dragging.current = true
+    lastX.current = e.clientX
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!dragging.current) return
+      onDrag(ev.clientX - lastX.current)
+      lastX.current = ev.clientX
+    }
+    const onMouseUp = () => {
+      dragging.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }, [onDrag])
+
+  return (
+    <div className="w-2 shrink-0 cursor-col-resize flex items-center justify-center bg-border/50 hover:bg-border transition-colors" onMouseDown={onMouseDown}>
+      <GripVertical className="h-4 w-4 text-muted-foreground/50" />
+    </div>
+  )
+}
+
+// ─── Sort header helper ──────────────────
+function SortHeader({ label, field, current, dir, onSort }: { label: string; field: string; current: string; dir: string; onSort: (f: string) => void }) {
+  const active = current === field
+  return (
+    <button className="flex items-center gap-1 text-xs font-medium hover:text-foreground transition-colors" onClick={() => onSort(field)}>
+      {label}
+      {active ? (dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+    </button>
+  )
+}
+
+// ─── Main page ───────────────────────────
 export default function MembersPage() {
-  const navigate = useNavigate()
   const pinnedNationalities = useSettingArray('pinned_nationalities')
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
   const [page, setPage] = useState(1)
+  const [unitFilter, setUnitFilter] = useState<string>('all')
+  const [sortBy, setSortBy] = useState('lastname')
+  const [sortDir, setSortDir] = useState('asc')
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
+  const [leftWidth, setLeftWidth] = useState(420)
+
+  // Create dialog
   const [formOpen, setFormOpen] = useState(false)
   const [credentialsDialog, setCredentialsDialog] = useState<{ username: string; password: string; memberId: string } | null>(null)
-  const [deleting, setDeleting] = useState<MemberListDto | null>(null)
   const [form, setForm] = useState<MemberFormData>({ firstName: '', lastName: '' })
   const [error, setError] = useState('')
   const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
-  const hasLoadedOnce = useRef(false)
 
-  const { data, isLoading } = useMembers({ search: debouncedSearch || undefined, page })
+  const handleDrag = useCallback((deltaX: number) => {
+    setLeftWidth(w => Math.max(300, Math.min(600, w + deltaX)))
+  }, [])
+
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(field)
+      setSortDir('asc')
+    }
+    setPage(1)
+  }
+
+  const unitId = unitFilter === 'all' || unitFilter === 'none' ? undefined : unitFilter
+  const noUnit = unitFilter === 'none' ? true : undefined
+
+  const { data: units } = useUnits({ pageSize: 100 })
+  const { data, isLoading } = useMembers({
+    search: debouncedSearch || undefined,
+    unitId, noUnit,
+    sortBy, sortDir,
+    page, pageSize: 50,
+  })
+
   const createMutation = useCreateMember()
-  const deleteMutation = useDeleteMember()
-
-  if (data && data.totalCount > 0) hasLoadedOnce.current = true
-  const showSearch = hasLoadedOnce.current || (data && data.totalCount > 0)
 
   const openCreate = () => {
     setForm({ firstName: '', lastName: '', dateOfBirth: '', gender: '', cardNumber: '', bloodType: '', nationality: '', school: '' })
@@ -51,15 +245,7 @@ export default function MembersPage() {
     setError('')
     if (!validate({ firstName: !form.firstName, lastName: !form.lastName })) return
     try {
-      const payload = {
-        ...form,
-        dateOfBirth: form.dateOfBirth || null,
-        gender: form.gender || null,
-        cardNumber: form.cardNumber || null,
-        bloodType: form.bloodType || null,
-        nationality: form.nationality || null,
-        school: form.school || null,
-      }
+      const payload = { ...form, dateOfBirth: form.dateOfBirth || null, gender: form.gender || null, cardNumber: form.cardNumber || null, bloodType: form.bloodType || null, nationality: form.nationality || null, school: form.school || null }
       const result = await createMutation.mutateAsync(payload)
       setFormOpen(false)
       setCredentialsDialog({ username: result.username, password: result.temporaryPassword, memberId: result.memberId })
@@ -68,109 +254,105 @@ export default function MembersPage() {
     }
   }
 
-  const handleDelete = async () => {
-    if (!deleting) return
-    try {
-      await deleteMutation.mutateAsync(deleting.id)
-      setDeleting(null)
-    } catch (err) {
-      setError(parseApiError(err))
-      setDeleting(null)
-    }
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Membres</h1>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouveau membre
-        </Button>
+    <div className="flex flex-col h-[calc(100vh-8rem)]">
+      {/* Top bar */}
+      <div className="shrink-0 space-y-3 pb-3">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold">Membres</h1>
+          <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />Nouveau membre</Button>
+        </div>
+        <div className="flex gap-2">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Rechercher par nom, prénom ou carte..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-8 h-8 text-sm" />
+          </div>
+          <Select value={unitFilter} onValueChange={(v) => { setUnitFilter(v); setPage(1) }}>
+            <SelectTrigger className="w-52 h-8 text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les unités</SelectItem>
+              {units?.items.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+              <SelectItem value="none">Sans unité (anciens)</SelectItem>
+            </SelectContent>
+          </Select>
+          {data && <span className="flex items-center text-xs text-muted-foreground">{data.totalCount} membre{data.totalCount > 1 ? 's' : ''}</span>}
+        </div>
       </div>
 
-      {showSearch && (
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher par nom, prénom ou carte..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            className="pl-9"
-          />
-        </div>
-      )}
-
-      {isLoading ? (
-        <LoadingSpinner />
-      ) : !data || data.items.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title="Aucun membre"
-          description={search ? 'Aucun résultat pour cette recherche.' : 'Ajoutez votre premier membre.'}
-          action={!search && <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Ajouter</Button>}
-        />
-      ) : (
-        <>
-          <div className="rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Prénom</TableHead>
-                  <TableHead>Date de naissance</TableHead>
-                  <TableHead>N° Carte</TableHead>
-                  <TableHead>Courriel</TableHead>
-                  <TableHead>Téléphone</TableHead>
-                  <TableHead className="w-24" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.items.map((item) => (
-                  <TableRow key={item.id} className="cursor-pointer" onClick={() => navigate(`/members/${item.id}`)}>
-                    <TableCell className="font-medium">{item.lastName}</TableCell>
-                    <TableCell>{item.firstName}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {item.dateOfBirth ? new Date(item.dateOfBirth).toLocaleDateString('fr-FR') : '—'}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{item.cardNumber ?? '—'}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.primaryEmail ?? '—'}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.primaryPhone ?? '—'}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" onClick={() => navigate(`/members/${item.id}`)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleting(item)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+      {/* 2-column layout */}
+      <div className="flex flex-1 min-h-0 rounded-lg border overflow-hidden">
+        {/* Left: member list */}
+        <div className="flex flex-col shrink-0 overflow-hidden" style={{ width: leftWidth }}>
+          {/* Sortable header */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/40 text-muted-foreground shrink-0">
+            <div className="w-8" />
+            <div className="flex-1 min-w-0">
+              <SortHeader label="Nom" field="lastname" current={sortBy} dir={sortDir} onSort={handleSort} />
+            </div>
+            <div className="w-24 shrink-0">
+              <SortHeader label="Carte" field="cardnumber" current={sortBy} dir={sortDir} onSort={handleSort} />
+            </div>
+            <div className="w-28 shrink-0 hidden xl:block text-xs">Unité</div>
           </div>
 
-          {data.totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">{data.totalCount} résultat{data.totalCount > 1 ? 's' : ''}</p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={!data.hasPreviousPage} onClick={() => setPage(p => p - 1)}>Précédent</Button>
-                <span className="flex items-center text-sm text-muted-foreground">Page {data.page} / {data.totalPages}</span>
-                <Button variant="outline" size="sm" disabled={!data.hasNextPage} onClick={() => setPage(p => p + 1)}>Suivant</Button>
-              </div>
+          {/* List */}
+          <div className="flex-1 overflow-y-auto bg-muted/20">
+            {isLoading ? <div className="flex items-center justify-center h-full"><LoadingSpinner /></div> :
+             !data || data.items.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-sm text-muted-foreground p-4">Aucun membre trouvé</div>
+            ) : (
+              <>
+                {data.items.map(m => (
+                  <div
+                    key={m.id}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2.5 cursor-pointer border-b border-border/40 transition-colors',
+                      selectedMemberId === m.id ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-muted/60'
+                    )}
+                    onClick={() => setSelectedMemberId(m.id)}
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-medium shrink-0">
+                      {m.firstName[0]}{m.lastName[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{m.lastName} {m.firstName}</p>
+                      {m.dateOfBirth && <p className="text-[11px] text-muted-foreground">{new Date(m.dateOfBirth).toLocaleDateString('fr-FR')}</p>}
+                    </div>
+                    <div className="w-24 shrink-0 text-xs text-muted-foreground truncate">{m.cardNumber ?? '—'}</div>
+                    <div className="w-28 shrink-0 hidden xl:block text-[11px] text-muted-foreground truncate">{m.unitName ?? '—'}</div>
+                  </div>
+                ))}
+                {/* Pagination */}
+                {data.totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 p-2 border-t bg-muted/30">
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" disabled={!data.hasPreviousPage} onClick={() => setPage(p => p - 1)}>Préc.</Button>
+                    <span className="text-xs text-muted-foreground">{data.page}/{data.totalPages}</span>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" disabled={!data.hasNextPage} onClick={() => setPage(p => p + 1)}>Suiv.</Button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        <DragHandle onDrag={handleDrag} />
+
+        {/* Right: member detail */}
+        <div className="flex-1 min-w-0 overflow-hidden bg-background">
+          {selectedMemberId ? (
+            <MemberDetailPanel memberId={selectedMemberId} />
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              Sélectionnez un membre pour afficher sa fiche.
             </div>
           )}
-        </>
-      )}
+        </div>
+      </div>
 
       {/* Create Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Nouveau membre</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Nouveau membre</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
             <FormFieldErrors show={hasErrors} />
@@ -193,9 +375,7 @@ export default function MembersPage() {
                 <RequiredLabel>Sexe</RequiredLabel>
                 <Select value={form.gender ?? ''} onValueChange={(v) => setForm(f => ({ ...f, gender: v || null }))}>
                   <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                  <SelectContent>
-                    {GENDER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{GENDER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
@@ -206,13 +386,7 @@ export default function MembersPage() {
               </div>
               <div className="space-y-2">
                 <RequiredLabel>Nationalité</RequiredLabel>
-                <SearchableSelect
-                  value={form.nationality ?? ''}
-                  onValueChange={(v) => setForm(f => ({ ...f, nationality: v || null }))}
-                  options={NATIONALITY_OPTIONS}
-                  pinnedValues={pinnedNationalities}
-                  searchPlaceholder="Rechercher une nationalité..."
-                />
+                <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v || null }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher une nationalité..." />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -220,9 +394,7 @@ export default function MembersPage() {
                 <RequiredLabel>Groupe sanguin</RequiredLabel>
                 <Select value={form.bloodType ?? ''} onValueChange={(v) => setForm(f => ({ ...f, bloodType: v || null }))}>
                   <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                  <SelectContent>
-                    {BLOOD_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{BLOOD_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
@@ -232,48 +404,25 @@ export default function MembersPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Création...' : 'Créer et voir la fiche'}</Button>
+              <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Création...' : 'Créer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog
-        open={!!deleting}
-        onOpenChange={() => setDeleting(null)}
-        title="Supprimer le membre"
-        description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.firstName} ${deleting?.lastName} » ?`}
-        confirmLabel="Supprimer"
-        variant="destructive"
-        loading={deleteMutation.isPending}
-        onConfirm={handleDelete}
-      />
-
-      {/* Credentials dialog — shown after member creation */}
-      <Dialog open={!!credentialsDialog} onOpenChange={() => { if (credentialsDialog) navigate(`/members/${credentialsDialog.memberId}`); setCredentialsDialog(null) }}>
+      {/* Credentials dialog */}
+      <Dialog open={!!credentialsDialog} onOpenChange={() => { if (credentialsDialog) setSelectedMemberId(credentialsDialog.memberId); setCredentialsDialog(null) }}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Compte créé avec succès</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Compte créé avec succès</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Un compte utilisateur a été créé automatiquement. Notez ces informations — le mot de passe ne sera plus affiché.
-            </p>
+            <p className="text-sm text-muted-foreground">Un compte utilisateur a été créé automatiquement. Notez ces informations.</p>
             <div className="rounded-md bg-muted p-4 space-y-2 font-mono text-sm">
-              <div>
-                <span className="text-muted-foreground">Nom d'utilisateur : </span>
-                <span className="font-bold">{credentialsDialog?.username}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Mot de passe : </span>
-                <span className="font-bold">{credentialsDialog?.password}</span>
-              </div>
+              <div><span className="text-muted-foreground">Nom d'utilisateur : </span><span className="font-bold">{credentialsDialog?.username}</span></div>
+              <div><span className="text-muted-foreground">Mot de passe : </span><span className="font-bold">{credentialsDialog?.password}</span></div>
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => { if (credentialsDialog) navigate(`/members/${credentialsDialog.memberId}`); setCredentialsDialog(null) }}>
-              Voir la fiche du membre
-            </Button>
+            <Button onClick={() => { if (credentialsDialog) setSelectedMemberId(credentialsDialog.memberId); setCredentialsDialog(null) }}>Fermer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

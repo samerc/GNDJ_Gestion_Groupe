@@ -7,8 +7,9 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Members.Queries;
 
 public record GetMembersQuery(
-    string? Search, Guid? UnitId, Guid? TeamId,
-    int Page = 1, int PageSize = 20
+    string? Search, Guid? UnitId, Guid? TeamId, bool? NoUnit,
+    string? SortBy, string? SortDir,
+    int Page = 1, int PageSize = 50
 ) : IRequest<PaginatedList<MemberListDto>>;
 
 public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, PaginatedList<MemberListDto>>
@@ -33,7 +34,10 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
             query = query.Where(m => m.Assignments.Any(a => !a.IsDeleted && authorizedUnitIds.Contains(a.UnitId)));
         }
 
-        if (request.UnitId.HasValue)
+        // Filter: no active assignment (alumni)
+        if (request.NoUnit == true)
+            query = query.Where(m => !m.Assignments.Any(a => !a.IsDeleted && a.EndDate == null));
+        else if (request.UnitId.HasValue)
             query = query.Where(m => m.Assignments.Any(a => !a.IsDeleted && a.UnitId == request.UnitId.Value && a.EndDate == null));
 
         if (request.TeamId.HasValue)
@@ -48,12 +52,24 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
                 (m.CardNumber != null && m.CardNumber.ToLower().Contains(search)));
         }
 
-        var projected = query.OrderBy(m => m.LastName).ThenBy(m => m.FirstName)
+        // Sort
+        var desc = string.Equals(request.SortDir, "desc", StringComparison.OrdinalIgnoreCase);
+        IOrderedQueryable<Domain.Entities.Member> ordered = request.SortBy?.ToLower() switch
+        {
+            "firstname" => desc ? query.OrderByDescending(m => m.FirstName) : query.OrderBy(m => m.FirstName),
+            "dateofbirth" => desc ? query.OrderByDescending(m => m.DateOfBirth) : query.OrderBy(m => m.DateOfBirth),
+            "cardnumber" => desc ? query.OrderByDescending(m => m.CardNumber) : query.OrderBy(m => m.CardNumber),
+            _ => desc ? query.OrderByDescending(m => m.LastName) : query.OrderBy(m => m.LastName),
+        };
+
+        var projected = ordered.ThenBy(m => m.FirstName)
             .Select(m => new MemberListDto(
                 m.Id, m.FirstName, m.LastName, m.DateOfBirth, m.Gender, m.CardNumber,
                 m.Emails.Where(e => e.IsPrimary && !e.IsDeleted).Select(e => e.Address).FirstOrDefault(),
                 m.Phones.Where(p => p.IsPrimary && !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault(),
-                m.PhotoPath
+                m.PhotoPath,
+                m.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(),
+                m.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Team != null ? a.Team.Name : null).FirstOrDefault()
             ));
 
         return await PaginatedList<MemberListDto>.CreateAsync(projected, request.Page, request.PageSize, cancellationToken);

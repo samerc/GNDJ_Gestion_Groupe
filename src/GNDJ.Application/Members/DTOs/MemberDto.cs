@@ -9,7 +9,9 @@ public record MemberListDto(
     string? CardNumber,
     string? PrimaryEmail,
     string? PrimaryPhone,
-    string? PhotoPath
+    string? PhotoPath,
+    string? UnitName,
+    string? TeamName
 );
 
 public record MemberDetailDto(
