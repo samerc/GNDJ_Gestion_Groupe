@@ -26,6 +26,8 @@ export interface MemberDetailDto {
   bloodType: string | null
   nationality: string | null
   school: string | null
+  classe: string | null
+  section: string | null
   medicalNotes: string | null
   allergies: string | null
   notes: string | null
@@ -50,6 +52,8 @@ export interface MemberFormData {
   bloodType?: string | null
   nationality?: string | null
   school?: string | null
+  classe?: string | null
+  section?: string | null
   medicalNotes?: string | null
   allergies?: string | null
   notes?: string | null
@@ -146,6 +150,33 @@ export function useDeleteAddress(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (addressId: string) => apiClient.delete(`/members/addresses/${addressId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', memberId] }),
+  })
+}
+
+export function useUpdatePhone(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; countryCode: string; number: string; type: string; isPrimary: boolean; isEmergency: boolean }) =>
+      apiClient.put(`/members/phones/${data.id}`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', memberId] }),
+  })
+}
+
+export function useUpdateEmail(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; address: string; type: string; isPrimary: boolean; isEmergency: boolean }) =>
+      apiClient.put(`/members/emails/${data.id}`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', memberId] }),
+  })
+}
+
+export function useUpdateAddress(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; type: string; country: string; city: string; details?: string | null; isPrimary: boolean }) =>
+      apiClient.put(`/members/addresses/${data.id}`, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['members', memberId] }),
   })
 }

@@ -71,11 +71,19 @@ public record GetUnitByIdQuery(Guid Id) : IRequest<UnitDetailDto?>;
 public class GetUnitByIdQueryHandler : IRequestHandler<GetUnitByIdQuery, UnitDetailDto?>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public GetUnitByIdQueryHandler(IApplicationDbContext context) => _context = context;
+    public GetUnitByIdQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    {
+        _context = context;
+        _currentUser = currentUser;
+    }
 
     public async ValueTask<UnitDetailDto?> Handle(GetUnitByIdQuery request, CancellationToken cancellationToken)
     {
+        if (!_currentUser.IsSuperAdmin && !_currentUser.AuthorizedUnitIds.Contains(request.Id))
+            return null;
+
         return await _context.Units
             .Where(u => u.Id == request.Id)
             .Select(u => new UnitDetailDto(

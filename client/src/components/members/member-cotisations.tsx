@@ -1,4 +1,5 @@
 import { parseApiError } from '@/lib/error-utils'
+import { toast } from 'sonner'
 import { useState } from 'react'
 import { useMemberCotisations, useCreateCotisation, useUpdateCotisation, useDeleteCotisation, downloadReceipt, type MemberCotisationDto, type CotisationFormData } from '@/services/cotisation-service'
 import { useSettingValue } from '@/services/settings-service'
@@ -34,9 +35,10 @@ function formatAmount(amount: number, currency: string): string {
 
 interface Props {
   memberId: string
+  memberName?: string
 }
 
-export function MemberCotisations({ memberId }: Props) {
+export function MemberCotisations({ memberId, memberName }: Props) {
   const { hasPermission } = useAuthStore()
   const { data: cotisations, isLoading } = useMemberCotisations(memberId)
   const defaultAmount = useSettingValue('cotisation.default_amount')
@@ -97,8 +99,10 @@ export function MemberCotisations({ memberId }: Props) {
           paymentMethod: form.paymentMethod,
           notes: form.notes || null,
         })
+        toast.success('Cotisation modifiée')
       } else {
         await createMutation.mutateAsync({ ...form, notes: form.notes || null })
+        toast.success('Cotisation enregistrée')
       }
       setFormOpen(false)
     } catch (err) {
@@ -110,6 +114,7 @@ export function MemberCotisations({ memberId }: Props) {
     if (!deleting) return
     try {
       await deleteMutation.mutateAsync(deleting.id)
+      toast.success('Cotisation supprimée')
       setDeleting(null)
     } catch (err) {
       setError(parseApiError(err))
@@ -124,7 +129,8 @@ export function MemberCotisations({ memberId }: Props) {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Recu_${cotisation.receiptNumber}.pdf`
+      const namePart = memberName ? `${memberName.replace(/\s+/g, '_')}_` : ''
+      a.download = `Recu_${namePart}${cotisation.schoolYear}_${cotisation.receiptNumber}.pdf`
       a.click()
       window.URL.revokeObjectURL(url)
     } catch (err) {

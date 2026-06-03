@@ -12,19 +12,32 @@ public record CreateMemberResult(Guid MemberId, string Username, string Temporar
 public record CreateMemberCommand(
     string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender,
     string? CardNumber, string? BloodType, string? Nationality, string? School,
+    string? Classe, string? Section,
     string? MedicalNotes, string? Allergies, string? Notes
 ) : IRequest<Result<CreateMemberResult>>;
 
 public class CreateMemberCommandValidator : AbstractValidator<CreateMemberCommand>
 {
+    private static readonly string[] AllowedGenders = ["Masculin", "Féminin"];
+
     public CreateMemberCommandValidator()
     {
         RuleFor(x => x.FirstName).NotEmpty().WithMessage("Le prénom est requis.").MaximumLength(100);
         RuleFor(x => x.LastName).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
+        RuleFor(x => x.DateOfBirth).NotEmpty().WithMessage("La date de naissance est requise.")
+            .LessThanOrEqualTo(DateOnly.FromDateTime(DateTime.UtcNow))
+            .When(x => x.DateOfBirth.HasValue)
+            .WithMessage("La date de naissance ne peut pas être dans le futur.");
+        RuleFor(x => x.Gender).NotEmpty().WithMessage("Le genre est requis.")
+            .Must(g => AllowedGenders.Contains(g))
+            .When(x => !string.IsNullOrEmpty(x.Gender))
+            .WithMessage("Le genre doit être 'Masculin' ou 'Féminin'.");
         RuleFor(x => x.CardNumber).MaximumLength(20);
         RuleFor(x => x.BloodType).MaximumLength(10);
-        RuleFor(x => x.Nationality).MaximumLength(50);
-        RuleFor(x => x.School).MaximumLength(100);
+        RuleFor(x => x.Nationality).NotEmpty().WithMessage("La nationalité est requise.").MaximumLength(50);
+        RuleFor(x => x.School).NotEmpty().WithMessage("L'école est requise.").MaximumLength(100);
+        RuleFor(x => x.Classe).NotEmpty().WithMessage("La classe est requise.").MaximumLength(50);
+        RuleFor(x => x.Section).MaximumLength(5);
     }
 }
 
@@ -43,6 +56,24 @@ public class CreateMemberCommandHandler : IRequestHandler<CreateMemberCommand, R
 
     public async ValueTask<Result<CreateMemberResult>> Handle(CreateMemberCommand request, CancellationToken cancellationToken)
     {
+        // Auto-generate card number: M-0001 for boys, F-0001 for girls
+        var prefix = request.Gender == "Féminin" ? "F" : "M";
+        var lastCard = await _context.Members
+            .IgnoreQueryFilters()
+            .Where(m => m.CardNumber != null && m.CardNumber.StartsWith(prefix + "-"))
+            .OrderByDescending(m => m.CardNumber)
+            .Select(m => m.CardNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        int nextNum = 1;
+        if (lastCard is not null)
+        {
+            var parts = lastCard.Split('-');
+            if (parts.Length == 2 && int.TryParse(parts[1], out var last))
+                nextNum = last + 1;
+        }
+        var cardNumber = $"{prefix}-{nextNum:D4}";
+
         // Create member
         var member = new Member
         {
@@ -50,10 +81,12 @@ public class CreateMemberCommandHandler : IRequestHandler<CreateMemberCommand, R
             LastName = request.LastName,
             DateOfBirth = request.DateOfBirth,
             Gender = request.Gender,
-            CardNumber = request.CardNumber,
+            CardNumber = cardNumber,
             BloodType = request.BloodType,
             Nationality = request.Nationality,
             School = request.School,
+            Classe = request.Classe,
+            Section = request.Section,
             MedicalNotes = request.MedicalNotes,
             Allergies = request.Allergies,
             Notes = request.Notes

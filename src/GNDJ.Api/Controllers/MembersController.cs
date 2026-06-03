@@ -7,7 +7,10 @@ using GNDJ.Application.Members.Commands.DeleteAddress;
 using GNDJ.Application.Members.Commands.DeleteEmail;
 using GNDJ.Application.Members.Commands.DeleteMember;
 using GNDJ.Application.Members.Commands.DeletePhone;
+using GNDJ.Application.Members.Commands.UpdateAddress;
+using GNDJ.Application.Members.Commands.UpdateEmail;
 using GNDJ.Application.Members.Commands.UpdateMember;
+using GNDJ.Application.Members.Commands.UpdatePhone;
 using GNDJ.Application.Members.Queries;
 using GNDJ.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -62,7 +65,12 @@ public class MembersController : BaseApiController
     public async Task<IActionResult> Delete(Guid id)
     {
         var result = await Mediator.Send(new DeleteMemberCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        if (!result.IsSuccess)
+        {
+            if (result.Error!.Contains("introuvable"))
+                return NotFound(new { error = result.Error });
+            return BadRequest(new { error = result.Error });
+        }
         return NoContent();
     }
 
@@ -121,6 +129,36 @@ public class MembersController : BaseApiController
     public async Task<IActionResult> DeleteAddress(Guid addressId)
     {
         var result = await Mediator.Send(new DeleteAddressCommand(addressId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    [HttpPut("phones/{phoneId:guid}")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> UpdatePhone(Guid phoneId, [FromBody] UpdatePhoneCommand command)
+    {
+        if (phoneId != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    [HttpPut("emails/{emailId:guid}")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> UpdateEmail(Guid emailId, [FromBody] UpdateEmailCommand command)
+    {
+        if (emailId != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    [HttpPut("addresses/{addressId:guid}")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> UpdateAddress(Guid addressId, [FromBody] UpdateAddressCommand command)
+    {
+        if (addressId != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
+        var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return NoContent();
     }

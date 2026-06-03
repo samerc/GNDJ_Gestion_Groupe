@@ -13,7 +13,7 @@ import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
 import { cn } from '@/lib/utils'
-import { Users, UsersRound, Search, Phone, Mail, MapPin, GripVertical } from 'lucide-react'
+import { Users, Search, Phone, Mail, MapPin, GripVertical } from 'lucide-react'
 
 interface Props { unitId: string }
 
@@ -51,7 +51,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
       </div>
 
       <Tabs defaultValue="info" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="mx-4 mt-3 shrink-0 justify-start">
+        <TabsList className="mx-4 mt-3 shrink-0 justify-start overflow-x-auto flex-nowrap">
           <TabsTrigger value="info">Informations</TabsTrigger>
           <TabsTrigger value="contact">Contact</TabsTrigger>
           <TabsTrigger value="famille">Famille</TabsTrigger>

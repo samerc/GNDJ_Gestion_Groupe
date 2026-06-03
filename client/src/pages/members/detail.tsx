@@ -1,7 +1,7 @@
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { useMember, useUpdateMember, useAddPhone, useDeletePhone, useAddEmail, useDeleteEmail, useAddAddress, useDeleteAddress, type MemberFormData } from '@/services/member-service'
+import { useMember, useUpdateMember, useAddPhone, useDeletePhone, useAddEmail, useDeleteEmail, useAddAddress, useDeleteAddress, useUpdatePhone, useUpdateEmail, useUpdateAddress, type MemberFormData, type MemberPhoneDto, type MemberEmailDto, type MemberAddressDto } from '@/services/member-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -19,7 +19,8 @@ import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
-import { ArrowLeft, Save, Phone, Mail, MapPin, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Save, Phone, Mail, MapPin, Plus, Trash2, Pencil } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function MemberDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -29,6 +30,8 @@ export default function MemberDetailPage() {
   const pinnedNationalities = useSettingArray('pinned_nationalities')
   const defaultCountryCode = useSettingValue('default_country_code')
   const defaultCountry = useSettingValue('default_country')
+  const schools = useSettingArray('member.schools')
+  const classes = useSettingArray('member.classes')
 
   const addPhoneMutation = useAddPhone(id!)
   const deletePhoneMutation = useDeletePhone(id!)
@@ -36,6 +39,9 @@ export default function MemberDetailPage() {
   const deleteEmailMutation = useDeleteEmail(id!)
   const addAddressMutation = useAddAddress(id!)
   const deleteAddressMutation = useDeleteAddress(id!)
+  const updatePhoneMutation = useUpdatePhone(id!)
+  const updateEmailMutation = useUpdateEmail(id!)
+  const updateAddressMutation = useUpdateAddress(id!)
 
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<MemberFormData>({ firstName: '', lastName: '' })
@@ -50,6 +56,54 @@ export default function MemberDetailPage() {
   const [emailForm, setEmailForm] = useState({ address: '', type: 'Personnel', isPrimary: false, isEmergency: false })
   const [addressForm, setAddressForm] = useState({ type: 'Domicile', country: '', city: '', details: '', isPrimary: false })
 
+  // Contact editing state
+  const [editingPhone, setEditingPhone] = useState<MemberPhoneDto | null>(null)
+  const [editPhoneForm, setEditPhoneForm] = useState({ countryCode: '', number: '', type: '', isPrimary: false, isEmergency: false })
+  const [editingEmail, setEditingEmail] = useState<MemberEmailDto | null>(null)
+  const [editEmailForm, setEditEmailForm] = useState({ address: '', type: '', isPrimary: false, isEmergency: false })
+  const [editingAddress, setEditingAddress] = useState<MemberAddressDto | null>(null)
+  const [editAddressForm, setEditAddressForm] = useState({ type: '', country: '', city: '', details: '', isPrimary: false })
+
+  const openEditPhone = (p: MemberPhoneDto) => {
+    setEditPhoneForm({ countryCode: p.countryCode, number: p.number, type: p.type, isPrimary: p.isPrimary, isEmergency: p.isEmergency })
+    setEditingPhone(p)
+  }
+  const handleUpdatePhone = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingPhone) return
+    try {
+      await updatePhoneMutation.mutateAsync({ id: editingPhone.id, ...editPhoneForm })
+      toast.success('Téléphone modifié')
+      setEditingPhone(null)
+    } catch (err) { setError(parseApiError(err)) }
+  }
+  const openEditEmail = (em: MemberEmailDto) => {
+    setEditEmailForm({ address: em.address, type: em.type, isPrimary: em.isPrimary, isEmergency: em.isEmergency })
+    setEditingEmail(em)
+  }
+  const handleUpdateEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingEmail) return
+    try {
+      await updateEmailMutation.mutateAsync({ id: editingEmail.id, ...editEmailForm })
+      toast.success('Courriel modifié')
+      setEditingEmail(null)
+    } catch (err) { setError(parseApiError(err)) }
+  }
+  const openEditAddress = (a: MemberAddressDto) => {
+    setEditAddressForm({ type: a.type, country: a.country, city: a.city, details: a.details ?? '', isPrimary: a.isPrimary })
+    setEditingAddress(a)
+  }
+  const handleUpdateAddress = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingAddress) return
+    try {
+      await updateAddressMutation.mutateAsync({ id: editingAddress.id, ...editAddressForm, details: editAddressForm.details || null })
+      toast.success('Adresse modifiée')
+      setEditingAddress(null)
+    } catch (err) { setError(parseApiError(err)) }
+  }
+
   const startEdit = () => {
     if (!member) return
     setForm({
@@ -57,6 +111,7 @@ export default function MemberDetailPage() {
       dateOfBirth: member.dateOfBirth ?? '', gender: member.gender ?? '',
       cardNumber: member.cardNumber ?? '', bloodType: member.bloodType ?? '',
       nationality: member.nationality ?? '', school: member.school ?? '',
+      classe: member.classe ?? '', section: member.section ?? '',
       medicalNotes: member.medicalNotes ?? '', allergies: member.allergies ?? '',
       notes: member.notes ?? '',
     })
@@ -72,6 +127,7 @@ export default function MemberDetailPage() {
         dateOfBirth: form.dateOfBirth || null, gender: form.gender || null,
         cardNumber: form.cardNumber || null, bloodType: form.bloodType || null,
         nationality: form.nationality || null, school: form.school || null,
+        classe: form.classe || null, section: form.section || null,
         medicalNotes: form.medicalNotes || null, allergies: form.allergies || null,
         notes: form.notes || null,
       })
@@ -180,7 +236,45 @@ export default function MemberDetailPage() {
                       <SelectContent>{BLOOD_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2"><RequiredLabel>École</RequiredLabel><Input value={form.school ?? ''} onChange={(e) => setForm(f => ({ ...f, school: e.target.value }))} /></div>
+                  <div className="space-y-2">
+                    <RequiredLabel required>École</RequiredLabel>
+                    {(() => {
+                      const isOtherSchool = form.school ? !schools.includes(form.school) : false
+                      return (
+                        <>
+                          <Select
+                            value={isOtherSchool ? '__other__' : (form.school || '')}
+                            onValueChange={(v) => {
+                              if (v === '__other__') setForm(f => ({ ...f, school: '' }))
+                              else setForm(f => ({ ...f, school: v }))
+                            }}
+                          >
+                            <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                            <SelectContent>
+                              {schools.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                              <SelectItem value="__other__">Autre...</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {isOtherSchool && (
+                            <Input value={form.school || ''} onChange={(e) => setForm(f => ({ ...f, school: e.target.value }))} placeholder="Nom de l'école..." />
+                          )}
+                        </>
+                      )
+                    })()}
+                  </div>
+                  <div className="space-y-2">
+                    <RequiredLabel required>Classe</RequiredLabel>
+                    <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                      <SelectContent>
+                        {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <RequiredLabel>Section</RequiredLabel>
+                    <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} />
+                  </div>
                 </div>
               ) : (
                 <dl className="grid gap-4 sm:grid-cols-2">
@@ -192,6 +286,8 @@ export default function MemberDetailPage() {
                   <Field label="Nationalité" value={member.nationality} />
                   <Field label="Groupe sanguin" value={member.bloodType} />
                   <Field label="École" value={member.school} />
+                  <Field label="Classe" value={member.classe} />
+                  <Field label="Section" value={member.section} />
                 </dl>
               )}
             </CardContent>
@@ -214,6 +310,7 @@ export default function MemberDetailPage() {
                     <div className="flex items-center gap-1">
                       {p.isPrimary && <Badge>Principal</Badge>}
                       {p.isEmergency && <Badge variant="destructive">Urgence</Badge>}
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditPhone(p)}><Pencil className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeletingContact({ type: 'phone', id: p.id, label: `${p.countryCode} ${p.number}` })}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                     </div>
                   </div>
@@ -237,6 +334,7 @@ export default function MemberDetailPage() {
                     <div className="flex items-center gap-1">
                       {e.isPrimary && <Badge>Principal</Badge>}
                       {e.isEmergency && <Badge variant="destructive">Urgence</Badge>}
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditEmail(e)}><Pencil className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeletingContact({ type: 'email', id: e.id, label: e.address })}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                     </div>
                   </div>
@@ -259,6 +357,7 @@ export default function MemberDetailPage() {
                     <div className="flex-1"><span className="font-medium">{a.city}, {a.country}</span>{a.details && <p className="text-sm text-muted-foreground">{a.details}</p>}<span className="text-sm text-muted-foreground">{a.type}</span></div>
                     <div className="flex items-center gap-1">
                       {a.isPrimary && <Badge>Principal</Badge>}
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditAddress(a)}><Pencil className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeletingContact({ type: 'address', id: a.id, label: `${a.city}, ${a.country}` })}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                     </div>
                   </div>
@@ -314,10 +413,13 @@ export default function MemberDetailPage() {
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
                 <RequiredLabel required>Indicatif</RequiredLabel>
-                <Select value={phoneForm.countryCode} onValueChange={(v) => setPhoneForm(f => ({ ...f, countryCode: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{PHONE_COUNTRY_CODES.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={phoneForm.countryCode}
+                  onValueChange={(v) => setPhoneForm(f => ({ ...f, countryCode: v }))}
+                  options={PHONE_COUNTRY_CODES}
+                  placeholder="Code pays"
+                  searchPlaceholder="Rechercher un indicatif..."
+                />
               </div>
               <div className="col-span-2 space-y-2">
                 <RequiredLabel required>Numéro</RequiredLabel>
@@ -405,6 +507,49 @@ export default function MemberDetailPage() {
               <Button variant="outline" type="button" onClick={() => setAddressDialogOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={addAddressMutation.isPending}>{addAddressMutation.isPending ? 'Ajout...' : 'Ajouter'}</Button>
             </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit phone dialog */}
+      <Dialog open={!!editingPhone} onOpenChange={() => setEditingPhone(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Modifier le téléphone</DialogTitle></DialogHeader>
+          <form onSubmit={handleUpdatePhone} className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={editPhoneForm.countryCode} onValueChange={(v) => setEditPhoneForm(f => ({ ...f, countryCode: v }))} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher un indicatif..." /></div>
+              <div className="col-span-2 space-y-2"><RequiredLabel required>Numéro</RequiredLabel><Input value={editPhoneForm.number} onChange={(e) => setEditPhoneForm(f => ({ ...f, number: e.target.value }))} required /></div>
+            </div>
+            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editPhoneForm.type} onValueChange={(v) => setEditPhoneForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PHONE_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editPhoneForm.isPrimary} onChange={(e) => setEditPhoneForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editPhoneForm.isEmergency} onChange={(e) => setEditPhoneForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingPhone(null)}>Annuler</Button><Button type="submit" disabled={updatePhoneMutation.isPending}>Enregistrer</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit email dialog */}
+      <Dialog open={!!editingEmail} onOpenChange={() => setEditingEmail(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Modifier le courriel</DialogTitle></DialogHeader>
+          <form onSubmit={handleUpdateEmail} className="space-y-4">
+            <div className="space-y-2"><RequiredLabel required>Adresse</RequiredLabel><Input type="email" value={editEmailForm.address} onChange={(e) => setEditEmailForm(f => ({ ...f, address: e.target.value }))} required /></div>
+            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editEmailForm.type} onValueChange={(v) => setEditEmailForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{EMAIL_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editEmailForm.isPrimary} onChange={(e) => setEditEmailForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editEmailForm.isEmergency} onChange={(e) => setEditEmailForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingEmail(null)}>Annuler</Button><Button type="submit" disabled={updateEmailMutation.isPending}>Enregistrer</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit address dialog */}
+      <Dialog open={!!editingAddress} onOpenChange={() => setEditingAddress(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Modifier l'adresse</DialogTitle></DialogHeader>
+          <form onSubmit={handleUpdateAddress} className="space-y-4">
+            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editAddressForm.type} onValueChange={(v) => setEditAddressForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ADDRESS_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={editAddressForm.country} onValueChange={(v) => setEditAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><Input value={editAddressForm.city} onChange={(e) => setEditAddressForm(f => ({ ...f, city: e.target.value }))} required /></div></div>
+            <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={editAddressForm.details} onChange={(e) => setEditAddressForm(f => ({ ...f, details: e.target.value }))} placeholder="Rue, immeuble..." /></div>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editAddressForm.isPrimary} onChange={(e) => setEditAddressForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingAddress(null)}>Annuler</Button><Button type="submit" disabled={updateAddressMutation.isPending}>Enregistrer</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

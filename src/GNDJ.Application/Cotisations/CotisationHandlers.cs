@@ -74,6 +74,10 @@ public class CreateCotisationCommandHandler(IApplicationDbContext context, ICurr
 {
     public async ValueTask<Result<CotisationCreatedDto>> Handle(CreateCotisationCommand request, CancellationToken ct)
     {
+        var memberExists = await context.Members.AnyAsync(m => m.Id == request.MemberId, ct);
+        if (!memberExists)
+            return Result<CotisationCreatedDto>.Failure("Membre introuvable.");
+
         if (!await CotisationAccessHelper.CanAccessMember(context, currentUser, request.MemberId, ct))
             return Result<CotisationCreatedDto>.Failure("Accès non autorisé à ce membre.");
 

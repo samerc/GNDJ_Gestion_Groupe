@@ -16,6 +16,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Plus, Pencil, Trash2, Award, Star, GripVertical } from 'lucide-react'
+import { toast } from 'sonner'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -101,15 +102,15 @@ export function StagesTab({ unitTypeId, unitTypes }: { unitTypeId?: string; unit
     e.preventDefault(); setError('')
     if (!validate({ code: !form.code, name: !form.name, unitTypeId: !form.unitTypeId })) return
     try {
-      if (editing) await updateMutation.mutateAsync({ id: editing.id, ...form })
-      else await createMutation.mutateAsync({ ...form, displayOrder: (data?.length ?? 0) })
+      if (editing) { await updateMutation.mutateAsync({ id: editing.id, ...form }); toast.success('Étape modifiée') }
+      else { await createMutation.mutateAsync({ ...form, displayOrder: (data?.length ?? 0) }); toast.success('Étape créée') }
       setFormOpen(false)
     } catch (err) { setError(parseApiError(err)) }
   }
 
   const handleDelete = async () => {
     if (!deleting) return
-    try { await deleteMutation.mutateAsync(deleting.id); setDeleting(null) }
+    try { await deleteMutation.mutateAsync(deleting.id); toast.success('Étape supprimée'); setDeleting(null) }
     catch (err) { setError(parseApiError(err)); setDeleting(null) }
   }
 
@@ -247,15 +248,15 @@ export function BadgesTab({ unitTypeId, unitTypes }: { unitTypeId?: string; unit
     e.preventDefault(); setError('')
     if (!validate({ code: !form.code, name: !form.name, unitTypeId: !form.unitTypeId })) return
     try {
-      if (editing) await updateMutation.mutateAsync({ id: editing.id, ...form })
-      else await createMutation.mutateAsync({ ...form, displayOrder: (data?.length ?? 0) })
+      if (editing) { await updateMutation.mutateAsync({ id: editing.id, ...form }); toast.success('Badge modifié') }
+      else { await createMutation.mutateAsync({ ...form, displayOrder: (data?.length ?? 0) }); toast.success('Badge créé') }
       setFormOpen(false)
     } catch (err) { setError(parseApiError(err)) }
   }
 
   const handleDelete = async () => {
     if (!deleting) return
-    try { await deleteMutation.mutateAsync(deleting.id); setDeleting(null) }
+    try { await deleteMutation.mutateAsync(deleting.id); toast.success('Badge supprimé'); setDeleting(null) }
     catch (err) { setError(parseApiError(err)); setDeleting(null) }
   }
 

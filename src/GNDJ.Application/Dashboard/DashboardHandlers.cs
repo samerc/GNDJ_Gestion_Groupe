@@ -135,11 +135,19 @@ public record GetAdminDashboardQuery(string SchoolYear) : IRequest<AdminDashboar
 public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQuery, AdminDashboardDto>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public GetAdminDashboardQueryHandler(IApplicationDbContext context) => _context = context;
+    public GetAdminDashboardQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    {
+        _context = context;
+        _currentUser = currentUser;
+    }
 
     public async ValueTask<AdminDashboardDto> Handle(GetAdminDashboardQuery request, CancellationToken cancellationToken)
     {
+        if (!_currentUser.IsSuperAdmin)
+            throw new UnauthorizedAccessException();
+
         var ct = cancellationToken;
 
         // All members
@@ -148,8 +156,8 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
             .ToListAsync(ct);
 
         var totalMembers = members.Count;
-        var boys = members.Count(m => m.Gender == "Masculin");
-        var girls = members.Count(m => m.Gender == "Féminin");
+        var boys = members.Count(m => string.Equals(m.Gender, "Masculin", StringComparison.OrdinalIgnoreCase));
+        var girls = members.Count(m => string.Equals(m.Gender, "Féminin", StringComparison.OrdinalIgnoreCase));
         var withoutUnit = members.Count(m => !m.HasActiveAssignment);
 
         // Active member IDs (have current assignment)

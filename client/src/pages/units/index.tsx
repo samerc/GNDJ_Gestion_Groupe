@@ -18,6 +18,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Plus, Pencil, Trash2, Search, Building2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function UnitsPage() {
   const navigate = useNavigate()
@@ -65,8 +66,10 @@ export default function UnitsPage() {
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, ...form })
+        toast.success('Unité modifiée')
       } else {
         await createMutation.mutateAsync(form)
+        toast.success('Unité créée')
       }
       setFormOpen(false)
     } catch (err) {
@@ -78,6 +81,7 @@ export default function UnitsPage() {
     if (!deleting) return
     try {
       await deleteMutation.mutateAsync(deleting.id)
+      toast.success('Unité supprimée')
       setDeleting(null)
     } catch (err) {
       setError(parseApiError(err))
@@ -222,6 +226,12 @@ export default function UnitsPage() {
               <RequiredLabel htmlFor="description">Description</RequiredLabel>
               <Input id="description" value={form.description ?? ''} onChange={(e) => setForm(f => ({ ...f, description: e.target.value || null }))} />
             </div>
+            {editing && (
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="isActive" checked={form.isActive} onChange={(e) => setForm(f => ({ ...f, isActive: e.target.checked }))} className="h-4 w-4 rounded border-gray-300" />
+                <label htmlFor="isActive" className="text-sm font-medium">Unité active</label>
+              </div>
+            )}
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>

@@ -5,10 +5,12 @@ using GNDJ.Application.Auth.Commands.Register;
 using GNDJ.Application.Auth.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace GNDJ.Api.Controllers;
 
 [Route("api/v1/auth")]
+[EnableRateLimiting("auth")]
 public class AuthController : BaseApiController
 {
     [HttpPost("register")]

@@ -28,11 +28,13 @@ public class UpdateAssignmentCommandHandler : IRequestHandler<UpdateAssignmentCo
 {
     private readonly IApplicationDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUser;
 
-    public UpdateAssignmentCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    public UpdateAssignmentCommandHandler(IApplicationDbContext context, IAuditService auditService, ICurrentUserService currentUser)
     {
         _context = context;
         _auditService = auditService;
+        _currentUser = currentUser;
     }
 
     public async ValueTask<Result<bool>> Handle(UpdateAssignmentCommand request, CancellationToken cancellationToken)
@@ -40,6 +42,9 @@ public class UpdateAssignmentCommandHandler : IRequestHandler<UpdateAssignmentCo
         var entity = await _context.MemberAssignments.FindAsync([request.Id], cancellationToken);
         if (entity is null)
             return Result<bool>.Failure("Affectation introuvable.");
+
+        if (!_currentUser.IsSuperAdmin && !_currentUser.AuthorizedUnitIds.Contains(entity.UnitId))
+            return Result<bool>.Failure("Accès non autorisé à cette unité.");
 
         if (request.TeamId.HasValue)
         {

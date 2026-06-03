@@ -26,10 +26,16 @@ function Bar({ value, max, color, label }: { value: number; max: number; color: 
 
 function AdminDashboard() {
   const currentSchoolYear = useSettingValue('cotisation.current_school_year') ?? '2025-2026'
-  const { data, isLoading } = useAdminDashboard(currentSchoolYear)
+  const [schoolYear, setSchoolYear] = useState(currentSchoolYear)
+  const { data, isLoading } = useAdminDashboard(schoolYear)
 
   if (isLoading) return <LoadingSpinner />
-  if (!data) return null
+  if (!data) return (
+    <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-2">
+      <p className="text-lg font-medium">Impossible de charger le tableau de bord</p>
+      <p className="text-sm">Veuillez réessayer ultérieurement.</p>
+    </div>
+  )
 
   const maxUnitMembers = Math.max(...data.unitBreakdown.map(u => u.memberCount), 1)
   const maxAgeGroup = Math.max(...data.ageGroups.map(g => g.count), 1)
@@ -38,7 +44,14 @@ function AdminDashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Tableau de bord</h1>
-        <span className="text-sm text-muted-foreground">Année scoute {currentSchoolYear}</span>
+        <Select value={schoolYear} onValueChange={setSchoolYear}>
+          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="2025-2026">2025-2026</SelectItem>
+            <SelectItem value="2024-2025">2024-2025</SelectItem>
+            <SelectItem value="2023-2024">2023-2024</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Row 1: Key numbers */}
@@ -108,7 +121,7 @@ function AdminDashboard() {
               <div key={u.unitCode}>
                 <Bar value={u.memberCount} max={maxUnitMembers} color="bg-primary" label={u.unitCode} />
                 <div className="flex justify-end mt-0.5">
-                  <span className="text-[10px] text-muted-foreground">Docs complets : {u.docCompliance}%</span>
+                  <span className="text-[10px] text-muted-foreground">{u.docCompliance}% dossiers complets</span>
                 </div>
               </div>
             ))}

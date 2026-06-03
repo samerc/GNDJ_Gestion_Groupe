@@ -174,6 +174,9 @@ public static class SeedData
             new() { Key = "documents.allowed_file_types", Value = "[\"pdf\",\"jpg\",\"jpeg\",\"png\"]", Category = "documents", Label = "Types de fichiers autorisés", Description = "Extensions de fichiers autorisées pour les documents", ValueType = "json_array" },
             new() { Key = "cotisation.default_amount", Value = "100", Category = "cotisations", Label = "Montant de cotisation par défaut", Description = "Montant par défaut pour les nouvelles cotisations (en USD)", ValueType = "number" },
             new() { Key = "cotisation.current_school_year", Value = "2025-2026", Category = "cotisations", Label = "Année scoute en cours", Description = "Année scoute utilisée par défaut pour les nouvelles cotisations", ValueType = "string" },
+            new() { Key = "member.schools", Value = "[\"Collège Notre-Dame de Jamhour\",\"Collège Saint-Joseph Antoura\"]", Category = "members", Label = "Écoles", Description = "Liste des écoles disponibles dans le formulaire membre", ValueType = "json_array" },
+            new() { Key = "member.default_school", Value = "Collège Notre-Dame de Jamhour", Category = "members", Label = "École par défaut", Description = "École sélectionnée par défaut lors de la création d'un membre", ValueType = "string" },
+            new() { Key = "member.classes", Value = "[\"EB1\",\"EB2\",\"EB3\",\"EB4\",\"EB5\",\"EB6\",\"EB7\",\"EB8\",\"EB9\",\"Seconde\",\"Première\",\"Terminale\"]", Category = "members", Label = "Classes", Description = "Liste des classes disponibles dans le formulaire membre", ValueType = "json_array" },
         };
 
         var missing = allSettings.Where(s => !existingKeys.Contains(s.Key)).ToList();

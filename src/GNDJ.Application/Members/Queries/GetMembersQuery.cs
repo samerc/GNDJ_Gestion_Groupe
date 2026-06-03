@@ -81,16 +81,32 @@ public record GetMemberByIdQuery(Guid Id) : IRequest<MemberDetailDto?>;
 public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, MemberDetailDto?>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public GetMemberByIdQueryHandler(IApplicationDbContext context) => _context = context;
+    public GetMemberByIdQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    {
+        _context = context;
+        _currentUser = currentUser;
+    }
 
     public async ValueTask<MemberDetailDto?> Handle(GetMemberByIdQuery request, CancellationToken cancellationToken)
     {
+        if (!_currentUser.IsSuperAdmin)
+        {
+            if (_currentUser.MemberId != request.Id)
+            {
+                var canAccess = await _context.MemberAssignments.AnyAsync(a =>
+                    a.MemberId == request.Id && a.EndDate == null && _currentUser.AuthorizedUnitIds.Contains(a.UnitId), cancellationToken);
+                if (!canAccess) return null;
+            }
+        }
+
         return await _context.Members
             .Where(m => m.Id == request.Id)
             .Select(m => new MemberDetailDto(
                 m.Id, m.FirstName, m.LastName, m.DateOfBirth, m.Gender,
                 m.CardNumber, m.BloodType, m.Nationality, m.School,
+                m.Classe, m.Section,
                 m.MedicalNotes, m.Allergies, m.Notes, m.PhotoPath,
                 m.Phones.Where(p => !p.IsDeleted).OrderByDescending(p => p.IsPrimary)
                     .Select(p => new MemberPhoneDto(p.Id, p.CountryCode, p.Number, p.Type, p.IsPrimary, p.IsEmergency)).ToList(),

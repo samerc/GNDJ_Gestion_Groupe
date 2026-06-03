@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router'
+import { BrowserRouter, Routes, Route } from 'react-router'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { AppLayout } from '@/components/layout/app-layout'
 import LoginPage from '@/pages/login'
@@ -45,7 +45,13 @@ export default function App() {
           </Route>
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={
+          <div className="flex flex-col items-center justify-center h-screen gap-4">
+            <h1 className="text-4xl font-bold text-muted-foreground">404</h1>
+            <p className="text-muted-foreground">Page introuvable</p>
+            <a href="/" className="text-primary hover:underline">Retour au tableau de bord</a>
+          </div>
+        } />
       </Routes>
     </BrowserRouter>
   )

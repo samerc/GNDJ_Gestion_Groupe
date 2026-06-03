@@ -1,6 +1,5 @@
 import { parseApiError } from '@/lib/error-utils'
 import { useState, useRef } from 'react'
-import { useDebounce } from '@/hooks/use-debounce'
 import { useAssignments, useCreateAssignment, useEndAssignment, useDeleteAssignment, useFunctionalRoles, type AssignmentDto, type AssignmentFormData } from '@/services/assignment-service'
 import { useUnits } from '@/services/unit-service'
 import { useTeams } from '@/services/team-service'

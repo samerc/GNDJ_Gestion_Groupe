@@ -55,12 +55,23 @@ function entitySummary(log: AuditLogDto): string {
   return ''
 }
 
-function formatJson(json: string | null): string {
-  if (!json) return '—'
+function JsonViewer({ json }: { json: string | null }) {
+  if (!json) return <span className="text-muted-foreground">—</span>
   try {
-    return JSON.stringify(JSON.parse(json), null, 2)
+    const obj = JSON.parse(json)
+    if (typeof obj !== 'object' || obj === null) return <span className="text-sm">{String(obj)}</span>
+    return (
+      <div className="rounded-md border bg-muted/30 text-sm divide-y">
+        {Object.entries(obj).map(([key, value]) => (
+          <div key={key} className="flex gap-3 px-3 py-1.5">
+            <span className="font-medium text-muted-foreground min-w-28 shrink-0">{key}</span>
+            <span className="break-all">{value === null ? '—' : String(value)}</span>
+          </div>
+        ))}
+      </div>
+    )
   } catch {
-    return json
+    return <pre className="rounded-md bg-muted/30 p-3 text-xs overflow-auto whitespace-pre-wrap">{json}</pre>
   }
 }
 
@@ -97,7 +108,7 @@ export default function AuditLogsPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-end">
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Entité</label>
+          <label className="text-sm text-muted-foreground">Entité</label>
           <Select value={entityType} onValueChange={(v) => { setEntityType(v === '_all' ? '' : v); setPage(1) }}>
             <SelectTrigger className="w-44"><SelectValue placeholder="Toutes" /></SelectTrigger>
             <SelectContent>
@@ -107,7 +118,7 @@ export default function AuditLogsPage() {
           </Select>
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Action</label>
+          <label className="text-sm text-muted-foreground">Action</label>
           <Select value={action} onValueChange={(v) => { setAction(v === '_all' ? '' : v); setPage(1) }}>
             <SelectTrigger className="w-40"><SelectValue placeholder="Toutes" /></SelectTrigger>
             <SelectContent>
@@ -117,11 +128,11 @@ export default function AuditLogsPage() {
           </Select>
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Du</label>
+          <label className="text-sm text-muted-foreground">Du</label>
           <Input type="date" className="w-40" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1) }} />
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Au</label>
+          <label className="text-sm text-muted-foreground">Au</label>
           <Input type="date" className="w-40" value={to} onChange={(e) => { setTo(e.target.value); setPage(1) }} />
         </div>
         {(entityType || action || from || to) && (
@@ -150,7 +161,7 @@ export default function AuditLogsPage() {
                 {data.items.map(log => {
                   const actionInfo = ACTION_LABELS[log.action]
                   return (
-                    <TableRow key={log.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDetail(log)}>
+                    <TableRow key={log.id} className="cursor-pointer hover:bg-muted/50 even:bg-muted/30" onClick={() => setDetail(log)}>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                         {new Date(log.timestamp).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </TableCell>
@@ -215,14 +226,14 @@ export default function AuditLogsPage() {
               {detail.oldValues && (
                 <div>
                   <p className="font-medium text-muted-foreground mb-1">Anciennes valeurs</p>
-                  <pre className="rounded-md bg-red-50 p-3 text-xs overflow-auto max-h-48 whitespace-pre-wrap">{formatJson(detail.oldValues)}</pre>
+                  <JsonViewer json={detail.oldValues} />
                 </div>
               )}
 
               {detail.newValues && (
                 <div>
                   <p className="font-medium text-muted-foreground mb-1">Nouvelles valeurs</p>
-                  <pre className="rounded-md bg-green-50 p-3 text-xs overflow-auto max-h-48 whitespace-pre-wrap">{formatJson(detail.newValues)}</pre>
+                  <JsonViewer json={detail.newValues} />
                 </div>
               )}
             </div>

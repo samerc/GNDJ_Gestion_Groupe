@@ -1,4 +1,5 @@
 import { parseApiError } from '@/lib/error-utils'
+import { toast } from 'sonner'
 import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingValue } from '@/services/settings-service'
@@ -6,7 +7,7 @@ import {
   useUnitDocumentsMatrix, useReviewDocumentMatrix, downloadDocument, downloadUnitDocumentsZip,
   type MemberDocRowDto, type MemberDocCellDto, type DocTypeColumnDto
 } from '@/services/document-service'
-import { useCreateCotisation, useUpdateCotisation, type CotisationFormData } from '@/services/cotisation-service'
+import { useCreateCotisation, useUpdateCotisation } from '@/services/cotisation-service'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,7 +19,7 @@ import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchiv
 
 // ─── Cell rendering helpers ────────────────────────────────
 function docStatusColor(cell: MemberDocCellDto): string {
-  if (!cell.documentId) return 'bg-gray-50 text-gray-300'
+  if (!cell.documentId) return 'bg-gray-100 text-gray-400'
   if (cell.isExpired) return 'bg-red-50 text-red-500'
   switch (cell.status) {
     case 'Approved': return 'bg-green-50 text-green-600'
@@ -72,6 +73,7 @@ export default function UnitDocumentsPage() {
   // Preview state
   const [previewCell, setPreviewCell] = useState<{ cell: MemberDocCellDto; member: MemberDocRowDto; docType: DocTypeColumnDto } | null>(null)
   const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null)
+  const [previewError, setPreviewError] = useState(false)
   const [reviewNotes, setReviewNotes] = useState('')
 
   // Cotisation dialog state
@@ -91,6 +93,7 @@ export default function UnitDocumentsPage() {
     setPreviewCell({ cell, member, docType })
     setReviewNotes('')
     setError('')
+    setPreviewError(false)
     // Fetch blob for preview
     try {
       const response = await downloadDocument(cell.documentId)
@@ -98,6 +101,7 @@ export default function UnitDocumentsPage() {
       setPreviewBlobUrl(URL.createObjectURL(blob))
     } catch {
       setPreviewBlobUrl(null)
+      setPreviewError(true)
     }
   }
 
@@ -111,6 +115,7 @@ export default function UnitDocumentsPage() {
     if (!previewCell?.cell.documentId) return
     try {
       await reviewMutation.mutateAsync({ id: previewCell.cell.documentId, status, reviewNotes: reviewNotes || undefined })
+      toast.success('Statut modifié')
       closePreview()
     } catch (err) {
       setError(parseApiError(err))
@@ -122,6 +127,7 @@ export default function UnitDocumentsPage() {
     if (!cell.documentId || cell.status === 'Approved') return
     try {
       await reviewMutation.mutateAsync({ id: cell.documentId, status: 'Approved' })
+      toast.success('Statut modifié')
     } catch (err) {
       setError(parseApiError(err))
     }
@@ -132,6 +138,7 @@ export default function UnitDocumentsPage() {
     if (!cell.documentId || cell.status === 'Rejected') return
     try {
       await reviewMutation.mutateAsync({ id: cell.documentId, status: 'Rejected' })
+      toast.success('Statut modifié')
     } catch (err) {
       setError(parseApiError(err))
     }
@@ -213,6 +220,7 @@ export default function UnitDocumentsPage() {
           notes: cotForm.notes || null,
         })
       }
+      toast.success('Cotisation enregistrée')
       setCotisationMember(null)
     } catch (err) {
       setError(parseApiError(err))
@@ -250,6 +258,15 @@ export default function UnitDocumentsPage() {
         <p className="text-muted-foreground py-12 text-center">Aucun membre actif dans cette unité.</p>
       ) : (
         <>
+          {/* Legend */}
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground px-1">
+            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-green-50 text-green-600"><CheckCircle className="h-3 w-3" /></span> Approuvé</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-amber-50 text-amber-600"><Clock className="h-3 w-3" /></span> En attente</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-red-50 text-red-500"><XCircle className="h-3 w-3" /></span> Refusé</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-red-50 text-red-500"><AlertTriangle className="h-3 w-3" /></span> Expiré</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-gray-100 text-gray-400"><Minus className="h-3 w-3" /></span> Manquant</span>
+          </div>
+
           <div className="rounded-lg border shadow-sm overflow-auto">
             <table className="w-full text-sm">
               <thead>
@@ -294,20 +311,24 @@ export default function UnitDocumentsPage() {
                       <td className="sticky left-0 z-10 bg-background px-4 py-2.5 font-medium">
                         {member.firstName} {member.lastName}
                       </td>
-                      {member.documents.map((cell, i) => (
+                      {member.documents.map((cell) => {
+                        const docType = matrix.docTypes.find(dt => dt.id === cell.docTypeId)
+                        if (!docType) return null
+                        return (
                         <td
                           key={cell.docTypeId}
                           className="px-1 py-1.5 text-center"
                         >
                           <div
-                            className={`group relative mx-auto flex h-8 w-8 items-center justify-center rounded-md cursor-pointer transition-all hover:scale-110 ${docStatusColor(cell)}`}
+                            className={`group relative mx-auto flex h-9 w-9 items-center justify-center rounded-md cursor-pointer transition-all hover:scale-110 ${docStatusColor(cell)}`}
                             title={docStatusLabel(cell)}
-                            onClick={() => openPreview(member, cell, matrix.docTypes[i])}
+                            tabIndex={0}
+                            onClick={() => openPreview(member, cell, docType)}
                           >
                             {docStatusIcon(cell)}
-                            {/* Quick approve/reject on hover — show for any uploaded doc */}
+                            {/* Quick approve/reject on hover/focus — show for any uploaded doc */}
                             {cell.documentId && (
-                              <div className="absolute -top-1 -right-1 hidden group-hover:flex gap-0.5">
+                              <div className="absolute -top-1 -right-1 hidden group-hover:flex group-focus-within:flex gap-0.5">
                                 {cell.status !== 'Approved' && (
                                   <button
                                     className="flex h-4 w-4 items-center justify-center rounded-full bg-green-600 text-white shadow hover:bg-green-700"
@@ -330,11 +351,12 @@ export default function UnitDocumentsPage() {
                             )}
                           </div>
                         </td>
-                      ))}
+                        )
+                      })}
                       {/* Cotisation cell */}
                       <td className="px-1 py-1.5 text-center">
                         <div
-                          className={`mx-auto flex h-8 items-center justify-center gap-1 rounded-md px-2 cursor-pointer transition-all hover:scale-105 ${
+                          className={`mx-auto flex h-9 items-center justify-center gap-1 rounded-md px-2 cursor-pointer transition-all hover:scale-105 ${
                             member.cotisation.cotisationId
                               ? 'bg-green-50 text-green-700'
                               : 'bg-gray-50 text-gray-400'
@@ -351,7 +373,7 @@ export default function UnitDocumentsPage() {
                               <span className="text-xs font-medium">{member.cotisation.amountPaid}</span>
                             </>
                           ) : (
-                            <Minus className="h-4 w-4" />
+                            <Receipt className="h-3.5 w-3.5" />
                           )}
                         </div>
                       </td>
@@ -362,14 +384,6 @@ export default function UnitDocumentsPage() {
             </table>
           </div>
 
-          {/* Legend */}
-          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground px-1">
-            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-green-50 text-green-600"><CheckCircle className="h-3 w-3" /></span> Approuvé</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-amber-50 text-amber-600"><Clock className="h-3 w-3" /></span> En attente</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-red-50 text-red-500"><XCircle className="h-3 w-3" /></span> Refusé</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-red-50 text-red-500"><AlertTriangle className="h-3 w-3" /></span> Expiré</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-gray-50 text-gray-300"><Minus className="h-3 w-3" /></span> Manquant</span>
-          </div>
         </>
       )}
 
@@ -402,8 +416,11 @@ export default function UnitDocumentsPage() {
                 {previewBlobUrl && isPdf && (
                   <iframe src={previewBlobUrl} className="w-full" style={{ height: 440 }} title="PDF" />
                 )}
-                {!previewBlobUrl && (
+                {!previewBlobUrl && !previewError && (
                   <div className="py-12 text-sm text-muted-foreground">Chargement...</div>
+                )}
+                {previewError && (
+                  <div className="py-12 text-sm text-destructive">Impossible de charger l'aperçu du fichier.</div>
                 )}
                 {previewBlobUrl && !isImage && !isPdf && (
                   <div className="py-12 text-sm text-muted-foreground">Aperçu non disponible pour ce format.</div>

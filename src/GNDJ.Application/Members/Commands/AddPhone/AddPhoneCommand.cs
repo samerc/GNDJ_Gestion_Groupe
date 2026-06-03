@@ -3,6 +3,7 @@ using GNDJ.Application.Common.Models;
 using GNDJ.Domain.Entities;
 using FluentValidation;
 using Mediator;
+using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.AddPhone;
 
@@ -21,11 +22,23 @@ public class AddPhoneCommandValidator : AbstractValidator<AddPhoneCommand>
 public class AddPhoneCommandHandler : IRequestHandler<AddPhoneCommand, Result<Guid>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public AddPhoneCommandHandler(IApplicationDbContext context) => _context = context;
+    public AddPhoneCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    {
+        _context = context;
+        _currentUser = currentUser;
+    }
 
     public async ValueTask<Result<Guid>> Handle(AddPhoneCommand request, CancellationToken cancellationToken)
     {
+        if (!_currentUser.IsSuperAdmin && _currentUser.MemberId != request.MemberId)
+        {
+            var canAccess = await _context.MemberAssignments.AnyAsync(a =>
+                a.MemberId == request.MemberId && a.EndDate == null && _currentUser.AuthorizedUnitIds.Contains(a.UnitId), cancellationToken);
+            if (!canAccess) return Result<Guid>.Failure("Accès non autorisé.");
+        }
+
         var entity = new MemberPhone
         {
             MemberId = request.MemberId,

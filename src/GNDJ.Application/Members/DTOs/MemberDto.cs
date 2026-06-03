@@ -24,6 +24,8 @@ public record MemberDetailDto(
     string? BloodType,
     string? Nationality,
     string? School,
+    string? Classe,
+    string? Section,
     string? MedicalNotes,
     string? Allergies,
     string? Notes,

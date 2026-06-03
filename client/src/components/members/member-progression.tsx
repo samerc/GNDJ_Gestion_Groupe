@@ -1,4 +1,5 @@
 import { parseApiError } from '@/lib/error-utils'
+import { toast } from 'sonner'
 import { useState } from 'react'
 import { useMemberProgressions, useCreateProgression, useDeleteProgression, useScoutStageList, useBadgeList, type MemberProgressionDto } from '@/services/progression-service'
 import { useAssignments } from '@/services/assignment-service'
@@ -67,6 +68,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
         location: form.location || null,
         notes: form.notes || null,
       })
+      toast.success('Progression ajoutée')
       setFormOpen(false)
     } catch (err) {
       setError(parseApiError(err))
@@ -75,7 +77,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
 
   const handleDelete = async () => {
     if (!deleting) return
-    try { await deleteMutation.mutateAsync(deleting.id); setDeleting(null) }
+    try { await deleteMutation.mutateAsync(deleting.id); toast.success('Progression supprimée'); setDeleting(null) }
     catch (err) { setError(parseApiError(err)); setDeleting(null) }
   }
 

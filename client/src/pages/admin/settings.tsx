@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { NATIONALITY_OPTIONS, PHONE_COUNTRY_CODES, COUNTRY_OPTIONS, PROFESSION_OPTIONS } from '@/lib/options'
 import { Save, X, Settings2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 // Map setting keys to their available options for searchable dropdowns
 const SETTING_OPTIONS: Record<string, { value: string; label: string }[]> = {
@@ -44,6 +45,7 @@ function SettingEditor({ setting, onSave }: SettingEditorProps) {
     try {
       const saveValue = isArray ? JSON.stringify(items) : value
       await onSave(setting.key, saveValue)
+      toast.success('Paramètre enregistré')
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } finally {

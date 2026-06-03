@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSidebarStore } from '@/stores/sidebar-store'
 import { useNavigate } from 'react-router'
@@ -9,14 +10,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { User, LogOut, Menu } from 'lucide-react'
+import { LogOut, Menu } from 'lucide-react'
 
 export function Header() {
   const { user, logout } = useAuthStore()
   const { setMobileOpen } = useSidebarStore()
   const navigate = useNavigate()
+  const [loggingOut, setLoggingOut] = useState(false)
 
   const handleLogout = async () => {
+    setLoggingOut(true)
     await logout()
     navigate('/login')
   }
@@ -52,9 +55,9 @@ export function Header() {
             <p className="text-muted-foreground text-xs">{user?.email}</p>
           </div>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+          <DropdownMenuItem onClick={handleLogout} disabled={loggingOut} className="text-destructive focus:text-destructive">
             <LogOut className="mr-2 h-4 w-4" />
-            Déconnexion
+            {loggingOut ? 'Déconnexion...' : 'Déconnexion'}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

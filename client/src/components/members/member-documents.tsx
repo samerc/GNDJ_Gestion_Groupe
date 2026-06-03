@@ -1,4 +1,5 @@
 import { parseApiError } from '@/lib/error-utils'
+import { toast } from 'sonner'
 import { useState, useRef } from 'react'
 import { useMemberDocuments, useUploadDocument, useReviewDocument, useDeleteDocument, downloadDocument, type MemberDocumentDto } from '@/services/document-service'
 import { useDocumentTypeList, type DocumentTypeListDto } from '@/services/document-type-service'
@@ -42,6 +43,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const [reviewNotes, setReviewNotes] = useState('')
 
   // For inline upload per doc type
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [uploadingDocTypeId, setUploadingDocTypeId] = useState<string | null>(null)
   const [expiryDate, setExpiryDate] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -58,10 +60,13 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
     if (expiryDate) formData.append('expiryDate', expiryDate)
 
     try {
-      await uploadMutation.mutateAsync(formData)
+      await uploadMutation.mutateAsync({ formData, onUploadProgress: setUploadProgress })
+      toast.success('Document envoyé')
+      setUploadProgress(null)
       setUploadingDocTypeId(null)
       setExpiryDate('')
     } catch (err) {
+      setUploadProgress(null)
       setError(parseApiError(err))
     }
   }
@@ -69,6 +74,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const handleQuickReview = async (docId: string, status: string) => {
     try {
       await reviewMutation.mutateAsync({ id: docId, status })
+      toast.success('Statut modifié')
     } catch (err) {
       setError(parseApiError(err))
     }
@@ -78,6 +84,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
     if (!reviewOpen) return
     try {
       await reviewMutation.mutateAsync({ id: reviewOpen.id, status, reviewNotes: reviewNotes || undefined })
+      toast.success('Statut modifié')
       setReviewOpen(null)
       setReviewNotes('')
     } catch (err) {
@@ -134,8 +141,6 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
             <div className="space-y-2">
               {docTypes.map(dt => {
                 const doc = getDocForType(dt.id)
-                const isUploading = uploadingDocTypeId === dt.id
-
                 return (
                   <div key={dt.id} className="flex items-center gap-3 rounded-md border p-3">
                     <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -206,8 +211,18 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
               })}
             </div>
           )}
+          {uploadProgress !== null && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="h-1.5 w-24 rounded-full bg-muted overflow-hidden">
+                <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+              </div>
+              <span>{uploadProgress}%</span>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <p className="text-xs text-muted-foreground">Formats : PDF, JPG, PNG — Max 10 Mo</p>
 
       {/* Hidden file input for direct upload */}
       <input

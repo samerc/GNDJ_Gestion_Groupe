@@ -4,18 +4,17 @@ import { useParams } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useMembers, useMember, useCreateMember, useDeleteMember, type MemberListDto, type MemberFormData } from '@/services/member-service'
-import { useUnits, type UnitListDto } from '@/services/unit-service'
+import { useMembers, useMember, useCreateMember, type MemberFormData } from '@/services/member-service'
+import { useUnits } from '@/services/unit-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { SearchableSelect } from '@/components/shared/searchable-select'
-import { useSettingArray } from '@/services/settings-service'
+import { useSettingArray, useSettingValue } from '@/services/settings-service'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberDocuments } from '@/components/members/member-documents'
@@ -23,7 +22,8 @@ import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS } from '@/lib/options'
 import { cn } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin, Copy, X } from 'lucide-react'
+import { toast } from 'sonner'
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
   return (
@@ -84,6 +84,8 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
               <Field label="Nationalité" value={member.nationality} />
               <Field label="Groupe sanguin" value={member.bloodType} />
               <Field label="École" value={member.school} />
+              <Field label="Classe" value={member.classe} />
+              <Field label="Section" value={member.section} />
             </div>
           </TabsContent>
 
@@ -190,7 +192,7 @@ function SortHeader({ label, field, current, dir, onSort }: { label: string; fie
   return (
     <button className="flex items-center gap-1 text-xs font-medium hover:text-foreground transition-colors" onClick={() => onSort(field)}>
       {label}
-      {active ? (dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+      {active ? (dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-50" />}
     </button>
   )
 }
@@ -199,6 +201,9 @@ function SortHeader({ label, field, current, dir, onSort }: { label: string; fie
 export default function MembersPage() {
   const { id: routeMemberId } = useParams<{ id: string }>()
   const pinnedNationalities = useSettingArray('pinned_nationalities')
+  const schools = useSettingArray('member.schools')
+  const defaultSchool = useSettingValue('member.default_school')
+  const classes = useSettingArray('member.classes')
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
   const [page, setPage] = useState(1)
@@ -243,7 +248,7 @@ export default function MembersPage() {
   const createMutation = useCreateMember()
 
   const openCreate = () => {
-    setForm({ firstName: '', lastName: '', dateOfBirth: '', gender: '', cardNumber: '', bloodType: '', nationality: '', school: '' })
+    setForm({ firstName: '', lastName: '', dateOfBirth: '', gender: '', bloodType: '', nationality: '', school: defaultSchool ?? '', classe: '', section: '' })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -253,8 +258,9 @@ export default function MembersPage() {
     setError('')
     if (!validate({ firstName: !form.firstName, lastName: !form.lastName })) return
     try {
-      const payload = { ...form, dateOfBirth: form.dateOfBirth || null, gender: form.gender || null, cardNumber: form.cardNumber || null, bloodType: form.bloodType || null, nationality: form.nationality || null, school: form.school || null }
+      const payload = { ...form, dateOfBirth: form.dateOfBirth || null, gender: form.gender || null, bloodType: form.bloodType || null, nationality: form.nationality || null, school: form.school || null, classe: form.classe || null, section: form.section || null }
       const result = await createMutation.mutateAsync(payload)
+      toast.success('Membre créé')
       setFormOpen(false)
       setCredentialsDialog({ username: result.username, password: result.temporaryPassword, memberId: result.memberId })
     } catch (err) {
@@ -372,38 +378,86 @@ export default function MembersPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <RequiredLabel htmlFor="dateOfBirth">Date de naissance</RequiredLabel>
+                <RequiredLabel htmlFor="dateOfBirth" required>Date de naissance</RequiredLabel>
                 <Input id="dateOfBirth" type="date" value={form.dateOfBirth ?? ''} onChange={(e) => setForm(f => ({ ...f, dateOfBirth: e.target.value || null }))} />
               </div>
               <div className="space-y-2">
-                <RequiredLabel>Sexe</RequiredLabel>
-                <Select value={form.gender ?? ''} onValueChange={(v) => setForm(f => ({ ...f, gender: v || null }))}>
+                <RequiredLabel required>Sexe</RequiredLabel>
+                <Select value={form.gender ?? ''} onValueChange={(v) => setForm(f => ({ ...f, gender: v === '__clear__' ? '' : v || null }))}>
                   <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                  <SelectContent>{GENDER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    <SelectItem value="__clear__">-- Aucun --</SelectItem>
+                    {GENDER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <RequiredLabel htmlFor="cardNumber">N° Carte</RequiredLabel>
-                <Input id="cardNumber" value={form.cardNumber ?? ''} onChange={(e) => setForm(f => ({ ...f, cardNumber: e.target.value || null }))} />
+                <RequiredLabel required>Nationalité</RequiredLabel>
+                <div className="flex items-center gap-1">
+                  <div className="flex-1">
+                    <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v || null }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher une nationalité..." />
+                  </div>
+                  {form.nationality && (
+                    <Button variant="ghost" size="icon" type="button" className="h-7 w-7 shrink-0" onClick={() => setForm(f => ({ ...f, nationality: '' }))}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
               </div>
-              <div className="space-y-2">
-                <RequiredLabel>Nationalité</RequiredLabel>
-                <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v || null }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher une nationalité..." />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <RequiredLabel>Groupe sanguin</RequiredLabel>
-                <Select value={form.bloodType ?? ''} onValueChange={(v) => setForm(f => ({ ...f, bloodType: v || null }))}>
+                <Select value={form.bloodType ?? ''} onValueChange={(v) => setForm(f => ({ ...f, bloodType: v === '__clear__' ? '' : v || null }))}>
                   <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                  <SelectContent>{BLOOD_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    <SelectItem value="__clear__">-- Aucun --</SelectItem>
+                    {BLOOD_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <RequiredLabel htmlFor="school">École</RequiredLabel>
-                <Input id="school" value={form.school ?? ''} onChange={(e) => setForm(f => ({ ...f, school: e.target.value || null }))} />
+                <RequiredLabel required>École</RequiredLabel>
+                {(() => {
+                  const isOtherSchool = form.school ? !schools.includes(form.school) : false
+                  return (
+                    <>
+                      <Select
+                        value={isOtherSchool ? '__other__' : (form.school || '')}
+                        onValueChange={(v) => {
+                          if (v === '__other__') setForm(f => ({ ...f, school: '' }))
+                          else setForm(f => ({ ...f, school: v }))
+                        }}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                        <SelectContent>
+                          {schools.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          <SelectItem value="__other__">Autre...</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {isOtherSchool && (
+                        <Input value={form.school || ''} onChange={(e) => setForm(f => ({ ...f, school: e.target.value }))} placeholder="Nom de l'école..." />
+                      )}
+                    </>
+                  )
+                })()}
+              </div>
+              <div className="space-y-2">
+                <RequiredLabel required>Classe</RequiredLabel>
+                <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                  <SelectContent>
+                    {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <RequiredLabel>Section</RequiredLabel>
+                <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} />
               </div>
             </div>
             <DialogFooter>
@@ -420,9 +474,25 @@ export default function MembersPage() {
           <DialogHeader><DialogTitle>Compte créé avec succès</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">Un compte utilisateur a été créé automatiquement. Notez ces informations.</p>
-            <div className="rounded-md bg-muted p-4 space-y-2 font-mono text-sm">
-              <div><span className="text-muted-foreground">Nom d'utilisateur : </span><span className="font-bold">{credentialsDialog?.username}</span></div>
-              <div><span className="text-muted-foreground">Mot de passe : </span><span className="font-bold">{credentialsDialog?.password}</span></div>
+            <div className="rounded-md bg-muted p-4 space-y-3 text-sm">
+              <div>
+                <span className="text-muted-foreground">Nom d'utilisateur :</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{credentialsDialog?.username}</code>
+                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(credentialsDialog?.username ?? ''); toast.success('Copié !') }}>
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Mot de passe :</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{credentialsDialog?.password}</code>
+                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(credentialsDialog?.password ?? ''); toast.success('Copié !') }}>
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>

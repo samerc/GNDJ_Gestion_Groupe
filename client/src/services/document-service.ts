@@ -41,9 +41,14 @@ export function useMemberDocuments(memberId: string) {
 export function useUploadDocument(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (formData: FormData) =>
+    mutationFn: ({ formData, onUploadProgress }: { formData: FormData; onUploadProgress?: (pct: number) => void }) =>
       apiClient.post('/documents/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total && onUploadProgress) {
+            onUploadProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total))
+          }
+        },
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['documents', memberId] })

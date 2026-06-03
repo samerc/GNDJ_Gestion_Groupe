@@ -12,6 +12,8 @@ public class Member : BaseEntity
     public string? BloodType { get; set; }
     public string? Nationality { get; set; }
     public string? School { get; set; }
+    public string? Classe { get; set; }
+    public string? Section { get; set; }
     public string? MedicalNotes { get; set; }
     public string? Allergies { get; set; }
     public string? Notes { get; set; }

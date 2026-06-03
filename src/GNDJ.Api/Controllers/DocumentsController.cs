@@ -4,6 +4,7 @@ using GNDJ.Api.Authorization;
 using GNDJ.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
@@ -33,13 +34,21 @@ public class DocumentsController : BaseApiController
     // No permission attribute — members can upload their own documents,
     // CU can upload for members in their unit. Handler checks access.
     [HttpPost("upload")]
+    [EnableRateLimiting("upload")]
     [RequestSizeLimit(20 * 1024 * 1024)] // 20MB hard limit
     public async Task<IActionResult> Upload([FromForm] Guid memberId, [FromForm] Guid documentTypeId,
-        [FromForm] string title, [FromForm] DateOnly? expiryDate, [FromForm] DateOnly? issuedDate,
+        [FromForm] string? title, [FromForm] DateOnly? expiryDate, [FromForm] DateOnly? issuedDate,
         IFormFile file)
     {
         if (file is null || file.Length == 0)
             return BadRequest(new { error = "Aucun fichier n'a été fourni." });
+
+        // Auto-fill title from document type name if not provided
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            var docType = await _context.DocumentTypes.FindAsync(documentTypeId);
+            title = docType?.Name ?? "Document";
+        }
 
         // Validate file size from settings
         var maxSizeSetting = await _context.Settings.FirstOrDefaultAsync(s => s.Key == "documents.max_file_size_mb");
@@ -58,11 +67,28 @@ public class DocumentsController : BaseApiController
         if (!allowedTypes.Contains(ext))
             return BadRequest(new { error = $"Type de fichier non autorisé. Types acceptés : {string.Join(", ", allowedTypes)}" });
 
+        // Validate file content matches extension
+        using var headerStream = file.OpenReadStream();
+        var header = new byte[4];
+        await headerStream.ReadAsync(header.AsMemory(0, 4));
+        headerStream.Position = 0;
+
+        var isValid = ext switch
+        {
+            "pdf" => header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46, // %PDF
+            "jpg" or "jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+            "png" => header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47, // .PNG
+            _ => false
+        };
+        if (!isValid)
+            return BadRequest(new { error = "Le contenu du fichier ne correspond pas à son extension." });
+
         // Save file to disk
         var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "documents");
         Directory.CreateDirectory(uploadsDir);
 
-        var uniqueName = $"{Guid.CreateVersion7()}_{file.FileName}";
+        var safeFileName = Path.GetFileName(file.FileName); // Strip any directory components
+        var uniqueName = $"{Guid.CreateVersion7()}_{safeFileName}";
         var filePath = Path.Combine(uploadsDir, uniqueName);
 
         using (var stream = new FileStream(filePath, FileMode.Create))
@@ -95,8 +121,9 @@ public class DocumentsController : BaseApiController
         var doc = await Mediator.Send(new GetDocumentFileQuery(id));
         if (doc is null) return NotFound(new { error = "Document introuvable." });
 
-        var fullPath = Path.Combine(Directory.GetCurrentDirectory(), doc.FilePath);
-        if (!System.IO.File.Exists(fullPath))
+        var uploadsRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "uploads"));
+        var fullPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), doc.FilePath));
+        if (!fullPath.StartsWith(uploadsRoot) || !System.IO.File.Exists(fullPath))
             return NotFound(new { error = "Le fichier n'existe plus sur le serveur." });
 
         var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
@@ -150,13 +177,14 @@ public class DocumentsController : BaseApiController
         if (files.Count == 0)
             return BadRequest(new { error = "Aucun document à télécharger." });
 
+        var uploadsRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "uploads"));
         using var memoryStream = new MemoryStream();
         using (var archive = new System.IO.Compression.ZipArchive(memoryStream, System.IO.Compression.ZipArchiveMode.Create, true))
         {
             foreach (var doc in files)
             {
-                var fullPath = Path.Combine(Directory.GetCurrentDirectory(), doc.FilePath);
-                if (!System.IO.File.Exists(fullPath)) continue;
+                var fullPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), doc.FilePath));
+                if (!fullPath.StartsWith(uploadsRoot) || !System.IO.File.Exists(fullPath)) continue;
 
                 // Organize: MemberName/DocTypeName_FileName
                 var sanitizedMember = doc.MemberName.Replace("/", "-").Replace("\\", "-");

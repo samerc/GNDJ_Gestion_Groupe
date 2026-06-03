@@ -240,11 +240,17 @@ export default function TeamsPage() {
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <RequiredLabel htmlFor="color1">Couleur 1</RequiredLabel>
-                <Input id="color1" type="color" value={form.color1 || '#ffffff'} onChange={(e) => setForm(f => ({ ...f, color1: e.target.value }))} />
+                <div className="flex items-center gap-2">
+                  <Input id="color1" type="color" value={form.color1 || '#ffffff'} onChange={(e) => setForm(f => ({ ...f, color1: e.target.value }))} className="h-9 w-14 p-1 cursor-pointer" />
+                  <Input value={form.color1 || ''} onChange={(e) => setForm(f => ({ ...f, color1: e.target.value }))} placeholder="#000000" className="flex-1" />
+                </div>
               </div>
               <div className="space-y-2">
                 <RequiredLabel htmlFor="color2">Couleur 2</RequiredLabel>
-                <Input id="color2" type="color" value={form.color2 || '#ffffff'} onChange={(e) => setForm(f => ({ ...f, color2: e.target.value }))} />
+                <div className="flex items-center gap-2">
+                  <Input id="color2" type="color" value={form.color2 || '#ffffff'} onChange={(e) => setForm(f => ({ ...f, color2: e.target.value }))} className="h-9 w-14 p-1 cursor-pointer" />
+                  <Input value={form.color2 || ''} onChange={(e) => setForm(f => ({ ...f, color2: e.target.value }))} placeholder="#000000" className="flex-1" />
+                </div>
               </div>
               <div className="space-y-2">
                 <RequiredLabel htmlFor="displayOrder">Ordre</RequiredLabel>

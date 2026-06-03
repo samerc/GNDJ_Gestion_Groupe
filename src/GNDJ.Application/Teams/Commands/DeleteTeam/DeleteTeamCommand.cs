@@ -11,11 +11,13 @@ public class DeleteTeamCommandHandler : IRequestHandler<DeleteTeamCommand, Resul
 {
     private readonly IApplicationDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUser;
 
-    public DeleteTeamCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    public DeleteTeamCommandHandler(IApplicationDbContext context, IAuditService auditService, ICurrentUserService currentUser)
     {
         _context = context;
         _auditService = auditService;
+        _currentUser = currentUser;
     }
 
     public async ValueTask<Result<bool>> Handle(DeleteTeamCommand request, CancellationToken cancellationToken)
@@ -26,6 +28,9 @@ public class DeleteTeamCommandHandler : IRequestHandler<DeleteTeamCommand, Resul
 
         if (entity is null)
             return Result<bool>.Failure("Équipe introuvable.");
+
+        if (!_currentUser.IsSuperAdmin && !_currentUser.AuthorizedUnitIds.Contains(entity.UnitId))
+            return Result<bool>.Failure("Accès non autorisé à cette unité.");
 
         if (entity.Assignments.Any())
             return Result<bool>.Failure("Impossible de supprimer une équipe qui contient des membres actifs.");

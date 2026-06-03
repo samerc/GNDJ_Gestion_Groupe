@@ -1,5 +1,9 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
+using FluentValidation;
 using GNDJ.Api.Authorization;
 using GNDJ.Api.Middleware;
+using GNDJ.Application.Common.Behaviors;
 using GNDJ.Infrastructure;
 using GNDJ.Infrastructure.Persistence;
 using GNDJ.Infrastructure.Persistence.Interceptors;
@@ -15,6 +19,8 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 // MediatR + FluentValidation
 builder.Services.AddMediator(options => options.ServiceLifetime = ServiceLifetime.Scoped);
+builder.Services.AddValidatorsFromAssemblyContaining<GNDJ.Application.AssemblyMarker>(ServiceLifetime.Scoped);
+builder.Services.AddScoped(typeof(Mediator.IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
 // Authorization
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
@@ -34,6 +40,30 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowCredentials();
     });
+});
+
+// Rate limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = 429;
+    options.AddFixedWindowLimiter("auth", opt =>
+    {
+        opt.PermitLimit = 10;
+        opt.Window = TimeSpan.FromMinutes(5);
+        opt.QueueLimit = 0;
+    });
+    options.AddFixedWindowLimiter("upload", opt =>
+    {
+        opt.PermitLimit = 20;
+        opt.Window = TimeSpan.FromMinutes(10);
+        opt.QueueLimit = 0;
+    });
+});
+
+// Global request size limit (1MB for JSON endpoints; file uploads override with [RequestSizeLimit])
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 1 * 1024 * 1024; // 1MB default
 });
 
 var app = builder.Build();
@@ -56,6 +86,16 @@ using (var scope = app.Services.CreateScope())
 // Middleware pipeline
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+// Security headers
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["X-Permitted-Cross-Domain-Policies"] = "none";
+    await next();
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -64,6 +104,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.MapControllers();
 
 app.Run();

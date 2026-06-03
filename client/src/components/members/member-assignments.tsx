@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Plus, Pencil, Trash2, StopCircle, Building2 } from 'lucide-react'
 import { parseApiError } from '@/lib/error-utils'
+import { toast } from 'sonner'
 
 interface MemberAssignmentsProps {
   memberId: string
@@ -83,8 +84,10 @@ export function MemberAssignments({ memberId, memberName }: MemberAssignmentsPro
       const payload = { ...form, teamId: form.teamId || null, endDate: form.endDate || null, notes: form.notes || null }
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, ...payload })
+        toast.success('Affectation modifiée')
       } else {
         await createMutation.mutateAsync(payload)
+        toast.success('Affectation créée')
       }
       setFormOpen(false)
     } catch (err) {
@@ -94,7 +97,7 @@ export function MemberAssignments({ memberId, memberName }: MemberAssignmentsPro
 
   const handleDelete = async () => {
     if (!deleting) return
-    try { await deleteMutation.mutateAsync(deleting.id); setDeleting(null) } catch { setDeleting(null) }
+    try { await deleteMutation.mutateAsync(deleting.id); toast.success('Affectation supprimée'); setDeleting(null) } catch (err) { setError(parseApiError(err)); setDeleting(null) }
   }
 
   const activeAssignments = data?.items.filter(a => a.isActive) ?? []
@@ -148,7 +151,7 @@ export function MemberAssignments({ memberId, memberName }: MemberAssignmentsPro
                     <Button variant="ghost" size="icon" className="h-8 w-8" title="Modifier" onClick={() => openEdit(a)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Désactiver" onClick={async () => { try { await endMutation.mutateAsync({ id: a.id, endDate: new Date().toISOString().split('T')[0] }) } catch { /* handled by query refresh */ } }}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Désactiver" onClick={async () => { try { await endMutation.mutateAsync({ id: a.id, endDate: new Date().toISOString().split('T')[0] }); toast.success('Affectation terminée') } catch { /* handled by query refresh */ } }}>
                       <StopCircle className="h-4 w-4 text-orange-500" />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleting(a)}>
@@ -256,28 +259,6 @@ export function MemberAssignments({ memberId, memberName }: MemberAssignmentsPro
                 </div>
               </>
             )}
-            {/* Active toggle */}
-            <div className="flex items-center justify-between rounded-md border p-3">
-              <div>
-                <p className="text-sm font-medium">Actif</p>
-                <p className="text-xs text-muted-foreground">Désactiver met automatiquement la date de fin à aujourd'hui</p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={!form.endDate}
-                onClick={() => {
-                  if (!form.endDate) {
-                    setForm(f => ({ ...f, endDate: new Date().toISOString().split('T')[0] }))
-                  } else {
-                    setForm(f => ({ ...f, endDate: null }))
-                  }
-                }}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${!form.endDate ? 'bg-primary' : 'bg-input'}`}
-              >
-                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${!form.endDate ? 'translate-x-5' : 'translate-x-0'}`} />
-              </button>
-            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <RequiredLabel required>Date de début</RequiredLabel>
@@ -292,6 +273,30 @@ export function MemberAssignments({ memberId, memberName }: MemberAssignmentsPro
                 />
               </div>
             </div>
+            {editing && !form.endDate && (
+              <div className="rounded-md border border-orange-200 bg-orange-50 p-3">
+                <p className="text-sm font-medium text-orange-800 mb-2">Terminer l'affectation</p>
+                <p className="text-xs text-muted-foreground mb-2">Définir la date de fin pour clôturer ce poste.</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-orange-700 border-orange-300 hover:bg-orange-100"
+                  onClick={() => setForm(f => ({ ...f, endDate: new Date().toISOString().split('T')[0] }))}
+                >
+                  <StopCircle className="mr-1 h-3.5 w-3.5" />
+                  Terminer aujourd'hui
+                </Button>
+              </div>
+            )}
+            {form.endDate && (
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-xs">Poste terminé</Badge>
+                <Button type="button" variant="ghost" size="sm" className="text-xs h-6" onClick={() => setForm(f => ({ ...f, endDate: null }))}>
+                  Réactiver
+                </Button>
+              </div>
+            )}
             <div className="space-y-2">
               <RequiredLabel>Notes</RequiredLabel>
               <Input value={form.notes ?? ''} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value || null }))} />

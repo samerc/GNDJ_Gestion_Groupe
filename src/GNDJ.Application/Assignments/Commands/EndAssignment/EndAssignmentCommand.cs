@@ -10,11 +10,13 @@ public class EndAssignmentCommandHandler : IRequestHandler<EndAssignmentCommand,
 {
     private readonly IApplicationDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUser;
 
-    public EndAssignmentCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    public EndAssignmentCommandHandler(IApplicationDbContext context, IAuditService auditService, ICurrentUserService currentUser)
     {
         _context = context;
         _auditService = auditService;
+        _currentUser = currentUser;
     }
 
     public async ValueTask<Result<bool>> Handle(EndAssignmentCommand request, CancellationToken cancellationToken)
@@ -22,6 +24,9 @@ public class EndAssignmentCommandHandler : IRequestHandler<EndAssignmentCommand,
         var entity = await _context.MemberAssignments.FindAsync([request.Id], cancellationToken);
         if (entity is null)
             return Result<bool>.Failure("Affectation introuvable.");
+
+        if (!_currentUser.IsSuperAdmin && !_currentUser.AuthorizedUnitIds.Contains(entity.UnitId))
+            return Result<bool>.Failure("Accès non autorisé à cette unité.");
 
         if (entity.EndDate is not null)
             return Result<bool>.Failure("Cette affectation est déjà terminée.");

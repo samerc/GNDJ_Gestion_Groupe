@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { parseApiError } from '@/lib/error-utils'
+import { toast } from 'sonner'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useDebounce } from '@/hooks/use-debounce'
@@ -76,6 +77,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
     try {
       await updateMutation.mutateAsync({ id: editForm.id, firstName: editForm.firstName, lastName: editForm.lastName, profession: editForm.profession || null, isDeceased: editForm.isDeceased, notes: editForm.notes || null })
       await updateLinkMutation.mutateAsync({ linkId: editForm.linkId, relationshipType: editForm.relationshipType, isPrimaryContact: editForm.isPrimaryContact, isEmergencyContact: editForm.isEmergencyContact })
+      toast.success('Tuteur modifié')
       setEditDialogOpen(false)
     } catch (err) { setError(parseApiError(err)) }
   }
@@ -99,6 +101,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
     if (!validate({ firstName: !form.firstName, lastName: !form.lastName, relationshipType: !form.relationshipType })) return
     try {
       await createMutation.mutateAsync({ ...form, profession: form.profession || null })
+      toast.success('Tuteur ajouté')
       setAddDialogOpen(false)
     } catch (err) { setError(parseApiError(err)) }
   }
@@ -107,19 +110,21 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
     setError('')
     try {
       await linkMutation.mutateAsync({ ...linkForm, guardianId })
+      toast.success('Tuteur ajouté')
       setAddDialogOpen(false)
     } catch (err) { setError(parseApiError(err)) }
   }
 
   const handleUnlink = async () => {
     if (!unlinking) return
-    try { await unlinkMutation.mutateAsync(unlinking.linkId); setUnlinking(null) } catch { setUnlinking(null) }
+    try { await unlinkMutation.mutateAsync(unlinking.linkId); toast.success('Tuteur dissocié'); setUnlinking(null) } catch (err) { setError(parseApiError(err)); setUnlinking(null) }
   }
 
   const handleAddPhone = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!phoneDialog) return
     await addPhoneMutation.mutateAsync({ guardianId: phoneDialog, ...phoneForm })
+    toast.success('Téléphone ajouté')
     setPhoneDialog(null)
     setPhoneForm({ countryCode: defaultCountryCode ?? '+961', number: '', type: 'Mobile', isPrimary: false })
   }
@@ -128,6 +133,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
     e.preventDefault()
     if (!emailDialog) return
     await addEmailMutation.mutateAsync({ guardianId: emailDialog, ...emailForm })
+    toast.success('Email ajouté')
     setEmailDialog(null)
     setEmailForm({ address: '', type: 'Personnel', isPrimary: false })
   }
@@ -327,10 +333,13 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
                 <RequiredLabel required>Indicatif</RequiredLabel>
-                <Select value={phoneForm.countryCode} onValueChange={(v) => setPhoneForm(f => ({ ...f, countryCode: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{PHONE_COUNTRY_CODES.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={phoneForm.countryCode}
+                  onValueChange={(v) => setPhoneForm(f => ({ ...f, countryCode: v }))}
+                  options={PHONE_COUNTRY_CODES}
+                  placeholder="Code pays"
+                  searchPlaceholder="Rechercher un indicatif..."
+                />
               </div>
               <div className="col-span-2 space-y-2">
                 <RequiredLabel required>Numéro</RequiredLabel>
@@ -417,6 +426,10 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editForm.isDeceased} onChange={(e) => setEditForm(f => ({ ...f, isDeceased: e.target.checked }))} />Décédé(e)</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editForm.isPrimaryContact} onChange={(e) => setEditForm(f => ({ ...f, isPrimaryContact: e.target.checked }))} />Contact principal</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editForm.isEmergencyContact} onChange={(e) => setEditForm(f => ({ ...f, isEmergencyContact: e.target.checked }))} />Urgence</label>
+            </div>
+            <div className="space-y-2">
+              <RequiredLabel>Notes</RequiredLabel>
+              <textarea className="flex min-h-14 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setEditDialogOpen(false)}>Annuler</Button>

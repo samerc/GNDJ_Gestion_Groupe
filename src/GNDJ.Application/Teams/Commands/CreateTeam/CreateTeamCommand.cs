@@ -25,15 +25,24 @@ public class CreateTeamCommandHandler : IRequestHandler<CreateTeamCommand, Resul
 {
     private readonly IApplicationDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUser;
 
-    public CreateTeamCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    public CreateTeamCommandHandler(IApplicationDbContext context, IAuditService auditService, ICurrentUserService currentUser)
     {
         _context = context;
         _auditService = auditService;
+        _currentUser = currentUser;
     }
 
     public async ValueTask<Result<Guid>> Handle(CreateTeamCommand request, CancellationToken cancellationToken)
     {
+        if (!_currentUser.IsSuperAdmin && !_currentUser.AuthorizedUnitIds.Contains(request.UnitId))
+            return Result<Guid>.Failure("Accès non autorisé à cette unité.");
+
+        var unitExists = await _context.Units.AnyAsync(u => u.Id == request.UnitId, cancellationToken);
+        if (!unitExists)
+            return Result<Guid>.Failure("Unité introuvable.");
+
         var nameExists = await _context.Teams.AnyAsync(t => t.Name == request.Name && t.UnitId == request.UnitId, cancellationToken);
         if (nameExists)
             return Result<Guid>.Failure("Une équipe avec ce nom existe déjà dans cette unité.");

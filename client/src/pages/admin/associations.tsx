@@ -1,7 +1,6 @@
 import { parseApiError } from '@/lib/error-utils'
 import { useState, useRef } from 'react'
 import { useDebounce } from '@/hooks/use-debounce'
-import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { useAssociations, useCreateAssociation, useUpdateAssociation, useDeleteAssociation, type AssociationDto, type AssociationFormData } from '@/services/association-service'
 import { Button } from '@/components/ui/button'
@@ -13,6 +12,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Plus, Pencil, Trash2, Search, Landmark } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function AssociationsPage() {
   const [search, setSearch] = useState('')
@@ -24,7 +24,7 @@ export default function AssociationsPage() {
   const [deleting, setDeleting] = useState<AssociationDto | null>(null)
   const [form, setForm] = useState<AssociationFormData>({ name: '', code: '' })
   const [error, setError] = useState('')
-  const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
+  const { validate, clearField, clearAll, fieldClass } = useFormValidation()
 
   const { data, isLoading } = useAssociations({ search: debouncedSearch || undefined, page })
   const createMutation = useCreateAssociation()
@@ -52,8 +52,10 @@ export default function AssociationsPage() {
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, ...form })
+        toast.success('Association modifiée')
       } else {
         await createMutation.mutateAsync(form)
+        toast.success('Association créée')
       }
       setFormOpen(false)
     } catch (err) {
@@ -65,6 +67,7 @@ export default function AssociationsPage() {
     if (!deleting) return
     try {
       await deleteMutation.mutateAsync(deleting.id)
+      toast.success('Association supprimée')
       setDeleting(null)
     } catch (err) {
       setError(parseApiError(err))
@@ -124,7 +127,7 @@ export default function AssociationsPage() {
               </TableHeader>
               <TableBody>
                 {data.items.map((item) => (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} className="even:bg-muted/30">
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell className="text-muted-foreground">{item.code}</TableCell>
                     <TableCell className="text-muted-foreground max-w-xs truncate">{item.description ?? '—'}</TableCell>

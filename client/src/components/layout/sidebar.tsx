@@ -55,16 +55,15 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   const visibleNav = navItems.filter((item) => !item.permission || hasPermission(item.permission))
   const visibleAdmin = user?.isSuperAdmin ? adminItems.filter((item) => hasPermission(item.permission)) : []
 
-  const renderLink = (item: typeof navItems[0], isActive: boolean) => {
+  const renderLink = (item: { path: string; label: string; icon: React.ComponentType<{ className?: string }>; permission: string | null }, isActive: boolean) => {
     const Icon = item.icon
     return (
       <Link
         key={item.path}
         to={item.path}
         onClick={onNavigate}
-        title={collapsed ? item.label : undefined}
         className={cn(
-          'flex items-center rounded-md text-sm font-medium transition-colors',
+          'group/nav relative flex items-center rounded-md text-sm font-medium transition-colors',
           collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2',
           isActive
             ? 'bg-sidebar-accent text-sidebar-accent-foreground'
@@ -73,6 +72,11 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
       >
         <Icon className="h-4 w-4 shrink-0" />
         {!collapsed && <span>{item.label}</span>}
+        {collapsed && (
+          <span className="pointer-events-none absolute left-full ml-2 rounded-md bg-foreground px-2 py-1 text-xs text-background opacity-0 shadow-md transition-opacity group-hover/nav:opacity-100 whitespace-nowrap z-50">
+            {item.label}
+          </span>
+        )}
       </Link>
     )
   }

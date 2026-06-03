@@ -2,7 +2,6 @@ import { parseApiError } from '@/lib/error-utils'
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
-import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { useUnitTypes, useCreateUnitType, useUpdateUnitType, useDeleteUnitType, type UnitTypeDto, type UnitTypeFormData } from '@/services/unit-type-service'
 import { Button } from '@/components/ui/button'
@@ -14,6 +13,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Plus, Pencil, Trash2, Search, FolderTree } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function UnitTypesPage() {
   const navigate = useNavigate()
@@ -26,7 +26,7 @@ export default function UnitTypesPage() {
   const [deleting, setDeleting] = useState<UnitTypeDto | null>(null)
   const [form, setForm] = useState<UnitTypeFormData>({ name: '', code: '' })
   const [error, setError] = useState('')
-  const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
+  const { validate, clearField, clearAll, fieldClass } = useFormValidation()
 
   const { data, isLoading } = useUnitTypes({ search: debouncedSearch || undefined, page })
   const createMutation = useCreateUnitType()
@@ -57,8 +57,10 @@ export default function UnitTypesPage() {
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, ...form })
+        toast.success('Type d\'unité modifié')
       } else {
         await createMutation.mutateAsync(form)
+        toast.success('Type d\'unité créé')
       }
       setFormOpen(false)
     } catch (err) {
@@ -70,6 +72,7 @@ export default function UnitTypesPage() {
     if (!deleting) return
     try {
       await deleteMutation.mutateAsync(deleting.id)
+      toast.success('Type d\'unité supprimé')
       setDeleting(null)
     } catch (err) {
       setError(parseApiError(err))

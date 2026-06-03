@@ -1,6 +1,5 @@
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
-import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { useParams, useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
@@ -15,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { ArrowLeft, Plus, Pencil, Trash2, UsersRound } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface UnitDetail {
   id: string; name: string; code: string; description: string | null; isActive: boolean
@@ -42,7 +42,7 @@ export default function UnitDetailPage() {
   const [deleting, setDeleting] = useState<TeamDto | null>(null)
   const [form, setForm] = useState<TeamFormData>({ name: '', unitId: '', displayOrder: 0 })
   const [error, setError] = useState('')
-  const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
+  const { validate, clearField, clearAll, fieldClass } = useFormValidation()
 
   const openCreate = () => {
     setEditing(null)
@@ -76,8 +76,10 @@ export default function UnitDetailPage() {
       }
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, ...payload })
+        toast.success('Équipe modifiée')
       } else {
         await createMutation.mutateAsync(payload)
+        toast.success('Équipe créée')
       }
       setFormOpen(false)
     } catch (err) {
@@ -87,7 +89,7 @@ export default function UnitDetailPage() {
 
   const handleDelete = async () => {
     if (!deleting) return
-    try { await deleteMutation.mutateAsync(deleting.id); setDeleting(null) } catch { setDeleting(null) }
+    try { await deleteMutation.mutateAsync(deleting.id); toast.success('Équipe supprimée'); setDeleting(null) } catch (err) { setError(parseApiError(err)); setDeleting(null) }
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending
@@ -215,11 +217,17 @@ export default function UnitDetailPage() {
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <RequiredLabel htmlFor="color1">Couleur 1</RequiredLabel>
-                <Input id="color1" type="color" value={form.color1 || '#ffffff'} onChange={(e) => setForm(f => ({ ...f, color1: e.target.value }))} />
+                <div className="flex items-center gap-2">
+                  <Input id="color1" type="color" value={form.color1 || '#ffffff'} onChange={(e) => setForm(f => ({ ...f, color1: e.target.value }))} className="h-9 w-14 p-1 cursor-pointer" />
+                  <Input value={form.color1 || ''} onChange={(e) => setForm(f => ({ ...f, color1: e.target.value }))} placeholder="#000000" className="flex-1" />
+                </div>
               </div>
               <div className="space-y-2">
                 <RequiredLabel htmlFor="color2">Couleur 2</RequiredLabel>
-                <Input id="color2" type="color" value={form.color2 || '#ffffff'} onChange={(e) => setForm(f => ({ ...f, color2: e.target.value }))} />
+                <div className="flex items-center gap-2">
+                  <Input id="color2" type="color" value={form.color2 || '#ffffff'} onChange={(e) => setForm(f => ({ ...f, color2: e.target.value }))} className="h-9 w-14 p-1 cursor-pointer" />
+                  <Input value={form.color2 || ''} onChange={(e) => setForm(f => ({ ...f, color2: e.target.value }))} placeholder="#000000" className="flex-1" />
+                </div>
               </div>
               <div className="space-y-2">
                 <RequiredLabel htmlFor="displayOrder">Ordre</RequiredLabel>

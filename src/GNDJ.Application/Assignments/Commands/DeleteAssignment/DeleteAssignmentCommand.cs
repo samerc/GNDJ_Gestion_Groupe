@@ -10,11 +10,13 @@ public class DeleteAssignmentCommandHandler : IRequestHandler<DeleteAssignmentCo
 {
     private readonly IApplicationDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUser;
 
-    public DeleteAssignmentCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    public DeleteAssignmentCommandHandler(IApplicationDbContext context, IAuditService auditService, ICurrentUserService currentUser)
     {
         _context = context;
         _auditService = auditService;
+        _currentUser = currentUser;
     }
 
     public async ValueTask<Result<bool>> Handle(DeleteAssignmentCommand request, CancellationToken cancellationToken)
@@ -22,6 +24,9 @@ public class DeleteAssignmentCommandHandler : IRequestHandler<DeleteAssignmentCo
         var entity = await _context.MemberAssignments.FindAsync([request.Id], cancellationToken);
         if (entity is null)
             return Result<bool>.Failure("Affectation introuvable.");
+
+        if (!_currentUser.IsSuperAdmin && !_currentUser.AuthorizedUnitIds.Contains(entity.UnitId))
+            return Result<bool>.Failure("Accès non autorisé à cette unité.");
 
         _context.MemberAssignments.Remove(entity);
         await _context.SaveChangesAsync(cancellationToken);

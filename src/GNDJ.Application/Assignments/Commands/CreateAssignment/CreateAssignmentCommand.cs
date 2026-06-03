@@ -39,6 +39,19 @@ public class CreateAssignmentCommandHandler : IRequestHandler<CreateAssignmentCo
 
     public async ValueTask<Result<Guid>> Handle(CreateAssignmentCommand request, CancellationToken cancellationToken)
     {
+        // Validate FK references exist
+        var memberExists = await _context.Members.AnyAsync(m => m.Id == request.MemberId, cancellationToken);
+        if (!memberExists)
+            return Result<Guid>.Failure("Membre introuvable.");
+
+        var unitExists = await _context.Units.AnyAsync(u => u.Id == request.UnitId, cancellationToken);
+        if (!unitExists)
+            return Result<Guid>.Failure("Unité introuvable.");
+
+        var roleExists = await _context.FunctionalRoles.AnyAsync(r => r.Id == request.FunctionalRoleId, cancellationToken);
+        if (!roleExists)
+            return Result<Guid>.Failure("Rôle fonctionnel introuvable.");
+
         // Validate team belongs to unit
         if (request.TeamId.HasValue)
         {

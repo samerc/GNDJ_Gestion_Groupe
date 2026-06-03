@@ -29,7 +29,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
             .AnyAsync(u => u.Email == request.Email, cancellationToken);
 
         if (emailExists)
-            return Result<AuthResponse>.Failure("Un compte avec cette adresse courriel existe déjà.");
+            return Result<AuthResponse>.Failure("Impossible de créer le compte. Veuillez réessayer.");
 
         // Create member
         var member = new Member

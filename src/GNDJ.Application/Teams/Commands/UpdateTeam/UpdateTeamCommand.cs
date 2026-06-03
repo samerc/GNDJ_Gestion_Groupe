@@ -24,11 +24,13 @@ public class UpdateTeamCommandHandler : IRequestHandler<UpdateTeamCommand, Resul
 {
     private readonly IApplicationDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUser;
 
-    public UpdateTeamCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    public UpdateTeamCommandHandler(IApplicationDbContext context, IAuditService auditService, ICurrentUserService currentUser)
     {
         _context = context;
         _auditService = auditService;
+        _currentUser = currentUser;
     }
 
     public async ValueTask<Result<bool>> Handle(UpdateTeamCommand request, CancellationToken cancellationToken)
@@ -36,6 +38,9 @@ public class UpdateTeamCommandHandler : IRequestHandler<UpdateTeamCommand, Resul
         var entity = await _context.Teams.FindAsync([request.Id], cancellationToken);
         if (entity is null)
             return Result<bool>.Failure("Équipe introuvable.");
+
+        if (!_currentUser.IsSuperAdmin && !_currentUser.AuthorizedUnitIds.Contains(entity.UnitId))
+            return Result<bool>.Failure("Accès non autorisé à cette unité.");
 
         var nameExists = await _context.Teams.AnyAsync(t => t.Name == request.Name && t.UnitId == request.UnitId && t.Id != request.Id, cancellationToken);
         if (nameExists)

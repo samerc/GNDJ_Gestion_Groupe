@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Shield, ChevronRight, Save } from 'lucide-react'
+import { toast } from 'sonner'
 
 // All permissions grouped by category for the editor
 const PERMISSION_GROUPS: { label: string; permissions: { value: string; label: string }[] }[] = [
@@ -199,6 +200,7 @@ function PermissionEditor({ profileId }: { profileId: string }) {
       await updateMutation.mutateAsync({ id: profileId, permissions: [...editedPerms] })
       setEditedPerms(null)
       setSaved(true)
+      toast.success('Permissions enregistrées')
     } catch (err) {
       setError(parseApiError(err))
     }
