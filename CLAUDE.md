@@ -60,7 +60,7 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - Role-based sidebar: super admin sees all, unit leaders see Ma fiche + Mon unité only
 
 ## Database
-- 23 tables: associations, unit_types, units, teams, members, users, security_profiles, security_profile_permissions, functional_roles, member_assignments, member_relationships, member_phones, member_emails, member_addresses, guardians, guardian_links, guardian_phones, guardian_emails, audit_logs, settings, document_types, member_documents, member_cotisations
+- 26 tables: associations, unit_types, units, teams, members, users, security_profiles, security_profile_permissions, functional_roles, member_assignments, member_relationships, member_phones, member_emails, member_addresses, guardians, guardian_links, guardian_phones, guardian_emails, audit_logs, settings, document_types, member_documents, member_cotisations, scout_stages, badges, member_progressions
 - Snake_case naming convention via EFCore.NamingConventions
 - Global soft-delete query filters on all BaseEntity types
 - Interceptors: AuditableEntityInterceptor (created/updated timestamps), SoftDeleteInterceptor (converts Delete to soft-delete)
@@ -73,14 +73,14 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - `patrick.doumit@scouts.gndj` / `Admin123!` — Chef d'unité Route
 - `nadine.boutros@scouts.gndj` / `Admin123!` — Chef d'unité Maîtrise
 
-## Current Phase: 2
+## Current Phase: 3
 
 ### Phase 1 (Complete)
 - [x] Solution structure + project references
 - [x] NuGet packages installed (no vulnerabilities)
 - [x] React + Vite + Tailwind + Shadcn/ui initialized
 - [x] Frontend builds successfully
-- [x] Domain entities (23 entities + enums + interfaces)
+- [x] Domain entities (26 entities + enums + interfaces)
 - [x] Database layer (EF configs, interceptors, migration, seed data)
 - [x] Authentication backend (JWT + BCrypt, register/login/refresh/logout/me endpoints tested)
 - [x] Authentication frontend (Zustand store, api-client with token refresh, login/register pages, sidebar/header layout, React Router)
@@ -134,8 +134,19 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] Badges (per unit type, isActive, linked to badge-type stages)
 - [x] Member progressions (stage + optional badge, date, location, notes)
 - [x] Admin page: Progression scoute (tabbed: Étapes / Badges, filtered by unit type)
+- [x] Drag-and-drop reordering for stages and badges (@dnd-kit)
+- [x] Stages/badges tabs on unit type detail page (pre-selected unit type)
 - [x] Progression tab on member detail, CU dashboard, Ma fiche
+- [x] Auto-resolve unitId/unitTypeId from member's active assignment
 - [x] New permissions: progression.view, progression.manage
+
+### Additional improvements (this session)
+- [x] Admin members page: 2-column layout (list + detail), unit filter, sortable columns
+- [x] Admin dashboard: meaningful stats (boys/girls, missing docs, unpaid cotisations, age groups, unit breakdown)
+- [x] Audit log: session events (login/logout/failed), French entity labels, IP column
+- [x] Standalone member detail page merged into 2-column view (/members/:id auto-selects)
+- [x] Dialog won't close on outside click (global)
+- [x] Regular members redirected to Ma fiche (no unit page access)
 
 ### Remaining
 - [ ] PDF exports — unit/team lists, member cards
