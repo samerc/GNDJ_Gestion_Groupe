@@ -70,7 +70,7 @@ function SortableRow({ id, children }: { id: string; children: React.ReactNode }
 }
 
 // ─── Stages Tab ──────────────────────────────
-function StagesTab({ unitTypeId, unitTypes }: { unitTypeId?: string; unitTypes: { id: string; name: string }[] }) {
+export function StagesTab({ unitTypeId, unitTypes }: { unitTypeId?: string; unitTypes: { id: string; name: string }[] }) {
   const { data, isLoading } = useScoutStages(unitTypeId)
   const createMutation = useCreateScoutStage()
   const updateMutation = useUpdateScoutStage()
@@ -184,7 +184,7 @@ function StagesTab({ unitTypeId, unitTypes }: { unitTypeId?: string; unitTypes: 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
             <FormFieldErrors show={hasErrors} />
-            {!editing && (
+            {!editing && unitTypes.length > 1 && (
               <div className="space-y-2">
                 <RequiredLabel required>Type d'unité</RequiredLabel>
                 <Select value={form.unitTypeId} onValueChange={(v) => { setForm(f => ({ ...f, unitTypeId: v })); clearField('unitTypeId') }}>
@@ -216,7 +216,7 @@ function StagesTab({ unitTypeId, unitTypes }: { unitTypeId?: string; unitTypes: 
 }
 
 // ─── Badges Tab ──────────────────────────────
-function BadgesTab({ unitTypeId, unitTypes }: { unitTypeId?: string; unitTypes: { id: string; name: string }[] }) {
+export function BadgesTab({ unitTypeId, unitTypes }: { unitTypeId?: string; unitTypes: { id: string; name: string }[] }) {
   const { data, isLoading } = useBadges(unitTypeId)
   const createMutation = useCreateBadge()
   const updateMutation = useUpdateBadge()
@@ -325,7 +325,7 @@ function BadgesTab({ unitTypeId, unitTypes }: { unitTypeId?: string; unitTypes: 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
             <FormFieldErrors show={hasErrors} />
-            {!editing && (
+            {!editing && unitTypes.length > 1 && (
               <div className="space-y-2">
                 <RequiredLabel required>Type d'unité</RequiredLabel>
                 <Select value={form.unitTypeId} onValueChange={(v) => { setForm(f => ({ ...f, unitTypeId: v })); clearField('unitTypeId') }}>

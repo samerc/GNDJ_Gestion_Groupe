@@ -2,11 +2,11 @@ import { useParams, useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import { FunctionalRolesList } from '@/components/shared/functional-roles-list'
+import { StagesTab, BadgesTab } from '@/pages/admin/progression'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Shield, Star, Award } from 'lucide-react'
 
 interface UnitTypeDetail {
   id: string; name: string; code: string; description: string | null
@@ -26,6 +26,9 @@ export default function UnitTypeDetailPage() {
   if (isLoading) return <LoadingSpinner />
   if (!unitType) return <div className="py-12 text-center text-muted-foreground">Type d'unité introuvable.</div>
 
+  // For the tabs, we pass the unit type as a locked single-item array
+  const unitTypes = [{ id: unitType.id, name: unitType.name }]
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -41,7 +44,25 @@ export default function UnitTypeDetailPage() {
 
       {unitType.description && <p className="text-muted-foreground">{unitType.description}</p>}
 
-      <FunctionalRolesList unitTypeId={id} unitTypeName={unitType.name} />
+      <Tabs defaultValue="roles">
+        <TabsList>
+          <TabsTrigger value="roles"><Shield className="mr-1 h-4 w-4" />Fonctions</TabsTrigger>
+          <TabsTrigger value="stages"><Star className="mr-1 h-4 w-4" />Étapes</TabsTrigger>
+          <TabsTrigger value="badges"><Award className="mr-1 h-4 w-4" />Badges</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="roles">
+          <FunctionalRolesList unitTypeId={id} unitTypeName={unitType.name} />
+        </TabsContent>
+
+        <TabsContent value="stages">
+          <StagesTab unitTypeId={unitType.id} unitTypes={unitTypes} />
+        </TabsContent>
+
+        <TabsContent value="badges">
+          <BadgesTab unitTypeId={unitType.id} unitTypes={unitTypes} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
