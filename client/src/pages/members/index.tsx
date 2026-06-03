@@ -198,7 +198,7 @@ export default function MembersPage() {
   const [sortBy, setSortBy] = useState('lastname')
   const [sortDir, setSortDir] = useState('asc')
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
-  const [leftWidth, setLeftWidth] = useState(420)
+  const [leftWidth, setLeftWidth] = useState(340)
 
   // Create dialog
   const [formOpen, setFormOpen] = useState(false)
@@ -289,10 +289,7 @@ export default function MembersPage() {
             <div className="flex-1 min-w-0">
               <SortHeader label="Nom" field="lastname" current={sortBy} dir={sortDir} onSort={handleSort} />
             </div>
-            <div className="w-24 shrink-0">
-              <SortHeader label="Carte" field="cardnumber" current={sortBy} dir={sortDir} onSort={handleSort} />
-            </div>
-            <div className="w-28 shrink-0 hidden xl:block text-xs">Unité</div>
+            <div className="w-12 shrink-0 text-xs">Unité</div>
           </div>
 
           {/* List */}
@@ -318,8 +315,7 @@ export default function MembersPage() {
                       <p className="text-sm font-medium truncate">{m.lastName} {m.firstName}</p>
                       {m.dateOfBirth && <p className="text-[11px] text-muted-foreground">{new Date(m.dateOfBirth).toLocaleDateString('fr-FR')}</p>}
                     </div>
-                    <div className="w-24 shrink-0 text-xs text-muted-foreground truncate">{m.cardNumber ?? '—'}</div>
-                    <div className="w-28 shrink-0 hidden xl:block text-[11px] text-muted-foreground truncate">{m.unitName ?? '—'}</div>
+                    <div className="w-12 shrink-0 text-[11px] text-muted-foreground text-center">{m.unitName ?? '—'}</div>
                   </div>
                 ))}
                 {/* Pagination */}
