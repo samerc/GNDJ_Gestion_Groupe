@@ -9,8 +9,49 @@ using GNDJ.Infrastructure.Persistence;
 using GNDJ.Infrastructure.Persistence.Interceptors;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
+using Serilog.Events;
+using Serilog.Sinks.PostgreSQL;
+using NpgsqlTypes;
+
+// Serilog bootstrap (file only — no console)
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+    .WriteTo.File("logs/gndj-.log", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30,
+        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+    .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Replace default logging with Serilog
+builder.Host.UseSerilog((context, services, configuration) =>
+{
+    var connStr = context.Configuration.GetConnectionString("DefaultConnection");
+
+    var columnWriters = new Dictionary<string, ColumnWriterBase>
+    {
+        ["message"] = new RenderedMessageColumnWriter(),
+        ["message_template"] = new MessageTemplateColumnWriter(),
+        ["level"] = new LevelColumnWriter(true, NpgsqlDbType.Varchar),
+        ["timestamp"] = new TimestampColumnWriter(),
+        ["exception"] = new ExceptionColumnWriter(),
+        ["log_event"] = new LogEventSerializedColumnWriter(),
+        ["properties"] = new PropertiesColumnWriter(),
+    };
+
+    configuration
+        .MinimumLevel.Information()
+        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+        .Enrich.FromLogContext()
+        .Enrich.WithProperty("Application", "GNDJ")
+        .WriteTo.File("logs/gndj-.log", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30,
+            outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+        .WriteTo.PostgreSQL(connStr!, "application_logs", columnWriters,
+            needAutoCreateTable: true, restrictedToMinimumLevel: LogEventLevel.Warning);
+});
 
 // Infrastructure (EF Core, repositories, JWT auth, services)
 builder.Services.AddHttpContextAccessor();
@@ -160,6 +201,21 @@ if (app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseMiddleware<ApiKeyMiddleware>();
 app.UseAuthorization();
+
+// Serilog request logging (after auth so user context is available)
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        var userId = httpContext.User.FindFirst("sub")?.Value;
+        var memberId = httpContext.User.FindFirst("member_id")?.Value;
+        if (userId is not null) diagnosticContext.Set("UserId", userId);
+        if (memberId is not null) diagnosticContext.Set("MemberId", memberId);
+        diagnosticContext.Set("RemoteIP", httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+    };
+    options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.000}ms";
+});
+
 app.UseRateLimiter();
 app.MapControllers();
 

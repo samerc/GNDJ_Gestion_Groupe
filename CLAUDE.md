@@ -288,6 +288,13 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] Audit logging on password reset + change
 - [x] New tables: smtp_servers, email_templates + PasswordResetToken fields on User
 
+### Serilog Logging (Complete)
+- [x] Serilog.AspNetCore + Serilog.Sinks.File + Serilog.Sinks.PostgreSQL
+- [x] File sink: daily rolling logs in logs/ folder, 30-day retention, structured JSON
+- [x] PostgreSQL sink: Warning+ level logs to application_logs table (auto-created)
+- [x] No console output — file + DB only
+- [x] HTTP request logging with method, path, status code, duration
+- [x] User context enrichment: UserId, MemberId, RemoteIP per request
+
 ### Remaining
-- [ ] Error logging system (Serilog)
 - [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies
