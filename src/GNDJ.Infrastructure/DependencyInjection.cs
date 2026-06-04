@@ -46,6 +46,9 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAuditService, AuditService>();
 
+        // Email service
+        services.AddScoped<IEmailService, EmailService>();
+
         // PDF services
         QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
         services.AddSingleton<IReceiptService, ReceiptService>();

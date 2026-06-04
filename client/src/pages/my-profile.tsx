@@ -23,7 +23,8 @@ import { useSettingArray, useSettingValue } from '@/services/settings-service'
 import { parseApiError } from '@/lib/error-utils'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
-import { Save, Phone, Mail, MapPin, Plus, Trash2, Pencil } from 'lucide-react'
+import { useChangePassword } from '@/services/email-service'
+import { Save, Phone, Mail, MapPin, Plus, Trash2, Pencil, KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function MyProfilePage() {
@@ -46,6 +47,32 @@ export default function MyProfilePage() {
   const updatePhoneMutation = useUpdatePhone(memberId)
   const updateEmailMutation = useUpdateEmail(memberId)
   const updateAddressMutation = useUpdateAddress(memberId)
+
+  const changePasswordMutation = useChangePassword()
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [passwordError, setPasswordError] = useState('')
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordError('')
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('Les mots de passe ne correspondent pas.')
+      return
+    }
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('Le mot de passe doit contenir au moins 6 caracteres.')
+      return
+    }
+    try {
+      await changePasswordMutation.mutateAsync({ currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword })
+      toast.success('Mot de passe modifie')
+      setChangePasswordOpen(false)
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (err) {
+      setPasswordError(parseApiError(err))
+    }
+  }
 
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<MemberFormData>({ firstName: '', lastName: '' })
@@ -169,7 +196,12 @@ export default function MyProfilePage() {
           </div>
         </div>
         {!editing ? (
-          <Button onClick={startEdit}>Modifier</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => { setPasswordError(''); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); setChangePasswordOpen(true) }}>
+              <KeyRound className="mr-2 h-4 w-4" />Modifier le mot de passe
+            </Button>
+            <Button onClick={startEdit}>Modifier</Button>
+          </div>
         ) : (
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setEditing(false)}>Annuler</Button>
@@ -415,6 +447,32 @@ export default function MyProfilePage() {
       </Dialog>
 
       <ConfirmDialog open={!!deletingContact} onOpenChange={() => setDeletingContact(null)} title="Supprimer" description={`Supprimer « ${deletingContact?.label} » ?`} confirmLabel="Supprimer" variant="destructive" onConfirm={handleDeleteContact} />
+
+      {/* Change password dialog */}
+      <Dialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Modifier le mot de passe</DialogTitle></DialogHeader>
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            {passwordError && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{passwordError}</div>}
+            <div className="space-y-2">
+              <RequiredLabel required>Mot de passe actuel</RequiredLabel>
+              <Input type="password" value={passwordForm.currentPassword} onChange={(e) => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))} required autoComplete="current-password" />
+            </div>
+            <div className="space-y-2">
+              <RequiredLabel required>Nouveau mot de passe</RequiredLabel>
+              <Input type="password" value={passwordForm.newPassword} onChange={(e) => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))} required autoComplete="new-password" />
+            </div>
+            <div className="space-y-2">
+              <RequiredLabel required>Confirmer le nouveau mot de passe</RequiredLabel>
+              <Input type="password" value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))} required autoComplete="new-password" />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" type="button" onClick={() => setChangePasswordOpen(false)}>Annuler</Button>
+              <Button type="submit" disabled={changePasswordMutation.isPending}>{changePasswordMutation.isPending ? 'Enregistrement...' : 'Modifier'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

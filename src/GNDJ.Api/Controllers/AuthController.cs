@@ -1,7 +1,10 @@
+using GNDJ.Application.Auth.Commands.ChangePassword;
 using GNDJ.Application.Auth.Commands.Login;
 using GNDJ.Application.Auth.Commands.Logout;
 using GNDJ.Application.Auth.Commands.RefreshToken;
 using GNDJ.Application.Auth.Commands.Register;
+using GNDJ.Application.Auth.Commands.RequestPasswordReset;
+using GNDJ.Application.Auth.Commands.ResetPassword;
 using GNDJ.Application.Auth.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -53,5 +56,31 @@ public class AuthController : BaseApiController
         var result = await Mediator.Send(new GetMeQuery());
         if (!result.IsSuccess) return Unauthorized(new { error = result.Error });
         return Ok(result.Value);
+    }
+
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword([FromBody] RequestPasswordResetCommand command)
+    {
+        await Mediator.Send(command);
+        return Ok(new { message = "Si un compte existe avec cette adresse, un email de réinitialisation a été envoyé." });
+    }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { message = "Mot de passe réinitialisé avec succès." });
+    }
+
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { message = "Mot de passe modifié avec succès." });
     }
 }

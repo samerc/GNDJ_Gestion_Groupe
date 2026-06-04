@@ -38,6 +38,8 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<CustomField> CustomFields => Set<CustomField>();
     public DbSet<MemberCustomFieldValue> MemberCustomFieldValues => Set<MemberCustomFieldValue>();
+    public DbSet<SmtpServer> SmtpServers => Set<SmtpServer>();
+    public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -12,6 +12,8 @@ public class User : BaseEntity
     public DateTime? LastLoginAt { get; set; }
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiry { get; set; }
+    public string? PasswordResetToken { get; set; }
+    public DateTime? PasswordResetTokenExpiry { get; set; }
 
     public Member Member { get; set; } = null!;
 }

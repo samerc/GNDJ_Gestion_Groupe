@@ -66,7 +66,7 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - Swagger UI at /swagger, OpenAPI spec at /openapi/v1.json
 
 ## Database
-- 30 tables: associations, unit_types, units, teams, members, users, security_profiles, security_profile_permissions, functional_roles, member_assignments, member_relationships, member_phones, member_emails, member_addresses, guardians, guardian_links, guardian_phones, guardian_emails, audit_logs, settings, document_types, member_documents, member_cotisations, scout_stages, badges, member_progressions, passages, api_keys, custom_fields, member_custom_field_values
+- 32 tables: associations, unit_types, units, teams, members, users, security_profiles, security_profile_permissions, functional_roles, member_assignments, member_relationships, member_phones, member_emails, member_addresses, guardians, guardian_links, guardian_phones, guardian_emails, audit_logs, settings, document_types, member_documents, member_cotisations, scout_stages, badges, member_progressions, passages, api_keys, custom_fields, member_custom_field_values, smtp_servers, email_templates
 - Member fields: firstName, lastName, dateOfBirth, gender, cardNumber, bloodType, nationality, school, classe, section, medicalNotes, allergies, notes
 - UnitType fields: name, code, description, numberOfYears, ageMin, ageMax
 - Snake_case naming convention via EFCore.NamingConventions
@@ -274,7 +274,20 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] Export available on CU dashboard + admin members page (unit-scoped)
 - [x] Reports controller: /reports/trombinoscope, /reports/member-card/{id}, /reports/bulk-cards/{unitId}, /reports/roster, /reports/export
 
+### Email Infrastructure & Password Management (Complete)
+- [x] SmtpServer entity (name, host, port, credentials, from address, SSL, active toggle)
+- [x] EmailTemplate entity (code, module, subject, HTML body, variables JSON, SMTP server binding)
+- [x] Email service: loads template + SMTP from DB, replaces {{variables}}, sends via System.Net.Mail
+- [x] Admin page: Email / SMTP (two tabs: SMTP servers CRUD with test button, templates CRUD)
+- [x] TipTap rich text editor: toolbar (bold, italic, underline, alignment, lists, links), variable insertion dropdown per module
+- [x] Module variables: auth (memberName, resetLink, expiryHours), documents, cotisations, passage
+- [x] Default "password_reset" template seeded with French HTML email
+- [x] Password reset: forgot-password page → email with token → reset-password page (1h expiry)
+- [x] Change password: dialog on Ma fiche (validates current, enforces different new, invalidates sessions)
+- [x] "Mot de passe oublié ?" link on login page
+- [x] Audit logging on password reset + change
+- [x] New tables: smtp_servers, email_templates + PasswordResetToken fields on User
+
 ### Remaining
-- [ ] Password reset / change password feature
 - [ ] Error logging system (Serilog)
 - [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies

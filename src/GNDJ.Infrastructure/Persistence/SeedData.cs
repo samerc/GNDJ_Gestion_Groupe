@@ -192,6 +192,25 @@ public static class SeedData
         }
     }
 
+    public static async Task SeedDefaultEmailTemplatesAsync(GndjDbContext context)
+    {
+        if (await context.EmailTemplates.IgnoreQueryFilters().AnyAsync())
+            return;
+
+        context.EmailTemplates.Add(new EmailTemplate
+        {
+            Name = "Réinitialisation de mot de passe",
+            Code = "password_reset",
+            Module = "auth",
+            Subject = "Réinitialisation de votre mot de passe — GNDJ",
+            BodyHtml = "<h2>Bonjour {{memberName}},</h2><p>Vous avez demandé la réinitialisation de votre mot de passe.</p><p>Cliquez sur le lien suivant pour choisir un nouveau mot de passe :</p><p><a href=\"{{resetLink}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Réinitialiser mon mot de passe</a></p><p>Ce lien expire dans {{expiryHours}} heure(s).</p><p>Si vous n'avez pas demandé cette réinitialisation, ignorez ce message.</p><p>— L'équipe GNDJ</p>",
+            Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"resetLink\",\"label\":\"Lien de réinitialisation\"},{\"key\":\"expiryHours\",\"label\":\"Durée de validité (heures)\"}]",
+            IsActive = true
+        });
+
+        await context.SaveChangesAsync();
+    }
+
     private static SecurityProfile CreateProfile(string name, string code, string description, string[] permissions)
     {
         var profile = new SecurityProfile

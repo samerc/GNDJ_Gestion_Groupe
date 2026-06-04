@@ -130,6 +130,7 @@ using (var scope = app.Services.CreateScope())
     await SeedData.SeedAsync(context, email, passwordHash);
     await SeedData.SeedMissingPermissionsAsync(context);
     await SeedData.SeedMissingSettingsAsync(context);
+    await SeedData.SeedDefaultEmailTemplatesAsync(context);
 }
 
 // Middleware pipeline

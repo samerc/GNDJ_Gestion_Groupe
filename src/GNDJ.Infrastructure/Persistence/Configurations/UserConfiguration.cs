@@ -13,6 +13,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(e => e.Email).HasMaxLength(254).IsRequired();
         builder.Property(e => e.PasswordHash).HasMaxLength(500).IsRequired();
         builder.Property(e => e.RefreshToken).HasMaxLength(500);
+        builder.Property(e => e.PasswordResetToken).HasMaxLength(500);
 
         builder.HasOne(e => e.Member).WithOne(m => m.User).HasForeignKey<User>(e => e.MemberId).OnDelete(DeleteBehavior.Restrict);
 

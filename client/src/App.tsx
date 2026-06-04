@@ -22,12 +22,17 @@ import PassageValidationPage from '@/pages/admin/passage-validation'
 import ApiKeysPage from '@/pages/admin/api-keys'
 import CustomFieldsPage from '@/pages/admin/custom-fields'
 import CardDesignerPage from '@/pages/admin/card-designer'
+import EmailSettingsPage from '@/pages/admin/email-settings'
+import ForgotPasswordPage from '@/pages/forgot-password'
+import ResetPasswordPage from '@/pages/reset-password'
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
@@ -51,6 +56,7 @@ export default function App() {
             <Route path="/admin/api-keys" element={<ApiKeysPage />} />
             <Route path="/admin/custom-fields" element={<CustomFieldsPage />} />
             <Route path="/admin/card-designer" element={<CardDesignerPage />} />
+            <Route path="/admin/email-settings" element={<EmailSettingsPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
           </Route>
         </Route>

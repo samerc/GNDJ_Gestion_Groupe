@@ -35,6 +35,8 @@ public interface IApplicationDbContext
     DbSet<ApiKey> ApiKeys { get; }
     DbSet<CustomField> CustomFields { get; }
     DbSet<MemberCustomFieldValue> MemberCustomFieldValues { get; }
+    DbSet<SmtpServer> SmtpServers { get; }
+    DbSet<EmailTemplate> EmailTemplates { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
