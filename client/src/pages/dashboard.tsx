@@ -82,6 +82,15 @@ function AdminDashboard() {
                 <p className="text-2xl font-bold">{data.girls}</p>
                 <p className="text-xs text-muted-foreground">Filles</p>
               </div>
+              {data.ungendered > 0 && (
+                <>
+                  <span className="text-muted-foreground/50">/</span>
+                  <div>
+                    <p className="text-2xl font-bold text-muted-foreground">{data.ungendered}</p>
+                    <p className="text-xs text-muted-foreground">Non renseigné</p>
+                  </div>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>

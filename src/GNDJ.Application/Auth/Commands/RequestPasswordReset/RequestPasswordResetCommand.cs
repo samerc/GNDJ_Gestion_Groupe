@@ -35,7 +35,11 @@ public class RequestPasswordResetCommandHandler(
         // Send email
         try
         {
-            var resetLink = $"http://localhost:5173/reset-password?token={token}&email={Uri.EscapeDataString(request.Email)}";
+            var baseUrl = await context.Settings
+                .Where(s => s.Key == "app.base_url")
+                .Select(s => s.Value)
+                .FirstOrDefaultAsync(ct) ?? "http://localhost:5173";
+            var resetLink = $"{baseUrl}/reset-password?token={token}&email={Uri.EscapeDataString(request.Email)}";
             await emailService.SendAsync("password_reset", request.Email, new Dictionary<string, string>
             {
                 ["memberName"] = user.Member?.FirstName ?? "Utilisateur",

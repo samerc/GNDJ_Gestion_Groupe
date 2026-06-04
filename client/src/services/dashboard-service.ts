@@ -25,6 +25,7 @@ export interface AdminDashboardDto {
   totalMembers: number
   boys: number
   girls: number
+  ungendered: number
   membersWithoutUnit: number
   unpaidCotisations: number
   missingDocuments: number

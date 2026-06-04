@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
@@ -31,11 +32,18 @@ export function RichTextEditor({ content, onChange, variables, placeholder, clas
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Color,
       TextStyle,
-      Placeholder.configure({ placeholder: placeholder ?? 'Commencez a ecrire...' }),
+      Placeholder.configure({ placeholder: placeholder ?? 'Commencez à écrire...' }),
     ],
     content,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
   })
+
+  // Sync content when prop changes externally (e.g., loading template)
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content, { emitUpdate: false })
+    }
+  }, [content, editor])
 
   if (!editor) return null
 

@@ -13,10 +13,10 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace GNDJ.Api.Controllers;
 
 [Route("api/v1/auth")]
-[EnableRateLimiting("auth")]
 public class AuthController : BaseApiController
 {
     [HttpPost("register")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Register([FromBody] RegisterCommand command)
     {
         var result = await Mediator.Send(command);
@@ -25,6 +25,7 @@ public class AuthController : BaseApiController
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Login([FromBody] LoginCommand command)
     {
         var result = await Mediator.Send(command);
@@ -60,6 +61,7 @@ public class AuthController : BaseApiController
 
     [HttpPost("forgot-password")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> ForgotPassword([FromBody] RequestPasswordResetCommand command)
     {
         await Mediator.Send(command);

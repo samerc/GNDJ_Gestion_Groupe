@@ -121,6 +121,7 @@ public record AdminDashboardDto(
     int TotalMembers,
     int Boys,
     int Girls,
+    int Ungendered,
     int MembersWithoutUnit,
     int UnpaidCotisations,
     int MissingDocuments,
@@ -159,6 +160,7 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
         var totalMembers = members.Count;
         var boys = members.Count(m => string.Equals(m.Gender, "Masculin", StringComparison.OrdinalIgnoreCase));
         var girls = members.Count(m => string.Equals(m.Gender, "Féminin", StringComparison.OrdinalIgnoreCase));
+        var ungendered = totalMembers - boys - girls;
         var withoutUnit = members.Count(m => !m.HasActiveAssignment);
 
         // Active member IDs (have current assignment)
@@ -224,6 +226,6 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
         ageGroups.Add(new AgeGroupDto("18-21 ans", ages.Count(a => a >= 18 && a <= 21)));
         ageGroups.Add(new AgeGroupDto("22+ ans", ages.Count(a => a >= 22)));
 
-        return new AdminDashboardDto(totalMembers, boys, girls, withoutUnit, unpaidCotisations, missingDocuments, unitBreakdown, ageGroups);
+        return new AdminDashboardDto(totalMembers, boys, girls, ungendered, withoutUnit, unpaidCotisations, missingDocuments, unitBreakdown, ageGroups);
     }
 }
