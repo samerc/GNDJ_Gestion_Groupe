@@ -62,10 +62,13 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - Auto-generated card numbers: M-0001 (boys), F-0001 (girls)
 - Role-based sidebar: super admin sees all, unit leaders see Ma fiche + Mon unité only
 - Toast notifications (sonner) on all create/edit/delete operations
+- API Key authentication via X-API-Key header with scope-based permissions
+- Swagger UI at /swagger, OpenAPI spec at /openapi/v1.json
 
 ## Database
-- 26 tables: associations, unit_types, units, teams, members, users, security_profiles, security_profile_permissions, functional_roles, member_assignments, member_relationships, member_phones, member_emails, member_addresses, guardians, guardian_links, guardian_phones, guardian_emails, audit_logs, settings, document_types, member_documents, member_cotisations, scout_stages, badges, member_progressions
+- 28 tables: associations, unit_types, units, teams, members, users, security_profiles, security_profile_permissions, functional_roles, member_assignments, member_relationships, member_phones, member_emails, member_addresses, guardians, guardian_links, guardian_phones, guardian_emails, audit_logs, settings, document_types, member_documents, member_cotisations, scout_stages, badges, member_progressions, passages, api_keys
 - Member fields: firstName, lastName, dateOfBirth, gender, cardNumber, bloodType, nationality, school, classe, section, medicalNotes, allergies, notes
+- UnitType fields: name, code, description, numberOfYears, ageMin, ageMax
 - Snake_case naming convention via EFCore.NamingConventions
 - Global soft-delete query filters on all BaseEntity types
 - Interceptors: AuditableEntityInterceptor (created/updated timestamps), SoftDeleteInterceptor (converts Delete to soft-delete)
@@ -228,9 +231,34 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] Register endpoint user enumeration fix (generic error message)
 - [x] Admin dashboard super-admin guard at handler level
 
+### Phase 4 — Passage annuel (Complete)
+- [x] Passage entity with current/proposed/final unit+team+role, CU/CG notes, status workflow
+- [x] Status: Pending → Approved → Finalized (or Rejected)
+- [x] CG opens/closes passage process (toggle endpoint + setting)
+- [x] CU proposes changes per member (single + bulk)
+- [x] "No change" proposals auto-approved (skip CG review)
+- [x] CG reviews/modifies/approves/rejects (single + bulk)
+- [x] CG finalizes: ends old assignments, creates new ones
+- [x] Auto-renewal: members without passage record get renewed automatically on finalization
+- [x] Team cleared on unit transfer (new CU assigns team later)
+- [x] Double-finalize protection (idempotent)
+- [x] UnitType AgeMin/AgeMax fields for age-based hints
+- [x] CU page: member table with proposals, bulk actions, age hints, status badges
+- [x] CG page: toggle, summary cards, filters, review table, bulk approve/reject, finalize
+- [x] Permissions: passage.view, passage.propose, passage.manage
+- [x] Sidebar: "Passage des membres" (CU), "Validation passages" (admin)
+
+### API Keys & Documentation (Complete)
+- [x] ApiKey entity (name, hashed key, prefix, scopes, optional member binding, expiry)
+- [x] API Key middleware: validates X-API-Key header, maps scopes to permissions, resolves unit access
+- [x] Scope system: members:read-own, documents:upload, cotisations:read-own, members:read, members:write, documents:read
+- [x] Admin CRUD page: create (key shown once + copy button), list, toggle active, delete
+- [x] Swagger UI at /swagger with all endpoints documented
+- [x] OpenAPI spec at /openapi/v1.json (85 endpoints)
+- [x] Dual auth support: JWT Bearer (internal app) + API Key (external integrations)
+
 ### Remaining
 - [ ] PDF exports — unit/team lists, member cards
-- [ ] Annual transition (Phase 4) — promote members between units
 - [ ] Password reset / change password feature
 - [ ] Export to Excel/CSV for member lists
 - [ ] Error logging system (Serilog)

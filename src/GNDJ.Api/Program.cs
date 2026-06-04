@@ -26,9 +26,58 @@ builder.Services.AddScoped(typeof(Mediator.IPipelineBehavior<,>), typeof(Validat
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
-// Controllers
+// Controllers + OpenAPI
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        document.Info = new()
+        {
+            Title = "GNDJ Scout API",
+            Version = "v1",
+            Description = "API pour la gestion du groupe scout GNDJ. Supporte l'authentification JWT (pour l'app interne) et les clés API (pour les intégrations externes)."
+        };
+        return Task.CompletedTask;
+    });
+
+    // Security schemes (JWT + API Key)
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        document.Components ??= new Microsoft.OpenApi.OpenApiComponents();
+        document.Components.SecuritySchemes = new Dictionary<string, Microsoft.OpenApi.IOpenApiSecurityScheme>
+        {
+            ["Bearer"] = new Microsoft.OpenApi.OpenApiSecurityScheme
+            {
+                Type = Microsoft.OpenApi.SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "JWT",
+                In = Microsoft.OpenApi.ParameterLocation.Header,
+                Description = "Entrez votre token JWT. Exemple : eyJhbGci..."
+            },
+            ["ApiKey"] = new Microsoft.OpenApi.OpenApiSecurityScheme
+            {
+                Type = Microsoft.OpenApi.SecuritySchemeType.ApiKey,
+                Name = "X-API-Key",
+                In = Microsoft.OpenApi.ParameterLocation.Header,
+                Description = "Entrez votre clé API. Exemple : gndj_abc12345..."
+            }
+        };
+
+        // Apply security requirements to all operations
+        foreach (var operation in document.Paths.Values.SelectMany(path => path.Operations))
+        {
+            operation.Value.Security ??= [];
+            operation.Value.Security.Add(new Microsoft.OpenApi.OpenApiSecurityRequirement
+            {
+                [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document)] = [],
+                [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("ApiKey", document)] = []
+            });
+        }
+
+        return Task.CompletedTask;
+    });
+});
 
 // CORS for React dev server
 builder.Services.AddCors(options =>
@@ -99,10 +148,16 @@ app.Use(async (context, next) =>
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "GNDJ Scout API v1");
+        options.RoutePrefix = "swagger";
+    });
     app.UseCors("Development");
 }
 
 app.UseAuthentication();
+app.UseMiddleware<ApiKeyMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.MapControllers();

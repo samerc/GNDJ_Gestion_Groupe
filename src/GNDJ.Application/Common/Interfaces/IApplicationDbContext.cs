@@ -31,6 +31,8 @@ public interface IApplicationDbContext
     DbSet<ScoutStage> ScoutStages { get; }
     DbSet<Badge> Badges { get; }
     DbSet<MemberProgression> MemberProgressions { get; }
+    DbSet<Passage> Passages { get; }
+    DbSet<ApiKey> ApiKeys { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

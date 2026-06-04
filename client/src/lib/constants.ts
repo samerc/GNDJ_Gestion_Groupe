@@ -42,4 +42,7 @@ export const PERMISSIONS = {
   PROGRESSION_MANAGE: 'progression.manage',
   AUDIT_VIEW: 'audit.view',
   ADMIN_HARD_DELETE: 'admin.hard_delete',
+  PASSAGE_VIEW: 'passage.view',
+  PASSAGE_PROPOSE: 'passage.propose',
+  PASSAGE_MANAGE: 'passage.manage',
 } as const

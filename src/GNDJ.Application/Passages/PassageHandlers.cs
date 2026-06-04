@@ -1,0 +1,784 @@
+using FluentValidation;
+using GNDJ.Application.Common.Interfaces;
+using GNDJ.Application.Common.Models;
+using GNDJ.Domain.Entities;
+using GNDJ.Domain.Enums;
+using Mediator;
+using Microsoft.EntityFrameworkCore;
+
+namespace GNDJ.Application.Passages;
+
+// DTOs
+public record PassageDto(
+    Guid Id, string SchoolYear, Guid MemberId, string MemberName, string? CardNumber,
+    DateOnly? DateOfBirth, int? Age,
+    Guid CurrentUnitId, string CurrentUnitCode, string CurrentUnitName,
+    string? CurrentTeamName, string CurrentRoleName,
+    Guid ProposedUnitId, string ProposedUnitCode, string ProposedUnitName,
+    Guid? ProposedTeamId, string? ProposedTeamName, string ProposedRoleName,
+    Guid? FinalUnitId, string? FinalUnitCode, string? FinalUnitName,
+    Guid? FinalTeamId, string? FinalTeamName, string? FinalRoleName,
+    string Status, string? CuNotes, string? CgNotes,
+    DateTime CreatedAt
+);
+
+public record PassageSummaryDto(
+    string SchoolYear, int TotalMembers, int Pending, int Approved, int Rejected, int Finalized,
+    IReadOnlyList<PassageUnitSummaryDto> UnitSummaries
+);
+
+public record PassageUnitSummaryDto(string UnitCode, string UnitName, int Total, int Pending, int Approved, int Rejected, int Finalized);
+
+// Helper
+static class PassageAccessHelper
+{
+    public static async Task<bool> CanAccessUnit(IApplicationDbContext context, ICurrentUserService currentUser, Guid unitId, CancellationToken ct)
+    {
+        if (currentUser.IsSuperAdmin) return true;
+        return currentUser.AuthorizedUnitIds.Contains(unitId);
+    }
+}
+
+// ============================================================
+// Queries
+// ============================================================
+
+// 1. GetPassagesByUnit — CU sees passages for their unit
+public record GetPassagesByUnitQuery(Guid UnitId, string SchoolYear) : IRequest<Result<IReadOnlyList<PassageDto>>>;
+
+public class GetPassagesByUnitQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetPassagesByUnitQuery, Result<IReadOnlyList<PassageDto>>>
+{
+    public async ValueTask<Result<IReadOnlyList<PassageDto>>> Handle(GetPassagesByUnitQuery request, CancellationToken ct)
+    {
+        if (!await PassageAccessHelper.CanAccessUnit(context, currentUser, request.UnitId, ct))
+            return Result<IReadOnlyList<PassageDto>>.Failure("Accès non autorisé à cette unité.");
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var items = await context.Passages
+            .Where(p => p.CurrentUnitId == request.UnitId && p.SchoolYear == request.SchoolYear)
+            .Include(p => p.Member)
+            .Include(p => p.CurrentUnit)
+            .Include(p => p.ProposedUnit)
+            .Include(p => p.FinalUnit)
+            .Include(p => p.CurrentRole)
+            .Include(p => p.ProposedRole)
+            .Include(p => p.FinalRole)
+            .OrderBy(p => p.Member.LastName).ThenBy(p => p.Member.FirstName)
+            .Select(p => new PassageDto(
+                p.Id, p.SchoolYear, p.MemberId,
+                p.Member.FirstName + " " + p.Member.LastName,
+                p.Member.CardNumber,
+                p.Member.DateOfBirth,
+                p.Member.DateOfBirth != null ? today.Year - p.Member.DateOfBirth.Value.Year - (today < new DateOnly(today.Year, p.Member.DateOfBirth.Value.Month, p.Member.DateOfBirth.Value.Day) ? 1 : 0) : null,
+                p.CurrentUnitId, p.CurrentUnit.Code, p.CurrentUnit.Name,
+                p.CurrentTeamId != null ? context.Teams.Where(t => t.Id == p.CurrentTeamId).Select(t => t.Name).FirstOrDefault() : null,
+                p.CurrentRole.Name,
+                p.ProposedUnitId, p.ProposedUnit.Code, p.ProposedUnit.Name,
+                p.ProposedTeamId,
+                p.ProposedTeamId != null ? context.Teams.Where(t => t.Id == p.ProposedTeamId).Select(t => t.Name).FirstOrDefault() : null,
+                p.ProposedRole.Name,
+                p.FinalUnitId, p.FinalUnit != null ? p.FinalUnit.Code : null, p.FinalUnit != null ? p.FinalUnit.Name : null,
+                p.FinalTeamId,
+                p.FinalTeamId != null ? context.Teams.Where(t => t.Id == p.FinalTeamId).Select(t => t.Name).FirstOrDefault() : null,
+                p.FinalRole != null ? p.FinalRole.Name : null,
+                p.Status, p.CuNotes, p.CgNotes,
+                p.CreatedAt
+            ))
+            .ToListAsync(ct);
+
+        return Result<IReadOnlyList<PassageDto>>.Success(items);
+    }
+}
+
+// 2. GetAllPassages — CG sees all passages with filters (super-admin only)
+public record GetAllPassagesQuery(string SchoolYear, string? Status, Guid? UnitId) : IRequest<Result<IReadOnlyList<PassageDto>>>;
+
+public class GetAllPassagesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetAllPassagesQuery, Result<IReadOnlyList<PassageDto>>>
+{
+    public async ValueTask<Result<IReadOnlyList<PassageDto>>> Handle(GetAllPassagesQuery request, CancellationToken ct)
+    {
+        if (!currentUser.IsSuperAdmin)
+            return Result<IReadOnlyList<PassageDto>>.Failure("Accès réservé aux super administrateurs.");
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var query = context.Passages
+            .Where(p => p.SchoolYear == request.SchoolYear);
+
+        if (!string.IsNullOrEmpty(request.Status))
+            query = query.Where(p => p.Status == request.Status);
+
+        if (request.UnitId.HasValue)
+            query = query.Where(p => p.CurrentUnitId == request.UnitId.Value);
+
+        var items = await query
+            .Include(p => p.Member)
+            .Include(p => p.CurrentUnit)
+            .Include(p => p.ProposedUnit)
+            .Include(p => p.FinalUnit)
+            .Include(p => p.CurrentRole)
+            .Include(p => p.ProposedRole)
+            .Include(p => p.FinalRole)
+            .OrderBy(p => p.CurrentUnit.Code).ThenBy(p => p.Member.LastName).ThenBy(p => p.Member.FirstName)
+            .Select(p => new PassageDto(
+                p.Id, p.SchoolYear, p.MemberId,
+                p.Member.FirstName + " " + p.Member.LastName,
+                p.Member.CardNumber,
+                p.Member.DateOfBirth,
+                p.Member.DateOfBirth != null ? today.Year - p.Member.DateOfBirth.Value.Year - (today < new DateOnly(today.Year, p.Member.DateOfBirth.Value.Month, p.Member.DateOfBirth.Value.Day) ? 1 : 0) : null,
+                p.CurrentUnitId, p.CurrentUnit.Code, p.CurrentUnit.Name,
+                p.CurrentTeamId != null ? context.Teams.Where(t => t.Id == p.CurrentTeamId).Select(t => t.Name).FirstOrDefault() : null,
+                p.CurrentRole.Name,
+                p.ProposedUnitId, p.ProposedUnit.Code, p.ProposedUnit.Name,
+                p.ProposedTeamId,
+                p.ProposedTeamId != null ? context.Teams.Where(t => t.Id == p.ProposedTeamId).Select(t => t.Name).FirstOrDefault() : null,
+                p.ProposedRole.Name,
+                p.FinalUnitId, p.FinalUnit != null ? p.FinalUnit.Code : null, p.FinalUnit != null ? p.FinalUnit.Name : null,
+                p.FinalTeamId,
+                p.FinalTeamId != null ? context.Teams.Where(t => t.Id == p.FinalTeamId).Select(t => t.Name).FirstOrDefault() : null,
+                p.FinalRole != null ? p.FinalRole.Name : null,
+                p.Status, p.CuNotes, p.CgNotes,
+                p.CreatedAt
+            ))
+            .ToListAsync(ct);
+
+        return Result<IReadOnlyList<PassageDto>>.Success(items);
+    }
+}
+
+// 3. GetPassageSummary — CG sees summary stats (super-admin only)
+public record GetPassageSummaryQuery(string SchoolYear) : IRequest<Result<PassageSummaryDto>>;
+
+public class GetPassageSummaryQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetPassageSummaryQuery, Result<PassageSummaryDto>>
+{
+    public async ValueTask<Result<PassageSummaryDto>> Handle(GetPassageSummaryQuery request, CancellationToken ct)
+    {
+        if (!currentUser.IsSuperAdmin)
+            return Result<PassageSummaryDto>.Failure("Accès réservé aux super administrateurs.");
+
+        var passages = await context.Passages
+            .Where(p => p.SchoolYear == request.SchoolYear)
+            .Include(p => p.CurrentUnit)
+            .ToListAsync(ct);
+
+        var unitSummaries = passages
+            .GroupBy(p => new { p.CurrentUnitId, p.CurrentUnit.Code, p.CurrentUnit.Name })
+            .Select(g => new PassageUnitSummaryDto(
+                g.Key.Code, g.Key.Name,
+                g.Count(),
+                g.Count(p => p.Status == PassageStatus.Pending),
+                g.Count(p => p.Status == PassageStatus.Approved),
+                g.Count(p => p.Status == PassageStatus.Rejected),
+                g.Count(p => p.Status == PassageStatus.Finalized)
+            ))
+            .OrderBy(u => u.UnitCode)
+            .ToList();
+
+        var summary = new PassageSummaryDto(
+            request.SchoolYear,
+            passages.Count,
+            passages.Count(p => p.Status == PassageStatus.Pending),
+            passages.Count(p => p.Status == PassageStatus.Approved),
+            passages.Count(p => p.Status == PassageStatus.Rejected),
+            passages.Count(p => p.Status == PassageStatus.Finalized),
+            unitSummaries
+        );
+
+        return Result<PassageSummaryDto>.Success(summary);
+    }
+}
+
+// 4. IsPassageOpen — Checks if passage is enabled for this year
+public record IsPassageOpenQuery(string SchoolYear) : IRequest<Result<PassageStatusDto>>;
+public record PassageStatusDto(bool IsOpen, string SchoolYear);
+
+public class IsPassageOpenQueryHandler(IApplicationDbContext context) : IRequestHandler<IsPassageOpenQuery, Result<PassageStatusDto>>
+{
+    public async ValueTask<Result<PassageStatusDto>> Handle(IsPassageOpenQuery request, CancellationToken ct)
+    {
+        var enabledSetting = await context.Settings
+            .Where(s => s.Key == "passage.enabled")
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+
+        var yearSetting = await context.Settings
+            .Where(s => s.Key == "passage.school_year")
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+
+        var isEnabled = enabledSetting == "true";
+        var configuredYear = yearSetting ?? string.Empty;
+
+        // Passage is open if enabled AND the requested year matches the configured year
+        var isOpen = isEnabled && (string.IsNullOrEmpty(request.SchoolYear) || configuredYear == request.SchoolYear);
+
+        return Result<PassageStatusDto>.Success(new PassageStatusDto(isOpen, configuredYear));
+    }
+}
+
+// ============================================================
+// Commands
+// ============================================================
+
+// 1. ProposePassage — CU creates/updates a passage for a member
+public record ProposePassageCommand(
+    Guid MemberId, string SchoolYear,
+    Guid ProposedUnitId, Guid? ProposedTeamId, Guid ProposedRoleId,
+    string? CuNotes
+) : IRequest<Result<Guid>>;
+
+public class ProposePassageCommandValidator : AbstractValidator<ProposePassageCommand>
+{
+    public ProposePassageCommandValidator()
+    {
+        RuleFor(x => x.MemberId).NotEmpty().WithMessage("Le membre est requis.");
+        RuleFor(x => x.SchoolYear).NotEmpty().WithMessage("L'année scoute est requise.").MaximumLength(20);
+        RuleFor(x => x.ProposedUnitId).NotEmpty().WithMessage("L'unité proposée est requise.");
+        RuleFor(x => x.ProposedRoleId).NotEmpty().WithMessage("Le rôle proposé est requis.");
+    }
+}
+
+public class ProposePassageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<ProposePassageCommand, Result<Guid>>
+{
+    public async ValueTask<Result<Guid>> Handle(ProposePassageCommand request, CancellationToken ct)
+    {
+        // Check passage is open
+        var enabledSetting = await context.Settings
+            .Where(s => s.Key == "passage.enabled")
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+        if (enabledSetting != "true")
+            return Result<Guid>.Failure("Le processus de passage n'est pas actif.");
+
+        var yearSetting = await context.Settings
+            .Where(s => s.Key == "passage.school_year")
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+        if (yearSetting != request.SchoolYear)
+            return Result<Guid>.Failure("L'année scoute du passage ne correspond pas à l'année configurée.");
+
+        // Get member's active assignment
+        var assignment = await context.MemberAssignments
+            .Where(a => a.MemberId == request.MemberId && a.EndDate == null)
+            .Include(a => a.Unit)
+            .FirstOrDefaultAsync(ct);
+
+        if (assignment is null)
+            return Result<Guid>.Failure("Ce membre n'a pas d'affectation active.");
+
+        // Check unit-scoped access
+        if (!await PassageAccessHelper.CanAccessUnit(context, currentUser, assignment.UnitId, ct))
+            return Result<Guid>.Failure("Accès non autorisé à cette unité.");
+
+        // Validate proposed unit and role exist
+        var proposedUnitExists = await context.Units.AnyAsync(u => u.Id == request.ProposedUnitId, ct);
+        if (!proposedUnitExists)
+            return Result<Guid>.Failure("L'unité proposée est introuvable.");
+
+        var proposedRoleExists = await context.FunctionalRoles.AnyAsync(r => r.Id == request.ProposedRoleId, ct);
+        if (!proposedRoleExists)
+            return Result<Guid>.Failure("Le rôle proposé est introuvable.");
+
+        if (request.ProposedTeamId.HasValue)
+        {
+            var teamExists = await context.Teams.AnyAsync(t => t.Id == request.ProposedTeamId.Value && t.UnitId == request.ProposedUnitId, ct);
+            if (!teamExists)
+                return Result<Guid>.Failure("L'équipe proposée est introuvable dans cette unité.");
+        }
+
+        // Check for existing passage (update if pending)
+        var existing = await context.Passages
+            .FirstOrDefaultAsync(p => p.MemberId == request.MemberId && p.SchoolYear == request.SchoolYear, ct);
+
+        if (existing is not null)
+        {
+            if (existing.Status != PassageStatus.Pending && existing.Status != PassageStatus.Approved)
+                return Result<Guid>.Failure("Ce passage a déjà été traité et ne peut plus être modifié.");
+
+            existing.ProposedUnitId = request.ProposedUnitId;
+            existing.ProposedTeamId = request.ProposedTeamId;
+            existing.ProposedRoleId = request.ProposedRoleId;
+            existing.CuNotes = request.CuNotes;
+            // Update current snapshot in case assignment changed
+            existing.CurrentUnitId = assignment.UnitId;
+            existing.CurrentTeamId = assignment.TeamId;
+            existing.CurrentRoleId = assignment.FunctionalRoleId;
+
+            // Re-evaluate: no change → auto-approve, otherwise back to pending
+            var isNoChangeUpdate = request.ProposedUnitId == assignment.UnitId
+                && request.ProposedTeamId == assignment.TeamId
+                && request.ProposedRoleId == assignment.FunctionalRoleId;
+            existing.Status = isNoChangeUpdate ? PassageStatus.Approved : PassageStatus.Pending;
+            existing.FinalUnitId = null;
+            existing.FinalTeamId = null;
+            existing.FinalRoleId = null;
+            existing.CgNotes = null;
+            existing.ReviewedByUserId = null;
+            existing.ReviewedAt = null;
+
+            await context.SaveChangesAsync(ct);
+            await auditService.LogAsync("Update", "Passage", existing.Id,
+                newValues: new { existing.ProposedUnitId, existing.ProposedRoleId, existing.CuNotes },
+                cancellationToken: ct);
+
+            return Result<Guid>.Success(existing.Id);
+        }
+
+        // Detect "no change": same unit, same team, same role → auto-approve
+        var isNoChange = request.ProposedUnitId == assignment.UnitId
+            && request.ProposedTeamId == assignment.TeamId
+            && request.ProposedRoleId == assignment.FunctionalRoleId;
+
+        // Create new passage
+        var passage = new Passage
+        {
+            SchoolYear = request.SchoolYear,
+            MemberId = request.MemberId,
+            CurrentUnitId = assignment.UnitId,
+            CurrentTeamId = assignment.TeamId,
+            CurrentRoleId = assignment.FunctionalRoleId,
+            ProposedUnitId = request.ProposedUnitId,
+            ProposedTeamId = request.ProposedTeamId,
+            ProposedRoleId = request.ProposedRoleId,
+            CuNotes = request.CuNotes,
+            Status = isNoChange ? PassageStatus.Approved : PassageStatus.Pending,
+            ProposedByUserId = currentUser.UserId!.Value
+        };
+
+        context.Passages.Add(passage);
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("Create", "Passage", passage.Id,
+            newValues: new { passage.MemberId, passage.ProposedUnitId, passage.ProposedRoleId },
+            cancellationToken: ct);
+
+        return Result<Guid>.Success(passage.Id);
+    }
+}
+
+// 2. BulkProposePassage — CU proposes same change for multiple members
+public record BulkProposePassageCommand(
+    List<Guid> MemberIds, string SchoolYear,
+    Guid ProposedUnitId, Guid? ProposedTeamId, Guid ProposedRoleId,
+    string? CuNotes
+) : IRequest<Result<int>>;
+
+public class BulkProposePassageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<BulkProposePassageCommand, Result<int>>
+{
+    public async ValueTask<Result<int>> Handle(BulkProposePassageCommand request, CancellationToken ct)
+    {
+        // Check passage is open
+        var enabledSetting = await context.Settings
+            .Where(s => s.Key == "passage.enabled")
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+        if (enabledSetting != "true")
+            return Result<int>.Failure("Le processus de passage n'est pas actif.");
+
+        var yearSetting = await context.Settings
+            .Where(s => s.Key == "passage.school_year")
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+        if (yearSetting != request.SchoolYear)
+            return Result<int>.Failure("L'année scoute du passage ne correspond pas à l'année configurée.");
+
+        // Validate proposed unit and role exist
+        var proposedUnitExists = await context.Units.AnyAsync(u => u.Id == request.ProposedUnitId, ct);
+        if (!proposedUnitExists)
+            return Result<int>.Failure("L'unité proposée est introuvable.");
+
+        var proposedRoleExists = await context.FunctionalRoles.AnyAsync(r => r.Id == request.ProposedRoleId, ct);
+        if (!proposedRoleExists)
+            return Result<int>.Failure("Le rôle proposé est introuvable.");
+
+        if (request.ProposedTeamId.HasValue)
+        {
+            var teamExists = await context.Teams.AnyAsync(t => t.Id == request.ProposedTeamId.Value && t.UnitId == request.ProposedUnitId, ct);
+            if (!teamExists)
+                return Result<int>.Failure("L'équipe proposée est introuvable dans cette unité.");
+        }
+
+        int count = 0;
+        var errors = new List<string>();
+
+        foreach (var memberId in request.MemberIds)
+        {
+            var assignment = await context.MemberAssignments
+                .Where(a => a.MemberId == memberId && a.EndDate == null)
+                .FirstOrDefaultAsync(ct);
+
+            if (assignment is null)
+            {
+                var member = await context.Members.FindAsync([memberId], ct);
+                errors.Add($"{member?.FirstName} {member?.LastName}: pas d'affectation active.");
+                continue;
+            }
+
+            if (!await PassageAccessHelper.CanAccessUnit(context, currentUser, assignment.UnitId, ct))
+            {
+                errors.Add($"Membre {memberId}: accès non autorisé.");
+                continue;
+            }
+
+            var existing = await context.Passages
+                .FirstOrDefaultAsync(p => p.MemberId == memberId && p.SchoolYear == request.SchoolYear, ct);
+
+            var isNoChange = request.ProposedUnitId == assignment.UnitId
+                && request.ProposedTeamId == assignment.TeamId
+                && request.ProposedRoleId == assignment.FunctionalRoleId;
+            var autoStatus = isNoChange ? PassageStatus.Approved : PassageStatus.Pending;
+
+            if (existing is not null)
+            {
+                if (existing.Status != PassageStatus.Pending && existing.Status != PassageStatus.Approved)
+                    continue; // Skip already-reviewed passages
+
+                existing.ProposedUnitId = request.ProposedUnitId;
+                existing.ProposedTeamId = request.ProposedTeamId;
+                existing.ProposedRoleId = request.ProposedRoleId;
+                existing.CuNotes = request.CuNotes;
+                existing.CurrentUnitId = assignment.UnitId;
+                existing.CurrentTeamId = assignment.TeamId;
+                existing.CurrentRoleId = assignment.FunctionalRoleId;
+                existing.Status = autoStatus;
+                if (isNoChange) { existing.FinalUnitId = null; existing.FinalTeamId = null; existing.FinalRoleId = null; existing.CgNotes = null; }
+            }
+            else
+            {
+                var passage = new Passage
+                {
+                    SchoolYear = request.SchoolYear,
+                    MemberId = memberId,
+                    CurrentUnitId = assignment.UnitId,
+                    CurrentTeamId = assignment.TeamId,
+                    CurrentRoleId = assignment.FunctionalRoleId,
+                    ProposedUnitId = request.ProposedUnitId,
+                    ProposedTeamId = request.ProposedTeamId,
+                    ProposedRoleId = request.ProposedRoleId,
+                    CuNotes = request.CuNotes,
+                    Status = autoStatus,
+                    ProposedByUserId = currentUser.UserId!.Value
+                };
+                context.Passages.Add(passage);
+            }
+            count++;
+        }
+
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("BulkCreate", "Passage", null,
+            newValues: new { Count = count, request.ProposedUnitId, request.ProposedRoleId, request.SchoolYear },
+            cancellationToken: ct);
+
+        return Result<int>.Success(count);
+    }
+}
+
+// 3. ReviewPassage — CG approves/rejects/modifies a single passage
+public record ReviewPassageCommand(
+    Guid Id, string Status,
+    Guid? FinalUnitId, Guid? FinalTeamId, Guid? FinalRoleId,
+    string? CgNotes
+) : IRequest<Result<bool>>;
+
+public class ReviewPassageCommandValidator : AbstractValidator<ReviewPassageCommand>
+{
+    public ReviewPassageCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty().WithMessage("L'identifiant du passage est requis.");
+        RuleFor(x => x.Status).NotEmpty().WithMessage("Le statut est requis.")
+            .Must(s => s == PassageStatus.Approved || s == PassageStatus.Rejected)
+            .WithMessage("Le statut doit être 'Approved' ou 'Rejected'.");
+    }
+}
+
+public class ReviewPassageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<ReviewPassageCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(ReviewPassageCommand request, CancellationToken ct)
+    {
+        if (!currentUser.IsSuperAdmin)
+            return Result<bool>.Failure("Accès réservé aux super administrateurs.");
+
+        var passage = await context.Passages.FindAsync([request.Id], ct);
+        if (passage is null)
+            return Result<bool>.Failure("Passage introuvable.");
+
+        if (passage.Status == PassageStatus.Finalized)
+            return Result<bool>.Failure("Ce passage a déjà été finalisé.");
+
+        var oldStatus = passage.Status;
+
+        passage.Status = request.Status;
+        passage.CgNotes = request.CgNotes;
+        passage.ReviewedByUserId = currentUser.UserId;
+        passage.ReviewedAt = DateTime.UtcNow;
+
+        if (request.Status == PassageStatus.Approved)
+        {
+            // If final fields provided, use them; otherwise copy from proposed
+            passage.FinalUnitId = request.FinalUnitId ?? passage.ProposedUnitId;
+            passage.FinalTeamId = request.FinalTeamId ?? passage.ProposedTeamId;
+            passage.FinalRoleId = request.FinalRoleId ?? passage.ProposedRoleId;
+
+            // Validate final unit and role exist
+            var finalUnitExists = await context.Units.AnyAsync(u => u.Id == passage.FinalUnitId, ct);
+            if (!finalUnitExists)
+                return Result<bool>.Failure("L'unité finale est introuvable.");
+
+            var finalRoleExists = await context.FunctionalRoles.AnyAsync(r => r.Id == passage.FinalRoleId, ct);
+            if (!finalRoleExists)
+                return Result<bool>.Failure("Le rôle final est introuvable.");
+        }
+
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("Review", "Passage", passage.Id,
+            oldValues: new { Status = oldStatus },
+            newValues: new { passage.Status, passage.FinalUnitId, passage.FinalRoleId, passage.CgNotes },
+            cancellationToken: ct);
+
+        return Result<bool>.Success(true);
+    }
+}
+
+// 4. BulkReviewPassage — CG approves/rejects multiple passages at once
+public record BulkReviewPassageCommand(
+    List<Guid> PassageIds, string Status,
+    string? CgNotes
+) : IRequest<Result<int>>;
+
+public class BulkReviewPassageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<BulkReviewPassageCommand, Result<int>>
+{
+    public async ValueTask<Result<int>> Handle(BulkReviewPassageCommand request, CancellationToken ct)
+    {
+        if (!currentUser.IsSuperAdmin)
+            return Result<int>.Failure("Accès réservé aux super administrateurs.");
+
+        if (request.Status != PassageStatus.Approved && request.Status != PassageStatus.Rejected)
+            return Result<int>.Failure("Le statut doit être 'Approved' ou 'Rejected'.");
+
+        var passages = await context.Passages
+            .Where(p => request.PassageIds.Contains(p.Id) && p.Status != PassageStatus.Finalized)
+            .ToListAsync(ct);
+
+        int count = 0;
+        foreach (var passage in passages)
+        {
+            passage.Status = request.Status;
+            passage.CgNotes = request.CgNotes;
+            passage.ReviewedByUserId = currentUser.UserId;
+            passage.ReviewedAt = DateTime.UtcNow;
+
+            if (request.Status == PassageStatus.Approved)
+            {
+                // Copy proposed to final if not already set
+                passage.FinalUnitId ??= passage.ProposedUnitId;
+                passage.FinalTeamId ??= passage.ProposedTeamId;
+                passage.FinalRoleId ??= passage.ProposedRoleId;
+            }
+
+            count++;
+        }
+
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("BulkReview", "Passage", null,
+            newValues: new { Count = count, request.Status },
+            cancellationToken: ct);
+
+        return Result<int>.Success(count);
+    }
+}
+
+// 5. FinalizePassages — CG finalizes all approved passages for a school year
+public record FinalizePassagesCommand(
+    string SchoolYear, Guid? UnitId
+) : IRequest<Result<int>>;
+
+public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<FinalizePassagesCommand, Result<int>>
+{
+    public async ValueTask<Result<int>> Handle(FinalizePassagesCommand request, CancellationToken ct)
+    {
+        if (!currentUser.IsSuperAdmin)
+            return Result<int>.Failure("Accès réservé aux super administrateurs.");
+
+        var query = context.Passages
+            .Where(p => p.SchoolYear == request.SchoolYear && p.Status == PassageStatus.Approved);
+
+        if (request.UnitId.HasValue)
+            query = query.Where(p => p.CurrentUnitId == request.UnitId.Value);
+
+        var passages = await query.ToListAsync(ct);
+
+        int count = 0;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        foreach (var passage in passages)
+        {
+            var finalUnitId = passage.FinalUnitId ?? passage.ProposedUnitId;
+            var finalRoleId = passage.FinalRoleId ?? passage.ProposedRoleId;
+
+            // If unit changed, clear team (member joins new unit without team — CU assigns later)
+            Guid? finalTeamId;
+            if (finalUnitId != passage.CurrentUnitId)
+                finalTeamId = null;
+            else
+                finalTeamId = passage.FinalTeamId ?? passage.ProposedTeamId;
+
+            // End the member's current active assignment
+            var activeAssignment = await context.MemberAssignments
+                .Where(a => a.MemberId == passage.MemberId && a.EndDate == null)
+                .FirstOrDefaultAsync(ct);
+
+            if (activeAssignment is not null)
+            {
+                activeAssignment.EndDate = today;
+            }
+
+            // Create new assignment
+            var newAssignment = new MemberAssignment
+            {
+                MemberId = passage.MemberId,
+                UnitId = finalUnitId,
+                TeamId = finalTeamId,
+                FunctionalRoleId = finalRoleId,
+                StartDate = today,
+                Notes = $"Passage {passage.SchoolYear}"
+            };
+            context.MemberAssignments.Add(newAssignment);
+
+            // Mark passage as finalized
+            passage.Status = PassageStatus.Finalized;
+            count++;
+        }
+
+        // Auto-renew: members with active assignments but NO passage record get renewed (same unit/team/role)
+        // Exclude members who already have a passage record OR already got a renewal for this year
+        var passageMemberIds = await context.Passages
+            .Where(p => p.SchoolYear == request.SchoolYear)
+            .Select(p => p.MemberId)
+            .ToListAsync(ct);
+
+        var passageNote = $"Passage {request.SchoolYear}";
+        var alreadyRenewedIds = await context.MemberAssignments
+            .Where(a => a.Notes != null && a.Notes.StartsWith(passageNote))
+            .Select(a => a.MemberId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var excludeIds = passageMemberIds.Union(alreadyRenewedIds).ToList();
+
+        var renewQuery = context.MemberAssignments
+            .Where(a => a.EndDate == null && !excludeIds.Contains(a.MemberId));
+
+        if (request.UnitId.HasValue)
+            renewQuery = renewQuery.Where(a => a.UnitId == request.UnitId.Value);
+
+        var toRenew = await renewQuery.ToListAsync(ct);
+
+        foreach (var assignment in toRenew)
+        {
+            assignment.EndDate = today;
+
+            var renewed = new MemberAssignment
+            {
+                MemberId = assignment.MemberId,
+                UnitId = assignment.UnitId,
+                TeamId = assignment.TeamId,
+                FunctionalRoleId = assignment.FunctionalRoleId,
+                StartDate = today,
+                Notes = $"Passage {request.SchoolYear} — renouvellement automatique"
+            };
+            context.MemberAssignments.Add(renewed);
+            count++;
+        }
+
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("Finalize", "Passage", null,
+            newValues: new { Count = count, Renewed = toRenew.Count, request.SchoolYear, request.UnitId },
+            cancellationToken: ct);
+
+        return Result<int>.Success(count);
+    }
+}
+
+// 6. TogglePassage — CG opens/closes the passage process
+public record TogglePassageCommand(bool Enabled, string SchoolYear) : IRequest<Result<bool>>;
+
+public class TogglePassageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<TogglePassageCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(TogglePassageCommand request, CancellationToken ct)
+    {
+        if (!currentUser.IsSuperAdmin)
+            return Result<bool>.Failure("Accès réservé aux super administrateurs.");
+
+        var enabledSetting = await context.Settings.FirstOrDefaultAsync(s => s.Key == "passage.enabled", ct);
+        var yearSetting = await context.Settings.FirstOrDefaultAsync(s => s.Key == "passage.school_year", ct);
+
+        if (enabledSetting is not null)
+        {
+            enabledSetting.Value = request.Enabled ? "true" : "false";
+        }
+        else
+        {
+            context.Settings.Add(new Setting
+            {
+                Key = "passage.enabled",
+                Value = request.Enabled ? "true" : "false",
+                Category = "passage",
+                Label = "Passage annuel actif",
+                Description = "Active ou désactive le processus de passage annuel",
+                ValueType = "boolean"
+            });
+        }
+
+        if (yearSetting is not null)
+        {
+            yearSetting.Value = request.SchoolYear;
+        }
+        else
+        {
+            context.Settings.Add(new Setting
+            {
+                Key = "passage.school_year",
+                Value = request.SchoolYear,
+                Category = "passage",
+                Label = "Année scoute du passage",
+                Description = "Année scoute cible pour le passage en cours",
+                ValueType = "string"
+            });
+        }
+
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("Toggle", "Passage", null,
+            newValues: new { request.Enabled, request.SchoolYear },
+            cancellationToken: ct);
+
+        return Result<bool>.Success(true);
+    }
+}
+
+// 7. DeletePassage — CU can delete their own pending passage
+public record DeletePassageCommand(Guid Id) : IRequest<Result<bool>>;
+
+public class DeletePassageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<DeletePassageCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(DeletePassageCommand request, CancellationToken ct)
+    {
+        var passage = await context.Passages.FindAsync([request.Id], ct);
+        if (passage is null)
+            return Result<bool>.Failure("Passage introuvable.");
+
+        if (passage.Status != PassageStatus.Pending)
+            return Result<bool>.Failure("Seuls les passages en attente peuvent être supprimés.");
+
+        // Check access: must be super admin or have access to the unit
+        if (!await PassageAccessHelper.CanAccessUnit(context, currentUser, passage.CurrentUnitId, ct))
+            return Result<bool>.Failure("Accès non autorisé.");
+
+        context.Passages.Remove(passage);
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("Delete", "Passage", passage.Id,
+            oldValues: new { passage.MemberId, passage.ProposedUnitId, passage.SchoolYear },
+            cancellationToken: ct);
+
+        return Result<bool>.Success(true);
+    }
+}

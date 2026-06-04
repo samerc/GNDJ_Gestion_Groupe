@@ -8,6 +8,8 @@ public class UnitType : BaseEntity
     public string Code { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int? NumberOfYears { get; set; }
+    public int? AgeMin { get; set; }
+    public int? AgeMax { get; set; }
 
     public ICollection<Unit> Units { get; set; } = [];
     public ICollection<FunctionalRole> FunctionalRoles { get; set; } = [];

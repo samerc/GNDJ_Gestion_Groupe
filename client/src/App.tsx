@@ -17,6 +17,9 @@ import UnitsPage from '@/pages/units/index'
 import UnitDetailPage from '@/pages/units/detail'
 import MembersPage from '@/pages/members/index'
 import UnitDocumentsPage from '@/pages/unit-documents'
+import PassagePage from '@/pages/passage'
+import PassageValidationPage from '@/pages/admin/passage-validation'
+import ApiKeysPage from '@/pages/admin/api-keys'
 
 export default function App() {
   return (
@@ -33,6 +36,7 @@ export default function App() {
             <Route path="/members" element={<MembersPage />} />
             <Route path="/members/:id" element={<MembersPage />} />
             <Route path="/unit-documents" element={<UnitDocumentsPage />} />
+            <Route path="/passage" element={<PassagePage />} />
             <Route path="/admin/associations" element={<AssociationsPage />} />
             <Route path="/admin/unit-types" element={<UnitTypesPage />} />
             <Route path="/admin/unit-types/:id" element={<UnitTypeDetailPage />} />
@@ -41,6 +45,8 @@ export default function App() {
             <Route path="/admin/progression" element={<ProgressionPage />} />
             <Route path="/admin/security-profiles" element={<SecurityProfilesPage />} />
             <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
+            <Route path="/admin/passage-validation" element={<PassageValidationPage />} />
+            <Route path="/admin/api-keys" element={<ApiKeysPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
           </Route>
         </Route>
