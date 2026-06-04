@@ -33,6 +33,8 @@ public interface IApplicationDbContext
     DbSet<MemberProgression> MemberProgressions { get; }
     DbSet<Passage> Passages { get; }
     DbSet<ApiKey> ApiKeys { get; }
+    DbSet<CustomField> CustomFields { get; }
+    DbSet<MemberCustomFieldValue> MemberCustomFieldValues { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

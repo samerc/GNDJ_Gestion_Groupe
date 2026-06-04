@@ -77,6 +77,7 @@ public class GetUnitDashboardQueryHandler : IRequestHandler<GetUnitDashboardQuer
                 TeamColor1 = a.Team != null ? a.Team.Color1 : null,
                 TeamColor2 = a.Team != null ? a.Team.Color2 : null,
                 TeamDisplayOrder = a.Team != null ? a.Team.DisplayOrder : 999,
+                TeamIsMaitrise = a.Team != null ? a.Team.IsMaitrise : false,
                 RoleName = a.FunctionalRole.Name,
                 PrimaryPhone = a.Member.Phones.Where(p => p.IsPrimary && !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault(),
                 PrimaryEmail = a.Member.Emails.Where(e => e.IsPrimary && !e.IsDeleted).Select(e => e.Address).FirstOrDefault(),
@@ -86,8 +87,8 @@ public class GetUnitDashboardQueryHandler : IRequestHandler<GetUnitDashboardQuer
         // Group by team
         var teamGroups = assignments
             .Where(a => a.TeamId != null)
-            .GroupBy(a => new { a.TeamId, a.TeamName, a.TeamTotem, a.TeamColor1, a.TeamColor2, a.TeamDisplayOrder })
-            .OrderBy(g => g.Key.TeamDisplayOrder)
+            .GroupBy(a => new { a.TeamId, a.TeamName, a.TeamTotem, a.TeamColor1, a.TeamColor2, a.TeamDisplayOrder, a.TeamIsMaitrise })
+            .OrderByDescending(g => g.Key.TeamIsMaitrise).ThenBy(g => g.Key.TeamDisplayOrder)
             .Select(g => new TeamRosterDto(
                 g.Key.TeamId!.Value,
                 g.Key.TeamName!,

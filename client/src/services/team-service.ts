@@ -11,6 +11,7 @@ export interface TeamDto {
   color1: string | null
   color2: string | null
   displayOrder: number
+  isMaitrise: boolean
   unitId: string
   unitName: string
   memberCount: number
@@ -25,6 +26,7 @@ export interface TeamFormData {
   color1?: string | null
   color2?: string | null
   displayOrder: number
+  isMaitrise?: boolean
 }
 
 export function useTeams(params: { unitId?: string; search?: string; page?: number; pageSize?: number }) {

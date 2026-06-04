@@ -5,6 +5,7 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { useMembers, useMember, useCreateMember, type MemberFormData } from '@/services/member-service'
+import { MemberPhoto } from '@/components/shared/member-photo'
 import { useUnits } from '@/services/unit-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,9 +21,11 @@ import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
+import { MemberCustomFields } from '@/components/members/member-custom-fields'
+import { generateMemberCard } from '@/services/report-service'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS } from '@/lib/options'
 import { cn } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin, Copy, X } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin, Copy, X, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
@@ -46,10 +49,14 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
       {/* Header */}
       <div className="shrink-0 border-b px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
-            {member.firstName[0]}{member.lastName[0]}
-          </div>
-          <div>
+          <MemberPhoto
+            memberId={memberId}
+            name={`${member.firstName} ${member.lastName}`}
+            photoPath={member.photoPath}
+            size={48}
+            editable
+          />
+          <div className="flex-1 min-w-0">
             <h2 className="font-bold">{member.firstName} {member.lastName}</h2>
             <p className="text-xs text-muted-foreground">
               {member.cardNumber && `N° ${member.cardNumber}`}
@@ -58,6 +65,20 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
               {member.dateOfBirth && ` — Né(e) le ${new Date(member.dateOfBirth).toLocaleDateString('fr-FR')}`}
             </p>
           </div>
+          <Button variant="outline" size="sm" onClick={async () => {
+            try {
+              const response = await generateMemberCard(memberId)
+              const blob = new Blob([response.data], { type: 'application/pdf' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `Carte_${member.firstName}_${member.lastName}.pdf`
+              a.click()
+              URL.revokeObjectURL(url)
+            } catch (err) { toast.error(parseApiError(err)) }
+          }} title="Télécharger la carte">
+            <CreditCard className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -70,6 +91,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="cotisations">Cotisations</TabsTrigger>
           <TabsTrigger value="progression">Progression</TabsTrigger>
+          <TabsTrigger value="custom">Infos complémentaires</TabsTrigger>
           <TabsTrigger value="medical">Médical</TabsTrigger>
         </TabsList>
 
@@ -136,6 +158,10 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
 
           <TabsContent value="progression" className="mt-0">
             <MemberProgression memberId={memberId} />
+          </TabsContent>
+
+          <TabsContent value="custom" className="mt-0">
+            <MemberCustomFields memberId={memberId} />
           </TabsContent>
 
           <TabsContent value="medical" className="mt-0">

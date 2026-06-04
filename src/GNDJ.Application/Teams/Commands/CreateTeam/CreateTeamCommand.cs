@@ -9,7 +9,7 @@ namespace GNDJ.Application.Teams.Commands.CreateTeam;
 
 public record CreateTeamCommand(
     string Name, Guid UnitId, string? Description,
-    string? Totem, string? Adjective, string? Color1, string? Color2, int DisplayOrder
+    string? Totem, string? Adjective, string? Color1, string? Color2, int DisplayOrder, bool IsMaitrise
 ) : IRequest<Result<Guid>>;
 
 public class CreateTeamCommandValidator : AbstractValidator<CreateTeamCommand>
@@ -56,7 +56,8 @@ public class CreateTeamCommandHandler : IRequestHandler<CreateTeamCommand, Resul
             Adjective = request.Adjective,
             Color1 = request.Color1,
             Color2 = request.Color2,
-            DisplayOrder = request.DisplayOrder
+            DisplayOrder = request.DisplayOrder,
+            IsMaitrise = request.IsMaitrise
         };
 
         _context.Teams.Add(entity);

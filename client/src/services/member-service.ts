@@ -180,3 +180,24 @@ export function useUpdateAddress(memberId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['members', memberId] }),
   })
 }
+
+export function useUploadPhoto(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return apiClient.post<{ photoPath: string }>(`/members/${memberId}/photo`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then(r => r.data)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members', memberId] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+    },
+  })
+}
+
+export function getMemberPhotoUrl(memberId: string): string {
+  return `/api/v1/members/${memberId}/photo`
+}

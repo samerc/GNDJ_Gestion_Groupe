@@ -1,4 +1,5 @@
 using GNDJ.Api.Authorization;
+using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Members.Commands.AddAddress;
 using GNDJ.Application.Members.Commands.AddEmail;
 using GNDJ.Application.Members.Commands.AddPhone;
@@ -21,6 +22,12 @@ namespace GNDJ.Api.Controllers;
 [Authorize]
 public class MembersController : BaseApiController
 {
+    private readonly IApplicationDbContext _context;
+
+    public MembersController(IApplicationDbContext context)
+    {
+        _context = context;
+    }
     [HttpGet]
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> GetAll(
@@ -161,5 +168,76 @@ public class MembersController : BaseApiController
         var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return NoContent();
+    }
+
+    // --- Photo endpoints ---
+
+    [HttpPost("{memberId:guid}/photo")]
+    [HasPermission(Permissions.MembersEdit)]
+    [RequestSizeLimit(5 * 1024 * 1024)] // 5MB
+    public async Task<IActionResult> UploadPhoto(Guid memberId, IFormFile file)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { error = "Aucun fichier n'a été fourni." });
+
+        var ext = Path.GetExtension(file.FileName).TrimStart('.').ToLower();
+        if (ext is not "jpg" and not "jpeg" and not "png")
+            return BadRequest(new { error = "Format non supporté. Utilisez JPG ou PNG." });
+
+        // MIME magic number validation
+        using var headerStream = file.OpenReadStream();
+        var header = new byte[4];
+        await headerStream.ReadAsync(header.AsMemory(0, 4));
+        headerStream.Position = 0;
+        var isValid = ext switch
+        {
+            "jpg" or "jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+            "png" => header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47,
+            _ => false
+        };
+        if (!isValid)
+            return BadRequest(new { error = "Le contenu du fichier ne correspond pas à son extension." });
+
+        var member = await _context.Members.FindAsync(memberId);
+        if (member is null)
+            return NotFound(new { error = "Membre introuvable." });
+
+        // Save file
+        var photosDir = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "photos");
+        Directory.CreateDirectory(photosDir);
+
+        var fileName = $"{memberId}.{ext}";
+        var filePath = Path.Combine(photosDir, fileName);
+
+        // Delete old photo if exists and different extension
+        if (!string.IsNullOrEmpty(member.PhotoPath))
+        {
+            var oldPath = Path.Combine(Directory.GetCurrentDirectory(), member.PhotoPath);
+            if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
+        }
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+            await file.CopyToAsync(stream);
+
+        member.PhotoPath = Path.Combine("uploads", "photos", fileName);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { photoPath = member.PhotoPath });
+    }
+
+    [HttpGet("{memberId:guid}/photo")]
+    public async Task<IActionResult> GetPhoto(Guid memberId)
+    {
+        var member = await _context.Members.FindAsync(memberId);
+        if (member is null || string.IsNullOrEmpty(member.PhotoPath))
+            return NotFound();
+
+        var uploadsRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "uploads"));
+        var fullPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), member.PhotoPath));
+        if (!fullPath.StartsWith(uploadsRoot) || !System.IO.File.Exists(fullPath))
+            return NotFound();
+
+        var contentType = Path.GetExtension(fullPath).ToLower() == ".png" ? "image/png" : "image/jpeg";
+        return PhysicalFile(fullPath, contentType);
     }
 }

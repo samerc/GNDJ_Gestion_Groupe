@@ -9,7 +9,14 @@
       "Bash(PGPASSWORD=\"P@ssw0rd\" \"/c/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -c \"CREATE DATABASE gndj OWNER gndj_admin;\")",
       "Bash(PGPASSWORD=\"GndjDev2026!\" \"/c/Program Files/PostgreSQL/18/bin/psql.exe\" -U gndj_admin -d gndj -c \"SELECT code, name FROM security_profiles ORDER BY code;\")",
       "Bash(dotnet build:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(npm audit:*)",
+      "Bash(npm outdated:*)",
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)"
     ]
   }
 }

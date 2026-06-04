@@ -20,6 +20,8 @@ import UnitDocumentsPage from '@/pages/unit-documents'
 import PassagePage from '@/pages/passage'
 import PassageValidationPage from '@/pages/admin/passage-validation'
 import ApiKeysPage from '@/pages/admin/api-keys'
+import CustomFieldsPage from '@/pages/admin/custom-fields'
+import CardDesignerPage from '@/pages/admin/card-designer'
 
 export default function App() {
   return (
@@ -47,6 +49,8 @@ export default function App() {
             <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
             <Route path="/admin/passage-validation" element={<PassageValidationPage />} />
             <Route path="/admin/api-keys" element={<ApiKeysPage />} />
+            <Route path="/admin/custom-fields" element={<CustomFieldsPage />} />
+            <Route path="/admin/card-designer" element={<CardDesignerPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
           </Route>
         </Route>

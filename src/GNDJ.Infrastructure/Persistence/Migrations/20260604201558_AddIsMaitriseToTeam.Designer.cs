@@ -3,6 +3,7 @@ using System;
 using GNDJ.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GNDJ.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GndjDbContext))]
-    partial class GndjDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260604201558_AddIsMaitriseToTeam")]
+    partial class AddIsMaitriseToTeam
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -311,89 +314,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_badges_unit_type_id_display_order");
 
                     b.ToTable("badges", (string)null);
-                });
-
-            modelBuilder.Entity("GNDJ.Domain.Entities.CustomField", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("deleted_by");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("display_order");
-
-                    b.Property<string>("FieldType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("field_type");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Options")
-                        .HasColumnType("text")
-                        .HasColumnName("options");
-
-                    b.Property<bool>("ShowOnCard")
-                        .HasColumnType("boolean")
-                        .HasColumnName("show_on_card");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
-                    b.HasKey("Id")
-                        .HasName("pk_custom_fields");
-
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_custom_fields_code")
-                        .HasFilter("is_deleted = false");
-
-                    b.HasIndex("DisplayOrder")
-                        .HasDatabaseName("ix_custom_fields_display_order");
-
-                    b.ToTable("custom_fields", (string)null);
                 });
 
             modelBuilder.Entity("GNDJ.Domain.Entities.DocumentType", b =>
@@ -1199,72 +1119,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasFilter("is_deleted = false");
 
                     b.ToTable("member_cotisations", (string)null);
-                });
-
-            modelBuilder.Entity("GNDJ.Domain.Entities.MemberCustomFieldValue", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<Guid>("CustomFieldId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("custom_field_id");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("deleted_by");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<Guid>("MemberId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("member_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("value");
-
-                    b.HasKey("Id")
-                        .HasName("pk_member_custom_field_values");
-
-                    b.HasIndex("CustomFieldId")
-                        .HasDatabaseName("ix_member_custom_field_values_custom_field_id");
-
-                    b.HasIndex("MemberId")
-                        .HasDatabaseName("ix_member_custom_field_values_member_id");
-
-                    b.HasIndex("MemberId", "CustomFieldId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_member_custom_field_values_member_id_custom_field_id")
-                        .HasFilter("is_deleted = false");
-
-                    b.ToTable("member_custom_field_values", (string)null);
                 });
 
             modelBuilder.Entity("GNDJ.Domain.Entities.MemberDocument", b =>
@@ -2556,27 +2410,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                     b.Navigation("Member");
                 });
 
-            modelBuilder.Entity("GNDJ.Domain.Entities.MemberCustomFieldValue", b =>
-                {
-                    b.HasOne("GNDJ.Domain.Entities.CustomField", "CustomField")
-                        .WithMany("Values")
-                        .HasForeignKey("CustomFieldId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_member_custom_field_values_custom_fields_custom_field_id");
-
-                    b.HasOne("GNDJ.Domain.Entities.Member", "Member")
-                        .WithMany()
-                        .HasForeignKey("MemberId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_member_custom_field_values_members_member_id");
-
-                    b.Navigation("CustomField");
-
-                    b.Navigation("Member");
-                });
-
             modelBuilder.Entity("GNDJ.Domain.Entities.MemberDocument", b =>
                 {
                     b.HasOne("GNDJ.Domain.Entities.DocumentType", "DocumentType")
@@ -2830,11 +2663,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("GNDJ.Domain.Entities.Badge", b =>
                 {
                     b.Navigation("Progressions");
-                });
-
-            modelBuilder.Entity("GNDJ.Domain.Entities.CustomField", b =>
-                {
-                    b.Navigation("Values");
                 });
 
             modelBuilder.Entity("GNDJ.Domain.Entities.DocumentType", b =>

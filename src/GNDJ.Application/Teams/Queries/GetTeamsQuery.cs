@@ -43,7 +43,7 @@ public class GetTeamsQueryHandler : IRequestHandler<GetTeamsQuery, PaginatedList
         var projected = query.OrderBy(t => t.Unit.Name).ThenBy(t => t.DisplayOrder).ThenBy(t => t.Name)
             .Select(t => new TeamDto(
                 t.Id, t.Name, t.Description, t.Totem, t.Adjective, t.Color1, t.Color2,
-                t.DisplayOrder, t.UnitId, t.Unit.Name,
+                t.DisplayOrder, t.IsMaitrise, t.UnitId, t.Unit.Name,
                 t.Assignments.Count(a => !a.IsDeleted && a.EndDate == null)
             ));
 

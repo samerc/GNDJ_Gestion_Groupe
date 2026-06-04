@@ -3,17 +3,25 @@ import { useUnitDashboard, type RosterMemberDto } from '@/services/dashboard-ser
 import { useMember } from '@/services/member-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { MemberPhoto } from '@/components/shared/member-photo'
+import { TrombinoscoreDialog } from '@/components/shared/trombinoscope-dialog'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
+import { MemberCustomFields } from '@/components/members/member-custom-fields'
+import { RosterDialog } from '@/components/shared/roster-dialog'
 import { cn } from '@/lib/utils'
-import { Users, Search, Phone, Mail, MapPin, GripVertical } from 'lucide-react'
+import { generateBulkCards } from '@/services/report-service'
+import { parseApiError } from '@/lib/error-utils'
+import { toast } from 'sonner'
+import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard } from 'lucide-react'
 
 interface Props { unitId: string }
 
@@ -35,9 +43,13 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center gap-3 border-b px-4 py-3 shrink-0 bg-card">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-medium shrink-0">
-          {member.firstName[0]}{member.lastName[0]}
-        </div>
+        <MemberPhoto
+          memberId={memberId}
+          name={`${member.firstName} ${member.lastName}`}
+          photoPath={member.photoPath}
+          size={48}
+          editable
+        />
         <div className="min-w-0">
           <h3 className="font-bold text-lg truncate">{member.firstName} {member.lastName}</h3>
           <p className="text-xs text-muted-foreground truncate">
@@ -60,6 +72,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="cotisations">Cotisations</TabsTrigger>
           <TabsTrigger value="progression">Progression</TabsTrigger>
+          <TabsTrigger value="custom">Infos complémentaires</TabsTrigger>
         </TabsList>
 
         <div className="flex-1 overflow-auto p-4">
@@ -144,6 +157,10 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
           <TabsContent value="progression" className="mt-0">
             <MemberProgression memberId={memberId} />
           </TabsContent>
+
+          <TabsContent value="custom" className="mt-0">
+            <MemberCustomFields memberId={memberId} />
+          </TabsContent>
         </div>
       </Tabs>
     </div>
@@ -195,6 +212,28 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const [teamFilter, setTeamFilter] = useState<string>('')
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [leftWidth, setLeftWidth] = useState(320)
+  const [trombiOpen, setTrombiOpen] = useState(false)
+  const [rosterOpen, setRosterOpen] = useState(false)
+  const [bulkCardsLoading, setBulkCardsLoading] = useState(false)
+
+  const handleBulkCards = async () => {
+    setBulkCardsLoading(true)
+    try {
+      const response = await generateBulkCards(unitId)
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Cartes_${data?.unitName?.replace(/\s+/g, '_') ?? 'Unite'}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Cartes générées')
+    } catch (err) {
+      toast.error(parseApiError(err))
+    } finally {
+      setBulkCardsLoading(false)
+    }
+  }
 
   const handleDrag = useCallback((deltaX: number) => {
     setLeftWidth(w => Math.max(220, Math.min(500, w + deltaX)))
@@ -236,9 +275,21 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
             <h1 className="text-xl font-bold">{data.unitName}</h1>
             <p className="text-xs text-muted-foreground">{data.unitTypeName}</p>
           </div>
-          <div className="flex gap-4 text-center">
-            <div><p className="text-lg font-bold">{data.totalMembers}</p><p className="text-xs text-muted-foreground">Membres</p></div>
-            <div><p className="text-lg font-bold">{data.totalTeams}</p><p className="text-xs text-muted-foreground">Équipes</p></div>
+          <div className="flex items-center gap-4">
+            <div className="flex gap-4 text-center">
+              <div><p className="text-lg font-bold">{data.totalMembers}</p><p className="text-xs text-muted-foreground">Membres</p></div>
+              <div><p className="text-lg font-bold">{data.totalTeams}</p><p className="text-xs text-muted-foreground">Équipes</p></div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setRosterOpen(true)}>
+              <List className="mr-1 h-4 w-4" />Liste
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setTrombiOpen(true)}>
+              <FileDown className="mr-1 h-4 w-4" />Trombinoscope
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleBulkCards} disabled={bulkCardsLoading}>
+              <CreditCard className="mr-1 h-4 w-4" />
+              {bulkCardsLoading ? 'Génération...' : 'Cartes'}
+            </Button>
           </div>
         </div>
         <div className="flex gap-2">
@@ -313,6 +364,9 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
           )}
         </div>
       </div>
+
+      <TrombinoscoreDialog unitId={unitId} unitName={data?.unitName ?? ''} open={trombiOpen} onOpenChange={setTrombiOpen} />
+      <RosterDialog unitId={unitId} unitName={data?.unitName ?? ''} open={rosterOpen} onOpenChange={setRosterOpen} />
     </div>
   )
 }

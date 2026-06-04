@@ -8,7 +8,7 @@ namespace GNDJ.Application.Teams.Commands.UpdateTeam;
 
 public record UpdateTeamCommand(
     Guid Id, string Name, Guid UnitId, string? Description,
-    string? Totem, string? Adjective, string? Color1, string? Color2, int DisplayOrder
+    string? Totem, string? Adjective, string? Color1, string? Color2, int DisplayOrder, bool IsMaitrise
 ) : IRequest<Result<bool>>;
 
 public class UpdateTeamCommandValidator : AbstractValidator<UpdateTeamCommand>
@@ -56,6 +56,7 @@ public class UpdateTeamCommandHandler : IRequestHandler<UpdateTeamCommand, Resul
         entity.Color1 = request.Color1;
         entity.Color2 = request.Color2;
         entity.DisplayOrder = request.DisplayOrder;
+        entity.IsMaitrise = request.IsMaitrise;
 
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Update", "Team", entity.Id, oldValues: oldValues, newValues: new { entity.Name, entity.Totem, entity.Adjective }, cancellationToken: cancellationToken);

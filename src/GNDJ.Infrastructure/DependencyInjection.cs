@@ -49,6 +49,9 @@ public static class DependencyInjection
         // PDF services
         QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
         services.AddSingleton<IReceiptService, ReceiptService>();
+        services.AddSingleton<ITrombinoscoreService, TrombinoscoreService>();
+        services.AddSingleton<IMemberCardService, MemberCardService>();
+        services.AddSingleton<IRosterService, RosterService>();
 
         // JWT Authentication
         var jwtSecret = configuration["Jwt:Secret"]!;

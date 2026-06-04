@@ -181,6 +181,7 @@ public static class SeedData
             new() { Key = "member.classes", Value = "[\"EB1\",\"EB2\",\"EB3\",\"EB4\",\"EB5\",\"EB6\",\"EB7\",\"EB8\",\"EB9\",\"Seconde\",\"Première\",\"Terminale\"]", Category = "members", Label = "Classes", Description = "Liste des classes disponibles dans le formulaire membre", ValueType = "json_array" },
             new() { Key = "passage.enabled", Value = "false", Category = "passage", Label = "Passage annuel actif", Description = "Active ou désactive le processus de passage annuel", ValueType = "boolean" },
             new() { Key = "passage.school_year", Value = "2026-2027", Category = "passage", Label = "Année scoute du passage", Description = "Année scoute cible pour le passage en cours", ValueType = "string" },
+            new() { Key = "card.config", Value = "{\"orgName\":\"GNDJ Scout\",\"fields\":{\"photo\":true,\"name\":true,\"cardNumber\":true,\"unit\":true,\"team\":true,\"role\":true,\"dateOfBirth\":true,\"bloodType\":true,\"emergencyContact\":true,\"customFields\":true}}", Category = "reports", Label = "Configuration de la carte membre", Description = "Champs affichés sur la carte membre", ValueType = "json" },
         };
 
         var missing = allSettings.Where(s => !existingKeys.Contains(s.Key)).ToList();

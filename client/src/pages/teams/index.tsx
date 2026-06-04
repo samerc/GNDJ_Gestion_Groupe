@@ -12,9 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Badge } from '@/components/ui/badge'
 import { Plus, Pencil, Trash2, Search, Users } from 'lucide-react'
 
-const emptyForm: TeamFormData = { name: '', unitId: '', description: '', totem: '', adjective: '', color1: '', color2: '', displayOrder: 0 }
+const emptyForm: TeamFormData = { name: '', unitId: '', description: '', totem: '', adjective: '', color1: '', color2: '', displayOrder: 0, isMaitrise: false }
 
 export default function TeamsPage() {
   const [search, setSearch] = useState('')
@@ -50,7 +51,7 @@ export default function TeamsPage() {
       name: item.name, unitId: item.unitId, description: item.description ?? '',
       totem: item.totem ?? '', adjective: item.adjective ?? '',
       color1: item.color1 ?? '', color2: item.color2 ?? '',
-      displayOrder: item.displayOrder,
+      displayOrder: item.displayOrder, isMaitrise: item.isMaitrise,
     })
     setError('')
     setFormOpen(true)
@@ -164,6 +165,7 @@ export default function TeamsPage() {
                           </div>
                         )}
                         {item.name}
+                        {item.isMaitrise && <Badge variant="secondary" className="text-xs">Maîtrise</Badge>}
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{item.unitName}</TableCell>
@@ -257,6 +259,10 @@ export default function TeamsPage() {
                 <Input id="displayOrder" type="number" min={0} value={form.displayOrder} onChange={(e) => setForm(f => ({ ...f, displayOrder: Number(e.target.value) }))} />
               </div>
             </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={form.isMaitrise || false} onChange={(e) => setForm(f => ({ ...f, isMaitrise: e.target.checked }))} className="h-4 w-4 rounded border-gray-300" />
+              Équipe de maîtrise
+            </label>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>

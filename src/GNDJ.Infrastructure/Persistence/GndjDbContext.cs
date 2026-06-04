@@ -36,6 +36,8 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<MemberProgression> MemberProgressions => Set<MemberProgression>();
     public DbSet<Passage> Passages => Set<Passage>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+    public DbSet<CustomField> CustomFields => Set<CustomField>();
+    public DbSet<MemberCustomFieldValue> MemberCustomFieldValues => Set<MemberCustomFieldValue>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

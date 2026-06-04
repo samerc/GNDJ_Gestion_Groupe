@@ -9,6 +9,7 @@ public record TeamDto(
     string? Color1,
     string? Color2,
     int DisplayOrder,
+    bool IsMaitrise,
     Guid UnitId,
     string UnitName,
     int MemberCount

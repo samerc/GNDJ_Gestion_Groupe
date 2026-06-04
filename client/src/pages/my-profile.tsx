@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/stores/auth-store'
 import { useMember, useUpdateMember, useAddPhone, useDeletePhone, useAddEmail, useDeleteEmail, useAddAddress, useDeleteAddress, useUpdatePhone, useUpdateEmail, useUpdateAddress, type MemberFormData, type MemberPhoneDto, type MemberEmailDto, type MemberAddressDto } from '@/services/member-service'
+import { MemberPhoto } from '@/components/shared/member-photo'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +18,7 @@ import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
+import { MemberCustomFields } from '@/components/members/member-custom-fields'
 import { useSettingArray, useSettingValue } from '@/services/settings-service'
 import { parseApiError } from '@/lib/error-utils'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
@@ -154,9 +156,17 @@ export default function MyProfilePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Ma fiche</h1>
-          <p className="text-sm text-muted-foreground">{user?.email}</p>
+        <div className="flex items-center gap-4">
+          <MemberPhoto
+            memberId={memberId}
+            name={`${member.firstName} ${member.lastName}`}
+            photoPath={member.photoPath}
+            size={56}
+          />
+          <div>
+            <h1 className="text-2xl font-bold">Ma fiche</h1>
+            <p className="text-sm text-muted-foreground">{user?.email}</p>
+          </div>
         </div>
         {!editing ? (
           <Button onClick={startEdit}>Modifier</Button>
@@ -182,6 +192,7 @@ export default function MyProfilePage() {
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="cotisations">Cotisations</TabsTrigger>
           <TabsTrigger value="progression">Progression</TabsTrigger>
+          <TabsTrigger value="custom">Infos complémentaires</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-4">
@@ -298,6 +309,10 @@ export default function MyProfilePage() {
 
         <TabsContent value="progression">
           <MemberProgression memberId={memberId} />
+        </TabsContent>
+
+        <TabsContent value="custom">
+          <MemberCustomFields memberId={memberId} />
         </TabsContent>
 
         <TabsContent value="medical" className="space-y-4">

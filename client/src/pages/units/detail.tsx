@@ -46,7 +46,7 @@ export default function UnitDetailPage() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', unitId: id!, description: '', totem: '', adjective: '', color1: '', color2: '', displayOrder: (teams?.items.length ?? 0) + 1 })
+    setForm({ name: '', unitId: id!, description: '', totem: '', adjective: '', color1: '', color2: '', displayOrder: (teams?.items.length ?? 0) + 1, isMaitrise: false })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -57,7 +57,7 @@ export default function UnitDetailPage() {
       name: item.name, unitId: id!, description: item.description ?? '',
       totem: item.totem ?? '', adjective: item.adjective ?? '',
       color1: item.color1 ?? '', color2: item.color2 ?? '',
-      displayOrder: item.displayOrder,
+      displayOrder: item.displayOrder, isMaitrise: item.isMaitrise,
     })
     setError(''); clearAll()
     setFormOpen(true)
@@ -169,6 +169,7 @@ export default function UnitDetailPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{team.name}</span>
+                      {team.isMaitrise && <Badge variant="secondary" className="text-xs">Maîtrise</Badge>}
                       {team.totem && <span className="text-sm text-muted-foreground">({team.totem}{team.adjective ? ` ${team.adjective}` : ''})</span>}
                     </div>
                     {team.description && <p className="text-sm text-muted-foreground">{team.description}</p>}
@@ -234,6 +235,10 @@ export default function UnitDetailPage() {
                 <Input id="displayOrder" type="number" min={0} value={form.displayOrder} onChange={(e) => setForm(f => ({ ...f, displayOrder: Number(e.target.value) }))} />
               </div>
             </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={form.isMaitrise || false} onChange={(e) => setForm(f => ({ ...f, isMaitrise: e.target.checked }))} className="h-4 w-4 rounded border-gray-300" />
+              Équipe de maîtrise
+            </label>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>

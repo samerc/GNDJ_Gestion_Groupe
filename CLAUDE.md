@@ -66,7 +66,7 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - Swagger UI at /swagger, OpenAPI spec at /openapi/v1.json
 
 ## Database
-- 28 tables: associations, unit_types, units, teams, members, users, security_profiles, security_profile_permissions, functional_roles, member_assignments, member_relationships, member_phones, member_emails, member_addresses, guardians, guardian_links, guardian_phones, guardian_emails, audit_logs, settings, document_types, member_documents, member_cotisations, scout_stages, badges, member_progressions, passages, api_keys
+- 30 tables: associations, unit_types, units, teams, members, users, security_profiles, security_profile_permissions, functional_roles, member_assignments, member_relationships, member_phones, member_emails, member_addresses, guardians, guardian_links, guardian_phones, guardian_emails, audit_logs, settings, document_types, member_documents, member_cotisations, scout_stages, badges, member_progressions, passages, api_keys, custom_fields, member_custom_field_values
 - Member fields: firstName, lastName, dateOfBirth, gender, cardNumber, bloodType, nationality, school, classe, section, medicalNotes, allergies, notes
 - UnitType fields: name, code, description, numberOfYears, ageMin, ageMax
 - Snake_case naming convention via EFCore.NamingConventions
@@ -257,8 +257,22 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] OpenAPI spec at /openapi/v1.json (85 endpoints)
 - [x] Dual auth support: JWT Bearer (internal app) + API Key (external integrations)
 
+### PDF Reports & Custom Fields (Complete)
+- [x] Member photo upload (JPG/PNG, 5MB, MIME validated) + authenticated serve endpoint
+- [x] Trombinoscope PDF: A4/A3 auto-select based on member count, team rows, photo grid, placeholders
+- [x] Team `isMaitrise` flag — Maîtrise teams always appear first in trombinoscope, roster, dashboard
+- [x] Custom fields system: admin defines fields (text/number/select/boolean), values per member, ShowOnCard flag
+- [x] Admin page: Champs personnalisés (CRUD with field type, options for select, display order)
+- [x] Member tab: "Infos complémentaires" with inline editing per field type
+- [x] Member card PDF: credit-card sized (85.6mm × 54mm), configurable fields via card designer
+- [x] Card designer admin page: org name + field toggles with live preview
+- [x] Bulk card print: 10 cards per A4 page with cut lines, all unit members
+- [x] Roster PDF: A4 landscape, 14 selectable columns + custom fields, grouped by team
+- [x] Roster dialog: column checkboxes grouped by category, school year, PDF download
+- [x] CU dashboard buttons: Trombinoscope, Liste, Cartes
+- [x] Reports controller: /reports/trombinoscope, /reports/member-card/{id}, /reports/bulk-cards/{unitId}, /reports/roster
+
 ### Remaining
-- [ ] PDF exports — unit/team lists, member cards
 - [ ] Password reset / change password feature
 - [ ] Export to Excel/CSV for member lists
 - [ ] Error logging system (Serilog)

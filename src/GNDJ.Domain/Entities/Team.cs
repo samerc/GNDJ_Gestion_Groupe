@@ -12,6 +12,7 @@ public class Team : BaseEntity
     public string? Color1 { get; set; }
     public string? Color2 { get; set; }
     public int DisplayOrder { get; set; }
+    public bool IsMaitrise { get; set; }
 
     public Unit Unit { get; set; } = null!;
     public ICollection<MemberAssignment> Assignments { get; set; } = [];
