@@ -23,9 +23,10 @@ import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
 import { generateMemberCard } from '@/services/report-service'
+import { ExportDialog } from '@/components/shared/export-dialog'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS } from '@/lib/options'
 import { cn } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin, Copy, X, CreditCard } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet } from 'lucide-react'
 import { toast } from 'sonner'
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
@@ -239,6 +240,9 @@ export default function MembersPage() {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(routeMemberId ?? null)
   const [leftWidth, setLeftWidth] = useState(340)
 
+  // Export dialog
+  const [exportOpen, setExportOpen] = useState(false)
+
   // Create dialog
   const [formOpen, setFormOpen] = useState(false)
   const [credentialsDialog, setCredentialsDialog] = useState<{ username: string; password: string; memberId: string } | null>(null)
@@ -300,7 +304,13 @@ export default function MembersPage() {
       <div className="shrink-0 space-y-3 pb-3">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">Membres</h1>
-          <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />Nouveau membre</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setExportOpen(true)} disabled={!unitFilter || unitFilter === 'all' || unitFilter === 'none'}>
+              <FileSpreadsheet className="mr-1 h-4 w-4" />
+              Exporter
+            </Button>
+            <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />Nouveau membre</Button>
+          </div>
         </div>
         <div className="flex gap-2">
           <div className="relative flex-1 max-w-sm">
@@ -493,6 +503,16 @@ export default function MembersPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Export dialog */}
+      {unitFilter && unitFilter !== 'all' && unitFilter !== 'none' && (
+        <ExportDialog
+          unitId={unitFilter}
+          unitName={units?.items.find(u => u.id === unitFilter)?.name ?? ''}
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+        />
+      )}
 
       {/* Credentials dialog */}
       <Dialog open={!!credentialsDialog} onOpenChange={() => { if (credentialsDialog) setSelectedMemberId(credentialsDialog.memberId); setCredentialsDialog(null) }}>

@@ -17,11 +17,12 @@ import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
 import { RosterDialog } from '@/components/shared/roster-dialog'
+import { ExportDialog } from '@/components/shared/export-dialog'
 import { cn } from '@/lib/utils'
 import { generateBulkCards } from '@/services/report-service'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
-import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard } from 'lucide-react'
+import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet } from 'lucide-react'
 
 interface Props { unitId: string }
 
@@ -215,6 +216,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const [trombiOpen, setTrombiOpen] = useState(false)
   const [rosterOpen, setRosterOpen] = useState(false)
   const [bulkCardsLoading, setBulkCardsLoading] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   const handleBulkCards = async () => {
     setBulkCardsLoading(true)
@@ -285,6 +287,10 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
             </Button>
             <Button variant="outline" size="sm" onClick={() => setTrombiOpen(true)}>
               <FileDown className="mr-1 h-4 w-4" />Trombinoscope
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
+              <FileSpreadsheet className="mr-1 h-4 w-4" />
+              Exporter
             </Button>
             <Button variant="outline" size="sm" onClick={handleBulkCards} disabled={bulkCardsLoading}>
               <CreditCard className="mr-1 h-4 w-4" />
@@ -367,6 +373,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
 
       <TrombinoscoreDialog unitId={unitId} unitName={data?.unitName ?? ''} open={trombiOpen} onOpenChange={setTrombiOpen} />
       <RosterDialog unitId={unitId} unitName={data?.unitName ?? ''} open={rosterOpen} onOpenChange={setRosterOpen} />
+      <ExportDialog unitId={unitId} unitName={data?.unitName ?? ''} open={exportOpen} onOpenChange={setExportOpen} />
     </div>
   )
 }

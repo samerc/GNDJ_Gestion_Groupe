@@ -269,11 +269,12 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] Bulk card print: 10 cards per A4 page with cut lines, all unit members
 - [x] Roster PDF: A4 landscape, 14 selectable columns + custom fields, grouped by team
 - [x] Roster dialog: column checkboxes grouped by category, school year, PDF download
-- [x] CU dashboard buttons: Trombinoscope, Liste, Cartes
-- [x] Reports controller: /reports/trombinoscope, /reports/member-card/{id}, /reports/bulk-cards/{unitId}, /reports/roster
+- [x] CU dashboard buttons: Trombinoscope, Liste, Cartes, Exporter
+- [x] Excel/CSV export: column picker, format toggle, ClosedXML for .xlsx, UTF-8 BOM CSV
+- [x] Export available on CU dashboard + admin members page (unit-scoped)
+- [x] Reports controller: /reports/trombinoscope, /reports/member-card/{id}, /reports/bulk-cards/{unitId}, /reports/roster, /reports/export
 
 ### Remaining
 - [ ] Password reset / change password feature
-- [ ] Export to Excel/CSV for member lists
 - [ ] Error logging system (Serilog)
 - [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies

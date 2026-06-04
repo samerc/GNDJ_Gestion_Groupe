@@ -15,3 +15,7 @@ export function generateRoster(data: { unitId: string; teamId?: string | null; s
 export function generateBulkCards(unitId: string) {
   return apiClient.get(`/reports/bulk-cards/${unitId}`, { responseType: 'blob' })
 }
+
+export function generateExport(data: { unitId: string; teamId?: string | null; schoolYear: string; columns: string[]; format: string }) {
+  return apiClient.post('/reports/export', data, { responseType: 'blob' })
+}

@@ -46,4 +46,13 @@ public class ReportsController : BaseApiController
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return File(result.Value!, "application/pdf", $"Liste_{DateTime.Now:yyyyMMdd}.pdf");
     }
+
+    [HttpPost("export")]
+    [HasPermission(Permissions.MembersView)]
+    public async Task<IActionResult> Export([FromBody] GenerateExportQuery query)
+    {
+        var result = await Mediator.Send(query);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return File(result.Value!.Data, result.Value.ContentType, result.Value.FileName);
+    }
 }
