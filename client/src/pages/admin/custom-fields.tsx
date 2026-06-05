@@ -172,7 +172,7 @@ export default function CustomFieldsPage() {
       )}
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editing ? 'Modifier le champ personnalisé' : 'Nouveau champ personnalisé'}</DialogTitle>
           </DialogHeader>

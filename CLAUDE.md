@@ -296,5 +296,25 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] HTTP request logging with method, path, status code, duration
 - [x] User context enrichment: UserId, MemberId, RemoteIP per request
 
+### Photo Session (Complete)
+- [x] Camera capture component: getUserMedia, 3:4 ratio, JPEG 85% compression (600x800)
+- [x] SVG silhouette overlay (dashed head + shoulders guide)
+- [x] Front/back camera toggle, desktop fallback to file upload
+- [x] Photo session page: member list with status checkmarks, progress bar, batch workflow
+- [x] Preview with "Garder / Reprendre" confirm step
+- [x] Sidebar link + CU dashboard "Photos" button
+
+### Mobile Responsiveness Pass (Complete)
+- [x] All 2-column layouts (members, dashboard, photo-session) stack vertically on mobile
+- [x] Drag handles hidden on mobile, member lists get compact max-height
+- [x] All tables have overflow-x-auto + min-width for horizontal scrolling
+- [x] Button bars wrap on mobile (flex-wrap)
+- [x] Form grids stack on mobile (grid-cols-1 sm:grid-cols-2/3)
+- [x] Dialog max-widths responsive (max-w-[95vw] sm:max-w-lg/3xl)
+- [x] Card designer preview scales to fit mobile viewport
+- [x] Audit log filters in responsive grid
+- [x] Bulk action bars stack on mobile (flex-col sm:flex-row)
+- [x] All TabsLists have overflow-x-auto flex-nowrap for horizontal scroll
+
 ### Remaining
 - [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies

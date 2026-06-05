@@ -227,8 +227,8 @@ function SmtpTab() {
               <RequiredLabel required>Nom</RequiredLabel>
               <Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} required />
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2 space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2 space-y-2">
                 <RequiredLabel required>Hote</RequiredLabel>
                 <Input value={form.host} onChange={(e) => setForm(f => ({ ...f, host: e.target.value }))} required placeholder="smtp.example.com" />
               </div>
@@ -237,7 +237,7 @@ function SmtpTab() {
                 <Input type="number" value={form.port} onChange={(e) => setForm(f => ({ ...f, port: parseInt(e.target.value) || 0 }))} required />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <RequiredLabel required>Utilisateur</RequiredLabel>
                 <Input value={form.username} onChange={(e) => setForm(f => ({ ...f, username: e.target.value }))} required />
@@ -247,7 +247,7 @@ function SmtpTab() {
                 <Input type="password" value={form.password} onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))} required={!editing} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <RequiredLabel required>Email expediteur</RequiredLabel>
                 <Input type="email" value={form.fromEmail} onChange={(e) => setForm(f => ({ ...f, fromEmail: e.target.value }))} required />
@@ -422,13 +422,13 @@ function TemplatesTab() {
 
       {/* Create/Edit dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Modifier le modele' : 'Nouveau modele d\'email'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <RequiredLabel required>Nom</RequiredLabel>
                 <Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} required />
@@ -438,7 +438,7 @@ function TemplatesTab() {
                 <Input value={form.code} onChange={(e) => setForm(f => ({ ...f, code: e.target.value }))} required placeholder="password-reset" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <RequiredLabel required>Module</RequiredLabel>
                 <Select value={form.module} onValueChange={(v) => setForm(f => ({ ...f, module: v }))}>

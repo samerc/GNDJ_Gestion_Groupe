@@ -216,7 +216,7 @@ export default function ApiKeysPage() {
                       checked={form.scopes.includes(scope.value)}
                       onChange={() => handleScopeToggle(scope.value)}
                     />
-                    <code className="text-xs font-mono bg-muted px-1 py-0.5 rounded">{scope.value}</code>
+                    <code className="text-xs font-mono bg-muted px-1 py-0.5 rounded break-all">{scope.value}</code>
                     <span className="text-muted-foreground">{scope.label}</span>
                   </label>
                 ))}

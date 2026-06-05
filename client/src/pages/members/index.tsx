@@ -84,7 +84,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
       </div>
 
       <Tabs defaultValue="info" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="mx-4 mt-3 shrink-0 justify-start">
+        <TabsList className="mx-4 mt-3 shrink-0 justify-start overflow-x-auto flex-nowrap">
           <TabsTrigger value="info">Informations</TabsTrigger>
           <TabsTrigger value="contact">Contact</TabsTrigger>
           <TabsTrigger value="famille">Famille</TabsTrigger>
@@ -330,9 +330,9 @@ export default function MembersPage() {
       </div>
 
       {/* 2-column layout */}
-      <div className="flex flex-1 min-h-0 rounded-lg border overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 min-h-0 rounded-lg border overflow-hidden">
         {/* Left: member list */}
-        <div className="flex flex-col shrink-0 overflow-hidden" style={{ width: leftWidth }}>
+        <div className="flex flex-col shrink-0 overflow-hidden max-h-72 md:max-h-full border-b md:border-b-0" style={{ width: leftWidth }}>
           {/* Sortable header */}
           <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/40 text-muted-foreground shrink-0">
             <div className="w-8" />
@@ -381,7 +381,10 @@ export default function MembersPage() {
           </div>
         </div>
 
-        <DragHandle onDrag={handleDrag} />
+        {/* Drag handle: desktop only */}
+        <div className="hidden md:flex">
+          <DragHandle onDrag={handleDrag} />
+        </div>
 
         {/* Right: member detail */}
         <div className="flex-1 min-w-0 overflow-hidden bg-background">

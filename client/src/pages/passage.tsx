@@ -268,9 +268,9 @@ export default function PassagePage() {
       {/* Bulk actions bar */}
       {selected.size > 0 && (
         <Card>
-          <CardContent className="flex items-center gap-3 py-3 flex-wrap">
+          <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 py-3">
             <span className="text-sm font-medium">{selected.size} membre(s) selectionne(s)</span>
-            <div className="flex gap-2 ml-auto flex-wrap">
+            <div className="flex flex-wrap gap-2 sm:ml-auto">
               <Button size="sm" variant="outline" onClick={() => openBulk('same')}>
                 <Check className="mr-1 h-4 w-4" />Pas de changement
               </Button>
@@ -289,7 +289,7 @@ export default function PassagePage() {
         <EmptyState icon={Users} title="Aucun membre" description="Aucun membre actif dans cette unite." />
       ) : (
         <div className="rounded-lg border overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="border-b bg-muted/40">
                 <th className="px-3 py-2 w-10">

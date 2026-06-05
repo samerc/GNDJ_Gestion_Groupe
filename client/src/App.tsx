@@ -18,6 +18,7 @@ import UnitDetailPage from '@/pages/units/detail'
 import MembersPage from '@/pages/members/index'
 import UnitDocumentsPage from '@/pages/unit-documents'
 import PassagePage from '@/pages/passage'
+import PhotoSessionPage from '@/pages/photo-session'
 import PassageValidationPage from '@/pages/admin/passage-validation'
 import ApiKeysPage from '@/pages/admin/api-keys'
 import CustomFieldsPage from '@/pages/admin/custom-fields'
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="/members/:id" element={<MembersPage />} />
             <Route path="/unit-documents" element={<UnitDocumentsPage />} />
             <Route path="/passage" element={<PassagePage />} />
+            <Route path="/photo-session" element={<PhotoSessionPage />} />
             <Route path="/admin/associations" element={<AssociationsPage />} />
             <Route path="/admin/unit-types" element={<UnitTypesPage />} />
             <Route path="/admin/unit-types/:id" element={<UnitTypeDetailPage />} />

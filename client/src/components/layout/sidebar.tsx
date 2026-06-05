@@ -15,6 +15,7 @@ import {
   Star,
   ScrollText,
   ArrowRightLeft,
+  Camera,
   Key,
   ListPlus,
   CreditCard,
@@ -39,6 +40,7 @@ const leaderNavItems = [
   { path: '/', label: 'Mon unité', icon: Building2, permission: PERMISSIONS.UNITS_EDIT },
   { path: '/unit-documents', label: 'Documents', icon: FileText, permission: PERMISSIONS.DOCUMENTS_APPROVE },
   { path: '/passage', label: 'Passage des membres', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_PROPOSE },
+  { path: '/photo-session', label: 'Session photo', icon: Camera, permission: PERMISSIONS.MEMBERS_EDIT },
 ]
 
 const adminItems = [

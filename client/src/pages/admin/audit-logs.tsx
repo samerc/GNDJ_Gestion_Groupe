@@ -106,11 +106,11 @@ export default function AuditLogsPage() {
       <h1 className="text-2xl font-bold">Journal d'audit</h1>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-end">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
         <div className="space-y-1">
           <label className="text-sm text-muted-foreground">Entité</label>
           <Select value={entityType} onValueChange={(v) => { setEntityType(v === '_all' ? '' : v); setPage(1) }}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Toutes" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder="Toutes" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="_all">Toutes</SelectItem>
               {filters?.entityTypes.map(t => <SelectItem key={t} value={t}>{ENTITY_LABELS[t] ?? t}</SelectItem>)}
@@ -120,7 +120,7 @@ export default function AuditLogsPage() {
         <div className="space-y-1">
           <label className="text-sm text-muted-foreground">Action</label>
           <Select value={action} onValueChange={(v) => { setAction(v === '_all' ? '' : v); setPage(1) }}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="Toutes" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder="Toutes" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="_all">Toutes</SelectItem>
               {filters?.actions.map(a => <SelectItem key={a} value={a}>{ACTION_LABELS[a]?.label ?? a}</SelectItem>)}
@@ -129,11 +129,11 @@ export default function AuditLogsPage() {
         </div>
         <div className="space-y-1">
           <label className="text-sm text-muted-foreground">Du</label>
-          <Input type="date" className="w-40" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1) }} />
+          <Input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1) }} />
         </div>
         <div className="space-y-1">
           <label className="text-sm text-muted-foreground">Au</label>
-          <Input type="date" className="w-40" value={to} onChange={(e) => { setTo(e.target.value); setPage(1) }} />
+          <Input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1) }} />
         </div>
         {(entityType || action || from || to) && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>Effacer</Button>

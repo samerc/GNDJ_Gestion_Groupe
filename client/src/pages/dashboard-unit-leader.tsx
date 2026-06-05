@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router'
 import { useUnitDashboard, type RosterMemberDto } from '@/services/dashboard-service'
 import { useMember } from '@/services/member-service'
 import { useDebounce } from '@/hooks/use-debounce'
@@ -22,7 +23,7 @@ import { cn } from '@/lib/utils'
 import { generateBulkCards } from '@/services/report-service'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
-import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet } from 'lucide-react'
+import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera } from 'lucide-react'
 
 interface Props { unitId: string }
 
@@ -207,6 +208,7 @@ function DragHandle({ onDrag }: { onDrag: (deltaX: number) => void }) {
 }
 
 export default function UnitLeaderDashboard({ unitId }: Props) {
+  const navigate = useNavigate()
   const { data, isLoading } = useUnitDashboard(unitId)
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
@@ -277,7 +279,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
             <h1 className="text-xl font-bold">{data.unitName}</h1>
             <p className="text-xs text-muted-foreground">{data.unitTypeName}</p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex gap-4 text-center">
               <div><p className="text-lg font-bold">{data.totalMembers}</p><p className="text-xs text-muted-foreground">Membres</p></div>
               <div><p className="text-lg font-bold">{data.totalTeams}</p><p className="text-xs text-muted-foreground">Équipes</p></div>
@@ -295,6 +297,10 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
             <Button variant="outline" size="sm" onClick={handleBulkCards} disabled={bulkCardsLoading}>
               <CreditCard className="mr-1 h-4 w-4" />
               {bulkCardsLoading ? 'Génération...' : 'Cartes'}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate('/photo-session')}>
+              <Camera className="mr-1 h-4 w-4" />
+              Photos
             </Button>
           </div>
         </div>
@@ -315,9 +321,9 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
       </div>
 
       {/* 2-column layout */}
-      <div className="flex flex-1 min-h-0 rounded-lg border overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 min-h-0 rounded-lg border overflow-hidden">
         {/* Left: member list */}
-        <div className="overflow-y-auto bg-muted/30 shrink-0" style={{ width: leftWidth }}>
+        <div className="overflow-y-auto bg-muted/30 shrink-0 max-h-64 md:max-h-full border-b md:border-b-0" style={{ width: leftWidth }}>
           {grouped.length === 0 ? (
             <div className="flex items-center justify-center h-full text-sm text-muted-foreground p-4">Aucun membre trouvé</div>
           ) : (
@@ -353,8 +359,10 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
           )}
         </div>
 
-        {/* Drag handle */}
-        <DragHandle onDrag={handleDrag} />
+        {/* Drag handle: desktop only */}
+        <div className="hidden md:flex">
+          <DragHandle onDrag={handleDrag} />
+        </div>
 
         {/* Right: member detail */}
         <div className="flex-1 min-w-0 overflow-hidden">

@@ -268,7 +268,7 @@ export default function UnitDocumentsPage() {
           </div>
 
           <div className="rounded-lg border shadow-sm overflow-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[600px]">
               <thead>
                 <tr className="border-b bg-muted/40">
                   <th className="sticky left-0 z-10 bg-muted/40 px-4 py-3 text-left font-semibold min-w-52">Membre</th>

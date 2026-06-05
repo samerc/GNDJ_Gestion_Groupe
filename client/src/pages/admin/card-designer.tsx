@@ -150,8 +150,8 @@ export default function CardDesignerPage() {
           </CardHeader>
           <CardContent className="flex items-center justify-center">
             <div
-              className="border-2 border-dashed rounded-lg p-4 bg-white"
-              style={{ width: 340, height: 214, position: 'relative' }}
+              className="border-2 border-dashed rounded-lg p-4 bg-white mx-auto"
+              style={{ width: 'min(340px, 100%)', aspectRatio: '1.59', position: 'relative' }}
             >
               <div className="text-center font-bold text-sm">{config.orgName}</div>
               <hr className="my-1" />

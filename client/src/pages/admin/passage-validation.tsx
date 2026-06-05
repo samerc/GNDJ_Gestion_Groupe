@@ -316,9 +316,9 @@ export default function PassageValidationPage() {
       {/* Bulk actions */}
       {selected.size > 0 && (
         <Card>
-          <CardContent className="flex items-center gap-3 py-3 flex-wrap">
+          <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 py-3">
             <span className="text-sm font-medium">{selected.size} passage(s) selectionne(s)</span>
-            <div className="flex gap-2 ml-auto">
+            <div className="flex flex-wrap gap-2 sm:ml-auto">
               <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleBulkApprove} disabled={bulkReviewMutation.isPending}>
                 <Check className="mr-1 h-4 w-4" />Approuver la selection
               </Button>
@@ -335,7 +335,7 @@ export default function PassageValidationPage() {
         <EmptyState icon={ArrowRightLeft} title="Aucun passage" description="Aucune proposition de passage pour cette annee scolaire." />
       ) : (
         <div className="rounded-lg border overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[800px]">
             <thead>
               <tr className="border-b bg-muted/40">
                 <th className="px-3 py-2 w-10">
