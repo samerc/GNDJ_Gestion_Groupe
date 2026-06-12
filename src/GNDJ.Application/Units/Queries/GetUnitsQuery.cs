@@ -57,7 +57,8 @@ public class GetUnitsQueryHandler : IRequestHandler<GetUnitsQuery, PaginatedList
 
         var projected = query.OrderBy(u => u.Name).Select(u => new UnitDto(
             u.Id, u.Name, u.Code, u.Description, u.IsActive,
-            u.Association.Name, u.UnitType.Name,
+            u.AssociationId, u.Association.Name,
+            u.UnitTypeId, u.UnitType.Name,
             u.Teams.Count(t => !t.IsDeleted),
             u.Assignments.Count(a => !a.IsDeleted && a.EndDate == null)
         ));

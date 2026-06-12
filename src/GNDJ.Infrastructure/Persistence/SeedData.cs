@@ -38,10 +38,13 @@ public static class SeedData
         ]);
         var animateurProfile = CreateProfile("Animateur", "animateur", "Membre actif avec accès en lecture",
         [
-            Permissions.MembersView,
+            Permissions.MembersView, Permissions.MembersEdit,
             Permissions.UnitsView,
             Permissions.TeamsView,
-            Permissions.AssignmentsView
+            Permissions.AssignmentsView,
+            Permissions.DocumentTypesView,
+            Permissions.DocumentsView, Permissions.DocumentsCreate,
+            Permissions.CotisationsView
         ]);
         var readOnlyProfile = CreateProfile("Lecture seule", "read-only", "Accès en lecture uniquement",
             Permissions.All.Where(p => p.EndsWith(".view")).ToArray());
@@ -135,6 +138,14 @@ public static class SeedData
                 Permissions.PassageView, Permissions.PassagePropose
             ],
             ["chef-equipe"] = [Permissions.DocumentsView, Permissions.CotisationsView, Permissions.ProgressionView, Permissions.PassageView],
+            ["animateur"] =
+            [
+                Permissions.MembersView, Permissions.MembersEdit,
+                Permissions.UnitsView, Permissions.TeamsView, Permissions.AssignmentsView,
+                Permissions.DocumentTypesView,
+                Permissions.DocumentsView, Permissions.DocumentsCreate,
+                Permissions.CotisationsView
+            ],
             ["read-only"] = Permissions.All.Where(p => p.EndsWith(".view")).ToArray(),
         };
 
@@ -175,12 +186,14 @@ public static class SeedData
             new() { Key = "documents.max_file_size_mb", Value = "5", Category = "documents", Label = "Taille maximale de fichier (Mo)", Description = "Taille maximale autorisée pour les documents téléchargés, en mégaoctets", ValueType = "number" },
             new() { Key = "documents.allowed_file_types", Value = "[\"pdf\",\"jpg\",\"jpeg\",\"png\"]", Category = "documents", Label = "Types de fichiers autorisés", Description = "Extensions de fichiers autorisées pour les documents", ValueType = "json_array" },
             new() { Key = "cotisation.default_amount", Value = "100", Category = "cotisations", Label = "Montant de cotisation par défaut", Description = "Montant par défaut pour les nouvelles cotisations (en USD)", ValueType = "number" },
-            new() { Key = "cotisation.current_school_year", Value = "2025-2026", Category = "cotisations", Label = "Année scoute en cours", Description = "Année scoute utilisée par défaut pour les nouvelles cotisations", ValueType = "string" },
+            new() { Key = "cotisation.current_scout_year", Value = "2025-2026", Category = "cotisations", Label = "Année scoute en cours", Description = "Année scoute utilisée par défaut pour les nouvelles cotisations", ValueType = "string" },
+            new() { Key = "cotisation.default_currency", Value = "USD", Category = "cotisations", Label = "Devise par défaut", Description = "Devise par défaut pour les cotisations et le calcul du total", ValueType = "string" },
+            new() { Key = "cotisation.exchange_rates", Value = "{\"LBP\":89500,\"EUR\":0.92}", Category = "cotisations", Label = "Taux de change", Description = "Taux de change par rapport à la devise par défaut (ex: 1 USD = 89500 LBP)", ValueType = "json" },
             new() { Key = "member.schools", Value = "[\"Collège Notre-Dame de Jamhour\",\"Collège Saint-Joseph Antoura\"]", Category = "members", Label = "Écoles", Description = "Liste des écoles disponibles dans le formulaire membre", ValueType = "json_array" },
             new() { Key = "member.default_school", Value = "Collège Notre-Dame de Jamhour", Category = "members", Label = "École par défaut", Description = "École sélectionnée par défaut lors de la création d'un membre", ValueType = "string" },
             new() { Key = "member.classes", Value = "[\"EB1\",\"EB2\",\"EB3\",\"EB4\",\"EB5\",\"EB6\",\"EB7\",\"EB8\",\"EB9\",\"Seconde\",\"Première\",\"Terminale\"]", Category = "members", Label = "Classes", Description = "Liste des classes disponibles dans le formulaire membre", ValueType = "json_array" },
             new() { Key = "passage.enabled", Value = "false", Category = "passage", Label = "Passage annuel actif", Description = "Active ou désactive le processus de passage annuel", ValueType = "boolean" },
-            new() { Key = "passage.school_year", Value = "2026-2027", Category = "passage", Label = "Année scoute du passage", Description = "Année scoute cible pour le passage en cours", ValueType = "string" },
+            new() { Key = "passage.scout_year", Value = "2026-2027", Category = "passage", Label = "Année scoute du passage", Description = "Année scoute cible pour le passage en cours", ValueType = "string" },
             new() { Key = "card.config", Value = "{\"orgName\":\"GNDJ Scout\",\"fields\":{\"photo\":true,\"name\":true,\"cardNumber\":true,\"unit\":true,\"team\":true,\"role\":true,\"dateOfBirth\":true,\"bloodType\":true,\"emergencyContact\":true,\"customFields\":true}}", Category = "reports", Label = "Configuration de la carte membre", Description = "Champs affichés sur la carte membre", ValueType = "json" },
             new() { Key = "app.base_url", Value = "http://localhost:5173", Category = "general", Label = "URL de l'application", Description = "URL de base utilisée pour les liens dans les emails (ex: https://app.gndj.org)", ValueType = "string" },
         };
@@ -191,6 +204,32 @@ public static class SeedData
             context.Settings.AddRange(missing);
             await context.SaveChangesAsync();
         }
+
+        // Rename old settings keys (school_year → scout_year)
+        var renames = new Dictionary<string, string>
+        {
+            ["cotisation.current_school_year"] = "cotisation.current_scout_year",
+            ["passage.school_year"] = "passage.scout_year",
+        };
+        foreach (var (oldKey, newKey) in renames)
+        {
+            var oldSetting = await context.Settings.FirstOrDefaultAsync(s => s.Key == oldKey);
+            if (oldSetting is not null)
+            {
+                var newExists = await context.Settings.AnyAsync(s => s.Key == newKey);
+                if (!newExists)
+                {
+                    context.Settings.Add(new Setting
+                    {
+                        Key = newKey, Value = oldSetting.Value,
+                        Category = oldSetting.Category, Label = oldSetting.Label,
+                        Description = oldSetting.Description, ValueType = oldSetting.ValueType
+                    });
+                }
+                context.Settings.Remove(oldSetting);
+            }
+        }
+        await context.SaveChangesAsync();
     }
 
     public static async Task SeedDefaultEmailTemplatesAsync(GndjDbContext context)

@@ -2,6 +2,7 @@ using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using FluentValidation;
 using Mediator;
+using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.UpdateMember;
 
@@ -18,8 +19,12 @@ public class UpdateMemberCommandValidator : AbstractValidator<UpdateMemberComman
 
     public UpdateMemberCommandValidator()
     {
-        RuleFor(x => x.FirstName).NotEmpty().WithMessage("Le prénom est requis.").MaximumLength(100);
-        RuleFor(x => x.LastName).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
+        RuleFor(x => x.FirstName).NotEmpty().WithMessage("Le prénom est requis.")
+            .MaximumLength(100).WithMessage("Le prénom ne doit pas dépasser 100 caractères.")
+            .Must(n => n == null || !n.Contains('<') && !n.Contains('>')).WithMessage("Le prénom contient des caractères invalides.");
+        RuleFor(x => x.LastName).NotEmpty().WithMessage("Le nom est requis.")
+            .MaximumLength(100).WithMessage("Le nom ne doit pas dépasser 100 caractères.")
+            .Must(n => n == null || !n.Contains('<') && !n.Contains('>')).WithMessage("Le nom contient des caractères invalides.");
         RuleFor(x => x.DateOfBirth).NotEmpty().WithMessage("La date de naissance est requise.")
             .LessThanOrEqualTo(DateOnly.FromDateTime(DateTime.UtcNow))
             .When(x => x.DateOfBirth.HasValue)
@@ -40,11 +45,13 @@ public class UpdateMemberCommandHandler : IRequestHandler<UpdateMemberCommand, R
 {
     private readonly IApplicationDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUser;
 
-    public UpdateMemberCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    public UpdateMemberCommandHandler(IApplicationDbContext context, IAuditService auditService, ICurrentUserService currentUser)
     {
         _context = context;
         _auditService = auditService;
+        _currentUser = currentUser;
     }
 
     public async ValueTask<Result<bool>> Handle(UpdateMemberCommand request, CancellationToken cancellationToken)
@@ -52,6 +59,17 @@ public class UpdateMemberCommandHandler : IRequestHandler<UpdateMemberCommand, R
         var entity = await _context.Members.FindAsync([request.Id], cancellationToken);
         if (entity is null)
             return Result<bool>.Failure("Membre introuvable.");
+
+        // Authorization: super admin can edit anyone; a member can edit their own profile;
+        // a unit leader can edit members within their authorized units.
+        if (!_currentUser.IsSuperAdmin && _currentUser.MemberId != request.Id)
+        {
+            var authorizedUnitIds = _currentUser.AuthorizedUnitIds;
+            var hasUnitAccess = await _context.MemberAssignments.AnyAsync(a =>
+                a.MemberId == request.Id && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId), cancellationToken);
+            if (!hasUnitAccess)
+                return Result<bool>.Failure("Accès non autorisé à ce membre.");
+        }
 
         var oldValues = new { entity.FirstName, entity.LastName, entity.CardNumber };
 

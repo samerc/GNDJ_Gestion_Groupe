@@ -115,7 +115,7 @@ export default function SecurityProfilesPage() {
   const { data: profiles, isLoading } = useSecurityProfiles()
   const [selectedId, setSelectedId] = useState<string>('')
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
     <div className="space-y-6">

@@ -41,7 +41,7 @@ public class RosterService : IRosterService
                 page.Header().Column(col =>
                 {
                     col.Item().Text(data.Title).FontSize(12).Bold();
-                    col.Item().Text($"Ann\u00e9e scoute {data.SchoolYear}").FontSize(8);
+                    col.Item().Text($"Année scoute {data.ScoutYear}").FontSize(8);
                     col.Item().PaddingTop(4).LineHorizontal(0.5f);
                 });
 

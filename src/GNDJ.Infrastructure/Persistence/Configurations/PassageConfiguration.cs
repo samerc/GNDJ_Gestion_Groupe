@@ -10,7 +10,7 @@ public class PassageConfiguration : IEntityTypeConfiguration<Passage>
     {
         builder.ToTable("passages");
         builder.HasKey(e => e.Id);
-        builder.Property(e => e.SchoolYear).HasMaxLength(20);
+        builder.Property(e => e.ScoutYear).HasMaxLength(20);
         builder.Property(e => e.Status).HasMaxLength(20);
         builder.Property(e => e.CuNotes).HasColumnType("text");
         builder.Property(e => e.CgNotes).HasColumnType("text");
@@ -23,7 +23,7 @@ public class PassageConfiguration : IEntityTypeConfiguration<Passage>
         builder.HasOne(e => e.ProposedRole).WithMany().HasForeignKey(e => e.ProposedRoleId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(e => e.FinalRole).WithMany().HasForeignKey(e => e.FinalRoleId).OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(e => new { e.SchoolYear, e.MemberId }).IsUnique().HasFilter("is_deleted = false");
+        builder.HasIndex(e => new { e.ScoutYear, e.MemberId }).IsUnique().HasFilter("is_deleted = false");
         builder.HasIndex(e => e.CurrentUnitId);
         builder.HasIndex(e => e.ProposedUnitId);
         builder.HasIndex(e => e.Status);

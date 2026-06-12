@@ -6,7 +6,9 @@ public record UnitDto(
     string Code,
     string? Description,
     bool IsActive,
+    Guid AssociationId,
     string AssociationName,
+    Guid UnitTypeId,
     string UnitTypeName,
     int TeamCount,
     int MemberCount

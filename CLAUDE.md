@@ -316,5 +316,52 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] Bulk action bars stack on mobile (flex-col sm:flex-row)
 - [x] All TabsLists have overflow-x-auto flex-nowrap for horizontal scroll
 
-### Remaining
+### Admin UX Pass + Unit Type Colors (Complete)
+- [x] Dashboard professional bar charts (value labels, animated fills)
+- [x] Members search: X button to clear
+- [x] Units page: association + unit-type filters, search clear, detail (Eye) icon separate from edit
+- [x] Unit detail: teams divided with expandable member lists, Maîtrise pinned top, up/down reorder
+- [x] Functions page: color-coded table by unit type, sortable layout
+- [x] Change password moved to header user dropdown (global)
+- [x] Session: auto-refresh while active, warn/expire only after 15 min idle
+- [x] Admin menu grouped: Données scouts / Gestion / Administration
+- [x] Unit Type Color: unique hex per type (enforced), used in functions list + diagrams
+- [x] Cotisation: single entry per year with multiple payment lines (multi-currency); A5 landscape receipt with logo header + totals via exchange rates; settings for default currency + rates
+- [x] CG cotisation dashboard, custom report templates (CG creates, CU generates)
+- [x] Progression path diagram (UnitTypeProgression): per-gender/role flow, passage auto-suggest
+- [x] Skeleton loaders (page/table/cards/detail/form/profile variants)
+- [x] Member documents screen redesign (progress bar, color-coded status borders)
+- [x] Member "Mes documents" page + admin route guard (non-admins blocked from /admin/*)
+
+### Data Migration (Complete — see memory project_data_migration.md)
+- [x] C# console migration tool (tools/Migration) reads 18 WEBDEV Excel files → PostgreSQL
+- [x] 2259 members, 4446 guardians, 5805 phones, 4515 emails, 4523 assignments, 2048 users
+- [x] **Active-membership criterion = WEBDEV `UniteFonc.EnCours` flag** (NOT DATEFIN, which was
+      often left blank). EnCours=1 → active (end_date NULL); EnCours=0 → closed. 989 active
+      assignments / 930 active members; rest are alumni (kept, not dropped — data fixable in-app).
+- [x] All imported users have temp password `Gndj2026!` (bcrypt WF10)
+
+### Security & Performance Audit (Complete — 2026-06)
+- [x] FIXED CRITICAL: global EF `NoTracking` default silently broke ALL update handlers (returned
+      204 but never persisted) — reverted; list queries already project to DTOs
+- [x] FIXED CRITICAL: broken access control on UpdateMember, DeleteMember, CreateAssignment
+      (privilege escalation), UploadPhoto, CreateMemberProgression — all now check
+      IsSuperAdmin || own || authorized-unit
+- [x] FIXED CRITICAL: auth rate limiter was GLOBAL (10 logins/5min system-wide) → now per-IP (100/min)
+- [x] FIXED: all member-data access checks now require an ACTIVE assignment (a.EndDate == null) —
+      a CU can no longer see/edit a member who moved to another unit
+- [x] Alumni view: `GET /members?alumni=true&unitId=` shows former unit members, identity only
+      (email/phone withheld); full detail/docs/cotisations stay blocked
+- [x] PERF: bcrypt WF12→WF10 + concurrency semaphore (2-core box); refresh token O(N) bcrypt scan
+      → SHA-256 indexed lookup; response compression (gzip/brotli); per-IP connection pool
+- [x] Load test: 100 concurrent logins went from 10/100 success (median 52s) to 100/100 (median ~13s,
+      sequential 168ms). NOTE: server has only 2 CPU cores — production should use 4+.
+- [x] Verified: document verification workflow (upload→pending→approve/reject+notes), cross-unit
+      review/download/matrix all blocked, file magic-byte validation, IDOR on uploads blocked
+
+### Remaining / Next
+- [ ] **Option 1 (DECIDED, not yet built):** keep all imported members incl. inactive, but make counts
+      honest — admin dashboard "Total members" should count ACTIVE (930) not all (2259); admin members
+      list should default to active with an "Anciens/Alumni" toggle (backend `alumni` param already exists)
+- [ ] Migration data cleanup (deferred): name spacing ("Marie- Lynn"), GET /photo unit-scope
 - [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies

@@ -15,7 +15,7 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt } from 'lucide-react'
+import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2 } from 'lucide-react'
 
 // ─── Cell rendering helpers ────────────────────────────────
 function docStatusColor(cell: MemberDocCellDto): string {
@@ -62,12 +62,12 @@ const PAYMENT_METHOD_OPTIONS = [
 
 export default function UnitDocumentsPage() {
   const user = useAuthStore((s) => s.user)
-  const currentSchoolYear = useSettingValue('cotisation.current_school_year') ?? '2025-2026'
+  const currentScoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
   const defaultAmount = useSettingValue('cotisation.default_amount')
   const [selectedUnit, setSelectedUnit] = useState<string>(user?.unitAccess[0]?.unitId ?? '')
 
   const unitId = selectedUnit || user?.unitAccess[0]?.unitId || ''
-  const { data: matrix, isLoading } = useUnitDocumentsMatrix(unitId, currentSchoolYear)
+  const { data: matrix, isLoading } = useUnitDocumentsMatrix(unitId, currentScoutYear)
   const reviewMutation = useReviewDocumentMatrix(unitId)
 
   // Preview state
@@ -78,7 +78,9 @@ export default function UnitDocumentsPage() {
 
   // Cotisation dialog state
   const [cotisationMember, setCotisationMember] = useState<MemberDocRowDto | null>(null)
-  const [cotForm, setCotForm] = useState({ amountPaid: 0, currency: 'USD', paymentDate: '', paymentMethod: 'Cash', notes: '' })
+  const [cotPayments, setCotPayments] = useState<{ amount: number; currency: string; paymentMethod: string }[]>([])
+  const [cotPaymentDate, setCotPaymentDate] = useState('')
+  const [cotNotes, setCotNotes] = useState('')
   const createCotisation = useCreateCotisation('')
   const updateCotisation = useUpdateCotisation('')
 
@@ -177,21 +179,13 @@ export default function UnitDocumentsPage() {
     setCotisationMember(member)
     setError('')
     if (member.cotisation.cotisationId) {
-      setCotForm({
-        amountPaid: member.cotisation.amountPaid ?? 0,
-        currency: member.cotisation.currency ?? 'USD',
-        paymentDate: member.cotisation.paymentDate ?? '',
-        paymentMethod: member.cotisation.paymentMethod ?? 'Cash',
-        notes: '',
-      })
+      setCotPayments(member.cotisation.payments.map(p => ({ amount: p.amount, currency: p.currency, paymentMethod: p.paymentMethod })))
+      setCotPaymentDate(member.cotisation.paymentDate ?? '')
+      setCotNotes('')
     } else {
-      setCotForm({
-        amountPaid: parseFloat(defaultAmount ?? '100'),
-        currency: 'USD',
-        paymentDate: new Date().toISOString().split('T')[0],
-        paymentMethod: 'Cash',
-        notes: '',
-      })
+      setCotPayments([{ amount: parseFloat(defaultAmount ?? '100'), currency: 'USD', paymentMethod: 'Cash' }])
+      setCotPaymentDate(new Date().toISOString().split('T')[0])
+      setCotNotes('')
     }
   }
 
@@ -203,21 +197,17 @@ export default function UnitDocumentsPage() {
       if (cotisationMember.cotisation.cotisationId) {
         await updateCotisation.mutateAsync({
           id: cotisationMember.cotisation.cotisationId,
-          amountPaid: cotForm.amountPaid,
-          currency: cotForm.currency,
-          paymentDate: cotForm.paymentDate,
-          paymentMethod: cotForm.paymentMethod,
-          notes: cotForm.notes || null,
+          paymentDate: cotPaymentDate,
+          notes: cotNotes || null,
+          payments: cotPayments,
         })
       } else {
         await createCotisation.mutateAsync({
           memberId: cotisationMember.memberId,
-          schoolYear: currentSchoolYear,
-          amountPaid: cotForm.amountPaid,
-          currency: cotForm.currency,
-          paymentDate: cotForm.paymentDate,
-          paymentMethod: cotForm.paymentMethod,
-          notes: cotForm.notes || null,
+          scoutYear: currentScoutYear,
+          paymentDate: cotPaymentDate,
+          notes: cotNotes || null,
+          payments: cotPayments,
         })
       }
       toast.success('Cotisation enregistrée')
@@ -235,7 +225,7 @@ export default function UnitDocumentsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Documents & Cotisations</h1>
-          <p className="text-sm text-muted-foreground">Année scoute {currentSchoolYear}</p>
+          <p className="text-sm text-muted-foreground">Année scoute {currentScoutYear}</p>
         </div>
         <div className="flex items-center gap-2">
           {user.unitAccess.length > 1 && (
@@ -254,7 +244,7 @@ export default function UnitDocumentsPage() {
 
       {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
-      {isLoading ? <LoadingSpinner /> : !matrix || matrix.members.length === 0 ? (
+      {isLoading ? <LoadingSpinner variant="table" /> : !matrix || matrix.members.length === 0 ? (
         <p className="text-muted-foreground py-12 text-center">Aucun membre actif dans cette unité.</p>
       ) : (
         <>
@@ -289,7 +279,7 @@ export default function UnitDocumentsPage() {
                   <th className="px-2 py-3 text-center font-medium min-w-28">
                     <div className="flex flex-col items-center gap-0.5">
                       <span className="text-xs leading-tight">Cotisation</span>
-                      <span className="text-[10px] text-muted-foreground">{currentSchoolYear}</span>
+                      <span className="text-[10px] text-muted-foreground">{currentScoutYear}</span>
                     </div>
                   </th>
                 </tr>
@@ -363,14 +353,14 @@ export default function UnitDocumentsPage() {
                           }`}
                           onClick={() => openCotisation(member)}
                           title={member.cotisation.cotisationId
-                            ? `${member.cotisation.amountPaid} ${member.cotisation.currency} — ${member.cotisation.receiptNumber}`
+                            ? `${member.cotisation.payments.map(p => `${p.amount} ${p.currency}`).join(' + ')} — ${member.cotisation.receiptNumber}`
                             : 'Cotisation non payée — Cliquer pour enregistrer'
                           }
                         >
                           {member.cotisation.cotisationId ? (
                             <>
                               <DollarSign className="h-3.5 w-3.5" />
-                              <span className="text-xs font-medium">{member.cotisation.amountPaid}</span>
+                              <span className="text-xs font-medium">{member.cotisation.payments.length}</span>
                             </>
                           ) : (
                             <Receipt className="h-3.5 w-3.5" />
@@ -475,10 +465,13 @@ export default function UnitDocumentsPage() {
             </DialogTitle>
           </DialogHeader>
 
-          {cotisationMember?.cotisation.cotisationId ? (
+          {cotisationMember?.cotisation.cotisationId && cotisationMember.cotisation.payments.length > 0 ? (
             <div className="space-y-4">
               <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
-                Cotisation déjà enregistrée : <strong>{cotisationMember.cotisation.amountPaid} {cotisationMember.cotisation.currency}</strong>
+                Cotisation enregistrée :
+                {cotisationMember.cotisation.payments.map((p, i) => (
+                  <div key={i}><strong>{p.amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} {p.currency}</strong> ({PAYMENT_METHOD_OPTIONS.find(o => o.value === p.paymentMethod)?.label ?? p.paymentMethod})</div>
+                ))}
                 <br />Reçu : {cotisationMember.cotisation.receiptNumber}
                 {cotisationMember.cotisation.paymentDate && <><br />Date : {new Date(cotisationMember.cotisation.paymentDate).toLocaleDateString('fr-FR')}</>}
               </div>
@@ -489,38 +482,44 @@ export default function UnitDocumentsPage() {
           ) : (
             <form onSubmit={handleCotisationSubmit} className="space-y-4">
               {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-              <p className="text-sm text-muted-foreground">Année scoute : {currentSchoolYear}</p>
+              <p className="text-sm text-muted-foreground">Année scoute : {currentScoutYear}</p>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <RequiredLabel required>Montant</RequiredLabel>
-                  <Input type="number" step="0.01" min="0" value={cotForm.amountPaid} onChange={(e) => setCotForm(f => ({ ...f, amountPaid: parseFloat(e.target.value) || 0 }))} required />
-                </div>
-                <div className="space-y-2">
-                  <RequiredLabel required>Devise</RequiredLabel>
-                  <Select value={cotForm.currency} onValueChange={(v) => setCotForm(f => ({ ...f, currency: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {CURRENCY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.value} ({o.label})</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <RequiredLabel required>Date de paiement</RequiredLabel>
+                <Input type="date" value={cotPaymentDate} onChange={(e) => setCotPaymentDate(e.target.value)} required />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <RequiredLabel required>Date de paiement</RequiredLabel>
-                  <Input type="date" value={cotForm.paymentDate} onChange={(e) => setCotForm(f => ({ ...f, paymentDate: e.target.value }))} required />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <RequiredLabel required>Paiements</RequiredLabel>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setCotPayments(p => [...p, { amount: 0, currency: 'USD', paymentMethod: 'Cash' }])}>
+                    <Plus className="mr-1 h-3 w-3" />Ligne
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <RequiredLabel required>Mode de paiement</RequiredLabel>
-                  <Select value={cotForm.paymentMethod} onValueChange={(v) => setCotForm(f => ({ ...f, paymentMethod: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_METHOD_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {cotPayments.map((p, idx) => (
+                  <div key={idx} className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <Input type="number" step="0.01" min="0" placeholder="Montant" value={p.amount} onChange={(e) => setCotPayments(prev => prev.map((pp, i) => i === idx ? { ...pp, amount: parseFloat(e.target.value) || 0 } : pp))} required />
+                    </div>
+                    <Select value={p.currency} onValueChange={(v) => setCotPayments(prev => prev.map((pp, i) => i === idx ? { ...pp, currency: v } : pp))}>
+                      <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {CURRENCY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.value}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Select value={p.paymentMethod} onValueChange={(v) => setCotPayments(prev => prev.map((pp, i) => i === idx ? { ...pp, paymentMethod: v } : pp))}>
+                      <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_METHOD_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    {cotPayments.length > 1 && (
+                      <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => setCotPayments(prev => prev.filter((_, i) => i !== idx))}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
               </div>
 
               <DialogFooter>

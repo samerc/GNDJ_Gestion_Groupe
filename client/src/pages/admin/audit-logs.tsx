@@ -141,7 +141,7 @@ export default function AuditLogsPage() {
       </div>
 
       {/* Table */}
-      {isLoading ? <LoadingSpinner /> : !data || data.items.length === 0 ? (
+      {isLoading ? <LoadingSpinner variant="table" /> : !data || data.items.length === 0 ? (
         <EmptyState icon={ScrollText} title="Aucune entrée" description="Aucun enregistrement d'audit trouvé pour ces filtres." />
       ) : (
         <>

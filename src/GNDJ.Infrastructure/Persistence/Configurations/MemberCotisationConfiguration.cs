@@ -10,10 +10,7 @@ public class MemberCotisationConfiguration : IEntityTypeConfiguration<MemberCoti
     {
         builder.ToTable("member_cotisations");
         builder.HasKey(e => e.Id);
-        builder.Property(e => e.SchoolYear).HasMaxLength(20).IsRequired();
-        builder.Property(e => e.AmountPaid).HasPrecision(12, 2);
-        builder.Property(e => e.Currency).HasMaxLength(5).IsRequired();
-        builder.Property(e => e.PaymentMethod).HasMaxLength(50).IsRequired();
+        builder.Property(e => e.ScoutYear).HasMaxLength(20).IsRequired();
         builder.Property(e => e.ReceiptNumber).HasMaxLength(50).IsRequired();
         builder.Property(e => e.Notes).HasColumnType("text");
 
@@ -21,6 +18,6 @@ public class MemberCotisationConfiguration : IEntityTypeConfiguration<MemberCoti
 
         builder.HasIndex(e => e.MemberId);
         builder.HasIndex(e => e.ReceiptNumber).IsUnique().HasFilter("is_deleted = false");
-        builder.HasIndex(e => new { e.MemberId, e.SchoolYear }).IsUnique().HasFilter("is_deleted = false");
+        builder.HasIndex(e => new { e.MemberId, e.ScoutYear }).IsUnique().HasFilter("is_deleted = false");
     }
 }

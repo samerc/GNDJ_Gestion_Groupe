@@ -1,33 +1,63 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
+export interface CotisationPaymentDto {
+  id: string
+  amount: number
+  currency: string
+  paymentMethod: string
+}
+
 export interface MemberCotisationDto {
   id: string
   memberId: string
-  schoolYear: string
-  amountPaid: number
-  currency: string
+  scoutYear: string
   paymentDate: string
-  paymentMethod: string
   receiptNumber: string
   notes: string | null
+  payments: CotisationPaymentDto[]
   createdAt: string
+}
+
+export interface PaymentLineInput {
+  amount: number
+  currency: string
+  paymentMethod: string
 }
 
 export interface CotisationFormData {
   memberId: string
-  schoolYear: string
-  amountPaid: number
-  currency: string
+  scoutYear: string
   paymentDate: string
-  paymentMethod: string
   notes?: string | null
+  payments: PaymentLineInput[]
 }
 
 export interface UnpaidCotisationDto {
   memberId: string
   memberName: string
   unitName: string
+}
+
+export interface CurrencyTotalDto {
+  currency: string
+  total: number
+  count: number
+}
+
+export interface UnitCotisationSummaryDto {
+  unitName: string
+  totalMembers: number
+  paidMembers: number
+  totals: CurrencyTotalDto[]
+}
+
+export interface CotisationSummaryDto {
+  totalActiveMembers: number
+  membersWithPayment: number
+  membersWithoutPayment: number
+  totalsByCurrency: CurrencyTotalDto[]
+  byUnit: UnitCotisationSummaryDto[]
 }
 
 export function useMemberCotisations(memberId: string) {
@@ -52,7 +82,7 @@ export function useCreateCotisation(memberId: string) {
 export function useUpdateCotisation(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; amountPaid: number; currency: string; paymentDate: string; paymentMethod: string; notes?: string | null }) =>
+    mutationFn: ({ id, ...data }: { id: string; paymentDate: string; notes?: string | null; payments: PaymentLineInput[] }) =>
       apiClient.put(`/cotisations/${id}`, { id, ...data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cotisations', memberId] })
@@ -72,11 +102,19 @@ export function useDeleteCotisation(memberId: string) {
   })
 }
 
-export function useUnpaidCotisations(schoolYear: string) {
+export function useCotisationSummary(scoutYear: string) {
   return useQuery({
-    queryKey: ['cotisations', 'unpaid', schoolYear],
-    queryFn: () => apiClient.get<UnpaidCotisationDto[]>('/cotisations/unpaid', { params: { schoolYear } }).then(r => r.data),
-    enabled: !!schoolYear,
+    queryKey: ['cotisations', 'summary', scoutYear],
+    queryFn: () => apiClient.get<CotisationSummaryDto>('/cotisations/summary', { params: { scoutYear } }).then(r => r.data),
+    enabled: !!scoutYear,
+  })
+}
+
+export function useUnpaidCotisations(scoutYear: string) {
+  return useQuery({
+    queryKey: ['cotisations', 'unpaid', scoutYear],
+    queryFn: () => apiClient.get<UnpaidCotisationDto[]>('/cotisations/unpaid', { params: { scoutYear } }).then(r => r.data),
+    enabled: !!scoutYear,
   })
 }
 

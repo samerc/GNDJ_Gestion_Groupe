@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.UnitTypes.Commands.CreateUnitType;
 
-public record CreateUnitTypeCommand(string Name, string Code, string? Description, int? NumberOfYears) : IRequest<Result<Guid>>;
+public record CreateUnitTypeCommand(string Name, string Code, string? Description, int? NumberOfYears, int? AgeMin, int? AgeMax, string? Color) : IRequest<Result<Guid>>;
 
 public class CreateUnitTypeCommandValidator : AbstractValidator<CreateUnitTypeCommand>
 {
@@ -36,12 +36,22 @@ public class CreateUnitTypeCommandHandler : IRequestHandler<CreateUnitTypeComman
         if (codeExists)
             return Result<Guid>.Failure("Un type d'unité avec ce code existe déjà.");
 
+        if (!string.IsNullOrWhiteSpace(request.Color))
+        {
+            var colorExists = await _context.UnitTypes.AnyAsync(ut => ut.Color == request.Color, cancellationToken);
+            if (colorExists)
+                return Result<Guid>.Failure("Cette couleur est déjà utilisée par un autre type d'unité.");
+        }
+
         var entity = new UnitType
         {
             Name = request.Name,
             Code = request.Code,
             Description = request.Description,
-            NumberOfYears = request.NumberOfYears
+            NumberOfYears = request.NumberOfYears,
+            AgeMin = request.AgeMin,
+            AgeMax = request.AgeMax,
+            Color = request.Color
         };
 
         _context.UnitTypes.Add(entity);

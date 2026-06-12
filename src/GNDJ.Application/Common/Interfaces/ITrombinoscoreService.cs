@@ -2,7 +2,7 @@ namespace GNDJ.Application.Common.Interfaces;
 
 public record TrombinoscoreData(
     string UnitName,
-    string SchoolYear,
+    string ScoutYear,
     bool IncludePhotos,
     IReadOnlyList<TrombinoscoreTeam> Teams
 );

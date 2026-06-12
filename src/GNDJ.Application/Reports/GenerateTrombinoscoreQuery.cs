@@ -7,7 +7,7 @@ namespace GNDJ.Application.Reports;
 
 public record GenerateTrombinoscoreQuery(
     Guid UnitId,
-    string SchoolYear,
+    string ScoutYear,
     bool IncludePhotos,
     List<Guid>? TeamIds // null = all teams
 ) : IRequest<Result<byte[]>>;
@@ -71,7 +71,7 @@ public class GenerateTrombinoscoreQueryHandler(
             ))
             .ToList();
 
-        var data = new TrombinoscoreData(unit.Name, request.SchoolYear, request.IncludePhotos, teams);
+        var data = new TrombinoscoreData(unit.Name, request.ScoutYear, request.IncludePhotos, teams);
         var pdf = trombinoscoreService.Generate(data);
 
         return Result<byte[]>.Success(pdf);

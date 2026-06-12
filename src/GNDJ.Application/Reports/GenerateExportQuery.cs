@@ -8,7 +8,7 @@ namespace GNDJ.Application.Reports;
 public record GenerateExportQuery(
     Guid UnitId,
     Guid? TeamId,
-    string SchoolYear,
+    string ScoutYear,
     List<string> Columns,
     string Format // "excel" or "csv"
 ) : IRequest<Result<ExportResult>>;

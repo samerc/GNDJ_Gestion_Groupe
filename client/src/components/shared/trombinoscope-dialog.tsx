@@ -17,7 +17,7 @@ interface Props {
 }
 
 export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Props) {
-  const schoolYear = useSettingValue('cotisation.current_school_year') ?? '2025-2026'
+  const scoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
   const { data: teamsData } = useTeams({ unitId, pageSize: 100 })
   const teams = teamsData?.items ?? []
 
@@ -43,12 +43,12 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
     setError('')
     try {
       const teamIds = allSelected ? null : Array.from(selectedTeams)
-      const response = await generateTrombinoscope({ unitId, schoolYear, includePhotos, teamIds })
+      const response = await generateTrombinoscope({ unitId, scoutYear, includePhotos, teamIds })
       const blob = new Blob([response.data], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Trombinoscope_${unitName.replace(/\s+/g, '_')}_${schoolYear}.pdf`
+      a.download = `Trombinoscope_${unitName.replace(/\s+/g, '_')}_${scoutYear}.pdf`
       a.click()
       URL.revokeObjectURL(url)
       toast.success('Trombinoscope généré')
@@ -97,7 +97,7 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
             Imprimer les photos
           </label>
 
-          <p className="text-xs text-muted-foreground">Année scoute : {schoolYear}</p>
+          <p className="text-xs text-muted-foreground">Année scoute : {scoutYear}</p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fermer</Button>

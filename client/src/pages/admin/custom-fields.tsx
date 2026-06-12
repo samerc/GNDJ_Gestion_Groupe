@@ -123,7 +123,7 @@ export default function CustomFieldsPage() {
       </div>
 
       {isLoading ? (
-        <LoadingSpinner />
+        <LoadingSpinner variant="table" />
       ) : !fields || fields.length === 0 ? (
         <EmptyState
           icon={ListPlus}

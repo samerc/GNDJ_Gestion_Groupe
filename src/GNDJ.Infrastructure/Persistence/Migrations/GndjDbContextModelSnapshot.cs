@@ -313,6 +313,71 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                     b.ToTable("badges", (string)null);
                 });
 
+            modelBuilder.Entity("GNDJ.Domain.Entities.CotisationPayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<Guid>("CotisationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cotisation_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)")
+                        .HasColumnName("currency");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("payment_method");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_cotisation_payments");
+
+                    b.HasIndex("CotisationId")
+                        .HasDatabaseName("ix_cotisation_payments_cotisation_id");
+
+                    b.ToTable("cotisation_payments", (string)null);
+                });
+
             modelBuilder.Entity("GNDJ.Domain.Entities.CustomField", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1203,11 +1268,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<decimal>("AmountPaid")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("numeric(12,2)")
-                        .HasColumnName("amount_paid");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -1215,12 +1275,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasMaxLength(5)
-                        .HasColumnType("character varying(5)")
-                        .HasColumnName("currency");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1246,23 +1300,17 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("payment_date");
 
-                    b.Property<string>("PaymentMethod")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("payment_method");
-
                     b.Property<string>("ReceiptNumber")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("receipt_number");
 
-                    b.Property<string>("SchoolYear")
+                    b.Property<string>("ScoutYear")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
-                        .HasColumnName("school_year");
+                        .HasColumnName("scout_year");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1283,9 +1331,9 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_member_cotisations_receipt_number")
                         .HasFilter("is_deleted = false");
 
-                    b.HasIndex("MemberId", "SchoolYear")
+                    b.HasIndex("MemberId", "ScoutYear")
                         .IsUnique()
-                        .HasDatabaseName("ix_member_cotisations_member_id_school_year")
+                        .HasDatabaseName("ix_member_cotisations_member_id_scout_year")
                         .HasFilter("is_deleted = false");
 
                     b.ToTable("member_cotisations", (string)null);
@@ -1875,11 +1923,11 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("reviewed_by_user_id");
 
-                    b.Property<string>("SchoolYear")
+                    b.Property<string>("ScoutYear")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
-                        .HasColumnName("school_year");
+                        .HasColumnName("scout_year");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1922,12 +1970,90 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_passages_status");
 
-                    b.HasIndex("SchoolYear", "MemberId")
+                    b.HasIndex("ScoutYear", "MemberId")
                         .IsUnique()
-                        .HasDatabaseName("ix_passages_school_year_member_id")
+                        .HasDatabaseName("ix_passages_scout_year_member_id")
                         .HasFilter("is_deleted = false");
 
                     b.ToTable("passages", (string)null);
+                });
+
+            modelBuilder.Entity("GNDJ.Domain.Entities.ReportTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ColumnsJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("columns_json");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("format");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("ReportType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("report_type");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_report_templates");
+
+                    b.ToTable("report_templates", (string)null);
                 });
 
             modelBuilder.Entity("GNDJ.Domain.Entities.ScoutStage", b =>
@@ -2429,6 +2555,11 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("code");
 
+                    b.Property<string>("Color")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("color");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -2479,7 +2610,94 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_unit_types_code")
                         .HasFilter("is_deleted = false");
 
+                    b.HasIndex("Color")
+                        .IsUnique()
+                        .HasDatabaseName("ix_unit_types_color")
+                        .HasFilter("is_deleted = false AND color IS NOT NULL");
+
                     b.ToTable("unit_types", (string)null);
+                });
+
+            modelBuilder.Entity("GNDJ.Domain.Entities.UnitTypeProgression", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AssociationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("association_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<Guid>("FromUnitTypeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("from_unit_type_id");
+
+                    b.Property<string>("Gender")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("gender");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("PathType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("path_type");
+
+                    b.Property<Guid>("ToUnitTypeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("to_unit_type_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_unit_type_progressions");
+
+                    b.HasIndex("AssociationId")
+                        .HasDatabaseName("ix_unit_type_progressions_association_id");
+
+                    b.HasIndex("FromUnitTypeId")
+                        .HasDatabaseName("ix_unit_type_progressions_from_unit_type_id");
+
+                    b.HasIndex("ToUnitTypeId")
+                        .HasDatabaseName("ix_unit_type_progressions_to_unit_type_id");
+
+                    b.ToTable("unit_type_progressions", (string)null);
                 });
 
             modelBuilder.Entity("GNDJ.Domain.Entities.User", b =>
@@ -2615,6 +2833,18 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_badges_unit_types_unit_type_id");
 
                     b.Navigation("UnitType");
+                });
+
+            modelBuilder.Entity("GNDJ.Domain.Entities.CotisationPayment", b =>
+                {
+                    b.HasOne("GNDJ.Domain.Entities.MemberCotisation", "Cotisation")
+                        .WithMany("Payments")
+                        .HasForeignKey("CotisationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_cotisation_payments_member_cotisations_cotisation_id");
+
+                    b.Navigation("Cotisation");
                 });
 
             modelBuilder.Entity("GNDJ.Domain.Entities.EmailTemplate", b =>
@@ -3009,6 +3239,36 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                     b.Navigation("UnitType");
                 });
 
+            modelBuilder.Entity("GNDJ.Domain.Entities.UnitTypeProgression", b =>
+                {
+                    b.HasOne("GNDJ.Domain.Entities.Association", "Association")
+                        .WithMany()
+                        .HasForeignKey("AssociationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_unit_type_progressions_associations_association_id");
+
+                    b.HasOne("GNDJ.Domain.Entities.UnitType", "FromUnitType")
+                        .WithMany()
+                        .HasForeignKey("FromUnitTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_unit_type_progressions_unit_types_from_unit_type_id");
+
+                    b.HasOne("GNDJ.Domain.Entities.UnitType", "ToUnitType")
+                        .WithMany()
+                        .HasForeignKey("ToUnitTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_unit_type_progressions_unit_types_to_unit_type_id");
+
+                    b.Navigation("Association");
+
+                    b.Navigation("FromUnitType");
+
+                    b.Navigation("ToUnitType");
+                });
+
             modelBuilder.Entity("GNDJ.Domain.Entities.User", b =>
                 {
                     b.HasOne("GNDJ.Domain.Entities.Member", "Member")
@@ -3078,6 +3338,11 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                     b.Navigation("Relationships");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GNDJ.Domain.Entities.MemberCotisation", b =>
+                {
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("GNDJ.Domain.Entities.ScoutStage", b =>

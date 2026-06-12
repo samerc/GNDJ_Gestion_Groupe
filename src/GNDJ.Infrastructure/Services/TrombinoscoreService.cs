@@ -37,7 +37,7 @@ public class TrombinoscoreService : ITrombinoscoreService
                         .FontSize(headerFontSize).Bold();
                     col.Item().AlignCenter().PaddingTop(2).Text(data.UnitName)
                         .FontSize(headerFontSize - 1).SemiBold();
-                    col.Item().AlignCenter().PaddingTop(1).Text($"Année scoute {data.SchoolYear}")
+                    col.Item().AlignCenter().PaddingTop(1).Text($"Année scoute {data.ScoutYear}")
                         .FontSize(7);
                     col.Item().PaddingTop(4).LineHorizontal(0.5f);
                 });

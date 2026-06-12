@@ -3,7 +3,7 @@ import apiClient from '@/lib/api-client'
 
 export interface PassageDto {
   id: string
-  schoolYear: string
+  scoutYear: string
   memberId: string
   memberName: string
   cardNumber: string | null
@@ -33,7 +33,7 @@ export interface PassageDto {
 }
 
 export interface PassageSummaryDto {
-  schoolYear: string
+  scoutYear: string
   totalMembers: number
   pending: number
   approved: number
@@ -43,44 +43,44 @@ export interface PassageSummaryDto {
 
 export interface PassageStatusDto {
   isOpen: boolean
-  schoolYear: string
+  scoutYear: string
 }
 
-export function usePassagesByUnit(unitId: string, schoolYear: string) {
+export function usePassagesByUnit(unitId: string, scoutYear: string) {
   return useQuery({
-    queryKey: ['passages', 'unit', unitId, schoolYear],
-    queryFn: () => apiClient.get<PassageDto[]>(`/passages/unit/${unitId}`, { params: { schoolYear } }).then(r => r.data),
-    enabled: !!unitId && !!schoolYear,
+    queryKey: ['passages', 'unit', unitId, scoutYear],
+    queryFn: () => apiClient.get<PassageDto[]>(`/passages/unit/${unitId}`, { params: { scoutYear } }).then(r => r.data),
+    enabled: !!unitId && !!scoutYear,
   })
 }
 
-export function useAllPassages(schoolYear: string, status?: string, unitId?: string) {
+export function useAllPassages(scoutYear: string, status?: string, unitId?: string) {
   return useQuery({
-    queryKey: ['passages', 'all', schoolYear, status, unitId],
-    queryFn: () => apiClient.get<PassageDto[]>('/passages', { params: { schoolYear, status, unitId } }).then(r => r.data),
-    enabled: !!schoolYear,
+    queryKey: ['passages', 'all', scoutYear, status, unitId],
+    queryFn: () => apiClient.get<PassageDto[]>('/passages', { params: { scoutYear, status, unitId } }).then(r => r.data),
+    enabled: !!scoutYear,
   })
 }
 
-export function usePassageSummary(schoolYear: string) {
+export function usePassageSummary(scoutYear: string) {
   return useQuery({
-    queryKey: ['passages', 'summary', schoolYear],
-    queryFn: () => apiClient.get<PassageSummaryDto>(`/passages/summary`, { params: { schoolYear } }).then(r => r.data),
-    enabled: !!schoolYear,
+    queryKey: ['passages', 'summary', scoutYear],
+    queryFn: () => apiClient.get<PassageSummaryDto>(`/passages/summary`, { params: { scoutYear } }).then(r => r.data),
+    enabled: !!scoutYear,
   })
 }
 
-export function usePassageStatus(schoolYear: string) {
+export function usePassageStatus(scoutYear: string) {
   return useQuery({
-    queryKey: ['passages', 'status', schoolYear],
-    queryFn: () => apiClient.get<PassageStatusDto>(`/passages/status`, { params: { schoolYear } }).then(r => r.data),
+    queryKey: ['passages', 'status', scoutYear],
+    queryFn: () => apiClient.get<PassageStatusDto>(`/passages/status`, { params: { scoutYear } }).then(r => r.data),
   })
 }
 
 export function useProposePassage() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { memberId: string; schoolYear: string; proposedUnitId: string; proposedTeamId?: string | null; proposedRoleId: string; cuNotes?: string | null }) =>
+    mutationFn: (data: { memberId: string; scoutYear: string; proposedUnitId: string; proposedTeamId?: string | null; proposedRoleId: string; cuNotes?: string | null }) =>
       apiClient.post('/passages', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['passages'] }),
   })
@@ -89,7 +89,7 @@ export function useProposePassage() {
 export function useBulkProposePassage() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { memberIds: string[]; schoolYear: string; proposedUnitId: string; proposedTeamId?: string | null; proposedRoleId: string; cuNotes?: string | null }) =>
+    mutationFn: (data: { memberIds: string[]; scoutYear: string; proposedUnitId: string; proposedTeamId?: string | null; proposedRoleId: string; cuNotes?: string | null }) =>
       apiClient.post<{ count: number }>('/passages/bulk', data).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['passages'] }),
   })
@@ -116,7 +116,7 @@ export function useBulkReviewPassage() {
 export function useFinalizePassages() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { schoolYear: string; unitId?: string | null }) =>
+    mutationFn: (data: { scoutYear: string; unitId?: string | null }) =>
       apiClient.post<{ count: number }>('/passages/finalize', data).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['passages'] })
@@ -128,7 +128,7 @@ export function useFinalizePassages() {
 export function useTogglePassage() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { enabled: boolean; schoolYear: string }) =>
+    mutationFn: (data: { enabled: boolean; scoutYear: string }) =>
       apiClient.post('/passages/toggle', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['passages'] }),
   })

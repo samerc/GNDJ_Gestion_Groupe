@@ -8,7 +8,9 @@ export interface UnitDto {
   code: string
   description: string | null
   isActive: boolean
+  associationId: string
   associationName: string
+  unitTypeId: string
   unitTypeName: string
   teamCount: number
   memberCount: number

@@ -14,6 +14,9 @@ public class UnitTypeConfiguration : IEntityTypeConfiguration<UnitType>
         builder.Property(e => e.Code).HasMaxLength(50).IsRequired();
         builder.Property(e => e.Description).HasColumnType("text");
 
+        builder.Property(e => e.Color).HasMaxLength(10);
+
         builder.HasIndex(e => e.Code).IsUnique().HasFilter("is_deleted = false");
+        builder.HasIndex(e => e.Color).IsUnique().HasFilter("is_deleted = false AND color IS NOT NULL");
     }
 }

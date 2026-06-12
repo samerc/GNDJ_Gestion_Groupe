@@ -26,7 +26,7 @@ static class DocumentAccessHelper
         if (currentUser.MemberId == memberId) return true;
         var authorizedUnitIds = currentUser.AuthorizedUnitIds;
         return await context.MemberAssignments.AnyAsync(a =>
-            a.MemberId == memberId && !a.IsDeleted && authorizedUnitIds.Contains(a.UnitId), ct);
+            a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId), ct);
     }
 }
 
@@ -200,7 +200,7 @@ public class GetDocumentFileQueryHandler(IApplicationDbContext context, ICurrent
 }
 
 // Unit documents matrix (CU page: all members × active doc types + cotisation)
-public record GetUnitDocumentsMatrixQuery(Guid UnitId, string SchoolYear) : IRequest<Result<UnitDocumentsMatrixDto>>;
+public record GetUnitDocumentsMatrixQuery(Guid UnitId, string ScoutYear) : IRequest<Result<UnitDocumentsMatrixDto>>;
 
 public record UnitDocumentsMatrixDto(
     IReadOnlyList<DocTypeColumnDto> DocTypes,
@@ -215,13 +215,13 @@ public record MemberDocRowDto(
     MemberCotisationCellDto Cotisation
 );
 
+public record CotisationPaymentCellDto(decimal Amount, string Currency, string PaymentMethod);
+
 public record MemberCotisationCellDto(
     Guid? CotisationId,
-    decimal? AmountPaid,
-    string? Currency,
     string? ReceiptNumber,
     DateOnly? PaymentDate,
-    string? PaymentMethod
+    List<CotisationPaymentCellDto> Payments
 );
 
 public record MemberDocCellDto(
@@ -269,9 +269,10 @@ public class GetUnitDocumentsMatrixQueryHandler(IApplicationDbContext context, I
             .Where(d => memberIds.Contains(d.MemberId) && docTypeIds.Contains(d.DocumentTypeId))
             .ToListAsync(ct);
 
-        // Cotisations for this school year
+        // Cotisations for this scout year
         var allCotisations = await context.MemberCotisations
-            .Where(c => memberIds.Contains(c.MemberId) && c.SchoolYear == request.SchoolYear)
+            .Where(c => memberIds.Contains(c.MemberId) && c.ScoutYear == request.ScoutYear)
+            .Include(c => c.Payments.Where(p => !p.IsDeleted))
             .ToListAsync(ct);
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -306,8 +307,8 @@ public class GetUnitDocumentsMatrixQueryHandler(IApplicationDbContext context, I
 
                 var cot = allCotisations.FirstOrDefault(c => c.MemberId == g.Key);
                 var cotCell = new MemberCotisationCellDto(
-                    cot?.Id, cot?.AmountPaid, cot?.Currency, cot?.ReceiptNumber,
-                    cot?.PaymentDate, cot?.PaymentMethod
+                    cot?.Id, cot?.ReceiptNumber, cot?.PaymentDate,
+                    cot?.Payments.Select(p => new CotisationPaymentCellDto(p.Amount, p.Currency, p.PaymentMethod)).ToList() ?? []
                 );
 
                 return new MemberDocRowDto(
@@ -385,7 +386,7 @@ public class GetExpiringDocumentsQueryHandler(IApplicationDbContext context, ICu
         {
             var authorizedUnitIds = currentUser.AuthorizedUnitIds;
             query = query.Where(d => context.MemberAssignments.Any(a =>
-                a.MemberId == d.MemberId && !a.IsDeleted && authorizedUnitIds.Contains(a.UnitId)));
+                a.MemberId == d.MemberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId)));
         }
 
         return await query

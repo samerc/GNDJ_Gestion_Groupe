@@ -8,7 +8,7 @@ namespace GNDJ.Application.Reports;
 public record GenerateRosterQuery(
     Guid UnitId,
     Guid? TeamId,
-    string SchoolYear,
+    string ScoutYear,
     List<string> Columns
 ) : IRequest<Result<byte[]>>;
 
@@ -91,7 +91,7 @@ public class GenerateRosterQueryHandler(
                 }).ToList()
             )).ToList();
 
-        var rosterData = new RosterData(title, request.SchoolYear, request.Columns, teams);
+        var rosterData = new RosterData(title, request.ScoutYear, request.Columns, teams);
         return Result<byte[]>.Success(rosterService.Generate(rosterData));
     }
 }

@@ -70,14 +70,20 @@ public class DocumentsController : BaseApiController
         // Validate file content matches extension
         using var headerStream = file.OpenReadStream();
         var header = new byte[4];
-        await headerStream.ReadAsync(header.AsMemory(0, 4));
+        var bytesRead = 0;
+        while (bytesRead < 4)
+        {
+            var read = await headerStream.ReadAsync(header.AsMemory(bytesRead, 4 - bytesRead));
+            if (read == 0) break;
+            bytesRead += read;
+        }
         headerStream.Position = 0;
 
         var isValid = ext switch
         {
-            "pdf" => header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46, // %PDF
-            "jpg" or "jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
-            "png" => header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47, // .PNG
+            "pdf" => bytesRead >= 4 && header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46, // %PDF
+            "jpg" or "jpeg" => bytesRead >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+            "png" => bytesRead >= 4 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47, // .PNG
             _ => false
         };
         if (!isValid)
@@ -159,9 +165,9 @@ public class DocumentsController : BaseApiController
 
     [HttpGet("unit/{unitId:guid}/matrix")]
     [HasPermission(Permissions.DocumentsView)]
-    public async Task<IActionResult> GetUnitMatrix(Guid unitId, [FromQuery] string schoolYear = "2025-2026")
+    public async Task<IActionResult> GetUnitMatrix(Guid unitId, [FromQuery] string scoutYear = "2025-2026")
     {
-        var result = await Mediator.Send(new GetUnitDocumentsMatrixQuery(unitId, schoolYear));
+        var result = await Mediator.Send(new GetUnitDocumentsMatrixQuery(unitId, scoutYear));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }

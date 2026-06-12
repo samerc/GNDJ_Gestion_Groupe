@@ -14,6 +14,7 @@ import { useAssignments } from '@/services/assignment-service'
 import { useUnits } from '@/services/unit-service'
 import { useTeams } from '@/services/team-service'
 import { useFunctionalRoles } from '@/services/role-service'
+import apiClient from '@/lib/api-client'
 import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -54,12 +55,12 @@ function calculateAge(dob: string | null): number | null {
 
 export default function PassagePage() {
   const { user } = useAuthStore()
-  const passageSchoolYear = useSettingValue('passage.school_year') ?? '2026-2027'
+  const passageScoutYear = useSettingValue('passage.scout_year') ?? '2026-2027'
   const unitId = user?.unitAccess[0]?.unitId ?? ''
   const unitName = user?.unitAccess[0]?.unitName ?? ''
 
-  const { data: passageStatus, isLoading: statusLoading } = usePassageStatus(passageSchoolYear)
-  const { data: passages, isLoading: passagesLoading } = usePassagesByUnit(unitId, passageSchoolYear)
+  const { data: passageStatus, isLoading: statusLoading } = usePassageStatus(passageScoutYear)
+  const { data: passages, isLoading: passagesLoading } = usePassagesByUnit(unitId, passageScoutYear)
   const { data: membersData, isLoading: membersLoading } = useMembers({ unitId, pageSize: 500 })
   const { data: assignmentsData } = useAssignments({ unitId, isActive: true, pageSize: 500 })
   const { data: unitsData } = useUnits({ isActive: true, pageSize: 100 })
@@ -82,6 +83,7 @@ export default function PassagePage() {
   const [propRoleId, setPropRoleId] = useState('')
   const [propNotes, setPropNotes] = useState('')
   const [formError, setFormError] = useState('')
+  const [suggestionHint, setSuggestionHint] = useState<string | null>(null)
 
   const units = unitsData?.items ?? []
   const roles = rolesData ?? []
@@ -117,7 +119,7 @@ export default function PassagePage() {
 
   const isLoading = statusLoading || passagesLoading || membersLoading
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading) return <LoadingSpinner variant="table" />
 
   if (!passageStatus?.isOpen) {
     return (
@@ -148,13 +150,33 @@ export default function PassagePage() {
     else setSelected(new Set(memberRows.map(m => m.memberId)))
   }
 
-  const openPropose = (row: MemberRow) => {
+  const openPropose = async (row: MemberRow) => {
     setEditingMember(row)
-    setPropUnitId(row.passage?.proposedUnitId ?? row.currentUnitId)
     setPropTeamId(row.passage?.proposedTeamId ?? row.currentTeamId ?? '')
     setPropRoleId(row.passage?.proposedRoleName ? roles.find(r => r.name === row.passage?.proposedRoleName)?.id ?? row.currentRoleId : row.currentRoleId)
     setPropNotes(row.passage?.cuNotes ?? '')
     setFormError('')
+    setSuggestionHint(null)
+
+    // If already has a passage, use its proposed unit
+    if (row.passage?.proposedUnitId) {
+      setPropUnitId(row.passage.proposedUnitId)
+    } else {
+      // Try to auto-suggest from progression path
+      setPropUnitId(row.currentUnitId)
+      try {
+        const { data: suggestion } = await apiClient.get(`/unit-type-progressions/suggest/${row.memberId}`)
+        if (suggestion?.suggestedUnitTypeId) {
+          // Find a unit of that type
+          const suggestedUnit = units.find(u => u.unitTypeId === suggestion.suggestedUnitTypeId)
+          if (suggestedUnit) {
+            setPropUnitId(suggestedUnit.id)
+            setSuggestionHint(suggestion.reason)
+          }
+        }
+      } catch { /* suggestion is optional */ }
+    }
+
     setProposeDialogOpen(true)
   }
 
@@ -166,7 +188,7 @@ export default function PassagePage() {
     try {
       await proposeMutation.mutateAsync({
         memberId: editingMember.memberId,
-        schoolYear: passageSchoolYear,
+        scoutYear: passageScoutYear,
         proposedUnitId: propUnitId,
         proposedTeamId: propTeamId || null,
         proposedRoleId: propRoleId,
@@ -207,7 +229,7 @@ export default function PassagePage() {
     try {
       const result = await bulkProposeMutation.mutateAsync({
         memberIds: Array.from(selected),
-        schoolYear: passageSchoolYear,
+        scoutYear: passageScoutYear,
         proposedUnitId: propUnitId,
         proposedTeamId: propTeamId || null,
         proposedRoleId: propRoleId,
@@ -259,7 +281,7 @@ export default function PassagePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Passage annuel — {passageSchoolYear}</h1>
+          <h1 className="text-2xl font-bold">Passage annuel — {passageScoutYear}</h1>
           <p className="text-sm text-muted-foreground mt-1">{unitName}</p>
         </div>
         <Badge className="bg-green-600 text-sm">Passage ouvert</Badge>
@@ -346,9 +368,26 @@ export default function PassagePage() {
                         {statusBadge(row.passage)}
                       </div>
                     ) : (
-                      <Button size="sm" variant="outline" onClick={() => openPropose(row)}>
-                        Proposer
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="outline" onClick={async () => {
+                          try {
+                            await proposeMutation.mutateAsync({
+                              memberId: row.memberId,
+                              scoutYear: passageScoutYear,
+                              proposedUnitId: row.currentUnitId,
+                              proposedTeamId: row.currentTeamId,
+                              proposedRoleId: row.currentRoleId,
+                              cuNotes: null,
+                            })
+                            toast.success('Pas de changement enregistré')
+                          } catch (err) { toast.error(parseApiError(err)) }
+                        }} disabled={proposeMutation.isPending}>
+                          <Check className="mr-1 h-3 w-3" />Pas de changement
+                        </Button>
+                        <Button size="sm" onClick={() => openPropose(row)}>
+                          Proposer
+                        </Button>
+                      </div>
                     )}
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground max-w-[150px] truncate">
@@ -384,8 +423,15 @@ export default function PassagePage() {
           <div className="space-y-4">
             {formError && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{formError}</div>}
 
+            {suggestionHint && (
+              <div className="rounded-md bg-blue-50 border border-blue-200 p-2.5 text-xs text-blue-700 flex items-center gap-2">
+                <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+                {suggestionHint}
+              </div>
+            )}
+
             <div className="space-y-2">
-              <label className="text-sm font-medium">Unite de destination</label>
+              <label className="text-sm font-medium">Unité de destination</label>
               <Select value={propUnitId} onValueChange={(v) => { setPropUnitId(v); setPropTeamId('') }}>
                 <SelectTrigger><SelectValue placeholder="Selectionner une unite" /></SelectTrigger>
                 <SelectContent>

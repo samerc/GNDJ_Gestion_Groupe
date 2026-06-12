@@ -23,7 +23,16 @@ import { cn } from '@/lib/utils'
 import { generateBulkCards } from '@/services/report-service'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
-import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera } from 'lucide-react'
+import { useReportTemplates } from '@/services/report-template-service'
+import { generateRoster, generateExport } from '@/services/report-service'
+import { useSettingValue } from '@/services/settings-service'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, FileText } from 'lucide-react'
 
 interface Props { unitId: string }
 
@@ -219,6 +228,36 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const [rosterOpen, setRosterOpen] = useState(false)
   const [bulkCardsLoading, setBulkCardsLoading] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const { data: reportTemplates } = useReportTemplates(true)
+  const currentScoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
+  const [generatingReport, setGeneratingReport] = useState<string | null>(null)
+
+  const handleCustomReport = async (template: { id: string; name: string; reportType: string; format: string; columnsJson: string }) => {
+    setGeneratingReport(template.id)
+    try {
+      const columns: string[] = JSON.parse(template.columnsJson)
+      let response
+      if (template.reportType === 'roster') {
+        response = await generateRoster({ unitId, scoutYear: currentScoutYear, columns })
+      } else {
+        response = await generateExport({ unitId, scoutYear: currentScoutYear, columns, format: template.format })
+      }
+      const ext = template.format === 'xlsx' ? 'xlsx' : template.format === 'csv' ? 'csv' : 'pdf'
+      const mimeType = ext === 'pdf' ? 'application/pdf' : ext === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/csv'
+      const blob = new Blob([response.data], { type: mimeType })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${template.name.replace(/\s+/g, '_')}.${ext}`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Rapport généré')
+    } catch (err) {
+      toast.error(parseApiError(err))
+    } finally {
+      setGeneratingReport(null)
+    }
+  }
 
   const handleBulkCards = async () => {
     setBulkCardsLoading(true)
@@ -243,7 +282,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
     setLeftWidth(w => Math.max(220, Math.min(500, w + deltaX)))
   }, [])
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading) return <LoadingSpinner variant="page" />
   if (!data) return <p className="text-muted-foreground">Unité introuvable.</p>
 
   const allMembers: (RosterMemberDto & { teamName: string | null; teamColor1: string | null })[] = [
@@ -302,6 +341,27 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
               <Camera className="mr-1 h-4 w-4" />
               Photos
             </Button>
+            {reportTemplates && reportTemplates.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <FileText className="mr-1 h-4 w-4" />
+                    Rapports
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {reportTemplates.map(t => (
+                    <DropdownMenuItem
+                      key={t.id}
+                      onClick={() => handleCustomReport(t)}
+                      disabled={generatingReport === t.id}
+                    >
+                      {generatingReport === t.id ? 'Génération...' : t.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
         <div className="flex gap-2">

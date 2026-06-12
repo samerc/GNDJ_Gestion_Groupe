@@ -78,7 +78,7 @@ export default function CardDesignerPage() {
     }
   }
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading) return <LoadingSpinner variant="form" />
 
   return (
     <div className="space-y-6">

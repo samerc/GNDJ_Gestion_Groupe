@@ -23,7 +23,7 @@ export default function UnitTypeDetailPage() {
     enabled: !!id,
   })
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading) return <LoadingSpinner variant="detail" />
   if (!unitType) return <div className="py-12 text-center text-muted-foreground">Type d'unité introuvable.</div>
 
   // For the tabs, we pass the unit type as a locked single-item array

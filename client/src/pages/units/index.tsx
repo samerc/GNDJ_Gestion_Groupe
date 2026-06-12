@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { Plus, Pencil, Trash2, Search, Building2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Building2, Eye, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function UnitsPage() {
@@ -26,6 +26,8 @@ export default function UnitsPage() {
   const debouncedSearch = useDebounce(search)
   const hasLoadedOnce = useRef(false)
   const [page, setPage] = useState(1)
+  const [assocFilter, setAssocFilter] = useState('')
+  const [utFilter, setUtFilter] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<UnitDto | null>(null)
   const [deleting, setDeleting] = useState<UnitDto | null>(null)
@@ -33,7 +35,7 @@ export default function UnitsPage() {
   const [error, setError] = useState('')
   const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
 
-  const { data, isLoading } = useUnits({ search: debouncedSearch || undefined, page })
+  const { data, isLoading } = useUnits({ search: debouncedSearch || undefined, associationId: assocFilter || undefined, unitTypeId: utFilter || undefined, page, pageSize: 50 })
   const { data: associations } = useAssociations({ pageSize: 100 })
   const { data: unitTypes } = useUnitTypes({ pageSize: 100 })
   const createMutation = useCreateUnit()
@@ -49,11 +51,9 @@ export default function UnitsPage() {
 
   const openEdit = (item: UnitDto) => {
     setEditing(item)
-    const assoc = associations?.items.find(a => a.name === item.associationName)
-    const ut = unitTypes?.items.find(ut => ut.name === item.unitTypeName)
     setForm({
       name: item.name, code: item.code, description: item.description ?? '',
-      associationId: assoc?.id ?? '', unitTypeId: ut?.id ?? '', isActive: item.isActive,
+      associationId: item.associationId, unitTypeId: item.unitTypeId, isActive: item.isActive,
     })
     setError(''); clearAll()
     setFormOpen(true)
@@ -91,7 +91,6 @@ export default function UnitsPage() {
 
   const isSaving = createMutation.isPending || updateMutation.isPending
   if (data && data.totalCount > 0) hasLoadedOnce.current = true
-  const showSearch = hasLoadedOnce.current || (data && data.totalCount > 0)
 
   return (
     <div className="space-y-6">
@@ -103,20 +102,30 @@ export default function UnitsPage() {
         </Button>
       </div>
 
-      {showSearch && (
-        <div className="relative max-w-sm">
+      <div className="flex flex-wrap gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            className="pl-9"
-          />
+          <Input placeholder="Rechercher..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-9 pr-8" />
+          {search && <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => { setSearch(''); setPage(1) }}><X className="h-3.5 w-3.5" /></button>}
         </div>
-      )}
+        <Select value={assocFilter || '_all'} onValueChange={(v) => { setAssocFilter(v === '_all' ? '' : v); setPage(1) }}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Association" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_all">Toutes les assoc.</SelectItem>
+            {associations?.items.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={utFilter || '_all'} onValueChange={(v) => { setUtFilter(v === '_all' ? '' : v); setPage(1) }}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Type d'unité" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_all">Tous les types</SelectItem>
+            {unitTypes?.items.map(ut => <SelectItem key={ut.id} value={ut.id}>{ut.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
 
       {isLoading ? (
-        <LoadingSpinner />
+        <LoadingSpinner variant="table" />
       ) : !data || data.items.length === 0 ? (
         <EmptyState
           icon={Building2}
@@ -156,10 +165,13 @@ export default function UnitsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
+                        <Button variant="ghost" size="icon" onClick={() => navigate(`/units/${item.id}`)} title="Détails">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(item)} title="Modifier">
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleting(item)}>
+                        <Button variant="ghost" size="icon" onClick={() => setDeleting(item)} title="Supprimer">
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>

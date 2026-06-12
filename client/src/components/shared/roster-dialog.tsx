@@ -65,7 +65,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
 const ALL_COLUMN_KEYS = COLUMN_GROUPS.flatMap(g => g.columns.map(c => c.key))
 
 export function RosterDialog({ unitId, unitName, teamId, open, onOpenChange }: Props) {
-  const schoolYear = useSettingValue('cotisation.current_school_year') ?? '2025-2026'
+  const scoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
   const [selected, setSelected] = useState<Set<string>>(new Set(ALL_COLUMN_KEYS))
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
@@ -87,12 +87,12 @@ export function RosterDialog({ unitId, unitName, teamId, open, onOpenChange }: P
     setError('')
     try {
       const columns = Array.from(selected)
-      const response = await generateRoster({ unitId, teamId: teamId || null, schoolYear, columns })
+      const response = await generateRoster({ unitId, teamId: teamId || null, scoutYear, columns })
       const blob = new Blob([response.data], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Liste_${unitName.replace(/\s+/g, '_')}_${schoolYear}.pdf`
+      a.download = `Liste_${unitName.replace(/\s+/g, '_')}_${scoutYear}.pdf`
       a.click()
       URL.revokeObjectURL(url)
       toast.success('Liste générée')
@@ -140,7 +140,7 @@ export function RosterDialog({ unitId, unitName, teamId, open, onOpenChange }: P
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Le nom et prénom sont toujours inclus. Année scoute : {schoolYear}
+            Le nom et prénom sont toujours inclus. Année scoute : {scoutYear}
           </p>
         </div>
         <DialogFooter>

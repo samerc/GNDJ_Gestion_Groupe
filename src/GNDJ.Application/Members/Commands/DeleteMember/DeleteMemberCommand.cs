@@ -11,23 +11,35 @@ public class DeleteMemberCommandHandler : IRequestHandler<DeleteMemberCommand, R
 {
     private readonly IApplicationDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUser;
 
-    public DeleteMemberCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    public DeleteMemberCommandHandler(IApplicationDbContext context, IAuditService auditService, ICurrentUserService currentUser)
     {
         _context = context;
         _auditService = auditService;
+        _currentUser = currentUser;
     }
 
     public async ValueTask<Result<bool>> Handle(DeleteMemberCommand request, CancellationToken cancellationToken)
     {
         var entity = await _context.Members
-            .Include(m => m.Assignments.Where(a => a.EndDate == null))
+            .Include(m => m.Assignments)
             .FirstOrDefaultAsync(m => m.Id == request.Id, cancellationToken);
 
         if (entity is null)
             return Result<bool>.Failure("Membre introuvable.");
 
-        if (entity.Assignments.Any())
+        // Authorization: super admin can delete anyone; a unit leader may only delete a member
+        // who belongs (via any assignment) to one of their authorized units.
+        if (!_currentUser.IsSuperAdmin)
+        {
+            var authorizedUnitIds = _currentUser.AuthorizedUnitIds;
+            var hasAccess = entity.Assignments.Any(a => !a.IsDeleted && authorizedUnitIds.Contains(a.UnitId));
+            if (!hasAccess)
+                return Result<bool>.Failure("Accès non autorisé à ce membre.");
+        }
+
+        if (entity.Assignments.Any(a => a.EndDate == null && !a.IsDeleted))
             return Result<bool>.Failure("Impossible de supprimer un membre qui a des affectations actives.");
 
         _context.Members.Remove(entity);

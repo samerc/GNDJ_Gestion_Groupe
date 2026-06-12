@@ -10,26 +10,30 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import UnitLeaderDashboard from '@/pages/dashboard-unit-leader'
 import { Users, UserCheck, FileX, Receipt, UserMinus } from 'lucide-react'
 
-// ─── Simple bar component ──────────────────
-function Bar({ value, max, color, label }: { value: number; max: number; color: string; label: string }) {
+// ─── Horizontal bar chart ──────────────────
+function ChartBar({ value, max, color, label, suffix }: { value: number; max: number; color: string; label: string; suffix?: string }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0
   return (
-    <div className="flex items-center gap-3">
-      <span className="w-20 text-xs text-muted-foreground truncate">{label}</span>
-      <div className="flex-1 h-5 bg-muted rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
+    <div className="group flex items-center gap-3 py-1">
+      <span className="w-16 text-xs font-medium text-right shrink-0">{label}</span>
+      <div className="flex-1 relative">
+        <div className="h-7 bg-muted/50 rounded" />
+        <div className={`absolute inset-y-0 left-0 rounded ${color} transition-all duration-500 ease-out flex items-center`} style={{ width: `${Math.max(pct, 2)}%` }}>
+          {pct > 20 && <span className="text-white text-xs font-semibold ml-2">{value}</span>}
+        </div>
+        {pct <= 20 && <span className="absolute left-[calc(max(2%,var(--w))+8px)] top-1/2 -translate-y-1/2 text-xs font-medium" style={{ '--w': `${pct}%` } as React.CSSProperties}>{value}</span>}
       </div>
-      <span className="w-8 text-xs font-medium text-right">{value}</span>
+      {suffix && <span className="text-[10px] text-muted-foreground w-24 shrink-0">{suffix}</span>}
     </div>
   )
 }
 
 function AdminDashboard() {
-  const currentSchoolYear = useSettingValue('cotisation.current_school_year') ?? '2025-2026'
-  const [schoolYear, setSchoolYear] = useState(currentSchoolYear)
-  const { data, isLoading } = useAdminDashboard(schoolYear)
+  const currentScoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
+  const [scoutYear, setScoutYear] = useState(currentScoutYear)
+  const { data, isLoading } = useAdminDashboard(scoutYear)
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading) return <LoadingSpinner variant="page" />
   if (!data) return (
     <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-2">
       <p className="text-lg font-medium">Impossible de charger le tableau de bord</p>
@@ -44,7 +48,7 @@ function AdminDashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Tableau de bord</h1>
-        <Select value={schoolYear} onValueChange={setSchoolYear}>
+        <Select value={scoutYear} onValueChange={setScoutYear}>
           <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="2025-2026">2025-2026</SelectItem>
@@ -125,14 +129,9 @@ function AdminDashboard() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Membres par unité</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2.5">
+          <CardContent className="space-y-1">
             {data.unitBreakdown.map(u => (
-              <div key={u.unitCode}>
-                <Bar value={u.memberCount} max={maxUnitMembers} color="bg-primary" label={u.unitCode} />
-                <div className="flex justify-end mt-0.5">
-                  <span className="text-[10px] text-muted-foreground">{u.docCompliance}% dossiers complets</span>
-                </div>
-              </div>
+              <ChartBar key={u.unitCode} value={u.memberCount} max={maxUnitMembers} color="bg-primary" label={u.unitCode} suffix={`${u.docCompliance}% complets`} />
             ))}
             {data.membersWithoutUnit > 0 && (
               <div className="flex items-center gap-2 pt-2 border-t text-sm text-muted-foreground">
@@ -148,9 +147,9 @@ function AdminDashboard() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Répartition par âge</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2.5">
+          <CardContent className="space-y-1">
             {data.ageGroups.map(g => (
-              <Bar key={g.label} value={g.count} max={maxAgeGroup} color="bg-indigo-500" label={g.label} />
+              <ChartBar key={g.label} value={g.count} max={maxAgeGroup} color="bg-indigo-500" label={g.label} />
             ))}
           </CardContent>
         </Card>
@@ -168,6 +167,9 @@ export default function DashboardPage() {
   if (user.isSuperAdmin) return <AdminDashboard />
 
   const isUnitLeader = hasPermission(PERMISSIONS.UNITS_EDIT)
+
+  // Regular members go straight to profile
+  if (!isUnitLeader) return <Navigate to="/my-profile" replace />
 
   if (isUnitLeader && user.unitAccess.length > 1) {
     const unitId = selectedUnit || user.unitAccess[0]?.unitId

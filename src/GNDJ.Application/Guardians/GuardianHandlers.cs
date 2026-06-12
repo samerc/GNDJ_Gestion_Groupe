@@ -29,7 +29,7 @@ static class GuardianAccessHelper
         if (currentUser.IsSuperAdmin) return true;
         var authorizedUnitIds = currentUser.AuthorizedUnitIds;
         return await context.MemberAssignments.AnyAsync(a =>
-            a.MemberId == memberId && !a.IsDeleted && authorizedUnitIds.Contains(a.UnitId), ct);
+            a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId), ct);
     }
 
     public static async Task<bool> CanAccessGuardian(IApplicationDbContext context, ICurrentUserService currentUser, Guid guardianId, CancellationToken ct)
@@ -39,7 +39,7 @@ static class GuardianAccessHelper
         // Guardian is accessible if linked to at least one member the user can see
         return await context.GuardianLinks.AnyAsync(gl =>
             gl.GuardianId == guardianId && !gl.IsDeleted &&
-            context.MemberAssignments.Any(a => a.MemberId == gl.MemberId && !a.IsDeleted && authorizedUnitIds.Contains(a.UnitId)), ct);
+            context.MemberAssignments.Any(a => a.MemberId == gl.MemberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId)), ct);
     }
 }
 
@@ -93,7 +93,7 @@ public class SearchGuardiansQueryHandler : IRequestHandler<SearchGuardiansQuery,
         {
             var authorizedUnitIds = _currentUser.AuthorizedUnitIds;
             query = query.Where(g => g.Links.Any(gl => !gl.IsDeleted &&
-                _context.MemberAssignments.Any(a => a.MemberId == gl.MemberId && !a.IsDeleted && authorizedUnitIds.Contains(a.UnitId))));
+                _context.MemberAssignments.Any(a => a.MemberId == gl.MemberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId))));
         }
 
         return await query

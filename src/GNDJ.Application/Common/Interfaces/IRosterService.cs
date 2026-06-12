@@ -2,7 +2,7 @@ namespace GNDJ.Application.Common.Interfaces;
 
 public record RosterData(
     string Title,
-    string SchoolYear,
+    string ScoutYear,
     IReadOnlyList<string> Columns,
     IReadOnlyList<RosterTeamData> Teams
 );

@@ -92,33 +92,49 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
           {!roles || roles.length === 0 ? (
             <p className="text-sm text-muted-foreground">Aucune fonction définie.</p>
           ) : (
-            <div className="space-y-2">
-              {roles.map(role => (
-                <div key={role.id} className="group flex items-center gap-3 rounded-md border p-3 hover:bg-muted/50 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium">{role.name}</span>
-                      <Badge variant="outline" className="text-xs">{role.code}</Badge>
-                      <Badge variant="secondary" className="text-xs">{role.securityProfileName}</Badge>
-                      {showUnitTypeColumn && (
-                        <span className="text-xs text-muted-foreground">
-                          {role.unitTypeName ?? 'Global'}
-                        </span>
-                      )}
-                    </div>
-                    {role.description && <p className="text-sm text-muted-foreground mt-0.5">{role.description}</p>}
-                    {role.assignmentCount > 0 && <span className="text-xs text-muted-foreground">{role.assignmentCount} membre{role.assignmentCount > 1 ? 's' : ''} actif{role.assignmentCount > 1 ? 's' : ''}</span>}
-                  </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(role)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleting(role)}>
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-3 py-2 font-medium">Nom</th>
+                    <th className="px-3 py-2 font-medium">Code</th>
+                    {showUnitTypeColumn && <th className="px-3 py-2 font-medium">Type d'unité</th>}
+                    <th className="px-3 py-2 font-medium">Profil</th>
+                    <th className="px-3 py-2 text-center font-medium">Membres</th>
+                    <th className="w-20" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {roles.map((role, idx) => {
+                    return (
+                      <tr key={role.id} className={`border-b border-l-4 hover:bg-muted/30 transition-colors ${idx % 2 === 1 ? 'bg-muted/10' : ''}`} style={{ borderLeftColor: role.unitTypeColor ?? '#d1d5db' }}>
+                        <td className="px-3 py-2.5">
+                          <span className="font-medium">{role.name}</span>
+                          {role.description && <p className="text-xs text-muted-foreground mt-0.5">{role.description}</p>}
+                        </td>
+                        <td className="px-3 py-2.5"><Badge variant="outline" className="text-xs font-mono">{role.code}</Badge></td>
+                        {showUnitTypeColumn && (
+                          <td className="px-3 py-2.5 text-muted-foreground">{role.unitTypeName ?? <span className="italic">Global</span>}</td>
+                        )}
+                        <td className="px-3 py-2.5"><Badge variant="secondary" className="text-xs">{role.securityProfileName}</Badge></td>
+                        <td className="px-3 py-2.5 text-center">
+                          {role.assignmentCount > 0 ? <span className="font-medium">{role.assignmentCount}</span> : <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(role)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(role)}>
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>

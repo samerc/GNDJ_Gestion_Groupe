@@ -24,6 +24,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   X,
+  Receipt,
+  Route,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -37,26 +39,50 @@ const adminNavItems = [
 // Unit leader nav — "Mon unité" and "Documents" only visible to CU (units.edit permission)
 const leaderNavItems = [
   { path: '/my-profile', label: 'Ma fiche', icon: Users, permission: null },
+  { path: '/my-documents', label: 'Mes documents', icon: FileText, permission: null },
   { path: '/', label: 'Mon unité', icon: Building2, permission: PERMISSIONS.UNITS_EDIT },
   { path: '/unit-documents', label: 'Documents', icon: FileText, permission: PERMISSIONS.DOCUMENTS_APPROVE },
   { path: '/passage', label: 'Passage des membres', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_PROPOSE },
   { path: '/photo-session', label: 'Session photo', icon: Camera, permission: PERMISSIONS.MEMBERS_EDIT },
 ]
 
-const adminItems = [
-  { path: '/admin/roles', label: 'Fonctions', icon: Shield, permission: PERMISSIONS.ROLES_VIEW },
-  { path: '/admin/associations', label: 'Associations', icon: Landmark, permission: PERMISSIONS.ASSOCIATIONS_VIEW },
-  { path: '/admin/unit-types', label: "Types d'unité", icon: FolderTree, permission: PERMISSIONS.UNIT_TYPES_VIEW },
-  { path: '/admin/document-types', label: 'Types de documents', icon: FileText, permission: PERMISSIONS.DOCUMENT_TYPES_VIEW },
-  { path: '/admin/progression', label: 'Progression scoute', icon: Star, permission: PERMISSIONS.PROGRESSION_MANAGE },
-  { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
-  { path: '/admin/custom-fields', label: 'Champs personnalisés', icon: ListPlus, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-  { path: '/admin/card-designer', label: 'Carte membre', icon: CreditCard, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-  { path: '/admin/email-settings', label: 'Email / SMTP', icon: Mail, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-  { path: '/admin/api-keys', label: 'Clés API', icon: Key, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-  { path: '/admin/security-profiles', label: 'Profils de sécurité', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE },
-  { path: '/admin/audit-logs', label: 'Journal d\'audit', icon: ScrollText, permission: PERMISSIONS.AUDIT_VIEW },
-  { path: '/admin/settings', label: 'Paramètres', icon: Settings2, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+type AdminGroup = {
+  label: string
+  items: { path: string; label: string; icon: React.ComponentType<{ className?: string }>; permission: string }[]
+}
+
+const adminGroups: AdminGroup[] = [
+  {
+    label: 'Données scouts',
+    items: [
+      { path: '/admin/associations', label: 'Associations', icon: Landmark, permission: PERMISSIONS.ASSOCIATIONS_VIEW },
+      { path: '/admin/unit-types', label: "Types d'unité", icon: FolderTree, permission: PERMISSIONS.UNIT_TYPES_VIEW },
+      { path: '/admin/roles', label: 'Fonctions', icon: Shield, permission: PERMISSIONS.ROLES_VIEW },
+      { path: '/admin/progression', label: 'Progression scoute', icon: Star, permission: PERMISSIONS.PROGRESSION_MANAGE },
+      { path: '/admin/document-types', label: 'Types de documents', icon: FileText, permission: PERMISSIONS.DOCUMENT_TYPES_VIEW },
+      { path: '/admin/progression-path', label: 'Parcours scouts', icon: Route, permission: PERMISSIONS.UNIT_TYPES_VIEW },
+      { path: '/admin/custom-fields', label: 'Champs personnalisés', icon: ListPlus, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+    ],
+  },
+  {
+    label: 'Gestion',
+    items: [
+      { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
+      { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },
+      { path: '/admin/card-designer', label: 'Carte membre', icon: CreditCard, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+      { path: '/admin/report-templates', label: 'Rapports', icon: FileText, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+    ],
+  },
+  {
+    label: 'Administration',
+    items: [
+      { path: '/admin/security-profiles', label: 'Profils de sécurité', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE },
+      { path: '/admin/email-settings', label: 'Email / SMTP', icon: Mail, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+      { path: '/admin/api-keys', label: 'Clés API', icon: Key, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+      { path: '/admin/audit-logs', label: 'Journal d\'audit', icon: ScrollText, permission: PERMISSIONS.AUDIT_VIEW },
+      { path: '/admin/settings', label: 'Paramètres', icon: Settings2, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+    ],
+  },
 ]
 
 function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
@@ -66,7 +92,14 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   // Super admin sees admin nav, others see leader nav
   const navItems = user?.isSuperAdmin ? adminNavItems : leaderNavItems
   const visibleNav = navItems.filter((item) => !item.permission || hasPermission(item.permission))
-  const visibleAdmin = user?.isSuperAdmin ? adminItems.filter((item) => hasPermission(item.permission)) : []
+  const visibleAdminGroups = user?.isSuperAdmin
+    ? adminGroups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => hasPermission(item.permission)),
+        }))
+        .filter((group) => group.items.length > 0)
+    : []
 
   const renderLink = (item: { path: string; label: string; icon: React.ComponentType<{ className?: string }>; permission: string | null }, isActive: boolean) => {
     const Icon = item.icon
@@ -98,20 +131,20 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
     <nav className={cn('space-y-1', collapsed ? 'px-2' : 'px-3')}>
       {visibleNav.map((item) => renderLink(item, location.pathname === item.path))}
 
-      {visibleAdmin.length > 0 && (
-        <>
+      {visibleAdminGroups.map((group) => (
+        <div key={group.label}>
           {!collapsed ? (
             <div className="pt-4 pb-2 px-3 text-xs font-semibold uppercase text-sidebar-foreground/50">
-              Administration
+              {group.label}
             </div>
           ) : (
             <div className="pt-3 pb-1">
               <div className="mx-auto h-px w-6 bg-sidebar-border" />
             </div>
           )}
-          {visibleAdmin.map((item) => renderLink(item, location.pathname === item.path))}
-        </>
-      )}
+          {group.items.map((item) => renderLink(item, location.pathname === item.path))}
+        </div>
+      ))}
     </nav>
   )
 }

@@ -133,7 +133,7 @@ export function StagesTab({ unitTypeId, unitTypes }: { unitTypeId?: string; unit
         <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />Nouvelle étape</Button>
       </div>
 
-      {isLoading ? <LoadingSpinner /> : !data || data.length === 0 ? (
+      {isLoading ? <LoadingSpinner variant="table" /> : !data || data.length === 0 ? (
         <EmptyState icon={Star} title="Aucune étape" description="Créez les étapes de progression pour chaque type d'unité." action={<Button onClick={openCreate}><Plus className="mr-1 h-4 w-4" />Créer</Button>} />
       ) : (
         <div className="rounded-lg border overflow-hidden">
@@ -279,7 +279,7 @@ export function BadgesTab({ unitTypeId, unitTypes }: { unitTypeId?: string; unit
         <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />Nouveau badge</Button>
       </div>
 
-      {isLoading ? <LoadingSpinner /> : !data || data.length === 0 ? (
+      {isLoading ? <LoadingSpinner variant="table" /> : !data || data.length === 0 ? (
         <EmptyState icon={Award} title="Aucun badge" description="Créez les badges pour chaque type d'unité." action={<Button onClick={openCreate}><Plus className="mr-1 h-4 w-4" />Créer</Button>} />
       ) : (
         <div className="rounded-lg border overflow-hidden">

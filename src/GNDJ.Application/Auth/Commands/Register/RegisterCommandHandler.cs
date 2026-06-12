@@ -64,7 +64,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
         var accessToken = _tokenService.GenerateAccessToken(user, [], []);
         var refreshToken = _tokenService.GenerateRefreshToken();
 
-        user.RefreshToken = _passwordHasher.Hash(refreshToken);
+        user.RefreshToken = _passwordHasher.HashToken(refreshToken);
         user.RefreshTokenExpiry = _tokenService.GetRefreshTokenExpiry();
 
         await _context.SaveChangesAsync(cancellationToken);

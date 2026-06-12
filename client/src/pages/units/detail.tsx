@@ -13,7 +13,8 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { ArrowLeft, Plus, Pencil, Trash2, UsersRound } from 'lucide-react'
+import { useMembers } from '@/services/member-service'
+import { ArrowLeft, Plus, Pencil, Trash2, UsersRound, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface UnitDetail {
@@ -37,6 +38,7 @@ export default function UnitDetailPage() {
   const updateMutation = useUpdateTeam()
   const deleteMutation = useDeleteTeam()
 
+  const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<TeamDto | null>(null)
   const [deleting, setDeleting] = useState<TeamDto | null>(null)
@@ -92,9 +94,22 @@ export default function UnitDetailPage() {
     try { await deleteMutation.mutateAsync(deleting.id); toast.success('Équipe supprimée'); setDeleting(null) } catch (err) { setError(parseApiError(err)); setDeleting(null) }
   }
 
+  const handleMoveTeam = async (teamId: string, direction: number) => {
+    if (!teams) return
+    const sorted = [...teams.items].filter(t => !t.isMaitrise).sort((a, b) => a.displayOrder - b.displayOrder)
+    const idx = sorted.findIndex(t => t.id === teamId)
+    if (idx < 0) return
+    const swapIdx = idx + direction
+    if (swapIdx < 0 || swapIdx >= sorted.length) return
+    try {
+      await updateMutation.mutateAsync({ id: sorted[idx].id, name: sorted[idx].name, unitId: id!, displayOrder: sorted[swapIdx].displayOrder })
+      await updateMutation.mutateAsync({ id: sorted[swapIdx].id, name: sorted[swapIdx].name, unitId: id!, displayOrder: sorted[idx].displayOrder })
+    } catch { /* refresh will show correct order */ }
+  }
+
   const isSaving = createMutation.isPending || updateMutation.isPending
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading) return <LoadingSpinner variant="detail" />
   if (!unit) return <div className="py-12 text-center text-muted-foreground">Unité introuvable.</div>
 
   return (
@@ -156,33 +171,54 @@ export default function UnitDetailPage() {
             <p className="text-sm text-muted-foreground">Aucune équipe dans cette unité.</p>
           ) : (
             <div className="space-y-3">
-              {teams.items.map(team => (
-                <div key={team.id} className="flex items-center gap-3 rounded-md border p-3">
-                  <div className="flex items-center gap-2">
-                    {(team.color1 || team.color2) && (
-                      <div className="flex gap-0.5">
-                        {team.color1 && <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: team.color1 }} />}
-                        {team.color2 && <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: team.color2 }} />}
+              {[...teams.items].sort((a, b) => {
+                // Maîtrise always first
+                if (a.isMaitrise && !b.isMaitrise) return -1
+                if (!a.isMaitrise && b.isMaitrise) return 1
+                return a.displayOrder - b.displayOrder
+              }).map(team => (
+                <div key={team.id} className={`rounded-lg border ${team.isMaitrise ? 'border-amber-300 bg-amber-50/30' : ''}`}>
+                  <div
+                    className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/30 transition-colors"
+                    onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}
+                  >
+                    {!team.isMaitrise && (
+                      <div className="flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
+                        <button className="text-muted-foreground hover:text-foreground p-0.5" onClick={() => handleMoveTeam(team.id, -1)} title="Monter"><ChevronUp className="h-3.5 w-3.5" /></button>
+                        <button className="text-muted-foreground hover:text-foreground p-0.5" onClick={() => handleMoveTeam(team.id, 1)} title="Descendre"><ChevronDown className="h-3.5 w-3.5" /></button>
                       </div>
                     )}
-                  </div>
-                  <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{team.name}</span>
-                      {team.isMaitrise && <Badge variant="secondary" className="text-xs">Maîtrise</Badge>}
-                      {team.totem && <span className="text-sm text-muted-foreground">({team.totem}{team.adjective ? ` ${team.adjective}` : ''})</span>}
+                      {(team.color1 || team.color2) ? (
+                        <div className="flex gap-0.5">
+                          {team.color1 && <div className="h-5 w-5 rounded-full border" style={{ backgroundColor: team.color1 }} />}
+                          {team.color2 && <div className="h-5 w-5 rounded-full border" style={{ backgroundColor: team.color2 }} />}
+                        </div>
+                      ) : (
+                        <UsersRound className="h-4 w-4 text-muted-foreground" />
+                      )}
                     </div>
-                    {team.description && <p className="text-sm text-muted-foreground">{team.description}</p>}
-                    <span className="text-xs text-muted-foreground">{team.memberCount} membre{team.memberCount > 1 ? 's' : ''}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{team.name}</span>
+                        {team.isMaitrise && <Badge className="bg-amber-600 text-xs">Maîtrise</Badge>}
+                        {team.totem && team.totem !== team.name && <span className="text-sm text-muted-foreground">({team.totem}{team.adjective ? ` ${team.adjective}` : ''})</span>}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{team.memberCount} membre{team.memberCount > 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="flex gap-1 items-center">
+                      {expandedTeam === team.id ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(team) }}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setDeleting(team) }}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(team)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleting(team)}>
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
-                  </div>
+                  {expandedTeam === team.id && (
+                    <TeamMembers unitId={id!} teamId={team.id} />
+                  )}
                 </div>
               ))}
             </div>
@@ -215,7 +251,7 @@ export default function UnitDetailPage() {
                 <Input id="adjective" value={form.adjective ?? ''} onChange={(e) => setForm(f => ({ ...f, adjective: e.target.value || null }))} />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <RequiredLabel htmlFor="color1">Couleur 1</RequiredLabel>
                 <div className="flex items-center gap-2">
@@ -229,10 +265,6 @@ export default function UnitDetailPage() {
                   <Input id="color2" type="color" value={form.color2 || '#ffffff'} onChange={(e) => setForm(f => ({ ...f, color2: e.target.value }))} className="h-9 w-14 p-1 cursor-pointer" />
                   <Input value={form.color2 || ''} onChange={(e) => setForm(f => ({ ...f, color2: e.target.value }))} placeholder="#000000" className="flex-1" />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <RequiredLabel htmlFor="displayOrder">Ordre</RequiredLabel>
-                <Input id="displayOrder" type="number" min={0} value={form.displayOrder} onChange={(e) => setForm(f => ({ ...f, displayOrder: Number(e.target.value) }))} />
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -257,6 +289,38 @@ export default function UnitDetailPage() {
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
       />
+    </div>
+  )
+}
+
+function TeamMembers({ unitId, teamId }: { unitId: string; teamId: string }) {
+  const { data, isLoading } = useMembers({ unitId, teamId, pageSize: 100 })
+
+  if (isLoading) return <div className="px-4 pb-3 text-sm text-muted-foreground">Chargement...</div>
+
+  const members = data?.items ?? []
+  if (members.length === 0) return <div className="px-4 pb-3 text-sm text-muted-foreground">Aucun membre dans cette équipe.</div>
+
+  return (
+    <div className="border-t px-4 pb-3 pt-2">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-muted-foreground text-xs">
+            <th className="text-left py-1 font-medium">Nom</th>
+            <th className="text-left py-1 font-medium">N° Carte</th>
+            <th className="text-left py-1 font-medium">Genre</th>
+          </tr>
+        </thead>
+        <tbody>
+          {members.map((m, idx) => (
+            <tr key={m.id} className={idx % 2 === 1 ? 'bg-muted/10' : ''}>
+              <td className="py-1.5 font-medium">{m.firstName} {m.lastName}</td>
+              <td className="py-1.5 text-muted-foreground">{m.cardNumber ?? '—'}</td>
+              <td className="py-1.5 text-muted-foreground">{m.gender ?? '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

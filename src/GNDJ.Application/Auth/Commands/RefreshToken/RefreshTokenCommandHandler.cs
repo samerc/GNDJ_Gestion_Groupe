@@ -21,14 +21,12 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
 
     public async ValueTask<Result<AuthResponse>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
-        // Find active users with non-expired refresh tokens
-        var users = await _context.Users
+        // Refresh tokens are stored as deterministic SHA-256 hashes, so we can match directly
+        // with an indexed lookup instead of bcrypt-verifying against every user (O(1) vs O(N)).
+        var tokenHash = _passwordHasher.HashToken(request.RefreshToken);
+        var user = await _context.Users
             .Include(u => u.Member)
-            .Where(u => u.RefreshToken != null && u.RefreshTokenExpiry > DateTime.UtcNow && u.IsActive)
-            .ToListAsync(cancellationToken);
-
-        // Check each user's hashed refresh token
-        var user = users.FirstOrDefault(u => _passwordHasher.Verify(request.RefreshToken, u.RefreshToken!));
+            .FirstOrDefaultAsync(u => u.RefreshToken == tokenHash && u.RefreshTokenExpiry > DateTime.UtcNow && u.IsActive, cancellationToken);
 
         if (user is null)
             return Result<AuthResponse>.Failure("Jeton de rafraîchissement invalide ou expiré.");
@@ -56,7 +54,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
         var accessToken = _tokenService.GenerateAccessToken(user, permissions, unitIds);
         var newRefreshToken = _tokenService.GenerateRefreshToken();
 
-        user.RefreshToken = _passwordHasher.Hash(newRefreshToken);
+        user.RefreshToken = _passwordHasher.HashToken(newRefreshToken);
         user.RefreshTokenExpiry = _tokenService.GetRefreshTokenExpiry();
 
         await _context.SaveChangesAsync(cancellationToken);

@@ -10,6 +10,7 @@ export interface FunctionalRoleDto {
   securityProfileName: string
   unitTypeId: string | null
   unitTypeName: string | null
+  unitTypeColor: string | null
   assignmentCount: number
 }
 

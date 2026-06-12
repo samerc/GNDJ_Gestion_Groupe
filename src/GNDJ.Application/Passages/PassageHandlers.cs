@@ -10,7 +10,7 @@ namespace GNDJ.Application.Passages;
 
 // DTOs
 public record PassageDto(
-    Guid Id, string SchoolYear, Guid MemberId, string MemberName, string? CardNumber,
+    Guid Id, string ScoutYear, Guid MemberId, string MemberName, string? CardNumber,
     DateOnly? DateOfBirth, int? Age,
     Guid CurrentUnitId, string CurrentUnitCode, string CurrentUnitName,
     string? CurrentTeamName, string CurrentRoleName,
@@ -23,7 +23,7 @@ public record PassageDto(
 );
 
 public record PassageSummaryDto(
-    string SchoolYear, int TotalMembers, int Pending, int Approved, int Rejected, int Finalized,
+    string ScoutYear, int TotalMembers, int Pending, int Approved, int Rejected, int Finalized,
     IReadOnlyList<PassageUnitSummaryDto> UnitSummaries
 );
 
@@ -44,7 +44,7 @@ static class PassageAccessHelper
 // ============================================================
 
 // 1. GetPassagesByUnit — CU sees passages for their unit
-public record GetPassagesByUnitQuery(Guid UnitId, string SchoolYear) : IRequest<Result<IReadOnlyList<PassageDto>>>;
+public record GetPassagesByUnitQuery(Guid UnitId, string ScoutYear) : IRequest<Result<IReadOnlyList<PassageDto>>>;
 
 public class GetPassagesByUnitQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetPassagesByUnitQuery, Result<IReadOnlyList<PassageDto>>>
 {
@@ -56,7 +56,7 @@ public class GetPassagesByUnitQueryHandler(IApplicationDbContext context, ICurre
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var items = await context.Passages
-            .Where(p => p.CurrentUnitId == request.UnitId && p.SchoolYear == request.SchoolYear)
+            .Where(p => p.CurrentUnitId == request.UnitId && p.ScoutYear == request.ScoutYear)
             .Include(p => p.Member)
             .Include(p => p.CurrentUnit)
             .Include(p => p.ProposedUnit)
@@ -66,7 +66,7 @@ public class GetPassagesByUnitQueryHandler(IApplicationDbContext context, ICurre
             .Include(p => p.FinalRole)
             .OrderBy(p => p.Member.LastName).ThenBy(p => p.Member.FirstName)
             .Select(p => new PassageDto(
-                p.Id, p.SchoolYear, p.MemberId,
+                p.Id, p.ScoutYear, p.MemberId,
                 p.Member.FirstName + " " + p.Member.LastName,
                 p.Member.CardNumber,
                 p.Member.DateOfBirth,
@@ -92,7 +92,7 @@ public class GetPassagesByUnitQueryHandler(IApplicationDbContext context, ICurre
 }
 
 // 2. GetAllPassages — CG sees all passages with filters (super-admin only)
-public record GetAllPassagesQuery(string SchoolYear, string? Status, Guid? UnitId) : IRequest<Result<IReadOnlyList<PassageDto>>>;
+public record GetAllPassagesQuery(string ScoutYear, string? Status, Guid? UnitId) : IRequest<Result<IReadOnlyList<PassageDto>>>;
 
 public class GetAllPassagesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetAllPassagesQuery, Result<IReadOnlyList<PassageDto>>>
 {
@@ -104,7 +104,7 @@ public class GetAllPassagesQueryHandler(IApplicationDbContext context, ICurrentU
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var query = context.Passages
-            .Where(p => p.SchoolYear == request.SchoolYear);
+            .Where(p => p.ScoutYear == request.ScoutYear);
 
         if (!string.IsNullOrEmpty(request.Status))
             query = query.Where(p => p.Status == request.Status);
@@ -122,7 +122,7 @@ public class GetAllPassagesQueryHandler(IApplicationDbContext context, ICurrentU
             .Include(p => p.FinalRole)
             .OrderBy(p => p.CurrentUnit.Code).ThenBy(p => p.Member.LastName).ThenBy(p => p.Member.FirstName)
             .Select(p => new PassageDto(
-                p.Id, p.SchoolYear, p.MemberId,
+                p.Id, p.ScoutYear, p.MemberId,
                 p.Member.FirstName + " " + p.Member.LastName,
                 p.Member.CardNumber,
                 p.Member.DateOfBirth,
@@ -148,7 +148,7 @@ public class GetAllPassagesQueryHandler(IApplicationDbContext context, ICurrentU
 }
 
 // 3. GetPassageSummary — CG sees summary stats (super-admin only)
-public record GetPassageSummaryQuery(string SchoolYear) : IRequest<Result<PassageSummaryDto>>;
+public record GetPassageSummaryQuery(string ScoutYear) : IRequest<Result<PassageSummaryDto>>;
 
 public class GetPassageSummaryQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetPassageSummaryQuery, Result<PassageSummaryDto>>
 {
@@ -158,7 +158,7 @@ public class GetPassageSummaryQueryHandler(IApplicationDbContext context, ICurre
             return Result<PassageSummaryDto>.Failure("Accès réservé aux super administrateurs.");
 
         var passages = await context.Passages
-            .Where(p => p.SchoolYear == request.SchoolYear)
+            .Where(p => p.ScoutYear == request.ScoutYear)
             .Include(p => p.CurrentUnit)
             .ToListAsync(ct);
 
@@ -176,7 +176,7 @@ public class GetPassageSummaryQueryHandler(IApplicationDbContext context, ICurre
             .ToList();
 
         var summary = new PassageSummaryDto(
-            request.SchoolYear,
+            request.ScoutYear,
             passages.Count,
             passages.Count(p => p.Status == PassageStatus.Pending),
             passages.Count(p => p.Status == PassageStatus.Approved),
@@ -190,8 +190,8 @@ public class GetPassageSummaryQueryHandler(IApplicationDbContext context, ICurre
 }
 
 // 4. IsPassageOpen — Checks if passage is enabled for this year
-public record IsPassageOpenQuery(string SchoolYear) : IRequest<Result<PassageStatusDto>>;
-public record PassageStatusDto(bool IsOpen, string SchoolYear);
+public record IsPassageOpenQuery(string ScoutYear) : IRequest<Result<PassageStatusDto>>;
+public record PassageStatusDto(bool IsOpen, string ScoutYear);
 
 public class IsPassageOpenQueryHandler(IApplicationDbContext context) : IRequestHandler<IsPassageOpenQuery, Result<PassageStatusDto>>
 {
@@ -203,7 +203,7 @@ public class IsPassageOpenQueryHandler(IApplicationDbContext context) : IRequest
             .FirstOrDefaultAsync(ct);
 
         var yearSetting = await context.Settings
-            .Where(s => s.Key == "passage.school_year")
+            .Where(s => s.Key == "passage.scout_year")
             .Select(s => s.Value)
             .FirstOrDefaultAsync(ct);
 
@@ -211,7 +211,7 @@ public class IsPassageOpenQueryHandler(IApplicationDbContext context) : IRequest
         var configuredYear = yearSetting ?? string.Empty;
 
         // Passage is open if enabled AND the requested year matches the configured year
-        var isOpen = isEnabled && (string.IsNullOrEmpty(request.SchoolYear) || configuredYear == request.SchoolYear);
+        var isOpen = isEnabled && (string.IsNullOrEmpty(request.ScoutYear) || configuredYear == request.ScoutYear);
 
         return Result<PassageStatusDto>.Success(new PassageStatusDto(isOpen, configuredYear));
     }
@@ -223,7 +223,7 @@ public class IsPassageOpenQueryHandler(IApplicationDbContext context) : IRequest
 
 // 1. ProposePassage — CU creates/updates a passage for a member
 public record ProposePassageCommand(
-    Guid MemberId, string SchoolYear,
+    Guid MemberId, string ScoutYear,
     Guid ProposedUnitId, Guid? ProposedTeamId, Guid ProposedRoleId,
     string? CuNotes
 ) : IRequest<Result<Guid>>;
@@ -233,7 +233,7 @@ public class ProposePassageCommandValidator : AbstractValidator<ProposePassageCo
     public ProposePassageCommandValidator()
     {
         RuleFor(x => x.MemberId).NotEmpty().WithMessage("Le membre est requis.");
-        RuleFor(x => x.SchoolYear).NotEmpty().WithMessage("L'année scoute est requise.").MaximumLength(20);
+        RuleFor(x => x.ScoutYear).NotEmpty().WithMessage("L'année scoute est requise.").MaximumLength(20);
         RuleFor(x => x.ProposedUnitId).NotEmpty().WithMessage("L'unité proposée est requise.");
         RuleFor(x => x.ProposedRoleId).NotEmpty().WithMessage("Le rôle proposé est requis.");
     }
@@ -252,10 +252,10 @@ public class ProposePassageCommandHandler(IApplicationDbContext context, ICurren
             return Result<Guid>.Failure("Le processus de passage n'est pas actif.");
 
         var yearSetting = await context.Settings
-            .Where(s => s.Key == "passage.school_year")
+            .Where(s => s.Key == "passage.scout_year")
             .Select(s => s.Value)
             .FirstOrDefaultAsync(ct);
-        if (yearSetting != request.SchoolYear)
+        if (yearSetting != request.ScoutYear)
             return Result<Guid>.Failure("L'année scoute du passage ne correspond pas à l'année configurée.");
 
         // Get member's active assignment
@@ -289,7 +289,7 @@ public class ProposePassageCommandHandler(IApplicationDbContext context, ICurren
 
         // Check for existing passage (update if pending)
         var existing = await context.Passages
-            .FirstOrDefaultAsync(p => p.MemberId == request.MemberId && p.SchoolYear == request.SchoolYear, ct);
+            .FirstOrDefaultAsync(p => p.MemberId == request.MemberId && p.ScoutYear == request.ScoutYear, ct);
 
         if (existing is not null)
         {
@@ -333,7 +333,7 @@ public class ProposePassageCommandHandler(IApplicationDbContext context, ICurren
         // Create new passage
         var passage = new Passage
         {
-            SchoolYear = request.SchoolYear,
+            ScoutYear = request.ScoutYear,
             MemberId = request.MemberId,
             CurrentUnitId = assignment.UnitId,
             CurrentTeamId = assignment.TeamId,
@@ -358,7 +358,7 @@ public class ProposePassageCommandHandler(IApplicationDbContext context, ICurren
 
 // 2. BulkProposePassage — CU proposes same change for multiple members
 public record BulkProposePassageCommand(
-    List<Guid> MemberIds, string SchoolYear,
+    List<Guid> MemberIds, string ScoutYear,
     Guid ProposedUnitId, Guid? ProposedTeamId, Guid ProposedRoleId,
     string? CuNotes
 ) : IRequest<Result<int>>;
@@ -376,10 +376,10 @@ public class BulkProposePassageCommandHandler(IApplicationDbContext context, ICu
             return Result<int>.Failure("Le processus de passage n'est pas actif.");
 
         var yearSetting = await context.Settings
-            .Where(s => s.Key == "passage.school_year")
+            .Where(s => s.Key == "passage.scout_year")
             .Select(s => s.Value)
             .FirstOrDefaultAsync(ct);
-        if (yearSetting != request.SchoolYear)
+        if (yearSetting != request.ScoutYear)
             return Result<int>.Failure("L'année scoute du passage ne correspond pas à l'année configurée.");
 
         // Validate proposed unit and role exist
@@ -421,7 +421,7 @@ public class BulkProposePassageCommandHandler(IApplicationDbContext context, ICu
             }
 
             var existing = await context.Passages
-                .FirstOrDefaultAsync(p => p.MemberId == memberId && p.SchoolYear == request.SchoolYear, ct);
+                .FirstOrDefaultAsync(p => p.MemberId == memberId && p.ScoutYear == request.ScoutYear, ct);
 
             var isNoChange = request.ProposedUnitId == assignment.UnitId
                 && request.ProposedTeamId == assignment.TeamId
@@ -447,7 +447,7 @@ public class BulkProposePassageCommandHandler(IApplicationDbContext context, ICu
             {
                 var passage = new Passage
                 {
-                    SchoolYear = request.SchoolYear,
+                    ScoutYear = request.ScoutYear,
                     MemberId = memberId,
                     CurrentUnitId = assignment.UnitId,
                     CurrentTeamId = assignment.TeamId,
@@ -466,7 +466,7 @@ public class BulkProposePassageCommandHandler(IApplicationDbContext context, ICu
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("BulkCreate", "Passage", null,
-            newValues: new { Count = count, request.ProposedUnitId, request.ProposedRoleId, request.SchoolYear },
+            newValues: new { Count = count, request.ProposedUnitId, request.ProposedRoleId, request.ScoutYear },
             cancellationToken: ct);
 
         return Result<int>.Success(count);
@@ -589,7 +589,7 @@ public class BulkReviewPassageCommandHandler(IApplicationDbContext context, ICur
 
 // 5. FinalizePassages — CG finalizes all approved passages for a school year
 public record FinalizePassagesCommand(
-    string SchoolYear, Guid? UnitId
+    string ScoutYear, Guid? UnitId
 ) : IRequest<Result<int>>;
 
 public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<FinalizePassagesCommand, Result<int>>
@@ -600,7 +600,7 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
             return Result<int>.Failure("Accès réservé aux super administrateurs.");
 
         var query = context.Passages
-            .Where(p => p.SchoolYear == request.SchoolYear && p.Status == PassageStatus.Approved);
+            .Where(p => p.ScoutYear == request.ScoutYear && p.Status == PassageStatus.Approved);
 
         if (request.UnitId.HasValue)
             query = query.Where(p => p.CurrentUnitId == request.UnitId.Value);
@@ -640,7 +640,7 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
                 TeamId = finalTeamId,
                 FunctionalRoleId = finalRoleId,
                 StartDate = today,
-                Notes = $"Passage {passage.SchoolYear}"
+                Notes = $"Passage {passage.ScoutYear}"
             };
             context.MemberAssignments.Add(newAssignment);
 
@@ -652,11 +652,11 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
         // Auto-renew: members with active assignments but NO passage record get renewed (same unit/team/role)
         // Exclude members who already have a passage record OR already got a renewal for this year
         var passageMemberIds = await context.Passages
-            .Where(p => p.SchoolYear == request.SchoolYear)
+            .Where(p => p.ScoutYear == request.ScoutYear)
             .Select(p => p.MemberId)
             .ToListAsync(ct);
 
-        var passageNote = $"Passage {request.SchoolYear}";
+        var passageNote = $"Passage {request.ScoutYear}";
         var alreadyRenewedIds = await context.MemberAssignments
             .Where(a => a.Notes != null && a.Notes.StartsWith(passageNote))
             .Select(a => a.MemberId)
@@ -684,7 +684,7 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
                 TeamId = assignment.TeamId,
                 FunctionalRoleId = assignment.FunctionalRoleId,
                 StartDate = today,
-                Notes = $"Passage {request.SchoolYear} — renouvellement automatique"
+                Notes = $"Passage {request.ScoutYear} — renouvellement automatique"
             };
             context.MemberAssignments.Add(renewed);
             count++;
@@ -692,7 +692,7 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Finalize", "Passage", null,
-            newValues: new { Count = count, Renewed = toRenew.Count, request.SchoolYear, request.UnitId },
+            newValues: new { Count = count, Renewed = toRenew.Count, request.ScoutYear, request.UnitId },
             cancellationToken: ct);
 
         return Result<int>.Success(count);
@@ -700,7 +700,7 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
 }
 
 // 6. TogglePassage — CG opens/closes the passage process
-public record TogglePassageCommand(bool Enabled, string SchoolYear) : IRequest<Result<bool>>;
+public record TogglePassageCommand(bool Enabled, string ScoutYear) : IRequest<Result<bool>>;
 
 public class TogglePassageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<TogglePassageCommand, Result<bool>>
 {
@@ -710,7 +710,7 @@ public class TogglePassageCommandHandler(IApplicationDbContext context, ICurrent
             return Result<bool>.Failure("Accès réservé aux super administrateurs.");
 
         var enabledSetting = await context.Settings.FirstOrDefaultAsync(s => s.Key == "passage.enabled", ct);
-        var yearSetting = await context.Settings.FirstOrDefaultAsync(s => s.Key == "passage.school_year", ct);
+        var yearSetting = await context.Settings.FirstOrDefaultAsync(s => s.Key == "passage.scout_year", ct);
 
         if (enabledSetting is not null)
         {
@@ -731,14 +731,14 @@ public class TogglePassageCommandHandler(IApplicationDbContext context, ICurrent
 
         if (yearSetting is not null)
         {
-            yearSetting.Value = request.SchoolYear;
+            yearSetting.Value = request.ScoutYear;
         }
         else
         {
             context.Settings.Add(new Setting
             {
-                Key = "passage.school_year",
-                Value = request.SchoolYear,
+                Key = "passage.scout_year",
+                Value = request.ScoutYear,
                 Category = "passage",
                 Label = "Année scoute du passage",
                 Description = "Année scoute cible pour le passage en cours",
@@ -748,7 +748,7 @@ public class TogglePassageCommandHandler(IApplicationDbContext context, ICurrent
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Toggle", "Passage", null,
-            newValues: new { request.Enabled, request.SchoolYear },
+            newValues: new { request.Enabled, request.ScoutYear },
             cancellationToken: ct);
 
         return Result<bool>.Success(true);
@@ -776,7 +776,7 @@ public class DeletePassageCommandHandler(IApplicationDbContext context, ICurrent
         context.Passages.Remove(passage);
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Delete", "Passage", passage.Id,
-            oldValues: new { passage.MemberId, passage.ProposedUnitId, passage.SchoolYear },
+            oldValues: new { passage.MemberId, passage.ProposedUnitId, passage.ScoutYear },
             cancellationToken: ct);
 
         return Result<bool>.Success(true);

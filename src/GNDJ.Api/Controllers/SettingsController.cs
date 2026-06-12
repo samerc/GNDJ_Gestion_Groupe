@@ -1,8 +1,10 @@
 using GNDJ.Api.Authorization;
 using GNDJ.Application.Settings;
 using GNDJ.Domain.Enums;
+using GNDJ.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace GNDJ.Api.Controllers;
 
@@ -11,6 +13,7 @@ public class SettingsController : BaseApiController
 {
     [HttpGet]
     [HasPermission(Permissions.AssociationsManage)]
+    [OutputCache(PolicyName = "LookupData")]
     public async Task<IActionResult> GetAll()
     {
         var result = await Mediator.Send(new GetSettingsQuery());
@@ -18,6 +21,7 @@ public class SettingsController : BaseApiController
     }
 
     [HttpGet("{key}")]
+    [OutputCache(PolicyName = "ShortCache")]
     public async Task<IActionResult> GetByKey(string key)
     {
         var result = await Mediator.Send(new GetSettingQuery(key));
@@ -27,11 +31,15 @@ public class SettingsController : BaseApiController
 
     [HttpPut("{key}")]
     [HasPermission(Permissions.AssociationsManage)]
-    public async Task<IActionResult> Update(string key, [FromBody] UpdateSettingCommand command)
+    public async Task<IActionResult> Update(string key, [FromBody] UpdateSettingCommand command,
+        [FromServices] ISettingsCacheService settingsCache, [FromServices] IOutputCacheStore outputCache)
     {
         if (key != command.Key) return BadRequest(new { error = "La clé ne correspond pas." });
         var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        settingsCache.Invalidate();
+        await outputCache.EvictByTagAsync("lookup", default);
+        await outputCache.EvictByTagAsync("short", default);
         return NoContent();
     }
 }

@@ -127,7 +127,7 @@ export default function ApiKeysPage() {
       </div>
 
       {isLoading ? (
-        <LoadingSpinner />
+        <LoadingSpinner variant="table" />
       ) : !apiKeys || apiKeys.length === 0 ? (
         <EmptyState
           icon={Key}

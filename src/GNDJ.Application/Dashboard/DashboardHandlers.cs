@@ -132,7 +132,7 @@ public record AdminDashboardDto(
 public record UnitBreakdownDto(string UnitCode, string UnitName, int MemberCount, int DocCompliance);
 public record AgeGroupDto(string Label, int Count);
 
-public record GetAdminDashboardQuery(string SchoolYear) : IRequest<AdminDashboardDto>;
+public record GetAdminDashboardQuery(string ScoutYear) : IRequest<AdminDashboardDto>;
 
 public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQuery, AdminDashboardDto>
 {
@@ -168,7 +168,7 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
 
         // Unpaid cotisations
         var paidMemberIds = await _context.MemberCotisations
-            .Where(c => c.SchoolYear == request.SchoolYear)
+            .Where(c => c.ScoutYear == request.ScoutYear)
             .Select(c => c.MemberId)
             .ToListAsync(ct);
         var unpaidCotisations = activeMemberIds.Count(id => !paidMemberIds.Contains(id));

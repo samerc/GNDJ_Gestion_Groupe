@@ -8,6 +8,9 @@ export interface UnitTypeDto {
   code: string
   description: string | null
   numberOfYears: number | null
+  ageMin: number | null
+  ageMax: number | null
+  color: string | null
   unitCount: number
   createdAt: string
 }
@@ -17,6 +20,9 @@ export interface UnitTypeFormData {
   code: string
   description?: string | null
   numberOfYears?: number | null
+  ageMin?: number | null
+  ageMax?: number | null
+  color?: string | null
 }
 
 export function useUnitTypes(params: { search?: string; page?: number; pageSize?: number }) {

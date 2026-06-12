@@ -74,7 +74,7 @@ export default function PhotoSessionPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <LoadingSpinner />
+        <LoadingSpinner variant="cards" />
       </div>
     )
   }

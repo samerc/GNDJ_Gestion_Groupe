@@ -28,9 +28,18 @@ public static class DependencyInjection
             var auditInterceptor = sp.GetRequiredService<AuditableEntityInterceptor>();
             var softDeleteInterceptor = sp.GetRequiredService<SoftDeleteInterceptor>();
 
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"))
+            var connStr = configuration.GetConnectionString("DefaultConnection");
+            options.UseNpgsql(connStr, npgsqlOptions =>
+                   {
+                       npgsqlOptions.CommandTimeout(30);
+                       npgsqlOptions.MinBatchSize(2);
+                       npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+                   })
                    .UseSnakeCaseNamingConvention()
                    .AddInterceptors(auditInterceptor, softDeleteInterceptor);
+            // NOTE: Do NOT set a global NoTracking default — it silently breaks the
+            // FindAsync + modify + SaveChanges update pattern used across all command handlers.
+            // List queries already project to DTOs (.Select), which EF does not track anyway.
         });
 
         // DbContext interface for Application layer

@@ -38,14 +38,14 @@ export default function UnitTypesPage() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', code: '', description: '', numberOfYears: null })
+    setForm({ name: '', code: '', description: '', numberOfYears: null, ageMin: null, ageMax: null, color: '' })
     setError(''); clearAll()
     setFormOpen(true)
   }
 
   const openEdit = (item: UnitTypeDto) => {
     setEditing(item)
-    setForm({ name: item.name, code: item.code, description: item.description ?? '', numberOfYears: item.numberOfYears })
+    setForm({ name: item.name, code: item.code, description: item.description ?? '', numberOfYears: item.numberOfYears, ageMin: item.ageMin, ageMax: item.ageMax, color: item.color ?? '' })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -105,7 +105,7 @@ export default function UnitTypesPage() {
       )}
 
       {isLoading ? (
-        <LoadingSpinner />
+        <LoadingSpinner variant="table" />
       ) : !data || data.items.length === 0 ? (
         <EmptyState
           icon={FolderTree}
@@ -130,7 +130,12 @@ export default function UnitTypesPage() {
               <TableBody>
                 {data.items.map((item) => (
                   <TableRow key={item.id} className="cursor-pointer" onClick={() => navigate(`/admin/unit-types/${item.id}`)}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {item.color && <div className="h-3 w-3 rounded-full shrink-0 border" style={{ backgroundColor: item.color }} />}
+                        {item.name}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{item.code}</TableCell>
                     <TableCell className="text-muted-foreground">{item.numberOfYears ? `${item.numberOfYears} an${item.numberOfYears > 1 ? 's' : ''}` : '—'}</TableCell>
                     <TableCell className="text-muted-foreground max-w-xs truncate">{item.description ?? '—'}</TableCell>
@@ -194,15 +199,28 @@ export default function UnitTypesPage() {
               <RequiredLabel htmlFor="description">Description</RequiredLabel>
               <Input id="description" value={form.description ?? ''} onChange={(e) => setForm(f => ({ ...f, description: e.target.value || null }))} />
             </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <RequiredLabel htmlFor="numberOfYears">Nb d'années</RequiredLabel>
+                <Input id="numberOfYears" type="number" min={1} value={form.numberOfYears ?? ''} onChange={(e) => setForm(f => ({ ...f, numberOfYears: e.target.value ? Number(e.target.value) : null }))} />
+              </div>
+              <div className="space-y-2">
+                <RequiredLabel htmlFor="ageMin">Âge min</RequiredLabel>
+                <Input id="ageMin" type="number" min={0} value={form.ageMin ?? ''} onChange={(e) => setForm(f => ({ ...f, ageMin: e.target.value ? Number(e.target.value) : null }))} />
+              </div>
+              <div className="space-y-2">
+                <RequiredLabel htmlFor="ageMax">Âge max</RequiredLabel>
+                <Input id="ageMax" type="number" min={0} value={form.ageMax ?? ''} onChange={(e) => setForm(f => ({ ...f, ageMax: e.target.value ? Number(e.target.value) : null }))} />
+              </div>
+            </div>
             <div className="space-y-2">
-              <RequiredLabel htmlFor="numberOfYears">Nombre d'années</RequiredLabel>
-              <Input
-                id="numberOfYears"
-                type="number"
-                min={1}
-                value={form.numberOfYears ?? ''}
-                onChange={(e) => setForm(f => ({ ...f, numberOfYears: e.target.value ? Number(e.target.value) : null }))}
-              />
+              <RequiredLabel htmlFor="color">Couleur</RequiredLabel>
+              <div className="flex items-center gap-2">
+                <Input id="color" type="color" value={form.color || '#3B82F6'} onChange={(e) => setForm(f => ({ ...f, color: e.target.value }))} className="h-9 w-14 p-1 cursor-pointer" />
+                <Input value={form.color || ''} onChange={(e) => setForm(f => ({ ...f, color: e.target.value }))} placeholder="#3B82F6" className="flex-1" />
+                {form.color && <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setForm(f => ({ ...f, color: '' }))}>Effacer</button>}
+              </div>
+              <p className="text-xs text-muted-foreground">Chaque type doit avoir une couleur unique.</p>
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>

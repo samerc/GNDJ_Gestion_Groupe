@@ -31,6 +31,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
     public DbSet<MemberDocument> MemberDocuments => Set<MemberDocument>();
     public DbSet<MemberCotisation> MemberCotisations => Set<MemberCotisation>();
+    public DbSet<CotisationPayment> CotisationPayments => Set<CotisationPayment>();
     public DbSet<ScoutStage> ScoutStages => Set<ScoutStage>();
     public DbSet<Badge> Badges => Set<Badge>();
     public DbSet<MemberProgression> MemberProgressions => Set<MemberProgression>();
@@ -38,6 +39,8 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<CustomField> CustomFields => Set<CustomField>();
     public DbSet<MemberCustomFieldValue> MemberCustomFieldValues => Set<MemberCustomFieldValue>();
+    public DbSet<ReportTemplate> ReportTemplates => Set<ReportTemplate>();
+    public DbSet<UnitTypeProgression> UnitTypeProgressions => Set<UnitTypeProgression>();
     public DbSet<SmtpServer> SmtpServers => Set<SmtpServer>();
     public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
 

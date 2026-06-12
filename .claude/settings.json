@@ -16,7 +16,9 @@
       "Bash(git status:*)",
       "Bash(git add:*)",
       "Bash(git commit -m ':*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(export PATH=\"/c/Program Files/dotnet:$HOME/.dotnet/tools:$PATH\")",
+      "Bash(dotnet run:*)"
     ]
   }
 }

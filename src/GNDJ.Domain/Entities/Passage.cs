@@ -4,7 +4,7 @@ namespace GNDJ.Domain.Entities;
 
 public class Passage : BaseEntity
 {
-    public string SchoolYear { get; set; } = string.Empty; // Year being transitioned INTO (e.g., "2026-2027")
+    public string ScoutYear { get; set; } = string.Empty; // Year being transitioned INTO (e.g., "2026-2027")
     public Guid MemberId { get; set; }
 
     // Current assignment snapshot

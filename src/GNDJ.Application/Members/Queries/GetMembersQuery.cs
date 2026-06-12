@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Members.Queries;
 
 public record GetMembersQuery(
-    string? Search, Guid? UnitId, Guid? TeamId, bool? NoUnit,
+    string? Search, Guid? UnitId, Guid? TeamId, bool? NoUnit, bool? Alumni,
     string? SortBy, string? SortDir,
     int Page = 1, int PageSize = 50
 ) : IRequest<PaginatedList<MemberListDto>>;
@@ -26,19 +26,44 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
     public async ValueTask<PaginatedList<MemberListDto>> Handle(GetMembersQuery request, CancellationToken cancellationToken)
     {
         var query = _context.Members.AsQueryable();
+        var authorizedUnitIds = _currentUser.AuthorizedUnitIds;
+        var isAlumni = request.Alumni == true;
 
-        // Unit-scoped access
-        if (!_currentUser.IsSuperAdmin)
+        if (isAlumni)
         {
-            var authorizedUnitIds = _currentUser.AuthorizedUnitIds;
-            query = query.Where(m => m.Assignments.Any(a => authorizedUnitIds.Contains(a.UnitId)));
+            // Alumni view: members who HAD an assignment in the unit that has ended and who
+            // are NOT currently active in that unit (i.e. they moved away or left).
+            // Personal data (contact) is withheld below — only identity is shown.
+            if (request.UnitId.HasValue)
+            {
+                var uid = request.UnitId.Value;
+                if (!_currentUser.IsSuperAdmin && !authorizedUnitIds.Contains(uid))
+                    query = query.Where(_ => false); // not authorized for this unit
+                else
+                    query = query.Where(m =>
+                        m.Assignments.Any(a => a.UnitId == uid && a.EndDate != null) &&
+                        !m.Assignments.Any(a => a.UnitId == uid && a.EndDate == null));
+            }
+            else if (!_currentUser.IsSuperAdmin)
+            {
+                query = query.Where(m =>
+                    m.Assignments.Any(a => a.EndDate != null && authorizedUnitIds.Contains(a.UnitId)) &&
+                    !m.Assignments.Any(a => a.EndDate == null && authorizedUnitIds.Contains(a.UnitId)));
+            }
         }
+        else
+        {
+            // Active-member scope — only members with an ACTIVE assignment in an authorized unit.
+            // (Without the EndDate == null filter, a CU would also see members who merely passed
+            // through their unit historically but have since moved elsewhere.)
+            if (!_currentUser.IsSuperAdmin)
+                query = query.Where(m => m.Assignments.Any(a => a.EndDate == null && authorizedUnitIds.Contains(a.UnitId)));
 
-        // Filter: no active assignment (alumni)
-        if (request.NoUnit == true)
-            query = query.Where(m => !m.Assignments.Any(a => a.EndDate == null));
-        else if (request.UnitId.HasValue)
-            query = query.Where(m => m.Assignments.Any(a => a.UnitId == request.UnitId.Value && a.EndDate == null));
+            if (request.NoUnit == true)
+                query = query.Where(m => !m.Assignments.Any(a => a.EndDate == null));
+            else if (request.UnitId.HasValue)
+                query = query.Where(m => m.Assignments.Any(a => a.UnitId == request.UnitId.Value && a.EndDate == null));
+        }
 
         if (request.TeamId.HasValue)
             query = query.Where(m => m.Assignments.Any(a => a.TeamId == request.TeamId.Value && a.EndDate == null));
@@ -62,11 +87,12 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
             _ => desc ? query.OrderByDescending(m => m.LastName) : query.OrderBy(m => m.LastName),
         };
 
+        // Alumni results expose identity only — contact details are withheld.
         var projected = ordered.ThenBy(m => m.FirstName)
             .Select(m => new MemberListDto(
                 m.Id, m.FirstName, m.LastName, m.DateOfBirth, m.Gender, m.CardNumber,
-                m.Emails.Where(e => e.IsPrimary && !e.IsDeleted).Select(e => e.Address).FirstOrDefault(),
-                m.Phones.Where(p => p.IsPrimary && !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault(),
+                isAlumni ? null : m.Emails.Where(e => e.IsPrimary && !e.IsDeleted).Select(e => e.Address).FirstOrDefault(),
+                isAlumni ? null : m.Phones.Where(p => p.IsPrimary && !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault(),
                 m.PhotoPath,
                 m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Code).FirstOrDefault(),
                 m.Assignments.Where(a => a.EndDate == null).Select(a => a.Team != null ? a.Team.Name : null).FirstOrDefault()

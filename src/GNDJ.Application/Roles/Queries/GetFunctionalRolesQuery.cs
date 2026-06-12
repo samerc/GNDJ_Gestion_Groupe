@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Roles.Queries;
 
-public record FunctionalRoleDto(Guid Id, string Name, string Code, string? Description, Guid SecurityProfileId, string SecurityProfileName, Guid? UnitTypeId, string? UnitTypeName, int AssignmentCount);
+public record FunctionalRoleDto(Guid Id, string Name, string Code, string? Description, Guid SecurityProfileId, string SecurityProfileName, Guid? UnitTypeId, string? UnitTypeName, string? UnitTypeColor, int AssignmentCount);
 
 public record GetFunctionalRolesQuery(Guid? UnitTypeId = null) : IRequest<IReadOnlyList<FunctionalRoleDto>>;
 
@@ -27,7 +27,7 @@ public class GetFunctionalRolesQueryHandler : IRequestHandler<GetFunctionalRoles
             .Select(r => new FunctionalRoleDto(
                 r.Id, r.Name, r.Code, r.Description,
                 r.SecurityProfileId, r.SecurityProfile.Name,
-                r.UnitTypeId, r.UnitType != null ? r.UnitType.Name : null,
+                r.UnitTypeId, r.UnitType != null ? r.UnitType.Name : null, r.UnitType != null ? r.UnitType.Color : null,
                 r.Assignments.Count(a => !a.IsDeleted && a.EndDate == null)
             ))
             .ToListAsync(cancellationToken);

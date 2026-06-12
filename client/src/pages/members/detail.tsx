@@ -164,7 +164,7 @@ export default function MemberDetailPage() {
     setDeletingContact(null)
   }
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading) return <LoadingSpinner variant="profile" />
   if (!member) return <div className="py-12 text-center text-muted-foreground">Membre introuvable.</div>
 
   return (

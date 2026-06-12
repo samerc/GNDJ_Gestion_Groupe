@@ -6,6 +6,9 @@ public record UnitTypeDto(
     string Code,
     string? Description,
     int? NumberOfYears,
+    int? AgeMin,
+    int? AgeMax,
+    string? Color,
     int UnitCount,
     DateTime CreatedAt
 );
@@ -16,6 +19,9 @@ public record UnitTypeDetailDto(
     string Code,
     string? Description,
     int? NumberOfYears,
+    int? AgeMin,
+    int? AgeMax,
+    string? Color,
     DateTime CreatedAt,
     DateTime UpdatedAt
 );

@@ -26,6 +26,7 @@ public class GetUnitTypesQueryHandler : IRequestHandler<GetUnitTypesQuery, Pagin
 
         var projected = query.OrderBy(ut => ut.Name).Select(ut => new UnitTypeDto(
             ut.Id, ut.Name, ut.Code, ut.Description, ut.NumberOfYears,
+            ut.AgeMin, ut.AgeMax, ut.Color,
             ut.Units.Count(u => !u.IsDeleted),
             ut.CreatedAt
         ));
@@ -46,7 +47,7 @@ public class GetUnitTypeByIdQueryHandler : IRequestHandler<GetUnitTypeByIdQuery,
     {
         return await _context.UnitTypes
             .Where(ut => ut.Id == request.Id)
-            .Select(ut => new UnitTypeDetailDto(ut.Id, ut.Name, ut.Code, ut.Description, ut.NumberOfYears, ut.CreatedAt, ut.UpdatedAt))
+            .Select(ut => new UnitTypeDetailDto(ut.Id, ut.Name, ut.Code, ut.Description, ut.NumberOfYears, ut.AgeMin, ut.AgeMax, ut.Color, ut.CreatedAt, ut.UpdatedAt))
             .FirstOrDefaultAsync(cancellationToken);
     }
 }

@@ -315,7 +315,12 @@ export default function MembersPage() {
         <div className="flex gap-2">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Rechercher par nom, prénom ou carte..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-8 h-8 text-sm" />
+            <Input placeholder="Rechercher par nom, prénom ou carte..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-8 pr-8 h-8 text-sm" />
+            {search && (
+              <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => { setSearch(''); setPage(1) }}>
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
           <Select value={unitFilter} onValueChange={(v) => { setUnitFilter(v); setPage(1) }}>
             <SelectTrigger className="w-52 h-8 text-sm"><SelectValue /></SelectTrigger>

@@ -42,7 +42,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
         var accessToken = _tokenService.GenerateAccessToken(user, permissions, unitIds);
         var refreshToken = _tokenService.GenerateRefreshToken();
 
-        user.RefreshToken = _passwordHasher.Hash(refreshToken);
+        user.RefreshToken = _passwordHasher.HashToken(refreshToken);
         user.RefreshTokenExpiry = _tokenService.GetRefreshTokenExpiry();
         user.LastLoginAt = DateTime.UtcNow;
 

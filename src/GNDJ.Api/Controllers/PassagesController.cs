@@ -12,41 +12,41 @@ public class PassagesController : BaseApiController
 {
     [HttpGet("unit/{unitId:guid}")]
     [HasPermission(Permissions.PassageView)]
-    public async Task<IActionResult> GetPassagesByUnit(Guid unitId, [FromQuery] string schoolYear)
+    public async Task<IActionResult> GetPassagesByUnit(Guid unitId, [FromQuery] string scoutYear)
     {
-        if (string.IsNullOrWhiteSpace(schoolYear))
+        if (string.IsNullOrWhiteSpace(scoutYear))
             return BadRequest(new { error = "L'année scoute est requise." });
-        var result = await Mediator.Send(new GetPassagesByUnitQuery(unitId, schoolYear));
+        var result = await Mediator.Send(new GetPassagesByUnitQuery(unitId, scoutYear));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }
 
     [HttpGet]
     [HasPermission(Permissions.PassageManage)]
-    public async Task<IActionResult> GetAllPassages([FromQuery] string schoolYear, [FromQuery] string? status, [FromQuery] Guid? unitId)
+    public async Task<IActionResult> GetAllPassages([FromQuery] string scoutYear, [FromQuery] string? status, [FromQuery] Guid? unitId)
     {
-        if (string.IsNullOrWhiteSpace(schoolYear))
+        if (string.IsNullOrWhiteSpace(scoutYear))
             return BadRequest(new { error = "L'année scoute est requise." });
-        var result = await Mediator.Send(new GetAllPassagesQuery(schoolYear, status, unitId));
+        var result = await Mediator.Send(new GetAllPassagesQuery(scoutYear, status, unitId));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }
 
     [HttpGet("summary")]
     [HasPermission(Permissions.PassageManage)]
-    public async Task<IActionResult> GetPassageSummary([FromQuery] string schoolYear)
+    public async Task<IActionResult> GetPassageSummary([FromQuery] string scoutYear)
     {
-        if (string.IsNullOrWhiteSpace(schoolYear))
+        if (string.IsNullOrWhiteSpace(scoutYear))
             return BadRequest(new { error = "L'année scoute est requise." });
-        var result = await Mediator.Send(new GetPassageSummaryQuery(schoolYear));
+        var result = await Mediator.Send(new GetPassageSummaryQuery(scoutYear));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }
 
     [HttpGet("status")]
-    public async Task<IActionResult> IsPassageOpen([FromQuery] string schoolYear)
+    public async Task<IActionResult> IsPassageOpen([FromQuery] string scoutYear)
     {
-        var result = await Mediator.Send(new IsPassageOpenQuery(schoolYear ?? string.Empty));
+        var result = await Mediator.Send(new IsPassageOpenQuery(scoutYear ?? string.Empty));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }

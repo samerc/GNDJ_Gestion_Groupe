@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.UnitTypes.Commands.UpdateUnitType;
 
-public record UpdateUnitTypeCommand(Guid Id, string Name, string Code, string? Description, int? NumberOfYears) : IRequest<Result<bool>>;
+public record UpdateUnitTypeCommand(Guid Id, string Name, string Code, string? Description, int? NumberOfYears, int? AgeMin, int? AgeMax, string? Color) : IRequest<Result<bool>>;
 
 public class UpdateUnitTypeCommandValidator : AbstractValidator<UpdateUnitTypeCommand>
 {
@@ -39,12 +39,22 @@ public class UpdateUnitTypeCommandHandler : IRequestHandler<UpdateUnitTypeComman
         if (codeExists)
             return Result<bool>.Failure("Un type d'unité avec ce code existe déjà.");
 
+        if (!string.IsNullOrWhiteSpace(request.Color))
+        {
+            var colorExists = await _context.UnitTypes.AnyAsync(ut => ut.Color == request.Color && ut.Id != request.Id, cancellationToken);
+            if (colorExists)
+                return Result<bool>.Failure("Cette couleur est déjà utilisée par un autre type d'unité.");
+        }
+
         var oldValues = new { entity.Name, entity.Code, entity.Description, entity.NumberOfYears };
 
         entity.Name = request.Name;
         entity.Code = request.Code;
         entity.Description = request.Description;
         entity.NumberOfYears = request.NumberOfYears;
+        entity.AgeMin = request.AgeMin;
+        entity.AgeMax = request.AgeMax;
+        entity.Color = request.Color;
 
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Update", "UnitType", entity.Id, oldValues: oldValues, newValues: new { entity.Name, entity.Code, entity.Description, entity.NumberOfYears }, cancellationToken: cancellationToken);

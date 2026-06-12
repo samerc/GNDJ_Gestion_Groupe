@@ -8,9 +8,12 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Cotisations;
 
 // DTOs
+public record CotisationPaymentDto(Guid Id, decimal Amount, string Currency, string PaymentMethod);
+
 public record MemberCotisationDto(
-    Guid Id, Guid MemberId, string SchoolYear, decimal AmountPaid, string Currency,
-    DateOnly PaymentDate, string PaymentMethod, string ReceiptNumber, string? Notes, DateTime CreatedAt
+    Guid Id, Guid MemberId, string ScoutYear,
+    DateOnly PaymentDate, string ReceiptNumber, string? Notes,
+    List<CotisationPaymentDto> Payments, DateTime CreatedAt
 );
 
 // Helper
@@ -22,7 +25,7 @@ static class CotisationAccessHelper
         if (currentUser.MemberId == memberId) return true;
         var authorizedUnitIds = currentUser.AuthorizedUnitIds;
         return await context.MemberAssignments.AnyAsync(a =>
-            a.MemberId == memberId && !a.IsDeleted && authorizedUnitIds.Contains(a.UnitId), ct);
+            a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId), ct);
     }
 }
 
@@ -38,10 +41,13 @@ public class GetMemberCotisationsQueryHandler(IApplicationDbContext context, ICu
 
         var items = await context.MemberCotisations
             .Where(c => c.MemberId == request.MemberId)
-            .OrderByDescending(c => c.SchoolYear)
+            .Include(c => c.Payments.Where(p => !p.IsDeleted))
+            .OrderByDescending(c => c.ScoutYear)
             .Select(c => new MemberCotisationDto(
-                c.Id, c.MemberId, c.SchoolYear, c.AmountPaid, c.Currency,
-                c.PaymentDate, c.PaymentMethod, c.ReceiptNumber, c.Notes, c.CreatedAt
+                c.Id, c.MemberId, c.ScoutYear,
+                c.PaymentDate, c.ReceiptNumber, c.Notes,
+                c.Payments.Where(p => !p.IsDeleted).Select(p => new CotisationPaymentDto(p.Id, p.Amount, p.Currency, p.PaymentMethod)).ToList(),
+                c.CreatedAt
             ))
             .ToListAsync(ct);
 
@@ -49,10 +55,13 @@ public class GetMemberCotisationsQueryHandler(IApplicationDbContext context, ICu
     }
 }
 
-// Create cotisation
+// Create cotisation with payment lines
+public record PaymentLineInput(decimal Amount, string Currency, string PaymentMethod);
+
 public record CreateCotisationCommand(
-    Guid MemberId, string SchoolYear, decimal AmountPaid, string Currency,
-    DateOnly PaymentDate, string PaymentMethod, string? Notes
+    Guid MemberId, string ScoutYear,
+    DateOnly PaymentDate, string? Notes,
+    List<PaymentLineInput> Payments
 ) : IRequest<Result<CotisationCreatedDto>>;
 
 public record CotisationCreatedDto(Guid Id, string ReceiptNumber);
@@ -62,11 +71,15 @@ public class CreateCotisationCommandValidator : AbstractValidator<CreateCotisati
     public CreateCotisationCommandValidator()
     {
         RuleFor(x => x.MemberId).NotEmpty().WithMessage("Le membre est requis.");
-        RuleFor(x => x.SchoolYear).NotEmpty().WithMessage("L'année scoute est requise.").MaximumLength(20);
-        RuleFor(x => x.AmountPaid).GreaterThan(0).WithMessage("Le montant doit être supérieur à 0.");
-        RuleFor(x => x.Currency).NotEmpty().WithMessage("La devise est requise.")
-            .Must(c => Domain.Enums.Currency.All.Contains(c)).WithMessage("Devise invalide.");
-        RuleFor(x => x.PaymentMethod).NotEmpty().WithMessage("Le mode de paiement est requis.");
+        RuleFor(x => x.ScoutYear).NotEmpty().WithMessage("L'année scoute est requise.").MaximumLength(20);
+        RuleFor(x => x.Payments).NotEmpty().WithMessage("Au moins un paiement est requis.");
+        RuleForEach(x => x.Payments).ChildRules(p =>
+        {
+            p.RuleFor(x => x.Amount).GreaterThan(0).WithMessage("Le montant doit être supérieur à 0.");
+            p.RuleFor(x => x.Currency).NotEmpty().WithMessage("La devise est requise.")
+                .Must(c => Domain.Enums.Currency.All.Contains(c)).WithMessage("Devise invalide.");
+            p.RuleFor(x => x.PaymentMethod).NotEmpty().WithMessage("Le mode de paiement est requis.");
+        });
     }
 }
 
@@ -81,14 +94,14 @@ public class CreateCotisationCommandHandler(IApplicationDbContext context, ICurr
         if (!await CotisationAccessHelper.CanAccessMember(context, currentUser, request.MemberId, ct))
             return Result<CotisationCreatedDto>.Failure("Accès non autorisé à ce membre.");
 
-        // Check duplicate for same member + school year
+        // Check duplicate for same member + scout year
         var exists = await context.MemberCotisations.AnyAsync(c =>
-            c.MemberId == request.MemberId && c.SchoolYear == request.SchoolYear, ct);
+            c.MemberId == request.MemberId && c.ScoutYear == request.ScoutYear, ct);
         if (exists)
-            return Result<CotisationCreatedDto>.Failure("Une cotisation existe déjà pour ce membre et cette année scoute.");
+            return Result<CotisationCreatedDto>.Failure("Une cotisation existe déjà pour ce membre et cette année scoute. Modifiez-la pour ajouter des paiements.");
 
         // Generate receipt number: GNDJ-YYYY-NNNN
-        var year = request.SchoolYear.Split('-')[0];
+        var year = request.ScoutYear.Split('-')[0];
         var lastReceipt = await context.MemberCotisations
             .IgnoreQueryFilters()
             .Where(c => c.ReceiptNumber.StartsWith($"GNDJ-{year}-"))
@@ -108,19 +121,26 @@ public class CreateCotisationCommandHandler(IApplicationDbContext context, ICurr
         var entity = new MemberCotisation
         {
             MemberId = request.MemberId,
-            SchoolYear = request.SchoolYear,
-            AmountPaid = request.AmountPaid,
-            Currency = request.Currency,
+            ScoutYear = request.ScoutYear,
             PaymentDate = request.PaymentDate,
-            PaymentMethod = request.PaymentMethod,
             ReceiptNumber = receiptNumber,
             Notes = request.Notes
         };
 
+        foreach (var p in request.Payments)
+        {
+            entity.Payments.Add(new CotisationPayment
+            {
+                Amount = p.Amount,
+                Currency = p.Currency,
+                PaymentMethod = p.PaymentMethod
+            });
+        }
+
         context.MemberCotisations.Add(entity);
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Create", "MemberCotisation", entity.Id,
-            newValues: new { entity.ReceiptNumber, entity.AmountPaid, entity.Currency, entity.SchoolYear },
+            newValues: new { entity.ReceiptNumber, Payments = request.Payments, entity.ScoutYear },
             cancellationToken: ct);
 
         return Result<CotisationCreatedDto>.Success(new CotisationCreatedDto(entity.Id, receiptNumber));
@@ -129,17 +149,21 @@ public class CreateCotisationCommandHandler(IApplicationDbContext context, ICurr
 
 // Update cotisation
 public record UpdateCotisationCommand(
-    Guid Id, decimal AmountPaid, string Currency,
-    DateOnly PaymentDate, string PaymentMethod, string? Notes
+    Guid Id, DateOnly PaymentDate, string? Notes,
+    List<PaymentLineInput> Payments
 ) : IRequest<Result<bool>>;
 
 public class UpdateCotisationCommandValidator : AbstractValidator<UpdateCotisationCommand>
 {
     public UpdateCotisationCommandValidator()
     {
-        RuleFor(x => x.AmountPaid).GreaterThan(0).WithMessage("Le montant doit être supérieur à 0.");
-        RuleFor(x => x.Currency).NotEmpty().Must(c => Domain.Enums.Currency.All.Contains(c)).WithMessage("Devise invalide.");
-        RuleFor(x => x.PaymentMethod).NotEmpty().WithMessage("Le mode de paiement est requis.");
+        RuleFor(x => x.Payments).NotEmpty().WithMessage("Au moins un paiement est requis.");
+        RuleForEach(x => x.Payments).ChildRules(p =>
+        {
+            p.RuleFor(x => x.Amount).GreaterThan(0).WithMessage("Le montant doit être supérieur à 0.");
+            p.RuleFor(x => x.Currency).NotEmpty().Must(c => Domain.Enums.Currency.All.Contains(c)).WithMessage("Devise invalide.");
+            p.RuleFor(x => x.PaymentMethod).NotEmpty().WithMessage("Le mode de paiement est requis.");
+        });
     }
 }
 
@@ -147,24 +171,36 @@ public class UpdateCotisationCommandHandler(IApplicationDbContext context, ICurr
 {
     public async ValueTask<Result<bool>> Handle(UpdateCotisationCommand request, CancellationToken ct)
     {
-        var entity = await context.MemberCotisations.FindAsync([request.Id], ct);
+        var entity = await context.MemberCotisations
+            .Include(c => c.Payments.Where(p => !p.IsDeleted))
+            .FirstOrDefaultAsync(c => c.Id == request.Id, ct);
         if (entity is null)
             return Result<bool>.Failure("Cotisation introuvable.");
 
         if (!await CotisationAccessHelper.CanAccessMember(context, currentUser, entity.MemberId, ct))
             return Result<bool>.Failure("Accès non autorisé.");
 
-        var oldValues = new { entity.AmountPaid, entity.Currency, entity.PaymentDate, entity.PaymentMethod };
-
-        entity.AmountPaid = request.AmountPaid;
-        entity.Currency = request.Currency;
         entity.PaymentDate = request.PaymentDate;
-        entity.PaymentMethod = request.PaymentMethod;
         entity.Notes = request.Notes;
 
+        // Replace all payment lines
+        foreach (var existing in entity.Payments.ToList())
+        {
+            context.CotisationPayments.Remove(existing);
+        }
+        foreach (var p in request.Payments)
+        {
+            entity.Payments.Add(new CotisationPayment
+            {
+                Amount = p.Amount,
+                Currency = p.Currency,
+                PaymentMethod = p.PaymentMethod
+            });
+        }
+
         await context.SaveChangesAsync(ct);
-        await auditService.LogAsync("Update", "MemberCotisation", entity.Id, oldValues: oldValues,
-            newValues: new { entity.AmountPaid, entity.Currency, entity.PaymentDate, entity.PaymentMethod },
+        await auditService.LogAsync("Update", "MemberCotisation", entity.Id,
+            newValues: new { entity.PaymentDate, Payments = request.Payments },
             cancellationToken: ct);
 
         return Result<bool>.Success(true);
@@ -188,7 +224,7 @@ public class DeleteCotisationCommandHandler(IApplicationDbContext context, ICurr
         context.MemberCotisations.Remove(entity);
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Delete", "MemberCotisation", entity.Id,
-            oldValues: new { entity.ReceiptNumber, entity.AmountPaid, entity.Currency },
+            oldValues: new { entity.ReceiptNumber, entity.ScoutYear },
             cancellationToken: ct);
 
         return Result<bool>.Success(true);
@@ -204,6 +240,7 @@ public class GetReceiptDataQueryHandler(IApplicationDbContext context, ICurrentU
     {
         var cotisation = await context.MemberCotisations
             .Include(c => c.Member)
+            .Include(c => c.Payments.Where(p => !p.IsDeleted))
             .FirstOrDefaultAsync(c => c.Id == request.Id, ct);
 
         if (cotisation is null)
@@ -212,35 +249,119 @@ public class GetReceiptDataQueryHandler(IApplicationDbContext context, ICurrentU
         if (!await CotisationAccessHelper.CanAccessMember(context, currentUser, cotisation.MemberId, ct))
             return Result<ReceiptData>.Failure("Accès non autorisé.");
 
-        // Get organization name from settings
-        var orgName = await context.Settings
-            .Where(s => s.Key == "organization_name")
-            .Select(s => s.Value)
-            .FirstOrDefaultAsync(ct) ?? "GNDJ - Guides Nationales Du Jeune";
+        // Load currency settings
+        var settings = await context.Settings
+            .Where(s => s.Key == "cotisation.default_currency" || s.Key == "cotisation.exchange_rates")
+            .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
+
+        var defaultCurrency = settings.GetValueOrDefault("cotisation.default_currency", "USD");
+        var exchangeRates = new Dictionary<string, decimal>();
+        if (settings.TryGetValue("cotisation.exchange_rates", out var ratesJson))
+        {
+            try
+            {
+                var parsed = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, decimal>>(ratesJson);
+                if (parsed is not null) exchangeRates = parsed;
+            }
+            catch { /* ignore parse errors */ }
+        }
+
+        var payments = cotisation.Payments
+            .Select(p => new ReceiptPaymentLine(p.Amount, p.Currency, p.PaymentMethod))
+            .ToList();
 
         return Result<ReceiptData>.Success(new ReceiptData(
             cotisation.ReceiptNumber,
             $"{cotisation.Member.FirstName} {cotisation.Member.LastName}",
-            cotisation.SchoolYear,
-            cotisation.AmountPaid,
-            cotisation.Currency,
+            cotisation.ScoutYear,
+            payments,
             cotisation.PaymentDate,
-            cotisation.PaymentMethod,
             cotisation.Notes,
-            orgName
+            defaultCurrency,
+            exchangeRates
         ));
     }
 }
 
+// Cotisation summary for dashboard
+public record GetCotisationSummaryQuery(string ScoutYear) : IRequest<CotisationSummaryDto>;
+
+public record CotisationSummaryDto(
+    int TotalActiveMembers,
+    int MembersWithPayment,
+    int MembersWithoutPayment,
+    List<CurrencyTotalDto> TotalsByCurrency,
+    List<UnitCotisationSummaryDto> ByUnit
+);
+
+public record CurrencyTotalDto(string Currency, decimal Total, int Count);
+public record UnitCotisationSummaryDto(string UnitName, int TotalMembers, int PaidMembers, List<CurrencyTotalDto> Totals);
+
+public class GetCotisationSummaryQueryHandler(IApplicationDbContext context) : IRequestHandler<GetCotisationSummaryQuery, CotisationSummaryDto>
+{
+    public async ValueTask<CotisationSummaryDto> Handle(GetCotisationSummaryQuery request, CancellationToken ct)
+    {
+        var activeAssignments = await context.MemberAssignments
+            .Where(a => a.EndDate == null)
+            .Select(a => new { a.MemberId, UnitName = a.Unit.Name })
+            .Distinct()
+            .ToListAsync(ct);
+
+        var activeMemberIds = activeAssignments.Select(a => a.MemberId).Distinct().ToList();
+
+        // Get payment lines through cotisations
+        var payments = await context.MemberCotisations
+            .Where(c => c.ScoutYear == request.ScoutYear && activeMemberIds.Contains(c.MemberId))
+            .SelectMany(c => c.Payments.Where(p => !p.IsDeleted).Select(p => new { c.MemberId, p.Amount, p.Currency }))
+            .ToListAsync(ct);
+
+        var paidMemberIds = await context.MemberCotisations
+            .Where(c => c.ScoutYear == request.ScoutYear && activeMemberIds.Contains(c.MemberId))
+            .Select(c => c.MemberId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var totalsByCurrency = payments
+            .GroupBy(p => p.Currency)
+            .Select(g => new CurrencyTotalDto(g.Key, g.Sum(p => p.Amount), g.Count()))
+            .ToList();
+
+        var paidSet = paidMemberIds.ToHashSet();
+
+        var unitGroups = activeAssignments
+            .GroupBy(a => a.UnitName)
+            .Select(g =>
+            {
+                var unitMemberIds = g.Select(a => a.MemberId).Distinct().ToList();
+                var unitPayments = payments.Where(p => unitMemberIds.Contains(p.MemberId)).ToList();
+                var unitPaid = unitMemberIds.Count(id => paidSet.Contains(id));
+                var unitTotals = unitPayments
+                    .GroupBy(p => p.Currency)
+                    .Select(cg => new CurrencyTotalDto(cg.Key, cg.Sum(p => p.Amount), cg.Count()))
+                    .ToList();
+                return new UnitCotisationSummaryDto(g.Key, unitMemberIds.Count, unitPaid, unitTotals);
+            })
+            .OrderBy(u => u.UnitName)
+            .ToList();
+
+        return new CotisationSummaryDto(
+            activeMemberIds.Count,
+            paidSet.Count,
+            activeMemberIds.Count - paidSet.Count,
+            totalsByCurrency,
+            unitGroups
+        );
+    }
+}
+
 // Dashboard: unpaid cotisations for current year
-public record GetUnpaidCotisationsQuery(string SchoolYear) : IRequest<IReadOnlyList<UnpaidCotisationDto>>;
+public record GetUnpaidCotisationsQuery(string ScoutYear) : IRequest<IReadOnlyList<UnpaidCotisationDto>>;
 public record UnpaidCotisationDto(Guid MemberId, string MemberName, string UnitName);
 
 public class GetUnpaidCotisationsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetUnpaidCotisationsQuery, IReadOnlyList<UnpaidCotisationDto>>
 {
     public async ValueTask<IReadOnlyList<UnpaidCotisationDto>> Handle(GetUnpaidCotisationsQuery request, CancellationToken ct)
     {
-        // Get active members with assignments
         var query = context.MemberAssignments
             .Where(a => a.EndDate == null)
             .Include(a => a.Member)
@@ -253,9 +374,8 @@ public class GetUnpaidCotisationsQueryHandler(IApplicationDbContext context, ICu
             query = query.Where(a => authorizedUnitIds.Contains(a.UnitId));
         }
 
-        // Get members who DON'T have a cotisation for this school year
         var paidMemberIds = await context.MemberCotisations
-            .Where(c => c.SchoolYear == request.SchoolYear)
+            .Where(c => c.ScoutYear == request.ScoutYear)
             .Select(c => c.MemberId)
             .ToListAsync(ct);
 

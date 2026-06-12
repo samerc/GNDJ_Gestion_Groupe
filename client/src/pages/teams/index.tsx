@@ -130,7 +130,7 @@ export default function TeamsPage() {
       )}
 
       {isLoading ? (
-        <LoadingSpinner />
+        <LoadingSpinner variant="table" />
       ) : !data || data.items.length === 0 ? (
         <EmptyState
           icon={Users}

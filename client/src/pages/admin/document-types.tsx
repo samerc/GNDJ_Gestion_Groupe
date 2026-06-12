@@ -101,7 +101,7 @@ export default function DocumentTypesPage() {
       )}
 
       {isLoading ? (
-        <LoadingSpinner />
+        <LoadingSpinner variant="table" />
       ) : !data || data.items.length === 0 ? (
         <EmptyState
           icon={FileText}

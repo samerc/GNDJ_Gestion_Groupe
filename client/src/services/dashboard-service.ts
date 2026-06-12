@@ -41,9 +41,9 @@ export function useUnitDashboard(unitId: string | undefined) {
   })
 }
 
-export function useAdminDashboard(schoolYear: string) {
+export function useAdminDashboard(scoutYear: string) {
   return useQuery({
-    queryKey: ['dashboard', 'admin', schoolYear],
-    queryFn: () => apiClient.get<AdminDashboardDto>('/dashboard/admin', { params: { schoolYear } }).then(r => r.data),
+    queryKey: ['dashboard', 'admin', scoutYear],
+    queryFn: () => apiClient.get<AdminDashboardDto>('/dashboard/admin', { params: { scoutYear } }).then(r => r.data),
   })
 }

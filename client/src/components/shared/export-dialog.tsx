@@ -66,7 +66,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
 const DEFAULT_SELECTED = new Set(['name', 'cardNumber', 'age', 'phone', 'email', 'role', 'team'])
 
 export function ExportDialog({ unitId, unitName, teamId, open, onOpenChange }: Props) {
-  const schoolYear = useSettingValue('cotisation.current_school_year') ?? '2025-2026'
+  const scoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
   const [selectedCols, setSelectedCols] = useState<Set<string>>(new Set(DEFAULT_SELECTED))
   const [format, setFormat] = useState<'excel' | 'csv'>('excel')
   const [generating, setGenerating] = useState(false)
@@ -92,7 +92,7 @@ export function ExportDialog({ unitId, unitName, teamId, open, onOpenChange }: P
       const response = await generateExport({
         unitId,
         teamId: teamId || null,
-        schoolYear,
+        scoutYear,
         columns: Array.from(selectedCols),
         format,
       })
@@ -102,7 +102,7 @@ export function ExportDialog({ unitId, unitName, teamId, open, onOpenChange }: P
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${unitName.replace(/\s+/g, '_')}_${schoolYear}.${ext}`
+      a.download = `${unitName.replace(/\s+/g, '_')}_${scoutYear}.${ext}`
       a.click()
       URL.revokeObjectURL(url)
       toast.success(`Export ${format.toUpperCase()} g\u00e9n\u00e9r\u00e9`)
@@ -172,7 +172,7 @@ export function ExportDialog({ unitId, unitName, teamId, open, onOpenChange }: P
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground">Ann\u00e9e scoute : {schoolYear}</p>
+          <p className="text-xs text-muted-foreground">Année scoute : {scoutYear}</p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fermer</Button>

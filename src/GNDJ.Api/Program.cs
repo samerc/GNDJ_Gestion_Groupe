@@ -1,5 +1,7 @@
+using System.IO.Compression;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using FluentValidation;
 using GNDJ.Api.Authorization;
 using GNDJ.Api.Middleware;
@@ -7,6 +9,7 @@ using GNDJ.Application.Common.Behaviors;
 using GNDJ.Infrastructure;
 using GNDJ.Infrastructure.Persistence;
 using GNDJ.Infrastructure.Persistence.Interceptors;
+using GNDJ.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -58,6 +61,31 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Performance: Settings cache (singleton, auto-refreshes every 5 min)
+builder.Services.AddSingleton<ISettingsCacheService, SettingsCacheService>();
+
+// Performance: Response compression (gzip + brotli)
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(["application/json", "text/plain"]);
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options => options.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(options => options.Level = CompressionLevel.Fastest);
+
+// Performance: Output caching for read-heavy endpoints
+builder.Services.AddOutputCache(options =>
+{
+    options.AddBasePolicy(p => p.NoCache());
+    options.AddPolicy("LookupData", p => p.Expire(TimeSpan.FromMinutes(10)).Tag("lookup"));
+    options.AddPolicy("ShortCache", p => p.Expire(TimeSpan.FromMinutes(2)).Tag("short"));
+});
+
+// Performance: Memory cache for general use
+builder.Services.AddMemoryCache();
+
 // MediatR + FluentValidation
 builder.Services.AddMediator(options => options.ServiceLifetime = ServiceLifetime.Scoped);
 builder.Services.AddValidatorsFromAssemblyContaining<GNDJ.Application.AssemblyMarker>(ServiceLifetime.Scoped);
@@ -106,14 +134,17 @@ builder.Services.AddOpenApi(options =>
         };
 
         // Apply security requirements to all operations
-        foreach (var operation in document.Paths.Values.SelectMany(path => path.Operations))
+        if (document.Paths != null)
         {
-            operation.Value.Security ??= [];
-            operation.Value.Security.Add(new Microsoft.OpenApi.OpenApiSecurityRequirement
+            foreach (var operation in document.Paths.Values.SelectMany(path => path.Operations ?? []))
             {
-                [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document)] = [],
-                [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("ApiKey", document)] = []
-            });
+                operation.Value.Security ??= [];
+                operation.Value.Security.Add(new Microsoft.OpenApi.OpenApiSecurityRequirement
+                {
+                    [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document)] = [],
+                    [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("ApiKey", document)] = []
+                });
+            }
         }
 
         return Task.CompletedTask;
@@ -132,22 +163,34 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Rate limiting
+// Rate limiting — PARTITIONED BY CLIENT IP (not global) so that many users behind
+// different connections can authenticate concurrently. A global limiter would cap the
+// entire system (e.g. start-of-year registration with 100+ simultaneous logins).
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
-    options.AddFixedWindowLimiter("auth", opt =>
-    {
-        opt.PermitLimit = 10;
-        opt.Window = TimeSpan.FromMinutes(5);
-        opt.QueueLimit = 0;
-    });
-    options.AddFixedWindowLimiter("upload", opt =>
-    {
-        opt.PermitLimit = 20;
-        opt.Window = TimeSpan.FromMinutes(10);
-        opt.QueueLimit = 0;
-    });
+
+    static string ClientKey(HttpContext ctx) =>
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+    // Auth: brute-force protection per IP. Generous enough for a shared scout-meeting
+    // network (many devices behind one NAT IP) while still throttling password guessing.
+    options.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ClientKey(ctx), _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 100,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
+
+    // Upload: per IP.
+    options.AddPolicy("upload", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ClientKey(ctx), _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 60,
+            Window = TimeSpan.FromMinutes(10),
+            QueueLimit = 0,
+        }));
 });
 
 // Global request size limit (1MB for JSON endpoints; file uploads override with [RequestSizeLimit])
@@ -167,7 +210,7 @@ using (var scope = app.Services.CreateScope())
     var config = builder.Configuration;
     var email = config["SuperAdmin:Email"] ?? "admin@gndj.local";
     var password = config["SuperAdmin:Password"] ?? "Admin123!";
-    var passwordHash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
+    var passwordHash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 10);
     await SeedData.SeedAsync(context, email, passwordHash);
     await SeedData.SeedMissingPermissionsAsync(context);
     await SeedData.SeedMissingSettingsAsync(context);
@@ -175,9 +218,10 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Middleware pipeline
+app.UseResponseCompression();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-// Security headers
+// Security headers + static asset caching
 app.Use(async (context, next) =>
 {
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
@@ -216,8 +260,12 @@ app.UseSerilogRequestLogging(options =>
     options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.000}ms";
 });
 
+app.UseOutputCache();
 app.UseRateLimiter();
 app.MapControllers();
+
+Log.Information("GNDJ API started on {Urls}", string.Join(", ", app.Urls));
+Console.WriteLine($"GNDJ API listening on: {string.Join(", ", app.Urls)}");
 
 app.Run();
 

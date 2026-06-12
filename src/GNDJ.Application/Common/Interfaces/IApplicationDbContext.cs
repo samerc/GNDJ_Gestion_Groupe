@@ -28,6 +28,7 @@ public interface IApplicationDbContext
     DbSet<DocumentType> DocumentTypes { get; }
     DbSet<MemberDocument> MemberDocuments { get; }
     DbSet<MemberCotisation> MemberCotisations { get; }
+    DbSet<CotisationPayment> CotisationPayments { get; }
     DbSet<ScoutStage> ScoutStages { get; }
     DbSet<Badge> Badges { get; }
     DbSet<MemberProgression> MemberProgressions { get; }
@@ -37,6 +38,8 @@ public interface IApplicationDbContext
     DbSet<MemberCustomFieldValue> MemberCustomFieldValues { get; }
     DbSet<SmtpServer> SmtpServers { get; }
     DbSet<EmailTemplate> EmailTemplates { get; }
+    DbSet<ReportTemplate> ReportTemplates { get; }
+    DbSet<UnitTypeProgression> UnitTypeProgressions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

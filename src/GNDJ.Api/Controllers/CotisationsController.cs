@@ -27,7 +27,7 @@ public class CotisationsController : BaseApiController
     {
         var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Created($"/api/v1/cotisations/{result.Value.Id}", result.Value);
+        return Created($"/api/v1/cotisations/{result.Value!.Id}", result.Value);
     }
 
     [HttpPut("{id:guid}")]
@@ -62,11 +62,21 @@ public class CotisationsController : BaseApiController
 
     [HttpGet("unpaid")]
     [HasPermission(Permissions.CotisationsView)]
-    public async Task<IActionResult> GetUnpaid([FromQuery] string schoolYear)
+    public async Task<IActionResult> GetUnpaid([FromQuery] string scoutYear)
     {
-        if (string.IsNullOrWhiteSpace(schoolYear))
+        if (string.IsNullOrWhiteSpace(scoutYear))
             return BadRequest(new { error = "L'année scoute est requise." });
-        var result = await Mediator.Send(new GetUnpaidCotisationsQuery(schoolYear));
+        var result = await Mediator.Send(new GetUnpaidCotisationsQuery(scoutYear));
+        return Ok(result);
+    }
+
+    [HttpGet("summary")]
+    [HasPermission(Permissions.CotisationsView)]
+    public async Task<IActionResult> GetSummary([FromQuery] string scoutYear)
+    {
+        if (string.IsNullOrWhiteSpace(scoutYear))
+            return BadRequest(new { error = "L'année scoute est requise." });
+        var result = await Mediator.Send(new GetCotisationSummaryQuery(scoutYear));
         return Ok(result);
     }
 }

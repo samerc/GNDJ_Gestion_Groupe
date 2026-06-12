@@ -114,13 +114,17 @@ export interface MemberDocRowDto {
   cotisation: MemberCotisationCellDto
 }
 
+export interface CotisationPaymentCellDto {
+  amount: number
+  currency: string
+  paymentMethod: string
+}
+
 export interface MemberCotisationCellDto {
   cotisationId: string | null
-  amountPaid: number | null
-  currency: string | null
   receiptNumber: string | null
   paymentDate: string | null
-  paymentMethod: string | null
+  payments: CotisationPaymentCellDto[]
 }
 
 export interface MemberDocCellDto {
@@ -135,11 +139,11 @@ export interface MemberDocCellDto {
   createdAt: string | null
 }
 
-export function useUnitDocumentsMatrix(unitId: string, schoolYear: string) {
+export function useUnitDocumentsMatrix(unitId: string, scoutYear: string) {
   return useQuery({
-    queryKey: ['documents', 'matrix', unitId, schoolYear],
-    queryFn: () => apiClient.get<UnitDocumentsMatrixDto>(`/documents/unit/${unitId}/matrix`, { params: { schoolYear } }).then(r => r.data),
-    enabled: !!unitId && !!schoolYear,
+    queryKey: ['documents', 'matrix', unitId, scoutYear],
+    queryFn: () => apiClient.get<UnitDocumentsMatrixDto>(`/documents/unit/${unitId}/matrix`, { params: { scoutYear } }).then(r => r.data),
+    enabled: !!unitId && !!scoutYear,
   })
 }
 

@@ -9,27 +9,37 @@ public class ReceiptService : IReceiptService
 {
     public byte[] GenerateReceipt(ReceiptData data)
     {
+        // Try to load logo
+        byte[]? logoBytes = null;
+        var logoPath = Path.Combine(AppContext.BaseDirectory, "Assets", "header-logo.jpg");
+        if (File.Exists(logoPath))
+            logoBytes = File.ReadAllBytes(logoPath);
+
         var document = Document.Create(container =>
         {
             container.Page(page =>
             {
-                page.Size(PageSizes.A5);
-                page.Margin(30);
-                page.DefaultTextStyle(x => x.FontSize(11));
+                page.Size(PageSizes.A5.Landscape());
+                page.Margin(25);
+                page.DefaultTextStyle(x => x.FontSize(10));
 
                 page.Header().Column(col =>
                 {
-                    col.Item().AlignCenter().Text(data.OrganizationName)
-                        .FontSize(16).Bold();
-                    col.Item().AlignCenter().PaddingTop(5).Text("Reçu de cotisation")
+                    // Logo header
+                    if (logoBytes is not null)
+                    {
+                        col.Item().AlignCenter().MaxHeight(60).Image(logoBytes);
+                    }
+                    col.Item().PaddingTop(8).AlignCenter().Text("Reçu de cotisation")
                         .FontSize(14).SemiBold();
-                    col.Item().PaddingTop(10).LineHorizontal(1);
+                    col.Item().PaddingTop(6).LineHorizontal(1);
                 });
 
-                page.Content().PaddingTop(20).Column(col =>
+                page.Content().PaddingTop(15).Column(col =>
                 {
-                    col.Spacing(8);
+                    col.Spacing(6);
 
+                    // Receipt info row
                     col.Item().Row(row =>
                     {
                         row.RelativeItem().Text(t =>
@@ -44,50 +54,71 @@ public class ReceiptService : IReceiptService
                         });
                     });
 
-                    col.Item().PaddingTop(10).Text(t =>
+                    // Member + year row
+                    col.Item().Row(row =>
                     {
-                        t.Span("Reçu de : ").SemiBold();
-                        t.Span(data.MemberName);
+                        row.RelativeItem().Text(t =>
+                        {
+                            t.Span("Reçu de : ").SemiBold();
+                            t.Span(data.MemberName);
+                        });
+                        row.RelativeItem().AlignRight().Text(t =>
+                        {
+                            t.Span("Année scoute : ").SemiBold();
+                            t.Span(data.ScoutYear);
+                        });
                     });
 
-                    col.Item().Text(t =>
-                    {
-                        t.Span("Année scoute : ").SemiBold();
-                        t.Span(data.SchoolYear);
-                    });
-
+                    // Payment table
                     col.Item().PaddingTop(10).Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
-                            columns.RelativeColumn(3);
-                            columns.RelativeColumn(1);
-                            columns.RelativeColumn(1);
+                            columns.RelativeColumn(4); // Description
+                            columns.RelativeColumn(2); // Montant
+                            columns.RelativeColumn(1); // Devise
+                            columns.RelativeColumn(2); // Mode de paiement
                         });
 
                         // Header
                         table.Header(header =>
                         {
-                            header.Cell().Background(Colors.Grey.Lighten3).Padding(5).Text("Description").SemiBold();
-                            header.Cell().Background(Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Montant").SemiBold();
-                            header.Cell().Background(Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Devise").SemiBold();
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(6).Text("Description").SemiBold();
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(6).AlignRight().Text("Montant").SemiBold();
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(6).AlignCenter().Text("Devise").SemiBold();
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(6).Text("Mode de paiement").SemiBold();
                         });
 
-                        // Row
-                        table.Cell().Padding(5).Text("Cotisation annuelle");
-                        table.Cell().Padding(5).AlignRight().Text(data.AmountPaid.ToString("N2"));
-                        table.Cell().Padding(5).AlignRight().Text(data.Currency);
-                    });
+                        // Payment lines
+                        foreach (var payment in data.Payments)
+                        {
+                            var methodLabel = payment.PaymentMethod switch
+                            {
+                                "Cash" => "Espèces",
+                                "Virement" => "Virement bancaire",
+                                _ => payment.PaymentMethod
+                            };
+                            table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(5).Text("Cotisation annuelle");
+                            table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(5).AlignRight().Text(FormatNumber(payment.Amount));
+                            table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(5).AlignCenter().Text(payment.Currency);
+                            table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(5).Text(methodLabel);
+                        }
 
-                    col.Item().PaddingTop(5).Text(t =>
-                    {
-                        t.Span("Mode de paiement : ").SemiBold();
-                        t.Span(data.PaymentMethod);
+                        // Total row (convert to default currency)
+                        if (data.Payments.Count > 0)
+                        {
+                            var totalInDefault = CalculateTotal(data.Payments, data.DefaultCurrency, data.ExchangeRates);
+
+                            table.Cell().Background(Colors.Grey.Lighten4).Padding(6).Text("Total").Bold();
+                            table.Cell().Background(Colors.Grey.Lighten4).Padding(6).AlignRight().Text(FormatNumber(totalInDefault)).Bold();
+                            table.Cell().Background(Colors.Grey.Lighten4).Padding(6).AlignCenter().Text(data.DefaultCurrency).Bold();
+                            table.Cell().Background(Colors.Grey.Lighten4).Padding(6).Text("");
+                        }
                     });
 
                     if (!string.IsNullOrWhiteSpace(data.Notes))
                     {
-                        col.Item().PaddingTop(5).Text(t =>
+                        col.Item().PaddingTop(8).Text(t =>
                         {
                             t.Span("Notes : ").SemiBold();
                             t.Span(data.Notes);
@@ -98,15 +129,43 @@ public class ReceiptService : IReceiptService
                 page.Footer().Column(col =>
                 {
                     col.Item().LineHorizontal(1);
-                    col.Item().PaddingTop(10).Row(row =>
+                    col.Item().PaddingTop(8).Row(row =>
                     {
-                        row.RelativeItem().Text("Signature : ____________________").FontSize(10);
-                        row.RelativeItem().AlignRight().Text($"Généré le {DateTime.Now:dd/MM/yyyy}").FontSize(9).Italic();
+                        row.RelativeItem().Text("Signature : ____________________").FontSize(9);
+                        row.RelativeItem().AlignRight().Text($"Généré le {DateTime.Now:dd/MM/yyyy}").FontSize(8).Italic();
                     });
                 });
             });
         });
 
         return document.GeneratePdf();
+    }
+
+    private static decimal CalculateTotal(List<ReceiptPaymentLine> payments, string defaultCurrency, Dictionary<string, decimal> rates)
+    {
+        decimal total = 0;
+        foreach (var p in payments)
+        {
+            if (p.Currency == defaultCurrency)
+            {
+                total += p.Amount;
+            }
+            else if (rates.TryGetValue(p.Currency, out var rate) && rate > 0)
+            {
+                // rate = how many units of this currency per 1 default currency
+                total += p.Amount / rate;
+            }
+            else
+            {
+                // No rate available — skip conversion, just add as-is (best effort)
+                total += p.Amount;
+            }
+        }
+        return Math.Round(total, 2);
+    }
+
+    private static string FormatNumber(decimal amount)
+    {
+        return amount.ToString("N2");
     }
 }

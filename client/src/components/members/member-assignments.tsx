@@ -19,6 +19,7 @@ import { toast } from 'sonner'
 interface MemberAssignmentsProps {
   memberId: string
   memberName: string
+  readOnly?: boolean
 }
 
 function formatDate(d: string) {
@@ -41,7 +42,7 @@ function durationLabel(start: string, end: string | null) {
   return `${years} an${years > 1 ? 's' : ''} et ${rem} mois`
 }
 
-export function MemberAssignments({ memberId, memberName }: MemberAssignmentsProps) {
+export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssignmentsProps) {
   const { data } = useAssignments({ memberId, pageSize: 100 })
   const { data: units } = useUnits({ pageSize: 100 })
   const { data: roles } = useFunctionalRoles()
@@ -125,7 +126,7 @@ export function MemberAssignments({ memberId, memberName }: MemberAssignmentsPro
               <Building2 className="h-4 w-4" />
               Postes actuels
             </CardTitle>
-            <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>
+            {!readOnly && <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>}
           </div>
         </CardHeader>
         <CardContent>
@@ -147,17 +148,19 @@ export function MemberAssignments({ memberId, memberName }: MemberAssignmentsPro
                     </p>
                     {a.notes && <p className="text-sm text-muted-foreground mt-1 italic">{a.notes}</p>}
                   </div>
-                  <div className="flex gap-1 shrink-0">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Modifier" onClick={() => openEdit(a)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Désactiver" onClick={async () => { try { await endMutation.mutateAsync({ id: a.id, endDate: new Date().toISOString().split('T')[0] }); toast.success('Affectation terminée') } catch { /* handled by query refresh */ } }}>
-                      <StopCircle className="h-4 w-4 text-orange-500" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleting(a)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
+                  {!readOnly && (
+                    <div className="flex gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Modifier" onClick={() => openEdit(a)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Désactiver" onClick={async () => { try { await endMutation.mutateAsync({ id: a.id, endDate: new Date().toISOString().split('T')[0] }); toast.success('Affectation terminée') } catch { /* handled by query refresh */ } }}>
+                        <StopCircle className="h-4 w-4 text-orange-500" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleting(a)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -196,14 +199,16 @@ export function MemberAssignments({ memberId, memberName }: MemberAssignmentsPro
                           </p>
                           {a.notes && <p className="text-xs text-muted-foreground mt-0.5 italic">{a.notes}</p>}
                         </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 shrink-0">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(a)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(a)}>
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
-                        </div>
+                        {!readOnly && (
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 shrink-0">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(a)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(a)}>
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

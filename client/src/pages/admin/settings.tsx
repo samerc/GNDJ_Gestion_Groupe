@@ -172,7 +172,7 @@ export default function SettingsPage() {
     }
   }
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading) return <LoadingSpinner variant="form" />
 
   const grouped = (settings ?? []).reduce<Record<string, SettingDto[]>>((acc, s) => {
     if (!acc[s.category]) acc[s.category] = []

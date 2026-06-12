@@ -16,6 +16,7 @@ using GNDJ.Application.Members.Queries;
 using GNDJ.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Api.Controllers;
 
@@ -32,10 +33,10 @@ public class MembersController : BaseApiController
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search, [FromQuery] Guid? unitId, [FromQuery] Guid? teamId,
-        [FromQuery] bool? noUnit, [FromQuery] string? sortBy, [FromQuery] string? sortDir,
+        [FromQuery] bool? noUnit, [FromQuery] bool? alumni, [FromQuery] string? sortBy, [FromQuery] string? sortDir,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        var result = await Mediator.Send(new GetMembersQuery(search, unitId, teamId, noUnit, sortBy, sortDir, page, pageSize));
+        var result = await Mediator.Send(new GetMembersQuery(search, unitId, teamId, noUnit, alumni, sortBy, sortDir, page, pageSize));
         return Ok(result);
     }
 
@@ -175,10 +176,20 @@ public class MembersController : BaseApiController
     [HttpPost("{memberId:guid}/photo")]
     [HasPermission(Permissions.MembersEdit)]
     [RequestSizeLimit(5 * 1024 * 1024)] // 5MB
-    public async Task<IActionResult> UploadPhoto(Guid memberId, IFormFile file)
+    public async Task<IActionResult> UploadPhoto(Guid memberId, IFormFile file, [FromServices] ICurrentUserService currentUser)
     {
         if (file is null || file.Length == 0)
             return BadRequest(new { error = "Aucun fichier n'a été fourni." });
+
+        // Authorization: super admin, the member themselves, or a leader of the member's unit.
+        if (!currentUser.IsSuperAdmin && currentUser.MemberId != memberId)
+        {
+            var authorizedUnitIds = currentUser.AuthorizedUnitIds;
+            var hasAccess = await _context.MemberAssignments.AnyAsync(a =>
+                a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId));
+            if (!hasAccess)
+                return BadRequest(new { error = "Accès non autorisé à ce membre." });
+        }
 
         var ext = Path.GetExtension(file.FileName).TrimStart('.').ToLower();
         if (ext is not "jpg" and not "jpeg" and not "png")
@@ -187,12 +198,18 @@ public class MembersController : BaseApiController
         // MIME magic number validation
         using var headerStream = file.OpenReadStream();
         var header = new byte[4];
-        await headerStream.ReadAsync(header.AsMemory(0, 4));
+        var bytesRead = 0;
+        while (bytesRead < 4)
+        {
+            var read = await headerStream.ReadAsync(header.AsMemory(bytesRead, 4 - bytesRead));
+            if (read == 0) break;
+            bytesRead += read;
+        }
         headerStream.Position = 0;
         var isValid = ext switch
         {
-            "jpg" or "jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
-            "png" => header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47,
+            "jpg" or "jpeg" => bytesRead >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+            "png" => bytesRead >= 4 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47,
             _ => false
         };
         if (!isValid)

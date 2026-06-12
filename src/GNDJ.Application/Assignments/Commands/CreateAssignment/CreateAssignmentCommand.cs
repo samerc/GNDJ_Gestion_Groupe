@@ -30,15 +30,22 @@ public class CreateAssignmentCommandHandler : IRequestHandler<CreateAssignmentCo
 {
     private readonly IApplicationDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUser;
 
-    public CreateAssignmentCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    public CreateAssignmentCommandHandler(IApplicationDbContext context, IAuditService auditService, ICurrentUserService currentUser)
     {
         _context = context;
         _auditService = auditService;
+        _currentUser = currentUser;
     }
 
     public async ValueTask<Result<Guid>> Handle(CreateAssignmentCommand request, CancellationToken cancellationToken)
     {
+        // Authorization: only super admin or a leader of the target unit may create assignments there.
+        // Prevents privilege escalation (assigning oneself a role in an unauthorized unit).
+        if (!_currentUser.IsSuperAdmin && !_currentUser.AuthorizedUnitIds.Contains(request.UnitId))
+            return Result<Guid>.Failure("Accès non autorisé à cette unité.");
+
         // Validate FK references exist
         var memberExists = await _context.Members.AnyAsync(m => m.Id == request.MemberId, cancellationToken);
         if (!memberExists)

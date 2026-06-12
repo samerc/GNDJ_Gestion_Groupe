@@ -39,17 +39,17 @@ import {
 import { toast } from 'sonner'
 
 export default function PassageValidationPage() {
-  const passageSchoolYear = useSettingValue('passage.school_year') ?? '2026-2027'
-  const [schoolYear, setSchoolYear] = useState('2026-2027')
+  const passageScoutYear = useSettingValue('passage.scout_year') ?? '2026-2027'
+  const [scoutYear, setScoutYear] = useState('2026-2027')
   const [statusFilter, setStatusFilter] = useState<string>('Pending')
 
-  useEffect(() => { setSchoolYear(passageSchoolYear) }, [passageSchoolYear])
+  useEffect(() => { setScoutYear(passageScoutYear) }, [passageScoutYear])
   const [unitFilter, setUnitFilter] = useState<string>('_all')
 
-  const { data: passageStatus, isLoading: statusLoading } = usePassageStatus(schoolYear)
-  const { data: summary, isLoading: summaryLoading } = usePassageSummary(schoolYear)
+  const { data: passageStatus, isLoading: statusLoading } = usePassageStatus(scoutYear)
+  const { data: summary, isLoading: summaryLoading } = usePassageSummary(scoutYear)
   const { data: passages, isLoading: passagesLoading } = useAllPassages(
-    schoolYear,
+    scoutYear,
     statusFilter === '_all' ? undefined : statusFilter,
     unitFilter === '_all' ? undefined : unitFilter,
   )
@@ -83,7 +83,7 @@ export default function PassageValidationPage() {
   const handleToggle = async () => {
     try {
       const newEnabled = !passageStatus?.isOpen
-      await toggleMutation.mutateAsync({ enabled: newEnabled, schoolYear })
+      await toggleMutation.mutateAsync({ enabled: newEnabled, scoutYear })
       toast.success(newEnabled ? 'Passage ouvert' : 'Passage ferme')
     } catch (err) {
       toast.error(parseApiError(err))
@@ -189,7 +189,7 @@ export default function PassageValidationPage() {
   const handleFinalize = async () => {
     try {
       const result = await finalizeMutation.mutateAsync({
-        schoolYear,
+        scoutYear,
         unitId: unitFilter === '_all' ? null : unitFilter,
       })
       toast.success(`${result.count} affectation(s) creee(s)`)
@@ -211,15 +211,15 @@ export default function PassageValidationPage() {
     }
   }
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold">Validation des passages — {schoolYear}</h1>
+        <h1 className="text-2xl font-bold">Validation des passages — {scoutYear}</h1>
         <div className="flex items-center gap-3">
-          <Select value={schoolYear} onValueChange={setSchoolYear}>
+          <Select value={scoutYear} onValueChange={setScoutYear}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
               {['2026-2027', '2025-2026', '2024-2025'].map(y => (

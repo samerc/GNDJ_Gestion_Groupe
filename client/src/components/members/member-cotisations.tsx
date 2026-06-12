@@ -1,7 +1,7 @@
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { useState } from 'react'
-import { useMemberCotisations, useCreateCotisation, useUpdateCotisation, useDeleteCotisation, downloadReceipt, type MemberCotisationDto, type CotisationFormData } from '@/services/cotisation-service'
+import { useMemberCotisations, useCreateCotisation, useUpdateCotisation, useDeleteCotisation, downloadReceipt, type MemberCotisationDto, type PaymentLineInput } from '@/services/cotisation-service'
 import { useSettingValue } from '@/services/settings-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
@@ -42,7 +42,7 @@ export function MemberCotisations({ memberId, memberName }: Props) {
   const { hasPermission } = useAuthStore()
   const { data: cotisations, isLoading } = useMemberCotisations(memberId)
   const defaultAmount = useSettingValue('cotisation.default_amount')
-  const currentSchoolYear = useSettingValue('cotisation.current_school_year')
+  const currentScoutYear = useSettingValue('cotisation.current_scout_year')
   const createMutation = useCreateCotisation(memberId)
   const updateMutation = useUpdateCotisation(memberId)
   const deleteMutation = useDeleteCotisation(memberId)
@@ -52,56 +52,66 @@ export function MemberCotisations({ memberId, memberName }: Props) {
   const [deleting, setDeleting] = useState<MemberCotisationDto | null>(null)
   const [error, setError] = useState('')
 
-  const defaultForm: CotisationFormData = {
-    memberId,
-    schoolYear: currentSchoolYear ?? '2025-2026',
-    amountPaid: parseFloat(defaultAmount ?? '100'),
-    currency: 'USD',
-    paymentDate: new Date().toISOString().split('T')[0],
-    paymentMethod: 'Cash',
-    notes: '',
-  }
-
-  const [form, setForm] = useState<CotisationFormData>(defaultForm)
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
+  const [notes, setNotes] = useState('')
+  const [payments, setPayments] = useState<PaymentLineInput[]>([
+    { amount: parseFloat(defaultAmount ?? '100'), currency: 'USD', paymentMethod: 'Cash' }
+  ])
 
   const openCreate = () => {
     setEditing(null)
-    setForm(defaultForm)
+    setPaymentDate(new Date().toISOString().split('T')[0])
+    setNotes('')
+    setPayments([{ amount: parseFloat(defaultAmount ?? '100'), currency: 'USD', paymentMethod: 'Cash' }])
     setError('')
     setFormOpen(true)
   }
 
   const openEdit = (item: MemberCotisationDto) => {
     setEditing(item)
-    setForm({
-      memberId,
-      schoolYear: item.schoolYear,
-      amountPaid: item.amountPaid,
-      currency: item.currency,
-      paymentDate: item.paymentDate,
-      paymentMethod: item.paymentMethod,
-      notes: item.notes ?? '',
-    })
+    setPaymentDate(item.paymentDate)
+    setNotes(item.notes ?? '')
+    setPayments(item.payments.map(p => ({ amount: p.amount, currency: p.currency, paymentMethod: p.paymentMethod })))
     setError('')
     setFormOpen(true)
+  }
+
+  const addPaymentLine = () => {
+    setPayments(prev => [...prev, { amount: 0, currency: 'USD', paymentMethod: 'Cash' }])
+  }
+
+  const removePaymentLine = (idx: number) => {
+    setPayments(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const updatePaymentLine = (idx: number, field: keyof PaymentLineInput, value: string | number) => {
+    setPayments(prev => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    if (payments.length === 0 || payments.some(p => p.amount <= 0)) {
+      setError('Au moins un paiement avec un montant valide est requis.')
+      return
+    }
     try {
       if (editing) {
         await updateMutation.mutateAsync({
           id: editing.id,
-          amountPaid: form.amountPaid,
-          currency: form.currency,
-          paymentDate: form.paymentDate,
-          paymentMethod: form.paymentMethod,
-          notes: form.notes || null,
+          paymentDate,
+          notes: notes || null,
+          payments,
         })
         toast.success('Cotisation modifiée')
       } else {
-        await createMutation.mutateAsync({ ...form, notes: form.notes || null })
+        await createMutation.mutateAsync({
+          memberId,
+          scoutYear: currentScoutYear ?? '2025-2026',
+          paymentDate,
+          notes: notes || null,
+          payments,
+        })
         toast.success('Cotisation enregistrée')
       }
       setFormOpen(false)
@@ -130,7 +140,7 @@ export function MemberCotisations({ memberId, memberName }: Props) {
       const a = document.createElement('a')
       a.href = url
       const namePart = memberName ? `${memberName.replace(/\s+/g, '_')}_` : ''
-      a.download = `Recu_${namePart}${cotisation.schoolYear}_${cotisation.receiptNumber}.pdf`
+      a.download = `Recu_${namePart}${cotisation.scoutYear}_${cotisation.receiptNumber}.pdf`
       a.click()
       window.URL.revokeObjectURL(url)
     } catch (err) {
@@ -165,13 +175,19 @@ export function MemberCotisations({ memberId, memberName }: Props) {
                   <Receipt className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{c.schoolYear}</span>
+                      <span className="font-medium">{c.scoutYear}</span>
                       <Badge variant="outline">{c.receiptNumber}</Badge>
                     </div>
-                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                      <span className="font-semibold text-green-700">{formatAmount(c.amountPaid, c.currency)}</span>
-                      <span className="text-muted-foreground">{PAYMENT_METHOD_OPTIONS.find(o => o.value === c.paymentMethod)?.label ?? c.paymentMethod}</span>
-                      <span className="text-muted-foreground">{new Date(c.paymentDate).toLocaleDateString('fr-FR')}</span>
+                    <div className="mt-1 space-y-0.5">
+                      {c.payments.map((p, i) => (
+                        <div key={i} className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                          <span className="font-semibold text-green-700">{formatAmount(p.amount, p.currency)}</span>
+                          <span className="text-muted-foreground">{PAYMENT_METHOD_OPTIONS.find(o => o.value === p.paymentMethod)?.label ?? p.paymentMethod}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {new Date(c.paymentDate).toLocaleDateString('fr-FR')}
                     </div>
                     {c.notes && <p className="mt-1 text-xs text-muted-foreground">{c.notes}</p>}
                   </div>
@@ -199,49 +215,64 @@ export function MemberCotisations({ memberId, memberName }: Props) {
 
       {/* Create/Edit Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editing ? 'Modifier la cotisation' : 'Nouvelle cotisation'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
-            {!editing && (
-              <div className="space-y-2">
-                <RequiredLabel required>Année scoute</RequiredLabel>
-                <Input value={form.schoolYear} onChange={(e) => setForm(f => ({ ...f, schoolYear: e.target.value }))} placeholder="2025-2026" required />
-              </div>
-            )}
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <RequiredLabel required>Montant</RequiredLabel>
-                <Input type="number" step="0.01" min="0" value={form.amountPaid} onChange={(e) => setForm(f => ({ ...f, amountPaid: parseFloat(e.target.value) || 0 }))} required />
+                <RequiredLabel>Année scoute</RequiredLabel>
+                <Input value={editing?.scoutYear ?? currentScoutYear ?? '2025-2026'} disabled className="bg-muted" />
               </div>
               <div className="space-y-2">
-                <RequiredLabel required>Devise</RequiredLabel>
-                <Select value={form.currency} onValueChange={(v) => setForm(f => ({ ...f, currency: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CURRENCY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <RequiredLabel required>Date de paiement</RequiredLabel>
+                <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} required />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <RequiredLabel required>Date de paiement</RequiredLabel>
-                <Input type="date" value={form.paymentDate} onChange={(e) => setForm(f => ({ ...f, paymentDate: e.target.value }))} required />
+            {/* Payment lines */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <RequiredLabel required>Paiements</RequiredLabel>
+                <Button type="button" variant="outline" size="sm" onClick={addPaymentLine}>
+                  <Plus className="mr-1 h-3 w-3" />Ajouter une ligne
+                </Button>
               </div>
               <div className="space-y-2">
-                <RequiredLabel required>Mode de paiement</RequiredLabel>
-                <Select value={form.paymentMethod} onValueChange={(v) => setForm(f => ({ ...f, paymentMethod: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_METHOD_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                {payments.map((p, idx) => (
+                  <div key={idx} className="flex gap-2 items-end">
+                    <div className="flex-1 space-y-1">
+                      <span className="text-xs text-muted-foreground">Montant</span>
+                      <Input type="number" step="0.01" min="0" value={p.amount} onChange={(e) => updatePaymentLine(idx, 'amount', parseFloat(e.target.value) || 0)} required />
+                    </div>
+                    <div className="w-28 space-y-1">
+                      <span className="text-xs text-muted-foreground">Devise</span>
+                      <Select value={p.currency} onValueChange={(v) => updatePaymentLine(idx, 'currency', v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {CURRENCY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="w-36 space-y-1">
+                      <span className="text-xs text-muted-foreground">Mode</span>
+                      <Select value={p.paymentMethod} onValueChange={(v) => updatePaymentLine(idx, 'paymentMethod', v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_METHOD_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {payments.length > 1 && (
+                      <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => removePaymentLine(idx)}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -249,8 +280,8 @@ export function MemberCotisations({ memberId, memberName }: Props) {
               <RequiredLabel>Notes</RequiredLabel>
               <textarea
                 className="flex min-h-16 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={form.notes ?? ''}
-                onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
               />
             </div>
 

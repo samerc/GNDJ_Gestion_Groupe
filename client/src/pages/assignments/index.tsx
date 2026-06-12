@@ -123,7 +123,7 @@ export default function AssignmentsPage() {
       {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
       {isLoading ? (
-        <LoadingSpinner />
+        <LoadingSpinner variant="table" />
       ) : !data || data.items.length === 0 ? (
         <EmptyState
           icon={ClipboardList}

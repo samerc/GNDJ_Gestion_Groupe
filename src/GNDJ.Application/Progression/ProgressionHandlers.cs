@@ -339,6 +339,16 @@ public class CreateMemberProgressionCommandHandler(IApplicationDbContext context
         if (!currentUser.IsSuperAdmin && !currentUser.AuthorizedUnitIds.Contains(request.UnitId))
             return Result<Guid>.Failure("Accès non autorisé à cette unité.");
 
+        // Verify the member actually belongs to the target unit (prevents writing
+        // progression onto a member from another unit by passing an authorized UnitId).
+        if (!currentUser.IsSuperAdmin)
+        {
+            var memberInUnit = await context.MemberAssignments.AnyAsync(a =>
+                a.MemberId == request.MemberId && a.UnitId == request.UnitId && !a.IsDeleted, ct);
+            if (!memberInUnit)
+                return Result<Guid>.Failure("Ce membre n'appartient pas à cette unité.");
+        }
+
         var stage = await context.ScoutStages.FindAsync([request.ScoutStageId], ct);
         if (stage is null) return Result<Guid>.Failure("Étape introuvable.");
 

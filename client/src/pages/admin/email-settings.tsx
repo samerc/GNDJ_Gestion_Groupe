@@ -35,7 +35,7 @@ const MODULE_VARIABLES: Record<string, { key: string; label: string }[]> = {
   cotisations: [
     { key: 'memberName', label: 'Nom du membre' },
     { key: 'amount', label: 'Montant' },
-    { key: 'schoolYear', label: 'Annee scoute' },
+    { key: 'scoutYear', label: 'Année scoute' },
   ],
   passage: [
     { key: 'memberName', label: 'Nom du membre' },
@@ -170,7 +170,7 @@ function SmtpTab() {
     }
   }
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading) return <LoadingSpinner variant="form" />
 
   return (
     <div className="space-y-4">
@@ -376,7 +376,7 @@ function TemplatesTab() {
 
   const currentVariables = MODULE_VARIABLES[form.module] ?? []
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading) return <LoadingSpinner variant="form" />
 
   return (
     <div className="space-y-4">

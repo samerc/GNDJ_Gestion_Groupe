@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router'
 import { ProtectedRoute } from '@/components/auth/protected-route'
+import { AdminRoute } from '@/components/auth/admin-route'
 import { AppLayout } from '@/components/layout/app-layout'
 import LoginPage from '@/pages/login'
 import DashboardPage from '@/pages/dashboard'
@@ -24,6 +25,10 @@ import ApiKeysPage from '@/pages/admin/api-keys'
 import CustomFieldsPage from '@/pages/admin/custom-fields'
 import CardDesignerPage from '@/pages/admin/card-designer'
 import EmailSettingsPage from '@/pages/admin/email-settings'
+import MyDocumentsPage from '@/pages/my-documents'
+import CotisationDashboardPage from '@/pages/admin/cotisation-dashboard'
+import ReportTemplatesPage from '@/pages/admin/report-templates'
+import ProgressionPathPage from '@/pages/admin/progression-path'
 import ForgotPasswordPage from '@/pages/forgot-password'
 import ResetPasswordPage from '@/pages/reset-password'
 
@@ -39,6 +44,7 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/my-profile" element={<MyProfilePage />} />
+            <Route path="/my-documents" element={<MyDocumentsPage />} />
             <Route path="/units" element={<UnitsPage />} />
             <Route path="/units/:id" element={<UnitDetailPage />} />
             <Route path="/members" element={<MembersPage />} />
@@ -46,20 +52,25 @@ export default function App() {
             <Route path="/unit-documents" element={<UnitDocumentsPage />} />
             <Route path="/passage" element={<PassagePage />} />
             <Route path="/photo-session" element={<PhotoSessionPage />} />
-            <Route path="/admin/associations" element={<AssociationsPage />} />
-            <Route path="/admin/unit-types" element={<UnitTypesPage />} />
-            <Route path="/admin/unit-types/:id" element={<UnitTypeDetailPage />} />
-            <Route path="/admin/roles" element={<RolesPage />} />
-            <Route path="/admin/document-types" element={<DocumentTypesPage />} />
-            <Route path="/admin/progression" element={<ProgressionPage />} />
-            <Route path="/admin/security-profiles" element={<SecurityProfilesPage />} />
-            <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
-            <Route path="/admin/passage-validation" element={<PassageValidationPage />} />
-            <Route path="/admin/api-keys" element={<ApiKeysPage />} />
-            <Route path="/admin/custom-fields" element={<CustomFieldsPage />} />
-            <Route path="/admin/card-designer" element={<CardDesignerPage />} />
-            <Route path="/admin/email-settings" element={<EmailSettingsPage />} />
-            <Route path="/admin/settings" element={<SettingsPage />} />
+            <Route element={<AdminRoute />}>
+              <Route path="/admin/associations" element={<AssociationsPage />} />
+              <Route path="/admin/unit-types" element={<UnitTypesPage />} />
+              <Route path="/admin/unit-types/:id" element={<UnitTypeDetailPage />} />
+              <Route path="/admin/roles" element={<RolesPage />} />
+              <Route path="/admin/document-types" element={<DocumentTypesPage />} />
+              <Route path="/admin/progression" element={<ProgressionPage />} />
+              <Route path="/admin/security-profiles" element={<SecurityProfilesPage />} />
+              <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
+              <Route path="/admin/passage-validation" element={<PassageValidationPage />} />
+              <Route path="/admin/api-keys" element={<ApiKeysPage />} />
+              <Route path="/admin/custom-fields" element={<CustomFieldsPage />} />
+              <Route path="/admin/card-designer" element={<CardDesignerPage />} />
+              <Route path="/admin/email-settings" element={<EmailSettingsPage />} />
+              <Route path="/admin/settings" element={<SettingsPage />} />
+              <Route path="/admin/cotisations" element={<CotisationDashboardPage />} />
+              <Route path="/admin/report-templates" element={<ReportTemplatesPage />} />
+              <Route path="/admin/progression-path" element={<ProgressionPathPage />} />
+            </Route>
           </Route>
         </Route>
 

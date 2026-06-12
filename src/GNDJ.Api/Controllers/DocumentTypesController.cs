@@ -3,6 +3,7 @@ using GNDJ.Api.Authorization;
 using GNDJ.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace GNDJ.Api.Controllers;
 
@@ -29,6 +30,7 @@ public class DocumentTypesController : BaseApiController
 
     [HttpGet("list")]
     [HasPermission(Permissions.DocumentsView)]
+    [OutputCache(PolicyName = "LookupData")]
     public async Task<IActionResult> GetList()
     {
         var result = await Mediator.Send(new GetDocumentTypeListQuery());

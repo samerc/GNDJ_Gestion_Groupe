@@ -104,7 +104,7 @@ export default function AssociationsPage() {
 
       {/* Table */}
       {isLoading ? (
-        <LoadingSpinner />
+        <LoadingSpinner variant="table" />
       ) : !data || data.items.length === 0 ? (
         <EmptyState
           icon={Landmark}
