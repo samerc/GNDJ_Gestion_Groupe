@@ -239,7 +239,14 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] "No change" proposals auto-approved (skip CG review)
 - [x] CG reviews/modifies/approves/rejects (single + bulk)
 - [x] CG finalizes: ends old assignments, creates new ones
-- [x] Auto-renewal: members without passage record get renewed automatically on finalization
+- [x] ~~Auto-renewal of members without a passage record~~ REMOVED (2026-06). Every active member
+      must have an explicit passage line (real proposal or "Pas de changement"). Finalize is now
+      BLOCKED until every active member in scope has a line (completeness gate). No silent org-wide
+      renewal — fixes a footgun where an early per-unit finalize rolled the whole group forward.
+- [x] Finalize serialized via Postgres advisory lock (pg_advisory_xact_lock) inside a transaction +
+      idempotent (only Approved processed, then flipped Finalized) — double-click / two-CG-at-once safe
+- [x] ReviewPassage validates the final team belongs to the final unit
+- [x] Passage summary returns expected vs. missing line counts per unit + overall (CG completeness view)
 - [x] Team cleared on unit transfer (new CU assigns team later)
 - [x] Double-finalize protection (idempotent)
 - [x] UnitType AgeMin/AgeMax fields for age-based hints
@@ -358,6 +365,20 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
       sequential 168ms). NOTE: server has only 2 CPU cores — production should use 4+.
 - [x] Verified: document verification workflow (upload→pending→approve/reject+notes), cross-unit
       review/download/matrix all blocked, file magic-byte validation, IDOR on uploads blocked
+
+### UI Polish Pass (Complete — 2026-06)
+- [x] Typography: Inter Variable (@fontsource-variable/inter), font smoothing + tabular/cv feature settings,
+      tightened heading tracking
+- [x] Design tokens (index.css): soft OKLCH shadow scale (--shadow-2xs…lg) + `.shadow-card`/`.shadow-elevated`
+      utilities, refined thin custom scrollbars, selection color, full-height root
+- [x] Primitives polished: Card (rounded-xl + soft elevation), Button (depth on solid variants + active press),
+      Input (refined focus ring), Table (uppercase muted header on tinted bg), Dialog (blurred overlay + soft shadow)
+- [x] Shell: sidebar brand mark (gradient Compass tile + wordmark/subtitle), active-nav teal accent bar +
+      highlighted item + colored icon, refined section labels; sticky blurred header with gradient avatar
+- [x] Login redesigned: gradient backdrop with glow, brand mark, elevated card, footer
+- [x] Dashboard: header subtitle, rounded-xl stat icon tiles, rounded chart bars
+- [x] Branding: page title "GNDJ Scout — Gestion de Groupe", lang=fr, theme-color, custom navy fleur-de-lis favicon
+- [x] Verified visually via headless Edge screenshots (login, dashboard, members, passage) — builds clean, tsc 0 errors
 
 ### Remaining / Next
 - [ ] **Option 1 (DECIDED, not yet built):** keep all imported members incl. inactive, but make counts

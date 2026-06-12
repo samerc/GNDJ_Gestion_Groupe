@@ -33,10 +33,10 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md shadow-elevated">
       <CardHeader>
         <CardTitle className="text-2xl">Connexion</CardTitle>
-        <CardDescription>Entrez vos identifiants pour accéder au système.</CardDescription>
+        <CardDescription>Entrez vos identifiants pour accéder à votre espace.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">

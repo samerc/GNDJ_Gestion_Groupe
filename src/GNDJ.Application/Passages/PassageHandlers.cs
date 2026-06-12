@@ -24,10 +24,14 @@ public record PassageDto(
 
 public record PassageSummaryDto(
     string ScoutYear, int TotalMembers, int Pending, int Approved, int Rejected, int Finalized,
+    int ExpectedMembers, int MissingLines,
     IReadOnlyList<PassageUnitSummaryDto> UnitSummaries
 );
 
-public record PassageUnitSummaryDto(string UnitCode, string UnitName, int Total, int Pending, int Approved, int Rejected, int Finalized);
+public record PassageUnitSummaryDto(
+    Guid UnitId, string UnitCode, string UnitName,
+    int Total, int Pending, int Approved, int Rejected, int Finalized,
+    int ExpectedMembers, int MissingLines);
 
 // Helper
 static class PassageAccessHelper
@@ -162,18 +166,51 @@ public class GetPassageSummaryQueryHandler(IApplicationDbContext context, ICurre
             .Include(p => p.CurrentUnit)
             .ToListAsync(ct);
 
-        var unitSummaries = passages
-            .GroupBy(p => new { p.CurrentUnitId, p.CurrentUnit.Code, p.CurrentUnit.Name })
-            .Select(g => new PassageUnitSummaryDto(
-                g.Key.Code, g.Key.Name,
-                g.Count(),
-                g.Count(p => p.Status == PassageStatus.Pending),
-                g.Count(p => p.Status == PassageStatus.Approved),
-                g.Count(p => p.Status == PassageStatus.Rejected),
-                g.Count(p => p.Status == PassageStatus.Finalized)
-            ))
+        // Every active member is expected to have a passage line. "Expected" / "missing" let the CG
+        // see (and the finalize gate enforce) that the process is complete before finalizing.
+        var activeAssignments = await context.MemberAssignments
+            .Where(a => a.EndDate == null)
+            .Select(a => new { a.MemberId, a.UnitId, a.Unit.Code, a.Unit.Name })
+            .ToListAsync(ct);
+
+        // memberId set that already has a line, per unit (keyed by the member's active unit)
+        var lineMembersByUnit = passages
+            .GroupBy(p => p.CurrentUnitId)
+            .ToDictionary(g => g.Key, g => g.Select(p => p.MemberId).ToHashSet());
+
+        var passagesByUnit = passages.GroupBy(p => p.CurrentUnitId).ToDictionary(g => g.Key, g => g.ToList());
+
+        // Union of units that have active members and/or passages
+        var unitInfos = activeAssignments
+            .Select(a => (a.UnitId, a.Code, a.Name))
+            .Concat(passages.Select(p => (p.CurrentUnitId, p.CurrentUnit.Code, p.CurrentUnit.Name)))
+            .Distinct()
+            .ToList();
+
+        var unitSummaries = unitInfos
+            .Select(u =>
+            {
+                var unitPassages = passagesByUnit.GetValueOrDefault(u.Item1) ?? new List<Passage>();
+                var lineMembers = lineMembersByUnit.GetValueOrDefault(u.Item1) ?? new HashSet<Guid>();
+                var activeMemberIds = activeAssignments.Where(a => a.UnitId == u.Item1).Select(a => a.MemberId).Distinct().ToList();
+                var expected = activeMemberIds.Count;
+                var missing = activeMemberIds.Count(mid => !lineMembers.Contains(mid));
+                return new PassageUnitSummaryDto(
+                    u.Item1, u.Item2, u.Item3,
+                    unitPassages.Count,
+                    unitPassages.Count(p => p.Status == PassageStatus.Pending),
+                    unitPassages.Count(p => p.Status == PassageStatus.Approved),
+                    unitPassages.Count(p => p.Status == PassageStatus.Rejected),
+                    unitPassages.Count(p => p.Status == PassageStatus.Finalized),
+                    expected, missing
+                );
+            })
             .OrderBy(u => u.UnitCode)
             .ToList();
+
+        var allActiveMemberIds = activeAssignments.Select(a => a.MemberId).Distinct().ToList();
+        var lineMemberIds = passages.Select(p => p.MemberId).ToHashSet();
+        var missingTotal = allActiveMemberIds.Count(mid => !lineMemberIds.Contains(mid));
 
         var summary = new PassageSummaryDto(
             request.ScoutYear,
@@ -182,6 +219,7 @@ public class GetPassageSummaryQueryHandler(IApplicationDbContext context, ICurre
             passages.Count(p => p.Status == PassageStatus.Approved),
             passages.Count(p => p.Status == PassageStatus.Rejected),
             passages.Count(p => p.Status == PassageStatus.Finalized),
+            allActiveMemberIds.Count, missingTotal,
             unitSummaries
         );
 
@@ -527,6 +565,15 @@ public class ReviewPassageCommandHandler(IApplicationDbContext context, ICurrent
             var finalRoleExists = await context.FunctionalRoles.AnyAsync(r => r.Id == passage.FinalRoleId, ct);
             if (!finalRoleExists)
                 return Result<bool>.Failure("Le rôle final est introuvable.");
+
+            // If a final team is set, it must belong to the final unit (otherwise finalize would
+            // create an assignment whose team is in a different unit, or fail the team FK).
+            if (passage.FinalTeamId.HasValue)
+            {
+                var finalTeamOk = await context.Teams.AnyAsync(t => t.Id == passage.FinalTeamId.Value && t.UnitId == passage.FinalUnitId, ct);
+                if (!finalTeamOk)
+                    return Result<bool>.Failure("L'équipe finale n'appartient pas à l'unité finale.");
+            }
         }
 
         await context.SaveChangesAsync(ct);
@@ -599,6 +646,30 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
         if (!currentUser.IsSuperAdmin)
             return Result<int>.Failure("Accès réservé aux super administrateurs.");
 
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Serialize finalize: a transaction-scoped advisory lock means a second concurrent finalize
+        // (double-click, or two CG users at once) blocks until the first commits, then finds the
+        // passages already Finalized and does nothing — so no duplicate assignments can be created.
+        await using var tx = await context.BeginTransactionAsync(ct);
+        await context.AcquireAdvisoryLockAsync(917320250, ct);
+
+        // Completeness gate: every active member in scope must have a passage line before finalizing.
+        // (The CU creates one for each member — a real change or the "Pas de changement" button.)
+        var activeMemberIdsQuery = context.MemberAssignments.Where(a => a.EndDate == null);
+        if (request.UnitId.HasValue)
+            activeMemberIdsQuery = activeMemberIdsQuery.Where(a => a.UnitId == request.UnitId.Value);
+        var activeMemberIds = await activeMemberIdsQuery.Select(a => a.MemberId).Distinct().ToListAsync(ct);
+
+        var lineMemberIdsQuery = context.Passages.Where(p => p.ScoutYear == request.ScoutYear);
+        if (request.UnitId.HasValue)
+            lineMemberIdsQuery = lineMemberIdsQuery.Where(p => p.CurrentUnitId == request.UnitId.Value);
+        var lineMemberIds = (await lineMemberIdsQuery.Select(p => p.MemberId).ToListAsync(ct)).ToHashSet();
+
+        var missing = activeMemberIds.Count(mid => !lineMemberIds.Contains(mid));
+        if (missing > 0)
+            return Result<int>.Failure($"Le passage est incomplet : {missing} membre(s) actif(s) sans ligne de passage. Chaque membre doit avoir une décision (proposition ou « Pas de changement ») avant la finalisation.");
+
         var query = context.Passages
             .Where(p => p.ScoutYear == request.ScoutYear && p.Status == PassageStatus.Approved);
 
@@ -608,7 +679,6 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
         var passages = await query.ToListAsync(ct);
 
         int count = 0;
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         foreach (var passage in passages)
         {
@@ -649,50 +719,10 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
             count++;
         }
 
-        // Auto-renew: members with active assignments but NO passage record get renewed (same unit/team/role)
-        // Exclude members who already have a passage record OR already got a renewal for this year
-        var passageMemberIds = await context.Passages
-            .Where(p => p.ScoutYear == request.ScoutYear)
-            .Select(p => p.MemberId)
-            .ToListAsync(ct);
-
-        var passageNote = $"Passage {request.ScoutYear}";
-        var alreadyRenewedIds = await context.MemberAssignments
-            .Where(a => a.Notes != null && a.Notes.StartsWith(passageNote))
-            .Select(a => a.MemberId)
-            .Distinct()
-            .ToListAsync(ct);
-
-        var excludeIds = passageMemberIds.Union(alreadyRenewedIds).ToList();
-
-        var renewQuery = context.MemberAssignments
-            .Where(a => a.EndDate == null && !excludeIds.Contains(a.MemberId));
-
-        if (request.UnitId.HasValue)
-            renewQuery = renewQuery.Where(a => a.UnitId == request.UnitId.Value);
-
-        var toRenew = await renewQuery.ToListAsync(ct);
-
-        foreach (var assignment in toRenew)
-        {
-            assignment.EndDate = today;
-
-            var renewed = new MemberAssignment
-            {
-                MemberId = assignment.MemberId,
-                UnitId = assignment.UnitId,
-                TeamId = assignment.TeamId,
-                FunctionalRoleId = assignment.FunctionalRoleId,
-                StartDate = today,
-                Notes = $"Passage {request.ScoutYear} — renouvellement automatique"
-            };
-            context.MemberAssignments.Add(renewed);
-            count++;
-        }
-
         await context.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         await auditService.LogAsync("Finalize", "Passage", null,
-            newValues: new { Count = count, Renewed = toRenew.Count, request.ScoutYear, request.UnitId },
+            newValues: new { Count = count, request.ScoutYear, request.UnitId },
             cancellationToken: ct);
 
         return Result<int>.Success(count);

@@ -17,8 +17,8 @@ function ChartBar({ value, max, color, label, suffix }: { value: number; max: nu
     <div className="group flex items-center gap-3 py-1">
       <span className="w-16 text-xs font-medium text-right shrink-0">{label}</span>
       <div className="flex-1 relative">
-        <div className="h-7 bg-muted/50 rounded" />
-        <div className={`absolute inset-y-0 left-0 rounded ${color} transition-all duration-500 ease-out flex items-center`} style={{ width: `${Math.max(pct, 2)}%` }}>
+        <div className="h-7 bg-muted/50 rounded-md" />
+        <div className={`absolute inset-y-0 left-0 rounded-md ${color} transition-all duration-500 ease-out flex items-center`} style={{ width: `${Math.max(pct, 2)}%` }}>
           {pct > 20 && <span className="text-white text-xs font-semibold ml-2">{value}</span>}
         </div>
         {pct <= 20 && <span className="absolute left-[calc(max(2%,var(--w))+8px)] top-1/2 -translate-y-1/2 text-xs font-medium" style={{ '--w': `${pct}%` } as React.CSSProperties}>{value}</span>}
@@ -46,8 +46,11 @@ function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Tableau de bord</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Tableau de bord</h1>
+          <p className="text-sm text-muted-foreground">Vue d'ensemble du groupe — année {scoutYear}</p>
+        </div>
         <Select value={scoutYear} onValueChange={setScoutYear}>
           <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -62,7 +65,7 @@ function AdminDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
               <Users className="h-5 w-5" />
             </div>
             <div>
@@ -73,7 +76,7 @@ function AdminDashboard() {
         </Card>
         <Card>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
               <UserCheck className="h-5 w-5" />
             </div>
             <div className="flex items-baseline gap-3">
@@ -100,7 +103,7 @@ function AdminDashboard() {
         </Card>
         <Card className={data.missingDocuments > 0 ? 'border-orange-200' : ''}>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${data.missingDocuments > 0 ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.missingDocuments > 0 ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
               <FileX className="h-5 w-5" />
             </div>
             <div>
@@ -111,7 +114,7 @@ function AdminDashboard() {
         </Card>
         <Card className={data.unpaidCotisations > 0 ? 'border-red-200' : ''}>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${data.unpaidCotisations > 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.unpaidCotisations > 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
               <Receipt className="h-5 w-5" />
             </div>
             <div>

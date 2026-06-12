@@ -192,7 +192,8 @@ export default function PassageValidationPage() {
         scoutYear,
         unitId: unitFilter === '_all' ? null : unitFilter,
       })
-      toast.success(`${result.count} affectation(s) creee(s)`)
+      if (result.count > 0) toast.success(`${result.count} passage(s) finalise(s)`)
+      else toast.info('Aucun passage approuve a finaliser (deja finalise ?)')
       setFinalizeDialog(false)
     } catch (err) {
       toast.error(parseApiError(err))
@@ -201,6 +202,12 @@ export default function PassageValidationPage() {
   }
 
   const approvedCount = summary?.approved ?? 0
+  const pendingCount = summary?.pending ?? 0
+  // Members (in the current scope) still missing a passage line — finalize is blocked until 0.
+  const missingInScope = unitFilter === '_all'
+    ? (summary?.missingLines ?? 0)
+    : (summary?.unitSummaries.find(u => u.unitId === unitFilter)?.missingLines ?? 0)
+  const canFinalize = approvedCount > 0 && missingInScope === 0
 
   const statusBadge = (status: string) => {
     switch (status) {
@@ -436,14 +443,32 @@ export default function PassageValidationPage() {
       )}
 
       {/* Finalize section */}
-      {approvedCount > 0 && (
-        <div className="flex justify-end pt-4">
-          <Button size="lg" onClick={() => setFinalizeDialog(true)} disabled={finalizeMutation.isPending}>
+      <div className="flex flex-col items-end gap-2 pt-4">
+        {missingInScope > 0 && (
+          <div className="w-full rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+            <strong>{missingInScope} membre(s) actif(s) sans ligne de passage</strong>
+            {unitFilter === '_all' ? ' (toutes unités)' : ' dans cette unité'}.
+            {' '}Le passage ne peut pas être finalisé tant que chaque membre n'a pas une décision
+            (proposition ou « Pas de changement »).
+          </div>
+        )}
+        {missingInScope === 0 && pendingCount > 0 && unitFilter === '_all' && (
+          <div className="w-full rounded-md border border-amber-200 bg-amber-50/60 p-3 text-sm text-amber-700">
+            {pendingCount} proposition(s) en attente de revue. La finalisation ne traitera que les passages approuvés.
+          </div>
+        )}
+        {approvedCount > 0 && (
+          <Button
+            size="lg"
+            onClick={() => setFinalizeDialog(true)}
+            disabled={!canFinalize || finalizeMutation.isPending}
+            title={missingInScope > 0 ? 'Tous les membres doivent avoir une ligne de passage' : undefined}
+          >
             <CheckCircle2 className="mr-2 h-5 w-5" />
-            Finaliser les passages
+            {finalizeMutation.isPending ? 'Finalisation en cours...' : 'Finaliser les passages'}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Edit Dialog */}
       <Dialog open={!!editDialog} onOpenChange={() => setEditDialog(null)}>
@@ -497,7 +522,7 @@ export default function PassageValidationPage() {
               <Input
                 value={editCgNotes}
                 onChange={e => setEditCgNotes(e.target.value)}
-                placeholder="Notes du commissaire general..."
+                placeholder="Notes du chef de groupe..."
               />
             </div>
           </div>
@@ -515,7 +540,10 @@ export default function PassageValidationPage() {
         open={finalizeDialog}
         onOpenChange={setFinalizeDialog}
         title="Finaliser les passages"
-        description={`Ceci va creer ${approvedCount} nouvelle(s) affectation(s) et cloturer les affectations actuelles. Continuer ?`}
+        description={
+          `Ceci va finaliser ${approvedCount} passage(s) approuve(s) ${unitFilter === '_all' ? '(toutes unites)' : 'de cette unite'} : ` +
+          `les affectations actuelles seront cloturees et les nouvelles creees. Cette action est definitive. Continuer ?`
+        }
         confirmLabel="Finaliser"
         loading={finalizeMutation.isPending}
         onConfirm={handleFinalize}

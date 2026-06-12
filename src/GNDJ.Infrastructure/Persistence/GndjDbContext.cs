@@ -65,4 +65,12 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     {
         modelBuilder.Entity<T>().HasQueryFilter(e => !e.IsDeleted);
     }
+
+    public Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        => Database.BeginTransactionAsync(cancellationToken);
+
+    // Postgres transaction-scoped advisory lock; auto-released on commit/rollback. Must be called
+    // inside an open transaction to serialize the caller against other holders of the same key.
+    public Task AcquireAdvisoryLockAsync(long key, CancellationToken cancellationToken = default)
+        => Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock({0})", new object[] { key }, cancellationToken);
 }

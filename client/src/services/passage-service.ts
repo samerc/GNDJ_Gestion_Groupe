@@ -32,13 +32,29 @@ export interface PassageDto {
   createdAt: string
 }
 
+export interface PassageUnitSummary {
+  unitId: string
+  unitCode: string
+  unitName: string
+  total: number
+  pending: number
+  approved: number
+  rejected: number
+  finalized: number
+  expectedMembers: number
+  missingLines: number
+}
+
 export interface PassageSummaryDto {
   scoutYear: string
   totalMembers: number
   pending: number
   approved: number
   rejected: number
-  unitSummaries: { unitCode: string; unitName: string; total: number; pending: number; approved: number; rejected: number }[]
+  finalized: number
+  expectedMembers: number
+  missingLines: number
+  unitSummaries: PassageUnitSummary[]
 }
 
 export interface PassageStatusDto {

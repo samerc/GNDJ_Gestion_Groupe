@@ -31,3 +31,11 @@ pgdata/
 
 # Uploads
 uploads/
+
+# Migration source data — contains real member PII, never commit
+reinscriptions/
+# Application logs (may contain PII / IPs)
+logs/
+*.log
+# scratch
+read-xlsx.csx

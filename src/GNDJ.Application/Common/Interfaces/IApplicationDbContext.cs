@@ -1,5 +1,6 @@
 using GNDJ.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace GNDJ.Application.Common.Interfaces;
 
@@ -42,4 +43,9 @@ public interface IApplicationDbContext
     DbSet<UnitTypeProgression> UnitTypeProgressions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    // For handlers needing explicit serialization (e.g. passage finalize). Implemented in Infrastructure
+    // so the relational/raw-SQL dependency stays out of the Application layer.
+    Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
+    Task AcquireAdvisoryLockAsync(long key, CancellationToken cancellationToken = default);
 }

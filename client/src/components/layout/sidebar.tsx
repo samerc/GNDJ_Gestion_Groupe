@@ -26,8 +26,22 @@ import {
   X,
   Receipt,
   Route,
+  Compass,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+
+function BrandMark({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-center rounded-lg bg-gradient-to-br from-sidebar-primary to-accent text-white shadow-sm ring-1 ring-white/10',
+        className
+      )}
+    >
+      <Compass className="h-[55%] w-[55%]" strokeWidth={2.2} />
+    </div>
+  )
+}
 
 // Admin/super admin nav
 const adminNavItems = [
@@ -109,14 +123,14 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
         to={item.path}
         onClick={onNavigate}
         className={cn(
-          'group/nav relative flex items-center rounded-md text-sm font-medium transition-colors',
+          'group/nav relative flex items-center rounded-md text-sm transition-all duration-150',
           collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2',
           isActive
-            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+            ? 'bg-sidebar-accent font-semibold text-white shadow-sm before:absolute before:left-0 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-r-full before:bg-accent before:content-[""]'
+            : 'font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-white'
         )}
       >
-        <Icon className="h-4 w-4 shrink-0" />
+        <Icon className={cn('h-4 w-4 shrink-0 transition-colors', isActive ? 'text-accent' : 'text-sidebar-foreground/60 group-hover/nav:text-white')} />
         {!collapsed && <span>{item.label}</span>}
         {collapsed && (
           <span className="pointer-events-none absolute left-full ml-2 rounded-md bg-foreground px-2 py-1 text-xs text-background opacity-0 shadow-md transition-opacity group-hover/nav:opacity-100 whitespace-nowrap z-50">
@@ -134,7 +148,7 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
       {visibleAdminGroups.map((group) => (
         <div key={group.label}>
           {!collapsed ? (
-            <div className="pt-4 pb-2 px-3 text-xs font-semibold uppercase text-sidebar-foreground/50">
+            <div className="pt-5 pb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-sidebar-foreground/45">
               {group.label}
             </div>
           ) : (
@@ -162,10 +176,16 @@ export function Sidebar() {
       {/* Logo */}
       <div className={cn(
         'flex h-16 items-center border-b border-sidebar-border',
-        collapsed ? 'justify-center px-2' : 'px-5'
+        collapsed ? 'justify-center px-2' : 'px-4'
       )}>
-        <Link to="/" className="text-sidebar-foreground font-bold truncate">
-          {collapsed ? 'GS' : 'GNDJ Scout'}
+        <Link to="/" className="flex items-center gap-2.5 overflow-hidden">
+          <BrandMark className="h-9 w-9 shrink-0" />
+          {!collapsed && (
+            <div className="flex flex-col leading-tight">
+              <span className="text-[15px] font-bold tracking-tight text-white">GNDJ Scout</span>
+              <span className="text-[11px] font-medium text-sidebar-foreground/55">Gestion de groupe</span>
+            </div>
+          )}
         </Link>
       </div>
 
@@ -206,8 +226,14 @@ export function MobileSidebar() {
       />
       {/* Drawer */}
       <aside className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-sidebar lg:hidden">
-        <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-5">
-          <span className="text-sidebar-foreground font-bold">GNDJ Scout</span>
+        <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
+          <div className="flex items-center gap-2.5">
+            <BrandMark className="h-9 w-9" />
+            <div className="flex flex-col leading-tight">
+              <span className="text-[15px] font-bold tracking-tight text-white">GNDJ Scout</span>
+              <span className="text-[11px] font-medium text-sidebar-foreground/55">Gestion de groupe</span>
+            </div>
+          </div>
           <Button
             variant="ghost"
             size="icon"

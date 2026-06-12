@@ -58,8 +58,8 @@ export function Header() {
 
   return (
     <>
-      <header className="flex h-16 items-center justify-between border-b bg-card px-4 sm:px-6">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-card/85 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-card/70 sm:px-6">
+        <div className="flex items-center gap-2.5">
           <Button
             variant="ghost"
             size="icon"
@@ -68,16 +68,16 @@ export function Header() {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <span className="text-lg font-bold lg:hidden">GNDJ Scout</span>
+          <span className="text-lg font-bold tracking-tight lg:hidden">GNDJ Scout</span>
         </div>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium">
+            <Button variant="ghost" className="gap-2 pl-1.5 pr-2.5 hover:bg-accent/60">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs font-semibold shadow-sm ring-1 ring-border">
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
               </div>
-              <span className="hidden sm:inline text-sm">
+              <span className="hidden sm:inline text-sm font-medium">
                 {user?.firstName} {user?.lastName}
               </span>
             </Button>
