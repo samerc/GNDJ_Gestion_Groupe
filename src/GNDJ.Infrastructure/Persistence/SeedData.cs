@@ -196,6 +196,13 @@ public static class SeedData
             new() { Key = "passage.scout_year", Value = "2026-2027", Category = "passage", Label = "Année scoute du passage", Description = "Année scoute cible pour le passage en cours", ValueType = "string" },
             new() { Key = "card.config", Value = "{\"orgName\":\"GNDJ Scout\",\"fields\":{\"photo\":true,\"name\":true,\"cardNumber\":true,\"unit\":true,\"team\":true,\"role\":true,\"dateOfBirth\":true,\"bloodType\":true,\"emergencyContact\":true,\"customFields\":true}}", Category = "reports", Label = "Configuration de la carte membre", Description = "Champs affichés sur la carte membre", ValueType = "json" },
             new() { Key = "app.base_url", Value = "http://localhost:5173", Category = "general", Label = "URL de l'application", Description = "URL de base utilisée pour les liens dans les emails (ex: https://app.gndj.org)", ValueType = "string" },
+            new() { Key = "demande.enabled", Value = "false", Category = "demande", Label = "Inscriptions ouvertes", Description = "Ouvre ou ferme le portail public de demande d'inscription", ValueType = "boolean" },
+            new() { Key = "demande.scout_year", Value = "2026-2027", Category = "demande", Label = "Année scoute des inscriptions", Description = "Année scoute cible pour les nouvelles inscriptions", ValueType = "string" },
+            new() { Key = "demande.max_per_account", Value = "5", Category = "demande", Label = "Nombre max de demandes par compte", Description = "Nombre maximum d'enfants qu'un compte peut inscrire", ValueType = "number" },
+            new() { Key = "demande.notes_max_length", Value = "500", Category = "demande", Label = "Longueur max des notes parents", Description = "Nombre maximum de caractères pour les notes des parents", ValueType = "number" },
+            new() { Key = "demande.require_email_verification", Value = "true", Category = "demande", Label = "Vérification email requise", Description = "Exige la vérification de l'email avant de soumettre une demande", ValueType = "boolean" },
+            new() { Key = "demande.decide_siblings_together", Value = "true", Category = "demande", Label = "Décider les fratries ensemble", Description = "Affiche le statut des frères/sœurs lors de la revue", ValueType = "boolean" },
+            new() { Key = "demande.intro_text", Value = "Bienvenue ! Créez un compte pour présenter une demande d'inscription au mouvement scout. Vous pourrez inscrire un ou plusieurs enfants.", Category = "demande", Label = "Texte d'accueil du portail", Description = "Message affiché sur la page d'accueil du portail d'inscription", ValueType = "string" },
         };
 
         var missing = allSettings.Where(s => !existingKeys.Contains(s.Key)).ToList();
@@ -248,6 +255,74 @@ public static class SeedData
             IsActive = true
         });
 
+        await context.SaveChangesAsync();
+    }
+
+    // Adds demande email templates if missing (per-code, idempotent — unlike the all-or-nothing default seed).
+    public static async Task SeedDemandeEmailTemplatesAsync(GndjDbContext context)
+    {
+        var templates = new[]
+        {
+            new EmailTemplate
+            {
+                Name = "Vérification email (inscription)", Code = "demande_email_verification", Module = "demande",
+                Subject = "Vérifiez votre adresse email — GNDJ Scout",
+                BodyHtml = "<h2>Bonjour {{contactName}},</h2><p>Merci de créer un compte pour la demande d'inscription au groupe scout GNDJ.</p><p>Veuillez confirmer votre adresse email en cliquant sur le lien ci-dessous :</p><p><a href=\"{{verifyLink}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Vérifier mon adresse email</a></p><p>Ce lien expire dans {{expiryDays}} jour(s). Vous devez vérifier votre email avant de pouvoir soumettre une demande.</p><p>— L'équipe GNDJ</p>",
+                Variables = "[{\"key\":\"contactName\",\"label\":\"Nom du contact\"},{\"key\":\"verifyLink\",\"label\":\"Lien de vérification\"},{\"key\":\"expiryDays\",\"label\":\"Validité (jours)\"}]",
+                IsActive = true
+            },
+            new EmailTemplate
+            {
+                Name = "Demande acceptée", Code = "demande_approved", Module = "demande",
+                Subject = "Votre demande d'inscription a été acceptée — GNDJ Scout",
+                BodyHtml = "<h2>Bonjour {{contactName}},</h2><p>Nous avons le plaisir de vous informer que la demande d'inscription de <strong>{{childName}}</strong> a été acceptée.</p><p><strong>Unité :</strong> {{unitName}}</p><p>Un compte a été créé pour le nouveau membre :</p><ul><li><strong>Identifiant :</strong> {{username}}</li><li><strong>Mot de passe temporaire :</strong> {{tempPassword}}</li></ul><p>Connectez-vous sur <a href=\"{{loginUrl}}\">{{loginUrl}}</a> et changez le mot de passe à la première connexion.</p><p>Bienvenue dans le mouvement !</p><p>— L'équipe GNDJ</p>",
+                Variables = "[{\"key\":\"contactName\",\"label\":\"Nom du contact\"},{\"key\":\"childName\",\"label\":\"Nom de l'enfant\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"username\",\"label\":\"Identifiant\"},{\"key\":\"tempPassword\",\"label\":\"Mot de passe temporaire\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"}]",
+                IsActive = true
+            },
+            new EmailTemplate
+            {
+                Name = "Demande refusée", Code = "demande_declined", Module = "demande",
+                Subject = "Réponse à votre demande d'inscription — GNDJ Scout",
+                BodyHtml = "<h2>Bonjour {{contactName}},</h2><p>Concernant la demande d'inscription de <strong>{{childName}}</strong>, nous sommes au regret de ne pas pouvoir y donner une suite favorable cette année.</p><p>{{reason}}</p><p>Nous vous remercions de votre intérêt et restons à votre disposition.</p><p>— L'équipe GNDJ</p>",
+                Variables = "[{\"key\":\"contactName\",\"label\":\"Nom du contact\"},{\"key\":\"childName\",\"label\":\"Nom de l'enfant\"},{\"key\":\"reason\",\"label\":\"Motif (optionnel)\"}]",
+                IsActive = true
+            },
+        };
+
+        var existingCodes = await context.EmailTemplates.IgnoreQueryFilters().Select(t => t.Code).ToListAsync();
+        var missing = templates.Where(t => !existingCodes.Contains(t.Code)).ToList();
+        if (missing.Count > 0)
+        {
+            context.EmailTemplates.AddRange(missing);
+            await context.SaveChangesAsync();
+        }
+    }
+
+    // One-time bootstrap of functional-role ranks (lowest rank = base youth role used on demande approval).
+    // Runs only while every role is still rank 0 (unconfigured); once a CG sets any rank, it never overrides.
+    public static async Task SeedFunctionalRoleRanksAsync(GndjDbContext context)
+    {
+        if (await context.FunctionalRoles.AnyAsync(r => r.Rank != 0)) return;
+
+        static string Norm(string s) => s.ToLowerInvariant()
+            .Replace('é', 'e').Replace('è', 'e').Replace('ê', 'e').Replace('ë', 'e')
+            .Replace('à', 'a').Replace('â', 'a').Replace('î', 'i').Replace('ï', 'i')
+            .Replace('ô', 'o').Replace('û', 'u').Replace('ù', 'u').Replace('ç', 'c');
+
+        // Adult leaders / group staff (high rank, never auto-assigned to a new member).
+        var leaderKeywords = new[] { "chef", "cheftaine", "responsable", "maitrise", "maitre", "assistant", "akela",
+            "commissaire", "aumonier", "animat", "intendant", "secretaire", "tresorier", "cadre" };
+        // Youth sub-leaders within an équipe/sizaine (mid rank).
+        var subLeaderKeywords = new[] { "sizenier", "sizeniere", "second", "troisi", "chef d'equipe", "meneur" };
+
+        var roles = await context.FunctionalRoles.ToListAsync();
+        foreach (var r in roles)
+        {
+            var n = Norm(r.Name);
+            if (leaderKeywords.Any(k => n.Contains(k))) r.Rank = 100;
+            else if (subLeaderKeywords.Any(k => n.Contains(k))) r.Rank = 50;
+            else r.Rank = 10; // base youth member (lowest = chosen on demande approval)
+        }
         await context.SaveChangesAsync();
     }
 

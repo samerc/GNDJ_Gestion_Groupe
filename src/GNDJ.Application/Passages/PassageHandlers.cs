@@ -18,7 +18,7 @@ public record PassageDto(
     Guid? ProposedTeamId, string? ProposedTeamName, string ProposedRoleName,
     Guid? FinalUnitId, string? FinalUnitCode, string? FinalUnitName,
     Guid? FinalTeamId, string? FinalTeamName, string? FinalRoleName,
-    string Status, string? CuNotes, string? CgNotes,
+    string Status, bool IsLeaving, string? CuNotes, string? CgNotes,
     DateTime CreatedAt
 );
 
@@ -86,7 +86,7 @@ public class GetPassagesByUnitQueryHandler(IApplicationDbContext context, ICurre
                 p.FinalTeamId,
                 p.FinalTeamId != null ? context.Teams.Where(t => t.Id == p.FinalTeamId).Select(t => t.Name).FirstOrDefault() : null,
                 p.FinalRole != null ? p.FinalRole.Name : null,
-                p.Status, p.CuNotes, p.CgNotes,
+                p.Status, p.IsLeaving, p.CuNotes, p.CgNotes,
                 p.CreatedAt
             ))
             .ToListAsync(ct);
@@ -142,7 +142,7 @@ public class GetAllPassagesQueryHandler(IApplicationDbContext context, ICurrentU
                 p.FinalTeamId,
                 p.FinalTeamId != null ? context.Teams.Where(t => t.Id == p.FinalTeamId).Select(t => t.Name).FirstOrDefault() : null,
                 p.FinalRole != null ? p.FinalRole.Name : null,
-                p.Status, p.CuNotes, p.CgNotes,
+                p.Status, p.IsLeaving, p.CuNotes, p.CgNotes,
                 p.CreatedAt
             ))
             .ToListAsync(ct);
@@ -263,7 +263,7 @@ public class IsPassageOpenQueryHandler(IApplicationDbContext context) : IRequest
 public record ProposePassageCommand(
     Guid MemberId, string ScoutYear,
     Guid ProposedUnitId, Guid? ProposedTeamId, Guid ProposedRoleId,
-    string? CuNotes
+    string? CuNotes, bool IsLeaving = false
 ) : IRequest<Result<Guid>>;
 
 public class ProposePassageCommandValidator : AbstractValidator<ProposePassageCommand>
@@ -338,13 +338,16 @@ public class ProposePassageCommandHandler(IApplicationDbContext context, ICurren
             existing.ProposedTeamId = request.ProposedTeamId;
             existing.ProposedRoleId = request.ProposedRoleId;
             existing.CuNotes = request.CuNotes;
+            existing.IsLeaving = request.IsLeaving;
             // Update current snapshot in case assignment changed
             existing.CurrentUnitId = assignment.UnitId;
             existing.CurrentTeamId = assignment.TeamId;
             existing.CurrentRoleId = assignment.FunctionalRoleId;
 
-            // Re-evaluate: no change → auto-approve, otherwise back to pending
-            var isNoChangeUpdate = request.ProposedUnitId == assignment.UnitId
+            // Re-evaluate: no change → auto-approve, otherwise back to pending.
+            // A departure ("quitte le groupe") always needs CG review — never auto-approved.
+            var isNoChangeUpdate = !request.IsLeaving
+                && request.ProposedUnitId == assignment.UnitId
                 && request.ProposedTeamId == assignment.TeamId
                 && request.ProposedRoleId == assignment.FunctionalRoleId;
             existing.Status = isNoChangeUpdate ? PassageStatus.Approved : PassageStatus.Pending;
@@ -363,8 +366,10 @@ public class ProposePassageCommandHandler(IApplicationDbContext context, ICurren
             return Result<Guid>.Success(existing.Id);
         }
 
-        // Detect "no change": same unit, same team, same role → auto-approve
-        var isNoChange = request.ProposedUnitId == assignment.UnitId
+        // Detect "no change": same unit, same team, same role → auto-approve.
+        // A departure ("quitte le groupe") always needs CG review — never auto-approved.
+        var isNoChange = !request.IsLeaving
+            && request.ProposedUnitId == assignment.UnitId
             && request.ProposedTeamId == assignment.TeamId
             && request.ProposedRoleId == assignment.FunctionalRoleId;
 
@@ -380,6 +385,7 @@ public class ProposePassageCommandHandler(IApplicationDbContext context, ICurren
             ProposedTeamId = request.ProposedTeamId,
             ProposedRoleId = request.ProposedRoleId,
             CuNotes = request.CuNotes,
+            IsLeaving = request.IsLeaving,
             Status = isNoChange ? PassageStatus.Approved : PassageStatus.Pending,
             ProposedByUserId = currentUser.UserId!.Value
         };
@@ -682,16 +688,6 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
 
         foreach (var passage in passages)
         {
-            var finalUnitId = passage.FinalUnitId ?? passage.ProposedUnitId;
-            var finalRoleId = passage.FinalRoleId ?? passage.ProposedRoleId;
-
-            // If unit changed, clear team (member joins new unit without team — CU assigns later)
-            Guid? finalTeamId;
-            if (finalUnitId != passage.CurrentUnitId)
-                finalTeamId = null;
-            else
-                finalTeamId = passage.FinalTeamId ?? passage.ProposedTeamId;
-
             // End the member's current active assignment
             var activeAssignment = await context.MemberAssignments
                 .Where(a => a.MemberId == passage.MemberId && a.EndDate == null)
@@ -702,17 +698,30 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
                 activeAssignment.EndDate = today;
             }
 
-            // Create new assignment
-            var newAssignment = new MemberAssignment
+            // "Quitte le groupe": close the assignment and create NO new one — member becomes alumni.
+            if (!passage.IsLeaving)
             {
-                MemberId = passage.MemberId,
-                UnitId = finalUnitId,
-                TeamId = finalTeamId,
-                FunctionalRoleId = finalRoleId,
-                StartDate = today,
-                Notes = $"Passage {passage.ScoutYear}"
-            };
-            context.MemberAssignments.Add(newAssignment);
+                var finalUnitId = passage.FinalUnitId ?? passage.ProposedUnitId;
+                var finalRoleId = passage.FinalRoleId ?? passage.ProposedRoleId;
+
+                // If unit changed, clear team (member joins new unit without team — CU assigns later)
+                Guid? finalTeamId;
+                if (finalUnitId != passage.CurrentUnitId)
+                    finalTeamId = null;
+                else
+                    finalTeamId = passage.FinalTeamId ?? passage.ProposedTeamId;
+
+                var newAssignment = new MemberAssignment
+                {
+                    MemberId = passage.MemberId,
+                    UnitId = finalUnitId,
+                    TeamId = finalTeamId,
+                    FunctionalRoleId = finalRoleId,
+                    StartDate = today,
+                    Notes = $"Passage {passage.ScoutYear}"
+                };
+                context.MemberAssignments.Add(newAssignment);
+            }
 
             // Mark passage as finalized
             passage.Status = PassageStatus.Finalized;

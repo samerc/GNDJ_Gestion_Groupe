@@ -9,6 +9,8 @@ export const PERMISSIONS = {
   UNITS_CREATE: 'units.create',
   UNITS_EDIT: 'units.edit',
   UNITS_DELETE: 'units.delete',
+  DEMANDE_VIEW: 'demande.view',
+  DEMANDE_MANAGE: 'demande.manage',
   TEAMS_VIEW: 'teams.view',
   TEAMS_CREATE: 'teams.create',
   TEAMS_EDIT: 'teams.edit',

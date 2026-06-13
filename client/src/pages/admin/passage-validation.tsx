@@ -381,11 +381,15 @@ export default function PassageValidationPage() {
                     <span className="text-muted-foreground">{p.currentUnitCode}</span>
                   </td>
                   <td className="px-3 py-2">
-                    <div className="flex items-center gap-1">
-                      <span className="text-muted-foreground">{p.currentUnitCode}</span>
-                      <ArrowRight className="h-3 w-3" />
-                      <span className="font-medium">{p.proposedUnitCode}</span>
-                    </div>
+                    {p.isLeaving ? (
+                      <Badge className="bg-orange-600">Quitte le groupe</Badge>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">{p.currentUnitCode}</span>
+                        <ArrowRight className="h-3 w-3" />
+                        <span className="font-medium">{p.proposedUnitCode}</span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-xs">{p.proposedTeamName ?? '-'}</td>
                   <td className="px-3 py-2 text-xs">{p.proposedRoleName}</td>

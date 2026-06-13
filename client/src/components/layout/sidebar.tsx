@@ -27,8 +27,10 @@ import {
   Receipt,
   Route,
   Compass,
+  Inbox,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { usePendingDemandeCount } from '@/services/demande-admin-service'
 
 function BrandMark({ className }: { className?: string }) {
   return (
@@ -45,7 +47,7 @@ function BrandMark({ className }: { className?: string }) {
 
 // Admin/super admin nav
 const adminNavItems = [
-  { path: '/', label: 'Tableau de bord', icon: LayoutDashboard, permission: null },
+  { path: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard, permission: null },
   { path: '/members', label: 'Membres', icon: Users, permission: PERMISSIONS.MEMBERS_VIEW },
   { path: '/units', label: 'Unités', icon: Building2, permission: PERMISSIONS.UNITS_VIEW },
 ]
@@ -54,7 +56,7 @@ const adminNavItems = [
 const leaderNavItems = [
   { path: '/my-profile', label: 'Ma fiche', icon: Users, permission: null },
   { path: '/my-documents', label: 'Mes documents', icon: FileText, permission: null },
-  { path: '/', label: 'Mon unité', icon: Building2, permission: PERMISSIONS.UNITS_EDIT },
+  { path: '/dashboard', label: 'Mon unité', icon: Building2, permission: PERMISSIONS.UNITS_EDIT },
   { path: '/unit-documents', label: 'Documents', icon: FileText, permission: PERMISSIONS.DOCUMENTS_APPROVE },
   { path: '/passage', label: 'Passage des membres', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_PROPOSE },
   { path: '/photo-session', label: 'Session photo', icon: Camera, permission: PERMISSIONS.MEMBERS_EDIT },
@@ -82,6 +84,7 @@ const adminGroups: AdminGroup[] = [
     label: 'Gestion',
     items: [
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
+      { path: '/admin/demandes', label: "Demandes d'inscription", icon: Inbox, permission: PERMISSIONS.DEMANDE_VIEW },
       { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },
       { path: '/admin/card-designer', label: 'Carte membre', icon: CreditCard, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/report-templates', label: 'Rapports', icon: FileText, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
@@ -102,6 +105,7 @@ const adminGroups: AdminGroup[] = [
 function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const location = useLocation()
   const { hasPermission, user } = useAuthStore()
+  const { data: pendingDemandes } = usePendingDemandeCount(hasPermission(PERMISSIONS.DEMANDE_VIEW))
 
   // Super admin sees admin nav, others see leader nav
   const navItems = user?.isSuperAdmin ? adminNavItems : leaderNavItems
@@ -132,6 +136,9 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
       >
         <Icon className={cn('h-4 w-4 shrink-0 transition-colors', isActive ? 'text-accent' : 'text-sidebar-foreground/60 group-hover/nav:text-white')} />
         {!collapsed && <span>{item.label}</span>}
+        {!collapsed && item.path === '/admin/demandes' && (pendingDemandes ?? 0) > 0 && (
+          <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white">{pendingDemandes}</span>
+        )}
         {collapsed && (
           <span className="pointer-events-none absolute left-full ml-2 rounded-md bg-foreground px-2 py-1 text-xs text-background opacity-0 shadow-md transition-opacity group-hover/nav:opacity-100 whitespace-nowrap z-50">
             {item.label}
@@ -178,7 +185,7 @@ export function Sidebar() {
         'flex h-16 items-center border-b border-sidebar-border',
         collapsed ? 'justify-center px-2' : 'px-4'
       )}>
-        <Link to="/" className="flex items-center gap-2.5 overflow-hidden">
+        <Link to="/dashboard" className="flex items-center gap-2.5 overflow-hidden">
           <BrandMark className="h-9 w-9 shrink-0" />
           {!collapsed && (
             <div className="flex flex-col leading-tight">

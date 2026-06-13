@@ -11,6 +11,7 @@ export interface FunctionalRoleDto {
   unitTypeId: string | null
   unitTypeName: string | null
   unitTypeColor: string | null
+  rank: number
   assignmentCount: number
 }
 
@@ -20,6 +21,7 @@ export interface FunctionalRoleFormData {
   description?: string | null
   securityProfileId: string
   unitTypeId?: string | null
+  rank?: number
 }
 
 export interface SecurityProfileDto {

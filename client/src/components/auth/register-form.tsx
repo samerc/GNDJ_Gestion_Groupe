@@ -31,7 +31,7 @@ export function RegisterForm() {
 
     try {
       await register(form)
-      navigate('/')
+      navigate('/dashboard')
     } catch (err) {
       const axiosError = err as AxiosError<ApiError>
       const data = axiosError.response?.data

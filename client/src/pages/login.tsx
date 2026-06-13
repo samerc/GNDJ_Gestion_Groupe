@@ -1,13 +1,14 @@
-import { Navigate } from 'react-router'
-import { Compass } from 'lucide-react'
+import { Navigate, Link } from 'react-router'
+import { Compass, UserPlus } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { LoginForm } from '@/components/auth/login-form'
+import { Button } from '@/components/ui/button'
 
 export default function LoginPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/dashboard" replace />
   }
 
   return (
@@ -26,6 +27,14 @@ export default function LoginPage() {
           <p className="mt-1 text-sm text-muted-foreground">Plateforme de gestion de groupe scout</p>
         </div>
         <LoginForm />
+        <div className="mt-4 flex items-center gap-3">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">ou</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+        <Button asChild variant="outline" className="mt-4 w-full">
+          <Link to="/inscription"><UserPlus className="mr-2 h-4 w-4" />Demande d'inscription (nouveau membre)</Link>
+        </Button>
         <p className="mt-6 text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()} GNDJ Scout — Tous droits réservés
         </p>

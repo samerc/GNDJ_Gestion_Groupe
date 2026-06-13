@@ -41,6 +41,11 @@ public interface IApplicationDbContext
     DbSet<EmailTemplate> EmailTemplates { get; }
     DbSet<ReportTemplate> ReportTemplates { get; }
     DbSet<UnitTypeProgression> UnitTypeProgressions { get; }
+    DbSet<ApplicantAccount> ApplicantAccounts { get; }
+    DbSet<ApplicantGuardian> ApplicantGuardians { get; }
+    DbSet<ApplicantScoutRelation> ApplicantScoutRelations { get; }
+    DbSet<Demande> Demandes { get; }
+    DbSet<UnitIntakeQuota> UnitIntakeQuotas { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

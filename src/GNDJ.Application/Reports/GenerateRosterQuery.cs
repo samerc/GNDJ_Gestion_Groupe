@@ -39,6 +39,7 @@ public class GenerateRosterQueryHandler(
         var assignments = await query
             .OrderByDescending(a => a.Team != null ? a.Team.IsMaitrise : false)
             .ThenBy(a => a.Team != null ? a.Team.DisplayOrder : 999)
+            .ThenByDescending(a => a.FunctionalRole.Rank)
             .ThenBy(a => a.Member.LastName).ThenBy(a => a.Member.FirstName)
             .Select(a => new
             {
@@ -49,6 +50,7 @@ public class GenerateRosterQueryHandler(
                 Phone = a.Member.Phones.Where(p => p.IsPrimary && !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault(),
                 Email = a.Member.Emails.Where(e => e.IsPrimary && !e.IsDeleted).Select(e => e.Address).FirstOrDefault(),
                 RoleName = a.FunctionalRole.Name,
+                RoleRank = a.FunctionalRole.Rank,
                 TeamName = a.Team != null ? a.Team.Name : null,
                 TeamOrder = a.Team != null ? a.Team.DisplayOrder : 999,
                 TeamIsMaitrise = a.Team != null ? a.Team.IsMaitrise : false,

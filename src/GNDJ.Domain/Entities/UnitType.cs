@@ -11,6 +11,7 @@ public class UnitType : BaseEntity
     public int? AgeMin { get; set; }
     public int? AgeMax { get; set; }
     public string? Color { get; set; } // hex color e.g. "#3B82F6"
+    public string? Gender { get; set; } // Masculin | Féminin | Mixte — drives demande eligibility
 
     public ICollection<Unit> Units { get; set; } = [];
     public ICollection<FunctionalRole> FunctionalRoles { get; set; } = [];

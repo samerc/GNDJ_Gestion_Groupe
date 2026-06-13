@@ -30,6 +30,7 @@ public record RosterMemberDto(
     string LastName,
     string? CardNumber,
     string FunctionalRoleName,
+    int FunctionalRoleRank,
     string? PrimaryPhone,
     string? PrimaryEmail,
     DateOnly? DateOfBirth
@@ -79,6 +80,7 @@ public class GetUnitDashboardQueryHandler : IRequestHandler<GetUnitDashboardQuer
                 TeamDisplayOrder = a.Team != null ? a.Team.DisplayOrder : 999,
                 TeamIsMaitrise = a.Team != null ? a.Team.IsMaitrise : false,
                 RoleName = a.FunctionalRole.Name,
+                RoleRank = a.FunctionalRole.Rank,
                 PrimaryPhone = a.Member.Phones.Where(p => p.IsPrimary && !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault(),
                 PrimaryEmail = a.Member.Emails.Where(e => e.IsPrimary && !e.IsDeleted).Select(e => e.Address).FirstOrDefault(),
             })
@@ -95,15 +97,15 @@ public class GetUnitDashboardQueryHandler : IRequestHandler<GetUnitDashboardQuer
                 g.Key.TeamTotem,
                 g.Key.TeamColor1,
                 g.Key.TeamColor2,
-                g.Select(a => new RosterMemberDto(a.MemberId, a.FirstName, a.LastName, a.CardNumber, a.RoleName, a.PrimaryPhone, a.PrimaryEmail, a.DateOfBirth))
-                    .OrderBy(m => m.LastName).ThenBy(m => m.FirstName).ToList()
+                g.Select(a => new RosterMemberDto(a.MemberId, a.FirstName, a.LastName, a.CardNumber, a.RoleName, a.RoleRank, a.PrimaryPhone, a.PrimaryEmail, a.DateOfBirth))
+                    .OrderByDescending(m => m.FunctionalRoleRank).ThenBy(m => m.LastName).ThenBy(m => m.FirstName).ToList()
             ))
             .ToList();
 
         var unassigned = assignments
             .Where(a => a.TeamId == null)
-            .Select(a => new RosterMemberDto(a.MemberId, a.FirstName, a.LastName, a.CardNumber, a.RoleName, a.PrimaryPhone, a.PrimaryEmail, a.DateOfBirth))
-            .OrderBy(m => m.LastName).ThenBy(m => m.FirstName)
+            .Select(a => new RosterMemberDto(a.MemberId, a.FirstName, a.LastName, a.CardNumber, a.RoleName, a.RoleRank, a.PrimaryPhone, a.PrimaryEmail, a.DateOfBirth))
+            .OrderByDescending(m => m.FunctionalRoleRank).ThenBy(m => m.LastName).ThenBy(m => m.FirstName)
             .ToList();
 
         var teams = await _context.Teams.CountAsync(t => t.UnitId == request.UnitId && !t.IsDeleted, cancellationToken);

@@ -1,0 +1,86 @@
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router'
+import { useApplicantStore } from '@/stores/applicant-store'
+import { ApplicantAuthShell } from '@/components/applicant/applicant-auth-shell'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { parseApiError } from '@/lib/error-utils'
+
+export default function ApplicantRegisterPage() {
+  const navigate = useNavigate()
+  const register = useApplicantStore((s) => s.register)
+  const [contactName, setContactName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  const pwdValid = password.length >= 8
+  const match = password === confirm
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (!emailValid) return setError('Adresse email invalide.')
+    if (!pwdValid) return setError('Le mot de passe doit contenir au moins 8 caractères.')
+    if (!match) return setError('Les mots de passe ne correspondent pas.')
+    setLoading(true)
+    try {
+      await register(email, password, contactName || undefined)
+      navigate('/inscription/portail')
+    } catch (err) {
+      setError(parseApiError(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <ApplicantAuthShell subtitle="Créer un compte">
+      <Card className="shadow-elevated">
+        <CardHeader>
+          <CardTitle className="text-2xl">Créer un compte</CardTitle>
+          <CardDescription>Un parent ou le futur membre peut créer le compte.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            <div className="space-y-2">
+              <Label htmlFor="contactName">Votre nom (parent / responsable)</Label>
+              <Input id="contactName" value={contactName} onChange={(e) => setContactName(e.target.value)} autoComplete="name" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Adresse email</Label>
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email"
+                className={email && !emailValid ? 'border-destructive' : ''} />
+              {email && !emailValid && <p className="text-xs text-destructive">Adresse email invalide.</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Mot de passe</Label>
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password"
+                className={password && !pwdValid ? 'border-destructive' : ''} />
+              {password && !pwdValid && <p className="text-xs text-destructive">Au moins 8 caractères.</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm">Confirmer le mot de passe</Label>
+              <Input id="confirm" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required autoComplete="new-password"
+                className={confirm && !match ? 'border-destructive' : ''} />
+              {confirm && !match && <p className="text-xs text-destructive">Les mots de passe ne correspondent pas.</p>}
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Création...' : 'Créer mon compte'}
+            </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              Déjà un compte ?{' '}
+              <Link to="/inscription/login" className="text-primary hover:underline font-medium">Se connecter</Link>
+            </p>
+          </form>
+        </CardContent>
+      </Card>
+    </ApplicantAuthShell>
+  )
+}

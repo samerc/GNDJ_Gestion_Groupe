@@ -18,6 +18,10 @@ public class Passage : BaseEntity
     public Guid ProposedRoleId { get; set; }
     public string? CuNotes { get; set; }
 
+    // "Quitte le groupe": on finalize, the active assignment is closed and NO new one is created
+    // (member becomes alumni). When true the proposed/final unit+role are ignored.
+    public bool IsLeaving { get; set; }
+
     // CG decision
     public Guid? FinalUnitId { get; set; }
     public Guid? FinalTeamId { get; set; }

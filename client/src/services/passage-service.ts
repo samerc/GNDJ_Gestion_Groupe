@@ -27,6 +27,7 @@ export interface PassageDto {
   finalTeamName: string | null
   finalRoleName: string | null
   status: string
+  isLeaving: boolean
   cuNotes: string | null
   cgNotes: string | null
   createdAt: string
@@ -96,7 +97,7 @@ export function usePassageStatus(scoutYear: string) {
 export function useProposePassage() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { memberId: string; scoutYear: string; proposedUnitId: string; proposedTeamId?: string | null; proposedRoleId: string; cuNotes?: string | null }) =>
+    mutationFn: (data: { memberId: string; scoutYear: string; proposedUnitId: string; proposedTeamId?: string | null; proposedRoleId: string; cuNotes?: string | null; isLeaving?: boolean }) =>
       apiClient.post('/passages', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['passages'] }),
   })

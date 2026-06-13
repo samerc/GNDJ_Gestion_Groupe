@@ -38,14 +38,14 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', code: '', description: '', securityProfileId: '', unitTypeId: unitTypeId ?? '' })
+    setForm({ name: '', code: '', description: '', securityProfileId: '', unitTypeId: unitTypeId ?? '', rank: 0 })
     setError(''); clearAll()
     setFormOpen(true)
   }
 
   const openEdit = (item: FunctionalRoleDto) => {
     setEditing(item)
-    setForm({ name: item.name, code: item.code, description: item.description ?? '', securityProfileId: item.securityProfileId, unitTypeId: item.unitTypeId ?? '' })
+    setForm({ name: item.name, code: item.code, description: item.description ?? '', securityProfileId: item.securityProfileId, unitTypeId: item.unitTypeId ?? '', rank: item.rank })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -100,6 +100,7 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
                     <th className="px-3 py-2 font-medium">Code</th>
                     {showUnitTypeColumn && <th className="px-3 py-2 font-medium">Type d'unité</th>}
                     <th className="px-3 py-2 font-medium">Profil</th>
+                    <th className="px-3 py-2 text-center font-medium" title="Le rang le plus bas = fonction de base attribuée aux nouveaux membres">Rang</th>
                     <th className="px-3 py-2 text-center font-medium">Membres</th>
                     <th className="w-20" />
                   </tr>
@@ -117,6 +118,7 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
                           <td className="px-3 py-2.5 text-muted-foreground">{role.unitTypeName ?? <span className="italic">Global</span>}</td>
                         )}
                         <td className="px-3 py-2.5"><Badge variant="secondary" className="text-xs">{role.securityProfileName}</Badge></td>
+                        <td className="px-3 py-2.5 text-center text-muted-foreground">{role.rank}</td>
                         <td className="px-3 py-2.5 text-center">
                           {role.assignmentCount > 0 ? <span className="font-medium">{role.assignmentCount}</span> : <span className="text-muted-foreground">—</span>}
                         </td>
@@ -169,6 +171,11 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
                   {profiles?.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <RequiredLabel>Rang</RequiredLabel>
+              <Input type="number" value={form.rank ?? 0} onChange={(e) => setForm(f => ({ ...f, rank: Number(e.target.value) }))} />
+              <p className="text-xs text-muted-foreground">Le rang le plus bas d'un type d'unité est la fonction de base attribuée automatiquement aux nouveaux membres acceptés (ex. Louveteau).</p>
             </div>
             {showUnitTypeField && (
               <div className="space-y-2">

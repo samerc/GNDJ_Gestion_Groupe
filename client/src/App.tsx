@@ -3,6 +3,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route'
 import { AdminRoute } from '@/components/auth/admin-route'
 import { AppLayout } from '@/components/layout/app-layout'
 import LoginPage from '@/pages/login'
+import LandingPage from '@/pages/landing'
 import DashboardPage from '@/pages/dashboard'
 import MyProfilePage from '@/pages/my-profile'
 import AssociationsPage from '@/pages/admin/associations'
@@ -31,18 +32,37 @@ import ReportTemplatesPage from '@/pages/admin/report-templates'
 import ProgressionPathPage from '@/pages/admin/progression-path'
 import ForgotPasswordPage from '@/pages/forgot-password'
 import ResetPasswordPage from '@/pages/reset-password'
+import { ApplicantProtectedRoute } from '@/components/applicant/applicant-protected-route'
+import InscriptionLandingPage from '@/pages/inscription/index'
+import ApplicantLoginPage from '@/pages/inscription/login'
+import ApplicantRegisterPage from '@/pages/inscription/register'
+import ApplicantVerifyPage from '@/pages/inscription/verify'
+import ApplicantPortalPage from '@/pages/inscription/portail'
+import DemandeWizardPage from '@/pages/inscription/demande-wizard'
+import DemandeValidationPage from '@/pages/admin/demande-validation'
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
+        {/* Public membership-application portal (isolated applicant auth) */}
+        <Route path="/inscription" element={<InscriptionLandingPage />} />
+        <Route path="/inscription/login" element={<ApplicantLoginPage />} />
+        <Route path="/inscription/register" element={<ApplicantRegisterPage />} />
+        <Route path="/inscription/verify" element={<ApplicantVerifyPage />} />
+        <Route element={<ApplicantProtectedRoute />}>
+          <Route path="/inscription/portail" element={<ApplicantPortalPage />} />
+          <Route path="/inscription/portail/demande/:id" element={<DemandeWizardPage />} />
+        </Route>
+
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
-            <Route path="/" element={<DashboardPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/my-profile" element={<MyProfilePage />} />
             <Route path="/my-documents" element={<MyDocumentsPage />} />
             <Route path="/units" element={<UnitsPage />} />
@@ -62,6 +82,7 @@ export default function App() {
               <Route path="/admin/security-profiles" element={<SecurityProfilesPage />} />
               <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
               <Route path="/admin/passage-validation" element={<PassageValidationPage />} />
+              <Route path="/admin/demandes" element={<DemandeValidationPage />} />
               <Route path="/admin/api-keys" element={<ApiKeysPage />} />
               <Route path="/admin/custom-fields" element={<CustomFieldsPage />} />
               <Route path="/admin/card-designer" element={<CardDesignerPage />} />
@@ -78,7 +99,7 @@ export default function App() {
           <div className="flex flex-col items-center justify-center h-screen gap-4">
             <h1 className="text-4xl font-bold text-muted-foreground">404</h1>
             <p className="text-muted-foreground">Page introuvable</p>
-            <a href="/" className="text-primary hover:underline">Retour au tableau de bord</a>
+            <a href="/dashboard" className="text-primary hover:underline">Retour au tableau de bord</a>
           </div>
         } />
       </Routes>

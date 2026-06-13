@@ -23,7 +23,7 @@ export function LoginForm() {
 
     try {
       await login({ email, password })
-      navigate('/')
+      navigate('/dashboard')
     } catch (err) {
       const axiosError = err as AxiosError<ApiError>
       setError(axiosError.response?.data?.error ?? 'Une erreur est survenue.')

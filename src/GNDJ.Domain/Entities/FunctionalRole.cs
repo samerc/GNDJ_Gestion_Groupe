@@ -7,6 +7,7 @@ public class FunctionalRole : BaseEntity
     public string Name { get; set; } = string.Empty;
     public string Code { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public int Rank { get; set; } // ordering within a unit type; the lowest rank is the base youth role
     public Guid SecurityProfileId { get; set; }
     public Guid? UnitTypeId { get; set; }
 

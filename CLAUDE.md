@@ -380,6 +380,31 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] Branding: page title "GNDJ Scout — Gestion de Groupe", lang=fr, theme-color, custom navy fleur-de-lis favicon
 - [x] Verified visually via headless Edge screenshots (login, dashboard, members, passage) — builds clean, tsc 0 errors
 
+### Demande d'inscription — public enrollment portal (Complete — 2026-06)
+- [x] Public landing page at `/` (two options: Espace membres/chefs → /login, Demande d'inscription → /inscription).
+      Dashboard moved to `/dashboard`. Placeholder for a future full group site (news/units/resources).
+- [x] Isolated `ApplicantAccount` auth (own JWT with `applicant` claim, never touches User/Member/permissions).
+      Register → email-verify → login → refresh; public `/auth/register` left as-is but applicants never use it.
+- [x] Applicant portal `/inscription/*`: landing, register, login, verify, portail (list demandes), 4-step wizard
+      (Enfant → Parents+adresse [shared] → Proches scouts [shared] → Récap) with free nav + on-spot & on-Next validation.
+- [x] Entities: ApplicantAccount, ApplicantGuardian (père/mère shared), ApplicantScoutRelation, Demande, UnitIntakeQuota.
+      FunctionalRole.Rank (lowest = base youth role), UnitType.Gender, Passage.IsLeaving.
+- [x] Passage "Quitte le groupe": finalize closes the assignment, creates none (member → alumni); always needs CG review.
+- [x] CG review `/admin/demandes`: filters (gender/classe/age/status/unit), per-unit capacity (current · projected-after-
+      passage · editable quota · accepted), approve(unit picker)/decline(reason), sibling flags. Decisions hidden from
+      applicant until posted. Batch "Envoyer les réponses" — BLOCKED while any submitted demande is undecided.
+- [x] Send = advisory-locked + idempotent: converts approved → Member (card#, login, deduped father+mother guardians,
+      assignment w/ base role, household address), marks sent. Emails queued (IEmailQueue + background worker) so the
+      request returns fast; login password hashes pre-computed in parallel before the lock. 100-batch ≈ 8.7s.
+- [x] Emails (templates seeded, editable in admin with placeholder dropdown): demande_email_verification / _approved
+      (username+temp password+unit) / _declined (reason). Verification resend endpoint + portal button.
+- [x] Permissions demande.view/manage (super-admin + association-admin via Permissions.All). CG sidebar badge = pending count.
+- [x] Maîtrise/leader displays (CU dashboard, trombinoscope, roster) ordered by role Rank desc (CU → Aumônier → ACU).
+- [x] Settings `demande.*` (enabled, scout_year, max_per_account, notes_max_length, require_email_verification,
+      decide_siblings_together, intro_text). Server-side validation on all applicant input (HTML/XSS reject, lengths, email, DOB).
+- [x] Audited: IDOR (cross-account blocked), auth isolation both ways, 100-concurrent register/login/profile, CG authz.
+- [ ] Phase 5 remainder (later): expand the landing into the full group site. API-docs polish pass (Swagger auto-includes new endpoints).
+
 ### Remaining / Next
 - [ ] **Option 1 (DECIDED, not yet built):** keep all imported members incl. inactive, but make counts
       honest — admin dashboard "Total members" should count ACTIVE (930) not all (2259); admin members

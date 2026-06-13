@@ -38,6 +38,7 @@ public class GenerateTrombinoscoreQueryHandler(
 
         var assignments = await query
             .OrderBy(a => a.Team != null ? a.Team.DisplayOrder : 999)
+            .ThenByDescending(a => a.FunctionalRole.Rank)
             .ThenBy(a => a.Member.LastName)
             .ThenBy(a => a.Member.FirstName)
             .Select(a => new

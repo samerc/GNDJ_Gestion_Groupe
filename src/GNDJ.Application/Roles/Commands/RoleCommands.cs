@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Roles.Commands;
 
 // Create
-public record CreateFunctionalRoleCommand(string Name, string Code, string? Description, Guid SecurityProfileId, Guid? UnitTypeId) : IRequest<Result<Guid>>;
+public record CreateFunctionalRoleCommand(string Name, string Code, string? Description, Guid SecurityProfileId, Guid? UnitTypeId, int Rank = 0) : IRequest<Result<Guid>>;
 
 public class CreateFunctionalRoleCommandValidator : AbstractValidator<CreateFunctionalRoleCommand>
 {
@@ -43,7 +43,8 @@ public class CreateFunctionalRoleCommandHandler : IRequestHandler<CreateFunction
             Code = request.Code,
             Description = request.Description,
             SecurityProfileId = request.SecurityProfileId,
-            UnitTypeId = request.UnitTypeId
+            UnitTypeId = request.UnitTypeId,
+            Rank = request.Rank
         };
 
         _context.FunctionalRoles.Add(entity);
@@ -55,7 +56,7 @@ public class CreateFunctionalRoleCommandHandler : IRequestHandler<CreateFunction
 }
 
 // Update
-public record UpdateFunctionalRoleCommand(Guid Id, string Name, string Code, string? Description, Guid SecurityProfileId, Guid? UnitTypeId) : IRequest<Result<bool>>;
+public record UpdateFunctionalRoleCommand(Guid Id, string Name, string Code, string? Description, Guid SecurityProfileId, Guid? UnitTypeId, int Rank = 0) : IRequest<Result<bool>>;
 
 public class UpdateFunctionalRoleCommandValidator : AbstractValidator<UpdateFunctionalRoleCommand>
 {
@@ -94,6 +95,7 @@ public class UpdateFunctionalRoleCommandHandler : IRequestHandler<UpdateFunction
         entity.Description = request.Description;
         entity.SecurityProfileId = request.SecurityProfileId;
         entity.UnitTypeId = request.UnitTypeId;
+        entity.Rank = request.Rank;
 
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Update", "FunctionalRole", entity.Id, oldValues: oldValues, newValues: new { entity.Name, entity.Code }, cancellationToken: cancellationToken);

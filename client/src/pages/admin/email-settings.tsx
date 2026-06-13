@@ -42,6 +42,17 @@ const MODULE_VARIABLES: Record<string, { key: string; label: string }[]> = {
     { key: 'fromUnit', label: 'Unite actuelle' },
     { key: 'toUnit', label: 'Nouvelle unite' },
   ],
+  demande: [
+    { key: 'contactName', label: 'Nom du parent / contact' },
+    { key: 'verifyLink', label: "Lien de vérification de l'email" },
+    { key: 'expiryDays', label: 'Validité du lien (jours)' },
+    { key: 'childName', label: "Nom de l'enfant" },
+    { key: 'unitName', label: "Unité d'affectation" },
+    { key: 'username', label: 'Identifiant du nouveau membre' },
+    { key: 'tempPassword', label: 'Mot de passe temporaire' },
+    { key: 'loginUrl', label: 'Lien de connexion' },
+    { key: 'reason', label: 'Motif (refus)' },
+  ],
 }
 
 const MODULE_OPTIONS = [
@@ -49,6 +60,7 @@ const MODULE_OPTIONS = [
   { value: 'documents', label: 'Documents' },
   { value: 'cotisations', label: 'Cotisations' },
   { value: 'passage', label: 'Passage' },
+  { value: 'demande', label: "Demande d'inscription" },
 ]
 
 // -- SMTP form --

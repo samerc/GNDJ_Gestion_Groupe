@@ -57,6 +57,9 @@ public static class Permissions
     public const string PassagePropose = "passage.propose";
     public const string PassageManage = "passage.manage"; // CG-level: review, finalize
 
+    public const string DemandeView = "demande.view";     // CG: view membership applications
+    public const string DemandeManage = "demande.manage"; // CG: decide + convert applications
+
     public const string AuditView = "audit.view";
     public const string AdminHardDelete = "admin.hard_delete";
 
@@ -75,6 +78,7 @@ public static class Permissions
         CotisationsView, CotisationsCreate, CotisationsEdit, CotisationsDelete,
         ProgressionView, ProgressionManage,
         PassageView, PassagePropose, PassageManage,
+        DemandeView, DemandeManage,
         AuditView, AdminHardDelete
     ];
 }

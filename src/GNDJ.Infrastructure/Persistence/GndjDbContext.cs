@@ -43,6 +43,11 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<UnitTypeProgression> UnitTypeProgressions => Set<UnitTypeProgression>();
     public DbSet<SmtpServer> SmtpServers => Set<SmtpServer>();
     public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
+    public DbSet<ApplicantAccount> ApplicantAccounts => Set<ApplicantAccount>();
+    public DbSet<ApplicantGuardian> ApplicantGuardians => Set<ApplicantGuardian>();
+    public DbSet<ApplicantScoutRelation> ApplicantScoutRelations => Set<ApplicantScoutRelation>();
+    public DbSet<Demande> Demandes => Set<Demande>();
+    public DbSet<UnitIntakeQuota> UnitIntakeQuotas => Set<UnitIntakeQuota>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

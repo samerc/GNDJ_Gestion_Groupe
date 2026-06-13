@@ -60,6 +60,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddHostedService<GNDJ.Api.Services.EmailQueueBackgroundService>();
 
 // Performance: Settings cache (singleton, auto-refreshes every 5 min)
 builder.Services.AddSingleton<ISettingsCacheService, SettingsCacheService>();
@@ -215,6 +216,8 @@ using (var scope = app.Services.CreateScope())
     await SeedData.SeedMissingPermissionsAsync(context);
     await SeedData.SeedMissingSettingsAsync(context);
     await SeedData.SeedDefaultEmailTemplatesAsync(context);
+    await SeedData.SeedDemandeEmailTemplatesAsync(context);
+    await SeedData.SeedFunctionalRoleRanksAsync(context);
 }
 
 // Middleware pipeline

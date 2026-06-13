@@ -25,7 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { ArrowRightLeft, Check, Trash2, Users, ArrowRight } from 'lucide-react'
+import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface MemberRow {
@@ -269,6 +269,7 @@ export default function PassagePage() {
   }
 
   const statusBadge = (passage: PassageDto) => {
+    if (passage.isLeaving) return <Badge className="bg-orange-600">Quitte le groupe{passage.status === 'Approved' ? ' ✓' : passage.status === 'Rejected' ? ' ✗' : ''}</Badge>
     switch (passage.status) {
       case 'Approved': return <Badge className="bg-green-600">{passage.proposedUnitId === passage.currentUnitId && passage.proposedRoleName === passage.currentRoleName ? 'Pas de changement' : 'Approuvé'}</Badge>
       case 'Rejected': return <Badge variant="destructive">Rejeté</Badge>
@@ -386,6 +387,22 @@ export default function PassagePage() {
                         </Button>
                         <Button size="sm" onClick={() => openPropose(row)}>
                           Proposer
+                        </Button>
+                        <Button size="sm" variant="ghost" className="text-orange-600 hover:text-orange-700" title="Quitte le groupe" onClick={async () => {
+                          try {
+                            await proposeMutation.mutateAsync({
+                              memberId: row.memberId,
+                              scoutYear: passageScoutYear,
+                              proposedUnitId: row.currentUnitId,
+                              proposedTeamId: row.currentTeamId,
+                              proposedRoleId: row.currentRoleId,
+                              cuNotes: null,
+                              isLeaving: true,
+                            })
+                            toast.success('Départ enregistré (en attente de validation)')
+                          } catch (err) { toast.error(parseApiError(err)) }
+                        }} disabled={proposeMutation.isPending}>
+                          <LogOut className="mr-1 h-3 w-3" />Quitte le groupe
                         </Button>
                       </div>
                     )}

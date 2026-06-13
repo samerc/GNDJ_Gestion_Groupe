@@ -47,6 +47,33 @@ public class TokenService : ITokenService
         return handler.CreateToken(descriptor);
     }
 
+    public string GenerateApplicantToken(ApplicantAccount account)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]!));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var expirationMinutes = int.Parse(_configuration["Jwt:AccessTokenExpirationMinutes"] ?? "15");
+
+        var claims = new Dictionary<string, object>
+        {
+            [JwtRegisteredClaimNames.Sub] = account.Id.ToString(),
+            [JwtRegisteredClaimNames.Email] = account.Email,
+            ["account_type"] = "applicant",
+            ["applicant_id"] = account.Id.ToString()
+        };
+
+        var descriptor = new SecurityTokenDescriptor
+        {
+            Issuer = _configuration["Jwt:Issuer"],
+            Audience = _configuration["Jwt:Audience"],
+            Claims = claims,
+            Expires = DateTime.UtcNow.AddMinutes(expirationMinutes),
+            SigningCredentials = credentials
+        };
+
+        var handler = new JsonWebTokenHandler();
+        return handler.CreateToken(descriptor);
+    }
+
     public string GenerateRefreshToken()
     {
         return Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));

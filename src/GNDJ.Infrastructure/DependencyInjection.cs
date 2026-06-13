@@ -53,10 +53,13 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<ICurrentApplicantService, CurrentApplicantService>();
         services.AddScoped<IAuditService, AuditService>();
 
-        // Email service
+        // Email service + background queue
         services.AddScoped<IEmailService, EmailService>();
+        services.AddSingleton<EmailQueue>();
+        services.AddSingleton<IEmailQueue>(sp => sp.GetRequiredService<EmailQueue>());
 
         // PDF services
         QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
