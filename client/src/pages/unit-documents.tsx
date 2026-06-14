@@ -193,6 +193,10 @@ export default function UnitDocumentsPage() {
     e.preventDefault()
     if (!cotisationMember) return
     setError('')
+    if (cotPayments.length === 0 || cotPayments.some(p => !(p.amount > 0))) {
+      setError('Chaque ligne de paiement doit avoir un montant supérieur à 0.')
+      return
+    }
     try {
       if (cotisationMember.cotisation.cotisationId) {
         await updateCotisation.mutateAsync({

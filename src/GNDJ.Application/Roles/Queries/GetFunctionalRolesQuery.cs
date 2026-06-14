@@ -89,6 +89,12 @@ public class UpdateSecurityProfilePermissionsCommandHandler(IApplicationDbContex
         if (profile is null)
             return Result<bool>.Failure("Profil de sécurité introuvable.");
 
+        // Reject any permission string that isn't a known permission (prevents garbage/escalation strings).
+        var known = GNDJ.Domain.Enums.Permissions.All.ToHashSet();
+        var invalid = request.Permissions.Where(p => !known.Contains(p)).Distinct().ToList();
+        if (invalid.Count > 0)
+            return Result<bool>.Failure($"Permission(s) inconnue(s) : {string.Join(", ", invalid)}.");
+
         var oldPerms = profile.Permissions.Select(p => p.Permission).OrderBy(p => p).ToList();
 
         // Remove all existing permissions

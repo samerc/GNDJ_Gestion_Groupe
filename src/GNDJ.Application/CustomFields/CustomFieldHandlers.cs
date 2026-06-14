@@ -1,6 +1,7 @@
 using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -73,8 +74,10 @@ public class CreateCustomFieldCommandValidator : AbstractValidator<CreateCustomF
 {
     public CreateCustomFieldCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
-        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50);
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
+        RuleFor(x => x.Options).MaximumLength(4000);
+        RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
         RuleFor(x => x.FieldType).NotEmpty().WithMessage("Le type de champ est requis.")
             .Must(t => t is "text" or "number" or "select" or "boolean")
             .WithMessage("Type de champ invalide (text, number, select, boolean).");
@@ -115,8 +118,10 @@ public class UpdateCustomFieldCommandValidator : AbstractValidator<UpdateCustomF
 {
     public UpdateCustomFieldCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
-        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50);
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
+        RuleFor(x => x.Options).MaximumLength(4000);
+        RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
         RuleFor(x => x.FieldType).NotEmpty().WithMessage("Le type de champ est requis.")
             .Must(t => t is "text" or "number" or "select" or "boolean")
             .WithMessage("Type de champ invalide (text, number, select, boolean).");
@@ -206,8 +211,30 @@ public class SetMemberCustomFieldValueCommandHandler(IApplicationDbContext conte
         var memberExists = await context.Members.AnyAsync(m => m.Id == request.MemberId, ct);
         if (!memberExists) return Result<Guid>.Failure("Membre introuvable.");
 
-        var fieldExists = await context.CustomFields.AnyAsync(cf => cf.Id == request.CustomFieldId, ct);
-        if (!fieldExists) return Result<Guid>.Failure("Champ personnalisé introuvable.");
+        var field = await context.CustomFields.FirstOrDefaultAsync(cf => cf.Id == request.CustomFieldId, ct);
+        if (field is null) return Result<Guid>.Failure("Champ personnalisé introuvable.");
+
+        // Validate the value against the field's declared type.
+        switch (field.FieldType)
+        {
+            case "number":
+                if (!decimal.TryParse(request.Value, System.Globalization.CultureInfo.InvariantCulture, out _))
+                    return Result<Guid>.Failure("Ce champ attend une valeur numérique.");
+                break;
+            case "boolean":
+                if (request.Value is not ("true" or "false"))
+                    return Result<Guid>.Failure("Ce champ attend « true » ou « false ».");
+                break;
+            case "select":
+                var allowed = new List<string>();
+                if (!string.IsNullOrWhiteSpace(field.Options))
+                {
+                    try { allowed = System.Text.Json.JsonSerializer.Deserialize<List<string>>(field.Options) ?? []; } catch { /* ignore malformed options */ }
+                }
+                if (allowed.Count > 0 && !allowed.Contains(request.Value))
+                    return Result<Guid>.Failure("Valeur non autorisée pour ce champ.");
+                break;
+        }
 
         // Upsert: find existing value for this member + field
         var existing = await context.MemberCustomFieldValues

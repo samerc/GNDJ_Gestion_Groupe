@@ -1,5 +1,6 @@
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using FluentValidation;
 using Mediator;
 
@@ -12,8 +13,7 @@ public class ChangePasswordCommandValidator : AbstractValidator<ChangePasswordCo
     public ChangePasswordCommandValidator()
     {
         RuleFor(x => x.CurrentPassword).NotEmpty().WithMessage("Le mot de passe actuel est requis.");
-        RuleFor(x => x.NewPassword).NotEmpty().MinimumLength(8)
-            .WithMessage("Le nouveau mot de passe doit contenir au moins 8 caractères.")
+        RuleFor(x => x.NewPassword).StrongPassword()
             .Must((cmd, newPwd) => newPwd != cmd.CurrentPassword)
             .WithMessage("Le nouveau mot de passe doit être différent de l'actuel.");
     }

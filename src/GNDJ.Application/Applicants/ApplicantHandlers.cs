@@ -2,6 +2,7 @@ using System.Text.Json;
 using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using GNDJ.Domain.Enums;
 using Mediator;
@@ -125,7 +126,8 @@ public class RegisterApplicantCommandValidator : AbstractValidator<RegisterAppli
     public RegisterApplicantCommandValidator()
     {
         RuleFor(x => x.Email).NotEmpty().EmailAddress().WithMessage("Adresse email invalide.").MaximumLength(254);
-        RuleFor(x => x.Password).NotEmpty().MinimumLength(8).WithMessage("Le mot de passe doit contenir au moins 8 caractères.");
+        RuleFor(x => x.Password).StrongPassword();
+        RuleFor(x => x.ContactName).MaximumLength(200).NoHtml();
     }
 }
 

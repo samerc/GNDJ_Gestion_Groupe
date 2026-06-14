@@ -34,6 +34,7 @@ public class AuthController : BaseApiController
     }
 
     [HttpPost("refresh")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Refresh([FromBody] RefreshTokenCommand command)
     {
         var result = await Mediator.Send(command);
@@ -70,6 +71,7 @@ public class AuthController : BaseApiController
 
     [HttpPost("reset-password")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordCommand command)
     {
         var result = await Mediator.Send(command);
@@ -79,6 +81,7 @@ public class AuthController : BaseApiController
 
     [Authorize]
     [HttpPost("change-password")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
     {
         var result = await Mediator.Send(command);

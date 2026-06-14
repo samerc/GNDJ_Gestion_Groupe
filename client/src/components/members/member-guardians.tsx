@@ -74,6 +74,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    if (!editForm.firstName.trim() || !editForm.lastName.trim()) { setError('Le prénom et le nom sont requis.'); return }
     try {
       await updateMutation.mutateAsync({ id: editForm.id, firstName: editForm.firstName, lastName: editForm.lastName, profession: editForm.profession || null, isDeceased: editForm.isDeceased, notes: editForm.notes || null })
       await updateLinkMutation.mutateAsync({ linkId: editForm.linkId, relationshipType: editForm.relationshipType, isPrimaryContact: editForm.isPrimaryContact, isEmergencyContact: editForm.isEmergencyContact })

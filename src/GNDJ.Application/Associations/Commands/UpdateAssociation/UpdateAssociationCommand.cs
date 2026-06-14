@@ -1,5 +1,6 @@
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using FluentValidation;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -12,8 +13,9 @@ public class UpdateAssociationCommandValidator : AbstractValidator<UpdateAssocia
 {
     public UpdateAssociationCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(200);
-        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50);
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(200).NoHtml();
+        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
     }
 }
 

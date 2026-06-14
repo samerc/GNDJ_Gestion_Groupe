@@ -129,6 +129,7 @@ public class ReviewDocumentCommandValidator : AbstractValidator<ReviewDocumentCo
     {
         RuleFor(x => x.Status).Must(s => s == DocumentStatus.Approved || s == DocumentStatus.Rejected)
             .WithMessage("Le statut doit être Approved ou Rejected.");
+        RuleFor(x => x.ReviewNotes).MaximumLength(2000);
     }
 }
 

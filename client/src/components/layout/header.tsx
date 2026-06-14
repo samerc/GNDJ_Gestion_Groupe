@@ -36,8 +36,8 @@ export function Header() {
       setPasswordError('Les mots de passe ne correspondent pas.')
       return
     }
-    if (passwordForm.newPassword.length < 6) {
-      setPasswordError('Le mot de passe doit contenir au moins 6 caractères.')
+    if (passwordForm.newPassword.length < 8) {
+      setPasswordError('Le mot de passe doit contenir au moins 8 caractères (avec majuscule, minuscule et chiffre).')
       return
     }
     try {

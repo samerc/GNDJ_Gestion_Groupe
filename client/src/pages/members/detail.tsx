@@ -121,6 +121,15 @@ export default function MemberDetailPage() {
 
   const handleSave = async () => {
     setError('')
+    const missing: string[] = []
+    if (!form.firstName?.trim()) missing.push('prénom')
+    if (!form.lastName?.trim()) missing.push('nom')
+    if (!form.dateOfBirth) missing.push('date de naissance')
+    if (!form.gender) missing.push('genre')
+    if (!form.nationality?.trim()) missing.push('nationalité')
+    if (!form.school?.trim()) missing.push('école')
+    if (!form.classe?.trim()) missing.push('classe')
+    if (missing.length) { setError(`Champs requis manquants : ${missing.join(', ')}.`); return }
     try {
       await updateMutation.mutateAsync({
         id: id!, ...form,

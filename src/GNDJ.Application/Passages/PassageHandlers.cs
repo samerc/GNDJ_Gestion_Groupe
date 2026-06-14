@@ -274,6 +274,7 @@ public class ProposePassageCommandValidator : AbstractValidator<ProposePassageCo
         RuleFor(x => x.ScoutYear).NotEmpty().WithMessage("L'année scoute est requise.").MaximumLength(20);
         RuleFor(x => x.ProposedUnitId).NotEmpty().WithMessage("L'unité proposée est requise.");
         RuleFor(x => x.ProposedRoleId).NotEmpty().WithMessage("Le rôle proposé est requis.");
+        RuleFor(x => x.CuNotes).MaximumLength(1000);
     }
 }
 
@@ -407,6 +408,19 @@ public record BulkProposePassageCommand(
     string? CuNotes
 ) : IRequest<Result<int>>;
 
+public class BulkProposePassageCommandValidator : AbstractValidator<BulkProposePassageCommand>
+{
+    public BulkProposePassageCommandValidator()
+    {
+        RuleFor(x => x.MemberIds).NotEmpty().WithMessage("Au moins un membre est requis.")
+            .Must(list => list.Count <= 1000).WithMessage("Trop d'éléments (max 1000).");
+        RuleFor(x => x.ScoutYear).NotEmpty().WithMessage("L'année scoute est requise.").MaximumLength(20);
+        RuleFor(x => x.ProposedUnitId).NotEmpty().WithMessage("L'unité proposée est requise.");
+        RuleFor(x => x.ProposedRoleId).NotEmpty().WithMessage("Le rôle proposé est requis.");
+        RuleFor(x => x.CuNotes).MaximumLength(1000);
+    }
+}
+
 public class BulkProposePassageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<BulkProposePassageCommand, Result<int>>
 {
     public async ValueTask<Result<int>> Handle(BulkProposePassageCommand request, CancellationToken ct)
@@ -532,6 +546,7 @@ public class ReviewPassageCommandValidator : AbstractValidator<ReviewPassageComm
         RuleFor(x => x.Status).NotEmpty().WithMessage("Le statut est requis.")
             .Must(s => s == PassageStatus.Approved || s == PassageStatus.Rejected)
             .WithMessage("Le statut doit être 'Approved' ou 'Rejected'.");
+        RuleFor(x => x.CgNotes).MaximumLength(1000);
     }
 }
 
@@ -597,6 +612,19 @@ public record BulkReviewPassageCommand(
     List<Guid> PassageIds, string Status,
     string? CgNotes
 ) : IRequest<Result<int>>;
+
+public class BulkReviewPassageCommandValidator : AbstractValidator<BulkReviewPassageCommand>
+{
+    public BulkReviewPassageCommandValidator()
+    {
+        RuleFor(x => x.PassageIds).NotEmpty().WithMessage("Au moins un passage est requis.")
+            .Must(list => list.Count <= 1000).WithMessage("Trop d'éléments (max 1000).");
+        RuleFor(x => x.Status).NotEmpty().WithMessage("Le statut est requis.")
+            .Must(s => s == PassageStatus.Approved || s == PassageStatus.Rejected)
+            .WithMessage("Le statut doit être 'Approved' ou 'Rejected'.");
+        RuleFor(x => x.CgNotes).MaximumLength(1000);
+    }
+}
 
 public class BulkReviewPassageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<BulkReviewPassageCommand, Result<int>>
 {

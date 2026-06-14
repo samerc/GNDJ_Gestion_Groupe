@@ -1,6 +1,7 @@
 using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -73,8 +74,10 @@ public class CreateDocumentTypeCommandValidator : AbstractValidator<CreateDocume
 {
     public CreateDocumentTypeCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
-        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50);
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
+        RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
     }
 }
 
@@ -112,8 +115,10 @@ public class UpdateDocumentTypeCommandValidator : AbstractValidator<UpdateDocume
 {
     public UpdateDocumentTypeCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
-        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50);
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
+        RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
     }
 }
 

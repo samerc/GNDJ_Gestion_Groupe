@@ -27,6 +27,8 @@ export function RegisterForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    if (form.password.length < 8) { setError('Le mot de passe doit contenir au moins 8 caractères.'); return }
+    if (form.password !== form.confirmPassword) { setError('Les mots de passe ne correspondent pas.'); return }
     setLoading(true)
 
     try {

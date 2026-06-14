@@ -1,6 +1,7 @@
 using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -96,6 +97,9 @@ public class CreateUnitTypeProgressionCommandValidator : AbstractValidator<Creat
         RuleFor(x => x.FromUnitTypeId).NotEmpty().WithMessage("Le type d'unité source est requis.");
         RuleFor(x => x.ToUnitTypeId).NotEmpty().WithMessage("Le type d'unité destination est requis.");
         RuleFor(x => x.PathType).NotEmpty().Must(t => t is "member" or "leader").WithMessage("Type de parcours invalide.");
+        RuleFor(x => x.Gender).Must(g => string.IsNullOrEmpty(g) || g is "Masculin" or "Féminin" or "Mixte").WithMessage("Genre invalide.");
+        RuleFor(x => x.Notes).MaximumLength(500).NoHtml();
+        RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
     }
 }
 
@@ -124,6 +128,20 @@ public record UpdateUnitTypeProgressionCommand(
     Guid Id, Guid FromUnitTypeId, Guid ToUnitTypeId,
     string? Gender, string PathType, int DisplayOrder, string? Notes
 ) : IRequest<Result<bool>>;
+
+public class UpdateUnitTypeProgressionCommandValidator : AbstractValidator<UpdateUnitTypeProgressionCommand>
+{
+    public UpdateUnitTypeProgressionCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.FromUnitTypeId).NotEmpty().WithMessage("Le type d'unité source est requis.");
+        RuleFor(x => x.ToUnitTypeId).NotEmpty().WithMessage("Le type d'unité destination est requis.");
+        RuleFor(x => x.PathType).NotEmpty().Must(t => t is "member" or "leader").WithMessage("Type de parcours invalide.");
+        RuleFor(x => x.Gender).Must(g => string.IsNullOrEmpty(g) || g is "Masculin" or "Féminin" or "Mixte").WithMessage("Genre invalide.");
+        RuleFor(x => x.Notes).MaximumLength(500).NoHtml();
+        RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
+    }
+}
 
 public class UpdateUnitTypeProgressionCommandHandler(IApplicationDbContext context) : IRequestHandler<UpdateUnitTypeProgressionCommand, Result<bool>>
 {

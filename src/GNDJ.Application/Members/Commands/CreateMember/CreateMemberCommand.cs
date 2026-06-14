@@ -42,6 +42,9 @@ public class CreateMemberCommandValidator : AbstractValidator<CreateMemberComman
         RuleFor(x => x.School).NotEmpty().WithMessage("L'école est requise.").MaximumLength(100);
         RuleFor(x => x.Classe).NotEmpty().WithMessage("La classe est requise.").MaximumLength(50);
         RuleFor(x => x.Section).MaximumLength(5).WithMessage("La section ne doit pas dépasser 5 caractères.");
+        RuleFor(x => x.MedicalNotes).MaximumLength(2000);
+        RuleFor(x => x.Allergies).MaximumLength(2000);
+        RuleFor(x => x.Notes).MaximumLength(2000);
     }
 }
 

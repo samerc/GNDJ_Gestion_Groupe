@@ -21,6 +21,7 @@ public class UpdateAssignmentCommandValidator : AbstractValidator<UpdateAssignme
         RuleFor(x => x.EndDate).GreaterThan(x => x.StartDate)
             .When(x => x.EndDate.HasValue)
             .WithMessage("La date de fin doit être postérieure à la date de début.");
+        RuleFor(x => x.Notes).MaximumLength(2000);
     }
 }
 

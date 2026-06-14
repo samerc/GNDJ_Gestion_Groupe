@@ -72,13 +72,14 @@ public class CreateCotisationCommandValidator : AbstractValidator<CreateCotisati
     {
         RuleFor(x => x.MemberId).NotEmpty().WithMessage("Le membre est requis.");
         RuleFor(x => x.ScoutYear).NotEmpty().WithMessage("L'année scoute est requise.").MaximumLength(20);
+        RuleFor(x => x.Notes).MaximumLength(2000);
         RuleFor(x => x.Payments).NotEmpty().WithMessage("Au moins un paiement est requis.");
         RuleForEach(x => x.Payments).ChildRules(p =>
         {
             p.RuleFor(x => x.Amount).GreaterThan(0).WithMessage("Le montant doit être supérieur à 0.");
             p.RuleFor(x => x.Currency).NotEmpty().WithMessage("La devise est requise.")
                 .Must(c => Domain.Enums.Currency.All.Contains(c)).WithMessage("Devise invalide.");
-            p.RuleFor(x => x.PaymentMethod).NotEmpty().WithMessage("Le mode de paiement est requis.");
+            p.RuleFor(x => x.PaymentMethod).NotEmpty().WithMessage("Le mode de paiement est requis.").MaximumLength(50);
         });
     }
 }
@@ -157,12 +158,13 @@ public class UpdateCotisationCommandValidator : AbstractValidator<UpdateCotisati
 {
     public UpdateCotisationCommandValidator()
     {
+        RuleFor(x => x.Notes).MaximumLength(2000);
         RuleFor(x => x.Payments).NotEmpty().WithMessage("Au moins un paiement est requis.");
         RuleForEach(x => x.Payments).ChildRules(p =>
         {
             p.RuleFor(x => x.Amount).GreaterThan(0).WithMessage("Le montant doit être supérieur à 0.");
             p.RuleFor(x => x.Currency).NotEmpty().Must(c => Domain.Enums.Currency.All.Contains(c)).WithMessage("Devise invalide.");
-            p.RuleFor(x => x.PaymentMethod).NotEmpty().WithMessage("Le mode de paiement est requis.");
+            p.RuleFor(x => x.PaymentMethod).NotEmpty().WithMessage("Le mode de paiement est requis.").MaximumLength(50);
         });
     }
 }

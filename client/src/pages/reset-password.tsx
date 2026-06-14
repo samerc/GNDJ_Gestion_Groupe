@@ -27,8 +27,8 @@ export default function ResetPasswordPage() {
       return
     }
 
-    if (newPassword.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caracteres.')
+    if (newPassword.length < 8) {
+      setError('Le mot de passe doit contenir au moins 8 caractères (avec majuscule, minuscule et chiffre).')
       return
     }
 

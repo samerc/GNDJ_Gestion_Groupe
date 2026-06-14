@@ -1,5 +1,6 @@
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using FluentValidation;
 using Mediator;
@@ -14,8 +15,10 @@ public class CreateFunctionalRoleCommandValidator : AbstractValidator<CreateFunc
 {
     public CreateFunctionalRoleCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
-        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50);
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
+        RuleFor(x => x.Rank).InclusiveBetween(0, 9999);
         RuleFor(x => x.SecurityProfileId).NotEmpty().WithMessage("Le profil de sécurité est requis.");
     }
 }
@@ -62,8 +65,10 @@ public class UpdateFunctionalRoleCommandValidator : AbstractValidator<UpdateFunc
 {
     public UpdateFunctionalRoleCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
-        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50);
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
+        RuleFor(x => x.Rank).InclusiveBetween(0, 9999);
         RuleFor(x => x.SecurityProfileId).NotEmpty().WithMessage("Le profil de sécurité est requis.");
     }
 }

@@ -1,5 +1,6 @@
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using FluentValidation;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -12,9 +13,15 @@ public class UpdateUnitTypeCommandValidator : AbstractValidator<UpdateUnitTypeCo
 {
     public UpdateUnitTypeCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
-        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50);
-        RuleFor(x => x.NumberOfYears).GreaterThan(0).When(x => x.NumberOfYears.HasValue).WithMessage("Le nombre d'années doit être positif.");
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
+        RuleFor(x => x.Color).MaximumLength(10).HexColor();
+        RuleFor(x => x.NumberOfYears).GreaterThan(0).LessThanOrEqualTo(20).When(x => x.NumberOfYears.HasValue).WithMessage("Le nombre d'années doit être positif.");
+        RuleFor(x => x.AgeMin).InclusiveBetween(3, 99).When(x => x.AgeMin.HasValue);
+        RuleFor(x => x.AgeMax).InclusiveBetween(3, 99).When(x => x.AgeMax.HasValue);
+        RuleFor(x => x).Must(x => x.AgeMin <= x.AgeMax).When(x => x.AgeMin.HasValue && x.AgeMax.HasValue)
+            .WithMessage("L'âge minimum doit être inférieur ou égal à l'âge maximum.");
     }
 }
 

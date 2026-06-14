@@ -1,5 +1,6 @@
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using FluentValidation;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -14,8 +15,7 @@ public class ResetPasswordCommandValidator : AbstractValidator<ResetPasswordComm
     {
         RuleFor(x => x.Email).NotEmpty().EmailAddress();
         RuleFor(x => x.Token).NotEmpty();
-        RuleFor(x => x.NewPassword).NotEmpty().MinimumLength(8)
-            .WithMessage("Le mot de passe doit contenir au moins 8 caractères.");
+        RuleFor(x => x.NewPassword).StrongPassword();
     }
 }
 

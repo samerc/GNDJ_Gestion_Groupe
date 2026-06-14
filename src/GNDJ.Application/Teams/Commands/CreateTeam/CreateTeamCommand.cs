@@ -1,5 +1,6 @@
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using FluentValidation;
 using Mediator;
@@ -16,8 +17,14 @@ public class CreateTeamCommandValidator : AbstractValidator<CreateTeamCommand>
 {
     public CreateTeamCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(200);
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(200).NoHtml();
         RuleFor(x => x.UnitId).NotEmpty().WithMessage("L'unité est requise.");
+        RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
+        RuleFor(x => x.Totem).MaximumLength(50).NoHtml();
+        RuleFor(x => x.Adjective).MaximumLength(50).NoHtml();
+        RuleFor(x => x.Color1).MaximumLength(20).HexColor();
+        RuleFor(x => x.Color2).MaximumLength(20).HexColor();
+        RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
     }
 }
 

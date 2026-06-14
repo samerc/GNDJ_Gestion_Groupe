@@ -61,8 +61,38 @@ public class UpdateSettingCommandHandler : IRequestHandler<UpdateSettingCommand,
         if (entity is null)
             return Result<bool>.Failure("Paramètre introuvable.");
 
+        var value = request.Value ?? string.Empty;
+        if (value.Length > 10000)
+            return Result<bool>.Failure("La valeur est trop longue (max 10000 caractères).");
+
+        // Validate the value against the setting's declared type.
+        switch (entity.ValueType)
+        {
+            case "number":
+                if (!decimal.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, out _))
+                    return Result<bool>.Failure("Ce paramètre attend une valeur numérique.");
+                break;
+            case "boolean":
+                if (value is not ("true" or "false"))
+                    return Result<bool>.Failure("Ce paramètre attend « true » ou « false ».");
+                break;
+            case "json":
+            case "json_array":
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(value);
+                    if (entity.ValueType == "json_array" && doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array)
+                        return Result<bool>.Failure("Ce paramètre attend un tableau JSON.");
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    return Result<bool>.Failure("Valeur JSON invalide.");
+                }
+                break;
+        }
+
         var oldValue = entity.Value;
-        entity.Value = request.Value;
+        entity.Value = value;
 
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Update", "Setting", null, oldValues: new { entity.Key, Value = oldValue }, newValues: new { entity.Key, entity.Value }, cancellationToken: cancellationToken);

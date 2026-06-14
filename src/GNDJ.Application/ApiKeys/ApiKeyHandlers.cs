@@ -1,6 +1,7 @@
 using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -35,10 +36,22 @@ public record CreateApiKeyCommand(string Name, string Scopes, Guid? MemberId, Da
 
 public class CreateApiKeyCommandValidator : AbstractValidator<CreateApiKeyCommand>
 {
+    // Keep in sync with ApiKeyMiddleware.ScopeToPermissions keys.
+    private static readonly HashSet<string> ValidScopes = new()
+    {
+        "members:read-own", "members:read", "members:write",
+        "documents:upload", "documents:read",
+        "cotisations:read-own", "cotisations:read",
+    };
+
     public CreateApiKeyCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
-        RuleFor(x => x.Scopes).NotEmpty().WithMessage("Les scopes sont requis.");
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.Scopes).NotEmpty().WithMessage("Les scopes sont requis.").MaximumLength(500)
+            .Must(s => s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).All(ValidScopes.Contains))
+            .WithMessage("Un ou plusieurs scopes sont invalides.");
+        RuleFor(x => x.ExpiresAt).GreaterThan(DateTime.UtcNow).When(x => x.ExpiresAt.HasValue)
+            .WithMessage("La date d'expiration doit être dans le futur.");
     }
 }
 

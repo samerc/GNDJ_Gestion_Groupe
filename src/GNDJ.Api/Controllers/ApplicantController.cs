@@ -30,6 +30,7 @@ public class ApplicantController : BaseApiController
 
     [HttpPost("verify-email")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> VerifyEmail([FromBody] VerifyApplicantEmailCommand command)
     {
         var result = await Mediator.Send(command);
@@ -49,6 +50,7 @@ public class ApplicantController : BaseApiController
 
     [HttpPost("refresh")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Refresh([FromBody] RefreshApplicantTokenCommand command)
     {
         var result = await Mediator.Send(command);
@@ -58,6 +60,7 @@ public class ApplicantController : BaseApiController
 
     [Authorize]
     [HttpPost("resend-verification")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> ResendVerification()
     {
         var result = await Mediator.Send(new ResendVerificationCommand());

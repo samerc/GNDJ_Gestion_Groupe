@@ -45,9 +45,10 @@ public class CreateReportTemplateCommandValidator : AbstractValidator<CreateRepo
     public CreateReportTemplateCommandValidator()
     {
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(200);
+        RuleFor(x => x.Description).MaximumLength(500);
         RuleFor(x => x.ReportType).NotEmpty().Must(t => t is "roster" or "export").WithMessage("Type invalide.");
         RuleFor(x => x.Format).NotEmpty().Must(f => f is "pdf" or "xlsx" or "csv").WithMessage("Format invalide.");
-        RuleFor(x => x.ColumnsJson).NotEmpty().WithMessage("Les colonnes sont requises.");
+        RuleFor(x => x.ColumnsJson).NotEmpty().WithMessage("Les colonnes sont requises.").MaximumLength(5000);
     }
 }
 
@@ -83,9 +84,10 @@ public class UpdateReportTemplateCommandValidator : AbstractValidator<UpdateRepo
     public UpdateReportTemplateCommandValidator()
     {
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(200);
+        RuleFor(x => x.Description).MaximumLength(500);
         RuleFor(x => x.ReportType).NotEmpty().Must(t => t is "roster" or "export").WithMessage("Type invalide.");
         RuleFor(x => x.Format).NotEmpty().Must(f => f is "pdf" or "xlsx" or "csv").WithMessage("Format invalide.");
-        RuleFor(x => x.ColumnsJson).NotEmpty().WithMessage("Les colonnes sont requises.");
+        RuleFor(x => x.ColumnsJson).NotEmpty().WithMessage("Les colonnes sont requises.").MaximumLength(5000);
     }
 }
 

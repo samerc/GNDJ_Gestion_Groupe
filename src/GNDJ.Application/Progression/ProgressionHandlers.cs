@@ -1,6 +1,7 @@
 using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -62,8 +63,10 @@ public class CreateScoutStageCommandValidator : AbstractValidator<CreateScoutSta
 {
     public CreateScoutStageCommandValidator()
     {
-        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50);
-        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
+        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
+        RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
         RuleFor(x => x.UnitTypeId).NotEmpty().WithMessage("Le type d'unité est requis.");
     }
 }
@@ -95,6 +98,18 @@ public class CreateScoutStageCommandHandler(IApplicationDbContext context, IAudi
 
 // Update
 public record UpdateScoutStageCommand(Guid Id, string Code, string Name, string? Description, int DisplayOrder, bool IsActive, bool IsBadgeStage) : IRequest<Result<bool>>;
+
+public class UpdateScoutStageCommandValidator : AbstractValidator<UpdateScoutStageCommand>
+{
+    public UpdateScoutStageCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.Code).NotEmpty().MaximumLength(50).NoHtml();
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(100).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
+        RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
+    }
+}
 
 public class UpdateScoutStageCommandHandler(IApplicationDbContext context, IAuditService auditService) : IRequestHandler<UpdateScoutStageCommand, Result<bool>>
 {
@@ -196,8 +211,10 @@ public class CreateBadgeCommandValidator : AbstractValidator<CreateBadgeCommand>
 {
     public CreateBadgeCommandValidator()
     {
-        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50);
-        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
+        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
+        RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
         RuleFor(x => x.UnitTypeId).NotEmpty().WithMessage("Le type d'unité est requis.");
     }
 }
@@ -227,6 +244,18 @@ public class CreateBadgeCommandHandler(IApplicationDbContext context, IAuditServ
 }
 
 public record UpdateBadgeCommand(Guid Id, string Code, string Name, string? Description, int DisplayOrder, bool IsActive) : IRequest<Result<bool>>;
+
+public class UpdateBadgeCommandValidator : AbstractValidator<UpdateBadgeCommand>
+{
+    public UpdateBadgeCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.Code).NotEmpty().MaximumLength(50).NoHtml();
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(100).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
+        RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
+    }
+}
 
 public class UpdateBadgeCommandHandler(IApplicationDbContext context, IAuditService auditService) : IRequestHandler<UpdateBadgeCommand, Result<bool>>
 {
@@ -328,6 +357,8 @@ public class CreateMemberProgressionCommandValidator : AbstractValidator<CreateM
         RuleFor(x => x.MemberId).NotEmpty().WithMessage("Le membre est requis.");
         RuleFor(x => x.UnitId).NotEmpty().WithMessage("L'unité est requise.");
         RuleFor(x => x.ScoutStageId).NotEmpty().WithMessage("L'étape est requise.");
+        RuleFor(x => x.Location).MaximumLength(200).NoHtml();
+        RuleFor(x => x.Notes).MaximumLength(2000);
     }
 }
 

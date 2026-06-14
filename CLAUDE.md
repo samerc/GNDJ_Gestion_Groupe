@@ -405,6 +405,26 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] Audited: IDOR (cross-account blocked), auth isolation both ways, 100-concurrent register/login/profile, CG authz.
 - [ ] Phase 5 remainder (later): expand the landing into the full group site. API-docs polish pass (Swagger auto-includes new endpoints).
 
+### Input-validation hardening (Complete — 2026-06)
+- [x] Shared `ValidationExtensions` (Application/Common/Validation): `.NoHtml()` (rejects `<`/`>`),
+      `.HexColor()`, `.StrongPassword()` (8–128 + upper/lower/digit) — reused across validators.
+- [x] Added validators where missing: ALL Guardian writes (were unvalidated), Update Phone/Email/Address,
+      Update ScoutStage/Badge/UnitTypeProgression (PathType allowed-set restored), Bulk Propose/Review passage
+      (NotEmpty + ≤1000 list cap).
+- [x] UpdateSetting validates Value against the setting's ValueType (number/boolean/json/json_array) + 10k cap.
+- [x] UpdateSecurityProfilePermissions rejects permission strings not in Permissions.All. (System profiles stay
+      editable — that's the intended admin feature.)
+- [x] Unified password policy (StrongPassword) across Register/Reset/Change/ApplicantRegister; rate-limited
+      reset-password, change-password, /auth/refresh, applicant refresh/verify-email/resend-verification.
+- [x] Free-text caps (MaxLength) + NoHtml on all member/guardian/assignment/config notes & descriptions
+      (were unbounded `text`); colors hex-validated; ages/years/ranks/displayOrder range-checked; AgeMin≤AgeMax.
+- [x] ApiKey scopes whitelisted + expiry future-check; SetMemberCustomFieldValue validates value vs FieldType
+      (number/boolean/select-options).
+- [x] Frontend: register confirm-match + length, password min 8 (reset/change), cotisation inline amount>0,
+      member-edit + guardian-edit required-field guards.
+- [ ] Minor cosmetic (deferred): export `Format` silently defaults to Excel on invalid value; UpdateAssignment
+      bad Unit/Role FK returns 500 not 400 (FK still protects integrity). Not security issues.
+
 ### Remaining / Next
 - [ ] **Option 1 (DECIDED, not yet built):** keep all imported members incl. inactive, but make counts
       honest — admin dashboard "Total members" should count ACTIVE (930) not all (2259); admin members

@@ -1,11 +1,25 @@
+using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.UpdateAddress;
 
 public record UpdateAddressCommand(Guid Id, string Type, string Country, string City, string? Details, bool IsPrimary) : IRequest<Result<bool>>;
+
+public class UpdateAddressCommandValidator : AbstractValidator<UpdateAddressCommand>
+{
+    public UpdateAddressCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
+        RuleFor(x => x.Country).NotEmpty().MaximumLength(100).NoHtml();
+        RuleFor(x => x.City).NotEmpty().MaximumLength(100).NoHtml();
+        RuleFor(x => x.Details).MaximumLength(500).NoHtml();
+    }
+}
 
 public class UpdateAddressCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<UpdateAddressCommand, Result<bool>>
 {
