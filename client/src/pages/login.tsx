@@ -1,11 +1,14 @@
 import { Navigate, Link } from 'react-router'
 import { Compass, UserPlus } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
+import { usePublicSiteConfig } from '@/services/public-service'
 import { LoginForm } from '@/components/auth/login-form'
 import { Button } from '@/components/ui/button'
 
 export default function LoginPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const { data: config } = usePublicSiteConfig()
+  const inscriptionsOpen = config?.inscriptionsOpen ?? false
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />
@@ -23,18 +26,22 @@ export default function LoginPage() {
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-white shadow-elevated ring-1 ring-white/10">
             <Compass className="h-7 w-7" strokeWidth={2.2} />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">GNDJ Scout</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Plateforme de gestion de groupe scout</p>
+          <h1 className="text-3xl font-bold tracking-tight">Espace membres et chefs</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Connexion réservée aux membres et chefs du groupe — GNDJ Scout</p>
         </div>
         <LoginForm />
-        <div className="mt-4 flex items-center gap-3">
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-xs text-muted-foreground">ou</span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
-        <Button asChild variant="outline" className="mt-4 w-full">
-          <Link to="/inscription"><UserPlus className="mr-2 h-4 w-4" />Demande d'inscription (nouveau membre)</Link>
-        </Button>
+        {inscriptionsOpen && (
+          <>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">ou</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            <Button asChild variant="outline" className="mt-4 w-full">
+              <Link to="/inscription"><UserPlus className="mr-2 h-4 w-4" />Demande d'inscription (nouveau membre)</Link>
+            </Button>
+          </>
+        )}
         <p className="mt-6 text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()} GNDJ Scout — Tous droits réservés
         </p>

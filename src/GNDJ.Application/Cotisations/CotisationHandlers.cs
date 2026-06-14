@@ -313,24 +313,23 @@ public class GetCotisationSummaryQueryHandler(IApplicationDbContext context) : I
 
         var activeMemberIds = activeAssignments.Select(a => a.MemberId).Distinct().ToList();
 
-        // Get payment lines through cotisations
-        var payments = await context.MemberCotisations
+        // One round-trip for the year's cotisations of active members: payment lines flattened in
+        // memory, and "paid" = a cotisation record exists (independent of payment lines, as before).
+        var cotisations = await context.MemberCotisations
             .Where(c => c.ScoutYear == request.ScoutYear && activeMemberIds.Contains(c.MemberId))
-            .SelectMany(c => c.Payments.Where(p => !p.IsDeleted).Select(p => new { c.MemberId, p.Amount, p.Currency }))
+            .Select(c => new { c.MemberId, Payments = c.Payments.Where(p => !p.IsDeleted).Select(p => new { p.Amount, p.Currency }).ToList() })
             .ToListAsync(ct);
 
-        var paidMemberIds = await context.MemberCotisations
-            .Where(c => c.ScoutYear == request.ScoutYear && activeMemberIds.Contains(c.MemberId))
-            .Select(c => c.MemberId)
-            .Distinct()
-            .ToListAsync(ct);
+        var payments = cotisations
+            .SelectMany(c => c.Payments.Select(p => new { c.MemberId, p.Amount, p.Currency }))
+            .ToList();
+
+        var paidSet = cotisations.Select(c => c.MemberId).Distinct().ToHashSet();
 
         var totalsByCurrency = payments
             .GroupBy(p => p.Currency)
             .Select(g => new CurrencyTotalDto(g.Key, g.Sum(p => p.Amount), g.Count()))
             .ToList();
-
-        var paidSet = paidMemberIds.ToHashSet();
 
         var unitGroups = activeAssignments
             .GroupBy(a => a.UnitName)
@@ -367,10 +366,7 @@ public class GetUnpaidCotisationsQueryHandler(IApplicationDbContext context, ICu
     public async ValueTask<IReadOnlyList<UnpaidCotisationDto>> Handle(GetUnpaidCotisationsQuery request, CancellationToken ct)
     {
         var query = context.MemberAssignments
-            .Where(a => a.EndDate == null)
-            .Include(a => a.Member)
-            .Include(a => a.Unit)
-            .AsQueryable();
+            .Where(a => a.EndDate == null);
 
         if (!currentUser.IsSuperAdmin)
         {

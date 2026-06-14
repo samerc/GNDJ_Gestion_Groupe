@@ -46,6 +46,8 @@ public interface IApplicationDbContext
     DbSet<ApplicantScoutRelation> ApplicantScoutRelations { get; }
     DbSet<Demande> Demandes { get; }
     DbSet<UnitIntakeQuota> UnitIntakeQuotas { get; }
+    DbSet<NewsPost> NewsPosts { get; }
+    DbSet<Page> Pages { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

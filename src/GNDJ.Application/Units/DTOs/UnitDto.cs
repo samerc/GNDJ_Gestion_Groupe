@@ -11,7 +11,10 @@ public record UnitDto(
     Guid UnitTypeId,
     string UnitTypeName,
     int TeamCount,
-    int MemberCount
+    int MemberCount,
+    string? Slug,
+    bool IsPublished,
+    DateOnly? FoundedDate
 );
 
 public record UnitDetailDto(
@@ -27,5 +30,8 @@ public record UnitDetailDto(
     int TeamCount,
     int MemberCount,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    string? Slug,
+    bool IsPublished,
+    DateOnly? FoundedDate
 );

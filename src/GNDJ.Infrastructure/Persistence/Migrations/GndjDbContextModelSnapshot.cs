@@ -2317,6 +2317,185 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("GNDJ.Domain.Entities.NewsPost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BodyHtml")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("body_html");
+
+                    b.Property<string>("CoverImagePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("cover_image_path");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_published");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(220)
+                        .HasColumnType("character varying(220)")
+                        .HasColumnName("slug");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("summary");
+
+                    b.Property<string>("TagType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("tag_type");
+
+                    b.Property<Guid?>("TagUnitId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tag_unit_id");
+
+                    b.Property<Guid?>("TagUnitTypeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tag_unit_type_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_news_posts");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ix_news_posts_slug")
+                        .HasFilter("is_deleted = false");
+
+                    b.HasIndex("IsPublished", "PublishedAt")
+                        .HasDatabaseName("ix_news_posts_is_published_published_at");
+
+                    b.ToTable("news_posts", (string)null);
+                });
+
+            modelBuilder.Entity("GNDJ.Domain.Entities.Page", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BodyHtml")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("body_html");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_published");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<bool>("ShowInMenu")
+                        .HasColumnType("boolean")
+                        .HasColumnName("show_in_menu");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(220)
+                        .HasColumnType("character varying(220)")
+                        .HasColumnName("slug");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_pages");
+
+                    b.HasIndex("ParentId")
+                        .HasDatabaseName("ix_pages_parent_id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ix_pages_slug")
+                        .HasFilter("is_deleted = false");
+
+                    b.ToTable("pages", (string)null);
+                });
+
             modelBuilder.Entity("GNDJ.Domain.Entities.Passage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2976,6 +3155,10 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
+                    b.Property<DateOnly?>("FoundedDate")
+                        .HasColumnType("date")
+                        .HasColumnName("founded_date");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
@@ -2984,11 +3167,20 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_published");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
+
+                    b.Property<string>("Slug")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("slug");
 
                     b.Property<Guid>("UnitTypeId")
                         .HasColumnType("uuid")
@@ -3007,6 +3199,11 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AssociationId")
                         .HasDatabaseName("ix_units_association_id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ix_units_slug")
+                        .HasFilter("slug IS NOT NULL AND is_deleted = false");
 
                     b.HasIndex("UnitTypeId")
                         .HasDatabaseName("ix_units_unit_type_id");
@@ -3142,6 +3339,10 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                     b.Property<int?>("NumberOfYears")
                         .HasColumnType("integer")
                         .HasColumnName("number_of_years");
+
+                    b.Property<string>("PublicDescription")
+                        .HasColumnType("text")
+                        .HasColumnName("public_description");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -3727,6 +3928,17 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                     b.Navigation("RelatedMember");
                 });
 
+            modelBuilder.Entity("GNDJ.Domain.Entities.Page", b =>
+                {
+                    b.HasOne("GNDJ.Domain.Entities.Page", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_pages_pages_parent_id");
+
+                    b.Navigation("Parent");
+                });
+
             modelBuilder.Entity("GNDJ.Domain.Entities.Passage", b =>
                 {
                     b.HasOne("GNDJ.Domain.Entities.FunctionalRole", "CurrentRole")
@@ -3973,6 +4185,11 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("GNDJ.Domain.Entities.MemberCotisation", b =>
                 {
                     b.Navigation("Payments");
+                });
+
+            modelBuilder.Entity("GNDJ.Domain.Entities.Page", b =>
+                {
+                    b.Navigation("Children");
                 });
 
             modelBuilder.Entity("GNDJ.Domain.Entities.ScoutStage", b =>

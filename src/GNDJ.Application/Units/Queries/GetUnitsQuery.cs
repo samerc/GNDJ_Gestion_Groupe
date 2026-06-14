@@ -60,7 +60,8 @@ public class GetUnitsQueryHandler : IRequestHandler<GetUnitsQuery, PaginatedList
             u.AssociationId, u.Association.Name,
             u.UnitTypeId, u.UnitType.Name,
             u.Teams.Count(t => !t.IsDeleted),
-            u.Assignments.Count(a => !a.IsDeleted && a.EndDate == null)
+            u.Assignments.Count(a => !a.IsDeleted && a.EndDate == null),
+            u.Slug, u.IsPublished, u.FoundedDate
         ));
 
         return await PaginatedList<UnitDto>.CreateAsync(projected, request.Page, request.PageSize, cancellationToken);
@@ -93,7 +94,8 @@ public class GetUnitByIdQueryHandler : IRequestHandler<GetUnitByIdQuery, UnitDet
                 u.UnitTypeId, u.UnitType.Name,
                 u.Teams.Count(t => !t.IsDeleted),
                 u.Assignments.Count(a => !a.IsDeleted && a.EndDate == null),
-                u.CreatedAt, u.UpdatedAt
+                u.CreatedAt, u.UpdatedAt,
+                u.Slug, u.IsPublished, u.FoundedDate
             ))
             .FirstOrDefaultAsync(cancellationToken);
     }

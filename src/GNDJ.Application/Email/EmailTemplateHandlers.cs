@@ -10,7 +10,7 @@ namespace GNDJ.Application.Email;
 // Allowed template modules — kept in sync with the frontend MODULE_OPTIONS (email-settings.tsx).
 public static class EmailTemplateModules
 {
-    public static readonly string[] All = { "auth", "documents", "cotisations", "passage", "demande" };
+    public static readonly string[] All = { "auth", "documents", "cotisations", "passage", "demande", "general" };
 }
 
 // DTOs

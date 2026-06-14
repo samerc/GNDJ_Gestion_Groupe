@@ -10,7 +10,8 @@ public record UnitTypeDto(
     int? AgeMax,
     string? Color,
     int UnitCount,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string? PublicDescription
 );
 
 public record UnitTypeDetailDto(
@@ -23,5 +24,6 @@ public record UnitTypeDetailDto(
     int? AgeMax,
     string? Color,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    string? PublicDescription
 );

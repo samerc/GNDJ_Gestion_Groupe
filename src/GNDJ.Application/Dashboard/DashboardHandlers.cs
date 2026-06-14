@@ -154,25 +154,30 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
 
         var ct = cancellationToken;
 
-        // All members
-        var members = await _context.Members
-            .Select(m => new { m.Id, m.Gender, m.DateOfBirth, HasActiveAssignment = m.Assignments.Any(a => a.EndDate == null) })
+        // Member counts via SQL aggregates (avoids materializing every member row just to count).
+        var genderCounts = await _context.Members
+            .GroupBy(m => m.Gender)
+            .Select(g => new { Gender = g.Key, Count = g.Count() })
             .ToListAsync(ct);
-
-        var totalMembers = members.Count;
-        var boys = members.Count(m => string.Equals(m.Gender, "Masculin", StringComparison.OrdinalIgnoreCase));
-        var girls = members.Count(m => string.Equals(m.Gender, "Féminin", StringComparison.OrdinalIgnoreCase));
+        var totalMembers = genderCounts.Sum(g => g.Count);
+        var boys = genderCounts.Where(g => string.Equals(g.Gender, "Masculin", StringComparison.OrdinalIgnoreCase)).Sum(g => g.Count);
+        var girls = genderCounts.Where(g => string.Equals(g.Gender, "Féminin", StringComparison.OrdinalIgnoreCase)).Sum(g => g.Count);
         var ungendered = totalMembers - boys - girls;
-        var withoutUnit = members.Count(m => !m.HasActiveAssignment);
+        var withoutUnit = await _context.Members.CountAsync(m => !m.Assignments.Any(a => a.EndDate == null), ct);
 
-        // Active member IDs (have current assignment)
-        var activeMemberIds = members.Where(m => m.HasActiveAssignment).Select(m => m.Id).ToHashSet();
+        // Only the ACTIVE members are reused below (unpaid / missing-docs / age groups), so fetch
+        // just that subset (Id + DOB) rather than the whole members table.
+        var activeMembers = await _context.Members
+            .Where(m => m.Assignments.Any(a => a.EndDate == null))
+            .Select(m => new { m.Id, m.DateOfBirth })
+            .ToListAsync(ct);
+        var activeMemberIds = activeMembers.Select(m => m.Id).ToHashSet();
 
         // Unpaid cotisations
-        var paidMemberIds = await _context.MemberCotisations
+        var paidMemberIds = (await _context.MemberCotisations
             .Where(c => c.ScoutYear == request.ScoutYear)
             .Select(c => c.MemberId)
-            .ToListAsync(ct);
+            .ToListAsync(ct)).ToHashSet();
         var unpaidCotisations = activeMemberIds.Count(id => !paidMemberIds.Contains(id));
 
         // Missing documents: active members who are missing at least one active doc type
@@ -220,7 +225,7 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
         // Age groups
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var ageGroups = new List<AgeGroupDto>();
-        var withDob = members.Where(m => m.DateOfBirth.HasValue && m.HasActiveAssignment).ToList();
+        var withDob = activeMembers.Where(m => m.DateOfBirth.HasValue).ToList();
         var ages = withDob.Select(m => today.Year - m.DateOfBirth!.Value.Year - (today.DayOfYear < m.DateOfBirth.Value.DayOfYear ? 1 : 0)).ToList();
         ageGroups.Add(new AgeGroupDto("7-10 ans", ages.Count(a => a >= 7 && a <= 10)));
         ageGroups.Add(new AgeGroupDto("11-14 ans", ages.Count(a => a >= 11 && a <= 14)));

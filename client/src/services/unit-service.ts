@@ -14,6 +14,9 @@ export interface UnitDto {
   unitTypeName: string
   teamCount: number
   memberCount: number
+  slug: string | null
+  isPublished: boolean
+  foundedDate: string | null
 }
 
 export interface UnitFormData {
@@ -23,6 +26,9 @@ export interface UnitFormData {
   associationId: string
   unitTypeId: string
   isActive?: boolean
+  slug?: string | null
+  isPublished?: boolean
+  foundedDate?: string | null
 }
 
 export function useUnits(params: { search?: string; associationId?: string; unitTypeId?: string; isActive?: boolean; page?: number; pageSize?: number }) {

@@ -20,14 +20,13 @@ public class DeleteUnitTypeCommandHandler : IRequestHandler<DeleteUnitTypeComman
 
     public async ValueTask<Result<bool>> Handle(DeleteUnitTypeCommand request, CancellationToken cancellationToken)
     {
-        var entity = await _context.UnitTypes
-            .Include(ut => ut.Units)
-            .FirstOrDefaultAsync(ut => ut.Id == request.Id, cancellationToken);
+        var entity = await _context.UnitTypes.FindAsync([request.Id], cancellationToken);
 
         if (entity is null)
             return Result<bool>.Failure("Type d'unité introuvable.");
 
-        if (entity.Units.Any())
+        var hasUnits = await _context.Units.AnyAsync(u => u.UnitTypeId == request.Id, cancellationToken);
+        if (hasUnits)
             return Result<bool>.Failure("Impossible de supprimer un type d'unité qui contient des unités.");
 
         _context.UnitTypes.Remove(entity);

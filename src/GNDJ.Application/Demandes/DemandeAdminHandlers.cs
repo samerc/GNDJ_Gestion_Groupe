@@ -123,10 +123,11 @@ public class GetUnitOccupancyQueryHandler(IApplicationDbContext context) : IRequ
         var units = await context.Units.Where(u => u.IsActive)
             .Include(u => u.UnitType).Include(u => u.Association).ToListAsync(ct);
 
-        // current active members per unit
-        var activeByUnit = (await context.MemberAssignments.Where(a => a.EndDate == null)
-            .Select(a => a.UnitId).ToListAsync(ct))
-            .GroupBy(x => x).ToDictionary(g => g.Key, g => g.Count());
+        // current active members per unit (counted in SQL)
+        var activeByUnit = await context.MemberAssignments.Where(a => a.EndDate == null)
+            .GroupBy(a => a.UnitId)
+            .Select(g => new { UnitId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.UnitId, g => g.Count, ct);
 
         // passage projection: count non-finalized, non-rejected lines for the year
         var passages = await context.Passages
@@ -146,9 +147,10 @@ public class GetUnitOccupancyQueryHandler(IApplicationDbContext context) : IRequ
         var quotas = await context.UnitIntakeQuotas.Where(q => q.ScoutYear == request.ScoutYear)
             .ToDictionaryAsync(q => q.UnitId, q => q.Quota, ct);
 
-        var accepted = (await context.Demandes.Where(d => d.ScoutYear == request.ScoutYear && d.Status == DemandeStatus.Approved && d.DecidedUnitId != null)
-            .Select(d => d.DecidedUnitId!.Value).ToListAsync(ct))
-            .GroupBy(x => x).ToDictionary(g => g.Key, g => g.Count());
+        var accepted = await context.Demandes.Where(d => d.ScoutYear == request.ScoutYear && d.Status == DemandeStatus.Approved && d.DecidedUnitId != null)
+            .GroupBy(d => d.DecidedUnitId!.Value)
+            .Select(g => new { UnitId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.UnitId, g => g.Count, ct);
 
         var result = units.Select(u =>
         {

@@ -11,6 +11,12 @@ public class Unit : BaseEntity
     public string? Description { get; set; }
     public bool IsActive { get; set; } = true;
 
+    // Public website fields. The unit appears on the public site only when IsPublished.
+    // (The public description lives on UnitType — shared by all units of the same category.)
+    public string? Slug { get; set; }            // URL-friendly identifier for /unites/{slug}
+    public bool IsPublished { get; set; }        // gate: false = hidden from the public site
+    public DateOnly? FoundedDate { get; set; }   // actual founding date of the unit (not the system record date)
+
     public Association Association { get; set; } = null!;
     public UnitType UnitType { get; set; } = null!;
     public ICollection<Team> Teams { get; set; } = [];

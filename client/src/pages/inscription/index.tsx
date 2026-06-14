@@ -26,7 +26,6 @@ export default function InscriptionLandingPage() {
               <p className="text-sm text-muted-foreground">
                 La période d'inscription n'est pas ouverte pour le moment. Merci de revenir plus tard.
               </p>
-              <Link to="/inscription/login" className="text-sm text-primary hover:underline">J'ai déjà un compte</Link>
             </div>
           ) : (
             <>

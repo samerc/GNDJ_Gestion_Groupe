@@ -53,6 +53,12 @@ const MODULE_VARIABLES: Record<string, { key: string; label: string }[]> = {
     { key: 'loginUrl', label: 'Lien de connexion' },
     { key: 'reason', label: 'Motif (refus)' },
   ],
+  general: [
+    { key: 'senderName', label: "Nom de l'expéditeur" },
+    { key: 'senderEmail', label: "Email de l'expéditeur" },
+    { key: 'subject', label: 'Sujet' },
+    { key: 'message', label: 'Message' },
+  ],
 }
 
 const MODULE_OPTIONS = [
@@ -61,6 +67,7 @@ const MODULE_OPTIONS = [
   { value: 'cotisations', label: 'Cotisations' },
   { value: 'passage', label: 'Passage' },
   { value: 'demande', label: "Demande d'inscription" },
+  { value: 'general', label: 'Général' },
 ]
 
 // -- SMTP form --

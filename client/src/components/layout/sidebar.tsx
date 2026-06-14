@@ -28,6 +28,7 @@ import {
   Route,
   Compass,
   Inbox,
+  Newspaper,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePendingDemandeCount } from '@/services/demande-admin-service'
@@ -88,6 +89,14 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },
       { path: '/admin/card-designer', label: 'Carte membre', icon: CreditCard, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/report-templates', label: 'Rapports', icon: FileText, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+    ],
+  },
+  {
+    label: 'Site public',
+    items: [
+      { path: '/admin/news', label: 'Actualités', icon: Newspaper, permission: PERMISSIONS.CONTENT_MANAGE },
+      { path: '/admin/pages', label: 'Pages', icon: FileText, permission: PERMISSIONS.CONTENT_MANAGE },
+      { path: '/admin/site-texts', label: 'Textes du site', icon: FileText, permission: PERMISSIONS.CONTENT_MANAGE },
     ],
   },
   {

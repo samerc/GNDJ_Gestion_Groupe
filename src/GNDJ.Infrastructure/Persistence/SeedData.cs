@@ -203,6 +203,7 @@ public static class SeedData
             new() { Key = "demande.require_email_verification", Value = "true", Category = "demande", Label = "Vérification email requise", Description = "Exige la vérification de l'email avant de soumettre une demande", ValueType = "boolean" },
             new() { Key = "demande.decide_siblings_together", Value = "true", Category = "demande", Label = "Décider les fratries ensemble", Description = "Affiche le statut des frères/sœurs lors de la revue", ValueType = "boolean" },
             new() { Key = "demande.intro_text", Value = "Bienvenue ! Créez un compte pour présenter une demande d'inscription au mouvement scout. Vous pourrez inscrire un ou plusieurs enfants.", Category = "demande", Label = "Texte d'accueil du portail", Description = "Message affiché sur la page d'accueil du portail d'inscription", ValueType = "string" },
+            new() { Key = "contact.recipient_email", Value = "", Category = "contact", Label = "Email de contact", Description = "Adresse qui reçoit les messages du formulaire de contact public (si vide, les messages vont au super administrateur)", ValueType = "string" },
         };
 
         var missing = allSettings.Where(s => !existingKeys.Contains(s.Key)).ToList();
@@ -296,6 +297,23 @@ public static class SeedData
             context.EmailTemplates.AddRange(missing);
             await context.SaveChangesAsync();
         }
+    }
+
+    // Public contact-form notification template (idempotent per-code).
+    public static async Task SeedContactEmailTemplateAsync(GndjDbContext context)
+    {
+        if (await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "contact_form"))
+            return;
+
+        context.EmailTemplates.Add(new EmailTemplate
+        {
+            Name = "Message de contact (site public)", Code = "contact_form", Module = "general",
+            Subject = "Nouveau message de contact — {{subject}}",
+            BodyHtml = "<h2>Nouveau message du formulaire de contact</h2><p><strong>De :</strong> {{senderName}} ({{senderEmail}})</p><p><strong>Sujet :</strong> {{subject}}</p><hr /><p>{{message}}</p>",
+            Variables = "[{\"key\":\"senderName\",\"label\":\"Nom de l'expéditeur\"},{\"key\":\"senderEmail\",\"label\":\"Email de l'expéditeur\"},{\"key\":\"subject\",\"label\":\"Sujet\"},{\"key\":\"message\",\"label\":\"Message\"}]",
+            IsActive = true
+        });
+        await context.SaveChangesAsync();
     }
 
     // One-time bootstrap of functional-role ranks (lowest rank = base youth role used on demande approval).

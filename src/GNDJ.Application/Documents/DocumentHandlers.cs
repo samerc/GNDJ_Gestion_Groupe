@@ -253,21 +253,21 @@ public class GetUnitDocumentsMatrixQueryHandler(IApplicationDbContext context, I
 
         var docTypeIds = docTypes.Select(dt => dt.Id).ToList();
 
-        // Active members in this unit
+        // Active members in this unit (project only the fields the matrix needs — no full entities)
         var memberAssignments = await context.MemberAssignments
             .Where(a => a.UnitId == request.UnitId && a.EndDate == null)
-            .Include(a => a.Member)
-            .Include(a => a.Team)
             .OrderBy(a => a.Team != null ? a.Team.Name : "zzz")
             .ThenBy(a => a.Member.LastName)
             .ThenBy(a => a.Member.FirstName)
+            .Select(a => new { a.MemberId, a.Member.FirstName, a.Member.LastName, TeamName = a.Team != null ? a.Team.Name : null })
             .ToListAsync(ct);
 
         var memberIds = memberAssignments.Select(a => a.MemberId).Distinct().ToList();
 
-        // All documents for these members and active doc types
+        // All documents for these members and active doc types (project only the cell fields)
         var allDocs = await context.MemberDocuments
             .Where(d => memberIds.Contains(d.MemberId) && docTypeIds.Contains(d.DocumentTypeId))
+            .Select(d => new { d.Id, d.MemberId, d.DocumentTypeId, d.FileName, d.MimeType, d.Status, d.ReviewNotes, d.ExpiryDate, d.CreatedAt })
             .ToListAsync(ct);
 
         // Cotisations for this scout year
@@ -314,9 +314,9 @@ public class GetUnitDocumentsMatrixQueryHandler(IApplicationDbContext context, I
 
                 return new MemberDocRowDto(
                     g.Key,
-                    first.Member.FirstName,
-                    first.Member.LastName,
-                    first.Team?.Name,
+                    first.FirstName,
+                    first.LastName,
+                    first.TeamName,
                     cells,
                     cotCell
                 );
@@ -345,8 +345,6 @@ public class GetUnitDocumentFilesQueryHandler(IApplicationDbContext context, ICu
             .ToListAsync(ct);
 
         var query = context.MemberDocuments
-            .Include(d => d.Member)
-            .Include(d => d.DocumentType)
             .Where(d => memberIds.Contains(d.MemberId));
 
         if (request.DocTypeId.HasValue)
@@ -378,8 +376,6 @@ public class GetExpiringDocumentsQueryHandler(IApplicationDbContext context, ICu
         var cutoff = today.AddDays(request.DaysAhead);
 
         var query = context.MemberDocuments
-            .Include(d => d.Member)
-            .Include(d => d.DocumentType)
             .Where(d => d.ExpiryDate != null && d.ExpiryDate <= cutoff && d.Status == DocumentStatus.Approved);
 
         // Unit-scope for non-super-admins

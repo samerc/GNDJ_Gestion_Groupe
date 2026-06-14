@@ -48,6 +48,8 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<ApplicantScoutRelation> ApplicantScoutRelations => Set<ApplicantScoutRelation>();
     public DbSet<Demande> Demandes => Set<Demande>();
     public DbSet<UnitIntakeQuota> UnitIntakeQuotas => Set<UnitIntakeQuota>();
+    public DbSet<NewsPost> NewsPosts => Set<NewsPost>();
+    public DbSet<Page> Pages => Set<Page>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -38,14 +38,14 @@ export default function UnitTypesPage() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', code: '', description: '', numberOfYears: null, ageMin: null, ageMax: null, color: '' })
+    setForm({ name: '', code: '', description: '', numberOfYears: null, ageMin: null, ageMax: null, color: '', publicDescription: '' })
     setError(''); clearAll()
     setFormOpen(true)
   }
 
   const openEdit = (item: UnitTypeDto) => {
     setEditing(item)
-    setForm({ name: item.name, code: item.code, description: item.description ?? '', numberOfYears: item.numberOfYears, ageMin: item.ageMin, ageMax: item.ageMax, color: item.color ?? '' })
+    setForm({ name: item.name, code: item.code, description: item.description ?? '', numberOfYears: item.numberOfYears, ageMin: item.ageMin, ageMax: item.ageMax, color: item.color ?? '', publicDescription: item.publicDescription ?? '' })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -221,6 +221,18 @@ export default function UnitTypesPage() {
                 {form.color && <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setForm(f => ({ ...f, color: '' }))}>Effacer</button>}
               </div>
               <p className="text-xs text-muted-foreground">Chaque type doit avoir une couleur unique.</p>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="publicDescription" className="text-sm font-medium">Description publique (site)</label>
+              <textarea
+                id="publicDescription"
+                value={form.publicDescription ?? ''}
+                onChange={(e) => setForm(f => ({ ...f, publicDescription: e.target.value }))}
+                rows={4}
+                maxLength={4000}
+                placeholder="Présentation de cette branche affichée sur le site public (partagée par toutes les unités de ce type)…"
+                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>

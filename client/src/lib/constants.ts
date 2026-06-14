@@ -47,4 +47,5 @@ export const PERMISSIONS = {
   PASSAGE_VIEW: 'passage.view',
   PASSAGE_PROPOSE: 'passage.propose',
   PASSAGE_MANAGE: 'passage.manage',
+  CONTENT_MANAGE: 'content.manage',
 } as const

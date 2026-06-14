@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
@@ -7,11 +7,12 @@ import TextAlign from '@tiptap/extension-text-align'
 import Color from '@tiptap/extension-color'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Placeholder from '@tiptap/extension-placeholder'
+import Image from '@tiptap/extension-image'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight,
-  List, ListOrdered, Link as LinkIcon, Undo, Redo, Variable
+  List, ListOrdered, Link as LinkIcon, Undo, Redo, Variable, Image as ImageIcon, Loader2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -21,9 +22,12 @@ interface Props {
   variables?: { key: string; label: string }[]
   placeholder?: string
   className?: string
+  onImageUpload?: (file: File) => Promise<string>
 }
 
-export function RichTextEditor({ content, onChange, variables, placeholder, className }: Props) {
+export function RichTextEditor({ content, onChange, variables, placeholder, className, onImageUpload }: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -32,6 +36,7 @@ export function RichTextEditor({ content, onChange, variables, placeholder, clas
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Color,
       TextStyle,
+      Image.configure({ inline: false, HTMLAttributes: { class: 'rounded-lg' } }),
       Placeholder.configure({ placeholder: placeholder ?? 'Commencez à écrire...' }),
     ],
     content,
@@ -49,6 +54,21 @@ export function RichTextEditor({ content, onChange, variables, placeholder, clas
 
   const insertVariable = (variable: string) => {
     editor.chain().focus().insertContent(`{{${variable}}}`).run()
+  }
+
+  const handleImagePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-picking the same file
+    if (!file || !onImageUpload) return
+    setUploading(true)
+    try {
+      const url = await onImageUpload(file)
+      editor.chain().focus().setImage({ src: url }).run()
+    } catch {
+      // surfaced by the uploader's toast
+    } finally {
+      setUploading(false)
+    }
   }
 
   const ToolbarButton = ({ onClick, active, children, title }: { onClick: () => void; active?: boolean; children: React.ReactNode; title: string }) => (
@@ -112,6 +132,17 @@ export function RichTextEditor({ content, onChange, variables, placeholder, clas
           <LinkIcon className="h-4 w-4" />
         </ToolbarButton>
 
+        {onImageUpload && (
+          <>
+            <ToolbarButton onClick={() => fileInputRef.current?.click()} title="Insérer une image">
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+            </ToolbarButton>
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleImagePick} />
+          </>
+        )}
+
+        <div className="w-px h-5 bg-border mx-1" />
+
         <ToolbarButton onClick={() => editor.chain().focus().undo().run()} title="Annuler">
           <Undo className="h-4 w-4" />
         </ToolbarButton>
@@ -138,8 +169,8 @@ export function RichTextEditor({ content, onChange, variables, placeholder, clas
         )}
       </div>
 
-      {/* Editor */}
-      <EditorContent editor={editor} className="prose prose-sm max-w-none p-3 min-h-[200px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[180px]" />
+      {/* Editor — capped height with internal scroll so long content never pushes the dialog's actions off-screen */}
+      <EditorContent editor={editor} className="prose prose-sm max-w-none p-3 min-h-[200px] max-h-[45vh] overflow-y-auto focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[180px]" />
     </div>
   )
 }

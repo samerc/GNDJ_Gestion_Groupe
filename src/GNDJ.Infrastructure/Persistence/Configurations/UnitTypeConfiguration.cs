@@ -13,6 +13,7 @@ public class UnitTypeConfiguration : IEntityTypeConfiguration<UnitType>
         builder.Property(e => e.Name).HasMaxLength(100).IsRequired();
         builder.Property(e => e.Code).HasMaxLength(50).IsRequired();
         builder.Property(e => e.Description).HasColumnType("text");
+        builder.Property(e => e.PublicDescription).HasColumnType("text");
 
         builder.Property(e => e.Color).HasMaxLength(10);
 

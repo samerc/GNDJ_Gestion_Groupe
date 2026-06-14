@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.UnitTypes.Commands.CreateUnitType;
 
-public record CreateUnitTypeCommand(string Name, string Code, string? Description, int? NumberOfYears, int? AgeMin, int? AgeMax, string? Color) : IRequest<Result<Guid>>;
+public record CreateUnitTypeCommand(string Name, string Code, string? Description, int? NumberOfYears, int? AgeMin, int? AgeMax, string? Color, string? PublicDescription = null) : IRequest<Result<Guid>>;
 
 public class CreateUnitTypeCommandValidator : AbstractValidator<CreateUnitTypeCommand>
 {
@@ -17,6 +17,7 @@ public class CreateUnitTypeCommandValidator : AbstractValidator<CreateUnitTypeCo
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
         RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
         RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
+        RuleFor(x => x.PublicDescription).MaximumLength(4000).NoHtml();
         RuleFor(x => x.Color).MaximumLength(10).HexColor();
         RuleFor(x => x.NumberOfYears).GreaterThan(0).LessThanOrEqualTo(20).When(x => x.NumberOfYears.HasValue).WithMessage("Le nombre d'années doit être positif.");
         RuleFor(x => x.AgeMin).InclusiveBetween(3, 99).When(x => x.AgeMin.HasValue);
@@ -58,7 +59,8 @@ public class CreateUnitTypeCommandHandler : IRequestHandler<CreateUnitTypeComman
             NumberOfYears = request.NumberOfYears,
             AgeMin = request.AgeMin,
             AgeMax = request.AgeMax,
-            Color = request.Color
+            Color = request.Color,
+            PublicDescription = string.IsNullOrWhiteSpace(request.PublicDescription) ? null : request.PublicDescription.Trim()
         };
 
         _context.UnitTypes.Add(entity);

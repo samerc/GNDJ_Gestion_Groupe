@@ -60,6 +60,8 @@ public static class Permissions
     public const string DemandeView = "demande.view";     // CG: view membership applications
     public const string DemandeManage = "demande.manage"; // CG: decide + convert applications
 
+    public const string ContentManage = "content.manage"; // public-site CMS: news + pages
+
     public const string AuditView = "audit.view";
     public const string AdminHardDelete = "admin.hard_delete";
 
@@ -79,6 +81,7 @@ public static class Permissions
         ProgressionView, ProgressionManage,
         PassageView, PassagePropose, PassageManage,
         DemandeView, DemandeManage,
+        ContentManage,
         AuditView, AdminHardDelete
     ];
 }

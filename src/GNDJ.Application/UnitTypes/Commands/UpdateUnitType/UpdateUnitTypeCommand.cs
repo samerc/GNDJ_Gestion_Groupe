@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.UnitTypes.Commands.UpdateUnitType;
 
-public record UpdateUnitTypeCommand(Guid Id, string Name, string Code, string? Description, int? NumberOfYears, int? AgeMin, int? AgeMax, string? Color) : IRequest<Result<bool>>;
+public record UpdateUnitTypeCommand(Guid Id, string Name, string Code, string? Description, int? NumberOfYears, int? AgeMin, int? AgeMax, string? Color, string? PublicDescription = null) : IRequest<Result<bool>>;
 
 public class UpdateUnitTypeCommandValidator : AbstractValidator<UpdateUnitTypeCommand>
 {
@@ -16,6 +16,7 @@ public class UpdateUnitTypeCommandValidator : AbstractValidator<UpdateUnitTypeCo
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
         RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
         RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
+        RuleFor(x => x.PublicDescription).MaximumLength(4000).NoHtml();
         RuleFor(x => x.Color).MaximumLength(10).HexColor();
         RuleFor(x => x.NumberOfYears).GreaterThan(0).LessThanOrEqualTo(20).When(x => x.NumberOfYears.HasValue).WithMessage("Le nombre d'années doit être positif.");
         RuleFor(x => x.AgeMin).InclusiveBetween(3, 99).When(x => x.AgeMin.HasValue);
@@ -62,6 +63,7 @@ public class UpdateUnitTypeCommandHandler : IRequestHandler<UpdateUnitTypeComman
         entity.AgeMin = request.AgeMin;
         entity.AgeMax = request.AgeMax;
         entity.Color = request.Color;
+        entity.PublicDescription = string.IsNullOrWhiteSpace(request.PublicDescription) ? null : request.PublicDescription.Trim();
 
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Update", "UnitType", entity.Id, oldValues: oldValues, newValues: new { entity.Name, entity.Code, entity.Description, entity.NumberOfYears }, cancellationToken: cancellationToken);

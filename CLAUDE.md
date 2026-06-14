@@ -486,6 +486,63 @@ binding; the real gaps were string-enums (stored as strings, not C# enums) and u
 - [x] Live-tested: honeypot→400, SQLi→400, script→400, clean login→200 (no false positive), 10 forgot-password
       OK then 11th→429, and all three attack types confirmed in the Serilog file + DB sink.
 
+### Query optimization / over-fetch audit (Complete — 2026-06-14)
+Fanned out a per-area read-only audit (over-fetch columns/rows, N+1, dead Includes, client-side eval, missing
+pagination). Codebase was already mostly clean (list/detail queries project to DTOs + paginate; mutation handlers
+correctly load tracked entities — do NOT add AsNoTracking, a global one previously broke updates). Real fixes:
+- [x] Admin dashboard: was loading ALL members (~2.4k rows) to count in memory → gender/total via SQL `GroupBy`,
+      `withoutUnit` via `CountAsync`, and only the ACTIVE subset (Id+DOB) materialized for the reused downstream
+      logic (unpaid / missing-docs / age-groups). paidMemberIds → HashSet.
+- [x] Unit documents matrix: `Include(Member)+Include(Team)` full entities and full `MemberDocument` rows →
+      projected to slim records (only the cell fields). Biggest per-page query.
+- [x] Cotisation summary: two `MemberCotisations` round-trips → one projected query (paid = cotisation record
+      exists, unchanged). Dropped dead `Include`s in GetUnpaidCotisations + GetExpiringDocuments.
+- [x] Passage list queries (×2): removed 7 dead `Include`s each (EF ignores Include when a final `.Select`
+      projection follows — they only triggered warnings + wasted loads).
+- [x] GetUnitOccupancy: two `ToList().GroupBy().Count()` → SQL `GroupBy`. DeleteUnitType: `Include(Units)` +
+      in-memory `.Any()` → `AnyAsync`.
+- Left as-is (low value / risky): dead Includes in GetUnits/Teams/Assignments list queries (EF already ignores
+      them), export's redundant DB-side team ordering, DeleteMember's small assignment include, GetPassageSummary
+      (Include is used, not a projection; bounded set). Live-tested all 5 rewritten endpoints → 200 + correct data.
+
+### Public Website — Phase A (Built 2026-06-14/15, NOT yet committed)
+Modern public-facing group website built INTO the app (shared DB + chef CMS), replacing the old 20-year static
+site. Clean/modern design, navy/teal tokens, French. Anonymous public API + a content CMS in the admin.
+- **Shell/routing:** `components/public/public-layout.tsx` (scroll-aware sticky header, dynamic nav, footer),
+  `lib/public-api-client.ts` (plain axios, no auth/redirect). `/` is the public HOME (old chooser landing
+  removed). Public routes: `/`, `/unites`, `/unites/:slug`, `/actualites`, `/actualites/:slug`, `/p/:slug`
+  (standalone CMS pages), `/contact`. `PublicController` (anonymous, OutputCache "ShortCache").
+- **Unités:** live from DB. Unit gets Slug/IsPublished/FoundedDate; public description lives on **UnitType**
+  (category, shared). Public list grouped by branch w/ category description; detail shows maîtrise (members on
+  IsMaitrise team, name+role ordered by FunctionalRole.Rank DESC — set distinct ranks!), team names + youth
+  counts, founding year. Publishing auto-generates a slug if empty. Admin: "Site public" section on unit form
+  (publish, slug, founded date); public description on the unit-TYPE form.
+- **Actualités (News CMS):** NewsPost (auto-slug from title, auto-excerpt from body, tag = Group|UnitType|Unit).
+  Admin `/admin/news` (TipTap + image upload, tag picker). Public paged list + article (tag chip + excerpt).
+- **Pages CMS:** Page (auto-slug, ParentId one-level hierarchy, DisplayOrder draggable via @dnd-kit, ShowInMenu).
+  Admin `/admin/pages` nested tree (children drag within parent block). Public standalone `/p/:slug` + dynamic
+  nav (top-level ShowInMenu pages, capped inline MAX_INLINE_PAGES=5 + "Plus" dropdown; sub-pages in dropdowns).
+- **Site texts:** editable via ONE `site.content` json setting → admin `/admin/site-texts` ("Textes du site");
+  home/footer/contact read it from `GET /public/site-config` (also returns inscriptionsOpen = demande.enabled).
+- **Conditional CTAs:** all "Demande d'inscription" buttons + unit "Rejoindre le Groupe" banner only show when
+  inscriptions open. Member /login = "Espace membres et chefs" (hides demande button when closed); applicant
+  login = "Connexion — Demande d'inscription". Closed inscription landing hides the login link.
+- **Contact form:** `POST /public/contact` (forms rate-limit + honeypot + NoHtml) → emails via IEmailQueue using
+  seeded `contact_form` template; recipient = `contact.recipient_email` setting else first super-admin. Replaces
+  old open-relay. Image upload: `ContentImagesController` (content.manage, magic-byte validated → uploads/content;
+  anonymous serve). CMS HTML rendered via `components/public/rich-content.tsx` (DOMPurify — only
+  dangerouslySetInnerHTML in app). New permission `content.manage` (auto-seeded super-admin + assoc-admin).
+- **Settings page redesign:** `pages/admin/settings.tsx` rebuilt — tabbed by category + search; type-aware
+  widgets (boolean→Switch, number→stepper+unit, exchange_rates→row editor); hides site.content/card.config.
+  New `components/ui/switch.tsx`.
+- **Migrations added:** AddUnitPublicFields, CmsContentTagsHierarchy, AddPageShowInMenu (default true),
+  AddUnitFoundedDate. New entities NewsPost, Page; new DbSets.
+- **Deps:** `npm audit` + `dotnet list package --vulnerable` = 0 vulnerabilities (2026-06-15). Safe (non-major)
+  freshness updates available both stacks; majors deferred (@types/node 24→25, test SDKs).
+- **Deferred:** member photo opt-in for public leader photos (initials avatars for now); heritage resources
+  library (chants/tabs/mp3/knots/techniques/biographies via scripted import); photo gallery; birthdays; events;
+  i18n. Full plan + state in memory `project_public_website.md`.
+
 ### Remaining / Next
 - [ ] **Option 1 (DECIDED, not yet built):** keep all imported members incl. inactive, but make counts
       honest — admin dashboard "Total members" should count ACTIVE (930) not all (2259); admin members

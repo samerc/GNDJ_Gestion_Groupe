@@ -2,8 +2,15 @@ import { BrowserRouter, Routes, Route } from 'react-router'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { AdminRoute } from '@/components/auth/admin-route'
 import { AppLayout } from '@/components/layout/app-layout'
+import { PublicLayout } from '@/components/public/public-layout'
+import PublicHomePage from '@/pages/public/home'
+import PublicUnitsPage from '@/pages/public/units'
+import PublicUnitDetailPage from '@/pages/public/unit-detail'
+import PublicNewsPage from '@/pages/public/news'
+import PublicNewsArticlePage from '@/pages/public/news-article'
+import PublicStandalonePage from '@/pages/public/page'
+import PublicContactPage from '@/pages/public/contact'
 import LoginPage from '@/pages/login'
-import LandingPage from '@/pages/landing'
 import DashboardPage from '@/pages/dashboard'
 import MyProfilePage from '@/pages/my-profile'
 import AssociationsPage from '@/pages/admin/associations'
@@ -40,12 +47,25 @@ import ApplicantVerifyPage from '@/pages/inscription/verify'
 import ApplicantPortalPage from '@/pages/inscription/portail'
 import DemandeWizardPage from '@/pages/inscription/demande-wizard'
 import DemandeValidationPage from '@/pages/admin/demande-validation'
+import AdminNewsPage from '@/pages/admin/news'
+import AdminPagesPage from '@/pages/admin/pages'
+import AdminSiteTextsPage from '@/pages/admin/site-texts'
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        {/* Public group website (anonymous, modern marketing-style layout) */}
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={<PublicHomePage />} />
+          <Route path="/unites" element={<PublicUnitsPage />} />
+          <Route path="/unites/:slug" element={<PublicUnitDetailPage />} />
+          <Route path="/actualites" element={<PublicNewsPage />} />
+          <Route path="/actualites/:slug" element={<PublicNewsArticlePage />} />
+          <Route path="/p/:slug" element={<PublicStandalonePage />} />
+          <Route path="/contact" element={<PublicContactPage />} />
+        </Route>
+
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -83,6 +103,9 @@ export default function App() {
               <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
               <Route path="/admin/passage-validation" element={<PassageValidationPage />} />
               <Route path="/admin/demandes" element={<DemandeValidationPage />} />
+              <Route path="/admin/news" element={<AdminNewsPage />} />
+              <Route path="/admin/pages" element={<AdminPagesPage />} />
+              <Route path="/admin/site-texts" element={<AdminSiteTextsPage />} />
               <Route path="/admin/api-keys" element={<ApiKeysPage />} />
               <Route path="/admin/custom-fields" element={<CustomFieldsPage />} />
               <Route path="/admin/card-designer" element={<CardDesignerPage />} />
@@ -99,7 +122,7 @@ export default function App() {
           <div className="flex flex-col items-center justify-center h-screen gap-4">
             <h1 className="text-4xl font-bold text-muted-foreground">404</h1>
             <p className="text-muted-foreground">Page introuvable</p>
-            <a href="/dashboard" className="text-primary hover:underline">Retour au tableau de bord</a>
+            <a href="/" className="text-primary hover:underline">Retour à l'accueil</a>
           </div>
         } />
       </Routes>

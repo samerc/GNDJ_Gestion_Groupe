@@ -61,13 +61,6 @@ public class GetPassagesByUnitQueryHandler(IApplicationDbContext context, ICurre
 
         var items = await context.Passages
             .Where(p => p.CurrentUnitId == request.UnitId && p.ScoutYear == request.ScoutYear)
-            .Include(p => p.Member)
-            .Include(p => p.CurrentUnit)
-            .Include(p => p.ProposedUnit)
-            .Include(p => p.FinalUnit)
-            .Include(p => p.CurrentRole)
-            .Include(p => p.ProposedRole)
-            .Include(p => p.FinalRole)
             .OrderBy(p => p.Member.LastName).ThenBy(p => p.Member.FirstName)
             .Select(p => new PassageDto(
                 p.Id, p.ScoutYear, p.MemberId,
@@ -117,13 +110,6 @@ public class GetAllPassagesQueryHandler(IApplicationDbContext context, ICurrentU
             query = query.Where(p => p.CurrentUnitId == request.UnitId.Value);
 
         var items = await query
-            .Include(p => p.Member)
-            .Include(p => p.CurrentUnit)
-            .Include(p => p.ProposedUnit)
-            .Include(p => p.FinalUnit)
-            .Include(p => p.CurrentRole)
-            .Include(p => p.ProposedRole)
-            .Include(p => p.FinalRole)
             .OrderBy(p => p.CurrentUnit.Code).ThenBy(p => p.Member.LastName).ThenBy(p => p.Member.FirstName)
             .Select(p => new PassageDto(
                 p.Id, p.ScoutYear, p.MemberId,

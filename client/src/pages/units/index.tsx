@@ -44,7 +44,7 @@ export default function UnitsPage() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', code: '', description: '', associationId: '', unitTypeId: '' })
+    setForm({ name: '', code: '', description: '', associationId: '', unitTypeId: '', slug: '', isPublished: false, foundedDate: null })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -54,10 +54,15 @@ export default function UnitsPage() {
     setForm({
       name: item.name, code: item.code, description: item.description ?? '',
       associationId: item.associationId, unitTypeId: item.unitTypeId, isActive: item.isActive,
+      slug: item.slug ?? '', isPublished: item.isPublished, foundedDate: item.foundedDate ?? null,
     })
     setError(''); clearAll()
     setFormOpen(true)
   }
+
+  const slugify = (s: string) =>
+    s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -244,6 +249,30 @@ export default function UnitsPage() {
                 <label htmlFor="isActive" className="text-sm font-medium">Unité active</label>
               </div>
             )}
+
+            {/* Site public */}
+            <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Site public</p>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="isPublished" checked={!!form.isPublished} onChange={(e) => setForm(f => ({ ...f, isPublished: e.target.checked }))} className="h-4 w-4 rounded border-gray-300" />
+                <label htmlFor="isPublished" className="text-sm font-medium">Afficher cette unité sur le site public</label>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="slug" className="text-sm font-medium">Lien (slug)</label>
+                <div className="flex gap-2">
+                  <Input id="slug" placeholder="ex. troupe-2eme-beyrouth" value={form.slug ?? ''} onChange={(e) => setForm(f => ({ ...f, slug: e.target.value }))} />
+                  <Button type="button" variant="outline" onClick={() => setForm(f => ({ ...f, slug: slugify(f.name) }))}>Générer</Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Adresse : /unites/{form.slug || '…'}</p>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="foundedDate" className="text-sm font-medium">Date de fondation</label>
+                <Input id="foundedDate" type="date" value={form.foundedDate ?? ''} onChange={(e) => setForm(f => ({ ...f, foundedDate: e.target.value || null }))} className="w-48" />
+                <p className="text-xs text-muted-foreground">Date réelle de création de l'unité (affichée sur le site public).</p>
+              </div>
+              <p className="text-xs text-muted-foreground">La description publique se définit sur le <strong>type d'unité</strong> (partagée par toutes les unités de la même branche).</p>
+            </div>
+
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>

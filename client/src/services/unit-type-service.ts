@@ -13,6 +13,7 @@ export interface UnitTypeDto {
   color: string | null
   unitCount: number
   createdAt: string
+  publicDescription: string | null
 }
 
 export interface UnitTypeFormData {
@@ -23,6 +24,7 @@ export interface UnitTypeFormData {
   ageMin?: number | null
   ageMax?: number | null
   color?: string | null
+  publicDescription?: string | null
 }
 
 export function useUnitTypes(params: { search?: string; page?: number; pageSize?: number }) {

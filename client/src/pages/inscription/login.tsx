@@ -33,11 +33,11 @@ export default function ApplicantLoginPage() {
   }
 
   return (
-    <ApplicantAuthShell>
+    <ApplicantAuthShell subtitle="Espace demande d'inscription">
       <Card className="shadow-elevated">
         <CardHeader>
-          <CardTitle className="text-2xl">Connexion</CardTitle>
-          <CardDescription>Accédez à votre espace de demande d'inscription.</CardDescription>
+          <CardTitle className="text-2xl">Connexion — Demande d'inscription</CardTitle>
+          <CardDescription>Espace réservé aux familles souhaitant inscrire un enfant. Les chefs et membres se connectent sur l'espace membres.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
