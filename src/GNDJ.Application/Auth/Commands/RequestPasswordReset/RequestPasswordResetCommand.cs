@@ -1,3 +1,4 @@
+using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
@@ -7,6 +8,13 @@ using System.Security.Cryptography;
 namespace GNDJ.Application.Auth.Commands.RequestPasswordReset;
 
 public record RequestPasswordResetCommand(string Email) : IRequest<Result<bool>>;
+
+public class RequestPasswordResetCommandValidator : AbstractValidator<RequestPasswordResetCommand>
+{
+    public RequestPasswordResetCommandValidator()
+        => RuleFor(x => x.Email).NotEmpty().WithMessage("L'adresse courriel est requise.")
+            .EmailAddress().WithMessage("L'adresse courriel est invalide.").MaximumLength(254);
+}
 
 public class RequestPasswordResetCommandHandler(
     IApplicationDbContext context,

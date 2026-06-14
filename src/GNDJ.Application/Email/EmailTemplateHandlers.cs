@@ -7,6 +7,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Email;
 
+// Allowed template modules — kept in sync with the frontend MODULE_OPTIONS (email-settings.tsx).
+public static class EmailTemplateModules
+{
+    public static readonly string[] All = { "auth", "documents", "cotisations", "passage", "demande" };
+}
+
 // DTOs
 public record EmailTemplateDto(Guid Id, string Name, string Code, string Module, string Subject, string BodyHtml, string? Variables, Guid? SmtpServerId, string? SmtpServerName, bool IsActive, DateTime CreatedAt);
 
@@ -49,9 +55,11 @@ public class CreateEmailTemplateCommandValidator : AbstractValidator<CreateEmail
     {
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
         RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50);
-        RuleFor(x => x.Module).NotEmpty().WithMessage("Le module est requis.").MaximumLength(50);
+        RuleFor(x => x.Module).NotEmpty().WithMessage("Le module est requis.").MaximumLength(50)
+            .Must(m => EmailTemplateModules.All.Contains(m)).WithMessage("Module invalide.");
         RuleFor(x => x.Subject).NotEmpty().WithMessage("Le sujet est requis.").MaximumLength(200);
-        RuleFor(x => x.BodyHtml).NotEmpty().WithMessage("Le contenu HTML est requis.");
+        RuleFor(x => x.BodyHtml).NotEmpty().WithMessage("Le contenu HTML est requis.").MaximumLength(100000);
+        RuleFor(x => x.Variables).MaximumLength(5000);
     }
 }
 
@@ -99,9 +107,11 @@ public class UpdateEmailTemplateCommandValidator : AbstractValidator<UpdateEmail
     {
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
         RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50);
-        RuleFor(x => x.Module).NotEmpty().WithMessage("Le module est requis.").MaximumLength(50);
+        RuleFor(x => x.Module).NotEmpty().WithMessage("Le module est requis.").MaximumLength(50)
+            .Must(m => EmailTemplateModules.All.Contains(m)).WithMessage("Module invalide.");
         RuleFor(x => x.Subject).NotEmpty().WithMessage("Le sujet est requis.").MaximumLength(200);
-        RuleFor(x => x.BodyHtml).NotEmpty().WithMessage("Le contenu HTML est requis.");
+        RuleFor(x => x.BodyHtml).NotEmpty().WithMessage("Le contenu HTML est requis.").MaximumLength(100000);
+        RuleFor(x => x.Variables).MaximumLength(5000);
     }
 }
 

@@ -1,3 +1,4 @@
+using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
@@ -12,6 +13,19 @@ public record GenerateExportQuery(
     List<string> Columns,
     string Format // "excel" or "csv"
 ) : IRequest<Result<ExportResult>>;
+
+public class GenerateExportQueryValidator : AbstractValidator<GenerateExportQuery>
+{
+    public GenerateExportQueryValidator()
+    {
+        RuleFor(x => x.UnitId).NotEmpty();
+        RuleFor(x => x.ScoutYear).MaximumLength(20);
+        RuleFor(x => x.Format).Must(f => f is "excel" or "csv").WithMessage("Format invalide (excel ou csv).");
+        RuleFor(x => x.Columns).NotEmpty().WithMessage("Au moins une colonne est requise.")
+            .Must(c => c.Count <= 100).WithMessage("Trop de colonnes.");
+        RuleForEach(x => x.Columns).MaximumLength(100);
+    }
+}
 
 public record ExportResult(byte[] Data, string ContentType, string FileName);
 

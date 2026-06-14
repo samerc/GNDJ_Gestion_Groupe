@@ -28,6 +28,7 @@ export interface UnitAccess {
 export interface LoginRequest {
   email: string
   password: string
+  website?: string // honeypot — must stay empty for real users
 }
 
 export interface RegisterRequest {
@@ -37,4 +38,5 @@ export interface RegisterRequest {
   firstName: string
   lastName: string
   dateOfBirth?: string
+  website?: string // honeypot — must stay empty for real users
 }

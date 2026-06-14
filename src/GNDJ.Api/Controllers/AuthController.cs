@@ -16,7 +16,7 @@ namespace GNDJ.Api.Controllers;
 public class AuthController : BaseApiController
 {
     [HttpPost("register")]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting("forms")]
     public async Task<IActionResult> Register([FromBody] RegisterCommand command)
     {
         var result = await Mediator.Send(command);
@@ -62,7 +62,7 @@ public class AuthController : BaseApiController
 
     [HttpPost("forgot-password")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting("forms")]
     public async Task<IActionResult> ForgotPassword([FromBody] RequestPasswordResetCommand command)
     {
         await Mediator.Send(command);
@@ -71,7 +71,7 @@ public class AuthController : BaseApiController
 
     [HttpPost("reset-password")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting("forms")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordCommand command)
     {
         var result = await Mediator.Send(command);

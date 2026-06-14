@@ -156,6 +156,12 @@ public class DeleteScoutStageCommandHandler(IApplicationDbContext context, IAudi
 // Reorder stages
 public record ReorderScoutStagesCommand(List<Guid> OrderedIds) : IRequest<Result<bool>>;
 
+public class ReorderScoutStagesCommandValidator : AbstractValidator<ReorderScoutStagesCommand>
+{
+    public ReorderScoutStagesCommandValidator()
+        => RuleFor(x => x.OrderedIds).NotNull().Must(l => l.Count <= 1000).WithMessage("Trop d'éléments.");
+}
+
 public class ReorderScoutStagesCommandHandler(IApplicationDbContext context) : IRequestHandler<ReorderScoutStagesCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(ReorderScoutStagesCommand request, CancellationToken ct)
@@ -300,6 +306,12 @@ public class DeleteBadgeCommandHandler(IApplicationDbContext context, IAuditServ
 // Reorder badges
 public record ReorderBadgesCommand(List<Guid> OrderedIds) : IRequest<Result<bool>>;
 
+public class ReorderBadgesCommandValidator : AbstractValidator<ReorderBadgesCommand>
+{
+    public ReorderBadgesCommandValidator()
+        => RuleFor(x => x.OrderedIds).NotNull().Must(l => l.Count <= 1000).WithMessage("Trop d'éléments.");
+}
+
 public class ReorderBadgesCommandHandler(IApplicationDbContext context) : IRequestHandler<ReorderBadgesCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(ReorderBadgesCommand request, CancellationToken ct)
@@ -358,7 +370,9 @@ public class CreateMemberProgressionCommandValidator : AbstractValidator<CreateM
         RuleFor(x => x.UnitId).NotEmpty().WithMessage("L'unité est requise.");
         RuleFor(x => x.ScoutStageId).NotEmpty().WithMessage("L'étape est requise.");
         RuleFor(x => x.Location).MaximumLength(200).NoHtml();
-        RuleFor(x => x.Notes).MaximumLength(2000);
+        RuleFor(x => x.Notes).MaximumLength(2000).NoHtml();
+        RuleFor(x => x.Date).LessThanOrEqualTo(_ => DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1))
+            .WithMessage("La date ne peut pas être dans le futur.");
     }
 }
 

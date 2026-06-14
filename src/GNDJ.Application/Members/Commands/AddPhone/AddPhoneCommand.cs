@@ -1,5 +1,6 @@
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using FluentValidation;
 using Mediator;
@@ -13,9 +14,9 @@ public class AddPhoneCommandValidator : AbstractValidator<AddPhoneCommand>
 {
     public AddPhoneCommandValidator()
     {
-        RuleFor(x => x.CountryCode).NotEmpty().WithMessage("L'indicatif pays est requis.");
-        RuleFor(x => x.Number).NotEmpty().WithMessage("Le numéro est requis.").MaximumLength(30);
-        RuleFor(x => x.Type).NotEmpty().WithMessage("Le type est requis.");
+        RuleFor(x => x.CountryCode).NotEmpty().WithMessage("L'indicatif pays est requis.").MaximumLength(10).NoHtml();
+        RuleFor(x => x.Number).NotEmpty().WithMessage("Le numéro est requis.").MaximumLength(30).NoHtml();
+        RuleFor(x => x.Type).NotEmpty().WithMessage("Le type est requis.").MaximumLength(50).NoHtml();
     }
 }
 

@@ -1,6 +1,7 @@
 using FluentValidation;
 using GNDJ.Application.Applicants;
 using GNDJ.Application.Common.Interfaces;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Application.Common.Models;
 using GNDJ.Domain.Entities;
 using GNDJ.Domain.Enums;
@@ -174,7 +175,7 @@ public class DecideDemandeCommandValidator : AbstractValidator<DecideDemandeComm
         RuleFor(x => x.Id).NotEmpty();
         RuleFor(x => x.Status).Must(s => s is DemandeStatus.Approved or DemandeStatus.Declined or DemandeStatus.Submitted)
             .WithMessage("Statut invalide.");
-        RuleFor(x => x.DecisionNotes).MaximumLength(1000);
+        RuleFor(x => x.DecisionNotes).MaximumLength(1000).NoHtml();
     }
 }
 
@@ -241,6 +242,13 @@ public class SetUnitIntakeQuotaCommandHandler(IApplicationDbContext context) : I
 // ============================================================
 public record SendDemandeResponsesResult(int Approved, int Declined);
 public record SendDemandeResponsesCommand(string ScoutYear) : IRequest<Result<SendDemandeResponsesResult>>;
+
+public class SendDemandeResponsesCommandValidator : AbstractValidator<SendDemandeResponsesCommand>
+{
+    public SendDemandeResponsesCommandValidator()
+        => RuleFor(x => x.ScoutYear).NotEmpty().WithMessage("L'année scoute est requise.")
+            .MaximumLength(20).Matches(@"^[0-9\- ]+$").WithMessage("Année scoute invalide (ex. 2026-2027).");
+}
 
 public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, IPasswordHasher hasher, IAuditService audit, IEmailQueue emailQueue) : IRequestHandler<SendDemandeResponsesCommand, Result<SendDemandeResponsesResult>>
 {

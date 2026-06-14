@@ -187,6 +187,12 @@ public class ResendVerificationCommandHandler(IApplicationDbContext context, ICu
 
 public record VerifyApplicantEmailCommand(string Token) : IRequest<Result<bool>>;
 
+public class VerifyApplicantEmailCommandValidator : AbstractValidator<VerifyApplicantEmailCommand>
+{
+    public VerifyApplicantEmailCommandValidator()
+        => RuleFor(x => x.Token).NotEmpty().WithMessage("Jeton requis.").MaximumLength(200);
+}
+
 public class VerifyApplicantEmailCommandHandler(IApplicationDbContext context) : IRequestHandler<VerifyApplicantEmailCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(VerifyApplicantEmailCommand request, CancellationToken ct)
@@ -204,6 +210,16 @@ public class VerifyApplicantEmailCommandHandler(IApplicationDbContext context) :
 }
 
 public record LoginApplicantCommand(string Email, string Password) : IRequest<Result<ApplicantAuthDto>>;
+
+public class LoginApplicantCommandValidator : AbstractValidator<LoginApplicantCommand>
+{
+    public LoginApplicantCommandValidator()
+    {
+        RuleFor(x => x.Email).NotEmpty().WithMessage("L'adresse email est requise.")
+            .EmailAddress().WithMessage("Adresse email invalide.").MaximumLength(254);
+        RuleFor(x => x.Password).NotEmpty().WithMessage("Le mot de passe est requis.").MaximumLength(128);
+    }
+}
 
 public class LoginApplicantCommandHandler(IApplicationDbContext context, IPasswordHasher hasher, ITokenService tokens) : IRequestHandler<LoginApplicantCommand, Result<ApplicantAuthDto>>
 {
@@ -225,6 +241,12 @@ public class LoginApplicantCommandHandler(IApplicationDbContext context, IPasswo
 }
 
 public record RefreshApplicantTokenCommand(string RefreshToken) : IRequest<Result<ApplicantAuthDto>>;
+
+public class RefreshApplicantTokenCommandValidator : AbstractValidator<RefreshApplicantTokenCommand>
+{
+    public RefreshApplicantTokenCommandValidator()
+        => RuleFor(x => x.RefreshToken).NotEmpty().WithMessage("Jeton requis.").MaximumLength(500);
+}
 
 public class RefreshApplicantTokenCommandHandler(IApplicationDbContext context, IPasswordHasher hasher, ITokenService tokens) : IRequestHandler<RefreshApplicantTokenCommand, Result<ApplicantAuthDto>>
 {
@@ -381,6 +403,8 @@ public class DemandeInputValidator : AbstractValidator<DemandeInput>
         RuleFor(x => x.ParentNotes).MaximumLength(2000);
         RuleFor(x => x.DateOfBirth).Must(d => d == null || d.Value <= DateOnly.FromDateTime(DateTime.UtcNow))
             .WithMessage("La date de naissance ne peut pas être dans le futur.");
+        RuleFor(x => x.Gender).Must(g => string.IsNullOrEmpty(g) || g == "Masculin" || g == "Féminin")
+            .WithMessage("Genre invalide.");
     }
 }
 
@@ -399,18 +423,27 @@ public class SaveApplicantHouseholdCommandValidator : AbstractValidator<SaveAppl
     static bool NoHtml(string? s) => string.IsNullOrEmpty(s) || (!s.Contains('<') && !s.Contains('>'));
     public SaveApplicantHouseholdCommandValidator()
     {
+        RuleFor(x => x.Guardians).NotNull().Must(l => l.Count <= 20).WithMessage("Trop de responsables.");
+        RuleFor(x => x.ScoutRelations).NotNull().Must(l => l.Count <= 50).WithMessage("Trop de proches.");
         RuleForEach(x => x.Guardians).ChildRules(g =>
         {
             g.RuleFor(x => x.FirstName).MaximumLength(100).Must(NoHtml).WithMessage("Caractères non autorisés.");
             g.RuleFor(x => x.LastName).MaximumLength(100).Must(NoHtml).WithMessage("Caractères non autorisés.");
             g.RuleFor(x => x.Email).MaximumLength(254).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Email)).WithMessage("Adresse email invalide.");
+            g.RuleFor(x => x.PhoneCountryCode).MaximumLength(10);
             g.RuleFor(x => x.PhoneNumber).MaximumLength(30);
-            g.RuleFor(x => x.Profession).MaximumLength(150);
+            g.RuleFor(x => x.Profession).MaximumLength(150).Must(NoHtml);
+            g.RuleFor(x => x.Relationship).MaximumLength(50).Must(NoHtml);
         });
         RuleForEach(x => x.ScoutRelations).ChildRules(r =>
         {
+            r.RuleFor(x => x.Status).Must(s => s is "CurrentInGroup" or "AncienInGroup" or "OtherGroup")
+                .WithMessage("Statut de proche invalide.");
             r.RuleFor(x => x.FirstName).MaximumLength(100).Must(NoHtml);
             r.RuleFor(x => x.LastName).MaximumLength(100).Must(NoHtml);
+            r.RuleFor(x => x.Relationship).MaximumLength(50).Must(NoHtml);
+            r.RuleFor(x => x.LastUnit).MaximumLength(100).Must(NoHtml);
+            r.RuleFor(x => x.LastFunction).MaximumLength(100).Must(NoHtml);
             r.RuleFor(x => x.OtherGroupName).MaximumLength(200).Must(NoHtml);
         });
         RuleFor(x => x.AddressCity).MaximumLength(100);

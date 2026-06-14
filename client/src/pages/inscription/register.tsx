@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { HoneypotField } from '@/components/shared/honeypot-field'
 import { parseApiError } from '@/lib/error-utils'
 
 export default function ApplicantRegisterPage() {
@@ -15,6 +16,7 @@ export default function ApplicantRegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [website, setWebsite] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -30,7 +32,7 @@ export default function ApplicantRegisterPage() {
     if (!match) return setError('Les mots de passe ne correspondent pas.')
     setLoading(true)
     try {
-      await register(email, password, contactName || undefined)
+      await register(email, password, contactName || undefined, website)
       navigate('/inscription/portail')
     } catch (err) {
       setError(parseApiError(err))
@@ -48,6 +50,7 @@ export default function ApplicantRegisterPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <HoneypotField value={website} onChange={setWebsite} />
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
             <div className="space-y-2">
               <Label htmlFor="contactName">Votre nom (parent / responsable)</Label>

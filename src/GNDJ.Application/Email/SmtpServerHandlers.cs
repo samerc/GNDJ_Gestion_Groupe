@@ -37,7 +37,10 @@ public class CreateSmtpServerCommandValidator : AbstractValidator<CreateSmtpServ
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
         RuleFor(x => x.Host).NotEmpty().WithMessage("L'hôte est requis.").MaximumLength(200);
         RuleFor(x => x.Port).InclusiveBetween(1, 65535).WithMessage("Le port doit être entre 1 et 65535.");
-        RuleFor(x => x.FromEmail).NotEmpty().EmailAddress().WithMessage("L'adresse email d'expédition est invalide.");
+        RuleFor(x => x.Username).MaximumLength(200);
+        RuleFor(x => x.Password).MaximumLength(500);
+        RuleFor(x => x.FromEmail).NotEmpty().EmailAddress().WithMessage("L'adresse email d'expédition est invalide.").MaximumLength(254);
+        RuleFor(x => x.FromName).MaximumLength(100);
     }
 }
 
@@ -76,7 +79,10 @@ public class UpdateSmtpServerCommandValidator : AbstractValidator<UpdateSmtpServ
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100);
         RuleFor(x => x.Host).NotEmpty().WithMessage("L'hôte est requis.").MaximumLength(200);
         RuleFor(x => x.Port).InclusiveBetween(1, 65535).WithMessage("Le port doit être entre 1 et 65535.");
-        RuleFor(x => x.FromEmail).NotEmpty().EmailAddress().WithMessage("L'adresse email d'expédition est invalide.");
+        RuleFor(x => x.Username).MaximumLength(200);
+        RuleFor(x => x.Password).MaximumLength(500);
+        RuleFor(x => x.FromEmail).NotEmpty().EmailAddress().WithMessage("L'adresse email d'expédition est invalide.").MaximumLength(254);
+        RuleFor(x => x.FromName).MaximumLength(100);
     }
 }
 

@@ -33,9 +33,12 @@ public class EmailService : IEmailService
         if (smtp is null)
             throw new InvalidOperationException("No active SMTP server configured.");
 
-        // Replace variables in subject and body
-        var subject = ReplaceVariables(template.Subject, variables);
-        var body = ReplaceVariables(template.BodyHtml, variables);
+        // Replace variables in subject and body. The body is HTML, so user-supplied values are
+        // HTML-encoded before substitution (the admin-authored template markup is left intact) to
+        // prevent any injected markup/script from landing raw in the recipient's inbox. The subject
+        // is plain text, so it's substituted verbatim (encoding it would show literal &amp; etc.).
+        var subject = ReplaceVariables(template.Subject, variables, htmlEncode: false);
+        var body = ReplaceVariables(template.BodyHtml, variables, htmlEncode: true);
 
         using var client = new SmtpClient(smtp.Host, smtp.Port)
         {
@@ -55,11 +58,12 @@ public class EmailService : IEmailService
         await client.SendMailAsync(message, ct);
     }
 
-    private static string ReplaceVariables(string template, Dictionary<string, string> variables)
+    private static string ReplaceVariables(string template, Dictionary<string, string> variables, bool htmlEncode)
     {
         foreach (var (key, value) in variables)
         {
-            template = template.Replace($"{{{{{key}}}}}", value);
+            var safe = htmlEncode ? WebUtility.HtmlEncode(value) : value;
+            template = template.Replace($"{{{{{key}}}}}", safe);
         }
         return template;
     }

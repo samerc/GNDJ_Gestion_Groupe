@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { HoneypotField } from '@/components/shared/honeypot-field'
 import type { AxiosError } from 'axios'
 import type { ApiError } from '@/types/api'
 
@@ -13,6 +14,7 @@ export function LoginForm() {
   const login = useAuthStore((s) => s.login)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [website, setWebsite] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -22,7 +24,7 @@ export function LoginForm() {
     setLoading(true)
 
     try {
-      await login({ email, password })
+      await login({ email, password, website })
       navigate('/dashboard')
     } catch (err) {
       const axiosError = err as AxiosError<ApiError>
@@ -40,6 +42,7 @@ export function LoginForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <HoneypotField value={website} onChange={setWebsite} />
           {error && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               {error}

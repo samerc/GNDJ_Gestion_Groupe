@@ -1,3 +1,4 @@
+using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
@@ -77,6 +78,15 @@ public class GetSecurityProfileByIdQueryHandler(IApplicationDbContext context) :
 
 // Update security profile permissions
 public record UpdateSecurityProfilePermissionsCommand(Guid Id, List<string> Permissions) : IRequest<Result<bool>>;
+
+public class UpdateSecurityProfilePermissionsCommandValidator : AbstractValidator<UpdateSecurityProfilePermissionsCommand>
+{
+    public UpdateSecurityProfilePermissionsCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.Permissions).NotNull().Must(p => p.Count <= 500).WithMessage("Trop de permissions.");
+    }
+}
 
 public class UpdateSecurityProfilePermissionsCommandHandler(IApplicationDbContext context, IAuditService auditService) : IRequestHandler<UpdateSecurityProfilePermissionsCommand, Result<bool>>
 {

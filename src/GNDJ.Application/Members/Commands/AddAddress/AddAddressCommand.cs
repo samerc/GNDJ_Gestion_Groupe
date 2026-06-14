@@ -1,5 +1,6 @@
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using FluentValidation;
 using Mediator;
@@ -13,9 +14,10 @@ public class AddAddressCommandValidator : AbstractValidator<AddAddressCommand>
 {
     public AddAddressCommandValidator()
     {
-        RuleFor(x => x.Type).NotEmpty().WithMessage("Le type est requis.");
-        RuleFor(x => x.Country).NotEmpty().WithMessage("Le pays est requis.");
-        RuleFor(x => x.City).NotEmpty().WithMessage("La ville est requise.");
+        RuleFor(x => x.Type).NotEmpty().WithMessage("Le type est requis.").MaximumLength(50).NoHtml();
+        RuleFor(x => x.Country).NotEmpty().WithMessage("Le pays est requis.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.City).NotEmpty().WithMessage("La ville est requise.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.Details).MaximumLength(500).NoHtml();
     }
 }
 

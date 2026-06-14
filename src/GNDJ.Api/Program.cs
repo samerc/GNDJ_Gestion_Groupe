@@ -192,6 +192,23 @@ builder.Services.AddRateLimiter(options =>
             Window = TimeSpan.FromMinutes(10),
             QueueLimit = 0,
         }));
+
+    // Forms: anti-abuse throttle for public/write forms — max 10 submissions per minute per
+    // user (when authenticated) or per IP. Exceeding it returns 429 until the next window.
+    // Deliberately NOT applied to authenticated admin data-entry (a CU may add >10 members/min).
+    static string FormKey(HttpContext ctx) =>
+        ctx.User.FindFirst("sub")?.Value
+        ?? ctx.User.FindFirst("applicant_id")?.Value
+        ?? ctx.Connection.RemoteIpAddress?.ToString()
+        ?? "unknown";
+
+    options.AddPolicy("forms", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        FormKey(ctx), _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
 });
 
 // Global request size limit (1MB for JSON endpoints; file uploads override with [RequestSizeLimit])
@@ -265,6 +282,7 @@ app.UseSerilogRequestLogging(options =>
 
 app.UseOutputCache();
 app.UseRateLimiter();
+app.UseMiddleware<AbuseDetectionMiddleware>();
 app.MapControllers();
 
 Log.Information("GNDJ API started on {Urls}", string.Join(", ", app.Urls));

@@ -673,6 +673,13 @@ public record FinalizePassagesCommand(
     string ScoutYear, Guid? UnitId
 ) : IRequest<Result<int>>;
 
+public class FinalizePassagesCommandValidator : AbstractValidator<FinalizePassagesCommand>
+{
+    public FinalizePassagesCommandValidator()
+        => RuleFor(x => x.ScoutYear).NotEmpty().WithMessage("L'année scoute est requise.")
+            .MaximumLength(20).Matches(@"^[0-9\- ]+$").WithMessage("Année scoute invalide (ex. 2026-2027).");
+}
+
 public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<FinalizePassagesCommand, Result<int>>
 {
     public async ValueTask<Result<int>> Handle(FinalizePassagesCommand request, CancellationToken ct)
@@ -768,6 +775,13 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
 
 // 6. TogglePassage — CG opens/closes the passage process
 public record TogglePassageCommand(bool Enabled, string ScoutYear) : IRequest<Result<bool>>;
+
+public class TogglePassageCommandValidator : AbstractValidator<TogglePassageCommand>
+{
+    public TogglePassageCommandValidator()
+        => RuleFor(x => x.ScoutYear).NotEmpty().WithMessage("L'année scoute est requise.")
+            .MaximumLength(20).Matches(@"^[0-9\- ]+$").WithMessage("Année scoute invalide (ex. 2026-2027).");
+}
 
 public class TogglePassageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<TogglePassageCommand, Result<bool>>
 {

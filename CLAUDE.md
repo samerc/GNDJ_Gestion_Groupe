@@ -422,8 +422,69 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
       (number/boolean/select-options).
 - [x] Frontend: register confirm-match + length, password min 8 (reset/change), cotisation inline amount>0,
       member-edit + guardian-edit required-field guards.
+- [x] Second sweep (2026-06-14): re-audited ALL ~64 mutating commands vs their validators. Added the last
+      missing ones — LoginApplicant (was 500 NRE on null email → now 400), RequestPasswordReset, RefreshToken,
+      RefreshApplicantToken, VerifyApplicantEmail (NotEmpty + email/length caps), TogglePassage + SendDemandeResponses
+      (ScoutYear NotEmpty + ≤20 + `^[0-9\- ]+$`). Every input command now has an AbstractValidator OR equivalent
+      in-handler checks (UpdateSetting, UpdateSecurityProfilePermissions). Live-tested 400/200.
 - [ ] Minor cosmetic (deferred): export `Format` silently defaults to Excel on invalid value; UpdateAssignment
       bad Unit/Role FK returns 500 not 400 (FK still protects integrity). Not security issues.
+
+### Injection / XSS audit (Complete — 2026-06-14)
+- [x] SQLi: swept all of `src` — the ONLY raw SQL is the advisory lock (`SELECT pg_advisory_xact_lock({0})`),
+      parameterized with a hardcoded `long` constant (not user input). Everything else is EF Core/LINQ →
+      parameterized. No string-built SQL, no `FromSqlRaw`/`ExecuteSqlRaw` with user data anywhere.
+- [x] XSS (frontend): zero `dangerouslySetInnerHTML` / `innerHTML` / `eval` / `document.write` in client/src —
+      React auto-escapes all rendered content. No user-controlled `href`/`window.location` (no `javascript:`
+      scheme vector). TipTap renders template HTML via ProseMirror, not raw injection.
+- [x] XSS (email sink): `EmailService.ReplaceVariables` was substituting values into the HTML body raw
+      (`IsBodyHtml=true`). Now HTML-encodes every substituted value for the BODY (WebUtility.HtmlEncode;
+      admin-authored template markup left intact), subject left verbatim (plain text). Defense-in-depth at the
+      sink covers ALL templates regardless of which field feeds them.
+- [x] Decline reason (`DecideDemandeCommand.DecisionNotes`, emailed as `{{reason}}`) was the one emailed
+      free-text field lacking `NoHtml` — added it (now rejects `<`/`>` like every other notes field). Live-tested 400.
+- [x] File uploads (verified intact): magic-byte validation (PDF/JPG/PNG headers), `Path.GetFileName` strips
+      directory components, download/zip enforce `Path.GetFullPath` + `StartsWith(uploadsRoot)` traversal guards,
+      zip entry names sanitized.
+
+### Field-level validation audit (Complete — 2026-06-14)
+Per-field sweep of every data-accepting command against 6 criteria (type / string-length / number-range /
+date-validity / string-enum allowed-set / array-count). Type & date-format are enforced by ASP.NET JSON model
+binding; the real gaps were string-enums (stored as strings, not C# enums) and uncapped lists. Fixes:
+- [x] Member `Add*` validators (AddPhone/AddEmail/AddAddress) brought to parity with their `Update*` siblings —
+      were missing length caps + NoHtml on CountryCode/Type/Address/Country/City/Details.
+- [x] Added missing validators: FinalizePassages (ScoutYear), ReorderScoutStages + ReorderBadges (OrderedIds
+      count ≤1000), GenerateExportQuery (Format must be excel/csv — fixes the silent-Excel-default note;
+      Columns count ≤100 + element length; ScoutYear cap), UpdateSecurityProfilePermissions (Permissions count ≤500).
+- [x] String-enum allowed-sets: EmailTemplate.Module (new `EmailTemplateModules.All`, synced to frontend
+      MODULE_OPTIONS), DemandeInput.Gender (Masculin/Féminin), applicant scout-relation Status
+      (CurrentInGroup/AncienInGroup/OtherGroup). Guardian/relation Relationship left free-text (accented values)
+      but now length-capped + NoHtml.
+- [x] Array caps: SaveApplicantHousehold Guardians ≤20 / ScoutRelations ≤50; Cotisation Payments ≤50.
+- [x] Misc: SMTP Username/Password/FromName/FromEmail length caps; EmailTemplate BodyHtml ≤100k + Variables ≤5k;
+      CreateMemberProgression Date future-ceiling + Notes NoHtml.
+- Confirmed-OK (no change needed): all org-config commands (Associations/UnitTypes/Units/Teams/Roles/Assignments),
+      Progression/Badge/UnitTypeProgression/CustomField, Documents/DocumentTypes, ApiKey (scopes whitelisted +
+      expiry future-check), Auth, ReviewDocument/DecideDemande/ReviewPassage status enums, Currency. Live-tested
+      400s (length, module, perms-count, export-format, finalize-year) + positive control (valid phone → 201).
+
+### Abuse-pattern defenses (Complete — 2026-06-14)
+- [x] (1) Form-submission throttle: new `forms` rate-limit policy = 10/min partitioned by user (sub/applicant_id
+      claim) else IP → 429 until next window. Applied to public/abuse-prone write forms (auth register,
+      forgot/reset-password, applicant register, resend-verification). Deliberately NOT on authenticated admin
+      data-entry (a CU may add >10 members/min); login/refresh stay on the 100/min `auth` policy (shared NAT).
+- [x] (2) `AbuseDetectionMiddleware` (Api/Middleware) scans JSON POST/PUT/PATCH bodies for high-confidence
+      attack signatures — script/event-handler/XSS, multi-token SQLi (`union select`, `' or 1=1`, `drop table`,
+      `xp_cmdshell`, quote+comment, etc.), and any >10k non-whitespace token — LOGS via Serilog (Warning →
+      also hits application_logs) with reason/method/path/IP/user, then 400. Conservative (multi-token only, never
+      bare keywords) to avoid false positives; skips `/email/templates` (admin authors legit HTML). DB is already
+      fully parameterized + React auto-escapes, so this is logging/defense-in-depth.
+- [x] (3) Honeypot: hidden `website` field on all 6 public forms (login/register both apps, forgot/reset-password)
+      via reusable `<HoneypotField>` (off-screen, tabIndex -1, aria-hidden). Middleware rejects any body with a
+      non-empty `website` (no real form has that field). Frontend sends it in the payload (backend ignores the
+      unknown prop; middleware reads it raw).
+- [x] Live-tested: honeypot→400, SQLi→400, script→400, clean login→200 (no false positive), 10 forgot-password
+      OK then 11th→429, and all three attack types confirmed in the Serilog file + DB sink.
 
 ### Remaining / Next
 - [ ] **Option 1 (DECIDED, not yet built):** keep all imported members incl. inactive, but make counts

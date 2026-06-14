@@ -20,7 +20,7 @@ public class ApplicantController : BaseApiController
 
     [HttpPost("register")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting("forms")]
     public async Task<IActionResult> Register([FromBody] RegisterApplicantCommand command)
     {
         var result = await Mediator.Send(command);
@@ -60,7 +60,7 @@ public class ApplicantController : BaseApiController
 
     [Authorize]
     [HttpPost("resend-verification")]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting("forms")]
     public async Task<IActionResult> ResendVerification()
     {
         var result = await Mediator.Send(new ResendVerificationCommand());

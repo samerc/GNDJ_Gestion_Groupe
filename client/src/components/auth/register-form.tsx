@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { HoneypotField } from '@/components/shared/honeypot-field'
 import type { AxiosError } from 'axios'
 import type { ApiError } from '@/types/api'
 
@@ -17,6 +18,7 @@ export function RegisterForm() {
     confirmPassword: '',
     firstName: '',
     lastName: '',
+    website: '',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -56,6 +58,7 @@ export function RegisterForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <HoneypotField value={form.website} onChange={(v) => update('website', v)} />
           {error && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               {error}

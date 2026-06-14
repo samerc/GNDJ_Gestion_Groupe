@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { HoneypotField } from '@/components/shared/honeypot-field'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
+  const [website, setWebsite] = useState('')
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
   const mutation = useForgotPassword()
@@ -17,7 +19,7 @@ export default function ForgotPasswordPage() {
     e.preventDefault()
     setError('')
     try {
-      await mutation.mutateAsync({ email })
+      await mutation.mutateAsync({ email, website })
       setSent(true)
     } catch (err) {
       setError(parseApiError(err))
@@ -47,6 +49,7 @@ export default function ForgotPasswordPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
+              <HoneypotField value={website} onChange={setWebsite} />
               {error && (
                 <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
               )}

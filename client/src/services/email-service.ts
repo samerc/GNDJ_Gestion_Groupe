@@ -80,11 +80,11 @@ export function useDeleteEmailTemplate() {
 
 // Auth
 export function useForgotPassword() {
-  return useMutation({ mutationFn: (data: { email: string }) => apiClient.post('/auth/forgot-password', data) })
+  return useMutation({ mutationFn: (data: { email: string; website?: string }) => apiClient.post('/auth/forgot-password', data) })
 }
 
 export function useResetPassword() {
-  return useMutation({ mutationFn: (data: { email: string; token: string; newPassword: string }) => apiClient.post('/auth/reset-password', data) })
+  return useMutation({ mutationFn: (data: { email: string; token: string; newPassword: string; website?: string }) => apiClient.post('/auth/reset-password', data) })
 }
 
 export function useChangePassword() {
