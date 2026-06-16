@@ -1,4 +1,5 @@
 using FluentValidation;
+using GNDJ.Application.Common.Content;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Common.Validation;
@@ -20,6 +21,25 @@ public record MemberProgressionDto(
     Guid? BadgeId, string? BadgeCode, string? BadgeName,
     DateOnly Date, string? Location, string? Notes, DateTime CreatedAt
 );
+
+// Resolves a code: keeps an explicit one (or returns null if it collides), else auto-slugs the
+// name to a unique code (appending -2, -3, … on collision). Used by stage + badge create.
+static class ProgressionCodes
+{
+    public static async Task<string?> ResolveAsync(string? requested, string name, Func<string, Task<bool>> exists, string fallback = "x")
+    {
+        if (!string.IsNullOrWhiteSpace(requested))
+            return await exists(requested) ? null : requested;
+
+        var baseCode = ContentText.Slugify(name);
+        if (string.IsNullOrWhiteSpace(baseCode)) baseCode = fallback;
+        if (baseCode.Length > 45) baseCode = baseCode[..45];
+        var code = baseCode;
+        for (var i = 2; await exists(code); i++)
+            code = $"{baseCode}-{i}";
+        return code;
+    }
+}
 
 // ─── Scout Stage CRUD ──────────────────────
 
@@ -63,7 +83,8 @@ public class CreateScoutStageCommandValidator : AbstractValidator<CreateScoutSta
 {
     public CreateScoutStageCommandValidator()
     {
-        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
+        // Code optional: auto-generated from the name when left blank (inline add).
+        RuleFor(x => x.Code).MaximumLength(50).NoHtml();
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
         RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
         RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
@@ -75,13 +96,15 @@ public class CreateScoutStageCommandHandler(IApplicationDbContext context, IAudi
 {
     public async ValueTask<Result<Guid>> Handle(CreateScoutStageCommand request, CancellationToken ct)
     {
-        var exists = await context.ScoutStages.AnyAsync(s => s.UnitTypeId == request.UnitTypeId && s.Code == request.Code, ct);
-        if (exists) return Result<Guid>.Failure("Une étape avec ce code existe déjà pour ce type d'unité.");
+        var code = await ProgressionCodes.ResolveAsync(
+            request.Code, request.Name,
+            c => context.ScoutStages.AnyAsync(s => s.UnitTypeId == request.UnitTypeId && s.Code == c, ct));
+        if (code is null) return Result<Guid>.Failure("Une étape avec ce code existe déjà pour ce type d'unité.");
 
         var entity = new ScoutStage
         {
             UnitTypeId = request.UnitTypeId,
-            Code = request.Code,
+            Code = code,
             Name = request.Name,
             Description = request.Description,
             DisplayOrder = request.DisplayOrder,
@@ -217,7 +240,8 @@ public class CreateBadgeCommandValidator : AbstractValidator<CreateBadgeCommand>
 {
     public CreateBadgeCommandValidator()
     {
-        RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
+        // Code optional: auto-generated from the name when left blank (inline add).
+        RuleFor(x => x.Code).MaximumLength(50).NoHtml();
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
         RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
         RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
@@ -229,13 +253,15 @@ public class CreateBadgeCommandHandler(IApplicationDbContext context, IAuditServ
 {
     public async ValueTask<Result<Guid>> Handle(CreateBadgeCommand request, CancellationToken ct)
     {
-        var exists = await context.Badges.AnyAsync(b => b.UnitTypeId == request.UnitTypeId && b.Code == request.Code, ct);
-        if (exists) return Result<Guid>.Failure("Un badge avec ce code existe déjà pour ce type d'unité.");
+        var code = await ProgressionCodes.ResolveAsync(
+            request.Code, request.Name,
+            c => context.Badges.AnyAsync(b => b.UnitTypeId == request.UnitTypeId && b.Code == c, ct), "badge");
+        if (code is null) return Result<Guid>.Failure("Un badge avec ce code existe déjà pour ce type d'unité.");
 
         var entity = new Badge
         {
             UnitTypeId = request.UnitTypeId,
-            Code = request.Code,
+            Code = code,
             Name = request.Name,
             Description = request.Description,
             DisplayOrder = request.DisplayOrder,

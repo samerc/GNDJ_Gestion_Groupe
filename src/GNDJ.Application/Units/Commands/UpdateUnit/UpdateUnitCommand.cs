@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Units.Commands.UpdateUnit;
 
 public record UpdateUnitCommand(
-    Guid Id, string Name, string Code, string? Description, Guid AssociationId, Guid UnitTypeId, bool IsActive,
+    Guid Id, string Name, string Code, string? Description, Guid? AssociationId, Guid UnitTypeId, bool IsActive,
     string? Slug = null, bool IsPublished = false, DateOnly? FoundedDate = null
 ) : IRequest<Result<bool>>;
 
@@ -20,7 +20,7 @@ public class UpdateUnitCommandValidator : AbstractValidator<UpdateUnitCommand>
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(200).NoHtml();
         RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
         RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
-        RuleFor(x => x.AssociationId).NotEmpty().WithMessage("L'association est requise.");
+        // Association optional: a unit may span both associations (e.g. Maîtrise de Groupe) and belong to none.
         RuleFor(x => x.UnitTypeId).NotEmpty().WithMessage("Le type d'unité est requis.");
         RuleFor(x => x.Slug).MaximumLength(120).Matches("^[a-z0-9-]*$")
             .WithMessage("Le lien (slug) ne peut contenir que des minuscules, chiffres et tirets.");

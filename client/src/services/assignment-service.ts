@@ -44,10 +44,10 @@ export function useAssignments(params: { memberId?: string; unitId?: string; tea
   })
 }
 
-export function useFunctionalRoles() {
+export function useFunctionalRoles(unitTypeId?: string) {
   return useQuery({
-    queryKey: ['functionalRoles'],
-    queryFn: () => apiClient.get<FunctionalRoleDto[]>('/functional-roles').then(r => r.data),
+    queryKey: ['functionalRoles', unitTypeId ?? 'all'],
+    queryFn: () => apiClient.get<FunctionalRoleDto[]>('/functional-roles', { params: unitTypeId ? { unitTypeId } : {} }).then(r => r.data),
   })
 }
 

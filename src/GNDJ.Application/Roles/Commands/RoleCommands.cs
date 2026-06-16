@@ -1,7 +1,9 @@
+using GNDJ.Application.Common.Content;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
+using GNDJ.Domain.Enums;
 using FluentValidation;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -138,6 +140,86 @@ public class DeleteFunctionalRoleCommandHandler : IRequestHandler<DeleteFunction
         _context.FunctionalRoles.Remove(entity);
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Delete", "FunctionalRole", entity.Id, oldValues: new { entity.Name, entity.Code }, cancellationToken: cancellationToken);
+
+        return Result<bool>.Success(true);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// Security profiles — create / delete (custom, non-system)
+// ════════════════════════════════════════════════════════════════
+public record CreateSecurityProfileCommand(string Name, string? Description, List<string> Permissions) : IRequest<Result<Guid>>;
+
+public class CreateSecurityProfileCommandValidator : AbstractValidator<CreateSecurityProfileCommand>
+{
+    public CreateSecurityProfileCommandValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
+        RuleFor(x => x.Permissions).NotNull().Must(p => p.Count <= 500).WithMessage("Trop de permissions.");
+    }
+}
+
+public class CreateSecurityProfileCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    : IRequestHandler<CreateSecurityProfileCommand, Result<Guid>>
+{
+    public async ValueTask<Result<Guid>> Handle(CreateSecurityProfileCommand request, CancellationToken ct)
+    {
+        // Reject unknown permission strings (prevents garbage / escalation strings).
+        var known = Permissions.All.ToHashSet();
+        var invalid = request.Permissions.Where(p => !known.Contains(p)).Distinct().ToList();
+        if (invalid.Count > 0)
+            return Result<Guid>.Failure($"Permission(s) inconnue(s) : {string.Join(", ", invalid)}.");
+
+        // Auto-generate a unique code from the name.
+        var baseCode = ContentText.Slugify(request.Name);
+        if (string.IsNullOrWhiteSpace(baseCode)) baseCode = "profil";
+        if (baseCode.Length > 45) baseCode = baseCode[..45];
+        var code = baseCode;
+        for (var i = 2; await context.SecurityProfiles.AnyAsync(sp => sp.Code == code, ct); i++)
+            code = $"{baseCode}-{i}";
+
+        var profile = new SecurityProfile
+        {
+            Name = request.Name,
+            Code = code,
+            Description = request.Description,
+            IsSystem = false,
+        };
+        foreach (var perm in request.Permissions.Distinct())
+            profile.Permissions.Add(new SecurityProfilePermission { SecurityProfileId = profile.Id, Permission = perm });
+
+        context.SecurityProfiles.Add(profile);
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("Create", "SecurityProfile", profile.Id, newValues: new { profile.Name, profile.Code }, cancellationToken: ct);
+
+        return Result<Guid>.Success(profile.Id);
+    }
+}
+
+public record DeleteSecurityProfileCommand(Guid Id) : IRequest<Result<bool>>;
+
+public class DeleteSecurityProfileCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    : IRequestHandler<DeleteSecurityProfileCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(DeleteSecurityProfileCommand request, CancellationToken ct)
+    {
+        var profile = await context.SecurityProfiles
+            .Include(sp => sp.Permissions)
+            .Include(sp => sp.FunctionalRoles.Where(r => !r.IsDeleted))
+            .FirstOrDefaultAsync(sp => sp.Id == request.Id, ct);
+
+        if (profile is null)
+            return Result<bool>.Failure("Profil de sécurité introuvable.");
+        if (profile.IsSystem)
+            return Result<bool>.Failure("Impossible de supprimer un profil système.");
+        if (profile.FunctionalRoles.Count > 0)
+            return Result<bool>.Failure("Impossible de supprimer un profil utilisé par des fonctions. Réaffectez-les d'abord.");
+
+        context.SecurityProfilePermissions.RemoveRange(profile.Permissions);
+        context.SecurityProfiles.Remove(profile);
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("Delete", "SecurityProfile", profile.Id, oldValues: new { profile.Name, profile.Code }, cancellationToken: ct);
 
         return Result<bool>.Success(true);
     }

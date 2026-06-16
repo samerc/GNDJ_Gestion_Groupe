@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import { FunctionalRolesList } from '@/components/shared/functional-roles-list'
-import { StagesTab, BadgesTab } from '@/pages/admin/progression'
+import { StagesLadder, BadgesGrid } from '@/pages/admin/progression'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
@@ -25,9 +25,6 @@ export default function UnitTypeDetailPage() {
 
   if (isLoading) return <LoadingSpinner variant="detail" />
   if (!unitType) return <div className="py-12 text-center text-muted-foreground">Type d'unité introuvable.</div>
-
-  // For the tabs, we pass the unit type as a locked single-item array
-  const unitTypes = [{ id: unitType.id, name: unitType.name }]
 
   return (
     <div className="space-y-6">
@@ -56,11 +53,11 @@ export default function UnitTypeDetailPage() {
         </TabsContent>
 
         <TabsContent value="stages">
-          <StagesTab unitTypeId={unitType.id} unitTypes={unitTypes} />
+          <StagesLadder unitTypeId={unitType.id} />
         </TabsContent>
 
         <TabsContent value="badges">
-          <BadgesTab unitTypeId={unitType.id} unitTypes={unitTypes} />
+          <BadgesGrid unitTypeId={unitType.id} />
         </TabsContent>
       </Tabs>
     </div>

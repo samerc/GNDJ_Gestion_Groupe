@@ -56,7 +56,8 @@ var unitIdMap = new Dictionary<string, Guid>();       // old CODEUNITE → new U
 var unitTypeIdMap = new Dictionary<string, Guid>();   // old TYPEUNITE code → new UUID
 var assocIdMap = new Dictionary<string, Guid>();      // SDL/GDL → new UUID
 var roleIdMap = new Dictionary<string, Guid>();       // old CODEFONCTION → new UUID
-var teamIdMap = new Dictionary<string, Guid>();       // "UNITE|TOTEM" → new UUID
+var teamIdMap = new Dictionary<string, Guid>();       // "UNITE|TOTEM" → new UUID (dedup guard)
+var teamLookup = new Dictionary<string, Guid>();      // normalized "unit|name" (bare/full/display, ci) → team UUID
 var stageIdMap = new Dictionary<string, Guid>();      // "TYPEUNITE|CODEETAT" → new UUID
 var badgeIdMap = new Dictionary<string, Guid>();      // "TYPEUNITE|CODEBADGE" → new UUID
 var guardianIdMap = new Dictionary<string, Guid>();   // "memberId|father/mother" → guardian UUID
@@ -98,7 +99,7 @@ var unitTypes = new Dictionary<string, string>
     ["MEU"] = "Meute", ["TRO"] = "Troupe", ["CLA"] = "Clan",
     ["RON"] = "Ronde", ["COM"] = "Compagnie", ["CAR"] = "Caravelles",
     ["JEM"] = "Jeunes en Marche", ["FEU"] = "Feu", ["GRP"] = "Groupe",
-    ["PIO"] = "Pionnières",
+    ["PIO"] = "Pionnières", ["NOY"] = "Noyau",
 };
 foreach (var (code, name) in unitTypes)
 {
@@ -118,7 +119,7 @@ var wsRoles = OpenSheet("T_Fonc.xlsx");
 int roleCount = 0;
 // Get existing security profiles for linking
 var leaderProfileId = await ScalarGuid(conn, "SELECT id FROM security_profiles WHERE code = 'chef-unite' AND is_deleted = false LIMIT 1");
-var memberProfileId = await ScalarGuid(conn, "SELECT id FROM security_profiles WHERE code = 'animateur' AND is_deleted = false LIMIT 1");
+var memberProfileId = await ScalarGuid(conn, "SELECT id FROM security_profiles WHERE code = 'read-only' AND is_deleted = false LIMIT 1");
 
 for (int r = 2; r <= wsRoles.LastRowUsed()!.RowNumber(); r++)
 {
@@ -159,14 +160,16 @@ for (int r = 2; r <= wsUnits.LastRowUsed()!.RowNumber(); r++)
     if (string.IsNullOrWhiteSpace(code)) continue;
 
     var id = NewId();
-    unitIdMap[code] = id;
     var assocId = assocIdMap.GetValueOrDefault(assocCode);
     var utId = unitTypeIdMap.GetValueOrDefault(utCode);
-    if (assocId == Guid.Empty || utId == Guid.Empty) continue;
+    // Unit type is mandatory; association is optional (e.g. Maîtrise de Groupe "G" spans both
+    // associations and has none — import it with a NULL association rather than dropping it).
+    if (utId == Guid.Empty) continue;
+    unitIdMap[code] = id;
 
     await Exec(conn, @"INSERT INTO units (id, name, code, description, association_id, unit_type_id, is_active, created_at, updated_at, is_deleted)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, false)",
-        id, name, code, (string?)null, assocId, utId, visible != "0", now);
+        id, name, code, (string?)null, assocId == Guid.Empty ? (object)DBNull.Value : assocId, utId, visible != "0", now);
     unitCount++;
 }
 Console.WriteLine($"OK ({unitCount})");
@@ -198,6 +201,14 @@ for (int r = 2; r <= wsTeams.LastRowUsed()!.RowNumber(); r++)
 
     var id = NewId();
     teamIdMap[key] = id;
+
+    // Assignments (UniteFonc.TOTEM) reference a team by its BARE totem ("Etalons"),
+    // its FULL sizaine/patrouille name ("Etalons Tenaces" = totem + adjectif), OR its
+    // display name — inconsistently. Register all variants (case-insensitive) so the
+    // assignment step can match any of them.
+    RegisterTeam(unitCode, totem, id);
+    RegisterTeam(unitCode, teamName, id);
+    if (!string.IsNullOrWhiteSpace(adjective)) RegisterTeam(unitCode, $"{totem} {adjective}", id);
 
     await Exec(conn, @"INSERT INTO teams (id, name, description, unit_id, display_order, totem, adjective, color1, color2, is_maitrise, created_at, updated_at, is_deleted)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, false)",
@@ -457,6 +468,7 @@ Console.WriteLine($"OK ({addrCount})");
 Console.Write("11. Assignments... ");
 var wsAssign = OpenSheet("UniteFonc.xlsx");
 int assignCount = 0;
+int autoTeamCount = 0;
 for (int r = 2; r <= wsAssign.LastRowUsed()!.RowNumber(); r++)
 {
     var oldMemberId = int.TryParse(Cell(wsAssign, r, 3), out var aom) ? aom : 0;
@@ -475,27 +487,50 @@ for (int r = 2; r <= wsAssign.LastRowUsed()!.RowNumber(); r++)
     if (roleId == Guid.Empty) continue;
 
     Guid? teamId = null;
-    if (!string.IsNullOrWhiteSpace(totem) && totem != "--")
+    if (!string.IsNullOrWhiteSpace(totem) && totem != "--" && totem != "-")
     {
-        var teamKey = $"{unitCode}|{totem}";
-        if (teamIdMap.TryGetValue(teamKey, out var tid)) teamId = tid;
+        if (teamLookup.TryGetValue(TeamKey(unitCode, totem), out var tid))
+        {
+            teamId = tid;
+        }
+        else if (enCours)
+        {
+            // Active member whose totem has no team in PatEqSiz (e.g. JEM "Jeunes en Marche").
+            // Auto-create the team so the member is attached rather than left team-less.
+            var newTid = NewId();
+            var isMait = totem.StartsWith(".");
+            var nm = isMait ? totem.TrimStart('.').Trim() : totem;
+            if (string.IsNullOrWhiteSpace(nm)) nm = totem;
+            await Exec(conn, @"INSERT INTO teams (id, name, description, unit_id, display_order, totem, adjective, color1, color2, is_maitrise, created_at, updated_at, is_deleted)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, false)",
+                newTid, nm, (string?)null, unitId, 900 + autoTeamCount, totem,
+                (string?)null, (string?)null, (string?)null, isMait, now);
+            RegisterTeam(unitCode, totem, newTid);
+            teamId = newTid;
+            autoTeamCount++;
+        }
     }
 
     // Active iff EnCours = 1. If EnCours = 0 the assignment is historical and MUST be closed,
     // even when DATEFIN is blank (WEBDEV often left it empty). Use DATEFIN when present,
     // otherwise fall back to the start date so the record is marked closed.
     var start = startDate ?? DateOnly.FromDateTime(DateTime.Today);
-    DateOnly? effectiveEnd = enCours ? null : (endDate ?? start);
+    DateOnly? closedEnd = enCours ? null : (endDate ?? start);
 
-    await Exec(conn, @"INSERT INTO member_assignments (id, member_id, unit_id, team_id, functional_role_id, start_date, end_date, notes, created_at, updated_at, is_deleted)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, false)",
-        NewId(), memId, unitId, teamId ?? (object)DBNull.Value, roleId,
-        start,
-        effectiveEnd.HasValue ? effectiveEnd.Value : (object)DBNull.Value,
-        notes ?? (object)DBNull.Value, now);
-    assignCount++;
+    // A function carried over multiple scout years is split into one assignment per scout year,
+    // cut on October 1 (the scout-year boundary). See SplitScoutYears for the exact month rules.
+    foreach (var (segStart, segEnd) in SplitScoutYears(start, closedEnd, enCours))
+    {
+        await Exec(conn, @"INSERT INTO member_assignments (id, member_id, unit_id, team_id, functional_role_id, start_date, end_date, notes, created_at, updated_at, is_deleted)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, false)",
+            NewId(), memId, unitId, teamId ?? (object)DBNull.Value, roleId,
+            segStart,
+            segEnd.HasValue ? segEnd.Value : (object)DBNull.Value,
+            notes ?? (object)DBNull.Value, now);
+        assignCount++;
+    }
 }
-Console.WriteLine($"OK ({assignCount})");
+Console.WriteLine($"OK ({assignCount}, auto-created teams: {autoTeamCount})");
 
 // ═══════════════════════════════════════════════════════════════
 // STEP 12: Stages + Badges
@@ -708,6 +743,42 @@ Console.WriteLine($"   Cotisations: {cotCount}");
 
 // ─── Helper functions ──────────────────────────────────────────
 string? NullIfEmpty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
+
+// ── Scout-year splitting ───────────────────────────────────────
+// Divide a function that spans multiple scout years into one assignment per scout year,
+// cut on October 1. The boundary months are asymmetric (the changeover is early October):
+//   • START: September belongs to the NEW scout year (Sept+ → that year; Aug- → previous year).
+//   • END:   October is the tail of the year that just ENDED (Jan–Oct → previous year; Nov–Dec → that year),
+//            so a few days past Oct 1 are absorbed, but anything reaching November starts a new segment.
+// The first segment keeps the real start, the last keeps the real end (or stays open for active functions).
+int StartScoutYear(DateOnly d) => d.Month >= 9 ? d.Year : d.Year - 1;
+int EndScoutYear(DateOnly d) => d.Month >= 11 ? d.Year : d.Year - 1;
+
+List<(DateOnly Start, DateOnly? End)> SplitScoutYears(DateOnly start, DateOnly? end, bool open)
+{
+    var startSy = StartScoutYear(start);
+    var endSy = open ? StartScoutYear(DateOnly.FromDateTime(DateTime.Today)) : EndScoutYear(end!.Value);
+
+    // Single scout year (or a short function straddling the Sept↔Oct transition, or bad data) → one row.
+    if (endSy <= startSy)
+        return [(start, open ? null : end)];
+
+    var segments = new List<(DateOnly, DateOnly?)>();
+    for (var sy = startSy; sy <= endSy; sy++)
+    {
+        var segStart = sy == startSy ? start : new DateOnly(sy, 10, 1);
+        DateOnly? segEnd = sy == endSy ? (open ? null : end) : new DateOnly(sy + 1, 10, 1);
+        segments.Add((segStart, segEnd));
+    }
+    return segments;
+}
+
+string TeamKey(string unit, string name) => $"{unit.Trim().ToLowerInvariant()}|{name.Trim().ToLowerInvariant()}";
+void RegisterTeam(string unit, string name, Guid id)
+{
+    if (string.IsNullOrWhiteSpace(name)) return;
+    teamLookup[TeamKey(unit, name)] = id;
+}
 
 string? MapDocStatus(string code) => code switch
 {

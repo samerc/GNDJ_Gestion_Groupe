@@ -32,6 +32,9 @@ export interface DemandeReview {
   accountId: string
   accountEmail: string
   contactName: string | null
+  addressCountry: string | null
+  addressCity: string | null
+  addressDetails: string | null
   guardians: ApplicantGuardian[]
   scoutRelations: ApplicantScoutRelation[]
   siblings: Sibling[]
@@ -92,6 +95,15 @@ export function useDecideDemande() {
   return useMutation({
     mutationFn: (data: { id: string; status: string; decidedUnitId?: string | null; decisionNotes?: string | null }) =>
       apiClient.put(`/demandes/${data.id}/decide`, { status: data.status, decidedUnitId: data.decidedUnitId, decisionNotes: data.decisionNotes }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes'] }) },
+  })
+}
+
+export function useBulkDecideDemande() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { status: string; decisionNotes?: string | null; items: { id: string; decidedUnitId?: string | null }[] }) =>
+      apiClient.post<{ processed: number; skipped: number }>('/demandes/bulk-decide', data).then((r) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes'] }) },
   })
 }

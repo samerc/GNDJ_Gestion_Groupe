@@ -72,7 +72,7 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - Snake_case naming convention via EFCore.NamingConventions
 - Global soft-delete query filters on all BaseEntity types
 - Interceptors: AuditableEntityInterceptor (created/updated timestamps), SoftDeleteInterceptor (converts Delete to soft-delete)
-- Seed data: 6 security profiles, 5 functional roles, 1 super admin user, configurable settings (schools, classes, nationalities, etc.)
+- Seed data: 5 security profiles (super-admin, association-admin, chef-unite, chef-equipe, read-only), 4 functional roles, 1 super admin user, configurable settings (schools, classes, nationalities, etc.). The `animateur` profile was removed (2026-06-15) — it was an over-permissioned youth bucket (had members.edit/documents.create); youth/members now use `read-only`. Migration maps non-maîtrise roles → read-only.
 
 ## Security
 - Rate limiting: auth endpoints (10 req/5min), file uploads (20 req/10min)
@@ -145,12 +145,22 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 ### Phase 2b — Admin Tools (Complete)
 - [x] Audit log viewer (read-only, filters by entity/action/date, JSON key-value detail dialog)
 - [x] Security profiles admin (list profiles, checklist permission editor per profile, group toggle)
+- [x] Custom security profiles (2026-06-16): create (name + permission checklist; code auto-slugged & unique;
+      validated vs Permissions.All) + delete (blocked for IsSystem profiles or profiles still used by a functional
+      role). Endpoints POST/DELETE /security-profiles (roles.manage). Permission editor groups now cover ALL
+      permissions (added Progression/Passage/Demandes/Site public). New profiles are assignable to functions.
 
 ### Phase 3 — Progression & Badges (Complete)
 - [x] Scout stages (per unit type, ordered, isActive, isBadgeStage flag)
 - [x] Badges (per unit type, isActive, linked to badge-type stages)
 - [x] Member progressions (stage + optional badge, date, location, notes)
 - [x] Admin page: Progression scoute (tabbed: Étapes / Badges, filtered by unit type)
+- [x] Progression scoute redesigned (2026-06-16) friendlier: **unit-type-first** (pills at top, defaults to first —
+      no more all-types jumble), Étapes shown as a **vertical numbered ladder** (drag-reorder, inline Switch for
+      active, usage count, edit dialog), Badges as a **chip grid** (inline Switch, hover edit/delete). Both have
+      **inline quick-add** (type a name → Enter); the stage/badge **code is auto-generated** from the name (unique
+      per unit type, slugified) when blank — backend CreateScoutStage/CreateBadge relaxed Code validator + added
+      ProgressionCodes.ResolveAsync. StagesTab/BadgesTab → StagesLadder/BadgesGrid (also used on unit-type detail).
 - [x] Drag-and-drop reordering for stages and badges (@dnd-kit)
 - [x] Stages/badges tabs on unit type detail page (pre-selected unit type)
 - [x] Progression tab on member detail, CU dashboard, Ma fiche
@@ -291,6 +301,10 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] Default "password_reset" template seeded with French HTML email
 - [x] Password reset: forgot-password page → email with token → reset-password page (1h expiry)
 - [x] Change password: dialog on Ma fiche (validates current, enforces different new, invalidates sessions)
+- [x] CG/leader reset member password: POST /members/{id}/reset-password (members.edit + super-admin-or-
+      active-unit-leader access check) generates a temp password (Scout{year}!{nnn}), invalidates sessions +
+      reset token, audited (ResetPassword). "Réinitialiser le mot de passe" button on member detail → confirm →
+      credentials dialog with copy buttons. 404 if member has no user account.
 - [x] "Mot de passe oublié ?" link on login page
 - [x] Audit logging on password reset + change
 - [x] New tables: smtp_servers, email_templates + PasswordResetToken fields on User
@@ -347,6 +361,25 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
       often left blank). EnCours=1 → active (end_date NULL); EnCours=0 → closed. 989 active
       assignments / 930 active members; rest are alumni (kept, not dropped — data fixable in-app).
 - [x] All imported users have temp password `Gndj2026!` (bcrypt WF10)
+- [x] **Multi-year functions split per scout year (2026-06-16):** a `UniteFonc` row spanning several scout
+      years is divided into one assignment per scout year, cut on **October 1** (`SplitScoutYears` in
+      tools/Migration/Program.cs). Boundary months are asymmetric (changeover is early October): START —
+      September belongs to the new SY (Sept+ → that year, Aug- → previous); END — October is the tail of the
+      year just ended (Jan–Oct → previous SY, Nov–Dec → that SY). First segment keeps the real start, last
+      keeps the real end; ACTIVE (EnCours=1) functions split history closed + leave only the current SY open.
+      E.g. Oct 10 2022→Oct 16 2025 ⇒ 3 rows (…→Oct1'23, Oct1'23→Oct1'24, Oct1'24→Oct 16'25). Applies to ALL
+      functions (multiplies historical rows). Migration-tool only — effective on the next re-import.
+- [x] **Empty-teams bug FIXED (2026-06-15):** `UniteFonc.TOTEM` named teams by the FULL sizaine name
+      (totem + adjectif, "Etalons Tenaces") but teams were created keyed by bare totem ("Etalons") →
+      47% of active assignments got `team_id=NULL`. Tool now registers each team under bare/full/display
+      names (case-insensitive) + auto-creates a team for an active member whose totem has no PatEqSiz row.
+      Live DB backfilled non-destructively (active-with-team 418→905). Added `NOY`=Noyau unit type.
+- [x] **Unit association now NULLABLE** — a unit may span both associations and belong to none (Maîtrise
+      de Groupe "G", empty ASSOC in source). `Unit.AssociationId` → `Guid?` (migration
+      MakeUnitAssociationNullable), Create/UpdateUnit no longer require it, unit form has "Aucune (inter-
+      associations)", list/detail show "Inter-associations". Migration imports empty-ASSOC units as NULL.
+      (C1/CO were not lost — they'd been recoded in-app C1→CO1/CO→X3; renamed back in the live DB. N+G
+      not created in live DB per user — a re-import now produces them.)
 
 ### Security & Performance Audit (Complete — 2026-06)
 - [x] FIXED CRITICAL: global EF `NoTracking` default silently broke ALL update handlers (returned
@@ -393,6 +426,20 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] CG review `/admin/demandes`: filters (gender/classe/age/status/unit), per-unit capacity (current · projected-after-
       passage · editable quota · accepted), approve(unit picker)/decline(reason), sibling flags. Decisions hidden from
       applicant until posted. Batch "Envoyer les réponses" — BLOCKED while any submitted demande is undecided.
+- [x] Review UI reworked (2026-06-15) Excel-style: sortable TABLE (nom/âge/genre/classe/école/fratrie/statut/unité)
+      with row quick approve/decline, + click a row → right-side **detail drawer** (Sheet) showing the full file in
+      friendly sections (Enfant, École, Coordonnées+adresse foyer, Parents/Tuteurs w/ contacts+flags, Proches scouts,
+      Médical, Note des parents, Fratrie) with inline accept(unit picker+note)/refuse(motif) + précédent/suivant nav.
+      Review DTO gained the household address (AddressCountry/City/Details from the applicant account).
+      Table compaction: genre M/F, unité by shortcode, école by shortcode (new `member.school_codes` json setting
+      mapping full name→code, accent/case-insensitive resolver `useSchoolCode`, acronym fallback), a Relations column
+      (count + hover list of proches scouts), and statut shown as a colored left border + legend (no column).
+- [x] Review power tools (2026-06-15): name search box; row checkboxes + bulk bar (accept→chosen unit / accept→
+      suggested unit / refuse with motif) backed by new `POST /demandes/bulk-decide` (BulkDecideDemandeCommand,
+      per-item unit, skips already-sent); per-row **suggested unit** (eligible+not-full, balanced by fewest accepted)
+      shown as a one-click chip + pre-selected in the drawer; **sibling grouping** (same-account rows kept adjacent +
+      amber tint) gated by demande.decide_siblings_together; inline **quota ⚠** on decided/suggested unit at capacity;
+      **incomplete-dossier ⚠** (missing DOB / parent / parent phone); drawer **keyboard triage** (A accept, R refuse, ←/→ nav).
 - [x] Send = advisory-locked + idempotent: converts approved → Member (card#, login, deduped father+mother guardians,
       assignment w/ base role, household address), marks sent. Emails queued (IEmailQueue + background worker) so the
       request returns fast; login password hashes pre-computed in parallel before the lock. 100-batch ≈ 8.7s.

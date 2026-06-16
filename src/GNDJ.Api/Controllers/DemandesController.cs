@@ -48,6 +48,15 @@ public class DemandesController : BaseApiController
         return Ok(new { success = true });
     }
 
+    [HttpPost("bulk-decide")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> BulkDecide([FromBody] BulkDecideDemandeCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     [HttpPut("quota")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> SetQuota([FromBody] SetUnitIntakeQuotaCommand command)

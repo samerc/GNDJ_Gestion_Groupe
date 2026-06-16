@@ -69,6 +69,28 @@ public class SecurityProfilesController : BaseApiController
         return Ok(result);
     }
 
+    [HttpPost]
+    [HasPermission(Permissions.RolesManage)]
+    public async Task<IActionResult> Create([FromBody] CreateSecurityProfileCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Created($"/api/v1/security-profiles/{result.Value}", new { id = result.Value });
+    }
+
+    [HttpDelete("{id:guid}")]
+    [HasPermission(Permissions.RolesManage)]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var result = await Mediator.Send(new DeleteSecurityProfileCommand(id));
+        if (!result.IsSuccess)
+        {
+            if (result.Error!.Contains("introuvable")) return NotFound(new { error = result.Error });
+            return BadRequest(new { error = result.Error });
+        }
+        return NoContent();
+    }
+
     [HttpPut("{id:guid}/permissions")]
     [HasPermission(Permissions.RolesManage)]
     public async Task<IActionResult> UpdatePermissions(Guid id, [FromBody] UpdateSecurityProfilePermissionsCommand command)

@@ -14,6 +14,9 @@ export interface MemberListDto {
   photoPath: string | null
   unitName: string | null
   teamName: string | null
+  roleName: string | null
+  roleRank: number | null
+  fatherName: string | null
 }
 
 export interface MemberDetailDto {
@@ -99,6 +102,13 @@ export function useDeleteMember() {
   return useMutation({
     mutationFn: (id: string) => apiClient.delete(`/members/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['members'] }),
+  })
+}
+
+export function useResetMemberPassword() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.post<{ username: string; temporaryPassword: string }>(`/members/${id}/reset-password`).then(r => r.data),
   })
 }
 

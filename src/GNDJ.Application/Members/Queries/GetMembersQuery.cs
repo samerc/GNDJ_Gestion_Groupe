@@ -87,6 +87,8 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
             _ => desc ? query.OrderByDescending(m => m.LastName) : query.OrderBy(m => m.LastName),
         };
 
+        var scopeUnitId = request.UnitId;
+
         // Alumni results expose identity only — contact details are withheld.
         var projected = ordered.ThenBy(m => m.FirstName)
             .Select(m => new MemberListDto(
@@ -95,7 +97,15 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
                 isAlumni ? null : m.Phones.Where(p => p.IsPrimary && !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault(),
                 m.PhotoPath,
                 m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Code).FirstOrDefault(),
-                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Team != null ? a.Team.Name : null).FirstOrDefault()
+                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Team != null ? a.Team.Name : null).FirstOrDefault(),
+                // Functional role of the active assignment (scoped to the queried unit when set).
+                m.Assignments.Where(a => a.EndDate == null && (scopeUnitId == null || a.UnitId == scopeUnitId))
+                    .Select(a => a.FunctionalRole.Name).FirstOrDefault(),
+                m.Assignments.Where(a => a.EndDate == null && (scopeUnitId == null || a.UnitId == scopeUnitId))
+                    .Select(a => (int?)a.FunctionalRole.Rank).FirstOrDefault(),
+                // Father's name (relationship stored as "Pere" or "Père").
+                m.GuardianLinks.Where(l => !l.IsDeleted && (l.RelationshipType == "Pere" || l.RelationshipType == "Père"))
+                    .Select(l => l.Guardian.FirstName + " " + l.Guardian.LastName).FirstOrDefault()
             ));
 
         return await PaginatedList<MemberListDto>.CreateAsync(projected, request.Page, request.PageSize, cancellationToken);

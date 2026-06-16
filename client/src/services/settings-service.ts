@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
@@ -43,4 +44,41 @@ export function useSettingArray(key: string): string[] {
   const { data } = useSetting(key)
   if (!data?.value) return []
   try { return JSON.parse(data.value) } catch { return [] }
+}
+
+// Normalize a school name for matching (case + accent insensitive).
+function normalizeSchool(s: string): string {
+  return s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+}
+
+// Build a short code from a school name when none is configured (initials of significant words).
+function schoolAcronym(name: string): string {
+  const skip = new Set(['de', 'du', 'la', 'le', 'les', 'des', 'et', "d'", 'of'])
+  const code = name
+    .split(/[\s-]+/)
+    .filter((w) => w && !skip.has(w.toLowerCase()))
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 4)
+  return code || name.slice(0, 4).toUpperCase()
+}
+
+// Returns a resolver: school full name → short code (system-wide, from member.school_codes setting).
+export function useSchoolCode(): (name: string | null | undefined) => string {
+  const { data } = useSetting('member.school_codes')
+  const map = useMemo(() => {
+    const m: Record<string, string> = {}
+    if (data?.value) {
+      try {
+        const obj = JSON.parse(data.value) as Record<string, string>
+        for (const [k, v] of Object.entries(obj)) m[normalizeSchool(k)] = v
+      } catch { /* ignore malformed */ }
+    }
+    return m
+  }, [data?.value])
+  return (name) => {
+    if (!name) return ''
+    return map[normalizeSchool(name)] ?? schoolAcronym(name)
+  }
 }

@@ -8,8 +8,8 @@ export interface UnitDto {
   code: string
   description: string | null
   isActive: boolean
-  associationId: string
-  associationName: string
+  associationId: string | null
+  associationName: string | null
   unitTypeId: string
   unitTypeName: string
   teamCount: number
@@ -23,7 +23,7 @@ export interface UnitFormData {
   name: string
   code: string
   description?: string | null
-  associationId: string
+  associationId: string | null
   unitTypeId: string
   isActive?: boolean
   slug?: string | null

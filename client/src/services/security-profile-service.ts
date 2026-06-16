@@ -41,3 +41,20 @@ export function useUpdateSecurityProfilePermissions() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['security-profiles'] }),
   })
 }
+
+export function useCreateSecurityProfile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; description?: string | null; permissions: string[] }) =>
+      apiClient.post<{ id: string }>('/security-profiles', data).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['security-profiles'] }),
+  })
+}
+
+export function useDeleteSecurityProfile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/security-profiles/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['security-profiles'] }),
+  })
+}

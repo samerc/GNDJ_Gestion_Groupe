@@ -1,11 +1,15 @@
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
-import { useSecurityProfiles, useSecurityProfile, useUpdateSecurityProfilePermissions } from '@/services/security-profile-service'
+import { useSecurityProfiles, useSecurityProfile, useUpdateSecurityProfilePermissions, useCreateSecurityProfile, useDeleteSecurityProfile } from '@/services/security-profile-service'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { Shield, ChevronRight, Save } from 'lucide-react'
+import { Shield, ChevronRight, Save, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 // All permissions grouped by category for the editor
@@ -103,6 +107,34 @@ const PERMISSION_GROUPS: { label: string; permissions: { value: string; label: s
     ],
   },
   {
+    label: 'Progression',
+    permissions: [
+      { value: 'progression.view', label: 'Voir' },
+      { value: 'progression.manage', label: 'Gérer' },
+    ],
+  },
+  {
+    label: 'Passage',
+    permissions: [
+      { value: 'passage.view', label: 'Voir' },
+      { value: 'passage.propose', label: 'Proposer' },
+      { value: 'passage.manage', label: 'Gérer (CG)' },
+    ],
+  },
+  {
+    label: "Demandes d'inscription",
+    permissions: [
+      { value: 'demande.view', label: 'Voir' },
+      { value: 'demande.manage', label: 'Gérer' },
+    ],
+  },
+  {
+    label: 'Site public',
+    permissions: [
+      { value: 'content.manage', label: 'Gérer le contenu' },
+    ],
+  },
+  {
     label: 'Administration',
     permissions: [
       { value: 'audit.view', label: 'Journal d\'audit' },
@@ -114,12 +146,16 @@ const PERMISSION_GROUPS: { label: string; permissions: { value: string; label: s
 export default function SecurityProfilesPage() {
   const { data: profiles, isLoading } = useSecurityProfiles()
   const [selectedId, setSelectedId] = useState<string>('')
+  const [createOpen, setCreateOpen] = useState(false)
 
   if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Profils de sécurité</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Profils de sécurité</h1>
+        <Button onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Nouveau profil</Button>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
         {/* Profile list */}
@@ -148,7 +184,7 @@ export default function SecurityProfilesPage() {
 
         {/* Permission editor */}
         {selectedId ? (
-          <PermissionEditor profileId={selectedId} />
+          <PermissionEditor profileId={selectedId} onDeleted={() => setSelectedId('')} />
         ) : (
           <Card>
             <CardContent className="flex items-center justify-center py-16 text-muted-foreground">
@@ -157,16 +193,106 @@ export default function SecurityProfilesPage() {
           </Card>
         )}
       </div>
+
+      <CreateProfileDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={(id) => setSelectedId(id)} />
     </div>
   )
 }
 
-function PermissionEditor({ profileId }: { profileId: string }) {
+function CreateProfileDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: (id: string) => void }) {
+  const createMutation = useCreateSecurityProfile()
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [perms, setPerms] = useState<Set<string>>(new Set())
+  const [error, setError] = useState('')
+
+  const reset = () => { setName(''); setDescription(''); setPerms(new Set()); setError('') }
+
+  const togglePerm = (perm: string) => setPerms(prev => { const n = new Set(prev); n.has(perm) ? n.delete(perm) : n.add(perm); return n })
+  const toggleGroup = (group: typeof PERMISSION_GROUPS[0]) => setPerms(prev => {
+    const n = new Set(prev)
+    const allChecked = group.permissions.every(p => n.has(p.value))
+    for (const p of group.permissions) { if (allChecked) n.delete(p.value); else n.add(p.value) }
+    return n
+  })
+
+  const handleCreate = async () => {
+    setError('')
+    if (!name.trim()) { setError('Le nom est requis.'); return }
+    try {
+      const r = await createMutation.mutateAsync({ name: name.trim(), description: description.trim() || null, permissions: [...perms] })
+      toast.success('Profil créé')
+      reset()
+      onOpenChange(false)
+      onCreated(r.id)
+    } catch (err) { setError(parseApiError(err)) }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o) }}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Nouveau profil de sécurité</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2"><RequiredLabel required>Nom</RequiredLabel><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex : Aumônier" /></div>
+            <div className="space-y-2"><RequiredLabel>Description</RequiredLabel><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optionnel" /></div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm font-medium">Permissions ({perms.size})</p>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {PERMISSION_GROUPS.map(group => {
+                const groupChecked = group.permissions.filter(p => perms.has(p.value)).length
+                const allChecked = groupChecked === group.permissions.length
+                const someChecked = groupChecked > 0 && !allChecked
+                return (
+                  <div key={group.label} className="rounded-md border p-3">
+                    <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                      <input type="checkbox" checked={allChecked} ref={(el) => { if (el) el.indeterminate = someChecked }} onChange={() => toggleGroup(group)} className="rounded" />
+                      <span className="font-medium text-sm">{group.label}</span>
+                      <span className="text-xs text-muted-foreground ml-auto">{groupChecked}/{group.permissions.length}</span>
+                    </label>
+                    <div className="space-y-1 pl-5">
+                      {group.permissions.map(p => (
+                        <label key={p.value} className="flex items-center gap-2 cursor-pointer text-sm">
+                          <input type="checkbox" checked={perms.has(p.value)} onChange={() => togglePerm(p.value)} className="rounded" />
+                          {p.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { reset(); onOpenChange(false) }}>Annuler</Button>
+          <Button onClick={handleCreate} disabled={createMutation.isPending}>{createMutation.isPending ? 'Création...' : 'Créer'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function PermissionEditor({ profileId, onDeleted }: { profileId: string; onDeleted: () => void }) {
   const { data: profile, isLoading } = useSecurityProfile(profileId)
   const updateMutation = useUpdateSecurityProfilePermissions()
+  const deleteMutation = useDeleteSecurityProfile()
   const [editedPerms, setEditedPerms] = useState<Set<string> | null>(null)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const handleDelete = async () => {
+    setError('')
+    try {
+      await deleteMutation.mutateAsync(profileId)
+      toast.success('Profil supprimé')
+      setDeleteOpen(false)
+      onDeleted()
+    } catch (err) { setError(parseApiError(err)); setDeleteOpen(false) }
+  }
 
   if (isLoading) return <LoadingSpinner />
   if (!profile) return null
@@ -212,6 +338,7 @@ function PermissionEditor({ profileId }: { profileId: string }) {
   }
 
   return (
+    <>
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -231,6 +358,11 @@ function PermissionEditor({ profileId }: { profileId: string }) {
                   <Save className="mr-1 h-4 w-4" />{updateMutation.isPending ? '...' : 'Enregistrer'}
                 </Button>
               </>
+            )}
+            {!hasChanges && !profile.isSystem && (
+              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="mr-1 h-4 w-4" />Supprimer
+              </Button>
             )}
           </div>
         </div>
@@ -276,5 +408,16 @@ function PermissionEditor({ profileId }: { profileId: string }) {
         </div>
       </CardContent>
     </Card>
+    <ConfirmDialog
+      open={deleteOpen}
+      onOpenChange={setDeleteOpen}
+      title="Supprimer le profil"
+      description={`Supprimer le profil « ${profile.name} » ? Cette action est définitive.${profile.roleCount > 0 ? ' Ce profil est utilisé par des fonctions — réaffectez-les d\'abord.' : ''}`}
+      confirmLabel="Supprimer"
+      variant="destructive"
+      loading={deleteMutation.isPending}
+      onConfirm={handleDelete}
+    />
+    </>
   )
 }

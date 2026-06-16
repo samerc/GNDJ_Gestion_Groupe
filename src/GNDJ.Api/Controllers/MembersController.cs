@@ -8,6 +8,7 @@ using GNDJ.Application.Members.Commands.DeleteAddress;
 using GNDJ.Application.Members.Commands.DeleteEmail;
 using GNDJ.Application.Members.Commands.DeleteMember;
 using GNDJ.Application.Members.Commands.DeletePhone;
+using GNDJ.Application.Members.Commands.ResetMemberPassword;
 using GNDJ.Application.Members.Commands.UpdateAddress;
 using GNDJ.Application.Members.Commands.UpdateEmail;
 using GNDJ.Application.Members.Commands.UpdateMember;
@@ -80,6 +81,20 @@ public class MembersController : BaseApiController
             return BadRequest(new { error = result.Error });
         }
         return NoContent();
+    }
+
+    [HttpPost("{id:guid}/reset-password")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> ResetPassword(Guid id)
+    {
+        var result = await Mediator.Send(new ResetMemberPasswordCommand(id));
+        if (!result.IsSuccess)
+        {
+            if (result.Error!.Contains("pas de compte"))
+                return NotFound(new { error = result.Error });
+            return BadRequest(new { error = result.Error });
+        }
+        return Ok(result.Value);
     }
 
     // --- Contact endpoints ---

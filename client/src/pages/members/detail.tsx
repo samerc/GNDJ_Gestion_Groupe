@@ -1,7 +1,9 @@
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { useMember, useUpdateMember, useAddPhone, useDeletePhone, useAddEmail, useDeleteEmail, useAddAddress, useDeleteAddress, useUpdatePhone, useUpdateEmail, useUpdateAddress, type MemberFormData, type MemberPhoneDto, type MemberEmailDto, type MemberAddressDto } from '@/services/member-service'
+import { useMember, useUpdateMember, useAddPhone, useDeletePhone, useAddEmail, useDeleteEmail, useAddAddress, useDeleteAddress, useUpdatePhone, useUpdateEmail, useUpdateAddress, useResetMemberPassword, type MemberFormData, type MemberPhoneDto, type MemberEmailDto, type MemberAddressDto } from '@/services/member-service'
+import { useAuthStore } from '@/stores/auth-store'
+import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -19,7 +21,7 @@ import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
-import { ArrowLeft, Save, Phone, Mail, MapPin, Plus, Trash2, Pencil } from 'lucide-react'
+import { ArrowLeft, Save, Phone, Mail, MapPin, Plus, Trash2, Pencil, KeyRound, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function MemberDetailPage() {
@@ -42,6 +44,11 @@ export default function MemberDetailPage() {
   const updatePhoneMutation = useUpdatePhone(id!)
   const updateEmailMutation = useUpdateEmail(id!)
   const updateAddressMutation = useUpdateAddress(id!)
+  const resetPasswordMutation = useResetMemberPassword()
+  const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
+
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
+  const [resetCreds, setResetCreds] = useState<{ username: string; password: string } | null>(null)
 
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<MemberFormData>({ firstName: '', lastName: '' })
@@ -165,6 +172,18 @@ export default function MemberDetailPage() {
     setAddressForm({ type: 'Domicile', country: 'Liban', city: '', details: '', isPrimary: false })
   }
 
+  const handleResetPassword = async () => {
+    try {
+      const creds = await resetPasswordMutation.mutateAsync(id!)
+      setResetCreds({ username: creds.username, password: creds.temporaryPassword })
+      toast.success('Mot de passe réinitialisé')
+    } catch (err) {
+      toast.error(parseApiError(err))
+    } finally {
+      setResetConfirmOpen(false)
+    }
+  }
+
   const handleDeleteContact = async () => {
     if (!deletingContact) return
     if (deletingContact.type === 'phone') await deletePhoneMutation.mutateAsync(deletingContact.id)
@@ -187,7 +206,14 @@ export default function MemberDetailPage() {
           </div>
         </div>
         {!editing ? (
-          <Button onClick={startEdit}>Modifier</Button>
+          <div className="flex gap-2">
+            {canEdit && (
+              <Button variant="outline" onClick={() => setResetConfirmOpen(true)}>
+                <KeyRound className="mr-2 h-4 w-4" />Réinitialiser le mot de passe
+              </Button>
+            )}
+            <Button onClick={startEdit}>Modifier</Button>
+          </div>
         ) : (
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setEditing(false)}>Annuler</Button>
@@ -572,6 +598,45 @@ export default function MemberDetailPage() {
         variant="destructive"
         onConfirm={handleDeleteContact}
       />
+
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        onOpenChange={setResetConfirmOpen}
+        title="Réinitialiser le mot de passe"
+        description={`Un nouveau mot de passe temporaire sera généré pour ${member.firstName} ${member.lastName}. Les sessions actives seront déconnectées. Continuer ?`}
+        confirmLabel="Réinitialiser"
+        loading={resetPasswordMutation.isPending}
+        onConfirm={handleResetPassword}
+      />
+
+      {/* New credentials dialog */}
+      <Dialog open={!!resetCreds} onOpenChange={() => setResetCreds(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Mot de passe réinitialisé</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Communiquez ces informations au membre. Le mot de passe ne sera plus affiché.</p>
+            <div className="rounded-md bg-muted p-4 space-y-3 text-sm">
+              <div>
+                <span className="text-muted-foreground">Nom d'utilisateur :</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{resetCreds?.username}</code>
+                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resetCreds?.username ?? ''); toast.success('Copié !') }}><Copy className="h-3.5 w-3.5" /></Button>
+                </div>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Nouveau mot de passe :</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{resetCreds?.password}</code>
+                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resetCreds?.password ?? ''); toast.success('Copié !') }}><Copy className="h-3.5 w-3.5" /></Button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setResetCreds(null)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

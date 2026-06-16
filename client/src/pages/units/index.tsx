@@ -53,7 +53,7 @@ export default function UnitsPage() {
     setEditing(item)
     setForm({
       name: item.name, code: item.code, description: item.description ?? '',
-      associationId: item.associationId, unitTypeId: item.unitTypeId, isActive: item.isActive,
+      associationId: item.associationId ?? '', unitTypeId: item.unitTypeId, isActive: item.isActive,
       slug: item.slug ?? '', isPublished: item.isPublished, foundedDate: item.foundedDate ?? null,
     })
     setError(''); clearAll()
@@ -67,13 +67,15 @@ export default function UnitsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!validate({ name: !form.name, code: !form.code, associationId: !form.associationId, unitTypeId: !form.unitTypeId })) return
+    if (!validate({ name: !form.name, code: !form.code, unitTypeId: !form.unitTypeId })) return
+    // Association is optional (units like Maîtrise de Groupe have none): send null, not ''.
+    const payload = { ...form, associationId: form.associationId || null }
     try {
       if (editing) {
-        await updateMutation.mutateAsync({ id: editing.id, ...form })
+        await updateMutation.mutateAsync({ id: editing.id, ...payload })
         toast.success('Unité modifiée')
       } else {
-        await createMutation.mutateAsync(form)
+        await createMutation.mutateAsync(payload)
         toast.success('Unité créée')
       }
       setFormOpen(false)
@@ -159,7 +161,7 @@ export default function UnitsPage() {
                   <TableRow key={item.id} className="cursor-pointer" onClick={() => navigate(`/units/${item.id}`)}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell className="text-muted-foreground">{item.code}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.associationName}</TableCell>
+                    <TableCell className="text-muted-foreground">{item.associationName ?? 'Inter-associations'}</TableCell>
                     <TableCell className="text-muted-foreground">{item.unitTypeName}</TableCell>
                     <TableCell className="text-center">{item.teamCount}</TableCell>
                     <TableCell className="text-center">{item.memberCount}</TableCell>
@@ -218,10 +220,11 @@ export default function UnitsPage() {
               <Input id="code" className={fieldClass('code')} value={form.code} onChange={(e) => { setForm(f => ({ ...f, code: e.target.value })); clearField('code') }} required />
             </div>
             <div className="space-y-2">
-              <RequiredLabel required>Association</RequiredLabel>
-              <Select value={form.associationId} onValueChange={(v) => { setForm(f => ({ ...f, associationId: v })); clearField('associationId') }}>
+              <RequiredLabel>Association</RequiredLabel>
+              <Select value={form.associationId || '__none__'} onValueChange={(v) => { setForm(f => ({ ...f, associationId: v === '__none__' ? '' : v })); clearField('associationId') }}>
                 <SelectTrigger className={fieldClass('associationId')}><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__none__">Aucune (inter-associations)</SelectItem>
                   {associations?.items.map(a => (
                     <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
                   ))}

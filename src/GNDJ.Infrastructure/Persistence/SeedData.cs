@@ -36,20 +36,10 @@ public static class SeedData
             Permissions.DocumentsView,
             Permissions.CotisationsView
         ]);
-        var animateurProfile = CreateProfile("Animateur", "animateur", "Membre actif avec accès en lecture",
-        [
-            Permissions.MembersView, Permissions.MembersEdit,
-            Permissions.UnitsView,
-            Permissions.TeamsView,
-            Permissions.AssignmentsView,
-            Permissions.DocumentTypesView,
-            Permissions.DocumentsView, Permissions.DocumentsCreate,
-            Permissions.CotisationsView
-        ]);
-        var readOnlyProfile = CreateProfile("Lecture seule", "read-only", "Accès en lecture uniquement",
+        var readOnlyProfile = CreateProfile("Lecture seule", "read-only", "Accès en lecture uniquement (membre)",
             Permissions.All.Where(p => p.EndsWith(".view")).ToArray());
 
-        context.SecurityProfiles.AddRange(superAdminProfile, assocAdminProfile, chefUniteProfile, chefEquipeProfile, animateurProfile, readOnlyProfile);
+        context.SecurityProfiles.AddRange(superAdminProfile, assocAdminProfile, chefUniteProfile, chefEquipeProfile, readOnlyProfile);
 
         // Functional Roles (global — no unit type restriction)
         var roleSuperAdmin = new FunctionalRole
@@ -76,14 +66,7 @@ public static class SeedData
             Description = "Responsable d'une équipe",
             SecurityProfileId = chefEquipeProfile.Id, UnitTypeId = null
         };
-        var roleAnimateur = new FunctionalRole
-        {
-            Name = "Animateur", Code = "animateur",
-            Description = "Membre actif",
-            SecurityProfileId = animateurProfile.Id, UnitTypeId = null
-        };
-
-        context.FunctionalRoles.AddRange(roleSuperAdmin, roleAssocAdmin, roleChefUnite, roleChefEquipe, roleAnimateur);
+        context.FunctionalRoles.AddRange(roleSuperAdmin, roleAssocAdmin, roleChefUnite, roleChefEquipe);
 
         // Super Admin User + Member
         var adminMember = new Member
@@ -138,14 +121,6 @@ public static class SeedData
                 Permissions.PassageView, Permissions.PassagePropose
             ],
             ["chef-equipe"] = [Permissions.DocumentsView, Permissions.CotisationsView, Permissions.ProgressionView, Permissions.PassageView],
-            ["animateur"] =
-            [
-                Permissions.MembersView, Permissions.MembersEdit,
-                Permissions.UnitsView, Permissions.TeamsView, Permissions.AssignmentsView,
-                Permissions.DocumentTypesView,
-                Permissions.DocumentsView, Permissions.DocumentsCreate,
-                Permissions.CotisationsView
-            ],
             ["read-only"] = Permissions.All.Where(p => p.EndsWith(".view")).ToArray(),
         };
 
@@ -190,6 +165,7 @@ public static class SeedData
             new() { Key = "cotisation.default_currency", Value = "USD", Category = "cotisations", Label = "Devise par défaut", Description = "Devise par défaut pour les cotisations et le calcul du total", ValueType = "string" },
             new() { Key = "cotisation.exchange_rates", Value = "{\"LBP\":89500,\"EUR\":0.92}", Category = "cotisations", Label = "Taux de change", Description = "Taux de change par rapport à la devise par défaut (ex: 1 USD = 89500 LBP)", ValueType = "json" },
             new() { Key = "member.schools", Value = "[\"Collège Notre-Dame de Jamhour\",\"Collège Saint-Joseph Antoura\"]", Category = "members", Label = "Écoles", Description = "Liste des écoles disponibles dans le formulaire membre", ValueType = "json_array" },
+            new() { Key = "member.school_codes", Value = "{\"Collège Notre-Dame de Jamhour\":\"CNDJ\",\"Collège Saint-Joseph Antoura\":\"CSJA\",\"Collège Saint-Grégoire\":\"CSG\"}", Category = "members", Label = "Codes des écoles", Description = "Code court par école (affiché dans les tableaux). Insensible aux accents/majuscules.", ValueType = "json" },
             new() { Key = "member.default_school", Value = "Collège Notre-Dame de Jamhour", Category = "members", Label = "École par défaut", Description = "École sélectionnée par défaut lors de la création d'un membre", ValueType = "string" },
             new() { Key = "member.classes", Value = "[\"EB1\",\"EB2\",\"EB3\",\"EB4\",\"EB5\",\"EB6\",\"EB7\",\"EB8\",\"EB9\",\"Seconde\",\"Première\",\"Terminale\"]", Category = "members", Label = "Classes", Description = "Liste des classes disponibles dans le formulaire membre", ValueType = "json_array" },
             new() { Key = "passage.enabled", Value = "false", Category = "passage", Label = "Passage annuel actif", Description = "Active ou désactive le processus de passage annuel", ValueType = "boolean" },

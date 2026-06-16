@@ -45,7 +45,6 @@ function durationLabel(start: string, end: string | null) {
 export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssignmentsProps) {
   const { data } = useAssignments({ memberId, pageSize: 100 })
   const { data: units } = useUnits({ pageSize: 100 })
-  const { data: roles } = useFunctionalRoles()
   const createMutation = useCreateAssignment()
   const updateMutation = useUpdateAssignment()
   const endMutation = useEndAssignment()
@@ -59,6 +58,9 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
   const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
 
   const { data: teams } = useTeams({ unitId: form.unitId || undefined, pageSize: 100 })
+  // Functions are scoped to the chosen unit's type (the endpoint also includes global roles).
+  const selectedUnitTypeId = units?.items.find(u => u.id === form.unitId)?.unitTypeId
+  const { data: roles } = useFunctionalRoles(selectedUnitTypeId)
 
   const openCreate = () => {
     setEditing(null)
@@ -240,7 +242,7 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
               <>
                 <div className="space-y-2">
                   <RequiredLabel required>Unité</RequiredLabel>
-                  <Select value={form.unitId} onValueChange={(v) => { setForm(f => ({ ...f, unitId: v, teamId: '' })); clearField('unitId') }}>
+                  <Select value={form.unitId} onValueChange={(v) => { setForm(f => ({ ...f, unitId: v, teamId: '', functionalRoleId: '' })); clearField('unitId') }}>
                     <SelectTrigger className={fieldClass('unitId')}><SelectValue placeholder="Sélectionner une unité..." /></SelectTrigger>
                     <SelectContent>{units?.items.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
                   </Select>
@@ -257,8 +259,8 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
                 </div>
                 <div className="space-y-2">
                   <RequiredLabel required>Fonction</RequiredLabel>
-                  <Select value={form.functionalRoleId} onValueChange={(v) => { setForm(f => ({ ...f, functionalRoleId: v })); clearField('functionalRoleId') }}>
-                    <SelectTrigger className={fieldClass('functionalRoleId')}><SelectValue placeholder="Sélectionner une fonction..." /></SelectTrigger>
+                  <Select value={form.functionalRoleId} onValueChange={(v) => { setForm(f => ({ ...f, functionalRoleId: v })); clearField('functionalRoleId') }} disabled={!form.unitId}>
+                    <SelectTrigger className={fieldClass('functionalRoleId')}><SelectValue placeholder={form.unitId ? 'Sélectionner une fonction...' : "Choisir d'abord une unité"} /></SelectTrigger>
                     <SelectContent>{roles?.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>

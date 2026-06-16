@@ -19,7 +19,7 @@ import { toast } from 'sonner'
 
 interface UnitDetail {
   id: string; name: string; code: string; description: string | null; isActive: boolean
-  associationId: string; associationName: string; unitTypeId: string; unitTypeName: string
+  associationId: string | null; associationName: string | null; unitTypeId: string; unitTypeName: string
   teamCount: number; memberCount: number; createdAt: string; updatedAt: string
 }
 
@@ -120,7 +120,7 @@ export default function UnitDetailPage() {
           <Button variant="ghost" size="icon" onClick={() => navigate('/units')}><ArrowLeft className="h-5 w-5" /></Button>
           <div>
             <h1 className="text-2xl font-bold">{unit.name}</h1>
-            <p className="text-sm text-muted-foreground">{unit.associationName} — {unit.unitTypeName} — Code: {unit.code}</p>
+            <p className="text-sm text-muted-foreground">{unit.associationName ?? 'Inter-associations'} — {unit.unitTypeName} — Code: {unit.code}</p>
           </div>
         </div>
         <Badge variant={unit.isActive ? 'default' : 'secondary'}>
@@ -298,7 +298,12 @@ function TeamMembers({ unitId, teamId }: { unitId: string; teamId: string }) {
 
   if (isLoading) return <div className="px-4 pb-3 text-sm text-muted-foreground">Chargement...</div>
 
-  const members = data?.items ?? []
+  // Sort by role rank (most senior first), then alphabetically.
+  const members = [...(data?.items ?? [])].sort((a, b) => {
+    const ra = a.roleRank ?? -1, rb = b.roleRank ?? -1
+    if (ra !== rb) return rb - ra
+    return `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`)
+  })
   if (members.length === 0) return <div className="px-4 pb-3 text-sm text-muted-foreground">Aucun membre dans cette équipe.</div>
 
   return (
@@ -307,16 +312,16 @@ function TeamMembers({ unitId, teamId }: { unitId: string; teamId: string }) {
         <thead>
           <tr className="text-muted-foreground text-xs">
             <th className="text-left py-1 font-medium">Nom</th>
-            <th className="text-left py-1 font-medium">N° Carte</th>
-            <th className="text-left py-1 font-medium">Genre</th>
+            <th className="text-left py-1 font-medium">Fonction</th>
+            <th className="text-left py-1 font-medium">Père</th>
           </tr>
         </thead>
         <tbody>
           {members.map((m, idx) => (
             <tr key={m.id} className={idx % 2 === 1 ? 'bg-muted/10' : ''}>
               <td className="py-1.5 font-medium">{m.firstName} {m.lastName}</td>
-              <td className="py-1.5 text-muted-foreground">{m.cardNumber ?? '—'}</td>
-              <td className="py-1.5 text-muted-foreground">{m.gender ?? '—'}</td>
+              <td className="py-1.5 text-muted-foreground">{m.roleName ?? '—'}</td>
+              <td className="py-1.5 text-muted-foreground">{m.fatherName ?? '—'}</td>
             </tr>
           ))}
         </tbody>

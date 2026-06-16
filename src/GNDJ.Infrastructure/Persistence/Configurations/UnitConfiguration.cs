@@ -16,7 +16,7 @@ public class UnitConfiguration : IEntityTypeConfiguration<Unit>
         builder.Property(e => e.Slug).HasMaxLength(120);
         builder.HasIndex(e => e.Slug).IsUnique().HasFilter("slug IS NOT NULL AND is_deleted = false");
 
-        builder.HasOne(e => e.Association).WithMany(a => a.Units).HasForeignKey(e => e.AssociationId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(e => e.Association).WithMany(a => a.Units).HasForeignKey(e => e.AssociationId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(e => e.UnitType).WithMany(ut => ut.Units).HasForeignKey(e => e.UnitTypeId).OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(e => e.AssociationId);

@@ -11,7 +11,10 @@ public record MemberListDto(
     string? PrimaryPhone,
     string? PhotoPath,
     string? UnitName,
-    string? TeamName
+    string? TeamName,
+    string? RoleName,
+    int? RoleRank,
+    string? FatherName
 );
 
 public record MemberDetailDto(

@@ -22,11 +22,12 @@ public record DemandeReviewDto(
     string Status, Guid? DecidedUnitId, string? DecidedUnitName, string? DecisionNotes,
     DateTime? SubmittedAt, DateTime? ResponseSentAt, Guid? CreatedMemberId,
     Guid AccountId, string AccountEmail, string? ContactName,
+    string? AddressCountry, string? AddressCity, string? AddressDetails,
     IReadOnlyList<ApplicantGuardianDto> Guardians, IReadOnlyList<ApplicantScoutRelationDto> ScoutRelations,
     IReadOnlyList<SiblingDto> Siblings);
 
 public record UnitOccupancyDto(
-    Guid UnitId, string UnitCode, string UnitName, string AssociationName, Guid UnitTypeId,
+    Guid UnitId, string UnitCode, string UnitName, string? AssociationName, Guid UnitTypeId,
     string? Gender, int? AgeMin, int? AgeMax, int CurrentActive, int Projected, int? Quota, int Accepted);
 
 static class DemandeAdminHelpers
@@ -85,6 +86,7 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context) : I
                 d.Status, d.DecidedUnitId, d.DecidedUnitId.HasValue ? unitNames.GetValueOrDefault(d.DecidedUnitId.Value) : null, d.DecisionNotes,
                 d.SubmittedAt, d.ResponseSentAt, d.CreatedMemberId,
                 d.ApplicantAccountId, acc?.Email ?? "", acc?.ContactName,
+                acc?.AddressCountry, acc?.AddressCity, acc?.AddressDetails,
                 gs.Select(g => new ApplicantGuardianDto(g.Id, g.Relationship, g.FirstName, g.LastName, g.Profession, g.PhoneCountryCode, g.PhoneNumber, g.Email, g.IsDeceased, g.IsPrimaryContact, g.IsEmergencyContact)).ToList(),
                 rs.Select(r => new ApplicantScoutRelationDto(r.Id, r.Status, r.Relationship, r.RelatedMemberId, r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName)).ToList(),
                 sibs);
@@ -156,7 +158,7 @@ public class GetUnitOccupancyQueryHandler(IApplicationDbContext context) : IRequ
         {
             var cur = activeByUnit.GetValueOrDefault(u.Id);
             var proj = cur - outgoing.GetValueOrDefault(u.Id) + incoming.GetValueOrDefault(u.Id);
-            return new UnitOccupancyDto(u.Id, u.Code, u.Name, u.Association.Name, u.UnitTypeId,
+            return new UnitOccupancyDto(u.Id, u.Code, u.Name, u.Association?.Name, u.UnitTypeId,
                 u.UnitType.Gender, u.UnitType.AgeMin, u.UnitType.AgeMax,
                 cur, proj, quotas.TryGetValue(u.Id, out var q) ? q : null, accepted.GetValueOrDefault(u.Id));
         }).OrderBy(u => u.UnitCode).ToList();
@@ -207,6 +209,71 @@ public class DecideDemandeCommandHandler(IApplicationDbContext context, ICurrent
         await context.SaveChangesAsync(ct);
         await audit.LogAsync("Decide", "Demande", demande.Id, newValues: new { demande.Status, demande.DecidedUnitId }, cancellationToken: ct);
         return Result<bool>.Success(true);
+    }
+}
+
+// ============================================================
+// Bulk decide — stage approve/decline for many demandes at once.
+// Per-item unit so it serves approve-to-one-unit, approve-to-suggested, and decline.
+// ============================================================
+public record BulkDecideItem(Guid Id, Guid? DecidedUnitId);
+public record BulkDecideDemandeResult(int Processed, int Skipped);
+public record BulkDecideDemandeCommand(string Status, string? DecisionNotes, IReadOnlyList<BulkDecideItem> Items)
+    : IRequest<Result<BulkDecideDemandeResult>>;
+
+public class BulkDecideDemandeCommandValidator : AbstractValidator<BulkDecideDemandeCommand>
+{
+    public BulkDecideDemandeCommandValidator()
+    {
+        RuleFor(x => x.Status).Must(s => s is DemandeStatus.Approved or DemandeStatus.Declined or DemandeStatus.Submitted)
+            .WithMessage("Statut invalide.");
+        RuleFor(x => x.Items).NotEmpty().Must(i => i.Count <= 2000).WithMessage("Trop d'éléments (max 2000).");
+        RuleFor(x => x.DecisionNotes).MaximumLength(1000).NoHtml();
+    }
+}
+
+public class BulkDecideDemandeCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<BulkDecideDemandeCommand, Result<BulkDecideDemandeResult>>
+{
+    public async ValueTask<Result<BulkDecideDemandeResult>> Handle(BulkDecideDemandeCommand request, CancellationToken ct)
+    {
+        var approving = request.Status == DemandeStatus.Approved;
+        var ids = request.Items.Select(i => i.Id).Distinct().ToList();
+        var unitById = request.Items.Where(i => i.DecidedUnitId.HasValue).ToDictionary(i => i.Id, i => i.DecidedUnitId!.Value);
+
+        // Validate referenced units exist (batch).
+        var validUnitIds = approving
+            ? (await context.Units.Where(u => unitById.Values.Contains(u.Id)).Select(u => u.Id).ToListAsync(ct)).ToHashSet()
+            : new HashSet<Guid>();
+
+        var demandes = await context.Demandes.Where(d => ids.Contains(d.Id)).ToListAsync(ct);
+        var now = DateTime.UtcNow;
+        int processed = 0, skipped = 0;
+
+        foreach (var d in demandes)
+        {
+            if (d.ResponseSentAt is not null) { skipped++; continue; } // locked — already sent
+
+            if (approving)
+            {
+                if (!unitById.TryGetValue(d.Id, out var unitId) || !validUnitIds.Contains(unitId)) { skipped++; continue; }
+                d.Status = DemandeStatus.Approved;
+                d.DecidedUnitId = unitId;
+            }
+            else
+            {
+                d.Status = request.Status;
+                d.DecidedUnitId = null;
+            }
+            d.DecisionNotes = request.DecisionNotes;
+            d.ReviewedByUserId = currentUser.UserId;
+            d.ReviewedAt = now;
+            processed++;
+        }
+
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("BulkDecide", "Demande", null, newValues: new { request.Status, processed, skipped }, cancellationToken: ct);
+        return Result<BulkDecideDemandeResult>.Success(new BulkDecideDemandeResult(processed, skipped));
     }
 }
 

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useUnitTypeProgressions, useCreateUnitTypeProgression, useUpdateUnitTypeProgression, useDeleteUnitTypeProgression, type UnitTypeProgressionDto } from '@/services/unit-type-progression-service'
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
@@ -83,12 +83,12 @@ export default function ProgressionPathPage() {
     queryFn: () => apiClient.get<PaginatedResult<UnitTypeDto>>('/unit-types', { params: { pageSize: 100 } }).then(r => r.data.items),
   })
 
-  // Load progressions for the first association (most common case — single association)
-  const firstAssocId = associations?.[0]?.id ?? ''
-  const { data: progressions, isLoading } = useUnitTypeProgressions(firstAssocId)
-
-  // For create, we need to know which association
-  const [formAssocId, setFormAssocId] = useState('')
+  // The association whose parcours are shown (and the target for new links).
+  const [selectedAssocId, setSelectedAssocId] = useState('')
+  useEffect(() => {
+    if (!selectedAssocId && associations?.length) setSelectedAssocId(associations[0].id)
+  }, [associations, selectedAssocId])
+  const { data: progressions, isLoading } = useUnitTypeProgressions(selectedAssocId)
 
   const createMutation = useCreateUnitTypeProgression()
   const updateMutation = useUpdateUnitTypeProgression()
@@ -149,7 +149,6 @@ export default function ProgressionPathPage() {
 
   const openCreate = () => {
     setEditing(null)
-    setFormAssocId(firstAssocId)
     setForm({ fromUnitTypeId: '', toUnitTypeId: '', gender: '_all', pathType: 'member', displayOrder: (progressions?.length ?? 0) + 1, notes: '' })
     setError('')
     setFormOpen(true)
@@ -180,7 +179,7 @@ export default function ProgressionPathPage() {
         await updateMutation.mutateAsync({ id: editing.id, ...payload })
         toast.success('Parcours modifié')
       } else {
-        await createMutation.mutateAsync({ associationId: formAssocId, ...payload })
+        await createMutation.mutateAsync({ associationId: selectedAssocId, ...payload })
         toast.success('Parcours créé')
       }
       setFormOpen(false)
@@ -201,7 +200,17 @@ export default function ProgressionPathPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Parcours de progression</h1>
-        <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Ajouter un lien</Button>
+        <div className="flex items-center gap-2">
+          {associations.length > 1 && (
+            <Select value={selectedAssocId} onValueChange={setSelectedAssocId}>
+              <SelectTrigger className="w-52"><SelectValue placeholder="Association..." /></SelectTrigger>
+              <SelectContent>
+                {associations.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+          <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Ajouter un lien</Button>
+        </div>
       </div>
 
       {/* Visual diagram */}
@@ -315,16 +324,10 @@ export default function ProgressionPathPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
-            {!editing && associations && associations.length > 1 && (
-              <div className="space-y-2">
-                <RequiredLabel required>Association</RequiredLabel>
-                <Select value={formAssocId} onValueChange={setFormAssocId}>
-                  <SelectTrigger><SelectValue placeholder="Association..." /></SelectTrigger>
-                  <SelectContent>
-                    {associations.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+            {!editing && associations.length > 1 && (
+              <p className="text-sm text-muted-foreground">
+                Association : <strong>{associations.find(a => a.id === selectedAssocId)?.name ?? '—'}</strong>
+              </p>
             )}
 
             <div className="grid grid-cols-2 gap-4">

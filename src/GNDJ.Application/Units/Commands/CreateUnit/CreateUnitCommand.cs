@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Units.Commands.CreateUnit;
 
-public record CreateUnitCommand(string Name, string Code, string? Description, Guid AssociationId, Guid UnitTypeId) : IRequest<Result<Guid>>;
+public record CreateUnitCommand(string Name, string Code, string? Description, Guid? AssociationId, Guid UnitTypeId) : IRequest<Result<Guid>>;
 
 public class CreateUnitCommandValidator : AbstractValidator<CreateUnitCommand>
 {
@@ -17,7 +17,7 @@ public class CreateUnitCommandValidator : AbstractValidator<CreateUnitCommand>
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(200).NoHtml();
         RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
         RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
-        RuleFor(x => x.AssociationId).NotEmpty().WithMessage("L'association est requise.");
+        // Association optional: a unit may span both associations (e.g. Maîtrise de Groupe) and belong to none.
         RuleFor(x => x.UnitTypeId).NotEmpty().WithMessage("Le type d'unité est requis.");
     }
 }
