@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using FluentValidation;
@@ -216,6 +217,37 @@ builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = 1 * 1024 * 1024; // 1MB default
 });
+// Under IIS in-process hosting Kestrel's limit is ignored, so re-assert the same 1MB default for IIS.
+// (Upload endpoints still override this per-action with [RequestSizeLimit].)
+builder.Services.Configure<Microsoft.AspNetCore.Builder.IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = 1 * 1024 * 1024;
+});
+
+// When behind Cloudflare (or any trusted proxy) the connecting IP is the edge, not the visitor.
+// Restore the real client IP from CF-Connecting-IP so per-IP rate limiting + request logging work —
+// but ONLY honour the header when the connection actually comes from a configured Cloudflare range
+// (otherwise the header is spoofable and the per-IP rate limiter could be bypassed). OFF by default;
+// flip Cloudflare:Enabled=true on the server once traffic is proxied. Ranges: https://www.cloudflare.com/ips/
+var cloudflareEnabled = builder.Configuration.GetValue<bool>("Cloudflare:Enabled");
+if (cloudflareEnabled)
+{
+    var ranges = builder.Configuration.GetSection("Cloudflare:IpRanges").Get<string[]>() ?? [];
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor;
+        options.ForwardedForHeaderName = "CF-Connecting-IP"; // Cloudflare sets this to the true client IP
+        options.ForwardLimit = 1;
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+        foreach (var cidr in ranges)
+        {
+            var parts = cidr.Split('/', 2);
+            if (parts.Length == 2 && System.Net.IPAddress.TryParse(parts[0], out var ip) && int.TryParse(parts[1], out var prefix))
+                options.KnownIPNetworks.Add(new System.Net.IPNetwork(ip, prefix));
+        }
+    });
+}
 
 var app = builder.Build();
 
@@ -239,6 +271,10 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Middleware pipeline
+// Must run FIRST so the rate limiter, abuse middleware and request logging all see the real client IP.
+if (cloudflareEnabled)
+    app.UseForwardedHeaders();
+
 app.UseResponseCompression();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -251,6 +287,15 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Permitted-Cross-Domain-Policies"] = "none";
     await next();
 });
+
+// Production transport hardening (TLS terminates at IIS / the reverse proxy).
+if (!app.Environment.IsDevelopment())
+    app.UseHsts();
+
+// Serve the React build (copied into wwwroot at publish time) so the API and SPA share one origin.
+// API routes are matched by controllers first; everything else falls back to the SPA shell below.
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 if (app.Environment.IsDevelopment())
 {
@@ -285,6 +330,9 @@ app.UseOutputCache();
 app.UseRateLimiter();
 app.UseMiddleware<AbuseDetectionMiddleware>();
 app.MapControllers();
+
+// SPA client-side routing: any non-API, non-file request returns index.html.
+app.MapFallbackToFile("index.html");
 
 Log.Information("GNDJ API started on {Urls}", string.Join(", ", app.Urls));
 Console.WriteLine($"GNDJ API listening on: {string.Join(", ", app.Urls)}");
