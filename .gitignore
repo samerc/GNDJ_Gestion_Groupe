@@ -25,6 +25,8 @@ Thumbs.db
 .env.local
 .env.*.local
 appsettings.Local.json
+# Server-only secrets — NEVER commit. Created on the server (see docs/DEPLOYMENT.md §5).
+appsettings.Production.json
 
 # Docker
 pgdata/
