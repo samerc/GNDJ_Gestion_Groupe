@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { SearchableSelect } from '@/components/shared/searchable-select'
-import { useSettingArray, useSettingValue } from '@/services/settings-service'
+import { useSettingArray, useSettingValue, matchSchool } from '@/services/settings-service'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
@@ -244,7 +244,7 @@ export default function MemberDetailPage() {
               {editing ? (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2"><RequiredLabel required>Prénom</RequiredLabel><Input value={form.firstName} onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))} /></div>
-                  <div className="space-y-2"><RequiredLabel required>Nom</RequiredLabel><Input value={form.lastName} onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value }))} /></div>
+                  <div className="space-y-2"><RequiredLabel required>Nom</RequiredLabel><Input value={form.lastName} onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value.toUpperCase() }))} /></div>
                   <div className="space-y-2"><RequiredLabel>Date de naissance</RequiredLabel><Input type="date" value={form.dateOfBirth ?? ''} onChange={(e) => setForm(f => ({ ...f, dateOfBirth: e.target.value }))} /></div>
                   <div className="space-y-2">
                     <RequiredLabel>Sexe</RequiredLabel>
@@ -291,7 +291,7 @@ export default function MemberDetailPage() {
                             </SelectContent>
                           </Select>
                           {isOtherSchool && (
-                            <Input value={form.school || ''} onChange={(e) => setForm(f => ({ ...f, school: e.target.value }))} placeholder="Nom de l'école..." />
+                            <Input value={form.school || ''} onChange={(e) => setForm(f => ({ ...f, school: e.target.value }))} onBlur={(e) => setForm(f => ({ ...f, school: matchSchool(e.target.value, schools) }))} placeholder="Nom de l'école..." />
                           )}
                         </>
                       )

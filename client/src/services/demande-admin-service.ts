@@ -65,6 +65,27 @@ export interface DemandeFilters {
   unitId?: string
 }
 
+export interface CountItem { label: string; count: number }
+
+export interface DemandeStatistics {
+  scoutYear: string
+  total: number
+  pending: number
+  approved: number
+  declined: number
+  responsesSent: number
+  decided: number
+  drafts: number
+  byGender: CountItem[]
+  byAgeGroup: CountItem[]
+  byClasse: CountItem[]
+  bySchool: CountItem[]
+  siblingGroups: number
+  siblingDemandes: number
+  withScoutRelations: number
+  incompleteDossiers: number
+}
+
 export function useDemandesForReview(scoutYear: string, filters: DemandeFilters) {
   return useQuery({
     queryKey: ['demandes', 'review', scoutYear, filters],
@@ -79,6 +100,14 @@ export function usePendingDemandeCount(enabled: boolean) {
     queryFn: () => apiClient.get<{ count: number }>('/demandes/pending-count').then((r) => r.data.count),
     enabled,
     refetchInterval: 60000,
+  })
+}
+
+export function useDemandeStatistics(scoutYear: string) {
+  return useQuery({
+    queryKey: ['demandes', 'statistics', scoutYear],
+    queryFn: () => apiClient.get<DemandeStatistics>('/demandes/statistics', { params: { scoutYear } }).then((r) => r.data),
+    enabled: !!scoutYear,
   })
 }
 

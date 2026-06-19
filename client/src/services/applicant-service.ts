@@ -9,6 +9,9 @@ export interface ApplicantConfig {
   requireEmailVerification: boolean
   introText: string | null
   schools: string[]
+  classes: string[]
+  units: string[]
+  maxScoutRelations: number
 }
 
 export interface ApplicantGuardian {

@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using FluentValidation;
 using GNDJ.Application.Applicants;
 using GNDJ.Application.Common.Interfaces;
@@ -30,10 +32,63 @@ public record UnitOccupancyDto(
     Guid UnitId, string UnitCode, string UnitName, string? AssociationName, Guid UnitTypeId,
     string? Gender, int? AgeMin, int? AgeMax, int CurrentActive, int Projected, int? Quota, int Accepted);
 
+public record CountItem(string Label, int Count);
+
+public record DemandeStatisticsDto(
+    string ScoutYear,
+    // status pipeline (over submitted+ demandes — drafts excluded except the Drafts count)
+    int Total, int Pending, int Approved, int Declined, int ResponsesSent, int Decided, int Drafts,
+    // demographics
+    IReadOnlyList<CountItem> ByGender, IReadOnlyList<CountItem> ByAgeGroup,
+    IReadOnlyList<CountItem> ByClasse, IReadOnlyList<CountItem> BySchool,
+    // families & data quality
+    int SiblingGroups, int SiblingDemandes, int WithScoutRelations, int IncompleteDossiers);
+
 static class DemandeAdminHelpers
 {
     public static int? AgeAt(DateOnly? dob, DateOnly on)
         => dob is null ? null : on.Year - dob.Value.Year - (on < new DateOnly(on.Year, dob.Value.Month, dob.Value.Day) ? 1 : 0);
+
+    public static readonly string[] AgeGroupOrder =
+        ["Moins de 8 ans", "8–10 ans", "11–13 ans", "14–17 ans", "18 ans et +", "Non renseignée"];
+
+    public static string AgeGroup(int? age) => age switch
+    {
+        null => "Non renseignée",
+        < 8 => "Moins de 8 ans",
+        >= 8 and <= 10 => "8–10 ans",
+        >= 11 and <= 13 => "11–13 ans",
+        >= 14 and <= 17 => "14–17 ans",
+        _ => "18 ans et +",
+    };
+
+    // Group string values into counts (blank → nullLabel), ordered by count desc then label.
+    // Grouping is accent- AND case-insensitive ("Féminin" == "Feminin", "Collège" == "college") so
+    // legacy/inconsistent spellings collapse into a single bucket. The displayed label is the richest
+    // spelling seen (most frequent → with accents → longest), so the nicest form wins.
+    public static List<CountItem> CountBy(IEnumerable<string?> values, string nullLabel)
+        => values.Select(v => string.IsNullOrWhiteSpace(v) ? nullLabel : v.Trim())
+                 .GroupBy(NormalizeKey)
+                 .Select(g => new CountItem(
+                     g.GroupBy(x => x)
+                      .OrderByDescending(x => x.Count())
+                      .ThenByDescending(x => HasDiacritics(x.Key))
+                      .ThenByDescending(x => x.Key.Length)
+                      .First().Key,
+                     g.Count()))
+                 .OrderByDescending(c => c.Count).ThenBy(c => c.Label)
+                 .ToList();
+
+    static string NormalizeKey(string s) => RemoveDiacritics(s).ToLowerInvariant().Trim();
+    static bool HasDiacritics(string s) => s != RemoveDiacritics(s);
+    static string RemoveDiacritics(string text)
+    {
+        var decomposed = text.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(decomposed.Length);
+        foreach (var c in decomposed)
+            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark) sb.Append(c);
+        return sb.ToString().Normalize(NormalizationForm.FormC);
+    }
 }
 
 // ============================================================
@@ -164,6 +219,71 @@ public class GetUnitOccupancyQueryHandler(IApplicationDbContext context) : IRequ
         }).OrderBy(u => u.UnitCode).ToList();
 
         return Result<IReadOnlyList<UnitOccupancyDto>>.Success(result);
+    }
+}
+
+// ============================================================
+// Statistics dashboard (CG) — pipeline + demographics + families/data-quality
+// ============================================================
+public record GetDemandeStatisticsQuery(string ScoutYear) : IRequest<Result<DemandeStatisticsDto>>;
+
+public class GetDemandeStatisticsQueryHandler(IApplicationDbContext context) : IRequestHandler<GetDemandeStatisticsQuery, Result<DemandeStatisticsDto>>
+{
+    public async ValueTask<Result<DemandeStatisticsDto>> Handle(GetDemandeStatisticsQuery request, CancellationToken ct)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var drafts = await context.Demandes.CountAsync(d => d.ScoutYear == request.ScoutYear && d.Status == DemandeStatus.Draft, ct);
+
+        // All submitted+ demandes for the year (the reviewable set).
+        var demandes = await context.Demandes
+            .Where(d => d.ScoutYear == request.ScoutYear && d.Status != DemandeStatus.Draft)
+            .Select(d => new { d.Id, d.ApplicantAccountId, d.Gender, d.DateOfBirth, d.Classe, d.School, d.Status, d.ResponseSentAt })
+            .ToListAsync(ct);
+
+        var total = demandes.Count;
+        var pending = demandes.Count(d => d.Status == DemandeStatus.Submitted && d.ResponseSentAt == null);
+        var approved = demandes.Count(d => d.Status == DemandeStatus.Approved);
+        var declined = demandes.Count(d => d.Status == DemandeStatus.Declined);
+        var sent = demandes.Count(d => d.ResponseSentAt != null);
+
+        // Demographics
+        var byGender = DemandeAdminHelpers.CountBy(demandes.Select(d => d.Gender), "Non renseigné");
+        var ageCounts = DemandeAdminHelpers.CountBy(
+            demandes.Select(d => DemandeAdminHelpers.AgeGroup(DemandeAdminHelpers.AgeAt(d.DateOfBirth, today))), "Non renseignée")
+            .OrderBy(c => Array.IndexOf(DemandeAdminHelpers.AgeGroupOrder, c.Label)).ToList();
+        var byClasse = DemandeAdminHelpers.CountBy(demandes.Select(d => d.Classe), "Non renseignée");
+        var bySchool = DemandeAdminHelpers.CountBy(demandes.Select(d => d.School), "Non renseignée");
+
+        // Families & data quality
+        var byAccount = demandes.GroupBy(d => d.ApplicantAccountId).ToList();
+        var siblingGroups = byAccount.Count(g => g.Count() > 1);
+        var siblingDemandes = byAccount.Where(g => g.Count() > 1).Sum(g => g.Count());
+
+        var accountIds = byAccount.Select(g => g.Key).ToList();
+        var accountsWithRelations = await context.ApplicantScoutRelations
+            .Where(r => accountIds.Contains(r.ApplicantAccountId))
+            .Select(r => r.ApplicantAccountId).Distinct().ToListAsync(ct);
+        var relationSet = accountsWithRelations.ToHashSet();
+        var withScoutRelations = demandes.Count(d => relationSet.Contains(d.ApplicantAccountId));
+
+        // Incomplete dossier = missing DOB, OR account has no guardian, OR no guardian has a phone.
+        var guardiansByAccount = (await context.ApplicantGuardians
+                .Where(g => accountIds.Contains(g.ApplicantAccountId))
+                .Select(g => new { g.ApplicantAccountId, g.PhoneNumber }).ToListAsync(ct))
+            .GroupBy(g => g.ApplicantAccountId).ToDictionary(g => g.Key, g => g.ToList());
+        var incomplete = demandes.Count(d =>
+        {
+            if (d.DateOfBirth is null) return true;
+            var gs = guardiansByAccount.GetValueOrDefault(d.ApplicantAccountId);
+            if (gs is null || gs.Count == 0) return true;
+            return !gs.Any(g => !string.IsNullOrWhiteSpace(g.PhoneNumber));
+        });
+
+        return Result<DemandeStatisticsDto>.Success(new DemandeStatisticsDto(
+            request.ScoutYear, total, pending, approved, declined, sent, approved + declined, drafts,
+            byGender, ageCounts, byClasse, bySchool,
+            siblingGroups, siblingDemandes, withScoutRelations, incomplete));
     }
 }
 

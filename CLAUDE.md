@@ -447,9 +447,37 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
       (username+temp password+unit) / _declined (reason). Verification resend endpoint + portal button.
 - [x] Permissions demande.view/manage (super-admin + association-admin via Permissions.All). CG sidebar badge = pending count.
 - [x] Maîtrise/leader displays (CU dashboard, trombinoscope, roster) ordered by role Rank desc (CU → Aumônier → ACU).
-- [x] Settings `demande.*` (enabled, scout_year, max_per_account, notes_max_length, require_email_verification,
-      decide_siblings_together, intro_text). Server-side validation on all applicant input (HTML/XSS reject, lengths, email, DOB).
+- [x] Settings `demande.*` (enabled, scout_year, max_per_account [default 3], max_scout_relations [default 3],
+      notes_max_length, require_email_verification, decide_siblings_together, intro_text). Server-side validation
+      on all applicant input (HTML/XSS reject, lengths, email, DOB). max_per_account enforced in CreateDemande;
+      max_scout_relations enforced in SaveApplicantHousehold (hard safety cap 50 in the validator).
 - [x] Audited: IDOR (cross-account blocked), auth isolation both ways, 100-concurrent register/login/profile, CG authz.
+- [x] **Applicant wizard UX pass (2026-06-17):** FIXED a no-feedback bug — the applicant portal layouts
+      (ApplicantProtectedRoute + ApplicantAuthShell) never mounted a Sonner `<Toaster>`, so EVERY toast in the
+      portal (submit success/error, validation) fired into the void → "Soumettre" looked like it did nothing
+      (it was actually 400 "vérifiez votre email"). Toaster now mounted in both. Wizard fields aligned with the
+      member forms: family name (Nom) auto-UPPERCASED on child/guardian/relation; DOB via new `DateInput`
+      (displays JJ/MM/AAAA, stores ISO); Nationalité → SearchableSelect (NATIONALITY_OPTIONS, Libanaise pinned);
+      Classe → Select from `member.classes`; guardian Profession → SearchableSelect (PROFESSION_OPTIONS).
+      Proches scouts: "Scout actuel" now picks the **Unité** from a dropdown (eases CG matching), status dropdown
+      enlarged, max-relations shown + Add disabled at cap. Récap "notre groupe" → "Membre GNDJ" (+ unit).
+      ApplicantConfigDto gained `Classes`, `Units` (active units, public), `MaxScoutRelations` (configurable via
+      `demande.max_scout_relations`, default 3). New settings: `demande.max_scout_relations` (default 3) and
+      `demande.max_per_account` default lowered 5→3. require_email_verification set false in dev for testing.
+      **DEFERRED:** block creating/submitting a demande while email unverified (kept lenient on purpose during testing).
+- [x] **Demande statistics dashboard (CG, 2026-06-19):** new page `/admin/demande-stats` (sidebar "Statistiques
+      demandes", Gestion group, perm demande.view) + `GET /demandes/statistics?scoutYear=` (GetDemandeStatisticsQuery).
+      Shows: status pipeline (total/à traiter/acceptées/refusées/réponses envoyées + décidées progress + taux
+      d'acceptation + brouillons), per-unit capacity table (reuses GetUnitOccupancy, read-only — quotas still edited
+      on the review page), demographics bar-lists (genre / tranche d'âge / classe / école via useSchoolCode), and
+      familles & qualité (fratries groups+demandes, avec proches scouts, dossiers incomplets = missing DOB/parent/phone).
+      Grouping is **accent- & case-insensitive** (CountBy normalizes via RemoveDiacritics+lowercase, displays the
+      richest spelling) so legacy variants like "Féminin"/"Feminin" and "Collège"/"College" collapse into one bucket.
+- [x] **List-only fields + école auto-match (2026-06-19):** genre/classe/nationalité/profession are already
+      select-only everywhere (no free text). École keeps its "Autre…" escape hatch (schools are open-ended) but a
+      new `matchSchool(typed, schools)` helper (settings-service, accent/case-insensitive) snaps a typed name onto
+      the canonical list entry on blur — applied in member create/detail forms + the demande wizard — so near-
+      duplicate spellings collapse at entry while genuinely new schools still pass through.
 - [ ] Phase 5 remainder (later): expand the landing into the full group site. API-docs polish pass (Swagger auto-includes new endpoints).
 
 ### Input-validation hardening (Complete — 2026-06)

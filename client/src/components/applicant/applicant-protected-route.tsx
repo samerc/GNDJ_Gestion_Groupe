@@ -1,5 +1,6 @@
 import { Navigate, Outlet, Link, useNavigate } from 'react-router'
 import { Compass, LogOut } from 'lucide-react'
+import { Toaster } from 'sonner'
 import { useApplicantStore } from '@/stores/applicant-store'
 import { Button } from '@/components/ui/button'
 
@@ -12,6 +13,7 @@ export function ApplicantProtectedRoute() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Toaster richColors position="top-center" />
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-card/85 px-4 backdrop-blur-md sm:px-6">
         <Link to="/inscription/portail" className="flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-white shadow-sm ring-1 ring-white/10">

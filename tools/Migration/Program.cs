@@ -185,8 +185,10 @@ for (int r = 2; r <= wsTeams.LastRowUsed()!.RowNumber(); r++)
     var unitCode = Cell(wsTeams, r, 2); // UNITE
     var totem = Cell(wsTeams, r, 3);    // TOTEM
     var adjective = Cell(wsTeams, r, 4);
-    var color1 = Cell(wsTeams, r, 5);
-    var color2 = Cell(wsTeams, r, 6);
+    // COULEUR1/COULEUR2 (cols 5/6) are WEBDEV palette INDICES (integers 0–16), not hex — the
+    // app's color picker expects #RRGGBB. Without the original WEBDEV combo's index→colour legend
+    // the indices are meaningless here, so colours are intentionally NOT imported (decided 2026-06-19).
+    // Restore by mapping each index to a hex value once the legend is available.
 
     if (string.IsNullOrWhiteSpace(unitCode) || string.IsNullOrWhiteSpace(totem)) continue;
     var unitId = unitIdMap.GetValueOrDefault(unitCode);
@@ -213,7 +215,7 @@ for (int r = 2; r <= wsTeams.LastRowUsed()!.RowNumber(); r++)
     await Exec(conn, @"INSERT INTO teams (id, name, description, unit_id, display_order, totem, adjective, color1, color2, is_maitrise, created_at, updated_at, is_deleted)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, false)",
         id, teamName, (string?)null, unitId, teamCount, totem, NullIfEmpty(adjective),
-        NullIfEmpty(color1), NullIfEmpty(color2), isMaitrise, now);
+        (string?)null, (string?)null, isMaitrise, now);
     teamCount++;
 }
 Console.WriteLine($"OK ({teamCount})");

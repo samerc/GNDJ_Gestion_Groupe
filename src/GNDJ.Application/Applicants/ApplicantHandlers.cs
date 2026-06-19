@@ -15,7 +15,8 @@ namespace GNDJ.Application.Applicants;
 // ============================================================
 public record ApplicantAuthDto(Guid AccountId, string Email, bool EmailVerified, string AccessToken, string RefreshToken, DateTime ExpiresAt);
 
-public record ApplicantConfigDto(bool IsOpen, string ScoutYear, int MaxPerAccount, int NotesMaxLength, bool RequireEmailVerification, string? IntroText, IReadOnlyList<string> Schools);
+public record ApplicantConfigDto(bool IsOpen, string ScoutYear, int MaxPerAccount, int NotesMaxLength, bool RequireEmailVerification, string? IntroText,
+    IReadOnlyList<string> Schools, IReadOnlyList<string> Classes, IReadOnlyList<string> Units, int MaxScoutRelations);
 
 public record ApplicantGuardianDto(Guid? Id, string Relationship, string FirstName, string LastName, string? Profession,
     string? PhoneCountryCode, string? PhoneNumber, string? Email, bool IsDeceased, bool IsPrimaryContact, bool IsEmergencyContact);
@@ -64,8 +65,13 @@ static class ApplicantHelpers
     static readonly string[] ConfigKeys =
     [
         "demande.enabled", "demande.scout_year", "passage.scout_year", "demande.max_per_account",
-        "demande.notes_max_length", "demande.require_email_verification", "demande.intro_text", "member.schools"
+        "demande.notes_max_length", "demande.require_email_verification", "demande.intro_text",
+        "demande.max_scout_relations", "member.schools", "member.classes"
     ];
+
+    // Absolute safety cap enforced by SaveApplicantHouseholdCommandValidator regardless of the configurable
+    // business limit (demande.max_scout_relations, default 3, exposed to the wizard via the config endpoint).
+    public const int MaxScoutRelationsHardCap = 50;
 
     public static async Task<ApplicantConfigDto> BuildConfig(IApplicationDbContext ctx, CancellationToken ct)
     {
@@ -76,19 +82,26 @@ static class ApplicantHelpers
 
         var enabled = Get("demande.enabled") == "true";
         var year = Get("demande.scout_year") ?? Get("passage.scout_year") ?? "2026-2027";
-        var max = int.TryParse(Get("demande.max_per_account"), out var m) ? m : 5;
+        var max = int.TryParse(Get("demande.max_per_account"), out var m) && m > 0 ? m : 3;
         var notesLen = int.TryParse(Get("demande.notes_max_length"), out var n) ? n : 500;
+        var maxRelations = int.TryParse(Get("demande.max_scout_relations"), out var mr) && mr > 0 ? Math.Min(mr, MaxScoutRelationsHardCap) : 3;
         var requireVerify = Get("demande.require_email_verification") != "false";
         var intro = Get("demande.intro_text");
 
-        IReadOnlyList<string> schools = [];
-        var schoolsRaw = Get("member.schools");
-        if (!string.IsNullOrWhiteSpace(schoolsRaw))
+        static IReadOnlyList<string> ParseJsonArray(string? raw)
         {
-            try { schools = JsonSerializer.Deserialize<string[]>(schoolsRaw) ?? []; } catch { schools = []; }
+            if (string.IsNullOrWhiteSpace(raw)) return [];
+            try { return JsonSerializer.Deserialize<string[]>(raw) ?? []; } catch { return []; }
         }
 
-        return new ApplicantConfigDto(enabled, year, max, notesLen, requireVerify, intro, schools);
+        var schools = ParseJsonArray(Get("member.schools"));
+        var classes = ParseJsonArray(Get("member.classes"));
+
+        // Active units of the group — public (the public website already lists them). Helps applicants
+        // indicate which unit a current-member relative belongs to, easing family matching for the CG.
+        var units = await ctx.Units.Where(u => u.IsActive).OrderBy(u => u.Name).Select(u => u.Name).ToListAsync(ct);
+
+        return new ApplicantConfigDto(enabled, year, max, notesLen, requireVerify, intro, schools, classes, units, maxRelations);
     }
 
     public static DemandeDto ToDto(Demande d) => new(
@@ -331,6 +344,13 @@ public class SaveApplicantHouseholdCommandHandler(IApplicationDbContext context,
 
         var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Id == id, ct);
         if (account is null) return Result<bool>.Failure("Compte introuvable.");
+
+        // Enforce the configurable business cap on scout relations (demande.max_scout_relations, default 3).
+        var maxRelations = int.TryParse(await ApplicantHelpers.Setting(context, "demande.max_scout_relations", ct), out var mr) && mr > 0
+            ? Math.Min(mr, ApplicantHelpers.MaxScoutRelationsHardCap) : 3;
+        var relationCount = request.ScoutRelations.Count(r => !string.IsNullOrWhiteSpace(r.FirstName) || !string.IsNullOrWhiteSpace(r.LastName) || r.RelatedMemberId.HasValue);
+        if (relationCount > maxRelations)
+            return Result<bool>.Failure($"Vous pouvez ajouter au maximum {maxRelations} proches scouts.");
 
         account.ContactName = string.IsNullOrWhiteSpace(request.ContactName) ? account.ContactName : request.ContactName.Trim();
         account.AddressCountry = request.AddressCountry;

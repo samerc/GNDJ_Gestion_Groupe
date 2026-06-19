@@ -290,7 +290,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
                 </div>
                 <div className="space-y-2">
                   <RequiredLabel required>Nom</RequiredLabel>
-                  <Input className={fieldClass('lastName')} value={form.lastName} onChange={(e) => { setForm(f => ({ ...f, lastName: e.target.value })); clearField('lastName') }} required />
+                  <Input className={fieldClass('lastName')} value={form.lastName} onChange={(e) => { setForm(f => ({ ...f, lastName: e.target.value.toUpperCase() })); clearField('lastName') }} required />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -401,7 +401,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
               </div>
               <div className="space-y-2">
                 <RequiredLabel required>Nom</RequiredLabel>
-                <Input value={editForm.lastName} onChange={(e) => setEditForm(f => ({ ...f, lastName: e.target.value }))} required />
+                <Input value={editForm.lastName} onChange={(e) => setEditForm(f => ({ ...f, lastName: e.target.value.toUpperCase() }))} required />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

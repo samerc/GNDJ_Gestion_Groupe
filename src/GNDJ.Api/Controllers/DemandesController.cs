@@ -39,6 +39,16 @@ public class DemandesController : BaseApiController
         return Ok(result.Value);
     }
 
+    [HttpGet("statistics")]
+    [HasPermission(Permissions.DemandeView)]
+    public async Task<IActionResult> Statistics([FromQuery] string scoutYear)
+    {
+        if (string.IsNullOrWhiteSpace(scoutYear)) return BadRequest(new { error = "L'année scoute est requise." });
+        var result = await Mediator.Send(new GetDemandeStatisticsQuery(scoutYear));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     [HttpPut("{id:guid}/decide")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> Decide(Guid id, [FromBody] DecideBody body)

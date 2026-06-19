@@ -51,6 +51,15 @@ function normalizeSchool(s: string): string {
   return s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 }
 
+// Snap a typed school name onto the canonical list entry when it matches ignoring accents/case
+// (e.g. "college jamhour" → "Collège Notre-Dame de Jamhour"). Genuinely new names pass through
+// trimmed. Keeps the "Autre…" escape hatch usable while preventing near-duplicate spellings.
+export function matchSchool(typed: string, schools: string[]): string {
+  const t = normalizeSchool(typed)
+  if (!t) return typed.trim()
+  return schools.find((s) => normalizeSchool(s) === t) ?? typed.trim()
+}
+
 // Build a short code from a school name when none is configured (initials of significant words).
 function schoolAcronym(name: string): string {
   const skip = new Set(['de', 'du', 'la', 'le', 'les', 'des', 'et', "d'", 'of'])

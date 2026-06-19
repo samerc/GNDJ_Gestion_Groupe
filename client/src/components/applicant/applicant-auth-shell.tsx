@@ -1,8 +1,10 @@
 import { Compass } from 'lucide-react'
+import { Toaster } from 'sonner'
 
 export function ApplicantAuthShell({ children, subtitle }: { children: React.ReactNode; subtitle?: string }) {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-4">
+      <Toaster richColors position="top-center" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-accent/10" />
       <div className="pointer-events-none absolute -top-32 -right-24 h-96 w-96 rounded-full bg-accent/15 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -left-24 h-96 w-96 rounded-full bg-primary/15 blur-3xl" />

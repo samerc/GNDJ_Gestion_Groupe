@@ -10,6 +10,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { SearchableSelect } from '@/components/shared/searchable-select'
+import { DateInput } from '@/components/shared/date-input'
+import { NATIONALITY_OPTIONS, PROFESSION_OPTIONS } from '@/lib/options'
+import { matchSchool } from '@/services/settings-service'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -70,6 +74,7 @@ export default function DemandeWizardPage() {
   const existing = useMemo(() => profile?.demandes.find((d) => d.id === id), [profile, id])
   const readonly = !!existing && (!!existing.responseSentAt || !(config?.isOpen ?? false))
   const notesMax = config?.notesMaxLength ?? 500
+  const maxRelations = config?.maxScoutRelations ?? 50
 
   // Hydrate from profile (shared data always; child only when editing existing)
   useEffect(() => {
@@ -201,10 +206,10 @@ export default function DemandeWizardPage() {
                   <Input value={child.firstName} onChange={(e) => setC({ firstName: e.target.value })} className={errors.firstName ? 'border-destructive' : ''} />
                 </Field>
                 <Field label="Nom" required error={errors.lastName}>
-                  <Input value={child.lastName} onChange={(e) => setC({ lastName: e.target.value })} className={errors.lastName ? 'border-destructive' : ''} />
+                  <Input value={child.lastName} onChange={(e) => setC({ lastName: e.target.value.toUpperCase() })} className={errors.lastName ? 'border-destructive' : ''} />
                 </Field>
                 <Field label="Date de naissance" required error={errors.dateOfBirth}>
-                  <Input type="date" value={child.dateOfBirth ?? ''} onChange={(e) => setC({ dateOfBirth: e.target.value || null })} className={errors.dateOfBirth ? 'border-destructive' : ''} />
+                  <DateInput value={child.dateOfBirth} onChange={(v) => setC({ dateOfBirth: v })} className={errors.dateOfBirth ? 'border-destructive' : ''} />
                 </Field>
                 <Field label="Genre" required error={errors.gender}>
                   <Select value={child.gender ?? ''} onValueChange={(v) => setC({ gender: v })}>
@@ -213,7 +218,7 @@ export default function DemandeWizardPage() {
                   </Select>
                 </Field>
                 <Field label="Nationalité" required error={errors.nationality}>
-                  <Input value={child.nationality ?? ''} onChange={(e) => setC({ nationality: e.target.value })} className={errors.nationality ? 'border-destructive' : ''} />
+                  <SearchableSelect value={child.nationality ?? ''} onValueChange={(v) => setC({ nationality: v })} options={NATIONALITY_OPTIONS} pinnedValues={['Libanaise']} searchPlaceholder="Rechercher une nationalité..." />
                 </Field>
                 <Field label="École" required error={errors.school}>
                   <Select value={schoolOther ? '__other' : (child.school ?? '')} onValueChange={(v) => { if (v === '__other') { setSchoolOther(true); setC({ school: '' }) } else { setSchoolOther(false); setC({ school: v }) } }}>
@@ -223,10 +228,18 @@ export default function DemandeWizardPage() {
                       <SelectItem value="__other">Autre…</SelectItem>
                     </SelectContent>
                   </Select>
-                  {schoolOther && <Input className="mt-2" placeholder="Nom de l'école" value={child.school ?? ''} onChange={(e) => setC({ school: e.target.value })} />}
+                  {schoolOther && <Input className="mt-2" placeholder="Nom de l'école" value={child.school ?? ''} onChange={(e) => setC({ school: e.target.value })}
+                    onBlur={(e) => { const matched = matchSchool(e.target.value, config?.schools ?? []); setC({ school: matched }); if ((config?.schools ?? []).includes(matched)) setSchoolOther(false) }} />}
                 </Field>
                 <Field label="Classe" required error={errors.classe}>
-                  <Input value={child.classe ?? ''} onChange={(e) => setC({ classe: e.target.value })} className={errors.classe ? 'border-destructive' : ''} />
+                  {(config?.classes?.length ?? 0) > 0 ? (
+                    <Select value={child.classe ?? ''} onValueChange={(v) => setC({ classe: v })}>
+                      <SelectTrigger className={errors.classe ? 'border-destructive' : ''}><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                      <SelectContent>{(config?.classes ?? []).map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                    </Select>
+                  ) : (
+                    <Input value={child.classe ?? ''} onChange={(e) => setC({ classe: e.target.value })} className={errors.classe ? 'border-destructive' : ''} />
+                  )}
                 </Field>
                 <Field label="Section"><Input value={child.section ?? ''} onChange={(e) => setC({ section: e.target.value })} maxLength={5} /></Field>
                 <Field label="Groupe sanguin">
@@ -273,9 +286,11 @@ export default function DemandeWizardPage() {
                       <Input value={g.firstName} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, firstName: e.target.value } : x))} className={errors[`g_${i}_first`] ? 'border-destructive' : ''} />
                     </Field>
                     <Field label="Nom" required error={errors[`g_${i}_last`]}>
-                      <Input value={g.lastName} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, lastName: e.target.value } : x))} className={errors[`g_${i}_last`] ? 'border-destructive' : ''} />
+                      <Input value={g.lastName} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, lastName: e.target.value.toUpperCase() } : x))} className={errors[`g_${i}_last`] ? 'border-destructive' : ''} />
                     </Field>
-                    <Field label="Profession"><Input value={g.profession ?? ''} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, profession: e.target.value } : x))} /></Field>
+                    <Field label="Profession">
+                      <SearchableSelect value={g.profession ?? ''} onValueChange={(v) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, profession: v } : x))} options={PROFESSION_OPTIONS} searchPlaceholder="Rechercher une profession..." />
+                    </Field>
                     <Field label="Téléphone"><Input value={g.phoneNumber ?? ''} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, phoneNumber: e.target.value } : x))} /></Field>
                     <Field label="Email" error={errors[`g_${i}_email`]}>
                       <Input type="email" value={g.email ?? ''} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, email: e.target.value } : x))} className={errors[`g_${i}_email`] ? 'border-destructive' : ''} />
@@ -306,11 +321,12 @@ export default function DemandeWizardPage() {
             <fieldset disabled={readonly} className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Link2 className="h-4 w-4" />Proches déjà scouts <span className="font-normal">(optionnel, communs à tous vos enfants)</span></div>
               <p className="text-sm text-muted-foreground">Frères, sœurs ou proches qui sont ou ont été scouts. Cela nous aide à regrouper les familles.</p>
+              <p className="text-xs text-muted-foreground">{relations.length} / {maxRelations} proches ajoutés (maximum {maxRelations}).</p>
               {relations.map((r, i) => (
                 <div key={i} className="rounded-lg border p-3 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <Select value={r.status} onValueChange={(v) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, status: v } : x))}>
-                      <SelectTrigger className="w-56"><SelectValue placeholder="Situation" /></SelectTrigger>
+                      <SelectTrigger className="h-11 w-72 text-base sm:w-96"><SelectValue placeholder="Situation" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="CurrentInGroup">Scout actuel dans notre groupe</SelectItem>
                         <SelectItem value="AncienInGroup">Ancien de notre groupe</SelectItem>
@@ -321,13 +337,21 @@ export default function DemandeWizardPage() {
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Prénom"><Input value={r.firstName ?? ''} onChange={(e) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, firstName: e.target.value } : x))} /></Field>
-                    <Field label="Nom"><Input value={r.lastName ?? ''} onChange={(e) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, lastName: e.target.value } : x))} /></Field>
+                    <Field label="Nom"><Input value={r.lastName ?? ''} onChange={(e) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, lastName: e.target.value.toUpperCase() } : x))} /></Field>
                     <Field label="Lien de parenté">
                       <Select value={r.relationship ?? ''} onValueChange={(v) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, relationship: v } : x))}>
                         <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                         <SelectContent>{R_REL.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent>
                       </Select>
                     </Field>
+                    {r.status === 'CurrentInGroup' && (config?.units?.length ?? 0) > 0 && (
+                      <Field label="Unité actuelle">
+                        <Select value={r.lastUnit ?? ''} onValueChange={(v) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, lastUnit: v } : x))}>
+                          <SelectTrigger><SelectValue placeholder="Sélectionner l'unité" /></SelectTrigger>
+                          <SelectContent>{(config?.units ?? []).map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </Field>
+                    )}
                     {r.status === 'OtherGroup' && (
                       <Field label="Nom du groupe"><Input value={r.otherGroupName ?? ''} onChange={(e) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, otherGroupName: e.target.value } : x))} /></Field>
                     )}
@@ -340,7 +364,12 @@ export default function DemandeWizardPage() {
                   </div>
                 </div>
               ))}
-              {!readonly && <Button variant="outline" size="sm" onClick={() => setRelations((arr) => [...arr, { status: 'CurrentInGroup', relationship: null, firstName: '', lastName: '', relatedMemberId: null }])}><Plus className="mr-1 h-4 w-4" />Ajouter un proche</Button>}
+              {!readonly && (
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" size="sm" disabled={relations.length >= maxRelations} onClick={() => setRelations((arr) => [...arr, { status: 'CurrentInGroup', relationship: null, firstName: '', lastName: '', relatedMemberId: null }])}><Plus className="mr-1 h-4 w-4" />Ajouter un proche</Button>
+                  {relations.length >= maxRelations && <span className="text-xs text-muted-foreground">Maximum de {maxRelations} proches atteint.</span>}
+                </div>
+              )}
             </fieldset>
           )}
 
@@ -364,7 +393,7 @@ export default function DemandeWizardPage() {
                 <div className="rounded-lg border p-4">
                   <div className="font-semibold mb-2">Proches scouts</div>
                   {relations.filter((r) => r.firstName || r.lastName).map((r, i) => (
-                    <p key={i}>{r.firstName} {r.lastName}{r.relationship ? ` (${r.relationship})` : ''} — {r.status === 'CurrentInGroup' ? 'notre groupe' : r.status === 'AncienInGroup' ? 'ancien' : r.otherGroupName || 'autre groupe'}</p>
+                    <p key={i}>{r.firstName} {r.lastName}{r.relationship ? ` (${r.relationship})` : ''} — {r.status === 'CurrentInGroup' ? `Membre GNDJ${r.lastUnit ? ` · ${r.lastUnit}` : ''}` : r.status === 'AncienInGroup' ? 'ancien' : r.otherGroupName || 'autre groupe'}</p>
                   ))}
                 </div>
               )}

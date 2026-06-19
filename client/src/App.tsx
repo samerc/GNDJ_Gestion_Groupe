@@ -47,6 +47,7 @@ import ApplicantVerifyPage from '@/pages/inscription/verify'
 import ApplicantPortalPage from '@/pages/inscription/portail'
 import DemandeWizardPage from '@/pages/inscription/demande-wizard'
 import DemandeValidationPage from '@/pages/admin/demande-validation'
+import DemandeStatsPage from '@/pages/admin/demande-stats'
 import AdminNewsPage from '@/pages/admin/news'
 import AdminPagesPage from '@/pages/admin/pages'
 import AdminSiteTextsPage from '@/pages/admin/site-texts'
@@ -103,6 +104,7 @@ export default function App() {
               <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
               <Route path="/admin/passage-validation" element={<PassageValidationPage />} />
               <Route path="/admin/demandes" element={<DemandeValidationPage />} />
+              <Route path="/admin/demande-stats" element={<DemandeStatsPage />} />
               <Route path="/admin/news" element={<AdminNewsPage />} />
               <Route path="/admin/pages" element={<AdminPagesPage />} />
               <Route path="/admin/site-texts" element={<AdminSiteTextsPage />} />

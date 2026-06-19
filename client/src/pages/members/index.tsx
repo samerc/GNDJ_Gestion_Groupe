@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { SearchableSelect } from '@/components/shared/searchable-select'
-import { useSettingArray, useSettingValue } from '@/services/settings-service'
+import { useSettingArray, useSettingValue, matchSchool } from '@/services/settings-service'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberDocuments } from '@/components/members/member-documents'
@@ -417,7 +417,7 @@ export default function MembersPage() {
               </div>
               <div className="space-y-2">
                 <RequiredLabel htmlFor="lastName" required>Nom</RequiredLabel>
-                <Input id="lastName" className={fieldClass('lastName')} value={form.lastName} onChange={(e) => { setForm(f => ({ ...f, lastName: e.target.value })); clearField('lastName') }} required />
+                <Input id="lastName" className={fieldClass('lastName')} value={form.lastName} onChange={(e) => { setForm(f => ({ ...f, lastName: e.target.value.toUpperCase() })); clearField('lastName') }} required />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -482,7 +482,7 @@ export default function MembersPage() {
                         </SelectContent>
                       </Select>
                       {isOtherSchool && (
-                        <Input value={form.school || ''} onChange={(e) => setForm(f => ({ ...f, school: e.target.value }))} placeholder="Nom de l'école..." />
+                        <Input value={form.school || ''} onChange={(e) => setForm(f => ({ ...f, school: e.target.value }))} onBlur={(e) => setForm(f => ({ ...f, school: matchSchool(e.target.value, schools) }))} placeholder="Nom de l'école..." />
                       )}
                     </>
                   )
