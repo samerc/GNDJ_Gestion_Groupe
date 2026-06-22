@@ -279,37 +279,37 @@ export default function DemandeValidationPage() {
 
       {/* Filters */}
       <Card><CardContent className="flex flex-wrap items-end gap-3 py-4">
-        <div className="space-y-1">
+        <div className="w-full space-y-1 sm:w-auto">
           <label className="text-xs font-medium">Recherche</label>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="w-56 pl-8 pr-7" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nom ou prénom..." />
+            <Input className="w-full pl-8 pr-7 sm:w-56" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nom ou prénom..." />
             {search && <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setSearch('')}><X className="h-3.5 w-3.5" /></button>}
           </div>
         </div>
-        <div className="space-y-1"><label className="text-xs font-medium">Statut</label>
-          <Select value={status} onValueChange={setStatus}><SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+        <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">Statut</label>
+          <Select value={status} onValueChange={setStatus}><SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes</SelectItem>
               <SelectItem value="Submitted">À étudier</SelectItem>
               <SelectItem value="Approved">Acceptées</SelectItem>
               <SelectItem value="Declined">Refusées</SelectItem>
             </SelectContent></Select></div>
-        <div className="space-y-1"><label className="text-xs font-medium">Genre</label>
-          <Select value={gender} onValueChange={setGender}><SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+        <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">Genre</label>
+          <Select value={gender} onValueChange={setGender}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="all">Tous</SelectItem><SelectItem value="Masculin">Masculin</SelectItem><SelectItem value="Féminin">Féminin</SelectItem></SelectContent></Select></div>
-        <div className="space-y-1"><label className="text-xs font-medium">Classe</label><Input className="w-28" value={classe} onChange={(e) => setClasse(e.target.value)} placeholder="ex. EB2" /></div>
-        <div className="space-y-1"><label className="text-xs font-medium">Âge min</label><Input className="w-20" type="number" value={ageMin} onChange={(e) => setAgeMin(e.target.value)} /></div>
-        <div className="space-y-1"><label className="text-xs font-medium">Âge max</label><Input className="w-20" type="number" value={ageMax} onChange={(e) => setAgeMax(e.target.value)} /></div>
+        <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">Classe</label><Input className="w-full sm:w-28" value={classe} onChange={(e) => setClasse(e.target.value)} placeholder="ex. EB2" /></div>
+        <div className="flex-1 space-y-1 sm:flex-none"><label className="text-xs font-medium">Âge min</label><Input className="w-full sm:w-20" type="number" value={ageMin} onChange={(e) => setAgeMin(e.target.value)} /></div>
+        <div className="flex-1 space-y-1 sm:flex-none"><label className="text-xs font-medium">Âge max</label><Input className="w-full sm:w-20" type="number" value={ageMax} onChange={(e) => setAgeMax(e.target.value)} /></div>
       </CardContent></Card>
 
       {/* Bulk action bar */}
       {selectedCount > 0 && (
         <div className="sticky top-2 z-10 flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3 shadow-sm">
           <span className="text-sm font-medium">{selectedCount} sélectionnée(s)</span>
-          <div className="flex items-center gap-1.5">
+          <div className="flex w-full items-center gap-1.5 sm:w-auto">
             <Select value={bulkUnit} onValueChange={setBulkUnit}>
-              <SelectTrigger className="h-9 w-56"><SelectValue placeholder="Unité..." /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full sm:w-56"><SelectValue placeholder="Unité..." /></SelectTrigger>
               <SelectContent>
                 {occList.map((u) => <SelectItem key={u.unitId} value={u.unitId}>{u.unitCode} — {u.unitName} · {u.accepted}{u.quota != null ? `/${u.quota}` : ''}{unitFull(u) ? ' ⚠' : ''}</SelectItem>)}
               </SelectContent>
@@ -317,8 +317,8 @@ export default function DemandeValidationPage() {
             <Button size="sm" disabled={busy || !bulkUnit} onClick={bulkApproveToUnit}><Check className="mr-1 h-4 w-4" />Accepter → unité</Button>
           </div>
           <Button size="sm" variant="outline" disabled={busy} onClick={bulkApproveSuggested}><Sparkles className="mr-1 h-4 w-4" />Accepter (unité suggérée)</Button>
-          <div className="flex items-center gap-1.5">
-            <Input className="h-9 w-48" value={bulkMotif} onChange={(e) => setBulkMotif(e.target.value)} placeholder="Motif de refus (optionnel)" />
+          <div className="flex w-full items-center gap-1.5 sm:w-auto">
+            <Input className="h-9 w-full sm:w-48" value={bulkMotif} onChange={(e) => setBulkMotif(e.target.value)} placeholder="Motif de refus (optionnel)" />
             <Button size="sm" variant="destructive" disabled={busy} onClick={bulkDecline}><X className="mr-1 h-4 w-4" />Refuser</Button>
           </div>
           <Button size="sm" variant="ghost" className="ml-auto" onClick={clearSelection}><Trash2 className="mr-1 h-4 w-4" />Effacer</Button>
@@ -348,9 +348,9 @@ export default function DemandeValidationPage() {
                 <SortableHead label="Âge" k="age" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-center" />
                 <TableHead className="text-center">Genre</TableHead>
                 <SortableHead label="Classe" k="classe" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <TableHead>École</TableHead>
-                <TableHead className="text-center">Relations</TableHead>
-                <TableHead className="text-center">Fratrie</TableHead>
+                <TableHead className="hidden md:table-cell">École</TableHead>
+                <TableHead className="hidden text-center md:table-cell">Relations</TableHead>
+                <TableHead className="hidden text-center md:table-cell">Fratrie</TableHead>
                 <TableHead>Unité</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -377,15 +377,15 @@ export default function DemandeValidationPage() {
                     <TableCell className="text-center text-muted-foreground">{d.age ?? '—'}</TableCell>
                     <TableCell className="text-center text-muted-foreground">{genderShort(d.gender)}</TableCell>
                     <TableCell className="text-muted-foreground">{d.classe}</TableCell>
-                    <TableCell className="text-muted-foreground" title={d.school ?? ''}>{schoolCode(d.school)}</TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="hidden text-muted-foreground md:table-cell" title={d.school ?? ''}>{schoolCode(d.school)}</TableCell>
+                    <TableCell className="hidden text-center md:table-cell">
                       {d.scoutRelations.length > 0 && (
                         <span className="inline-flex cursor-help items-center gap-1 text-xs text-muted-foreground" title={relationsSummary(d)}>
                           <Tent className="h-3.5 w-3.5" />{d.scoutRelations.length}
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-center">{siblingsTogether && d.siblings.length > 0 && <Badge variant="outline" className="text-xs">{d.siblings.length}</Badge>}</TableCell>
+                    <TableCell className="hidden text-center md:table-cell">{siblingsTogether && d.siblings.length > 0 && <Badge variant="outline" className="text-xs">{d.siblings.length}</Badge>}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {decidedUnit ? (
                         <span className="inline-flex items-center gap-1 text-muted-foreground">
@@ -737,7 +737,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, hasPrev,
                 <X className="mr-1 h-4 w-4" />{d.status === 'Declined' ? 'Mettre à jour' : 'Refuser'}
               </Button>
             </div>
-            <p className="text-center text-xs text-muted-foreground">Raccourcis : <kbd>A</kbd> accepter · <kbd>R</kbd> refuser · <kbd>←</kbd>/<kbd>→</kbd> naviguer</p>
+            <p className="hidden text-center text-xs text-muted-foreground sm:block">Raccourcis : <kbd>A</kbd> accepter · <kbd>R</kbd> refuser · <kbd>←</kbd>/<kbd>→</kbd> naviguer</p>
           </div>
         )}
       </div>
@@ -755,7 +755,7 @@ function Section({ icon: Icon, title, children }: { icon: typeof User; title: st
     </div>
   )
 }
-function Grid({ children }: { children: React.ReactNode }) { return <dl className="grid grid-cols-2 gap-x-4 gap-y-2">{children}</dl> }
+function Grid({ children }: { children: React.ReactNode }) { return <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">{children}</dl> }
 function FieldRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div>

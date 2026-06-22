@@ -108,6 +108,7 @@ function SettingEditor({ setting, onSave }: { setting: SettingDto; onSave: (key:
   const isArray = setting.valueType === 'json_array'
   const isBool = setting.valueType === 'boolean'
   const isNumber = setting.valueType === 'number'
+  const isDate = setting.valueType === 'date'
   const isExchangeRates = setting.key === 'cotisation.exchange_rates'
   const options = SETTING_OPTIONS[setting.key]
 
@@ -177,6 +178,11 @@ function SettingEditor({ setting, onSave }: { setting: SettingDto; onSave: (key:
             <div className="flex items-center gap-2">
               <Input type="number" value={value} onChange={(e) => setValue(e.target.value)} className="max-w-[12rem]" />
               {UNITS[setting.key] && <span className="text-sm text-muted-foreground">{UNITS[setting.key]}</span>}
+            </div>
+          ) : isDate ? (
+            <div className="flex items-center gap-2">
+              <Input type="date" value={value} onChange={(e) => setValue(e.target.value)} className="max-w-[12rem]" />
+              {value && <button type="button" onClick={() => setValue('')} className="text-sm text-muted-foreground hover:text-destructive">Effacer</button>}
             </div>
           ) : (
             <Input value={value} onChange={(e) => setValue(e.target.value)} className="max-w-sm" />

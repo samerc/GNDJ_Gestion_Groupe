@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router'
+import { Toaster } from 'sonner'
 import { Compass, Menu, X, ArrowRight, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { usePublicPages } from '@/services/page-service'
@@ -58,6 +59,7 @@ export function PublicLayout() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      <Toaster richColors position="top-center" />
       <header className={cn('sticky top-0 z-50 border-b transition-all duration-300',
         scrolled ? 'border-border bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70'
           : 'border-transparent bg-background/60 backdrop-blur-sm')}>
@@ -124,7 +126,7 @@ export function PublicLayout() {
         </div>
 
         {mobileOpen && (
-          <div className="border-t border-border bg-background lg:hidden">
+          <div className="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-border bg-background lg:hidden">
             <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-4 sm:px-6">
               {FIXED_LEFT.map((item) => (
                 <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setMobileOpen(false)}

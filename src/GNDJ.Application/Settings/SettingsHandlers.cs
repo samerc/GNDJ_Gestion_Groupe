@@ -89,6 +89,12 @@ public class UpdateSettingCommandHandler : IRequestHandler<UpdateSettingCommand,
                     return Result<bool>.Failure("Valeur JSON invalide.");
                 }
                 break;
+            case "date":
+                // Empty is allowed (means "use today"); otherwise must be an ISO date (yyyy-MM-dd).
+                if (!string.IsNullOrWhiteSpace(value) &&
+                    !DateOnly.TryParseExact(value, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
+                    return Result<bool>.Failure("Ce paramètre attend une date (AAAA-MM-JJ).");
+                break;
         }
 
         var oldValue = entity.Value;

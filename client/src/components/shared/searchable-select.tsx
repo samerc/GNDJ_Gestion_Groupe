@@ -47,7 +47,7 @@ export function SearchableSelect({
         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="p-0 max-w-sm">
+        <DialogContent className="p-0 max-w-[95vw] sm:max-w-sm">
           <Command>
             <CommandInput placeholder={searchPlaceholder} />
             <CommandList>

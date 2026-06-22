@@ -326,7 +326,7 @@ export default function DemandeWizardPage() {
                 <div key={i} className="rounded-lg border p-3 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <Select value={r.status} onValueChange={(v) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, status: v } : x))}>
-                      <SelectTrigger className="h-11 w-72 text-base sm:w-96"><SelectValue placeholder="Situation" /></SelectTrigger>
+                      <SelectTrigger className="h-11 min-w-0 flex-1 text-base sm:max-w-96"><SelectValue placeholder="Situation" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="CurrentInGroup">Scout actuel dans notre groupe</SelectItem>
                         <SelectItem value="AncienInGroup">Ancien de notre groupe</SelectItem>

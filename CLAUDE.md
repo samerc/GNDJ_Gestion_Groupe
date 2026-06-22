@@ -337,6 +337,29 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] Bulk action bars stack on mobile (flex-col sm:flex-row)
 - [x] All TabsLists have overflow-x-auto flex-nowrap for horizontal scroll
 
+### Mobile Pass 2 — newer pages (Complete — 2026-06-22)
+Audited (3 parallel agents) + fixed the public site, applicant portal, and CG demandes screens (all built
+AFTER the first mobile pass). Verdict: every flow is completable on a phone. Fixes:
+- [x] Applicant wizard: relations "Situation" select was a fixed `w-72`/`sm:w-96` that overflowed the card on a
+      ~360px phone → now `flex-1 min-w-0 sm:max-w-96` (BLOCKER fixed).
+- [x] SearchableSelect dialog (nationalité/profession, also member forms): `max-w-sm` → `max-w-[95vw] sm:max-w-sm`
+      so it has gutters on ≤384px screens.
+- [x] Public CMS RichContent: author HTML now constrained — `[&_img]:max-w-full h-auto`, `[&_table]:block
+      overflow-x-auto`, `[&_pre]:overflow-x-auto`, `break-words` — stops wide images/tables/long URLs overflowing
+      `/actualites/:slug`, `/p/:slug`, news article.
+- [x] Mounted `<Toaster>` in PublicLayout (was missing — latent silent-toast trap like the one that bit the portal).
+- [x] Public mobile menu: `max-h-[calc(100vh-4rem)] overflow-y-auto` so long page lists stay reachable while body
+      scroll is locked.
+- [x] CG demande-validation: filter controls + bulk-action controls now `w-full sm:w-NN` (stack cleanly on mobile
+      instead of a ragged fixed-width row); review table hides École/Relations/Fratrie columns `< md` (still shown
+      in the detail drawer) for a compact phone table; detail-drawer field grid `grid-cols-1 sm:grid-cols-2`;
+      keyboard-shortcut hint hidden on mobile (`hidden sm:block`).
+- FLAGGED (tricky / desktop-oriented, not fixed): the 10-column triage table is inherently dense on a phone —
+      mobile path is tap-a-row → full-width detail drawer (works); keyboard triage (A/R/←/→) is desktop-only but has
+      full tap equivalents; DateInput is manual JJ/MM/AAAA entry (deliberate, no native calendar). Visual checks via
+      headless Edge confirmed layouts stack/wrap; note headless window-size crops the right edge ~30px on ALL pages
+      (incl. known-good /login), so it's unreliable for pixel-exact overflow — code audit was the source of truth.
+
 ### Admin UX Pass + Unit Type Colors (Complete)
 - [x] Dashboard professional bar charts (value labels, animated fills)
 - [x] Members search: X button to clear
@@ -447,8 +470,13 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
       (username+temp password+unit) / _declined (reason). Verification resend endpoint + portal button.
 - [x] Permissions demande.view/manage (super-admin + association-admin via Permissions.All). CG sidebar badge = pending count.
 - [x] Maîtrise/leader displays (CU dashboard, trombinoscope, roster) ordered by role Rank desc (CU → Aumônier → ACU).
+- [x] **Per-year start dates (2026-06-22):** two new `date`-typed settings — `passage.date` ("Date du passage")
+      drives FinalizePassages (old assignment EndDate + new assignment StartDate) and `demande.member_start_date`
+      ("Date de début des nouveaux membres") drives the SendDemandeResponses assignment StartDate. Both empty by
+      default = use today; set each year. UpdateSetting validates `date` type (empty or yyyy-MM-dd); settings UI
+      renders a date picker (+ Effacer). Verified: a converted member's assignment start_date honoured the setting.
 - [x] Settings `demande.*` (enabled, scout_year, max_per_account [default 3], max_scout_relations [default 3],
-      notes_max_length, require_email_verification, decide_siblings_together, intro_text). Server-side validation
+      member_start_date, notes_max_length, require_email_verification, decide_siblings_together, intro_text). Server-side validation
       on all applicant input (HTML/XSS reject, lengths, email, DOB). max_per_account enforced in CreateDemande;
       max_scout_relations enforced in SaveApplicantHousehold (hard safety cap 50 in the validator).
 - [x] Audited: IDOR (cross-account blocked), auth isolation both ways, 100-concurrent register/login/profile, CG authz.

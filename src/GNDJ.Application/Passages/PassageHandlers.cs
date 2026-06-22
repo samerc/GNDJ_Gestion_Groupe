@@ -674,6 +674,10 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
             return Result<int>.Failure("Accès réservé aux super administrateurs.");
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        // "Date du passage" setting drives the effective date: old assignments end on it and the new
+        // ones start on it. Empty/unset → today.
+        var passageDateRaw = await context.Settings.Where(s => s.Key == "passage.date").Select(s => s.Value).FirstOrDefaultAsync(ct);
+        var passageDate = DateOnly.TryParseExact(passageDateRaw, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var pd) ? pd : today;
 
         // Serialize finalize: a transaction-scoped advisory lock means a second concurrent finalize
         // (double-click, or two CG users at once) blocks until the first commits, then finds the
@@ -716,7 +720,7 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
 
             if (activeAssignment is not null)
             {
-                activeAssignment.EndDate = today;
+                activeAssignment.EndDate = passageDate;
             }
 
             // "Quitte le groupe": close the assignment and create NO new one — member becomes alumni.
@@ -738,7 +742,7 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
                     UnitId = finalUnitId,
                     TeamId = finalTeamId,
                     FunctionalRoleId = finalRoleId,
-                    StartDate = today,
+                    StartDate = passageDate,
                     Notes = $"Passage {passage.ScoutYear}"
                 };
                 context.MemberAssignments.Add(newAssignment);

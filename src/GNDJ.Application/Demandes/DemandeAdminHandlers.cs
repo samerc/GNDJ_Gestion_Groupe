@@ -444,6 +444,10 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
     public async ValueTask<Result<SendDemandeResponsesResult>> Handle(SendDemandeResponsesCommand request, CancellationToken ct)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        // "Date de début des nouveaux membres" setting → assignment start date for admitted members.
+        // Empty/unset → today.
+        var startDateRaw = await context.Settings.Where(s => s.Key == "demande.member_start_date").Select(s => s.Value).FirstOrDefaultAsync(ct);
+        var memberStartDate = DateOnly.TryParseExact(startDateRaw, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var msd) ? msd : today;
 
         // Pre-hash login passwords in parallel BEFORE taking the lock/transaction, so the expensive
         // bcrypt work (one per approved member) doesn't hold the advisory lock or stretch the tx.
@@ -566,7 +570,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             }
 
             // assignment (chosen unit, base role, no team)
-            context.MemberAssignments.Add(new MemberAssignment { MemberId = member.Id, UnitId = unitId, TeamId = null, FunctionalRoleId = roleId.Value, StartDate = today, Notes = "Inscription" });
+            context.MemberAssignments.Add(new MemberAssignment { MemberId = member.Id, UnitId = unitId, TeamId = null, FunctionalRoleId = roleId.Value, StartDate = memberStartDate, Notes = "Inscription" });
 
             // login — reuse the pre-computed password hash (fallback: hash inline if a demande was
             // approved between the pre-hash read and acquiring the lock)
