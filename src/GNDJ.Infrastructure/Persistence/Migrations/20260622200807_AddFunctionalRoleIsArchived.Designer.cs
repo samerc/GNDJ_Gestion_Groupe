@@ -3,6 +3,7 @@ using System;
 using GNDJ.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GNDJ.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GndjDbContext))]
-    partial class GndjDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260622200807_AddFunctionalRoleIsArchived")]
+    partial class AddFunctionalRoleIsArchived
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1145,10 +1148,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsArchived")
                         .HasColumnType("boolean")
                         .HasColumnName("is_archived");
-
-                    b.Property<bool>("IsDefaultForNewMembers")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_default_for_new_members");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")

@@ -154,8 +154,17 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
 
         var ct = cancellationToken;
 
+        // Scout-year window (Oct 1 → Oct 1, matching the migration's Oct-1 boundary). A member is
+        // counted for the year if they had an assignment ACTIVE during it (date-range overlap), so the
+        // dashboard reflects the group as it was that scout year — not just "today". Half-open: started
+        // before the year ends, and not already ended at/before it starts (an assignment ending exactly
+        // on Oct 1 belongs to the year that just ended).
+        var (windowStart, windowEnd) = ScoutYearWindow(request.ScoutYear);
+        var membersInYear = _context.Members
+            .Where(m => m.Assignments.Any(a => a.StartDate < windowEnd && (a.EndDate == null || a.EndDate > windowStart)));
+
         // Member counts via SQL aggregates (avoids materializing every member row just to count).
-        var genderCounts = await _context.Members
+        var genderCounts = await membersInYear
             .GroupBy(m => m.Gender)
             .Select(g => new { Gender = g.Key, Count = g.Count() })
             .ToListAsync(ct);
@@ -163,12 +172,12 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
         var boys = genderCounts.Where(g => string.Equals(g.Gender, "Masculin", StringComparison.OrdinalIgnoreCase)).Sum(g => g.Count);
         var girls = genderCounts.Where(g => string.Equals(g.Gender, "Féminin", StringComparison.OrdinalIgnoreCase)).Sum(g => g.Count);
         var ungendered = totalMembers - boys - girls;
-        var withoutUnit = await _context.Members.CountAsync(m => !m.Assignments.Any(a => a.EndDate == null), ct);
+        // Year-scoped: every counted member has a unit that year, so "sans unité" doesn't apply here.
+        var withoutUnit = 0;
 
-        // Only the ACTIVE members are reused below (unpaid / missing-docs / age groups), so fetch
-        // just that subset (Id + DOB) rather than the whole members table.
-        var activeMembers = await _context.Members
-            .Where(m => m.Assignments.Any(a => a.EndDate == null))
+        // The in-year members are reused below (unpaid / missing-docs / age groups), so fetch just that
+        // subset (Id + DOB) rather than the whole members table.
+        var activeMembers = await membersInYear
             .Select(m => new { m.Id, m.DateOfBirth })
             .ToListAsync(ct);
         var activeMemberIds = activeMembers.Select(m => m.Id).ToHashSet();
@@ -201,8 +210,8 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
             .Select(u => new
             {
                 u.Code, u.Name,
-                MemberCount = u.Assignments.Count(a => a.EndDate == null),
-                MemberIds = u.Assignments.Where(a => a.EndDate == null).Select(a => a.MemberId).ToList()
+                MemberCount = u.Assignments.Count(a => a.StartDate < windowEnd && (a.EndDate == null || a.EndDate > windowStart)),
+                MemberIds = u.Assignments.Where(a => a.StartDate < windowEnd && (a.EndDate == null || a.EndDate > windowStart)).Select(a => a.MemberId).ToList()
             })
             .ToListAsync(ct);
 
@@ -222,11 +231,12 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
             return new UnitBreakdownDto(u.Code, u.Name, u.MemberCount, pct);
         }).ToList();
 
-        // Age groups
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        // Age groups — ages as of the start of the selected scout year (Oct 1), so past years show the
+        // members' ages as they were then, not today.
+        var ageRef = windowStart;
         var ageGroups = new List<AgeGroupDto>();
         var withDob = activeMembers.Where(m => m.DateOfBirth.HasValue).ToList();
-        var ages = withDob.Select(m => today.Year - m.DateOfBirth!.Value.Year - (today.DayOfYear < m.DateOfBirth.Value.DayOfYear ? 1 : 0)).ToList();
+        var ages = withDob.Select(m => ageRef.Year - m.DateOfBirth!.Value.Year - (ageRef.DayOfYear < m.DateOfBirth.Value.DayOfYear ? 1 : 0)).ToList();
         ageGroups.Add(new AgeGroupDto("7-10 ans", ages.Count(a => a >= 7 && a <= 10)));
         ageGroups.Add(new AgeGroupDto("11-14 ans", ages.Count(a => a >= 11 && a <= 14)));
         ageGroups.Add(new AgeGroupDto("15-17 ans", ages.Count(a => a >= 15 && a <= 17)));
@@ -234,5 +244,18 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
         ageGroups.Add(new AgeGroupDto("22+ ans", ages.Count(a => a >= 22)));
 
         return new AdminDashboardDto(totalMembers, boys, girls, ungendered, withoutUnit, unpaidCotisations, missingDocuments, unitBreakdown, ageGroups);
+    }
+
+    // "2024-2025" → [Oct 1 2024, Oct 1 2025). Falls back to the current scout year on a bad value.
+    static (DateOnly start, DateOnly end) ScoutYearWindow(string scoutYear)
+    {
+        var now = DateTime.UtcNow;
+        var startYear = now.Month >= 10 ? now.Year : now.Year - 1;
+        if (!string.IsNullOrWhiteSpace(scoutYear))
+        {
+            var first = scoutYear.Split('-')[0].Trim();
+            if (int.TryParse(first, out var y) && y is >= 2000 and <= 2100) startYear = y;
+        }
+        return (new DateOnly(startYear, 10, 1), new DateOnly(startYear + 1, 10, 1));
     }
 }

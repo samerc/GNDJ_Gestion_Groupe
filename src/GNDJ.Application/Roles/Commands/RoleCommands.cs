@@ -10,8 +10,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Roles.Commands;
 
-// Create
-public record CreateFunctionalRoleCommand(string Name, string Code, string? Description, Guid SecurityProfileId, Guid? UnitTypeId, int Rank = 0) : IRequest<Result<Guid>>;
+// Create — rank is auto-assigned (new functions go to the senior end, never the default); reorder by drag.
+public record CreateFunctionalRoleCommand(string Name, string Code, string? Description, Guid SecurityProfileId, Guid? UnitTypeId) : IRequest<Result<Guid>>;
 
 public class CreateFunctionalRoleCommandValidator : AbstractValidator<CreateFunctionalRoleCommand>
 {
@@ -20,7 +20,6 @@ public class CreateFunctionalRoleCommandValidator : AbstractValidator<CreateFunc
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
         RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
         RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
-        RuleFor(x => x.Rank).InclusiveBetween(0, 9999);
         RuleFor(x => x.SecurityProfileId).NotEmpty().WithMessage("Le profil de sécurité est requis.");
     }
 }
@@ -42,6 +41,12 @@ public class CreateFunctionalRoleCommandHandler : IRequestHandler<CreateFunction
         if (codeExists)
             return Result<Guid>.Failure("Une fonction avec ce code existe déjà.");
 
+        // New functions go to the senior end of their scope (max rank + 1) so they never become the
+        // default-for-new-members by accident; the CG reorders them by drag afterwards.
+        var maxRank = await _context.FunctionalRoles
+            .Where(r => r.UnitTypeId == request.UnitTypeId)
+            .Select(r => (int?)r.Rank).MaxAsync(cancellationToken) ?? -1;
+
         var entity = new FunctionalRole
         {
             Name = request.Name,
@@ -49,7 +54,7 @@ public class CreateFunctionalRoleCommandHandler : IRequestHandler<CreateFunction
             Description = request.Description,
             SecurityProfileId = request.SecurityProfileId,
             UnitTypeId = request.UnitTypeId,
-            Rank = request.Rank
+            Rank = maxRank + 1
         };
 
         _context.FunctionalRoles.Add(entity);
@@ -60,8 +65,8 @@ public class CreateFunctionalRoleCommandHandler : IRequestHandler<CreateFunction
     }
 }
 
-// Update
-public record UpdateFunctionalRoleCommand(Guid Id, string Name, string Code, string? Description, Guid SecurityProfileId, Guid? UnitTypeId, int Rank = 0) : IRequest<Result<bool>>;
+// Update — rank/default are managed separately (drag-reorder + set-default), not via this command.
+public record UpdateFunctionalRoleCommand(Guid Id, string Name, string Code, string? Description, Guid SecurityProfileId, Guid? UnitTypeId) : IRequest<Result<bool>>;
 
 public class UpdateFunctionalRoleCommandValidator : AbstractValidator<UpdateFunctionalRoleCommand>
 {
@@ -70,7 +75,6 @@ public class UpdateFunctionalRoleCommandValidator : AbstractValidator<UpdateFunc
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
         RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
         RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
-        RuleFor(x => x.Rank).InclusiveBetween(0, 9999);
         RuleFor(x => x.SecurityProfileId).NotEmpty().WithMessage("Le profil de sécurité est requis.");
     }
 }
@@ -102,7 +106,6 @@ public class UpdateFunctionalRoleCommandHandler : IRequestHandler<UpdateFunction
         entity.Description = request.Description;
         entity.SecurityProfileId = request.SecurityProfileId;
         entity.UnitTypeId = request.UnitTypeId;
-        entity.Rank = request.Rank;
 
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Update", "FunctionalRole", entity.Id, oldValues: oldValues, newValues: new { entity.Name, entity.Code }, cancellationToken: cancellationToken);
@@ -111,7 +114,9 @@ public class UpdateFunctionalRoleCommandHandler : IRequestHandler<UpdateFunction
     }
 }
 
-// Delete
+// Delete — if the function is used by any member (active or past), it is ARCHIVED (hidden from
+// pickers but kept so it still shows on those members) instead of deleted. Unused functions are
+// hard-deleted. Result value = true when archived, false when deleted.
 public record DeleteFunctionalRoleCommand(Guid Id) : IRequest<Result<bool>>;
 
 public class DeleteFunctionalRoleCommandHandler : IRequestHandler<DeleteFunctionalRoleCommand, Result<bool>>
@@ -127,20 +132,96 @@ public class DeleteFunctionalRoleCommandHandler : IRequestHandler<DeleteFunction
 
     public async ValueTask<Result<bool>> Handle(DeleteFunctionalRoleCommand request, CancellationToken cancellationToken)
     {
-        var entity = await _context.FunctionalRoles
-            .Include(r => r.Assignments.Where(a => a.EndDate == null))
-            .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken);
-
+        var entity = await _context.FunctionalRoles.FindAsync([request.Id], cancellationToken);
         if (entity is null)
             return Result<bool>.Failure("Fonction introuvable.");
 
-        if (entity.Assignments.Any())
-            return Result<bool>.Failure("Impossible de supprimer une fonction utilisée par des membres actifs.");
+        var usedByMembers = await _context.MemberAssignments.AnyAsync(a => a.FunctionalRoleId == request.Id, cancellationToken);
+        if (usedByMembers)
+        {
+            if (!entity.IsArchived)
+            {
+                entity.IsArchived = true;
+                await _context.SaveChangesAsync(cancellationToken);
+                await _auditService.LogAsync("Archive", "FunctionalRole", entity.Id, oldValues: new { entity.Name, entity.Code }, cancellationToken: cancellationToken);
+            }
+            return Result<bool>.Success(true); // archived
+        }
 
         _context.FunctionalRoles.Remove(entity);
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Delete", "FunctionalRole", entity.Id, oldValues: new { entity.Name, entity.Code }, cancellationToken: cancellationToken);
+        return Result<bool>.Success(false); // deleted
+    }
+}
 
+// Unarchive — restore an archived function so it shows in pickers again.
+public record UnarchiveFunctionalRoleCommand(Guid Id) : IRequest<Result<bool>>;
+
+public class UnarchiveFunctionalRoleCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    : IRequestHandler<UnarchiveFunctionalRoleCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(UnarchiveFunctionalRoleCommand request, CancellationToken ct)
+    {
+        var entity = await context.FunctionalRoles.FindAsync([request.Id], ct);
+        if (entity is null) return Result<bool>.Failure("Fonction introuvable.");
+        if (entity.IsArchived)
+        {
+            entity.IsArchived = false;
+            await context.SaveChangesAsync(ct);
+            await auditService.LogAsync("Unarchive", "FunctionalRole", entity.Id, newValues: new { entity.Name, entity.Code }, cancellationToken: ct);
+        }
+        return Result<bool>.Success(true);
+    }
+}
+
+// Reorder — the drag order on the unit-type page sets the rank. List is top→bottom = most senior →
+// most junior, so the top item gets the HIGHEST rank (matches the rank-desc maîtrise displays).
+public record ReorderFunctionalRolesCommand(List<Guid> OrderedIds) : IRequest<Result<bool>>;
+
+public class ReorderFunctionalRolesCommandValidator : AbstractValidator<ReorderFunctionalRolesCommand>
+{
+    public ReorderFunctionalRolesCommandValidator()
+        => RuleFor(x => x.OrderedIds).NotNull().Must(l => l.Count <= 1000).WithMessage("Trop d'éléments.");
+}
+
+public class ReorderFunctionalRolesCommandHandler(IApplicationDbContext context) : IRequestHandler<ReorderFunctionalRolesCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(ReorderFunctionalRolesCommand request, CancellationToken ct)
+    {
+        var roles = await context.FunctionalRoles.Where(r => request.OrderedIds.Contains(r.Id)).ToListAsync(ct);
+        var n = request.OrderedIds.Count;
+        for (var i = 0; i < n; i++)
+        {
+            var role = roles.FirstOrDefault(r => r.Id == request.OrderedIds[i]);
+            if (role is not null) role.Rank = n - 1 - i; // top of the list = highest rank (most senior)
+        }
+        await context.SaveChangesAsync(ct);
+        return Result<bool>.Success(true);
+    }
+}
+
+// Set the "default for new members" function — exactly one per unit type (auto-assigned on demande admit).
+public record SetDefaultFunctionalRoleCommand(Guid Id) : IRequest<Result<bool>>;
+
+public class SetDefaultFunctionalRoleCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    : IRequestHandler<SetDefaultFunctionalRoleCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(SetDefaultFunctionalRoleCommand request, CancellationToken ct)
+    {
+        var entity = await context.FunctionalRoles.FindAsync([request.Id], ct);
+        if (entity is null) return Result<bool>.Failure("Fonction introuvable.");
+        if (entity.IsArchived) return Result<bool>.Failure("Impossible de définir une fonction archivée par défaut.");
+
+        // One default per unit-type scope: clear the others, set this one.
+        var siblings = await context.FunctionalRoles
+            .Where(r => r.UnitTypeId == entity.UnitTypeId && r.IsDefaultForNewMembers && r.Id != entity.Id)
+            .ToListAsync(ct);
+        foreach (var s in siblings) s.IsDefaultForNewMembers = false;
+        entity.IsDefaultForNewMembers = true;
+
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("SetDefault", "FunctionalRole", entity.Id, newValues: new { entity.Name }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

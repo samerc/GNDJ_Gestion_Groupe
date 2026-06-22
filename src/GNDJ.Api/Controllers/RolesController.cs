@@ -44,6 +44,33 @@ public class RolesController : BaseApiController
     {
         var result = await Mediator.Send(new DeleteFunctionalRoleCommand(id));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { archived = result.Value });
+    }
+
+    [HttpPost("{id:guid}/unarchive")]
+    [HasPermission(Permissions.RolesManage)]
+    public async Task<IActionResult> Unarchive(Guid id)
+    {
+        var result = await Mediator.Send(new UnarchiveFunctionalRoleCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    [HttpPut("reorder")]
+    [HasPermission(Permissions.RolesManage)]
+    public async Task<IActionResult> Reorder([FromBody] ReorderFunctionalRolesCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/set-default")]
+    [HasPermission(Permissions.RolesManage)]
+    public async Task<IActionResult> SetDefault(Guid id)
+    {
+        var result = await Mediator.Send(new SetDefaultFunctionalRoleCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return NoContent();
     }
 }

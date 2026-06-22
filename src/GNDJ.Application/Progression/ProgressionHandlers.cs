@@ -161,18 +161,32 @@ public class UpdateScoutStageCommandHandler(IApplicationDbContext context, IAudi
 // Delete
 public record DeleteScoutStageCommand(Guid Id) : IRequest<Result<bool>>;
 
+// If the stage is used by any member progression, it is ARCHIVED (IsActive=false → hidden from the
+// dropdowns but kept so it still shows on those members) instead of deleted. Unused stages are
+// hard-deleted. Result value = true when archived, false when deleted.
 public class DeleteScoutStageCommandHandler(IApplicationDbContext context, IAuditService auditService) : IRequestHandler<DeleteScoutStageCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteScoutStageCommand request, CancellationToken ct)
     {
-        var entity = await context.ScoutStages.Include(s => s.Progressions).FirstOrDefaultAsync(s => s.Id == request.Id, ct);
+        var entity = await context.ScoutStages.FindAsync([request.Id], ct);
         if (entity is null) return Result<bool>.Failure("Étape introuvable.");
-        if (entity.Progressions.Any()) return Result<bool>.Failure("Impossible de supprimer une étape utilisée par des progressions.");
+
+        var used = await context.MemberProgressions.AnyAsync(p => p.ScoutStageId == request.Id, ct);
+        if (used)
+        {
+            if (entity.IsActive)
+            {
+                entity.IsActive = false;
+                await context.SaveChangesAsync(ct);
+                await auditService.LogAsync("Archive", "ScoutStage", entity.Id, oldValues: new { entity.Code, entity.Name }, cancellationToken: ct);
+            }
+            return Result<bool>.Success(true); // archived
+        }
 
         context.ScoutStages.Remove(entity);
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Delete", "ScoutStage", entity.Id, oldValues: new { entity.Code, entity.Name }, cancellationToken: ct);
-        return Result<bool>.Success(true);
+        return Result<bool>.Success(false); // deleted
     }
 }
 
@@ -314,18 +328,32 @@ public class UpdateBadgeCommandHandler(IApplicationDbContext context, IAuditServ
 
 public record DeleteBadgeCommand(Guid Id) : IRequest<Result<bool>>;
 
+// If the badge has been awarded to any member, it is ARCHIVED (IsActive=false → hidden from the
+// dropdowns but kept so it still shows on those members) instead of deleted. Unused badges are
+// hard-deleted. Result value = true when archived, false when deleted.
 public class DeleteBadgeCommandHandler(IApplicationDbContext context, IAuditService auditService) : IRequestHandler<DeleteBadgeCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteBadgeCommand request, CancellationToken ct)
     {
-        var entity = await context.Badges.Include(b => b.Progressions).FirstOrDefaultAsync(b => b.Id == request.Id, ct);
+        var entity = await context.Badges.FindAsync([request.Id], ct);
         if (entity is null) return Result<bool>.Failure("Badge introuvable.");
-        if (entity.Progressions.Any()) return Result<bool>.Failure("Impossible de supprimer un badge utilisé par des progressions.");
+
+        var used = await context.MemberProgressions.AnyAsync(p => p.BadgeId == request.Id, ct);
+        if (used)
+        {
+            if (entity.IsActive)
+            {
+                entity.IsActive = false;
+                await context.SaveChangesAsync(ct);
+                await auditService.LogAsync("Archive", "Badge", entity.Id, oldValues: new { entity.Code, entity.Name }, cancellationToken: ct);
+            }
+            return Result<bool>.Success(true); // archived
+        }
 
         context.Badges.Remove(entity);
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Delete", "Badge", entity.Id, oldValues: new { entity.Code, entity.Name }, cancellationToken: ct);
-        return Result<bool>.Success(true);
+        return Result<bool>.Success(false); // deleted
     }
 }
 

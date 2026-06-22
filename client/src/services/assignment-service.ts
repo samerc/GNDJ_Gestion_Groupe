@@ -35,6 +35,7 @@ export interface FunctionalRoleDto {
   name: string
   code: string
   description: string | null
+  isArchived: boolean
 }
 
 export function useAssignments(params: { memberId?: string; unitId?: string; teamId?: string; isActive?: boolean; page?: number; pageSize?: number }) {

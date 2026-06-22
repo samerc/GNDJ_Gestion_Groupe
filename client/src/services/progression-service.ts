@@ -43,7 +43,8 @@ export function useUpdateScoutStage() {
 export function useDeleteScoutStage() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/scout-stages/${id}`),
+    // { archived: true } when the stage was archived (used by members) rather than deleted.
+    mutationFn: (id: string) => apiClient.delete<{ archived: boolean }>(`/scout-stages/${id}`).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['scout-stages'] }),
   })
 }
@@ -98,7 +99,8 @@ export function useUpdateBadge() {
 export function useDeleteBadge() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/badges/${id}`),
+    // { archived: true } when the badge was archived (awarded to members) rather than deleted.
+    mutationFn: (id: string) => apiClient.delete<{ archived: boolean }>(`/badges/${id}`).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['badges'] }),
   })
 }

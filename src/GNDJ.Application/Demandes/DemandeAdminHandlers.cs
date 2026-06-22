@@ -520,7 +520,11 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             {
                 var unit = await context.Units.FirstOrDefaultAsync(u => u.Id == unitId, ct);
                 if (unit is null) { return Result<SendDemandeResponsesResult>.Failure($"Unité introuvable pour {d.FirstName} {d.LastName}."); }
-                roleId = await context.FunctionalRoles.Where(r => r.UnitTypeId == unit.UnitTypeId)
+                // Prefer the explicitly-marked default function for the unit type; fall back to the
+                // most-junior (lowest rank) non-archived one for unit types without a default set.
+                roleId = await context.FunctionalRoles.Where(r => r.UnitTypeId == unit.UnitTypeId && !r.IsArchived && r.IsDefaultForNewMembers)
+                    .Select(r => (Guid?)r.Id).FirstOrDefaultAsync(ct);
+                roleId ??= await context.FunctionalRoles.Where(r => r.UnitTypeId == unit.UnitTypeId && !r.IsArchived)
                     .OrderBy(r => r.Rank).ThenBy(r => r.Name).Select(r => (Guid?)r.Id).FirstOrDefaultAsync(ct);
                 baseRoleCache[unitId] = roleId;
             }

@@ -77,9 +77,26 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
   const [editing, setEditing] = useState<ScoutStageDto | null>(null)
   const [deleting, setDeleting] = useState<ScoutStageDto | null>(null)
   const [newName, setNewName] = useState('')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkConfirm, setBulkConfirm] = useState(false)
+  const [bulkBusy, setBulkBusy] = useState(false)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const stages = data ?? []
+  const toggleOne = (id: string) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  const handleBulkDelete = async () => {
+    setBulkBusy(true)
+    let deleted = 0, archived = 0, failed = 0
+    const results = await Promise.allSettled([...selected].map(id => deleteMutation.mutateAsync(id)))
+    for (const r of results) { if (r.status === 'rejected') failed++; else if (r.value?.archived) archived++; else deleted++ }
+    setBulkBusy(false); setBulkConfirm(false); setSelected(new Set())
+    const parts = []
+    if (deleted) parts.push(`${deleted} supprimée(s)`)
+    if (archived) parts.push(`${archived} désactivée(s) (utilisée(s))`)
+    if (failed) parts.push(`${failed} échec(s)`)
+    if (failed && !deleted && !archived) toast.error(parts.join(' · ')); else toast.success(parts.join(' · ') || 'Terminé')
+  }
 
   const handleDragEnd = (e: DragEndEvent) => {
     const { active, over } = e
@@ -107,12 +124,19 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
 
   const handleDelete = async () => {
     if (!deleting) return
-    try { await deleteMutation.mutateAsync(deleting.id); toast.success('Étape supprimée'); setDeleting(null) }
+    try { const res = await deleteMutation.mutateAsync(deleting.id); toast.success(res?.archived ? 'Étape désactivée (utilisée par des membres)' : 'Étape supprimée'); setDeleting(null) }
     catch (err) { toast.error(parseApiError(err)); setDeleting(null) }
   }
 
   return (
     <div className="mt-4 space-y-4">
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5">
+          <span className="text-sm text-muted-foreground">{selected.size} sélectionnée(s)</span>
+          <Button size="sm" variant="outline" onClick={() => setSelected(new Set())}>Annuler</Button>
+          <Button size="sm" variant="destructive" onClick={() => setBulkConfirm(true)}><Trash2 className="mr-1 h-3.5 w-3.5" />Supprimer la sélection</Button>
+        </div>
+      )}
       {isLoading ? <LoadingSpinner variant="table" /> : stages.length === 0 ? (
         <EmptyState icon={Star} title="Aucune étape" description="Ajoutez la première étape de progression ci-dessous." />
       ) : (
@@ -121,6 +145,7 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
             <ol className="space-y-2">
               {stages.map((s, i) => (
                 <StageCard key={s.id} stage={s} index={i} busy={updateMutation.isPending}
+                  checked={selected.has(s.id)} onCheck={() => toggleOne(s.id)}
                   onEdit={() => setEditing(s)} onDelete={() => setDeleting(s)} onToggle={() => toggleActive(s)} />
               ))}
             </ol>
@@ -135,20 +160,27 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
       </form>
 
       <StageEditDialog stage={editing} onClose={() => setEditing(null)} onSave={updateMutation} />
-      <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)} title="Supprimer l'étape"
-        description={`Supprimer « ${deleting?.name} » ?${(deleting?.progressionCount ?? 0) > 0 ? ` ${deleting?.progressionCount} membre(s) l'utilisent.` : ''}`}
-        confirmLabel="Supprimer" variant="destructive" loading={deleteMutation.isPending} onConfirm={handleDelete} />
+      <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)}
+        title={(deleting?.progressionCount ?? 0) > 0 ? "Désactiver l'étape" : "Supprimer l'étape"}
+        description={(deleting?.progressionCount ?? 0) > 0
+          ? `« ${deleting?.name} » est utilisée par ${deleting?.progressionCount} membre(s) : elle sera désactivée (masquée des listes mais conservée sur les membres) plutôt que supprimée.`
+          : `Supprimer « ${deleting?.name} » ?`}
+        confirmLabel={(deleting?.progressionCount ?? 0) > 0 ? 'Désactiver' : 'Supprimer'} variant="destructive" loading={deleteMutation.isPending} onConfirm={handleDelete} />
+      <ConfirmDialog open={bulkConfirm} onOpenChange={() => setBulkConfirm(false)} title="Supprimer la sélection"
+        description={`${selected.size} étape(s) sélectionnée(s). Celles utilisées par des membres seront désactivées (conservées sur les membres), les autres supprimées.`}
+        confirmLabel="Confirmer" variant="destructive" loading={bulkBusy} onConfirm={handleBulkDelete} />
     </div>
   )
 }
 
-function StageCard({ stage, index, busy, onEdit, onDelete, onToggle }: {
-  stage: ScoutStageDto; index: number; busy: boolean; onEdit: () => void; onDelete: () => void; onToggle: () => void
+function StageCard({ stage, index, busy, checked, onCheck, onEdit, onDelete, onToggle }: {
+  stage: ScoutStageDto; index: number; busy: boolean; checked: boolean; onCheck: () => void; onEdit: () => void; onDelete: () => void; onToggle: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stage.id })
   return (
     <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn('flex items-center gap-3 rounded-lg border bg-card p-3', isDragging && 'shadow-lg', !stage.isActive && 'opacity-55')}>
+      <input type="checkbox" className="h-4 w-4 shrink-0 accent-primary" aria-label={`Sélectionner ${stage.name}`} checked={checked} onChange={onCheck} />
       <button {...attributes} {...listeners} className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing"><GripVertical className="h-4 w-4" /></button>
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">{index + 1}</div>
       <div className="min-w-0 flex-1">
@@ -217,8 +249,25 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
   const [editing, setEditing] = useState<BadgeDto | null>(null)
   const [deleting, setDeleting] = useState<BadgeDto | null>(null)
   const [newName, setNewName] = useState('')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkConfirm, setBulkConfirm] = useState(false)
+  const [bulkBusy, setBulkBusy] = useState(false)
 
   const badges = data ?? []
+  const toggleOne = (id: string) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  const handleBulkDelete = async () => {
+    setBulkBusy(true)
+    let deleted = 0, archived = 0, failed = 0
+    const results = await Promise.allSettled([...selected].map(id => deleteMutation.mutateAsync(id)))
+    for (const r of results) { if (r.status === 'rejected') failed++; else if (r.value?.archived) archived++; else deleted++ }
+    setBulkBusy(false); setBulkConfirm(false); setSelected(new Set())
+    const parts = []
+    if (deleted) parts.push(`${deleted} supprimé(s)`)
+    if (archived) parts.push(`${archived} désactivé(s) (utilisé(s))`)
+    if (failed) parts.push(`${failed} échec(s)`)
+    if (failed && !deleted && !archived) toast.error(parts.join(' · ')); else toast.success(parts.join(' · ') || 'Terminé')
+  }
 
   const toggleActive = async (b: BadgeDto) => {
     try {
@@ -237,18 +286,26 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
 
   const handleDelete = async () => {
     if (!deleting) return
-    try { await deleteMutation.mutateAsync(deleting.id); toast.success('Badge supprimé'); setDeleting(null) }
+    try { const res = await deleteMutation.mutateAsync(deleting.id); toast.success(res?.archived ? 'Badge désactivé (obtenu par des membres)' : 'Badge supprimé'); setDeleting(null) }
     catch (err) { toast.error(parseApiError(err)); setDeleting(null) }
   }
 
   return (
     <div className="mt-4 space-y-4">
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5">
+          <span className="text-sm text-muted-foreground">{selected.size} sélectionné(s)</span>
+          <Button size="sm" variant="outline" onClick={() => setSelected(new Set())}>Annuler</Button>
+          <Button size="sm" variant="destructive" onClick={() => setBulkConfirm(true)}><Trash2 className="mr-1 h-3.5 w-3.5" />Supprimer la sélection</Button>
+        </div>
+      )}
       {isLoading ? <LoadingSpinner variant="cards" /> : badges.length === 0 ? (
         <EmptyState icon={Award} title="Aucun badge" description="Ajoutez le premier badge ci-dessous." />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {badges.map(b => (
             <div key={b.id} className={cn('group flex items-center gap-3 rounded-lg border bg-card p-3', !b.isActive && 'opacity-55')}>
+              <input type="checkbox" className="h-4 w-4 shrink-0 accent-primary" aria-label={`Sélectionner ${b.name}`} checked={selected.has(b.id)} onChange={() => toggleOne(b.id)} />
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700"><Award className="h-4 w-4" /></div>
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{b.name}</div>
@@ -270,9 +327,15 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
       </form>
 
       <BadgeEditDialog badge={editing} onClose={() => setEditing(null)} onSave={updateMutation} />
-      <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)} title="Supprimer le badge"
-        description={`Supprimer « ${deleting?.name} » ?${(deleting?.progressionCount ?? 0) > 0 ? ` ${deleting?.progressionCount} membre(s) l'ont obtenu.` : ''}`}
-        confirmLabel="Supprimer" variant="destructive" loading={deleteMutation.isPending} onConfirm={handleDelete} />
+      <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)}
+        title={(deleting?.progressionCount ?? 0) > 0 ? 'Désactiver le badge' : 'Supprimer le badge'}
+        description={(deleting?.progressionCount ?? 0) > 0
+          ? `« ${deleting?.name} » a été obtenu par ${deleting?.progressionCount} membre(s) : il sera désactivé (masqué des listes mais conservé sur les membres) plutôt que supprimé.`
+          : `Supprimer « ${deleting?.name} » ?`}
+        confirmLabel={(deleting?.progressionCount ?? 0) > 0 ? 'Désactiver' : 'Supprimer'} variant="destructive" loading={deleteMutation.isPending} onConfirm={handleDelete} />
+      <ConfirmDialog open={bulkConfirm} onOpenChange={() => setBulkConfirm(false)} title="Supprimer la sélection"
+        description={`${selected.size} badge(s) sélectionné(s). Ceux obtenus par des membres seront désactivés (conservés sur les membres), les autres supprimés.`}
+        confirmLabel="Confirmer" variant="destructive" loading={bulkBusy} onConfirm={handleBulkDelete} />
     </div>
   )
 }

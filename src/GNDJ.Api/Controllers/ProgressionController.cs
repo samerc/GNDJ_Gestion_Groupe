@@ -53,7 +53,7 @@ public class ScoutStagesController : BaseApiController
     {
         var result = await Mediator.Send(new DeleteScoutStageCommand(id));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return Ok(new { archived = result.Value });
     }
 
     [HttpPut("reorder")]
@@ -113,7 +113,7 @@ public class BadgesController : BaseApiController
     {
         var result = await Mediator.Send(new DeleteBadgeCommand(id));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return Ok(new { archived = result.Value });
     }
 
     [HttpPut("reorder")]

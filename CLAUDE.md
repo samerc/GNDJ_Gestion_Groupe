@@ -646,9 +646,52 @@ site. Clean/modern design, navy/teal tokens, French. Anonymous public API + a co
   library (chants/tabs/mp3/knots/techniques/biographies via scripted import); photo gallery; birthdays; events;
   i18n. Full plan + state in memory `project_public_website.md`.
 
+### CG dashboard — year-aware (2026-06-22)
+- [x] The admin/CG dashboard year selector was effectively a no-op (only `unpaidCotisations` was year-scoped,
+      and the cotisation table is empty so it never changed; every other tile was a live "today" snapshot —
+      `totalMembers` even counted ALL members incl. alumni = 2465). FIXED: `GetAdminDashboardQuery` now scopes
+      EVERY tile (total/gender/units/ages/unpaid/docs) to members whose assignment was **active during the
+      selected scout year** — a date-range overlap on the Oct 1→Oct 1 window (`ScoutYearWindow`,
+      `StartDate < windowEnd && (EndDate == null || EndDate > windowStart)`; matches the migration's per-SY split
+      so past years are accurate). Ages computed as of that year's Oct 1. "Sans unité" is 0 in year-scoped view.
+      Verified: 2025-26 → 1404, 2024-25 → 588, 2023-24 → 623 (was identical across all years). NOTE: the current
+      year (1404) counts everyone active at ANY point this year incl. mid-year leavers, so it's higher than the
+      1135 "active right now"; switch the in-progress year to a point-in-time "today" snapshot if that's preferred.
+      This supersedes the old "Option 1" honest-counts item for the dashboard (members LIST alumni toggle still TODO).
+
+### Archive-instead-of-delete + bulk delete (2026-06-22)
+- [x] **Fonctions / Étapes / Badges**: deleting one that is USED by members no longer fails — it is ARCHIVED
+      (hidden from pickers but kept so it still shows on the members who hold it); UNUSED ones are hard-deleted.
+      Backend delete handlers return `{ archived: bool }` (true=archived, false=deleted). FunctionalRole got a new
+      `IsArchived` column (migration `AddFunctionalRoleIsArchived`) + `Unarchive` command/endpoint + `IsArchived`/
+      `UsedByMembers` on its DTO; ScoutStage/Badge REUSE their existing `IsActive` flag (archive = IsActive=false,
+      un-archive = the existing inline Switch). "Used" = ANY assignment/progression (active OR historical).
+- [x] Archived functions are filtered out of the assignment "Fonction" picker (kept if it's the row's current value,
+      shown as "(archivée)") and excluded from the demande base-role resolution. Stage/badge dropdowns already filter
+      IsActive.
+- [x] **Bulk delete** added to all three admin lists (checkbox per row + select-all/bar): functional-roles-list,
+      StagesLadder, BadgesGrid. Bulk runs the per-item delete (archive-if-used) and shows a summary toast
+      (N supprimée(s) · M archivée(s)/désactivée(s) · K échec(s)). Fonctions list also shows an "Archivée" badge +
+      a Réactiver (unarchive) action and sorts archived rows last. Verified live: delete-of-used → {archived:true} +
+      is_archived set; unarchive restores; build clean (dotnet + tsc).
+
+### Functions: drag-to-rank + explicit default (2026-06-22)
+- [x] Replaced the manual "Rang" number field with **drag-to-rank** on the unit-type page. `FunctionalRolesList`
+      gained a `sortable` mode (used by unit-type-detail, `sortable` prop): the type-specific non-archived functions
+      are a dnd-kit ladder, **top = most senior** (highest rank). Reorder → `PUT /functional-roles/reorder` sets
+      `Rank = n-1-index` (top highest, matching the rank-desc maîtrise displays). Rank dropped from Create/Update
+      commands; new functions auto-rank to `max+1` (senior end, never the default). The all-types `/admin/roles`
+      page keeps the flat table (no cross-type drag); archived + global functions shown in separate non-draggable
+      sections in sortable mode.
+- [x] The "auto-assigned to new members" role is now an **explicit marker** (`IsDefaultForNewMembers`, one per unit
+      type) instead of "lowest rank". Star toggle in the sortable list → `POST /functional-roles/{id}/set-default`
+      (clears the others in that unit type). Migration `AddFunctionalRoleDefaultFlag` backfills it = each unit type's
+      current lowest-rank role (preserves behaviour: Meute→Louveteau, Ronde→Jeannette, …). SendDemandeResponses
+      base-role resolution now prefers the explicit default, falling back to lowest-rank (non-archived) if none set.
+      Verified: backfill = 1/type, set-default round-trip (exactly one default), build clean, ordering top=senior.
+
 ### Remaining / Next
-- [ ] **Option 1 (DECIDED, not yet built):** keep all imported members incl. inactive, but make counts
-      honest — admin dashboard "Total members" should count ACTIVE (930) not all (2259); admin members
-      list should default to active with an "Anciens/Alumni" toggle (backend `alumni` param already exists)
+- [ ] **Members LIST honest counts (Option 1 remainder):** admin members list should default to active with an
+      "Anciens/Alumni" toggle (backend `alumni` param already exists). Dashboard counts now fixed (see above).
 - [ ] Migration data cleanup (deferred): name spacing ("Marie- Lynn"), GET /photo unit-scope
 - [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies

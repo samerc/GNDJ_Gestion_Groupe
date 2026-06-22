@@ -7,7 +7,9 @@ public class FunctionalRole : BaseEntity
     public string Name { get; set; } = string.Empty;
     public string Code { get; set; } = string.Empty;
     public string? Description { get; set; }
-    public int Rank { get; set; } // ordering within a unit type; the lowest rank is the base youth role
+    public int Rank { get; set; } // display ordering within a unit type (higher = more senior; set by drag)
+    public bool IsArchived { get; set; } // hidden from pickers but kept (still shown on members who hold it)
+    public bool IsDefaultForNewMembers { get; set; } // the role auto-assigned to members admitted from a demande (one per unit type)
     public Guid SecurityProfileId { get; set; }
     public Guid? UnitTypeId { get; set; }
 

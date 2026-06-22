@@ -261,7 +261,7 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
                   <RequiredLabel required>Fonction</RequiredLabel>
                   <Select value={form.functionalRoleId} onValueChange={(v) => { setForm(f => ({ ...f, functionalRoleId: v })); clearField('functionalRoleId') }} disabled={!form.unitId}>
                     <SelectTrigger className={fieldClass('functionalRoleId')}><SelectValue placeholder={form.unitId ? 'Sélectionner une fonction...' : "Choisir d'abord une unité"} /></SelectTrigger>
-                    <SelectContent>{roles?.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{roles?.filter(r => !r.isArchived || r.id === form.functionalRoleId).map(r => <SelectItem key={r.id} value={r.id}>{r.name}{r.isArchived ? ' (archivée)' : ''}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </>

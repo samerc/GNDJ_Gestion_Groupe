@@ -49,7 +49,7 @@ export default function UnitTypeDetailPage() {
         </TabsList>
 
         <TabsContent value="roles">
-          <FunctionalRolesList unitTypeId={id} unitTypeName={unitType.name} />
+          <FunctionalRolesList unitTypeId={id} unitTypeName={unitType.name} sortable />
         </TabsContent>
 
         <TabsContent value="stages">

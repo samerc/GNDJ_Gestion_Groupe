@@ -13,6 +13,9 @@ export interface FunctionalRoleDto {
   unitTypeColor: string | null
   rank: number
   assignmentCount: number
+  usedByMembers: boolean
+  isArchived: boolean
+  isDefaultForNewMembers: boolean
 }
 
 export interface FunctionalRoleFormData {
@@ -21,7 +24,6 @@ export interface FunctionalRoleFormData {
   description?: string | null
   securityProfileId: string
   unitTypeId?: string | null
-  rank?: number
 }
 
 export interface SecurityProfileDto {
@@ -65,7 +67,32 @@ export function useUpdateFunctionalRole() {
 export function useDeleteFunctionalRole() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/functional-roles/${id}`),
+    // Returns { archived: true } when the function was archived (used by members) rather than deleted.
+    mutationFn: (id: string) => apiClient.delete<{ archived: boolean }>(`/functional-roles/${id}`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['functionalRoles'] }),
+  })
+}
+
+export function useUnarchiveFunctionalRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.post(`/functional-roles/${id}/unarchive`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['functionalRoles'] }),
+  })
+}
+
+export function useReorderFunctionalRoles() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (orderedIds: string[]) => apiClient.put('/functional-roles/reorder', { orderedIds }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['functionalRoles'] }),
+  })
+}
+
+export function useSetDefaultFunctionalRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.post(`/functional-roles/${id}/set-default`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['functionalRoles'] }),
   })
 }

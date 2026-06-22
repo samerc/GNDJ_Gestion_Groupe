@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Roles.Queries;
 
-public record FunctionalRoleDto(Guid Id, string Name, string Code, string? Description, Guid SecurityProfileId, string SecurityProfileName, Guid? UnitTypeId, string? UnitTypeName, string? UnitTypeColor, int Rank, int AssignmentCount);
+public record FunctionalRoleDto(Guid Id, string Name, string Code, string? Description, Guid SecurityProfileId, string SecurityProfileName, Guid? UnitTypeId, string? UnitTypeName, string? UnitTypeColor, int Rank, int AssignmentCount, bool UsedByMembers, bool IsArchived, bool IsDefaultForNewMembers);
 
 public record GetFunctionalRolesQuery(Guid? UnitTypeId = null) : IRequest<IReadOnlyList<FunctionalRoleDto>>;
 
@@ -24,13 +24,17 @@ public class GetFunctionalRolesQueryHandler : IRequestHandler<GetFunctionalRoles
             query = query.Where(r => r.UnitTypeId == request.UnitTypeId.Value || r.UnitTypeId == null);
 
         return await query
-            .OrderBy(r => r.UnitTypeId == null ? 0 : 1).ThenBy(r => r.Name)
+            // Most senior first (rank desc); globals before type-specific; name as final tiebreak.
+            .OrderBy(r => r.UnitTypeId == null ? 0 : 1).ThenByDescending(r => r.Rank).ThenBy(r => r.Name)
             .Select(r => new FunctionalRoleDto(
                 r.Id, r.Name, r.Code, r.Description,
                 r.SecurityProfileId, r.SecurityProfile.Name,
                 r.UnitTypeId, r.UnitType != null ? r.UnitType.Name : null, r.UnitType != null ? r.UnitType.Color : null,
                 r.Rank,
-                r.Assignments.Count(a => !a.IsDeleted && a.EndDate == null)
+                r.Assignments.Count(a => !a.IsDeleted && a.EndDate == null),
+                r.Assignments.Any(a => !a.IsDeleted),
+                r.IsArchived,
+                r.IsDefaultForNewMembers
             ))
             .ToListAsync(cancellationToken);
     }
