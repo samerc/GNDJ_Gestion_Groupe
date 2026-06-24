@@ -20,19 +20,19 @@ public static class SeedData
     // live, plus major cities). CG/super-admin curate it afterwards via the "Villes" admin page.
     public static readonly string CuratedCitiesJson = System.Text.Json.JsonSerializer.Serialize(new[]
     {
-        "Abadieh", "Achkout", "Achrafieh", "Adma", "Ain Aalak", "Ain el Remmaneh", "Ain Saade", "Aley",
-        "Amchit", "Antelias", "Araya", "Aramoun", "Awkar", "Baabda", "Baabdat", "Baalbek", "Baalchmay",
+        "Abadieh", "Achkout", "Achrafieh", "Adma", "Ain Aalak", "Ain Ekrin", "Ain el Remmaneh", "Ain Saade",
+        "Aley", "Amchit", "Antelias", "Araya", "Aramoun", "Awkar", "Baabda", "Baabdat", "Baalbek", "Baalchmay",
         "Badaro", "Batroun", "Bayada", "Bdadoun", "Beit el Chaar",
-        "Beit Mery", "Betchay", "Beyrouth", "Bhamdoun", "Bickfaya", "Bleibel", "Brazilia", "Broumana",
-        "Bsaba", "Bsalim", "Bsous", "Byblos (Jbeil)", "Chiyah", "Cornet Chehwan", "Daroun-Harissa",
+        "Beit Mery", "Betchay", "Beyrouth", "Bhamdoun", "Bickfaya", "Bkennaya", "Bleibel", "Brazilia", "Broumana",
+        "Bsaba", "Bsalim", "Bsous", "Byblos (Jbeil)", "Chiyah", "Cornet Chehwan", "Dahr el Sawan", "Daroun-Harissa",
         "Daychounieh", "Dbayeh", "Dekwaneh", "Der Mimas", "Dik el Mehdi", "Elyssar", "Falougha", "Fanar",
-        "Fayadieh", "Furn el Chebbak", "Gemmayze", "Ghazir", "Ghedras", "Hadath", "Haret Sakher", "Hazmieh",
+        "Fayadieh", "Furn el Chebbak", "Gemmayze", "Ghazir", "Ghedras", "Hadath", "Haret el Set", "Haret Sakher", "Hazmieh",
         "Horch Tabet", "Houmal", "Jal el Dib", "Jamhour", "Jdeideh", "Jezzine", "Jisr el Bacha", "Jounieh",
         "Kahale", "Kaslik", "Kfarchima", "Kleiat", "Kobayat", "Kornet el Hamra", "Louaize", "Mar Roukoz",
         "Mar Takla", "Mansourieh", "Mazraat Yachouh", "Mkalles", "Monteverde", "Mtayleb", "Nabatieh",
         "Nabay", "Naccache", "New Rawda", "Qannabet Broumana", "Rabieh", "Rabweh", "Rihaniyeh", "Rmeil",
         "Roumieh", "Sabtieh", "Saida", "Sed el Bauchrieh", "Sin el Fil", "Sioufi", "Sour (Tyr)", "Sursock",
-        "Tilal Ain Saade", "Tripoli", "Wadi Chahrour", "Yarze", "Zahle", "Zalka", "Zouk Mikael", "Zouk Mosbeh"
+        "Tilal Ain Saade", "Tripoli", "Wadi Chahrour", "Yarze", "Zahle", "Zalka", "Zekrit", "Zouk Mikael", "Zouk Mosbeh"
     });
 
     public static async Task SeedAsync(GndjDbContext context, string superAdminEmail, string superAdminPasswordHash)

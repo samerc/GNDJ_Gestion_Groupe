@@ -789,11 +789,15 @@ Full flag-lists for the deferred items live in memory `project_migration_cleanup
         a typed name onto a canonical city on blur (`matchCity`). Wired into member detail + Ma fiche (add+edit
         address) and the demande wizard household address. Applicant portal gets cities via `ApplicantConfigDto.Cities`
         (NOT the authenticated /settings endpoint — avoids the portal's 401→login interceptor).
-      - **Data normalized** on member_addresses (~480 rows): generic case/accent pass + alias map for transliterations
+      - **Data normalized** on member_addresses: generic case/accent pass + alias map for transliterations
         (Beirut→Beyrouth, Ashrafieh→Achrafieh, Hadat→Hadath, Loueize/Louaizeh→Louaize, Hazmieh+Mar Takla→Hazmieh,
-        Wadi Chahrour suffixes→Wadi Chahrour, Baabda+locality→locality, etc.). From 250+ spellings → ~30 residual
-        FLAGGED (genuine two-town composites like `Baabda Hazmieh`/`Raboueh-Kornet Chehwan`, districts `Metn`/`Keserwan`,
-        ambiguous `Zouk`/`Rawda`/`Sin saade`, junk `City rama`/`WESTWOOD`/`Egerggre`) for joint review.
+        Wadi Chahrour suffixes→Wadi Chahrour, Baabda+locality→locality, etc.). The final ~30 residuals were RESOLVED
+        with the user (2026-06-24): composites→the clear town (`Baabda Hazmieh`→Hazmieh, `Raboueh-Kornet Chehwan`→
+        Cornet Chehwan, `Zouk`→Zouk Mikael), `Sin saade`→Ain Saade, `Rawda`→New Rawda, `Hal dib`→Jal el Dib,
+        `Ecole notre dame de Jamhour`→Jamhour, etc.; **5 new towns added** to the list (Ain Ekrin, Zekrit, Bkennaya,
+        Dahr el Sawan, Haret el Set) + their variants mapped; junk (`City rama`/`WESTWOOD`/`Egerggre`/`Byekut`)→empty;
+        district misspellings `Maten`/`Matn`→`Metn` (Metn/Keserwan kept as free-text regions). **0 non-canonical city
+        values remain.** Curated seed now ~107 towns.
 - FLAGGED for "fix together" (in `project_migration_cleanup_todo.md`): **45 duplicate members** (same name+DOB, BP
       re-import artifacts), **suffix-mangled leaders** (`ZiadCU GEBEILYCU` 1936 DOB etc. = dup leaders w/ unit-code on
       the name), **10 DOB errors** (years 2105/2160/3012, toddlers), **181 orphans** (no assignment — show only under
