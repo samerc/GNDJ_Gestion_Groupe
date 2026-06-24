@@ -263,6 +263,7 @@ using (var scope = app.Services.CreateScope())
     var passwordHash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 10);
     await SeedData.SeedAsync(context, email, passwordHash);
     await SeedData.SeedMissingPermissionsAsync(context);
+    await SeedData.SeedChefDeGroupeProfileAsync(context);
     await SeedData.SeedMissingSettingsAsync(context);
     await SeedData.SeedDefaultEmailTemplatesAsync(context);
     await SeedData.SeedDemandeEmailTemplatesAsync(context);

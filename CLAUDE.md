@@ -690,7 +690,33 @@ site. Clean/modern design, navy/teal tokens, French. Anonymous public API + a co
       base-role resolution now prefers the explicit default, falling back to lowest-rank (non-archived) if none set.
       Verified: backfill = 1/type, set-default round-trip (exactly one default), build clean, ordering top=senior.
 
+### BP 2026 reconciliation + V2 reimport + Chef de Groupe tier (2026-06-23)
+Off-repo data work + a new permission tier. Full detail in memory `project_bp2026_reconciliation.md`.
+- [x] **BP 2026 rosters** (2025-26 unit lists the CU never finished as a passage) drive current placement.
+      `tools/Migration` gained `--members-only` (reuse DB org; only re-import members+deps) + a step-11b BP
+      override (match by WEBDEV `#`/IDMEMBRES, else name; create newcomers; close leavers). Fuzzy team
+      resolver (stem/Levenshtein) maps roster team variants (Léopard→Léopards, Cerval→Serval, 1→Equipe 1)
+      → DB teams; creates genuinely-new sizaines. active-with-team 432→711.
+- [x] **V2 reimport** from up-to-date exports in `reinscriptions/v2/` (Export_*.xlsx, max IDMEMBRES 2810 —
+      covers 208 members the old export capped at 2416 missed; + corrected school/DOB/contacts). Tool: `--data=`
+      arg + canonical→Export_* name map; robust ParseDate (yyyymmdd + dd/MM/yyyy); **CLA→CLAN** unit-type alias
+      (source code vs in-app-renamed DB code). DOB now on 2366 members; created-from-roster 224→26.
+- [x] **Badges + progressions were silently failing** (both 0 in DB) — FIXED: badge INSERT omitted
+      `display_order` (NOT NULL); progression INSERT omitted `unit_id` (NOT NULL) + treated stage/date as
+      optional. Now 124 badges, 1997 progressions.
+- [x] **Chef de Groupe tier (roles-based perms, NOT WEBDEV Type_Utilisateur):** `SecurityProfile.IsGroupLevel`
+      (migration `AddSecurityProfileGroupLevel`); seeded **`chef-de-groupe`** profile (all perms EXCEPT
+      AssociationsManage [also gates settings/SMTP/email/API keys], Units Create/Edit/Delete, UnitTypesManage,
+      RolesManage, AdminHardDelete) via `SeedData.SeedChefDeGroupeProfileAsync` (idempotent, wired in Program.cs);
+      `LoginCommandHandler`+`RefreshTokenCommandHandler` grant ALL units to a group-level-profile holder. Migration
+      tool maps GRP functions (CG/ACG/AUG/SG/TG/INT/ANIM) → chef-de-groupe; created the missing **G (Maîtrise de
+      Groupe)** unit so 15 group leaders land. Super-admin = manual flag (admin@gndj.local + 2 accounts), not a role.
+      Verified: a CG sees all units, manages members + assigns CU/CG, but cannot reach settings/units/roles.
+
 ### Remaining / Next
+- [ ] **Profiles → Members tab** (super-admin + read-only CG view via new `roles.view` perm); **Maîtrises** page
+      (hierarchical by unit, sorted by rank, remove-from-maîtrise + transfer-unit); `FunctionalRole.IsMaitrise`
+      flag (backfill from T_Fonc col5); **accent-insensitive member search** (Postgres unaccent).
 - [ ] **Members LIST honest counts (Option 1 remainder):** admin members list should default to active with an
       "Anciens/Alumni" toggle (backend `alumni` param already exists). Dashboard counts now fixed (see above).
 - [ ] Migration data cleanup (deferred): name spacing ("Marie- Lynn"), GET /photo unit-scope

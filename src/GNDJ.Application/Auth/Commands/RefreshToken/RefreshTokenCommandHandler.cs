@@ -42,7 +42,12 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
                 .Distinct()
                 .ToListAsync(cancellationToken);
 
-        var unitIds = user.IsSuperAdmin
+        // A group-level profile (Chef de Groupe) sees ALL units, like a super admin.
+        var isGroupLevel = !user.IsSuperAdmin && await _context.MemberAssignments
+            .Where(a => a.MemberId == user.MemberId && a.EndDate == null)
+            .AnyAsync(a => a.FunctionalRole.SecurityProfile.IsGroupLevel, cancellationToken);
+
+        var unitIds = (user.IsSuperAdmin || isGroupLevel)
             ? await _context.Units.Select(u => u.Id).ToListAsync(cancellationToken)
             : await _context.MemberAssignments
                 .Where(a => a.MemberId == user.MemberId && a.EndDate == null)

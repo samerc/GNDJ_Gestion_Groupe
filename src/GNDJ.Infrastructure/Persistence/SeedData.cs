@@ -6,6 +6,16 @@ namespace GNDJ.Infrastructure.Persistence;
 
 public static class SeedData
 {
+    // Chef de Groupe = group-wide management WITHOUT system administration. Everything except:
+    // associations management (which also gates settings/SMTP/email/API keys), unit create/edit/delete,
+    // unit-type management, roles & permissions management, and hard delete.
+    public static readonly string[] ChefDeGroupePermissions = Permissions.All.Where(p =>
+        p != Permissions.AssociationsManage &&
+        p != Permissions.UnitsCreate && p != Permissions.UnitsEdit && p != Permissions.UnitsDelete &&
+        p != Permissions.UnitTypesManage &&
+        p != Permissions.RolesManage &&
+        p != Permissions.AdminHardDelete).ToArray();
+
     public static async Task SeedAsync(GndjDbContext context, string superAdminEmail, string superAdminPasswordHash)
     {
         if (await context.SecurityProfiles.IgnoreQueryFilters().AnyAsync())
@@ -38,8 +48,11 @@ public static class SeedData
         ]);
         var readOnlyProfile = CreateProfile("Lecture seule", "read-only", "Accès en lecture uniquement (membre)",
             Permissions.All.Where(p => p.EndsWith(".view")).ToArray());
+        var chefDeGroupeProfile = CreateProfile("Chef de Groupe", "chef-de-groupe",
+            "Gestion du groupe entier (toutes les unités), sans administration système", ChefDeGroupePermissions);
+        chefDeGroupeProfile.IsGroupLevel = true;
 
-        context.SecurityProfiles.AddRange(superAdminProfile, assocAdminProfile, chefUniteProfile, chefEquipeProfile, readOnlyProfile);
+        context.SecurityProfiles.AddRange(superAdminProfile, assocAdminProfile, chefUniteProfile, chefEquipeProfile, readOnlyProfile, chefDeGroupeProfile);
 
         // Functional Roles (global — no unit type restriction)
         var roleSuperAdmin = new FunctionalRole
@@ -144,6 +157,28 @@ public static class SeedData
             }
         }
 
+        await context.SaveChangesAsync();
+    }
+
+    // Creates the Chef de Groupe profile on an existing DB if missing, and keeps its permissions +
+    // group-level flag in sync. Idempotent.
+    public static async Task SeedChefDeGroupeProfileAsync(GndjDbContext context)
+    {
+        var profile = await context.SecurityProfiles.Include(p => p.Permissions)
+            .FirstOrDefaultAsync(p => p.Code == "chef-de-groupe");
+        if (profile is null)
+        {
+            profile = CreateProfile("Chef de Groupe", "chef-de-groupe",
+                "Gestion du groupe entier (toutes les unités), sans administration système", ChefDeGroupePermissions);
+            profile.IsGroupLevel = true;
+            context.SecurityProfiles.Add(profile);
+            await context.SaveChangesAsync();
+            return;
+        }
+        if (!profile.IsGroupLevel) profile.IsGroupLevel = true;
+        var existing = profile.Permissions.Select(p => p.Permission).ToHashSet();
+        foreach (var perm in ChefDeGroupePermissions.Where(p => !existing.Contains(p)))
+            context.SecurityProfilePermissions.Add(new SecurityProfilePermission { SecurityProfileId = profile.Id, Permission = perm });
         await context.SaveChangesAsync();
     }
 

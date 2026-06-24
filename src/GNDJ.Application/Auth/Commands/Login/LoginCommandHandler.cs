@@ -82,6 +82,13 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
         var user = await _context.Users.FindAsync([userId], ct);
         if (user is null) return [];
 
+        // A group-level profile (e.g. Chef de Groupe) sees ALL units, like a super admin.
+        var isGroupLevel = await _context.MemberAssignments
+            .Where(a => a.MemberId == user.MemberId && a.EndDate == null)
+            .AnyAsync(a => a.FunctionalRole.SecurityProfile.IsGroupLevel, ct);
+        if (isGroupLevel)
+            return await _context.Units.Select(u => u.Id).ToListAsync(ct);
+
         return await _context.MemberAssignments
             .Where(a => a.MemberId == user.MemberId && a.EndDate == null)
             .Select(a => a.UnitId)
