@@ -32,6 +32,7 @@ import {
   BarChart3,
   Crown,
   MapPin,
+  ListChecks,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePendingDemandeCount } from '@/services/demande-admin-service'
@@ -54,6 +55,7 @@ const adminNavItems = [
   { path: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard, permission: null },
   { path: '/members', label: 'Membres', icon: Users, permission: PERMISSIONS.MEMBERS_VIEW },
   { path: '/units', label: 'Unités', icon: Building2, permission: PERMISSIONS.UNITS_VIEW },
+  { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: null },
 ]
 
 // Unit leader nav — "Mon unité" and "Documents" only visible to CU (units.edit permission)
@@ -64,6 +66,7 @@ const leaderNavItems = [
   { path: '/unit-documents', label: 'Documents', icon: FileText, permission: PERMISSIONS.DOCUMENTS_APPROVE },
   { path: '/passage', label: 'Passage des membres', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_PROPOSE },
   { path: '/photo-session', label: 'Session photo', icon: Camera, permission: PERMISSIONS.MEMBERS_EDIT },
+  { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: null },
 ]
 
 type AdminGroup = {
@@ -90,6 +93,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/maitrises', label: 'Maîtrises', icon: Crown, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/group-access', label: 'Accès maîtrise', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE_GROUP },
       { path: '/admin/cities', label: 'Villes', icon: MapPin, permission: PERMISSIONS.MAITRISE_MANAGE },
+      { path: '/admin/rentree-template', label: 'Modèle de rentrée', icon: ListChecks, permission: PERMISSIONS.RENTREE_MANAGE },
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
       { path: '/admin/demandes', label: "Demandes d'inscription", icon: Inbox, permission: PERMISSIONS.DEMANDE_VIEW },
       { path: '/admin/demande-stats', label: 'Statistiques demandes', icon: BarChart3, permission: PERMISSIONS.DEMANDE_VIEW },

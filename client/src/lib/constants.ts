@@ -50,4 +50,5 @@ export const PERMISSIONS = {
   PASSAGE_MANAGE: 'passage.manage',
   CONTENT_MANAGE: 'content.manage',
   MAITRISE_MANAGE: 'maitrise.manage',
+  RENTREE_MANAGE: 'rentree.manage',
 } as const

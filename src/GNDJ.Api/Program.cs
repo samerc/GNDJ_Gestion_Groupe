@@ -270,6 +270,7 @@ using (var scope = app.Services.CreateScope())
     await SeedData.SeedDemandeEmailTemplatesAsync(context);
     await SeedData.SeedContactEmailTemplateAsync(context);
     await SeedData.SeedFunctionalRoleRanksAsync(context);
+    await SeedData.SeedRentreeTemplateAsync(context);
 }
 
 // Middleware pipeline

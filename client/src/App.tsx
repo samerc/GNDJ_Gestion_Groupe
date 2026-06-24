@@ -6,6 +6,8 @@ import { PERMISSIONS } from '@/lib/constants'
 import MaitrisesPage from '@/pages/maitrises'
 import GroupAccessPage from '@/pages/admin/group-access'
 import CitiesAdminPage from '@/pages/admin/cities'
+import RentreePage from '@/pages/rentree'
+import RentreeTemplatePage from '@/pages/admin/rentree-template'
 import { AppLayout } from '@/components/layout/app-layout'
 import { PublicLayout } from '@/components/public/public-layout'
 import PublicHomePage from '@/pages/public/home'
@@ -98,6 +100,10 @@ export default function App() {
             <Route path="/unit-documents" element={<UnitDocumentsPage />} />
             <Route path="/passage" element={<PassagePage />} />
             <Route path="/photo-session" element={<PhotoSessionPage />} />
+            <Route path="/rentree" element={<RentreePage />} />
+            <Route element={<PermissionRoute permission={PERMISSIONS.RENTREE_MANAGE} />}>
+              <Route path="/admin/rentree-template" element={<RentreeTemplatePage />} />
+            </Route>
             {/* Permission-gated admin pages — super-admins always pass; a Chef de Groupe reaches the
                 ones their profile allows (group management, no system config). */}
             <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>

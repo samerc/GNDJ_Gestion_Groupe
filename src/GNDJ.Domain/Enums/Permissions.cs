@@ -65,6 +65,8 @@ public static class Permissions
 
     public const string MaitriseManage = "maitrise.manage"; // CG: hierarchical maîtrise view + remove/transfer leaders
 
+    public const string RentreeManage = "rentree.manage"; // CG/super-admin: scout-year startup task template + checklist
+
     public const string AuditView = "audit.view";
     public const string AdminHardDelete = "admin.hard_delete";
 
@@ -86,6 +88,7 @@ public static class Permissions
         DemandeView, DemandeManage,
         ContentManage,
         MaitriseManage,
+        RentreeManage,
         AuditView, AdminHardDelete
     ];
 }

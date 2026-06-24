@@ -48,6 +48,8 @@ public interface IApplicationDbContext
     DbSet<UnitIntakeQuota> UnitIntakeQuotas { get; }
     DbSet<NewsPost> NewsPosts { get; }
     DbSet<Page> Pages { get; }
+    DbSet<RentreeTaskTemplate> RentreeTaskTemplates { get; }
+    DbSet<RentreeTask> RentreeTasks { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

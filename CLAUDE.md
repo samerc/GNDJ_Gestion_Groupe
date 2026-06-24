@@ -830,7 +830,36 @@ Interactive fix of the flag-lists + a member-number model change. Live-DB edits 
 - [ ] Migration tool: replicate the card-number split on re-import (populate external from source, always
       generate internal) — currently only the live DB is split.
 
+### Rentrée scoute — scout-year startup checklist (2026-06-25)
+A dependency-aware task list for starting a scout year, generated each year from an editable template.
+- [x] **Entities:** `RentreeTaskTemplate` (master defs) + `RentreeTask` (per-year instance). Assignees &
+      dependencies stored as Postgres `uuid[]` arrays (no join tables). Migration `AddRentreeTasks`.
+- [x] **Template** (super-admin + CG, perm `rentree.manage`): tasks have title/description/phase, an assignee =
+      a **role** (security-profile code, with **fan-out-per-unit** toggle) OR **specific members**, a fuzzy default
+      deadline label, and **dependencies** (depends-on other templates). Editor at `/admin/rentree-template`
+      (add/edit/delete, up/down reorder, member search for the "members" type, dependency checklist). Seeded with a
+      default ~18-task template (Configuration → Passage → Demandes → Dossiers → Organisation → Progression) via
+      `SeedData.SeedRentreeTemplateAsync` (idempotent).
+- [x] **Generate** (CG): `POST /rentree/generate {scoutYear, overwrite}` copies the template → tasks, **fans out
+      per-unit role tasks into one task per active unit**, resolves assignees to concrete members (role→holders of
+      that profile [per-unit = that unit's holders], members→explicit), and wires dependencies (per-unit→per-unit
+      matches the same unit; group↔per-unit links all). Verified: 18 templates → 137 tasks (126 per-unit over 18
+      units + 11 group); real CUs get exactly their 7 fan-out tasks; blocking correct.
+- [x] **Rentrée page** `/rentree` (visible to ALL members; sidebar main nav): year selector, **Toutes / Mes tâches**
+      filter, progress bar, tasks grouped by phase. Each row: round check (manual complete — assignee or CG;
+      **disabled while blocked** by an unfinished prerequisite, shown with a lock + "En attente : …"), assignee,
+      deadline (fuzzy label or fixed date, **red when overdue**). CG can edit a task (title/desc/fuzzy label/fixed
+      due date) + delete. `IsMine` = my member id ∈ assignees.
+- [x] **Overdue login popup:** `RentreeOverduePopup` (mounted in AppLayout) — on login, once per session
+      (sessionStorage), shows my tasks past a **fixed** due date with a link to /rentree. Backed by
+      `GET /rentree/my-overdue`.
+- [x] New permission `rentree.manage` (super-admin + chef-de-groupe via "All except excluded"). Read endpoints are
+      auth-only so the checklist shows for everyone; management gated by `rentree.manage`.
+- NOTE/deferred: member-level per-member tasks (e.g. each parent uploads docs) modelled as CU-owned per-unit tasks
+      for v1; reassigning an instance task's members is via regenerate (edit dialog preserves existing assignees);
+      no auto-completion from module state (manual checkbox, by design).
+
 ### Remaining / Next
-- [ ] Migration data cleanup: city residuals (~30, listed in memory), 181 orphans (kept — most are legit alumni),
-      name spacing, GET /photo unit-scope
+- [ ] Migration data cleanup: 181 orphans (kept — most are legit alumni), name spacing, GET /photo unit-scope;
+      migration tool card-number split for re-import
 - [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies

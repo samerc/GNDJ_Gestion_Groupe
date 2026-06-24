@@ -244,6 +244,54 @@ public static class SeedData
         if (strays.Count > 0) { context.SecurityProfilePermissions.RemoveRange(strays); await context.SaveChangesAsync(); }
     }
 
+    // Default "rentrée scoute" task template (scout-year startup checklist). Idempotent.
+    public static async Task SeedRentreeTemplateAsync(GndjDbContext context)
+    {
+        if (await context.RentreeTaskTemplates.AnyAsync()) return;
+
+        const string CG = "chef-de-groupe", CU = "chef-unite";
+        int order = 0;
+        var tasks = new List<RentreeTaskTemplate>();
+        RentreeTaskTemplate Add(string title, string phase, string role, bool fanOut, string? deadline, params RentreeTaskTemplate[] deps)
+        {
+            var t = new RentreeTaskTemplate
+            {
+                Title = title, Phase = phase, DisplayOrder = order++, AssigneeType = "role", AssigneeRole = role,
+                FanOutPerUnit = fanOut, DefaultDeadlineLabel = deadline,
+                DependsOnTemplateIds = deps.Select(d => d.Id).ToArray()
+            };
+            tasks.Add(t);
+            return t;
+        }
+
+        // ① Configuration
+        var cfgYear = Add("Définir la nouvelle année scoute et les dates", "Configuration", CG, false, "4ᵉ sem. septembre");
+        var cfgUnits = Add("Vérifier les unités, types et équipes (créer les nouvelles sizaines)", "Configuration", CG, false, "4ᵉ sem. septembre");
+        Add("Confirmer les maîtrises (CU/ACU de chaque unité)", "Configuration", CG, false, "4ᵉ sem. septembre");
+        var cfgQuotas = Add("Définir les quotas d'accueil par unité", "Configuration", CG, false, "4ᵉ sem. septembre", cfgUnits);
+        // ② Passage
+        var pasOpen = Add("Ouvrir le passage", "Passage", CG, false, "1ʳᵉ sem. octobre", cfgYear);
+        var pasPropose = Add("Proposer les passages de chaque membre (ou « Pas de changement »)", "Passage", CU, true, "1ʳᵉ sem. octobre", pasOpen);
+        var pasReview = Add("Réviser et approuver les propositions de passage", "Passage", CG, false, "2ᵉ sem. octobre", pasPropose);
+        var pasFinalize = Add("Finaliser les passages (création des nouvelles affectations)", "Passage", CG, false, "2ᵉ sem. octobre", pasReview);
+        // ③ Demandes
+        var demOpen = Add("Ouvrir les inscriptions", "Demandes", CG, false, "septembre", cfgYear, cfgQuotas);
+        var demReview = Add("Réviser les demandes d'inscription (accepter/refuser + unité)", "Demandes", CG, false, "octobre", demOpen);
+        Add("Envoyer les réponses aux demandes (conversion en membres)", "Demandes", CG, false, "octobre", demReview);
+        // ④ Dossiers membres
+        Add("Vérifier et approuver les documents des membres", "Dossiers membres", CU, true, "octobre – novembre", pasFinalize);
+        Add("Suivre et enregistrer les cotisations", "Dossiers membres", CU, true, "octobre – novembre", pasFinalize);
+        var photo = Add("Organiser la séance photo", "Dossiers membres", CU, true, "octobre", pasFinalize);
+        // ⑤ Organisation
+        var orgTeams = Add("Répartir les membres en sizaines / équipes", "Organisation", CU, true, "octobre", pasFinalize);
+        Add("Vérifier le trombinoscope / la liste", "Organisation", CU, true, "octobre", orgTeams);
+        Add("Imprimer les cartes membres", "Organisation", CU, true, "octobre", photo, orgTeams);
+        Add("Confirmer les étapes et badges de l'année", "Progression", CG, false, "octobre");
+
+        context.RentreeTaskTemplates.AddRange(tasks);
+        await context.SaveChangesAsync();
+    }
+
     public static async Task SeedMissingSettingsAsync(GndjDbContext context)
     {
         var existingKeys = await context.Settings.Select(s => s.Key).ToListAsync();

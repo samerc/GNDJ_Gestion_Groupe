@@ -50,6 +50,8 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<UnitIntakeQuota> UnitIntakeQuotas => Set<UnitIntakeQuota>();
     public DbSet<NewsPost> NewsPosts => Set<NewsPost>();
     public DbSet<Page> Pages => Set<Page>();
+    public DbSet<RentreeTaskTemplate> RentreeTaskTemplates => Set<RentreeTaskTemplate>();
+    public DbSet<RentreeTask> RentreeTasks => Set<RentreeTask>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
