@@ -12,7 +12,7 @@ public record RentreeTemplateDto(
     string? DefaultDeadlineLabel, IReadOnlyList<Guid> DependsOnTemplateIds);
 
 public record RentreeTaskDto(
-    Guid Id, string ScoutYear, string Title, string? Description, string Phase, int DisplayOrder,
+    Guid Id, Guid? TemplateId, string ScoutYear, string Title, string? Description, string Phase, int DisplayOrder,
     string AssigneeType, string? AssigneeRole, Guid? UnitId, string? UnitName,
     IReadOnlyList<Guid> AssigneeMemberIds, IReadOnlyList<string> AssigneeNames,
     string? DeadlineLabel, DateOnly? DueDate,
@@ -81,7 +81,7 @@ public class GetRentreeTasksQueryHandler(IApplicationDbContext context, ICurrent
             var blockedBy = t.DependsOnTaskIds.Where(d => !doneIds.Contains(d)).ToList();
             var isMine = myMemberId.HasValue && t.AssigneeMemberIds.Contains(myMemberId.Value);
             return new RentreeTaskDto(
-                t.Id, t.ScoutYear, t.Title, t.Description, t.Phase, t.DisplayOrder,
+                t.Id, t.TemplateId, t.ScoutYear, t.Title, t.Description, t.Phase, t.DisplayOrder,
                 t.AssigneeType, t.AssigneeRole, t.UnitId, t.UnitId.HasValue ? unitNames.GetValueOrDefault(t.UnitId.Value) : null,
                 t.AssigneeMemberIds, t.AssigneeMemberIds.Select(id => memberNames.GetValueOrDefault(id, "?")).ToList(),
                 t.DeadlineLabel, t.DueDate, t.Status, t.CompletedByName, t.CompletedAt,
@@ -114,7 +114,7 @@ public class GetMyOverdueRentreeTasksQueryHandler(IApplicationDbContext context,
             .ToListAsync(ct);
 
         return tasks.Select(t => new RentreeTaskDto(
-            t.Id, t.ScoutYear, t.Title, t.Description, t.Phase, t.DisplayOrder, t.AssigneeType, t.AssigneeRole,
+            t.Id, t.TemplateId, t.ScoutYear, t.Title, t.Description, t.Phase, t.DisplayOrder, t.AssigneeType, t.AssigneeRole,
             t.UnitId, null, t.AssigneeMemberIds, [], t.DeadlineLabel, t.DueDate, t.Status, null, null,
             t.DependsOnTaskIds, false, [], true, true)).ToList();
     }

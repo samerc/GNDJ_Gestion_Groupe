@@ -855,9 +855,16 @@ A dependency-aware task list for starting a scout year, generated each year from
       `GET /rentree/my-overdue`.
 - [x] New permission `rentree.manage` (super-admin + chef-de-groupe via "All except excluded"). Read endpoints are
       auth-only so the checklist shows for everyone; management gated by `rentree.manage`.
+- [x] **Per-unit rollup + filters (2026-06-25):** the "Toutes" view fanned out to 137 rows — fixed. Per-unit task
+      instances (same `templateId`, now on the DTO) **roll up into ONE collapsible row** with an `X/N unités`
+      progress bar; expanding shows the per-unit sub-rows (each with its own check/edit/delete). Group tasks stay
+      single. A **unit filter** ("Toutes les unités ▾") drills into one unit (flat list). **Phases are collapsible**
+      with a per-phase `X/Y ✓` badge. "Mes tâches" stays flat (a CU only sees their own unit anyway). Result: CG sees
+      ~18 rows instead of 137. Frontend-only (rentree.tsx).
 - NOTE/deferred: member-level per-member tasks (e.g. each parent uploads docs) modelled as CU-owned per-unit tasks
       for v1; reassigning an instance task's members is via regenerate (edit dialog preserves existing assignees);
-      no auto-completion from module state (manual checkbox, by design).
+      no auto-completion from module state (manual checkbox, by design); per-task bulk deadline (set one date across
+      all units of a rollup) not yet built — edit is per-unit-instance.
 
 ### Remaining / Next
 - [ ] Migration data cleanup: 181 orphans (kept — most are legit alumni), name spacing, GET /photo unit-scope;

@@ -3,6 +3,7 @@ import apiClient from '@/lib/api-client'
 
 export interface RentreeTask {
   id: string
+  templateId: string | null
   scoutYear: string
   title: string
   description: string | null
