@@ -757,10 +757,16 @@ A batch of CG-facing features + fixes built on the Chef de Groupe tier.
       with multiple destinations (e.g. Noyau → Meute/Ronde/Compagnie) renders as a stacked tree, not a single line.
 - [x] **Login/public wording:** "Espace membres et chefs" → "Espace membres" (login + public site + portal links).
 
+### Members LIST honest counts — DONE (2026-06-24)
+- [x] **Option 1 remainder closed.** Admin members list now defaults to ACTIVE members with an **Actifs / Anciens**
+      segmented toggle (passes `alumni`). Backend `GetMembersQuery`: the active (non-alumni) branch now also
+      requires ANY active assignment when no unit filter is set — so a super-admin's default no longer counts
+      alumni (previously showed all ~2.4k incl. former members). Alumni branch gained a group-level no-unit case:
+      **super-admin OR Chef de Groupe** (holds `maitrise.manage` → `isGroupLevel`) sees ALL former members
+      (ended somewhere, no active assignment anywhere); a unit leader still sees only their units' alumni. Alumni
+      rows expose identity only (contact withheld), unchanged. Unit filter "Sans unité (anciens)" relabelled
+      "Sans unité". Builds clean (dotnet + tsc).
+
 ### Remaining / Next
-- [ ] **Members LIST honest counts (Option 1 remainder):** admin members list should default to active with an
-      "Anciens/Alumni" toggle (backend `alumni` param already exists). Dashboard counts now fixed (see above).
-- [ ] **Members LIST honest counts (Option 1 remainder):** admin members list should default to active with an
-      "Anciens/Alumni" toggle (backend `alumni` param already exists). Dashboard counts now fixed (see above).
 - [ ] Migration data cleanup (deferred): name spacing ("Marie- Lynn"), GET /photo unit-scope
 - [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies

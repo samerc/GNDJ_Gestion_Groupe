@@ -298,6 +298,7 @@ export default function MembersPage() {
   const debouncedSearch = useDebounce(search)
   const [page, setPage] = useState(1)
   const [unitFilter, setUnitFilter] = useState<string>('all')
+  const [showAlumni, setShowAlumni] = useState(false)
   const [sortBy, setSortBy] = useState('lastname')
   const [sortDir, setSortDir] = useState('asc')
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(routeMemberId ?? null)
@@ -334,6 +335,7 @@ export default function MembersPage() {
   const { data, isLoading } = useMembers({
     search: debouncedSearch || undefined,
     unitId, noUnit,
+    alumni: showAlumni || undefined,
     sortBy, sortDir,
     page, pageSize: 50,
   })
@@ -390,9 +392,26 @@ export default function MembersPage() {
             <SelectContent>
               <SelectItem value="all">Toutes les unités</SelectItem>
               {units?.items.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-              <SelectItem value="none">Sans unité (anciens)</SelectItem>
+              <SelectItem value="none">Sans unité</SelectItem>
             </SelectContent>
           </Select>
+          {/* Actifs / Anciens toggle */}
+          <div className="flex h-8 shrink-0 items-center rounded-md border p-0.5 text-xs">
+            <button
+              type="button"
+              className={cn('h-full rounded px-2.5 font-medium transition-colors', !showAlumni ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}
+              onClick={() => { setShowAlumni(false); setPage(1) }}
+            >
+              Actifs
+            </button>
+            <button
+              type="button"
+              className={cn('h-full rounded px-2.5 font-medium transition-colors', showAlumni ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}
+              onClick={() => { setShowAlumni(true); setPage(1) }}
+            >
+              Anciens
+            </button>
+          </div>
           {data && <span className="flex items-center text-xs text-muted-foreground">{data.totalCount} membre{data.totalCount > 1 ? 's' : ''}</span>}
         </div>
       </div>

@@ -28,6 +28,10 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
         var query = _context.Members.AsQueryable();
         var authorizedUnitIds = _currentUser.AuthorizedUnitIds;
         var isAlumni = request.Alumni == true;
+        // Group-level managers (super-admin or a Chef de Groupe — holds maitrise.manage) see the whole
+        // group, so they get the unscoped alumni view (all former members), not just their units.
+        var isGroupLevel = _currentUser.IsSuperAdmin
+            || _currentUser.Permissions.Contains(Domain.Enums.Permissions.MaitriseManage);
 
         if (isAlumni)
         {
@@ -44,7 +48,15 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
                         m.Assignments.Any(a => a.UnitId == uid && a.EndDate != null) &&
                         !m.Assignments.Any(a => a.UnitId == uid && a.EndDate == null));
             }
-            else if (!_currentUser.IsSuperAdmin)
+            else if (isGroupLevel)
+            {
+                // Super-admin / Chef de Groupe, no unit filter: ALL former members — had an assignment
+                // that ended and have no active assignment anywhere (left the group / not currently placed).
+                query = query.Where(m =>
+                    m.Assignments.Any(a => a.EndDate != null) &&
+                    !m.Assignments.Any(a => a.EndDate == null));
+            }
+            else
             {
                 query = query.Where(m =>
                     m.Assignments.Any(a => a.EndDate != null && authorizedUnitIds.Contains(a.UnitId)) &&
@@ -63,6 +75,10 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
                 query = query.Where(m => !m.Assignments.Any(a => a.EndDate == null));
             else if (request.UnitId.HasValue)
                 query = query.Where(m => m.Assignments.Any(a => a.UnitId == request.UnitId.Value && a.EndDate == null));
+            else
+                // No unit filter: still restrict to members with ANY active assignment so the default
+                // (super-admin) list shows current members only — alumni are reached via the Alumni view.
+                query = query.Where(m => m.Assignments.Any(a => a.EndDate == null));
         }
 
         if (request.TeamId.HasValue)

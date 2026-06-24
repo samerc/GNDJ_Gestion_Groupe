@@ -19,7 +19,14 @@
       "Bash(git push:*)",
       "Bash(export PATH=\"/c/Program Files/dotnet:$HOME/.dotnet/tools:$PATH\")",
       "Bash(dotnet run:*)",
-      "Read(//c/Windows/Temp/**)"
+      "Read(//c/Windows/Temp/**)",
+      "Read(//c/Users/Administrator/Desktop/BP 2026/**)",
+      "PowerShell(git add -A)",
+      "PowerShell(git reset -q .claude/settings.json)",
+      "PowerShell(git push 2>&1)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Administrator\\Desktop\\BP 2026"
     ]
   }
 }
