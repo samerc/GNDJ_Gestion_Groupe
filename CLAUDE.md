@@ -817,9 +817,12 @@ Interactive fix of the flag-lists + a member-number model change. Live-DB edits 
       Update commands + DTOs + `ApplicantConfig` untouched-for-applicants; UI shows both (hero + Identité), create
       dialog has an optional Numéro de carte field, and the panel has an inline editor for the SDL number.
       my-profile carries external through on save (was at risk of nulling it). 2 members still have null matricule.
-- [ ] **NEXT — duplicate merges (45 pairs):** reviewed with recommended keeper (active > most assignments);
-      merge moves the loser's assignments to the keeper + `external_card_number = coalesce(keeper, loser)` so the
-      SDL number survives, soft-deletes the loser + disables its login. Awaiting user go-ahead per pair.
+- [x] **Duplicate merges DONE — 48 pairs.** Keeper = active assignment > most assignments. Per pair: carried the
+      SDL number onto the keeper (`external_card_number = coalesce`), moved the loser's assignments + contacts +
+      documents/cotisations/progressions/custom-values + non-duplicate guardian links to the keeper, disabled the
+      loser's login, soft-deleted the loser. Then **deduped** the now-redundant contacts (94 phones / 17 emails /
+      23 addresses collapsed, keeping primary/oldest). 0 same-name+DOB duplicates among active members remain.
+      Backups: `_bak_merge_*`, `_bak_dedupe_*`.
 - [ ] Migration tool: replicate the card-number split on re-import (populate external from source, always
       generate internal) — currently only the live DB is split.
 
