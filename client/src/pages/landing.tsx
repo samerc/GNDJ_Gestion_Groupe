@@ -31,8 +31,8 @@ export default function LandingPage() {
                 <Users className="h-6 w-6" />
               </div>
               <div className="space-y-1">
-                <h2 className="text-lg font-semibold">Espace membres et chefs</h2>
-                <p className="text-sm text-muted-foreground">Connexion pour les membres, chefs d'unité et l'administration.</p>
+                <h2 className="text-lg font-semibold">Espace membres</h2>
+                <p className="text-sm text-muted-foreground">Connexion pour les membres du groupe.</p>
               </div>
               <span className="mt-auto inline-flex items-center text-sm font-medium text-primary">
                 Se connecter <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />

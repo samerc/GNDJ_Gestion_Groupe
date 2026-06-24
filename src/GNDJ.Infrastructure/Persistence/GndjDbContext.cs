@@ -55,6 +55,10 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(GndjDbContext).Assembly);
 
+        // Map the Postgres unaccent() function for accent-insensitive search (extension created by migration).
+        modelBuilder.HasDbFunction(typeof(GNDJ.Application.Common.DbFns).GetMethod(nameof(GNDJ.Application.Common.DbFns.Unaccent))!)
+            .HasName("unaccent");
+
         // Global soft-delete query filters for all BaseEntity types
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {

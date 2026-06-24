@@ -30,6 +30,7 @@ import {
   Inbox,
   Newspaper,
   BarChart3,
+  Crown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePendingDemandeCount } from '@/services/demande-admin-service'
@@ -73,18 +74,20 @@ const adminGroups: AdminGroup[] = [
   {
     label: 'Données scouts',
     items: [
-      { path: '/admin/associations', label: 'Associations', icon: Landmark, permission: PERMISSIONS.ASSOCIATIONS_VIEW },
-      { path: '/admin/unit-types', label: "Types d'unité", icon: FolderTree, permission: PERMISSIONS.UNIT_TYPES_VIEW },
-      { path: '/admin/roles', label: 'Fonctions', icon: Shield, permission: PERMISSIONS.ROLES_VIEW },
+      { path: '/admin/associations', label: 'Associations', icon: Landmark, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+      { path: '/admin/unit-types', label: "Types d'unité", icon: FolderTree, permission: PERMISSIONS.UNIT_TYPES_MANAGE },
+      { path: '/admin/roles', label: 'Fonctions', icon: Shield, permission: PERMISSIONS.ROLES_MANAGE },
       { path: '/admin/progression', label: 'Progression scoute', icon: Star, permission: PERMISSIONS.PROGRESSION_MANAGE },
       { path: '/admin/document-types', label: 'Types de documents', icon: FileText, permission: PERMISSIONS.DOCUMENT_TYPES_VIEW },
-      { path: '/admin/progression-path', label: 'Parcours scouts', icon: Route, permission: PERMISSIONS.UNIT_TYPES_VIEW },
+      { path: '/admin/progression-path', label: 'Parcours scouts', icon: Route, permission: PERMISSIONS.UNIT_TYPES_MANAGE },
       { path: '/admin/custom-fields', label: 'Champs personnalisés', icon: ListPlus, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
     ],
   },
   {
     label: 'Gestion',
     items: [
+      { path: '/maitrises', label: 'Maîtrises', icon: Crown, permission: PERMISSIONS.MAITRISE_MANAGE },
+      { path: '/admin/group-access', label: 'Accès maîtrise', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE_GROUP },
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
       { path: '/admin/demandes', label: "Demandes d'inscription", icon: Inbox, permission: PERMISSIONS.DEMANDE_VIEW },
       { path: '/admin/demande-stats', label: 'Statistiques demandes', icon: BarChart3, permission: PERMISSIONS.DEMANDE_VIEW },
@@ -104,7 +107,7 @@ const adminGroups: AdminGroup[] = [
   {
     label: 'Administration',
     items: [
-      { path: '/admin/security-profiles', label: 'Profils de sécurité', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE },
+      { path: '/admin/security-profiles', label: 'Profils de sécurité', icon: ShieldCheck, permission: PERMISSIONS.ROLES_VIEW },
       { path: '/admin/email-settings', label: 'Email / SMTP', icon: Mail, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/api-keys', label: 'Clés API', icon: Key, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/audit-logs', label: 'Journal d\'audit', icon: ScrollText, permission: PERMISSIONS.AUDIT_VIEW },
@@ -119,9 +122,12 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   const { data: pendingDemandes } = usePendingDemandeCount(hasPermission(PERMISSIONS.DEMANDE_VIEW))
 
   // Super admin sees admin nav, others see leader nav
-  const navItems = user?.isSuperAdmin ? adminNavItems : leaderNavItems
+  // Managers = super-admins and Chefs de Groupe (group-level). They get the admin nav + groups,
+  // each filtered to the permissions they actually hold, so a CG sees only the pages they can reach.
+  const isManager = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.MAITRISE_MANAGE)
+  const navItems = isManager ? adminNavItems : leaderNavItems
   const visibleNav = navItems.filter((item) => !item.permission || hasPermission(item.permission))
-  const visibleAdminGroups = user?.isSuperAdmin
+  const visibleAdminGroups = isManager
     ? adminGroups
         .map((group) => ({
           ...group,

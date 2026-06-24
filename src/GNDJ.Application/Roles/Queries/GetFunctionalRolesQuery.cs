@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Roles.Queries;
 
-public record FunctionalRoleDto(Guid Id, string Name, string Code, string? Description, Guid SecurityProfileId, string SecurityProfileName, Guid? UnitTypeId, string? UnitTypeName, string? UnitTypeColor, int Rank, int AssignmentCount, bool UsedByMembers, bool IsArchived, bool IsDefaultForNewMembers);
+public record FunctionalRoleDto(Guid Id, string Name, string Code, string? Description, Guid SecurityProfileId, string SecurityProfileName, Guid? UnitTypeId, string? UnitTypeName, string? UnitTypeColor, int Rank, int AssignmentCount, bool UsedByMembers, bool IsArchived, bool IsDefaultForNewMembers, bool IsMaitrise);
 
 public record GetFunctionalRolesQuery(Guid? UnitTypeId = null) : IRequest<IReadOnlyList<FunctionalRoleDto>>;
 
@@ -34,9 +34,33 @@ public class GetFunctionalRolesQueryHandler : IRequestHandler<GetFunctionalRoles
                 r.Assignments.Count(a => !a.IsDeleted && a.EndDate == null),
                 r.Assignments.Any(a => !a.IsDeleted),
                 r.IsArchived,
-                r.IsDefaultForNewMembers
+                r.IsDefaultForNewMembers,
+                r.IsMaitrise
             ))
             .ToListAsync(cancellationToken);
+    }
+}
+
+// Members who hold a given functional role (for the "this function is used by…" delete popup).
+public record FunctionMemberDto(Guid MemberId, string FirstName, string LastName, string? UnitCode, bool Active);
+
+public record GetFunctionalRoleMembersQuery(Guid RoleId) : IRequest<IReadOnlyList<FunctionMemberDto>>;
+
+public class GetFunctionalRoleMembersQueryHandler(IApplicationDbContext context) : IRequestHandler<GetFunctionalRoleMembersQuery, IReadOnlyList<FunctionMemberDto>>
+{
+    public async ValueTask<IReadOnlyList<FunctionMemberDto>> Handle(GetFunctionalRoleMembersQuery request, CancellationToken ct)
+    {
+        var rows = await context.MemberAssignments
+            .Where(a => a.FunctionalRoleId == request.RoleId)
+            .Select(a => new { a.MemberId, a.Member.FirstName, a.Member.LastName, UnitCode = a.Unit.Code, Active = a.EndDate == null })
+            .ToListAsync(ct);
+
+        return rows
+            .GroupBy(r => r.MemberId)
+            .Select(g => g.OrderByDescending(x => x.Active).First()) // one row per member, prefer active
+            .Select(g => new FunctionMemberDto(g.MemberId, g.FirstName, g.LastName, g.UnitCode, g.Active))
+            .OrderByDescending(m => m.Active).ThenBy(m => m.LastName).ThenBy(m => m.FirstName)
+            .ToList();
     }
 }
 
@@ -77,6 +101,36 @@ public class GetSecurityProfileByIdQueryHandler(IApplicationDbContext context) :
                 sp.FunctionalRoles.Count(r => !r.IsDeleted)
             ))
             .FirstOrDefaultAsync(ct);
+    }
+}
+
+// Members who hold a given security profile (via their active assignment's function). For the
+// super-admin profile, also list the flagged super-admin accounts (those have the flag, not a role).
+public record ProfileMemberDto(Guid MemberId, string FirstName, string LastName, string? UnitCode, string? FunctionName, int Rank, bool IsAccountFlag);
+
+public record GetSecurityProfileMembersQuery(Guid ProfileId) : IRequest<IReadOnlyList<ProfileMemberDto>>;
+
+public class GetSecurityProfileMembersQueryHandler(IApplicationDbContext context) : IRequestHandler<GetSecurityProfileMembersQuery, IReadOnlyList<ProfileMemberDto>>
+{
+    public async ValueTask<IReadOnlyList<ProfileMemberDto>> Handle(GetSecurityProfileMembersQuery request, CancellationToken ct)
+    {
+        var code = await context.SecurityProfiles.Where(sp => sp.Id == request.ProfileId).Select(sp => sp.Code).FirstOrDefaultAsync(ct);
+
+        var members = await context.MemberAssignments
+            .Where(a => a.EndDate == null && a.FunctionalRole.SecurityProfileId == request.ProfileId)
+            .Select(a => new ProfileMemberDto(a.MemberId, a.Member.FirstName, a.Member.LastName,
+                a.Unit.Code, a.FunctionalRole.Name, a.FunctionalRole.Rank, false))
+            .ToListAsync(ct);
+
+        if (code == "super-admin")
+        {
+            var admins = await context.Users.Where(u => u.IsSuperAdmin)
+                .Select(u => new ProfileMemberDto(u.MemberId, u.Member.FirstName, u.Member.LastName, null, "Super administrateur (compte)", 0, true))
+                .ToListAsync(ct);
+            members = members.Concat(admins).DistinctBy(m => new { m.MemberId, m.UnitCode, m.FunctionName }).ToList();
+        }
+
+        return members.OrderBy(m => m.LastName).ThenBy(m => m.FirstName).ToList();
     }
 }
 

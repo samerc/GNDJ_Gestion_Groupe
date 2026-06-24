@@ -4,6 +4,7 @@ import { parseApiError } from '@/lib/error-utils'
 import {
   useFunctionalRoles, useCreateFunctionalRole, useUpdateFunctionalRole, useDeleteFunctionalRole,
   useUnarchiveFunctionalRole, useReorderFunctionalRoles, useSetDefaultFunctionalRole, useSecurityProfiles,
+  useFunctionalRoleMembers,
   type FunctionalRoleDto, type FunctionalRoleFormData,
 } from '@/services/role-service'
 import { useUnitTypes } from '@/services/unit-type-service'
@@ -13,6 +14,7 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
@@ -54,6 +56,7 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<FunctionalRoleDto | null>(null)
   const [deleting, setDeleting] = useState<FunctionalRoleDto | null>(null)
+  const { data: deletingMembers } = useFunctionalRoleMembers(deleting?.id, !!deleting?.usedByMembers)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkConfirm, setBulkConfirm] = useState(false)
   const [bulkBusy, setBulkBusy] = useState(false)
@@ -104,14 +107,14 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', code: '', description: '', securityProfileId: '', unitTypeId: unitTypeId ?? '' })
+    setForm({ name: '', code: '', description: '', securityProfileId: '', unitTypeId: unitTypeId ?? '', isMaitrise: false })
     setError(''); clearAll()
     setFormOpen(true)
   }
 
   const openEdit = (item: FunctionalRoleDto) => {
     setEditing(item)
-    setForm({ name: item.name, code: item.code, description: item.description ?? '', securityProfileId: item.securityProfileId, unitTypeId: item.unitTypeId ?? '' })
+    setForm({ name: item.name, code: item.code, description: item.description ?? '', securityProfileId: item.securityProfileId, unitTypeId: item.unitTypeId ?? '', isMaitrise: item.isMaitrise })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -313,6 +316,13 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <p className="text-sm font-medium">Fonction de maîtrise</p>
+                <p className="text-xs text-muted-foreground">Apparaît sur la page Maîtrises (chef/assistant/aumônier…)</p>
+              </div>
+              <Switch checked={!!form.isMaitrise} onCheckedChange={(v) => setForm(f => ({ ...f, isMaitrise: v }))} />
+            </div>
             {showUnitTypeField && (
               <div className="space-y-2">
                 <RequiredLabel>Type d'unité</RequiredLabel>
@@ -345,7 +355,24 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
         variant="destructive"
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
-      />
+      >
+        {deleting?.usedByMembers && deletingMembers && deletingMembers.length > 0 && (
+          <div className="rounded-md border">
+            <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
+              {deletingMembers.length} membre{deletingMembers.length > 1 ? 's' : ''} concerné{deletingMembers.length > 1 ? 's' : ''}
+            </div>
+            <div className="max-h-48 divide-y overflow-y-auto">
+              {deletingMembers.map(m => (
+                <div key={m.memberId} className="flex items-center gap-2 px-3 py-1.5 text-sm">
+                  <span className="flex-1 truncate">{m.lastName} {m.firstName}</span>
+                  {m.unitCode && <Badge variant="outline" className="shrink-0 text-[10px]">{m.unitCode}</Badge>}
+                  {!m.active && <span className="shrink-0 text-[10px] text-muted-foreground">(terminé)</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={bulkConfirm}

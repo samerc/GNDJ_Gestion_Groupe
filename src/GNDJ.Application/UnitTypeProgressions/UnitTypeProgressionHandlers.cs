@@ -10,21 +10,22 @@ namespace GNDJ.Application.UnitTypeProgressions;
 
 // DTOs
 public record UnitTypeProgressionDto(
-    Guid Id, Guid AssociationId, Guid FromUnitTypeId, string FromUnitTypeName,
+    Guid Id, Guid? AssociationId, Guid FromUnitTypeId, string FromUnitTypeName,
     Guid ToUnitTypeId, string ToUnitTypeName,
     string? Gender, string PathType, int DisplayOrder, string? Notes,
     int? FromAgeMin, int? FromAgeMax, int? ToAgeMin, int? ToAgeMax
 );
 
-// Get all progressions for an association (for diagram)
-public record GetUnitTypeProgressionsQuery(Guid AssociationId) : IRequest<IReadOnlyList<UnitTypeProgressionDto>>;
+// Get all progressions (group-wide; the optional association filter is kept for compatibility but the
+// paths are now global and distinguished by gender, not association).
+public record GetUnitTypeProgressionsQuery(Guid? AssociationId = null) : IRequest<IReadOnlyList<UnitTypeProgressionDto>>;
 
 public class GetUnitTypeProgressionsQueryHandler(IApplicationDbContext context) : IRequestHandler<GetUnitTypeProgressionsQuery, IReadOnlyList<UnitTypeProgressionDto>>
 {
     public async ValueTask<IReadOnlyList<UnitTypeProgressionDto>> Handle(GetUnitTypeProgressionsQuery request, CancellationToken ct)
     {
         return await context.UnitTypeProgressions
-            .Where(p => p.AssociationId == request.AssociationId)
+            .Where(p => request.AssociationId == null || p.AssociationId == request.AssociationId)
             .Include(p => p.FromUnitType)
             .Include(p => p.ToUnitType)
             .OrderBy(p => p.DisplayOrder)
@@ -60,11 +61,10 @@ public class GetPassageSuggestionQueryHandler(IApplicationDbContext context) : I
             return Result<PassageSuggestionDto>.Success(new PassageSuggestionDto(null, null, "Aucune affectation active."));
 
         var currentUnitTypeId = assignment.Unit.UnitTypeId;
-        var associationId = assignment.Unit.AssociationId;
 
-        // Find matching progression paths
+        // Find matching progression paths (group-wide, matched by unit type + gender, not association).
         var paths = await context.UnitTypeProgressions
-            .Where(p => p.AssociationId == associationId && p.FromUnitTypeId == currentUnitTypeId && p.PathType == "member")
+            .Where(p => p.FromUnitTypeId == currentUnitTypeId && p.PathType == "member")
             .Include(p => p.ToUnitType)
             .OrderBy(p => p.DisplayOrder)
             .ToListAsync(ct);
@@ -85,7 +85,7 @@ public class GetPassageSuggestionQueryHandler(IApplicationDbContext context) : I
 
 // Create
 public record CreateUnitTypeProgressionCommand(
-    Guid AssociationId, Guid FromUnitTypeId, Guid ToUnitTypeId,
+    Guid? AssociationId, Guid FromUnitTypeId, Guid ToUnitTypeId,
     string? Gender, string PathType, int DisplayOrder, string? Notes
 ) : IRequest<Result<Guid>>;
 
@@ -93,7 +93,6 @@ public class CreateUnitTypeProgressionCommandValidator : AbstractValidator<Creat
 {
     public CreateUnitTypeProgressionCommandValidator()
     {
-        RuleFor(x => x.AssociationId).NotEmpty().WithMessage("L'association est requise.");
         RuleFor(x => x.FromUnitTypeId).NotEmpty().WithMessage("Le type d'unité source est requis.");
         RuleFor(x => x.ToUnitTypeId).NotEmpty().WithMessage("Le type d'unité destination est requis.");
         RuleFor(x => x.PathType).NotEmpty().Must(t => t is "member" or "leader").WithMessage("Type de parcours invalide.");

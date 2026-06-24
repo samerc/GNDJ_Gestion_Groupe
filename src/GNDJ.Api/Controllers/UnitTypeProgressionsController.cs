@@ -12,11 +12,10 @@ public class UnitTypeProgressionsController : BaseApiController
 {
     [HttpGet]
     [HasPermission(Permissions.UnitTypesView)]
-    public async Task<IActionResult> GetByAssociation([FromQuery] Guid associationId)
+    public async Task<IActionResult> Get([FromQuery] Guid? associationId)
     {
-        if (associationId == Guid.Empty)
-            return BadRequest(new { error = "L'association est requise." });
-        var result = await Mediator.Send(new GetUnitTypeProgressionsQuery(associationId));
+        // Paths are group-wide now; associationId is optional (kept for compatibility).
+        var result = await Mediator.Send(new GetUnitTypeProgressionsQuery(associationId == Guid.Empty ? null : associationId));
         return Ok(result);
     }
 

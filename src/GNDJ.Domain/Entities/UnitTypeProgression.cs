@@ -4,7 +4,7 @@ namespace GNDJ.Domain.Entities;
 
 public class UnitTypeProgression : BaseEntity
 {
-    public Guid AssociationId { get; set; }
+    public Guid? AssociationId { get; set; } // null = group-wide (paths are distinguished by gender, not association)
     public Guid FromUnitTypeId { get; set; }
     public Guid ToUnitTypeId { get; set; }
     public string? Gender { get; set; } // null = both, "Masculin", "Féminin"
@@ -13,7 +13,7 @@ public class UnitTypeProgression : BaseEntity
     public string? Notes { get; set; }
 
     // Navigation
-    public Association Association { get; set; } = null!;
+    public Association? Association { get; set; }
     public UnitType FromUnitType { get; set; } = null!;
     public UnitType ToUnitType { get; set; } = null!;
 }

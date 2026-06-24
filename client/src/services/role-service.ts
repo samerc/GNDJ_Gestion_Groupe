@@ -16,6 +16,7 @@ export interface FunctionalRoleDto {
   usedByMembers: boolean
   isArchived: boolean
   isDefaultForNewMembers: boolean
+  isMaitrise: boolean
 }
 
 export interface FunctionalRoleFormData {
@@ -24,6 +25,66 @@ export interface FunctionalRoleFormData {
   description?: string | null
   securityProfileId: string
   unitTypeId?: string | null
+  isMaitrise?: boolean
+}
+
+export interface ProfileMemberDto {
+  memberId: string
+  firstName: string
+  lastName: string
+  unitCode: string | null
+  functionName: string | null
+  rank: number
+  isAccountFlag: boolean
+}
+
+export interface FunctionMemberDto {
+  memberId: string
+  firstName: string
+  lastName: string
+  unitCode: string | null
+  active: boolean
+}
+
+export function useFunctionalRoleMembers(roleId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['functionalRoleMembers', roleId],
+    queryFn: () => apiClient.get<FunctionMemberDto[]>(`/functional-roles/${roleId}/members`).then(r => r.data),
+    enabled: enabled && !!roleId,
+  })
+}
+
+export interface GroupAreaDto { key: string; label: string; level: string }
+export interface GroupFunctionAccessDto {
+  functionalRoleId: string
+  name: string
+  code: string
+  editable: boolean
+  areas: GroupAreaDto[]
+}
+
+export function useGroupFunctionAccess() {
+  return useQuery({
+    queryKey: ['groupFunctionAccess'],
+    queryFn: () => apiClient.get<GroupFunctionAccessDto[]>('/functional-roles/group-access').then(r => r.data),
+  })
+}
+
+export function useSetGroupFunctionAccess() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ functionalRoleId, areaLevels }: { functionalRoleId: string; areaLevels: Record<string, string> }) =>
+      apiClient.post(`/functional-roles/${functionalRoleId}/group-access`, { functionalRoleId, areaLevels }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['groupFunctionAccess'] }),
+  })
+}
+
+export function useSecurityProfileMembers(profileId: string | undefined) {
+  return useQuery({
+    queryKey: ['securityProfileMembers', profileId],
+    queryFn: () => apiClient.get<ProfileMemberDto[]>(`/security-profiles/${profileId}/members`).then(r => r.data),
+    enabled: !!profileId,
+  })
 }
 
 export interface SecurityProfileDto {

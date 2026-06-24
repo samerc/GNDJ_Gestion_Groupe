@@ -167,7 +167,8 @@ export default function DashboardPage() {
 
   if (!user) return <LoadingSpinner />
 
-  if (user.isSuperAdmin) return <AdminDashboard />
+  // Super-admins and Chefs de Groupe (group-level managers) see the group-wide dashboard.
+  if (user.isSuperAdmin || hasPermission(PERMISSIONS.MAITRISE_MANAGE)) return <AdminDashboard />
 
   const isUnitLeader = hasPermission(PERMISSIONS.UNITS_EDIT)
 

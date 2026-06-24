@@ -29,6 +29,7 @@ public static class Permissions
 
     public const string RolesView = "roles.view";
     public const string RolesManage = "roles.manage";
+    public const string RolesManageGroup = "roles.manage_group"; // CG: tune group-staff (ACG…) access per area
 
     public const string AssociationsView = "associations.view";
     public const string AssociationsManage = "associations.manage";
@@ -62,6 +63,8 @@ public static class Permissions
 
     public const string ContentManage = "content.manage"; // public-site CMS: news + pages
 
+    public const string MaitriseManage = "maitrise.manage"; // CG: hierarchical maîtrise view + remove/transfer leaders
+
     public const string AuditView = "audit.view";
     public const string AdminHardDelete = "admin.hard_delete";
 
@@ -72,7 +75,7 @@ public static class Permissions
         TeamsView, TeamsCreate, TeamsEdit, TeamsDelete,
         AssignmentsView, AssignmentsCreate, AssignmentsEdit, AssignmentsDelete,
         RelationshipsView, RelationshipsCreate, RelationshipsEdit, RelationshipsDelete,
-        RolesView, RolesManage,
+        RolesView, RolesManage, RolesManageGroup,
         AssociationsView, AssociationsManage,
         UnitTypesView, UnitTypesManage,
         DocumentTypesView, DocumentTypesManage,
@@ -82,6 +85,7 @@ public static class Permissions
         PassageView, PassagePropose, PassageManage,
         DemandeView, DemandeManage,
         ContentManage,
+        MaitriseManage,
         AuditView, AdminHardDelete
     ];
 }

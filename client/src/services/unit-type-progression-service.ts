@@ -3,7 +3,7 @@ import apiClient from '@/lib/api-client'
 
 export interface UnitTypeProgressionDto {
   id: string
-  associationId: string
+  associationId: string | null
   fromUnitTypeId: string
   fromUnitTypeName: string
   toUnitTypeId: string
@@ -24,11 +24,11 @@ export interface PassageSuggestionDto {
   reason: string | null
 }
 
-export function useUnitTypeProgressions(associationId: string) {
+// Group-wide paths (no association split). Pass an associationId only for legacy/filtered views.
+export function useUnitTypeProgressions(associationId?: string) {
   return useQuery({
-    queryKey: ['unit-type-progressions', associationId],
-    queryFn: () => apiClient.get<UnitTypeProgressionDto[]>('/unit-type-progressions', { params: { associationId } }).then(r => r.data),
-    enabled: !!associationId,
+    queryKey: ['unit-type-progressions', associationId ?? 'all'],
+    queryFn: () => apiClient.get<UnitTypeProgressionDto[]>('/unit-type-progressions', { params: associationId ? { associationId } : {} }).then(r => r.data),
   })
 }
 
@@ -43,7 +43,7 @@ export function usePassageSuggestion(memberId: string) {
 export function useCreateUnitTypeProgression() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { associationId: string; fromUnitTypeId: string; toUnitTypeId: string; gender: string | null; pathType: string; displayOrder: number; notes: string | null }) =>
+    mutationFn: (data: { associationId?: string | null; fromUnitTypeId: string; toUnitTypeId: string; gender: string | null; pathType: string; displayOrder: number; notes: string | null }) =>
       apiClient.post('/unit-type-progressions', data).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['unit-type-progressions'] }),
   })

@@ -11,13 +11,18 @@ interface MemberPhotoProps {
   name: string
   photoPath: string | null
   size?: number
+  /** Optional explicit height (px); defaults to `size` (square). Use for 3:4 portraits. */
+  height?: number
+  /** Tailwind rounding class; defaults to a circle. */
+  rounded?: string
   editable?: boolean
   className?: string
   /** Increment to force refresh after external upload */
   refreshKey?: number
 }
 
-export function MemberPhoto({ memberId, name, photoPath, size = 40, editable = false, className, refreshKey = 0 }: MemberPhotoProps) {
+export function MemberPhoto({ memberId, name, photoPath, size = 40, height, rounded = 'rounded-full', editable = false, className, refreshKey = 0 }: MemberPhotoProps) {
+  const h = height ?? size
   const [src, setSrc] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -75,16 +80,17 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, editable = f
     <img
       src={src}
       alt={name}
-      className={cn('rounded-full object-cover', className)}
-      style={{ width: size, height: size }}
+      className={cn(rounded, 'object-cover', className)}
+      style={{ width: size, height: h }}
     />
   ) : (
     <div
       className={cn(
-        'flex items-center justify-center rounded-full bg-primary/10 text-primary font-semibold',
+        'flex items-center justify-center bg-primary/10 text-primary font-semibold',
+        rounded,
         className,
       )}
-      style={{ width: size, height: size, fontSize: size * 0.35 }}
+      style={{ width: size, height: h, fontSize: size * 0.35 }}
     >
       {initials}
     </div>
@@ -93,7 +99,7 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, editable = f
   if (!editable) return photoElement
 
   return (
-    <div className="relative inline-block" style={{ width: size, height: size }}>
+    <div className="relative inline-block" style={{ width: size, height: h }}>
       {photoElement}
       <button
         type="button"

@@ -1,5 +1,5 @@
 import { parseApiError } from '@/lib/error-utils'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, type ReactNode, type ComponentType } from 'react'
 import { useParams } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
@@ -26,7 +26,7 @@ import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS } from '@/lib/options'
 import { cn } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet } from 'lucide-react'
 import { toast } from 'sonner'
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
@@ -38,12 +38,44 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   )
 }
 
+function computeAge(dob: string | null | undefined): number | null {
+  if (!dob) return null
+  const b = new Date(dob)
+  if (isNaN(b.getTime())) return null
+  const now = new Date()
+  let age = now.getFullYear() - b.getFullYear()
+  const m = now.getMonth() - b.getMonth()
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--
+  return age >= 0 && age < 130 ? age : null
+}
+
+function Section({ icon: Icon, title, children }: { icon: ComponentType<{ className?: string }>; title: string; children: ReactNode }) {
+  return (
+    <div>
+      <h4 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <Icon className="h-4 w-4 text-primary/70" />{title}
+      </h4>
+      {children}
+    </div>
+  )
+}
+
+function Chip({ icon: Icon, children }: { icon?: ComponentType<{ className?: string }>; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs font-medium shadow-2xs">
+      {Icon && <Icon className="h-3.5 w-3.5 text-primary/70" />}{children}
+    </span>
+  )
+}
+
 // ─── Member detail panel ─────────────────
 function MemberDetailPanel({ memberId }: { memberId: string }) {
   const { data: member, isLoading } = useMember(memberId)
 
   if (isLoading) return <div className="flex items-center justify-center h-full"><LoadingSpinner /></div>
   if (!member) return null
+
+  const age = computeAge(member.dateOfBirth)
 
   return (
     <div className="flex flex-col h-full">
@@ -86,7 +118,6 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
       <Tabs defaultValue="info" className="flex-1 flex flex-col min-h-0">
         <TabsList className="mx-4 mt-3 shrink-0 justify-start overflow-x-auto flex-nowrap">
           <TabsTrigger value="info">Informations</TabsTrigger>
-          <TabsTrigger value="contact">Contact</TabsTrigger>
           <TabsTrigger value="famille">Famille</TabsTrigger>
           <TabsTrigger value="unites">Unités / Fonctions</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
@@ -97,48 +128,80 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
         </TabsList>
 
         <div className="flex-1 overflow-auto p-4">
-          <TabsContent value="info" className="mt-0">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <Field label="Prénom" value={member.firstName} />
-              <Field label="Nom" value={member.lastName} />
-              <Field label="Date de naissance" value={member.dateOfBirth ? new Date(member.dateOfBirth).toLocaleDateString('fr-FR') : null} />
-              <Field label="Sexe" value={member.gender} />
-              <Field label="N° Carte" value={member.cardNumber} />
-              <Field label="Nationalité" value={member.nationality} />
-              <Field label="Groupe sanguin" value={member.bloodType} />
-              <Field label="École" value={member.school} />
-              <Field label="Classe" value={member.classe} />
-              <Field label="Section" value={member.section} />
+          <TabsContent value="info" className="mt-0 space-y-6">
+            {/* Hero: portrait + quick facts */}
+            <div className="flex flex-col gap-4 rounded-xl border bg-gradient-to-br from-muted/50 to-transparent p-4 sm:flex-row sm:items-center">
+              <MemberPhoto
+                memberId={memberId}
+                name={`${member.firstName} ${member.lastName}`}
+                photoPath={member.photoPath}
+                size={132}
+                height={176}
+                rounded="rounded-xl"
+                editable
+                className="shadow-sm ring-1 ring-border"
+              />
+              <div className="flex-1 space-y-3">
+                <div>
+                  <h3 className="text-xl font-bold leading-tight">{member.firstName} {member.lastName}</h3>
+                  {member.cardNumber && <p className="text-sm text-muted-foreground">N° {member.cardNumber}</p>}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {age != null && <Chip icon={Cake}>{age} ans</Chip>}
+                  {member.gender && <Chip icon={User}>{member.gender}</Chip>}
+                  {member.nationality && <Chip icon={Flag}>{member.nationality}</Chip>}
+                  {member.bloodType && <Chip icon={Droplet}>{member.bloodType}</Chip>}
+                </div>
+              </div>
             </div>
-          </TabsContent>
 
-          <TabsContent value="contact" className="mt-0">
-            <div className="grid gap-6 xl:grid-cols-3">
-              <div>
-                <h4 className="font-medium flex items-center gap-1.5 mb-2 text-sm"><Phone className="h-3.5 w-3.5" />Téléphones</h4>
-                {member.phones.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
-                  <div className="space-y-1.5">{member.phones.map(p => (
-                    <p key={p.id} className="text-sm">{p.countryCode} {p.number} <span className="text-muted-foreground">({p.type})</span></p>
-                  ))}</div>
-                )}
+            <Section icon={User} title="Identité">
+              <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+                <Field label="Prénom" value={member.firstName} />
+                <Field label="Nom" value={member.lastName} />
+                <Field label="Date de naissance" value={member.dateOfBirth ? `${new Date(member.dateOfBirth).toLocaleDateString('fr-FR')}${age != null ? ` (${age} ans)` : ''}` : null} />
+                <Field label="Sexe" value={member.gender} />
+                <Field label="Nationalité" value={member.nationality} />
+                <Field label="N° Carte" value={member.cardNumber} />
               </div>
-              <div>
-                <h4 className="font-medium flex items-center gap-1.5 mb-2 text-sm"><Mail className="h-3.5 w-3.5" />Courriels</h4>
-                {member.emails.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
-                  <div className="space-y-1.5">{member.emails.map(e => (
-                    <p key={e.id} className="text-sm">{e.address} <span className="text-muted-foreground">({e.type})</span></p>
-                  ))}</div>
-                )}
+            </Section>
+
+            <Section icon={GraduationCap} title="Scolarité">
+              <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+                <Field label="École" value={member.school} />
+                <Field label="Classe" value={member.classe} />
+                <Field label="Section" value={member.section} />
               </div>
-              <div>
-                <h4 className="font-medium flex items-center gap-1.5 mb-2 text-sm"><MapPin className="h-3.5 w-3.5" />Adresses</h4>
-                {member.addresses.length === 0 ? <p className="text-sm text-muted-foreground">Aucune</p> : (
-                  <div className="space-y-1.5">{member.addresses.map(a => (
-                    <p key={a.id} className="text-sm">{a.city}, {a.country} <span className="text-muted-foreground">({a.type})</span></p>
-                  ))}</div>
-                )}
+            </Section>
+
+            <Section icon={Contact} title="Coordonnées">
+              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                <div>
+                  <h5 className="mb-2 flex items-center gap-1.5 text-sm font-medium"><Phone className="h-3.5 w-3.5 text-muted-foreground" />Téléphones</h5>
+                  {member.phones.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
+                    <div className="space-y-1.5">{member.phones.map(p => (
+                      <p key={p.id} className="text-sm">{p.countryCode} {p.number} <span className="text-muted-foreground">({p.type})</span></p>
+                    ))}</div>
+                  )}
+                </div>
+                <div>
+                  <h5 className="mb-2 flex items-center gap-1.5 text-sm font-medium"><Mail className="h-3.5 w-3.5 text-muted-foreground" />Courriels</h5>
+                  {member.emails.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
+                    <div className="space-y-1.5">{member.emails.map(e => (
+                      <p key={e.id} className="text-sm break-all">{e.address} <span className="text-muted-foreground">({e.type})</span></p>
+                    ))}</div>
+                  )}
+                </div>
+                <div>
+                  <h5 className="mb-2 flex items-center gap-1.5 text-sm font-medium"><MapPin className="h-3.5 w-3.5 text-muted-foreground" />Adresses</h5>
+                  {member.addresses.length === 0 ? <p className="text-sm text-muted-foreground">Aucune</p> : (
+                    <div className="space-y-1.5">{member.addresses.map(a => (
+                      <p key={a.id} className="text-sm">{a.city}, {a.country} <span className="text-muted-foreground">({a.type})</span></p>
+                    ))}</div>
+                  )}
+                </div>
               </div>
-            </div>
+            </Section>
           </TabsContent>
 
           <TabsContent value="famille" className="mt-0">

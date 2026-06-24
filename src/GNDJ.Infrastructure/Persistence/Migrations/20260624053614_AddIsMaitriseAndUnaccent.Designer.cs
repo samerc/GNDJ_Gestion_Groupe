@@ -3,6 +3,7 @@ using System;
 using GNDJ.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GNDJ.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GndjDbContext))]
-    partial class GndjDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260624053614_AddIsMaitriseAndUnaccent")]
+    partial class AddIsMaitriseAndUnaccent
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3391,7 +3394,7 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<Guid?>("AssociationId")
+                    b.Property<Guid>("AssociationId")
                         .HasColumnType("uuid")
                         .HasColumnName("association_id");
 
@@ -4092,7 +4095,8 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                     b.HasOne("GNDJ.Domain.Entities.Association", "Association")
                         .WithMany()
                         .HasForeignKey("AssociationId")
-                        .OnDelete(DeleteBehavior.SetNull)
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
                         .HasConstraintName("fk_unit_type_progressions_associations_association_id");
 
                     b.HasOne("GNDJ.Domain.Entities.UnitType", "FromUnitType")

@@ -182,6 +182,49 @@ public static class SeedData
         await context.SaveChangesAsync();
     }
 
+    // Assistant baseline = group-wide management WITHOUT the CG-only powers (maitrise.manage = managing
+    // the maîtrise, roles.manage_group = setting staff access). The CG tunes each per area from there.
+    public static readonly string[] AssistantDeGroupePermissions = ChefDeGroupePermissions
+        .Where(p => p != Permissions.MaitriseManage && p != Permissions.RolesManageGroup).ToArray();
+
+    // Ensures the assistant-de-groupe baseline exists, moves the non-CG group functions off chef-de-groupe
+    // onto it (so only the CG keeps the CG-only pages), and strips CG-only powers from any forked group
+    // profile. Idempotent — safe to run on every startup.
+    public static async Task SeedAssistantDeGroupeProfileAsync(GndjDbContext context)
+    {
+        var assistant = await context.SecurityProfiles.Include(p => p.Permissions)
+            .FirstOrDefaultAsync(p => p.Code == "assistant-de-groupe");
+        if (assistant is null)
+        {
+            assistant = CreateProfile("Assistant(e) de Groupe", "assistant-de-groupe",
+                "Gestion du groupe (sans gérer la maîtrise ni les accès)", AssistantDeGroupePermissions);
+            assistant.IsGroupLevel = true;
+            context.SecurityProfiles.Add(assistant);
+            await context.SaveChangesAsync();
+        }
+        else if (!assistant.IsGroupLevel) { assistant.IsGroupLevel = true; await context.SaveChangesAsync(); }
+
+        // Move non-CG group functions still sharing chef-de-groupe onto the assistant baseline.
+        var cdg = await context.SecurityProfiles.FirstOrDefaultAsync(p => p.Code == "chef-de-groupe");
+        if (cdg is not null)
+        {
+            var toMove = await context.FunctionalRoles
+                .Where(r => !r.IsDeleted && r.SecurityProfileId == cdg.Id && r.Code != "CG"
+                            && r.UnitType != null && r.UnitType.Code == "GRP")
+                .ToListAsync();
+            foreach (var r in toMove) r.SecurityProfileId = assistant.Id;
+            if (toMove.Count > 0) await context.SaveChangesAsync();
+        }
+
+        // Strip CG-only powers from every group-level profile except chef-de-groupe (e.g. forked ones).
+        var cgOnly = new[] { Permissions.MaitriseManage, Permissions.RolesManageGroup };
+        var strays = await context.SecurityProfilePermissions
+            .Where(spp => cgOnly.Contains(spp.Permission)
+                && spp.SecurityProfile.IsGroupLevel && spp.SecurityProfile.Code != "chef-de-groupe")
+            .ToListAsync();
+        if (strays.Count > 0) { context.SecurityProfilePermissions.RemoveRange(strays); await context.SaveChangesAsync(); }
+    }
+
     public static async Task SeedMissingSettingsAsync(GndjDbContext context)
     {
         var existingKeys = await context.Settings.Select(s => s.Key).ToListAsync();

@@ -70,10 +70,12 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
+            // Accent-insensitive: unaccent() strips diacritics so "rhea" matches "Rhéa". Both sides are
+            // unaccent()'d inside the expression tree so EF translates them to SQL (never run in-process).
             var search = request.Search.ToLower();
             query = query.Where(m =>
-                m.FirstName.ToLower().Contains(search) ||
-                m.LastName.ToLower().Contains(search) ||
+                Common.DbFns.Unaccent(m.FirstName.ToLower()).Contains(Common.DbFns.Unaccent(search)) ||
+                Common.DbFns.Unaccent(m.LastName.ToLower()).Contains(Common.DbFns.Unaccent(search)) ||
                 (m.CardNumber != null && m.CardNumber.ToLower().Contains(search)));
         }
 

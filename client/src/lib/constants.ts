@@ -25,6 +25,7 @@ export const PERMISSIONS = {
   RELATIONSHIPS_DELETE: 'relationships.delete',
   ROLES_VIEW: 'roles.view',
   ROLES_MANAGE: 'roles.manage',
+  ROLES_MANAGE_GROUP: 'roles.manage_group',
   ASSOCIATIONS_VIEW: 'associations.view',
   ASSOCIATIONS_MANAGE: 'associations.manage',
   UNIT_TYPES_VIEW: 'unit_types.view',
@@ -48,4 +49,5 @@ export const PERMISSIONS = {
   PASSAGE_PROPOSE: 'passage.propose',
   PASSAGE_MANAGE: 'passage.manage',
   CONTENT_MANAGE: 'content.manage',
+  MAITRISE_MANAGE: 'maitrise.manage',
 } as const

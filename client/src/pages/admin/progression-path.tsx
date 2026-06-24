@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useUnitTypeProgressions, useCreateUnitTypeProgression, useUpdateUnitTypeProgression, useDeleteUnitTypeProgression, type UnitTypeProgressionDto } from '@/services/unit-type-progression-service'
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
@@ -16,7 +16,6 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Plus, Trash2, Pencil, ArrowRight, Users, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 
-interface AssociationDto { id: string; name: string }
 interface UnitTypeDto { id: string; name: string; code: string; ageMin: number | null; ageMax: number | null }
 
 const GENDER_OPTIONS = [
@@ -37,31 +36,27 @@ function ageLabel(min: number | null, max: number | null) {
   return ''
 }
 
-// Build a linear chain from edges for a given path
-function buildChain(edges: UnitTypeProgressionDto[], unitTypes: UnitTypeDto[]): { id: string; name: string; ageMin: number | null; ageMax: number | null }[] {
-  if (edges.length === 0) return []
+interface NodeInfo { name: string; ageMin: number | null; ageMax: number | null }
 
-  // Find start nodes (fromUnitTypeId not in any toUnitTypeId)
-  const toIds = new Set(edges.map(e => e.toUnitTypeId))
-  const fromIds = new Set(edges.map(e => e.fromUnitTypeId))
-  const starts = [...fromIds].filter(id => !toIds.has(id))
-  const startId = starts[0] ?? edges[0].fromUnitTypeId
-
-  // Walk the chain
-  const chain: string[] = [startId]
-  const edgeMap = new Map(edges.map(e => [e.fromUnitTypeId, e.toUnitTypeId]))
-  let current = startId
-  const visited = new Set<string>()
-  while (edgeMap.has(current) && !visited.has(current)) {
-    visited.add(current)
-    current = edgeMap.get(current)!
-    chain.push(current)
+// Build a branching graph from edges: a node may lead to several destinations (e.g. Noyau → Meute,
+// Ronde, Compagnie). Returns the roots, the adjacency map, and per-node info.
+function buildGraph(edges: UnitTypeProgressionDto[], unitTypes: UnitTypeDto[]) {
+  const childrenMap: Record<string, string[]> = {}
+  const toIds = new Set<string>()
+  const fromIds = new Set<string>()
+  for (const e of edges) {
+    (childrenMap[e.fromUnitTypeId] ??= []).push(e.toUnitTypeId)
+    toIds.add(e.toUnitTypeId)
+    fromIds.add(e.fromUnitTypeId)
   }
-
-  return chain.map(id => {
+  let roots = [...fromIds].filter(id => !toIds.has(id))
+  if (roots.length === 0 && edges.length > 0) roots = [edges[0].fromUnitTypeId] // fully cyclic fallback
+  const nodeInfo: Record<string, NodeInfo> = {}
+  for (const id of new Set<string>([...fromIds, ...toIds])) {
     const ut = unitTypes.find(u => u.id === id)
-    return { id, name: ut?.name ?? '?', ageMin: ut?.ageMin ?? null, ageMax: ut?.ageMax ?? null }
-  })
+    nodeInfo[id] = { name: ut?.name ?? '?', ageMin: ut?.ageMin ?? null, ageMax: ut?.ageMax ?? null }
+  }
+  return { roots, childrenMap, nodeInfo }
 }
 
 interface PathRow {
@@ -70,25 +65,45 @@ interface PathRow {
   bgColor: string
   borderColor: string
   icon: 'member' | 'leader'
-  chain: { id: string; name: string; ageMin: number | null; ageMax: number | null }[]
+  roots: string[]
+  childrenMap: Record<string, string[]>
+  nodeInfo: Record<string, NodeInfo>
+}
+
+// Recursive branch renderer: a node, then (if any) an arrow to its destination(s); multiple
+// destinations stack vertically so all of a node's parcours show on one diagram.
+function Branch({ id, row, visited }: { id: string; row: PathRow; visited: Set<string> }) {
+  const node = row.nodeInfo[id]
+  if (!node) return null
+  const kids = (row.childrenMap[id] ?? []).filter(k => !visited.has(k))
+  const next = new Set(visited).add(id)
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`rounded-lg border-2 ${row.borderColor} bg-white px-4 py-2.5 text-center min-w-[110px] shrink-0`}>
+        <p className="font-semibold text-sm">{node.name}</p>
+        {ageLabel(node.ageMin, node.ageMax) && (
+          <p className="text-xs text-muted-foreground mt-0.5">{ageLabel(node.ageMin, node.ageMax)}</p>
+        )}
+      </div>
+      {kids.length > 0 && <ArrowRight className={`h-5 w-5 ${row.color} shrink-0`} />}
+      {kids.length === 1 && <Branch id={kids[0]} row={row} visited={next} />}
+      {kids.length > 1 && (
+        <div className="flex flex-col gap-2">
+          {kids.map(k => <Branch key={k} id={k} row={row} visited={next} />)}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function ProgressionPathPage() {
-  const { data: associations } = useQuery({
-    queryKey: ['associations', 'list'],
-    queryFn: () => apiClient.get<PaginatedResult<AssociationDto>>('/associations', { params: { pageSize: 100 } }).then(r => r.data.items),
-  })
   const { data: unitTypes } = useQuery({
     queryKey: ['unit-types', 'list'],
     queryFn: () => apiClient.get<PaginatedResult<UnitTypeDto>>('/unit-types', { params: { pageSize: 100 } }).then(r => r.data.items),
   })
 
-  // The association whose parcours are shown (and the target for new links).
-  const [selectedAssocId, setSelectedAssocId] = useState('')
-  useEffect(() => {
-    if (!selectedAssocId && associations?.length) setSelectedAssocId(associations[0].id)
-  }, [associations, selectedAssocId])
-  const { data: progressions, isLoading } = useUnitTypeProgressions(selectedAssocId)
+  // Group-wide paths (SDL + GDL merged) — distinguished by gender, not association.
+  const { data: progressions, isLoading } = useUnitTypeProgressions()
 
   const createMutation = useCreateUnitTypeProgression()
   const updateMutation = useUpdateUnitTypeProgression()
@@ -128,8 +143,8 @@ export default function ProgressionPathPage() {
     for (const key of sortedKeys) {
       const edges = groups.get(key)!
       const [pathType, gender] = key.split('|')
-      const chain = buildChain(edges, unitTypes)
-      if (chain.length === 0) continue
+      const graph = buildGraph(edges, unitTypes)
+      if (graph.roots.length === 0) continue
 
       const isLeader = pathType === 'leader'
       const genderLabel = gender === 'Masculin' ? 'Garçons' : gender === 'Féminin' ? 'Filles' : 'Tous'
@@ -141,7 +156,7 @@ export default function ProgressionPathPage() {
       const bgColor = gender === 'Masculin' ? 'bg-blue-50' : gender === 'Féminin' ? 'bg-pink-50' : 'bg-gray-50'
       const borderColor = gender === 'Masculin' ? 'border-blue-300' : gender === 'Féminin' ? 'border-pink-300' : 'border-gray-300'
 
-      rows.push({ label, color, bgColor, borderColor, icon: isLeader ? 'leader' : 'member', chain })
+      rows.push({ label, color, bgColor, borderColor, icon: isLeader ? 'leader' : 'member', roots: graph.roots, childrenMap: graph.childrenMap, nodeInfo: graph.nodeInfo })
     }
 
     return rows
@@ -179,7 +194,7 @@ export default function ProgressionPathPage() {
         await updateMutation.mutateAsync({ id: editing.id, ...payload })
         toast.success('Parcours modifié')
       } else {
-        await createMutation.mutateAsync({ associationId: selectedAssocId, ...payload })
+        await createMutation.mutateAsync({ associationId: null, ...payload })
         toast.success('Parcours créé')
       }
       setFormOpen(false)
@@ -194,23 +209,13 @@ export default function ProgressionPathPage() {
     catch (err) { setError(parseApiError(err)); setDeleting(null) }
   }
 
-  if (!associations || !unitTypes) return <LoadingSpinner variant="page" />
+  if (!unitTypes) return <LoadingSpinner variant="page" />
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Parcours de progression</h1>
-        <div className="flex items-center gap-2">
-          {associations.length > 1 && (
-            <Select value={selectedAssocId} onValueChange={setSelectedAssocId}>
-              <SelectTrigger className="w-52"><SelectValue placeholder="Association..." /></SelectTrigger>
-              <SelectContent>
-                {associations.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          )}
-          <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Ajouter un lien</Button>
-        </div>
+        <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Ajouter un lien</Button>
       </div>
 
       {/* Visual diagram */}
@@ -235,19 +240,9 @@ export default function ProgressionPathPage() {
                       {row.icon === 'leader' ? <Shield className={`h-4 w-4 ${row.color}`} /> : <Users className={`h-4 w-4 ${row.color}`} />}
                       <span className={`text-sm font-semibold ${row.color}`}>{row.label}</span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {row.chain.map((node, ni) => (
-                        <div key={node.id} className="flex items-center gap-2">
-                          <div className={`rounded-lg border-2 ${row.borderColor} bg-white px-4 py-2.5 text-center min-w-[110px]`}>
-                            <p className="font-semibold text-sm">{node.name}</p>
-                            {ageLabel(node.ageMin, node.ageMax) && (
-                              <p className="text-xs text-muted-foreground mt-0.5">{ageLabel(node.ageMin, node.ageMax)}</p>
-                            )}
-                          </div>
-                          {ni < row.chain.length - 1 && (
-                            <ArrowRight className={`h-5 w-5 ${row.color} shrink-0`} />
-                          )}
-                        </div>
+                    <div className="flex flex-col gap-2 overflow-x-auto">
+                      {row.roots.map(rootId => (
+                        <Branch key={rootId} id={rootId} row={row} visited={new Set()} />
                       ))}
                     </div>
                   </div>
@@ -323,12 +318,6 @@ export default function ProgressionPathPage() {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-
-            {!editing && associations.length > 1 && (
-              <p className="text-sm text-muted-foreground">
-                Association : <strong>{associations.find(a => a.id === selectedAssocId)?.name ?? '—'}</strong>
-              </p>
-            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

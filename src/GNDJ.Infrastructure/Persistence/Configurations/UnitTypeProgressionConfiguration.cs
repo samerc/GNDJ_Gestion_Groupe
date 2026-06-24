@@ -14,7 +14,7 @@ public class UnitTypeProgressionConfiguration : IEntityTypeConfiguration<UnitTyp
         builder.Property(e => e.PathType).HasMaxLength(20).IsRequired();
         builder.Property(e => e.Notes).HasMaxLength(500);
 
-        builder.HasOne(e => e.Association).WithMany().HasForeignKey(e => e.AssociationId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(e => e.Association).WithMany().HasForeignKey(e => e.AssociationId).OnDelete(DeleteBehavior.SetNull);
         builder.HasOne(e => e.FromUnitType).WithMany().HasForeignKey(e => e.FromUnitTypeId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(e => e.ToUnitType).WithMany().HasForeignKey(e => e.ToUnitTypeId).OnDelete(DeleteBehavior.Restrict);
 

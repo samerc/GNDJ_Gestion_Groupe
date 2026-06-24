@@ -42,7 +42,7 @@ export default function InscriptionLandingPage() {
             </>
           )}
           <p className="text-center text-xs text-muted-foreground">
-            <Link to="/login" className="hover:underline">Espace membres / chefs</Link>
+            <Link to="/login" className="hover:underline">Espace membres</Link>
           </p>
         </CardContent>
       </Card>

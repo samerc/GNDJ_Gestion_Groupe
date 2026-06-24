@@ -167,6 +167,7 @@ int roleCount = 0;
 var leaderProfileId = await ScalarGuid(conn, "SELECT id FROM security_profiles WHERE code = 'chef-unite' AND is_deleted = false LIMIT 1");
 var memberProfileId = await ScalarGuid(conn, "SELECT id FROM security_profiles WHERE code = 'read-only' AND is_deleted = false LIMIT 1");
 var groupProfileId = await ScalarGuid(conn, "SELECT id FROM security_profiles WHERE code = 'chef-de-groupe' AND is_deleted = false LIMIT 1");
+var assistantGroupProfileId = await ScalarGuid(conn, "SELECT id FROM security_profiles WHERE code = 'assistant-de-groupe' AND is_deleted = false LIMIT 1");
 
 if (!reuseOrg) for (int r = 2; r <= wsRoles.LastRowUsed()!.RowNumber(); r++)
 {
@@ -180,10 +181,13 @@ if (!reuseOrg) for (int r = 2; r <= wsRoles.LastRowUsed()!.RowNumber(); r++)
 
     var id = NewId();
     roleIdMap[code] = id;
-    // Group staff (GRP unit type: CG/ACG/AUG/SG/TG/INT/ANIM) → group-wide profile; other maîtrise →
-    // unit leader; everyone else → read-only.
-    var profileId = (utCode == "GRP" && isMaitrise && groupProfileId != Guid.Empty) ? groupProfileId
-                  : isMaitrise ? leaderProfileId : memberProfileId;
+    // Group staff (GRP unit type) → only the head CG gets the full chef-de-groupe profile; the rest
+    // (ACG/AUG/SG/TG/INT/ANIM) get the assistant baseline (no maîtrise/access management). Other
+    // maîtrise → unit leader; everyone else → read-only.
+    var profileId = (utCode == "GRP" && isMaitrise)
+        ? (code == "CG" ? groupProfileId
+           : assistantGroupProfileId != Guid.Empty ? assistantGroupProfileId : groupProfileId)
+        : isMaitrise ? leaderProfileId : memberProfileId;
     Guid? utId = unitTypeIdMap.GetValueOrDefault(utCode);
 
     await Exec(conn, @"INSERT INTO functional_roles (id, name, code, description, security_profile_id, unit_type_id, created_at, updated_at, is_deleted)

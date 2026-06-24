@@ -145,7 +145,7 @@ export function PublicLayout() {
                   className={({ isActive }) => cn('rounded-lg px-3 py-2.5 text-base font-medium', isActive ? 'bg-accent/10 text-primary' : 'text-foreground/80 hover:bg-accent/10')}>{item.label}</NavLink>
               ))}
               <div className="mt-3 flex flex-col gap-2 border-t border-border pt-4">
-                <Link to="/login" onClick={() => setMobileOpen(false)} className="rounded-lg border border-border px-4 py-2.5 text-center text-sm font-medium">Espace membres et chefs</Link>
+                <Link to="/login" onClick={() => setMobileOpen(false)} className="rounded-lg border border-border px-4 py-2.5 text-center text-sm font-medium">Espace membres</Link>
                 {inscriptionsOpen && (
                   <Link to="/inscription" onClick={() => setMobileOpen(false)} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-center text-sm font-semibold text-primary-foreground">
                     Demande d'inscription <ArrowRight className="h-4 w-4" />
@@ -190,7 +190,7 @@ function PublicFooter({ pages, tagline }: { pages: { slug: string; title: string
           <h3 className="text-sm font-semibold">Rejoindre</h3>
           <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
             <li><Link to="/inscription" className="transition-colors hover:text-foreground">Demande d'inscription</Link></li>
-            <li><Link to="/login" className="transition-colors hover:text-foreground">Espace membres et chefs</Link></li>
+            <li><Link to="/login" className="transition-colors hover:text-foreground">Espace membres</Link></li>
             <li><Link to="/contact" className="transition-colors hover:text-foreground">Nous contacter</Link></li>
           </ul>
         </div>

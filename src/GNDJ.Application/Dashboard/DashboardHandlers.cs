@@ -149,7 +149,9 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
 
     public async ValueTask<AdminDashboardDto> Handle(GetAdminDashboardQuery request, CancellationToken cancellationToken)
     {
-        if (!_currentUser.IsSuperAdmin)
+        // Super-admins and group-level managers (Chef de Groupe — identified by maitrise.manage) get the
+        // group-wide overview; everyone else is denied.
+        if (!_currentUser.IsSuperAdmin && !_currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MaitriseManage))
             throw new UnauthorizedAccessException();
 
         var ct = cancellationToken;

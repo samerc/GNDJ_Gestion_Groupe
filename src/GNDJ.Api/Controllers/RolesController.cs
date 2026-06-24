@@ -38,6 +38,14 @@ public class RolesController : BaseApiController
         return NoContent();
     }
 
+    [HttpGet("{id:guid}/members")]
+    [HasPermission(Permissions.RolesView)]
+    public async Task<IActionResult> GetMembers(Guid id)
+    {
+        var result = await Mediator.Send(new GetFunctionalRoleMembersQuery(id));
+        return Ok(result);
+    }
+
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.RolesManage)]
     public async Task<IActionResult> Delete(Guid id)
@@ -73,6 +81,25 @@ public class RolesController : BaseApiController
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return NoContent();
     }
+
+    // Chef de Groupe: per-area access of group staff (ACG, Aumônier…).
+    [HttpGet("group-access")]
+    [HasPermission(Permissions.RolesManageGroup)]
+    public async Task<IActionResult> GetGroupAccess()
+    {
+        var result = await Mediator.Send(new GetGroupFunctionAccessQuery());
+        return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/group-access")]
+    [HasPermission(Permissions.RolesManageGroup)]
+    public async Task<IActionResult> SetGroupAccess(Guid id, [FromBody] SetGroupFunctionAccessCommand command)
+    {
+        if (id != command.FunctionalRoleId) return BadRequest(new { error = "L'identifiant ne correspond pas." });
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
 }
 
 [Authorize]
@@ -93,6 +120,14 @@ public class SecurityProfilesController : BaseApiController
     {
         var result = await Mediator.Send(new GetSecurityProfileByIdQuery(id));
         if (result is null) return NotFound(new { error = "Profil introuvable." });
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}/members")]
+    [HasPermission(Permissions.RolesView)]
+    public async Task<IActionResult> GetMembers(Guid id)
+    {
+        var result = await Mediator.Send(new GetSecurityProfileMembersQuery(id));
         return Ok(result);
     }
 

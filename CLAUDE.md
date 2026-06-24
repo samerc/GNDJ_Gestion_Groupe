@@ -713,10 +713,53 @@ Off-repo data work + a new permission tier. Full detail in memory `project_bp202
       Groupe)** unit so 15 group leaders land. Super-admin = manual flag (admin@gndj.local + 2 accounts), not a role.
       Verified: a CG sees all units, manages members + assigns CU/CG, but cannot reach settings/units/roles.
 
+### CG management tools + Maîtrises + UX pass (2026-06-24)
+A batch of CG-facing features + fixes built on the Chef de Groupe tier.
+- [x] **Accent-insensitive member search:** Postgres `unaccent` extension (migration `AddIsMaitriseAndUnaccent`)
+      mapped as an EF `DbFunction` (`Application/Common/DbFns.Unaccent`, registered in GndjDbContext) — member
+      search unaccent()s both column + term so "rhea" finds "Rhéa". (Gotcha: keep `Unaccent()` INSIDE the LINQ
+      expression — calling it on a C# variable throws the DB-only stub.)
+- [x] **`FunctionalRole.IsMaitrise`** flag (migration above) + create/edit toggle; backfilled = leadership roles
+      (profile chef-unite/chef-de-groupe). Drives who appears on the Maîtrises page.
+- [x] **Profiles → Members tab** (`/admin/security-profiles`): super-admin sees Permissions + Membres tabs;
+      CG sees Membres only (read-only) — gated by `roles.view`. `GET /security-profiles/{id}/members`
+      (super-admin profile lists the flagged accounts since super-admin is a flag, not a role).
+- [x] **Maîtrises page** (`/maitrises`, sidebar "Maîtrises", perm `maitrise.manage`): hierarchical by unit
+      (Maîtrise de Groupe first), members by rank, **collapsible cards (collapsed by default)**, unit pill tinted
+      with the **unit-type colour**. Actions: **Retirer** (ends the function, with warning) + **Transférer** to
+      another unit (CG picks the new function; keep-both or close-old). Backend `MaitriseHandlers` (Get/Remove/Transfer).
+- [x] **Permission-gated admin routes + sidebar** (`PermissionRoute` component): replaced the blanket super-admin
+      `AdminRoute` on CG-reachable pages (demandes, passage-validation, cotisations, progression, document-types,
+      news/pages/site-texts, audit, security-profiles, maîtrises) with per-permission guards; sidebar shows the
+      admin nav/groups to managers (super-admin OR `maitrise.manage`) filtered by permission, so a CG sees exactly
+      what they can reach. Org structure / roles / system settings stay super-admin only (sidebar perms aligned to
+      `*.manage` so CG doesn't see dead links). **CG lands on the group dashboard** (AdminDashboard) — handler guard
+      relaxed to super-admin OR `maitrise.manage`.
+- [x] **Per-function group access** (`/admin/group-access` "Accès maîtrise", perm `roles.manage_group`): CG sets,
+      per group function, per area (Membres/Demandes/Cotisations/Documents/Passages/Progression/Famille/Affectations/
+      Site/Audit) a level **Aucun/Lecture/Complet** (`GroupAccessAreas` map + `SetGroupFunctionAccessCommand`).
+      **Lazy-fork:** a function shares its profile until customised, then forks to its own group-level profile (others
+      untouched). **Capped:** can only grant what the editor holds; `NonDelegatable` (maitrise.manage, roles.manage,
+      roles.manage_group, associations.manage, unit_types/units, hard-delete) is never granted to an assistant.
+- [x] **CG vs assistant split:** only the head **CG** function keeps `chef-de-groupe` (incl. the CG-only powers
+      maitrise.manage + roles.manage_group); all other group functions (ACG/AUG/SG/TG/INT/ANIM) move to a seeded
+      **`assistant-de-groupe`** baseline (`SeedData.SeedAssistantDeGroupeProfileAsync`, idempotent; migration tool
+      step-3 routes non-CG GRP → assistant). So the Maîtrises + Accès pages are truly CG-only (super-admin covers
+      the empty CG seat for now).
+- [x] **Member "Informations" tab redesign** (`members/index.tsx`): hero (3:4 portrait via extended `MemberPhoto`
+      + initials placeholder + chips: âge/genre/nationalité/groupe sanguin) → Identité / Scolarité / **Coordonnées**
+      sections; the standalone **Contact tab merged in** (9→8 tabs). `MemberPhoto` gained `height`/`rounded` props.
+- [x] **Function-delete member popup:** deleting a function used by members lists who holds it
+      (`GET /functional-roles/{id}/members`, shown in the confirm dialog; `ConfirmDialog` gained `children`).
+- [x] **Parcours scouts: merged SDL+GDL** — `UnitTypeProgression.AssociationId` now nullable (migration
+      `MakeProgressionAssociationNullable`, existing rows set NULL); paths are group-wide, distinguished by gender;
+      suggestion matches by gender (works for Noyau/G which have no association). **Branching diagram** — a node
+      with multiple destinations (e.g. Noyau → Meute/Ronde/Compagnie) renders as a stacked tree, not a single line.
+- [x] **Login/public wording:** "Espace membres et chefs" → "Espace membres" (login + public site + portal links).
+
 ### Remaining / Next
-- [ ] **Profiles → Members tab** (super-admin + read-only CG view via new `roles.view` perm); **Maîtrises** page
-      (hierarchical by unit, sorted by rank, remove-from-maîtrise + transfer-unit); `FunctionalRole.IsMaitrise`
-      flag (backfill from T_Fonc col5); **accent-insensitive member search** (Postgres unaccent).
+- [ ] **Members LIST honest counts (Option 1 remainder):** admin members list should default to active with an
+      "Anciens/Alumni" toggle (backend `alumni` param already exists). Dashboard counts now fixed (see above).
 - [ ] **Members LIST honest counts (Option 1 remainder):** admin members list should default to active with an
       "Anciens/Alumni" toggle (backend `alumni` param already exists). Dashboard counts now fixed (see above).
 - [ ] Migration data cleanup (deferred): name spacing ("Marie- Lynn"), GET /photo unit-scope

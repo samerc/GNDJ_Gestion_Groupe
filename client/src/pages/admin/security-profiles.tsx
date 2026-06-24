@@ -1,6 +1,9 @@
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
 import { useSecurityProfiles, useSecurityProfile, useUpdateSecurityProfilePermissions, useCreateSecurityProfile, useDeleteSecurityProfile } from '@/services/security-profile-service'
+import { useSecurityProfileMembers } from '@/services/role-service'
+import { useAuthStore } from '@/stores/auth-store'
+import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -145,6 +148,8 @@ const PERMISSION_GROUPS: { label: string; permissions: { value: string; label: s
 
 export default function SecurityProfilesPage() {
   const { data: profiles, isLoading } = useSecurityProfiles()
+  const { hasPermission } = useAuthStore()
+  const canManage = hasPermission(PERMISSIONS.ROLES_MANAGE)
   const [selectedId, setSelectedId] = useState<string>('')
   const [createOpen, setCreateOpen] = useState(false)
 
@@ -153,8 +158,11 @@ export default function SecurityProfilesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Profils de sécurité</h1>
-        <Button onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Nouveau profil</Button>
+        <div>
+          <h1 className="text-2xl font-bold">Profils de sécurité</h1>
+          {!canManage && <p className="text-sm text-muted-foreground">Consultez les membres de chaque profil.</p>}
+        </div>
+        {canManage && <Button onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Nouveau profil</Button>}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
@@ -182,19 +190,19 @@ export default function SecurityProfilesPage() {
           </CardContent>
         </Card>
 
-        {/* Permission editor */}
+        {/* Permission editor + members */}
         {selectedId ? (
-          <PermissionEditor profileId={selectedId} onDeleted={() => setSelectedId('')} />
+          <PermissionEditor profileId={selectedId} canManage={canManage} onDeleted={() => setSelectedId('')} />
         ) : (
           <Card>
             <CardContent className="flex items-center justify-center py-16 text-muted-foreground">
-              Sélectionnez un profil pour voir et modifier ses permissions.
+              Sélectionnez un profil pour voir {canManage ? 'ses permissions et ses membres.' : 'ses membres.'}
             </CardContent>
           </Card>
         )}
       </div>
 
-      <CreateProfileDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={(id) => setSelectedId(id)} />
+      {canManage && <CreateProfileDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={(id) => setSelectedId(id)} />}
     </div>
   )
 }
@@ -275,7 +283,7 @@ function CreateProfileDialog({ open, onOpenChange, onCreated }: { open: boolean;
   )
 }
 
-function PermissionEditor({ profileId, onDeleted }: { profileId: string; onDeleted: () => void }) {
+function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: string; canManage: boolean; onDeleted: () => void }) {
   const { data: profile, isLoading } = useSecurityProfile(profileId)
   const updateMutation = useUpdateSecurityProfilePermissions()
   const deleteMutation = useDeleteSecurityProfile()
@@ -283,6 +291,7 @@ function PermissionEditor({ profileId, onDeleted }: { profileId: string; onDelet
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [tab, setTab] = useState<'perms' | 'members'>(canManage ? 'perms' : 'members')
 
   const handleDelete = async () => {
     setError('')
@@ -349,27 +358,45 @@ function PermissionEditor({ profileId, onDeleted }: { profileId: string; onDelet
               {profile.roleCount > 0 && <span> — {profile.roleCount} fonction{profile.roleCount > 1 ? 's' : ''}</span>}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {saved && <span className="text-sm text-green-600">Enregistré</span>}
-            {hasChanges && (
-              <>
-                <Button variant="outline" size="sm" onClick={handleReset}>Annuler</Button>
-                <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
-                  <Save className="mr-1 h-4 w-4" />{updateMutation.isPending ? '...' : 'Enregistrer'}
+          {canManage && tab === 'perms' && (
+            <div className="flex items-center gap-2">
+              {saved && <span className="text-sm text-green-600">Enregistré</span>}
+              {hasChanges && (
+                <>
+                  <Button variant="outline" size="sm" onClick={handleReset}>Annuler</Button>
+                  <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
+                    <Save className="mr-1 h-4 w-4" />{updateMutation.isPending ? '...' : 'Enregistrer'}
+                  </Button>
+                </>
+              )}
+              {!hasChanges && !profile.isSystem && (
+                <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
+                  <Trash2 className="mr-1 h-4 w-4" />Supprimer
                 </Button>
-              </>
-            )}
-            {!hasChanges && !profile.isSystem && (
-              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
-                <Trash2 className="mr-1 h-4 w-4" />Supprimer
-              </Button>
-            )}
-          </div>
+              )}
+            </div>
+          )}
+        </div>
+        {/* Tabs: permissions (admins only) + members */}
+        <div className="flex gap-1 border-b mt-3 -mb-px">
+          {canManage && (
+            <button onClick={() => setTab('perms')}
+              className={`px-3 py-2 text-sm font-medium border-b-2 ${tab === 'perms' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+              Permissions
+            </button>
+          )}
+          <button onClick={() => setTab('members')}
+            className={`px-3 py-2 text-sm font-medium border-b-2 ${tab === 'members' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+            Membres
+          </button>
         </div>
       </CardHeader>
       <CardContent>
         {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive mb-4">{error}</div>}
 
+        {tab === 'members' && <ProfileMembersList profileId={profileId} />}
+
+        {tab === 'perms' && canManage &&
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {PERMISSION_GROUPS.map(group => {
             const groupChecked = group.permissions.filter(p => currentPerms.has(p.value)).length
@@ -405,7 +432,7 @@ function PermissionEditor({ profileId, onDeleted }: { profileId: string; onDelet
               </div>
             )
           })}
-        </div>
+        </div>}
       </CardContent>
     </Card>
     <ConfirmDialog
@@ -419,5 +446,27 @@ function PermissionEditor({ profileId, onDeleted }: { profileId: string; onDelet
       onConfirm={handleDelete}
     />
     </>
+  )
+}
+
+// Members who currently hold this profile (via their active function). Read-only — used by both
+// the super-admin editor (Membres tab) and the Chef de Groupe view.
+function ProfileMembersList({ profileId }: { profileId: string }) {
+  const { data: members, isLoading } = useSecurityProfileMembers(profileId)
+  if (isLoading) return <LoadingSpinner />
+  if (!members?.length) return <p className="py-8 text-center text-sm text-muted-foreground">Aucun membre n'a ce profil actuellement.</p>
+  return (
+    <div className="divide-y">
+      {members.map((m, i) => (
+        <div key={`${m.memberId}-${i}`} className="flex items-center gap-3 py-2.5">
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate">{m.lastName} {m.firstName}</div>
+            <div className="text-xs text-muted-foreground">{m.functionName ?? '—'}</div>
+          </div>
+          {m.unitCode && <Badge variant="outline" className="shrink-0 text-[10px]">{m.unitCode}</Badge>}
+          {m.isAccountFlag && <Badge className="shrink-0 text-[10px]">Compte</Badge>}
+        </div>
+      ))}
+    </div>
   )
 }

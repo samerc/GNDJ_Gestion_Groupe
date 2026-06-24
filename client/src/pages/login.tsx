@@ -26,8 +26,8 @@ export default function LoginPage() {
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-white shadow-elevated ring-1 ring-white/10">
             <Compass className="h-7 w-7" strokeWidth={2.2} />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Espace membres et chefs</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Connexion réservée aux membres et chefs du groupe — GNDJ Scout</p>
+          <h1 className="text-3xl font-bold tracking-tight">Espace membres</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Connexion réservée aux membres du groupe — GNDJ Scout</p>
         </div>
         <LoginForm />
         {inscriptionsOpen && (

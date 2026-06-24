@@ -1,6 +1,10 @@
 import { BrowserRouter, Routes, Route } from 'react-router'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { AdminRoute } from '@/components/auth/admin-route'
+import { PermissionRoute } from '@/components/auth/permission-route'
+import { PERMISSIONS } from '@/lib/constants'
+import MaitrisesPage from '@/pages/maitrises'
+import GroupAccessPage from '@/pages/admin/group-access'
 import { AppLayout } from '@/components/layout/app-layout'
 import { PublicLayout } from '@/components/public/public-layout'
 import PublicHomePage from '@/pages/public/home'
@@ -93,27 +97,52 @@ export default function App() {
             <Route path="/unit-documents" element={<UnitDocumentsPage />} />
             <Route path="/passage" element={<PassagePage />} />
             <Route path="/photo-session" element={<PhotoSessionPage />} />
+            {/* Permission-gated admin pages — super-admins always pass; a Chef de Groupe reaches the
+                ones their profile allows (group management, no system config). */}
+            <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
+              <Route path="/maitrises" element={<MaitrisesPage />} />
+            </Route>
+            <Route element={<PermissionRoute permission={PERMISSIONS.ROLES_VIEW} />}>
+              <Route path="/admin/security-profiles" element={<SecurityProfilesPage />} />
+            </Route>
+            <Route element={<PermissionRoute permission={PERMISSIONS.ROLES_MANAGE_GROUP} />}>
+              <Route path="/admin/group-access" element={<GroupAccessPage />} />
+            </Route>
+            <Route element={<PermissionRoute permission={PERMISSIONS.DEMANDE_VIEW} />}>
+              <Route path="/admin/demandes" element={<DemandeValidationPage />} />
+              <Route path="/admin/demande-stats" element={<DemandeStatsPage />} />
+            </Route>
+            <Route element={<PermissionRoute permission={PERMISSIONS.PASSAGE_MANAGE} />}>
+              <Route path="/admin/passage-validation" element={<PassageValidationPage />} />
+            </Route>
+            <Route element={<PermissionRoute permission={PERMISSIONS.COTISATIONS_VIEW} />}>
+              <Route path="/admin/cotisations" element={<CotisationDashboardPage />} />
+            </Route>
+            <Route element={<PermissionRoute permission={PERMISSIONS.PROGRESSION_MANAGE} />}>
+              <Route path="/admin/progression" element={<ProgressionPage />} />
+            </Route>
+            <Route element={<PermissionRoute permission={PERMISSIONS.DOCUMENT_TYPES_VIEW} />}>
+              <Route path="/admin/document-types" element={<DocumentTypesPage />} />
+            </Route>
+            <Route element={<PermissionRoute permission={PERMISSIONS.CONTENT_MANAGE} />}>
+              <Route path="/admin/news" element={<AdminNewsPage />} />
+              <Route path="/admin/pages" element={<AdminPagesPage />} />
+              <Route path="/admin/site-texts" element={<AdminSiteTextsPage />} />
+            </Route>
+            <Route element={<PermissionRoute permission={PERMISSIONS.AUDIT_VIEW} />}>
+              <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
+            </Route>
+            {/* Super-admin only: org structure, roles/permissions, system settings */}
             <Route element={<AdminRoute />}>
               <Route path="/admin/associations" element={<AssociationsPage />} />
               <Route path="/admin/unit-types" element={<UnitTypesPage />} />
               <Route path="/admin/unit-types/:id" element={<UnitTypeDetailPage />} />
               <Route path="/admin/roles" element={<RolesPage />} />
-              <Route path="/admin/document-types" element={<DocumentTypesPage />} />
-              <Route path="/admin/progression" element={<ProgressionPage />} />
-              <Route path="/admin/security-profiles" element={<SecurityProfilesPage />} />
-              <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
-              <Route path="/admin/passage-validation" element={<PassageValidationPage />} />
-              <Route path="/admin/demandes" element={<DemandeValidationPage />} />
-              <Route path="/admin/demande-stats" element={<DemandeStatsPage />} />
-              <Route path="/admin/news" element={<AdminNewsPage />} />
-              <Route path="/admin/pages" element={<AdminPagesPage />} />
-              <Route path="/admin/site-texts" element={<AdminSiteTextsPage />} />
               <Route path="/admin/api-keys" element={<ApiKeysPage />} />
               <Route path="/admin/custom-fields" element={<CustomFieldsPage />} />
               <Route path="/admin/card-designer" element={<CardDesignerPage />} />
               <Route path="/admin/email-settings" element={<EmailSettingsPage />} />
               <Route path="/admin/settings" element={<SettingsPage />} />
-              <Route path="/admin/cotisations" element={<CotisationDashboardPage />} />
               <Route path="/admin/report-templates" element={<ReportTemplatesPage />} />
               <Route path="/admin/progression-path" element={<ProgressionPathPage />} />
             </Route>

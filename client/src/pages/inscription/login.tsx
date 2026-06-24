@@ -59,7 +59,7 @@ export default function ApplicantLoginPage() {
               <Link to="/inscription/register" className="text-primary hover:underline font-medium">Créer un compte</Link>
             </p>
             <p className="text-center text-xs text-muted-foreground">
-              <Link to="/login" className="hover:underline">Espace membres / chefs</Link>
+              <Link to="/login" className="hover:underline">Espace membres</Link>
             </p>
           </form>
         </CardContent>
