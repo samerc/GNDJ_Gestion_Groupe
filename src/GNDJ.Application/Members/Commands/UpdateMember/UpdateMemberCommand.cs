@@ -8,7 +8,7 @@ namespace GNDJ.Application.Members.Commands.UpdateMember;
 
 public record UpdateMemberCommand(
     Guid Id, string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender,
-    string? CardNumber, string? BloodType, string? Nationality, string? School,
+    string? CardNumber, string? ExternalCardNumber, string? BloodType, string? Nationality, string? School,
     string? Classe, string? Section,
     string? MedicalNotes, string? Allergies, string? Notes
 ) : IRequest<Result<bool>>;
@@ -34,6 +34,8 @@ public class UpdateMemberCommandValidator : AbstractValidator<UpdateMemberComman
             .When(x => !string.IsNullOrEmpty(x.Gender))
             .WithMessage("Le genre doit être 'Masculin' ou 'Féminin'.");
         RuleFor(x => x.CardNumber).MaximumLength(20);
+        RuleFor(x => x.ExternalCardNumber).MaximumLength(50)
+            .Must(n => n == null || !n.Contains('<') && !n.Contains('>')).WithMessage("Le numéro de carte contient des caractères invalides.");
         RuleFor(x => x.Nationality).NotEmpty().WithMessage("La nationalité est requise.").MaximumLength(50);
         RuleFor(x => x.School).NotEmpty().WithMessage("L'école est requise.").MaximumLength(100);
         RuleFor(x => x.Classe).NotEmpty().WithMessage("La classe est requise.").MaximumLength(50);
@@ -82,6 +84,7 @@ public class UpdateMemberCommandHandler : IRequestHandler<UpdateMemberCommand, R
         entity.DateOfBirth = request.DateOfBirth;
         entity.Gender = request.Gender;
         entity.CardNumber = request.CardNumber;
+        entity.ExternalCardNumber = request.ExternalCardNumber;
         entity.BloodType = request.BloodType;
         entity.Nationality = request.Nationality;
         entity.School = request.School;

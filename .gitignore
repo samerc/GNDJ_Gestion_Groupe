@@ -41,3 +41,6 @@ logs/
 *.log
 # scratch
 read-xlsx.csx
+
+# Local scratch / data-review files (PII) — never commit
+tmp_*

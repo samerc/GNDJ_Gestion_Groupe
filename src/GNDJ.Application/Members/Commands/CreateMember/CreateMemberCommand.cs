@@ -11,7 +11,7 @@ public record CreateMemberResult(Guid MemberId, string Username, string Temporar
 
 public record CreateMemberCommand(
     string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender,
-    string? CardNumber, string? BloodType, string? Nationality, string? School,
+    string? CardNumber, string? ExternalCardNumber, string? BloodType, string? Nationality, string? School,
     string? Classe, string? Section,
     string? MedicalNotes, string? Allergies, string? Notes
 ) : IRequest<Result<CreateMemberResult>>;
@@ -37,6 +37,8 @@ public class CreateMemberCommandValidator : AbstractValidator<CreateMemberComman
             .When(x => !string.IsNullOrEmpty(x.Gender))
             .WithMessage("Le genre doit être 'Masculin' ou 'Féminin'.");
         RuleFor(x => x.CardNumber).MaximumLength(20);
+        RuleFor(x => x.ExternalCardNumber).MaximumLength(50)
+            .Must(n => n == null || !n.Contains('<') && !n.Contains('>')).WithMessage("Le numéro de carte contient des caractères invalides.");
         RuleFor(x => x.BloodType).MaximumLength(10);
         RuleFor(x => x.Nationality).NotEmpty().WithMessage("La nationalité est requise.").MaximumLength(50);
         RuleFor(x => x.School).NotEmpty().WithMessage("L'école est requise.").MaximumLength(100);
@@ -89,6 +91,7 @@ public class CreateMemberCommandHandler : IRequestHandler<CreateMemberCommand, R
             DateOfBirth = request.DateOfBirth,
             Gender = request.Gender,
             CardNumber = cardNumber,
+            ExternalCardNumber = string.IsNullOrWhiteSpace(request.ExternalCardNumber) ? null : request.ExternalCardNumber.Trim(),
             BloodType = request.BloodType,
             Nationality = request.Nationality,
             School = request.School,

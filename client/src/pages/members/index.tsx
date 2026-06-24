@@ -4,7 +4,7 @@ import { useParams } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useMembers, useMember, useCreateMember, type MemberFormData } from '@/services/member-service'
+import { useMembers, useMember, useCreateMember, useUpdateMember, type MemberFormData } from '@/services/member-service'
 import { MemberPhoto } from '@/components/shared/member-photo'
 import { useUnits } from '@/services/unit-service'
 import { Button } from '@/components/ui/button'
@@ -26,7 +26,7 @@ import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS } from '@/lib/options'
 import { cn } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
@@ -71,11 +71,30 @@ function Chip({ icon: Icon, children }: { icon?: ComponentType<{ className?: str
 // ─── Member detail panel ─────────────────
 function MemberDetailPanel({ memberId }: { memberId: string }) {
   const { data: member, isLoading } = useMember(memberId)
+  const updateMember = useUpdateMember()
+  const [cardEditOpen, setCardEditOpen] = useState(false)
+  const [cardDraft, setCardDraft] = useState('')
 
   if (isLoading) return <div className="flex items-center justify-center h-full"><LoadingSpinner /></div>
   if (!member) return null
 
   const age = computeAge(member.dateOfBirth)
+
+  const saveExternalCard = async () => {
+    try {
+      await updateMember.mutateAsync({
+        id: memberId,
+        firstName: member.firstName, lastName: member.lastName,
+        dateOfBirth: member.dateOfBirth, gender: member.gender,
+        cardNumber: member.cardNumber, externalCardNumber: cardDraft.trim() || null,
+        bloodType: member.bloodType, nationality: member.nationality,
+        school: member.school, classe: member.classe, section: member.section,
+        medicalNotes: member.medicalNotes, allergies: member.allergies, notes: member.notes,
+      })
+      toast.success('Numéro de carte enregistré')
+      setCardEditOpen(false)
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -144,7 +163,10 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
               <div className="flex-1 space-y-3">
                 <div>
                   <h3 className="text-xl font-bold leading-tight">{member.firstName} {member.lastName}</h3>
-                  {member.cardNumber && <p className="text-sm text-muted-foreground">N° {member.cardNumber}</p>}
+                  <p className="text-sm text-muted-foreground">
+                    {member.cardNumber && <span>Matricule {member.cardNumber}</span>}
+                    {member.externalCardNumber && <span> · Carte {member.externalCardNumber}</span>}
+                  </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {age != null && <Chip icon={Cake}>{age} ans</Chip>}
@@ -162,7 +184,18 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
                 <Field label="Date de naissance" value={member.dateOfBirth ? `${new Date(member.dateOfBirth).toLocaleDateString('fr-FR')}${age != null ? ` (${age} ans)` : ''}` : null} />
                 <Field label="Sexe" value={member.gender} />
                 <Field label="Nationalité" value={member.nationality} />
-                <Field label="N° Carte" value={member.cardNumber} />
+                <Field label="Matricule" value={member.cardNumber} />
+                <div>
+                  <dt className="text-xs text-muted-foreground">Numéro de carte (SDL/GDL)</dt>
+                  <dd className="flex items-center gap-1.5 text-sm font-medium">
+                    {member.externalCardNumber || '—'}
+                    <button type="button" className="text-muted-foreground hover:text-foreground"
+                      title="Modifier le numéro de carte"
+                      onClick={() => { setCardDraft(member.externalCardNumber ?? ''); setCardEditOpen(true) }}>
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  </dd>
+                </div>
               </div>
             </Section>
 
@@ -238,6 +271,22 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
           </TabsContent>
         </div>
       </Tabs>
+
+      {/* Edit external card number */}
+      <Dialog open={cardEditOpen} onOpenChange={setCardEditOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Numéro de carte (SDL/GDL)</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Le numéro de carte officiel délivré par le SDL/GDL. Laisser vide si inconnu. (Le matricule interne {member.cardNumber} ne change pas.)</p>
+            <Input value={cardDraft} onChange={(e) => setCardDraft(e.target.value)} placeholder="Ex: 20184180" maxLength={50}
+              onKeyDown={(e) => { if (e.key === 'Enter') saveExternalCard() }} autoFocus />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => setCardEditOpen(false)}>Annuler</Button>
+            <Button type="button" onClick={saveExternalCard} disabled={updateMember.isPending}>{updateMember.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -343,7 +392,7 @@ export default function MembersPage() {
   const createMutation = useCreateMember()
 
   const openCreate = () => {
-    setForm({ firstName: '', lastName: '', dateOfBirth: '', gender: '', bloodType: '', nationality: '', school: defaultSchool ?? '', classe: '', section: '' })
+    setForm({ firstName: '', lastName: '', dateOfBirth: '', gender: '', bloodType: '', nationality: '', school: defaultSchool ?? '', classe: '', section: '', externalCardNumber: '' })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -584,6 +633,10 @@ export default function MembersPage() {
               <div className="space-y-2">
                 <RequiredLabel>Section</RequiredLabel>
                 <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} />
+              </div>
+              <div className="space-y-2">
+                <RequiredLabel>Numéro de carte (SDL/GDL)</RequiredLabel>
+                <Input value={form.externalCardNumber || ''} onChange={(e) => setForm(f => ({ ...f, externalCardNumber: e.target.value }))} placeholder="Optionnel" maxLength={50} />
               </div>
             </div>
             <DialogFooter>

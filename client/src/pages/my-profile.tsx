@@ -119,7 +119,8 @@ export default function MyProfilePage() {
     setForm({
       firstName: member.firstName, lastName: member.lastName,
       dateOfBirth: member.dateOfBirth ?? '', gender: member.gender ?? '',
-      cardNumber: member.cardNumber ?? '', bloodType: member.bloodType ?? '',
+      cardNumber: member.cardNumber ?? '', externalCardNumber: member.externalCardNumber ?? '',
+      bloodType: member.bloodType ?? '',
       nationality: member.nationality ?? '', school: member.school ?? '',
       classe: member.classe ?? '', section: member.section ?? '',
       medicalNotes: member.medicalNotes ?? '', allergies: member.allergies ?? '',
@@ -135,7 +136,8 @@ export default function MyProfilePage() {
       await updateMutation.mutateAsync({
         id: memberId, ...form,
         dateOfBirth: form.dateOfBirth || null, gender: form.gender || null,
-        cardNumber: form.cardNumber || null, bloodType: form.bloodType || null,
+        cardNumber: form.cardNumber || null, externalCardNumber: form.externalCardNumber || null,
+        bloodType: form.bloodType || null,
         nationality: form.nationality || null, school: form.school || null,
         classe: form.classe || null, section: form.section || null,
         medicalNotes: form.medicalNotes || null, allergies: form.allergies || null,
@@ -213,7 +215,7 @@ export default function MyProfilePage() {
                       <SelectContent>{GENDER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2"><RequiredLabel>N° Carte</RequiredLabel><Input value={form.cardNumber ?? ''} onChange={(e) => setForm(f => ({ ...f, cardNumber: e.target.value }))} /></div>
+                  <div className="space-y-2"><RequiredLabel>Matricule</RequiredLabel><Input value={form.cardNumber ?? ''} onChange={(e) => setForm(f => ({ ...f, cardNumber: e.target.value }))} /></div>
                   <div className="space-y-2">
                     <RequiredLabel>Nationalité</RequiredLabel>
                     <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher..." />
@@ -271,7 +273,8 @@ export default function MyProfilePage() {
                   <Field label="Nom" value={member.lastName} />
                   <Field label="Date de naissance" value={member.dateOfBirth ? new Date(member.dateOfBirth).toLocaleDateString('fr-FR') : null} />
                   <Field label="Sexe" value={member.gender} />
-                  <Field label="N° Carte" value={member.cardNumber} />
+                  <Field label="Matricule" value={member.cardNumber} />
+                  <Field label="Numéro de carte" value={member.externalCardNumber} />
                   <Field label="Nationalité" value={member.nationality} />
                   <Field label="Groupe sanguin" value={member.bloodType} />
                   <Field label="École" value={member.school} />

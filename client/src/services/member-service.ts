@@ -9,6 +9,7 @@ export interface MemberListDto {
   dateOfBirth: string | null
   gender: string | null
   cardNumber: string | null
+  externalCardNumber: string | null
   primaryEmail: string | null
   primaryPhone: string | null
   photoPath: string | null
@@ -26,6 +27,7 @@ export interface MemberDetailDto {
   dateOfBirth: string | null
   gender: string | null
   cardNumber: string | null
+  externalCardNumber: string | null
   bloodType: string | null
   nationality: string | null
   school: string | null
@@ -52,6 +54,7 @@ export interface MemberFormData {
   dateOfBirth?: string | null
   gender?: string | null
   cardNumber?: string | null
+  externalCardNumber?: string | null
   bloodType?: string | null
   nationality?: string | null
   school?: string | null

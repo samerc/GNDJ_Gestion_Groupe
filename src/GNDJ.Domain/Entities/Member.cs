@@ -8,7 +8,10 @@ public class Member : BaseEntity
     public string LastName { get; set; } = string.Empty;
     public DateOnly? DateOfBirth { get; set; }
     public string? Gender { get; set; }
+    // Internal matricule (auto-generated M-####/F-####). Always present, unique, used for cards & lists.
     public string? CardNumber { get; set; }
+    // Official SDL/GDL card number ("Numéro de carte") — nullable, set when known.
+    public string? ExternalCardNumber { get; set; }
     public string? BloodType { get; set; }
     public string? Nationality { get; set; }
     public string? School { get; set; }

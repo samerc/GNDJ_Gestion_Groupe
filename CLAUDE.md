@@ -799,7 +799,31 @@ Full flag-lists for the deferred items live in memory `project_migration_cleanup
       the name), **10 DOB errors** (years 2105/2160/3012, toddlers), **181 orphans** (no assignment — show only under
       "Sans unité"), 7 empty gender, the school flags, and the ~30 city residuals.
 
+### Data cleanup pass 2 + card-number split (2026-06-24)
+Interactive fix of the flag-lists + a member-number model change. Live-DB edits backed up as `_bak_*`.
+- [x] **Schools (decided):** generic `Sagesse`/`Collège La Sagesse`→`Sagesse`; the Institut/Français cluster
+      (`Institut Français`/`Institut Moderne Lycee Francais`/`Lycée Francais Institut Moderne Libanais (fanar)`)→
+      `Institut Moderne Français`; `Lypa`→`Lycee Francais`; `TRAVAIL`→`Autre`; `Autre` kept as placeholder.
+- [x] **DOB:** year-typo guesses (2105→2015, 2160→2016, 3012→2012, two 2026→2016); 4 toddlers (unguessable)→NULL.
+      0 future dates remain. **Empty gender:** 5 leaders set (Admin Système left).
+- [x] **Deletions (soft + assignments + login disabled):** `DELETE Gabriella ANTAKI`, `DELETE Michel NASSIF`,
+      `Prenom NOM`, `ZiadCU GEBEILYCU` (test), `StephanieT GHOUBRILT`. **M-0420** name swap → `Charles KREIDI`.
+      (`ZiadM GEBEILYM` left — not flagged.)
+- [x] **Card-number split (Matricule + Numéro de carte):** `members.card_number` was overloaded (internal
+      `M-/F-` OR the SDL/GDL external id). Now: `card_number` = internal **Matricule** (auto, always present);
+      new nullable `external_card_number` = **Numéro de carte** (official SDL/GDL id). Migration
+      `AddMemberExternalCardNumber`. **Backfill:** 624 rows whose card_number wasn't `^[MF]-[0-9]+$` had it moved
+      to external_card_number + got a fresh internal matricule (M continued from 714→1326, F 1153→1165). Create/
+      Update commands + DTOs + `ApplicantConfig` untouched-for-applicants; UI shows both (hero + Identité), create
+      dialog has an optional Numéro de carte field, and the panel has an inline editor for the SDL number.
+      my-profile carries external through on save (was at risk of nulling it). 2 members still have null matricule.
+- [ ] **NEXT — duplicate merges (45 pairs):** reviewed with recommended keeper (active > most assignments);
+      merge moves the loser's assignments to the keeper + `external_card_number = coalesce(keeper, loser)` so the
+      SDL number survives, soft-deletes the loser + disables its login. Awaiting user go-ahead per pair.
+- [ ] Migration tool: replicate the card-number split on re-import (populate external from source, always
+      generate internal) — currently only the live DB is split.
+
 ### Remaining / Next
-- [ ] Migration data cleanup (deferred): the flag-lists above (dup members, DOB errors, orphans, school/city
-      residuals), name spacing ("Marie- Lynn" class fixed; others remain), GET /photo unit-scope
+- [ ] Migration data cleanup: city residuals (~30, listed in memory), 181 orphans (kept — most are legit alumni),
+      name spacing, GET /photo unit-scope
 - [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies

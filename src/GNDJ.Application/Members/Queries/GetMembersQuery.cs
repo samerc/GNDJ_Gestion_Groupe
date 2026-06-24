@@ -110,7 +110,7 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
         // Alumni results expose identity only — contact details are withheld.
         var projected = ordered.ThenBy(m => m.FirstName)
             .Select(m => new MemberListDto(
-                m.Id, m.FirstName, m.LastName, m.DateOfBirth, m.Gender, m.CardNumber,
+                m.Id, m.FirstName, m.LastName, m.DateOfBirth, m.Gender, m.CardNumber, m.ExternalCardNumber,
                 isAlumni ? null : m.Emails.Where(e => e.IsPrimary && !e.IsDeleted).Select(e => e.Address).FirstOrDefault(),
                 isAlumni ? null : m.Phones.Where(p => p.IsPrimary && !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault(),
                 m.PhotoPath,
@@ -159,7 +159,7 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
             .Where(m => m.Id == request.Id)
             .Select(m => new MemberDetailDto(
                 m.Id, m.FirstName, m.LastName, m.DateOfBirth, m.Gender,
-                m.CardNumber, m.BloodType, m.Nationality, m.School,
+                m.CardNumber, m.ExternalCardNumber, m.BloodType, m.Nationality, m.School,
                 m.Classe, m.Section,
                 m.MedicalNotes, m.Allergies, m.Notes, m.PhotoPath,
                 m.Phones.Where(p => !p.IsDeleted).OrderByDescending(p => p.IsPrimary)

@@ -14,6 +14,7 @@ public class MemberConfiguration : IEntityTypeConfiguration<Member>
         builder.Property(e => e.LastName).HasMaxLength(100).IsRequired();
         builder.Property(e => e.Gender).HasMaxLength(20);
         builder.Property(e => e.CardNumber).HasMaxLength(20);
+        builder.Property(e => e.ExternalCardNumber).HasMaxLength(50);
         builder.Property(e => e.BloodType).HasMaxLength(10);
         builder.Property(e => e.Nationality).HasMaxLength(50);
         builder.Property(e => e.School).HasMaxLength(100);
