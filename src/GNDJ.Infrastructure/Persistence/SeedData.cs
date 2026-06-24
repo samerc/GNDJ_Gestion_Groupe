@@ -16,6 +16,25 @@ public static class SeedData
         p != Permissions.RolesManage &&
         p != Permissions.AdminHardDelete).ToArray();
 
+    // Curated starter list of Lebanese towns (Beirut + Mount Lebanon focus, where the group's families
+    // live, plus major cities). CG/super-admin curate it afterwards via the "Villes" admin page.
+    public static readonly string CuratedCitiesJson = System.Text.Json.JsonSerializer.Serialize(new[]
+    {
+        "Abadieh", "Achkout", "Achrafieh", "Adma", "Ain Aalak", "Ain el Remmaneh", "Ain Saade", "Aley",
+        "Amchit", "Antelias", "Araya", "Aramoun", "Awkar", "Baabda", "Baabdat", "Baalbek", "Baalchmay",
+        "Badaro", "Batroun", "Bayada", "Bdadoun", "Beit el Chaar",
+        "Beit Mery", "Betchay", "Beyrouth", "Bhamdoun", "Bickfaya", "Bleibel", "Brazilia", "Broumana",
+        "Bsaba", "Bsalim", "Bsous", "Byblos (Jbeil)", "Chiyah", "Cornet Chehwan", "Daroun-Harissa",
+        "Daychounieh", "Dbayeh", "Dekwaneh", "Der Mimas", "Dik el Mehdi", "Elyssar", "Falougha", "Fanar",
+        "Fayadieh", "Furn el Chebbak", "Gemmayze", "Ghazir", "Ghedras", "Hadath", "Haret Sakher", "Hazmieh",
+        "Horch Tabet", "Houmal", "Jal el Dib", "Jamhour", "Jdeideh", "Jezzine", "Jisr el Bacha", "Jounieh",
+        "Kahale", "Kaslik", "Kfarchima", "Kleiat", "Kobayat", "Kornet el Hamra", "Louaize", "Mar Roukoz",
+        "Mar Takla", "Mansourieh", "Mazraat Yachouh", "Mkalles", "Monteverde", "Mtayleb", "Nabatieh",
+        "Nabay", "Naccache", "New Rawda", "Qannabet Broumana", "Rabieh", "Rabweh", "Rihaniyeh", "Rmeil",
+        "Roumieh", "Sabtieh", "Saida", "Sed el Bauchrieh", "Sin el Fil", "Sioufi", "Sour (Tyr)", "Sursock",
+        "Tilal Ain Saade", "Tripoli", "Wadi Chahrour", "Yarze", "Zahle", "Zalka", "Zouk Mikael", "Zouk Mosbeh"
+    });
+
     public static async Task SeedAsync(GndjDbContext context, string superAdminEmail, string superAdminPasswordHash)
     {
         if (await context.SecurityProfiles.IgnoreQueryFilters().AnyAsync())
@@ -246,6 +265,7 @@ public static class SeedData
             new() { Key = "member.school_codes", Value = "{\"Collège Notre-Dame de Jamhour\":\"CNDJ\",\"Collège Saint-Joseph Antoura\":\"CSJA\",\"Collège Saint-Grégoire\":\"CSG\"}", Category = "members", Label = "Codes des écoles", Description = "Code court par école (affiché dans les tableaux). Insensible aux accents/majuscules.", ValueType = "json" },
             new() { Key = "member.default_school", Value = "Collège Notre-Dame de Jamhour", Category = "members", Label = "École par défaut", Description = "École sélectionnée par défaut lors de la création d'un membre", ValueType = "string" },
             new() { Key = "member.classes", Value = "[\"EB1\",\"EB2\",\"EB3\",\"EB4\",\"EB5\",\"EB6\",\"EB7\",\"EB8\",\"EB9\",\"Seconde\",\"Première\",\"Terminale\"]", Category = "members", Label = "Classes", Description = "Liste des classes disponibles dans le formulaire membre", ValueType = "json_array" },
+            new() { Key = "member.cities", Value = CuratedCitiesJson, Category = "members", Label = "Villes", Description = "Liste des villes disponibles dans les formulaires d'adresse (gérable par le Chef de Groupe)", ValueType = "json_array" },
             new() { Key = "passage.enabled", Value = "false", Category = "passage", Label = "Passage annuel actif", Description = "Active ou désactive le processus de passage annuel", ValueType = "boolean" },
             new() { Key = "passage.scout_year", Value = "2026-2027", Category = "passage", Label = "Année scoute du passage", Description = "Année scoute cible pour le passage en cours", ValueType = "string" },
             new() { Key = "passage.date", Value = "", Category = "passage", Label = "Date du passage", Description = "Date d'effet du passage : date de début des nouvelles affectations des anciens membres (et de fin des anciennes). À définir chaque année ; vide = date du jour.", ValueType = "date" },

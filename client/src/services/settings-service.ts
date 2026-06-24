@@ -46,9 +46,29 @@ export function useSettingArray(key: string): string[] {
   try { return JSON.parse(data.value) } catch { return [] }
 }
 
-// Normalize a school name for matching (case + accent insensitive).
+// Normalize a name for matching (case + accent insensitive).
 function normalizeSchool(s: string): string {
   return s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+}
+
+// ── Cities (managed list, member.cities) ─────────────────────────────────────
+export function useCities(): string[] {
+  return useSettingArray('member.cities')
+}
+
+export function useUpdateCities() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (cities: string[]) => apiClient.put('/settings/cities', { cities }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
+  })
+}
+
+// Snap a typed city onto the canonical list entry ignoring accents/case; new names pass through trimmed.
+export function matchCity(typed: string, cities: string[]): string {
+  const t = normalizeSchool(typed)
+  if (!t) return typed.trim()
+  return cities.find((c) => normalizeSchool(c) === t) ?? typed.trim()
 }
 
 // Snap a typed school name onto the canonical list entry when it matches ignoring accents/case

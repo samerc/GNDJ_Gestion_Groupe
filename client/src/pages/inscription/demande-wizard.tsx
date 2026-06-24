@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SearchableSelect } from '@/components/shared/searchable-select'
+import { CitySelect } from '@/components/shared/city-select'
 import { DateInput } from '@/components/shared/date-input'
 import { NATIONALITY_OPTIONS, PROFESSION_OPTIONS } from '@/lib/options'
 import { matchSchool } from '@/services/settings-service'
@@ -309,7 +310,7 @@ export default function DemandeWizardPage() {
                 <div className="text-sm font-semibold text-muted-foreground mb-2">Adresse du domicile</div>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <Field label="Pays"><Input value={address.country} onChange={(e) => setAddress((a) => ({ ...a, country: e.target.value }))} /></Field>
-                  <Field label="Ville"><Input value={address.city} onChange={(e) => setAddress((a) => ({ ...a, city: e.target.value }))} /></Field>
+                  <Field label="Ville"><CitySelect value={address.city} onChange={(city) => setAddress((a) => ({ ...a, city }))} cities={config?.cities ?? []} /></Field>
                   <Field label="Adresse"><Input value={address.details} onChange={(e) => setAddress((a) => ({ ...a, details: e.target.value }))} /></Field>
                 </div>
               </div>

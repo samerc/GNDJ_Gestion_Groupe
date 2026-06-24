@@ -15,7 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { SearchableSelect } from '@/components/shared/searchable-select'
-import { useSettingArray, useSettingValue, matchSchool } from '@/services/settings-service'
+import { CitySelect } from '@/components/shared/city-select'
+import { useSettingArray, useSettingValue, matchSchool, useCities } from '@/services/settings-service'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
@@ -34,6 +35,7 @@ export default function MemberDetailPage() {
   const defaultCountry = useSettingValue('default_country')
   const schools = useSettingArray('member.schools')
   const classes = useSettingArray('member.classes')
+  const cities = useCities()
 
   const addPhoneMutation = useAddPhone(id!)
   const deletePhoneMutation = useDeletePhone(id!)
@@ -530,7 +532,7 @@ export default function MemberDetailPage() {
               </div>
               <div className="space-y-2">
                 <RequiredLabel required>Ville</RequiredLabel>
-                <Input value={addressForm.city} onChange={(e) => setAddressForm(f => ({ ...f, city: e.target.value }))} required />
+                <CitySelect value={addressForm.city} onChange={(city) => setAddressForm(f => ({ ...f, city }))} cities={cities} />
               </div>
             </div>
             <div className="space-y-2">
@@ -581,7 +583,7 @@ export default function MemberDetailPage() {
           <DialogHeader><DialogTitle>Modifier l'adresse</DialogTitle></DialogHeader>
           <form onSubmit={handleUpdateAddress} className="space-y-4">
             <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editAddressForm.type} onValueChange={(v) => setEditAddressForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ADDRESS_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={editAddressForm.country} onValueChange={(v) => setEditAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><Input value={editAddressForm.city} onChange={(e) => setEditAddressForm(f => ({ ...f, city: e.target.value }))} required /></div></div>
+            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={editAddressForm.country} onValueChange={(v) => setEditAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><CitySelect value={editAddressForm.city} onChange={(city) => setEditAddressForm(f => ({ ...f, city }))} cities={cities} /></div></div>
             <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={editAddressForm.details} onChange={(e) => setEditAddressForm(f => ({ ...f, details: e.target.value }))} placeholder="Rue, immeuble..." /></div>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editAddressForm.isPrimary} onChange={(e) => setEditAddressForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label>
             <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingAddress(null)}>Annuler</Button><Button type="submit" disabled={updateAddressMutation.isPending}>Enregistrer</Button></DialogFooter>

@@ -31,6 +31,7 @@ import {
   Newspaper,
   BarChart3,
   Crown,
+  MapPin,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePendingDemandeCount } from '@/services/demande-admin-service'
@@ -88,6 +89,7 @@ const adminGroups: AdminGroup[] = [
     items: [
       { path: '/maitrises', label: 'Maîtrises', icon: Crown, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/group-access', label: 'Accès maîtrise', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE_GROUP },
+      { path: '/admin/cities', label: 'Villes', icon: MapPin, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
       { path: '/admin/demandes', label: "Demandes d'inscription", icon: Inbox, permission: PERMISSIONS.DEMANDE_VIEW },
       { path: '/admin/demande-stats', label: 'Statistiques demandes', icon: BarChart3, permission: PERMISSIONS.DEMANDE_VIEW },

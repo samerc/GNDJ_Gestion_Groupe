@@ -767,6 +767,39 @@ A batch of CG-facing features + fixes built on the Chef de Groupe tier.
       rows expose identity only (contact withheld), unchanged. Unit filter "Sans unité (anciens)" relabelled
       "Sans unité". Builds clean (dotnet + tsc).
 
+### Data cleanup + managed Cities list (2026-06-24)
+Live-DB data-quality pass (all on the LIVE db, backups kept as `_bak_*` tables) + a new managed Villes list.
+Full flag-lists for the deferred items live in memory `project_migration_cleanup_todo.md`.
+- [x] **Member fields normalized:** blood type (`B +`→`B+`, junk `---`→null); emails lowercased+trimmed (165);
+      classe `1ere`→`1ère` + **bare numbers → French ordinals** (`8`→`8ème` … `T`→`Term`, 311 rows; validated by
+      age ordering — bare numbers were an older import vintage, same grades); nationality `LI`→`Libanaise`; names
+      `Marie- Lynn`→`Marie-Lynn`; fixed my own `Amin Andr?`→`Amin André`.
+- [x] **Schools unified** ~80→40 distinct: collapsed case/accent/typo/faculty variants (AUB, USJ, Melkart, GLFL,
+      International College, Balamand, Elysée, Louise Wegmann, IML, ALBA, Sainte-Famille, LAU, Athénée…) while
+      KEEPING distinct campuses separate (La Sagesse Brazilia vs Achrafieh vs Aïn Saadé). FLAGGED for joint review:
+      `Autre`/`TRAVAIL` (set null?), generic `Sagesse`/`Collège La Sagesse` (which campus?), the Institut
+      Moderne/Français cluster, `Lycee Francais`, `Lypa`.
+- [x] **Cities — managed list + admin page + picker + normalized:**
+      - `member.cities` json_array setting (seeded `SeedData.CuratedCitiesJson`, ~100 curated Lebanese towns;
+        auto-added to existing DBs by `SeedMissingSettingsAsync`).
+      - Admin page `/admin/cities` ("Villes", sidebar Gestion group) — add/remove/filter, gated by **maitrise.manage**
+        so a **Chef de Groupe** (and super-admin) curates it. Backend `UpdateCitiesCommand` + `PUT /settings/cities`
+        (CG-accessible, unlike system settings which need associations.manage; upserts + dedupes accent/case-insensitive).
+      - `CitySelect` (pure component, `cities` passed in) = searchable list + "Autre…" free-text fallback that snaps
+        a typed name onto a canonical city on blur (`matchCity`). Wired into member detail + Ma fiche (add+edit
+        address) and the demande wizard household address. Applicant portal gets cities via `ApplicantConfigDto.Cities`
+        (NOT the authenticated /settings endpoint — avoids the portal's 401→login interceptor).
+      - **Data normalized** on member_addresses (~480 rows): generic case/accent pass + alias map for transliterations
+        (Beirut→Beyrouth, Ashrafieh→Achrafieh, Hadat→Hadath, Loueize/Louaizeh→Louaize, Hazmieh+Mar Takla→Hazmieh,
+        Wadi Chahrour suffixes→Wadi Chahrour, Baabda+locality→locality, etc.). From 250+ spellings → ~30 residual
+        FLAGGED (genuine two-town composites like `Baabda Hazmieh`/`Raboueh-Kornet Chehwan`, districts `Metn`/`Keserwan`,
+        ambiguous `Zouk`/`Rawda`/`Sin saade`, junk `City rama`/`WESTWOOD`/`Egerggre`) for joint review.
+- FLAGGED for "fix together" (in `project_migration_cleanup_todo.md`): **45 duplicate members** (same name+DOB, BP
+      re-import artifacts), **suffix-mangled leaders** (`ZiadCU GEBEILYCU` 1936 DOB etc. = dup leaders w/ unit-code on
+      the name), **10 DOB errors** (years 2105/2160/3012, toddlers), **181 orphans** (no assignment — show only under
+      "Sans unité"), 7 empty gender, the school flags, and the ~30 city residuals.
+
 ### Remaining / Next
-- [ ] Migration data cleanup (deferred): name spacing ("Marie- Lynn"), GET /photo unit-scope
+- [ ] Migration data cleanup (deferred): the flag-lists above (dup members, DOB errors, orphans, school/city
+      residuals), name spacing ("Marie- Lynn" class fixed; others remain), GET /photo unit-scope
 - [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies

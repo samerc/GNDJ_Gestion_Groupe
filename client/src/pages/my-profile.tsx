@@ -13,13 +13,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { SearchableSelect } from '@/components/shared/searchable-select'
+import { CitySelect } from '@/components/shared/city-select'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
-import { useSettingArray, useSettingValue } from '@/services/settings-service'
+import { useSettingArray, useSettingValue, useCities } from '@/services/settings-service'
 import { parseApiError } from '@/lib/error-utils'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
@@ -36,6 +37,7 @@ export default function MyProfilePage() {
   const defaultCountry = useSettingValue('default_country')
   const schools = useSettingArray('member.schools')
   const classes = useSettingArray('member.classes')
+  const cities = useCities()
 
   const addPhoneMutation = useAddPhone(memberId)
   const deletePhoneMutation = useDeletePhone(memberId)
@@ -365,7 +367,7 @@ export default function MyProfilePage() {
           <DialogHeader><DialogTitle>Ajouter une adresse</DialogTitle></DialogHeader>
           <form onSubmit={async (e) => { e.preventDefault(); await addAddressMutation.mutateAsync({ ...addressForm, details: addressForm.details || null }); setAddressDialogOpen(false) }} className="space-y-4">
             <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={addressForm.type} onValueChange={(v) => setAddressForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ADDRESS_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={addressForm.country} onValueChange={(v) => setAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><Input value={addressForm.city} onChange={(e) => setAddressForm(f => ({ ...f, city: e.target.value }))} required /></div></div>
+            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={addressForm.country} onValueChange={(v) => setAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><CitySelect value={addressForm.city} onChange={(city) => setAddressForm(f => ({ ...f, city }))} cities={cities} /></div></div>
             <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={addressForm.details} onChange={(e) => setAddressForm(f => ({ ...f, details: e.target.value }))} placeholder="Rue, immeuble..." /></div>
             <DialogFooter><Button variant="outline" type="button" onClick={() => setAddressDialogOpen(false)}>Annuler</Button><Button type="submit">Ajouter</Button></DialogFooter>
           </form>
@@ -406,7 +408,7 @@ export default function MyProfilePage() {
           <DialogHeader><DialogTitle>Modifier l'adresse</DialogTitle></DialogHeader>
           <form onSubmit={handleUpdateAddress} className="space-y-4">
             <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editAddressForm.type} onValueChange={(v) => setEditAddressForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ADDRESS_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={editAddressForm.country} onValueChange={(v) => setEditAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><Input value={editAddressForm.city} onChange={(e) => setEditAddressForm(f => ({ ...f, city: e.target.value }))} required /></div></div>
+            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={editAddressForm.country} onValueChange={(v) => setEditAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><CitySelect value={editAddressForm.city} onChange={(city) => setEditAddressForm(f => ({ ...f, city }))} cities={cities} /></div></div>
             <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={editAddressForm.details} onChange={(e) => setEditAddressForm(f => ({ ...f, details: e.target.value }))} placeholder="Rue, immeuble..." /></div>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editAddressForm.isPrimary} onChange={(e) => setEditAddressForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label>
             <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingAddress(null)}>Annuler</Button><Button type="submit" disabled={updateAddressMutation.isPending}>Enregistrer</Button></DialogFooter>

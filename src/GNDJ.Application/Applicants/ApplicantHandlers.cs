@@ -16,7 +16,7 @@ namespace GNDJ.Application.Applicants;
 public record ApplicantAuthDto(Guid AccountId, string Email, bool EmailVerified, string AccessToken, string RefreshToken, DateTime ExpiresAt);
 
 public record ApplicantConfigDto(bool IsOpen, string ScoutYear, int MaxPerAccount, int NotesMaxLength, bool RequireEmailVerification, string? IntroText,
-    IReadOnlyList<string> Schools, IReadOnlyList<string> Classes, IReadOnlyList<string> Units, int MaxScoutRelations);
+    IReadOnlyList<string> Schools, IReadOnlyList<string> Classes, IReadOnlyList<string> Cities, IReadOnlyList<string> Units, int MaxScoutRelations);
 
 public record ApplicantGuardianDto(Guid? Id, string Relationship, string FirstName, string LastName, string? Profession,
     string? PhoneCountryCode, string? PhoneNumber, string? Email, bool IsDeceased, bool IsPrimaryContact, bool IsEmergencyContact);
@@ -66,7 +66,7 @@ static class ApplicantHelpers
     [
         "demande.enabled", "demande.scout_year", "passage.scout_year", "demande.max_per_account",
         "demande.notes_max_length", "demande.require_email_verification", "demande.intro_text",
-        "demande.max_scout_relations", "member.schools", "member.classes"
+        "demande.max_scout_relations", "member.schools", "member.classes", "member.cities"
     ];
 
     // Absolute safety cap enforced by SaveApplicantHouseholdCommandValidator regardless of the configurable
@@ -96,12 +96,13 @@ static class ApplicantHelpers
 
         var schools = ParseJsonArray(Get("member.schools"));
         var classes = ParseJsonArray(Get("member.classes"));
+        var cities = ParseJsonArray(Get("member.cities"));
 
         // Active units of the group — public (the public website already lists them). Helps applicants
         // indicate which unit a current-member relative belongs to, easing family matching for the CG.
         var units = await ctx.Units.Where(u => u.IsActive).OrderBy(u => u.Name).Select(u => u.Name).ToListAsync(ct);
 
-        return new ApplicantConfigDto(enabled, year, max, notesLen, requireVerify, intro, schools, classes, units, maxRelations);
+        return new ApplicantConfigDto(enabled, year, max, notesLen, requireVerify, intro, schools, classes, cities, units, maxRelations);
     }
 
     public static DemandeDto ToDto(Demande d) => new(

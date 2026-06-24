@@ -10,6 +10,7 @@ export interface ApplicantConfig {
   introText: string | null
   schools: string[]
   classes: string[]
+  cities: string[]
   units: string[]
   maxScoutRelations: number
 }

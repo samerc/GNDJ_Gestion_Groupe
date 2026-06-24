@@ -5,6 +5,7 @@ import { PermissionRoute } from '@/components/auth/permission-route'
 import { PERMISSIONS } from '@/lib/constants'
 import MaitrisesPage from '@/pages/maitrises'
 import GroupAccessPage from '@/pages/admin/group-access'
+import CitiesAdminPage from '@/pages/admin/cities'
 import { AppLayout } from '@/components/layout/app-layout'
 import { PublicLayout } from '@/components/public/public-layout'
 import PublicHomePage from '@/pages/public/home'
@@ -101,6 +102,7 @@ export default function App() {
                 ones their profile allows (group management, no system config). */}
             <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
               <Route path="/maitrises" element={<MaitrisesPage />} />
+              <Route path="/admin/cities" element={<CitiesAdminPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.ROLES_VIEW} />}>
               <Route path="/admin/security-profiles" element={<SecurityProfilesPage />} />

@@ -42,4 +42,19 @@ public class SettingsController : BaseApiController
         await outputCache.EvictByTagAsync("short", default);
         return NoContent();
     }
+
+    // Managed cities list — editable by a Chef de Groupe (maitrise.manage) as well as super-admin,
+    // unlike the system settings above which require associations.manage.
+    [HttpPut("cities")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> UpdateCities([FromBody] UpdateCitiesCommand command,
+        [FromServices] ISettingsCacheService settingsCache, [FromServices] IOutputCacheStore outputCache)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        settingsCache.Invalidate();
+        await outputCache.EvictByTagAsync("lookup", default);
+        await outputCache.EvictByTagAsync("short", default);
+        return NoContent();
+    }
 }
