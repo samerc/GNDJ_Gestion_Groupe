@@ -830,6 +830,20 @@ Interactive fix of the flag-lists + a member-number model change. Live-DB edits 
 - [ ] Migration tool: replicate the card-number split on re-import (populate external from source, always
       generate internal) — currently only the live DB is split.
 
+### Data cleanup pass 3 — guardians / addresses / professions (2026-06-25)
+Live-DB pass on the parent/contact data (untouched by passes 1–2). Backups `_bak_clean2_*`, `_bak_prof`, `_bak_gmerge_*`.
+- [x] **Address country** unified → `Liban` (was Liban/Lebanon/liban/LIBAN/LIban/LB LIBAN/Libn/Lila/Beyrouth/junk =
+      15 spellings); only real foreign value `UNITED STATES` kept. 97 rows.
+- [x] **Guardian emails** lowercased + whitespace-stripped (57); **guardian phone junk codes** (`+009`/`+001`/`+03`/`+3`)
+      → `+961` (5); guardian name double-space/lowercase-initial tidy-ups.
+- [x] **Professions** accent+case folded: 1725 → 1515 distinct (663 rows), keeping the proper accented spelling
+      (Ingenieur→Ingénieur, Medecin→Médecin, Femme au foyer→Femme au Foyer); gendered forms (Avocat/Avocate) kept.
+- [x] **Duplicate guardians merged — 1615 losers → 1219 keepers** (4867→3252 active). Criterion = **same normalized
+      name AND a shared phone (≥6 digits) or email** (high-confidence import dups only; same-name-alone left alone
+      since unrelated families share names). Connected-component clustering (recursive CTE), keeper = most links;
+      re-pointed 1556 links (one per keeper+member+role, partial unique index), moved + deduped contacts (1097
+      phones / 1342 emails), soft-deleted losers. 0 same-name+shared-contact pairs remain. Data-only.
+
 ### Rentrée scoute — scout-year startup checklist (2026-06-25)
 A dependency-aware task list for starting a scout year, generated each year from an editable template.
 - [x] **Entities:** `RentreeTaskTemplate` (master defs) + `RentreeTask` (per-year instance). Assignees &
