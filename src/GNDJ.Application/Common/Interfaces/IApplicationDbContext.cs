@@ -50,6 +50,11 @@ public interface IApplicationDbContext
     DbSet<Page> Pages { get; }
     DbSet<RentreeTaskTemplate> RentreeTaskTemplates { get; }
     DbSet<RentreeTask> RentreeTasks { get; }
+    DbSet<Camp> Camps { get; }
+    DbSet<Famille> Familles { get; }
+    DbSet<CampParticipant> CampParticipants { get; }
+    DbSet<CampGame> CampGames { get; }
+    DbSet<CampGameEtapiste> CampGameEtapistes { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

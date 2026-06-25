@@ -69,7 +69,8 @@ public static class SeedData
             Permissions.RolesView,
             Permissions.DocumentsView, Permissions.DocumentsCreate, Permissions.DocumentsEdit, Permissions.DocumentsDelete, Permissions.DocumentsApprove,
             Permissions.CotisationsView, Permissions.CotisationsCreate, Permissions.CotisationsEdit, Permissions.CotisationsDelete,
-            Permissions.PassageView, Permissions.PassagePropose
+            Permissions.PassageView, Permissions.PassagePropose,
+            Permissions.CampGrade
         ]);
         var chefEquipeProfile = CreateProfile("Chef d'équipe", "chef-equipe", "Gestion d'une équipe",
         [
@@ -165,7 +166,8 @@ public static class SeedData
                 Permissions.CotisationsView, Permissions.CotisationsCreate, Permissions.CotisationsEdit, Permissions.CotisationsDelete,
                 Permissions.DocumentTypesView,
                 Permissions.ProgressionView, Permissions.ProgressionManage,
-                Permissions.PassageView, Permissions.PassagePropose
+                Permissions.PassageView, Permissions.PassagePropose,
+                Permissions.CampGrade
             ],
             ["chef-equipe"] = [Permissions.DocumentsView, Permissions.CotisationsView, Permissions.ProgressionView, Permissions.PassageView],
             ["read-only"] = Permissions.All.Where(p => p.EndsWith(".view")).ToArray(),
@@ -330,6 +332,7 @@ public static class SeedData
             new() { Key = "member.classes", Value = "[\"EB1\",\"EB2\",\"EB3\",\"EB4\",\"EB5\",\"EB6\",\"EB7\",\"EB8\",\"EB9\",\"Seconde\",\"Première\",\"Terminale\"]", Category = "members", Label = "Classes", Description = "Liste des classes disponibles dans le formulaire membre", ValueType = "json_array" },
             new() { Key = "member.cities", Value = CuratedCitiesJson, Category = "members", Label = "Villes", Description = "Liste des villes disponibles dans les formulaires d'adresse (gérable par le Chef de Groupe)", ValueType = "json_array" },
             new() { Key = "member.profession_domains", Value = ProfessionDomainsJson, Category = "members", Label = "Domaines de profession", Description = "Catégories d'activité proposées pour la profession des parents (le titre reste en texte libre)", ValueType = "json_array" },
+            new() { Key = "camp.familles_count", Value = "12", Category = "camp", Label = "Nombre de familles (Camp BP)", Description = "Nombre de familles par défaut lors de la création d'un camp BP", ValueType = "number" },
             new() { Key = "passage.enabled", Value = "false", Category = "passage", Label = "Passage annuel actif", Description = "Active ou désactive le processus de passage annuel", ValueType = "boolean" },
             new() { Key = "passage.scout_year", Value = "2026-2027", Category = "passage", Label = "Année scoute du passage", Description = "Année scoute cible pour le passage en cours", ValueType = "string" },
             new() { Key = "passage.date", Value = "", Category = "passage", Label = "Date du passage", Description = "Date d'effet du passage : date de début des nouvelles affectations des anciens membres (et de fin des anciennes). À définir chaque année ; vide = date du jour.", ValueType = "date" },

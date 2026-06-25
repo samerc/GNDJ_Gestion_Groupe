@@ -52,6 +52,11 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<Page> Pages => Set<Page>();
     public DbSet<RentreeTaskTemplate> RentreeTaskTemplates => Set<RentreeTaskTemplate>();
     public DbSet<RentreeTask> RentreeTasks => Set<RentreeTask>();
+    public DbSet<Camp> Camps => Set<Camp>();
+    public DbSet<Famille> Familles => Set<Famille>();
+    public DbSet<CampParticipant> CampParticipants => Set<CampParticipant>();
+    public DbSet<CampGame> CampGames => Set<CampGame>();
+    public DbSet<CampGameEtapiste> CampGameEtapistes => Set<CampGameEtapiste>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -67,6 +67,9 @@ public static class Permissions
 
     public const string RentreeManage = "rentree.manage"; // CG/super-admin: scout-year startup task template + checklist
 
+    public const string CampManage = "camp.manage"; // CG/super-admin: Camp BP — camp, draft, familles, games
+    public const string CampGrade = "camp.grade";   // CU: grade own unit's members for the camp
+
     public const string AuditView = "audit.view";
     public const string AdminHardDelete = "admin.hard_delete";
 
@@ -89,6 +92,7 @@ public static class Permissions
         ContentManage,
         MaitriseManage,
         RentreeManage,
+        CampManage, CampGrade,
         AuditView, AdminHardDelete
     ];
 }
