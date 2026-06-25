@@ -8,6 +8,7 @@ import {
 } from '@/services/camp-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
@@ -15,7 +16,7 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
-import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users } from 'lucide-react'
+import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, ArrowLeftRight, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function CampDetailPage() {
@@ -111,80 +112,138 @@ function SettingsTab({ campId }: { campId: string }) {
   )
 }
 
-// ─── Familles board ──────────────────────────────────────────────────────────
+// ─── Familles board (master–detail) ──────────────────────────────────────────
+type SwapSel = { participantId: string; familleId: string; name: string }
+
 function FamillesTab({ campId }: { campId: string }) {
   const { data: familles, isLoading } = useCampFamilles(campId)
   const draft = useRunDraft(campId)
   const move = useMoveParticipant(campId)
   const swap = useSwapParticipants(campId)
   const [confirmDraft, setConfirmDraft] = useState(false)
-  const [selected, setSelected] = useState<{ participantId: string; familleId: string } | null>(null)
+  const [selId, setSelId] = useState<string | null>(null)
+  const [swapSel, setSwapSel] = useState<SwapSel | null>(null)
   const [leaderDialog, setLeaderDialog] = useState<CampFamilleDto | null>(null)
 
-  const onMemberClick = async (participantId: string, familleId: string) => {
-    if (!selected) { setSelected({ participantId, familleId }); return }
-    if (selected.participantId === participantId) { setSelected(null); return }
-    try { await swap.mutateAsync({ participantAId: selected.participantId, participantBId: participantId }); toast.success('Échangés') }
-    catch (e) { toast.error(parseApiError(e)) }
-    setSelected(null)
-  }
-  const onFamilleDrop = async (familleId: string) => {
-    if (!selected || selected.familleId === familleId) { setSelected(null); return }
-    try { await move.mutateAsync({ participantId: selected.participantId, familleId }); toast.success('Déplacé') }
-    catch (e) { toast.error(parseApiError(e)) }
-    setSelected(null)
-  }
+  useEffect(() => {
+    if (familles && familles.length > 0 && (!selId || !familles.some(f => f.id === selId))) setSelId(familles[0].id)
+  }, [familles, selId])
 
   if (isLoading) return <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div>
+  if ((familles ?? []).length === 0) return (
+    <div className="space-y-3">
+      <div className="flex justify-end"><Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />Lancer le tirage</Button></div>
+      <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Aucune famille. Lancez le tirage pour les créer et répartir les membres.</p>
+      <ConfirmDialog open={confirmDraft} onOpenChange={setConfirmDraft} title="Lancer le tirage" confirmLabel="Lancer"
+        description="Répartit tous les membres notés dans les familles (équilibre note/effectif/branche/genre)."
+        onConfirm={async () => { try { await draft.mutateAsync(); toast.success('Tirage effectué') } catch (e) { toast.error(parseApiError(e)) } }} />
+    </div>
+  )
 
-  const notes = (familles ?? []).filter(f => f.size > 0).map(f => f.avgNote)
-  const minNote = notes.length ? Math.min(...notes) : 0
-  const maxNote = notes.length ? Math.max(...notes) : 0
+  const fl = familles!
+  const avgs = fl.filter(f => f.size > 0).map(f => f.avgNote)
+  const minA = avgs.length ? Math.min(...avgs) : 0
+  const maxA = avgs.length ? Math.max(...avgs) : 1
+  const sel = fl.find(f => f.id === selId) ?? fl[0]
+
+  const doMove = async (participantId: string, familleId: string) => {
+    try { await move.mutateAsync({ participantId, familleId }); toast.success('Déplacé') } catch (e) { toast.error(parseApiError(e)) }
+  }
+  const onSwapClick = async (m: SwapSel) => {
+    if (!swapSel) { setSwapSel(m); return }
+    if (swapSel.participantId === m.participantId) { setSwapSel(null); return }
+    try { await swap.mutateAsync({ participantAId: swapSel.participantId, participantBId: m.participantId }); toast.success('Échangés') }
+    catch (e) { toast.error(parseApiError(e)) }
+    setSwapSel(null)
+  }
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
-          {selected ? <span className="text-primary">Membre sélectionné — cliquez un autre membre pour échanger, ou une famille pour déplacer.</span>
-            : 'Cliquez un membre pour le sélectionner, puis un autre pour échanger (ou une famille pour le déplacer).'}
-        </p>
+        {swapSel
+          ? <div className="flex items-center gap-2 rounded-md border border-primary/40 bg-primary/5 px-2 py-1 text-sm">
+              <ArrowLeftRight className="h-4 w-4 text-primary" /><span>Échange : <b>{swapSel.name}</b> — choisissez un membre dans une autre famille</span>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSwapSel(null)}><X className="h-3.5 w-3.5" /></Button>
+            </div>
+          : <p className="text-sm text-muted-foreground">Sélectionnez une famille à gauche ; déplacez ou échangez ses membres à droite.</p>}
         <Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />{draft.isPending ? 'Tirage…' : 'Lancer le tirage'}</Button>
       </div>
 
-      {(familles ?? []).length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Aucune famille. Lancez le tirage pour les créer et répartir les membres.</p> :
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {familles!.map(f => (
-            <div key={f.id} className="rounded-lg border">
-              <button type="button" onClick={() => selected ? onFamilleDrop(f.id) : undefined}
-                className={cn('flex w-full items-center justify-between gap-2 border-b p-2 text-left', selected && selected.familleId !== f.id && 'hover:bg-primary/5')}>
-                <span className="font-semibold">Famille {f.number}</span>
-                <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span title="Effectif">{f.size}👤</span>
-                  <span title="Moyenne des notes" className={cn('rounded px-1 tabular-nums', f.size > 0 && f.avgNote === minNote && 'bg-blue-500/10 text-blue-600', f.size > 0 && f.avgNote === maxNote && minNote !== maxNote && 'bg-amber-500/10 text-amber-600')}>~{f.avgNote}</span>
-                  <span title="Garçons / Filles">{f.boys}♂ {f.girls}♀</span>
-                </span>
-              </button>
-              <button type="button" onClick={() => setLeaderDialog(f)} className="flex w-full items-center gap-1.5 border-b px-2 py-1.5 text-left text-xs hover:bg-muted/40">
-                <Crown className="h-3.5 w-3.5 text-amber-500" />
-                <span className="text-muted-foreground">Père:</span> <span className="font-medium">{f.pereName ?? '—'}</span>
-                <span className="ml-2 text-muted-foreground">Mère:</span> <span className="font-medium">{f.mereName ?? '—'}</span>
-              </button>
-              <div className="flex flex-wrap gap-1 p-2">
-                {f.members.length === 0 ? <span className="text-xs text-muted-foreground">Vide</span> :
-                  f.members.map(m => (
-                    <button key={m.participantId} type="button" onClick={() => onMemberClick(m.participantId, f.id)}
-                      title={`${m.firstName} ${m.lastName} · ${m.branche} · ${m.unitName ?? '—'} · note ${m.note ?? '—'}`}
-                      className={cn('flex flex-col items-start rounded border px-1.5 py-0.5 text-xs leading-tight transition-colors',
-                        selected?.participantId === m.participantId ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-muted',
-                        m.gender === 'Féminin' ? 'border-pink-200' : 'border-blue-200')}>
-                      <span>{m.firstName} {m.lastName.charAt(0)}.</span>
-                      <span className={cn('text-[10px]', selected?.participantId === m.participantId ? 'text-primary-foreground/80' : 'text-muted-foreground')}>{m.unitName ?? m.branche}</span>
-                    </button>
-                  ))}
-              </div>
+      <div className="flex flex-col gap-3 lg:flex-row">
+        {/* Left: famille list with avg-note bars */}
+        <div className="lg:w-64 lg:shrink-0">
+          <div className="max-h-[70vh] overflow-y-auto rounded-lg border">
+            {fl.map(f => {
+              const pct = maxA > minA ? Math.round(((f.avgNote - minA) / (maxA - minA)) * 100) : 50
+              const low = f.size > 0 && f.avgNote === minA, high = f.size > 0 && f.avgNote === maxA && minA !== maxA
+              return (
+                <button key={f.id} type="button" onClick={() => setSelId(f.id)}
+                  className={cn('flex w-full items-center gap-2 border-b px-2 py-1.5 text-left text-sm last:border-b-0', sel.id === f.id ? 'bg-primary/10' : 'hover:bg-muted/40')}>
+                  <span className="w-12 shrink-0 font-medium">F{f.number}</span>
+                  <span className="w-7 shrink-0 text-xs text-muted-foreground tabular-nums">{f.size}</span>
+                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                    <span className={cn('block h-full rounded-full', low ? 'bg-blue-500' : high ? 'bg-amber-500' : 'bg-primary/60')} style={{ width: `${Math.max(6, pct)}%` }} />
+                  </span>
+                  <span className={cn('w-9 shrink-0 text-right text-xs tabular-nums', low && 'text-blue-600', high && 'text-amber-600')}>{f.avgNote}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Right: selected famille detail */}
+        <div className="min-w-0 flex-1 rounded-lg border">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
+            <div>
+              <h3 className="font-semibold">Famille {sel.number}</h3>
+              <p className="text-xs text-muted-foreground">{sel.size} membres · moy. {sel.avgNote} · {sel.boys}♂ {sel.girls}♀ · {Object.entries(sel.branchCounts).map(([b, n]) => `${b.slice(0, 3)} ${n}`).join(' · ')}</p>
             </div>
-          ))}
-        </div>}
+            <button type="button" onClick={() => setLeaderDialog(sel)} className="flex items-center gap-1.5 rounded border px-2 py-1 text-xs hover:bg-muted/40">
+              <Crown className="h-3.5 w-3.5 text-amber-500" />
+              <span className="text-muted-foreground">Père:</span> <b>{sel.pereName ?? '—'}</b>
+              <span className="ml-1 text-muted-foreground">Mère:</span> <b>{sel.mereName ?? '—'}</b>
+              <span className="ml-1 text-primary">Modifier</span>
+            </button>
+          </div>
+
+          {sel.members.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">Famille vide.</p> :
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-xs text-muted-foreground">
+                  <tr>
+                    <th className="p-2 text-left font-medium">Nom complet</th>
+                    <th className="p-2 text-left font-medium">Branche</th>
+                    <th className="p-2 text-left font-medium">Unité</th>
+                    <th className="p-2 text-right font-medium">Note</th>
+                    <th className="p-2 text-right font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...sel.members].sort((a, b) => (b.note ?? 0) - (a.note ?? 0)).map(m => (
+                    <tr key={m.participantId} className={cn('border-t', swapSel?.participantId === m.participantId && 'bg-primary/10')}>
+                      <td className="p-2">{m.firstName} {m.lastName} <span className="text-muted-foreground">{m.gender === 'Féminin' ? '♀' : m.gender === 'Masculin' ? '♂' : ''}</span></td>
+                      <td className="p-2 text-muted-foreground">{m.branche}</td>
+                      <td className="p-2 text-muted-foreground">{m.unitName ?? '—'}</td>
+                      <td className="p-2 text-right font-medium tabular-nums">{m.note ?? '—'}</td>
+                      <td className="p-2">
+                        <div className="flex items-center justify-end gap-1">
+                          <Select value="" onValueChange={v => doMove(m.participantId, v)}>
+                            <SelectTrigger className="h-7 w-[120px] text-xs"><SelectValue placeholder="Déplacer →" /></SelectTrigger>
+                            <SelectContent>{fl.filter(x => x.id !== sel.id).map(x => <SelectItem key={x.id} value={x.id}>Famille {x.number} ({x.size})</SelectItem>)}</SelectContent>
+                          </Select>
+                          <Button variant={swapSel?.participantId === m.participantId ? 'default' : 'outline'} size="icon" className="h-7 w-7"
+                            title="Échanger" onClick={() => onSwapClick({ participantId: m.participantId, familleId: sel.id, name: `${m.firstName} ${m.lastName}` })}>
+                            <ArrowLeftRight className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>}
+        </div>
+      </div>
 
       <ConfirmDialog open={confirmDraft} onOpenChange={setConfirmDraft} title="Lancer le tirage"
         description="Cela répartit (ou re-répartit) tous les membres notés dans les familles, en équilibrant note, effectif, branche et genre. Les Pères/Mères restent en place. Les déplacements manuels seront écrasés. Continuer ?"
