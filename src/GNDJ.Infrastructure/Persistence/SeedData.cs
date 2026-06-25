@@ -35,6 +35,21 @@ public static class SeedData
         "Tilal Ain Saade", "Tripoli", "Wadi Chahrour", "Yarze", "Zahle", "Zalka", "Zekrit", "Zouk Mikael", "Zouk Mosbeh"
     });
 
+    // Activity domains (catégories) for the guardian "Domaine" picker. The free-text profession holds the title.
+    public static readonly string ProfessionDomainsJson = System.Text.Json.JsonSerializer.Serialize(new[]
+    {
+        "Administration publique", "Agriculture / Agroalimentaire", "Architecture", "Armée/Secteur militaire",
+        "Art, Design", "Audiovisuel, Spectacle, Cinéma", "Audit, Conseil, Expertise", "Automobile",
+        "Banque, Assurance", "Bâtiment", "Chimie, pharmacie", "Commerce, distribution, e-commerce",
+        "Culture, Artisanat d'art", "Direction, Entreprise", "Droit, justice", "Edition, Journalisme",
+        "Electronique, Electrotechnique", "Energie", "Enseignement", "Environnement", "Habillement, Mode",
+        "Hôtellerie, Restauration, Tourisme", "Humanitaire", "Immobilier", "Informatique, Numérique et Réseaux",
+        "Ingénierie", "Logistique, transport", "Maintenance, entretien", "Marketing, publicité, Communication",
+        "Matériaux, Transformations", "Mécanique", "Politique", "Santé, médical", "Sciences Physique – Maths - Data",
+        "Secrétariat/Administration", "Sécurité - Secours", "Social, Services à la personne",
+        "Soins - Esthétique - Coiffure", "Sport et loisirs", "Sans profession / Au foyer", "Autre"
+    });
+
     public static async Task SeedAsync(GndjDbContext context, string superAdminEmail, string superAdminPasswordHash)
     {
         if (await context.SecurityProfiles.IgnoreQueryFilters().AnyAsync())
@@ -314,6 +329,7 @@ public static class SeedData
             new() { Key = "member.default_school", Value = "Collège Notre-Dame de Jamhour", Category = "members", Label = "École par défaut", Description = "École sélectionnée par défaut lors de la création d'un membre", ValueType = "string" },
             new() { Key = "member.classes", Value = "[\"EB1\",\"EB2\",\"EB3\",\"EB4\",\"EB5\",\"EB6\",\"EB7\",\"EB8\",\"EB9\",\"Seconde\",\"Première\",\"Terminale\"]", Category = "members", Label = "Classes", Description = "Liste des classes disponibles dans le formulaire membre", ValueType = "json_array" },
             new() { Key = "member.cities", Value = CuratedCitiesJson, Category = "members", Label = "Villes", Description = "Liste des villes disponibles dans les formulaires d'adresse (gérable par le Chef de Groupe)", ValueType = "json_array" },
+            new() { Key = "member.profession_domains", Value = ProfessionDomainsJson, Category = "members", Label = "Domaines de profession", Description = "Catégories d'activité proposées pour la profession des parents (le titre reste en texte libre)", ValueType = "json_array" },
             new() { Key = "passage.enabled", Value = "false", Category = "passage", Label = "Passage annuel actif", Description = "Active ou désactive le processus de passage annuel", ValueType = "boolean" },
             new() { Key = "passage.scout_year", Value = "2026-2027", Category = "passage", Label = "Année scoute du passage", Description = "Année scoute cible pour le passage en cours", ValueType = "string" },
             new() { Key = "passage.date", Value = "", Category = "passage", Label = "Date du passage", Description = "Date d'effet du passage : date de début des nouvelles affectations des anciens membres (et de fin des anciennes). À définir chaque année ; vide = date du jour.", ValueType = "date" },

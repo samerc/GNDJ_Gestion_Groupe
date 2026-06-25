@@ -11,6 +11,7 @@ public class CreateGuardianCommandValidator : AbstractValidator<CreateGuardianCo
         RuleFor(x => x.FirstName).NotEmpty().WithMessage("Le prénom est requis.").MaximumLength(100).NoHtml();
         RuleFor(x => x.LastName).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
         RuleFor(x => x.Profession).MaximumLength(150).NoHtml();
+        RuleFor(x => x.ProfessionDomain).MaximumLength(100).NoHtml();
         RuleFor(x => x.RelationshipType).NotEmpty().WithMessage("Le lien de parenté est requis.").MaximumLength(50).NoHtml();
         RuleFor(x => x.Notes).MaximumLength(2000);
     }
@@ -24,6 +25,7 @@ public class UpdateGuardianCommandValidator : AbstractValidator<UpdateGuardianCo
         RuleFor(x => x.FirstName).NotEmpty().WithMessage("Le prénom est requis.").MaximumLength(100).NoHtml();
         RuleFor(x => x.LastName).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
         RuleFor(x => x.Profession).MaximumLength(150).NoHtml();
+        RuleFor(x => x.ProfessionDomain).MaximumLength(100).NoHtml();
         RuleFor(x => x.Notes).MaximumLength(2000);
     }
 }

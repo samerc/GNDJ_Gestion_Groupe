@@ -12,7 +12,8 @@ public class GuardianConfiguration : IEntityTypeConfiguration<Guardian>
         builder.HasKey(e => e.Id);
         builder.Property(e => e.FirstName).HasMaxLength(100).IsRequired();
         builder.Property(e => e.LastName).HasMaxLength(100).IsRequired();
-        builder.Property(e => e.Profession).HasMaxLength(100);
+        builder.Property(e => e.Profession).HasMaxLength(150);
+        builder.Property(e => e.ProfessionDomain).HasMaxLength(100);
         builder.Property(e => e.Notes).HasColumnType("text");
 
         builder.HasIndex(e => new { e.LastName, e.FirstName });

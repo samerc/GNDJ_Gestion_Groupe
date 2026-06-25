@@ -7,6 +7,8 @@ public class Guardian : BaseEntity
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string? Profession { get; set; }
+    // Activity domain (category) from the managed member.profession_domains list. Profession stays the free-text title.
+    public string? ProfessionDomain { get; set; }
     public bool IsDeceased { get; set; }
     public string? Notes { get; set; }
 

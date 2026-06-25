@@ -41,6 +41,8 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
   const deleteEmailMutation = useDeleteGuardianEmail(memberId)
   const defaultCountryCode = useSettingValue('default_country_code')
   const pinnedProfessions = useSettingArray('pinned_professions')
+  const professionDomains = useSettingArray('member.profession_domains')
+  const domainOptions = professionDomains.map(d => ({ value: d, label: d }))
 
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [mode, setMode] = useState<'search' | 'create'>('search')
@@ -48,7 +50,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
   const debouncedSearch = useDebounce(searchText)
   const { data: searchResults } = useSearchGuardians(debouncedSearch)
 
-  const [form, setForm] = useState({ firstName: '', lastName: '', profession: '', relationshipType: 'Père', isPrimaryContact: false, isEmergencyContact: false, isDeceased: false })
+  const [form, setForm] = useState({ firstName: '', lastName: '', profession: '', professionDomain: '', relationshipType: 'Père', isPrimaryContact: false, isEmergencyContact: false, isDeceased: false })
   const [linkForm, setLinkForm] = useState({ guardianId: '', relationshipType: 'Père', isPrimaryContact: false, isEmergencyContact: false })
   const [error, setError] = useState('')
   const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
@@ -59,12 +61,12 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
   const [emailForm, setEmailForm] = useState({ address: '', type: 'Personnel', isPrimary: false })
   const [unlinking, setUnlinking] = useState<GuardianLinkDto | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [editForm, setEditForm] = useState({ id: '', firstName: '', lastName: '', profession: '', isDeceased: false, notes: '', linkId: '', relationshipType: 'Père', isPrimaryContact: false, isEmergencyContact: false })
+  const [editForm, setEditForm] = useState({ id: '', firstName: '', lastName: '', profession: '', professionDomain: '', isDeceased: false, notes: '', linkId: '', relationshipType: 'Père', isPrimaryContact: false, isEmergencyContact: false })
 
   const openEdit = (gl: GuardianLinkDto) => {
     setEditForm({
       id: gl.guardianId, firstName: gl.guardian.firstName, lastName: gl.guardian.lastName,
-      profession: gl.guardian.profession ?? '', isDeceased: gl.guardian.isDeceased, notes: gl.guardian.notes ?? '',
+      profession: gl.guardian.profession ?? '', professionDomain: gl.guardian.professionDomain ?? '', isDeceased: gl.guardian.isDeceased, notes: gl.guardian.notes ?? '',
       linkId: gl.linkId, relationshipType: gl.relationshipType, isPrimaryContact: gl.isPrimaryContact, isEmergencyContact: gl.isEmergencyContact,
     })
     setError('')
@@ -76,7 +78,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
     setError('')
     if (!editForm.firstName.trim() || !editForm.lastName.trim()) { setError('Le prénom et le nom sont requis.'); return }
     try {
-      await updateMutation.mutateAsync({ id: editForm.id, firstName: editForm.firstName, lastName: editForm.lastName, profession: editForm.profession || null, isDeceased: editForm.isDeceased, notes: editForm.notes || null })
+      await updateMutation.mutateAsync({ id: editForm.id, firstName: editForm.firstName, lastName: editForm.lastName, profession: editForm.profession || null, professionDomain: editForm.professionDomain || null, isDeceased: editForm.isDeceased, notes: editForm.notes || null })
       await updateLinkMutation.mutateAsync({ linkId: editForm.linkId, relationshipType: editForm.relationshipType, isPrimaryContact: editForm.isPrimaryContact, isEmergencyContact: editForm.isEmergencyContact })
       toast.success('Tuteur modifié')
       setEditDialogOpen(false)
@@ -86,7 +88,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
   const openAdd = () => {
     setMode('search')
     setSearchText('')
-    setForm({ firstName: '', lastName: '', profession: '', relationshipType: 'Père', isPrimaryContact: false, isEmergencyContact: false, isDeceased: false })
+    setForm({ firstName: '', lastName: '', profession: '', professionDomain: '', relationshipType: 'Père', isPrimaryContact: false, isEmergencyContact: false, isDeceased: false })
     setError(''); clearAll()
     setAddDialogOpen(true)
   }
@@ -101,7 +103,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
     setError('')
     if (!validate({ firstName: !form.firstName, lastName: !form.lastName, relationshipType: !form.relationshipType })) return
     try {
-      await createMutation.mutateAsync({ ...form, profession: form.profession || null })
+      await createMutation.mutateAsync({ ...form, profession: form.profession || null, professionDomain: form.professionDomain || null })
       toast.success('Tuteur ajouté')
       setAddDialogOpen(false)
     } catch (err) { setError(parseApiError(err)) }
@@ -171,7 +173,13 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
                   </Button>
                 </div>
               </div>
-              {gl.guardian.profession && <p className="text-sm text-muted-foreground">Profession: {gl.guardian.profession}</p>}
+              {(gl.guardian.professionDomain || gl.guardian.profession) && (
+                <p className="text-sm text-muted-foreground">
+                  {gl.guardian.professionDomain && <span>{gl.guardian.professionDomain}</span>}
+                  {gl.guardian.professionDomain && gl.guardian.profession && ' · '}
+                  {gl.guardian.profession && <span>{gl.guardian.profession}</span>}
+                </p>
+              )}
             </CardHeader>
             <CardContent className="space-y-3">
               {/* Phones */}
@@ -302,7 +310,17 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <RequiredLabel>Profession</RequiredLabel>
+                  <RequiredLabel>Domaine</RequiredLabel>
+                  <SearchableSelect
+                    value={form.professionDomain}
+                    onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v }))}
+                    options={domainOptions}
+                    placeholder="Domaine d'activité..."
+                    searchPlaceholder="Rechercher un domaine..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <RequiredLabel>Profession (texte libre)</RequiredLabel>
                   <SearchableSelect
                     value={form.profession}
                     onValueChange={(v) => setForm(f => ({ ...f, profession: v }))}
@@ -413,7 +431,17 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <RequiredLabel>Profession</RequiredLabel>
+                <RequiredLabel>Domaine</RequiredLabel>
+                <SearchableSelect
+                  value={editForm.professionDomain}
+                  onValueChange={(v) => setEditForm(f => ({ ...f, professionDomain: v }))}
+                  options={domainOptions}
+                  placeholder="Domaine d'activité..."
+                  searchPlaceholder="Rechercher un domaine..."
+                />
+              </div>
+              <div className="space-y-2">
+                <RequiredLabel>Profession (texte libre)</RequiredLabel>
                 <SearchableSelect
                   value={editForm.profession}
                   onValueChange={(v) => setEditForm(f => ({ ...f, profession: v }))}

@@ -844,6 +844,22 @@ Live-DB pass on the parent/contact data (untouched by passes 1–2). Backups `_b
       re-pointed 1556 links (one per keeper+member+role, partial unique index), moved + deduped contacts (1097
       phones / 1342 emails), soft-deleted losers. 0 same-name+shared-contact pairs remain. Data-only.
 
+### Guardian profession domains (category + free-text title) (2026-06-25)
+- [x] **Two-field model:** `guardians.profession` (free-text title, kept) + new nullable
+      `guardians.profession_domain` (activity category, migration `AddGuardianProfessionDomain`; also widened
+      `profession` 100→150). 41-domain managed list seeded in `member.profession_domains` (SeedData
+      `ProfessionDomainsJson` + SeedMissingSettings): the 36 from the WEBDEV taxonomy (screenshots in BP 2026/jobs)
+      + 4 we added (Ingénierie, Direction Entreprise, Sans profession / Au foyer, Immobilier) + **Autre**.
+- [x] **Backfill:** keyword classifier (off-repo, in `BP 2026/professions_review.xlsx` round-trip) mapped the
+      1,236 distinct free-text professions → a domain; the CU reviewed (164 overrides, 7 SUPPRIMER) in an Excel with
+      a dropdown (openpyxl). Applied to the live DB: **2,475 guardians got a domain**, 8 junk titles cleared. Backup
+      `_bak_guardian_domain`.
+- [x] **UI:** guardian add/edit form (member-guardians) gained a **Domaine** SearchableSelect (from the managed
+      list) before the free-text Profession; list shows "Domaine · Titre". GuardianDto/Create/Update + validators carry
+      `professionDomain`.
+- [ ] **TODO — demande wizard parity:** ApplicantGuardian also stores Profession; add `profession_domain` there +
+      a wizard picker + carry it through SendDemandeResponses conversion, so new applicants self-categorize.
+
 ### Rentrée scoute — scout-year startup checklist (2026-06-25)
 A dependency-aware task list for starting a scout year, generated each year from an editable template.
 - [x] **Entities:** `RentreeTaskTemplate` (master defs) + `RentreeTask` (per-year instance). Assignees &

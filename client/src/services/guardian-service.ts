@@ -3,7 +3,7 @@ import apiClient from '@/lib/api-client'
 
 export interface GuardianPhoneDto { id: string; countryCode: string; number: string; type: string; isPrimary: boolean }
 export interface GuardianEmailDto { id: string; address: string; type: string; isPrimary: boolean }
-export interface GuardianDto { id: string; firstName: string; lastName: string; profession: string | null; isDeceased: boolean; notes: string | null; phones: GuardianPhoneDto[]; emails: GuardianEmailDto[] }
+export interface GuardianDto { id: string; firstName: string; lastName: string; profession: string | null; professionDomain: string | null; isDeceased: boolean; notes: string | null; phones: GuardianPhoneDto[]; emails: GuardianEmailDto[] }
 export interface GuardianLinkDto { linkId: string; guardianId: string; relationshipType: string; isPrimaryContact: boolean; isEmergencyContact: boolean; guardian: GuardianDto }
 export interface GuardianSearchDto { id: string; firstName: string; lastName: string; profession: string | null }
 
@@ -26,7 +26,7 @@ export function useSearchGuardians(search: string) {
 export function useCreateGuardian(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { firstName: string; lastName: string; profession?: string | null; isDeceased: boolean; relationshipType: string; isPrimaryContact: boolean; isEmergencyContact: boolean; notes?: string | null }) =>
+    mutationFn: (data: { firstName: string; lastName: string; profession?: string | null; professionDomain?: string | null; isDeceased: boolean; relationshipType: string; isPrimaryContact: boolean; isEmergencyContact: boolean; notes?: string | null }) =>
       apiClient.post(`/guardians/members/${memberId}/guardians`, { memberId, ...data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
   })
@@ -44,7 +44,7 @@ export function useLinkGuardian(memberId: string) {
 export function useUpdateGuardian(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; firstName: string; lastName: string; profession?: string | null; isDeceased: boolean; notes?: string | null }) =>
+    mutationFn: ({ id, ...data }: { id: string; firstName: string; lastName: string; profession?: string | null; professionDomain?: string | null; isDeceased: boolean; notes?: string | null }) =>
       apiClient.put(`/guardians/${id}`, { id, ...data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
   })

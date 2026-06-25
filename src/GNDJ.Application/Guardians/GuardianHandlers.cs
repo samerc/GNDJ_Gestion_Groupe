@@ -8,7 +8,7 @@ namespace GNDJ.Application.Guardians;
 
 // DTOs
 public record GuardianDto(
-    Guid Id, string FirstName, string LastName, string? Profession, bool IsDeceased, string? Notes,
+    Guid Id, string FirstName, string LastName, string? Profession, string? ProfessionDomain, bool IsDeceased, string? Notes,
     IReadOnlyList<GuardianPhoneDto> Phones, IReadOnlyList<GuardianEmailDto> Emails
 );
 public record GuardianPhoneDto(Guid Id, string CountryCode, string Number, string Type, bool IsPrimary);
@@ -62,7 +62,7 @@ public class GetMemberGuardiansQueryHandler : IRequestHandler<GetMemberGuardians
             .Select(gl => new GuardianLinkDto(
                 gl.Id, gl.GuardianId, gl.RelationshipType, gl.IsPrimaryContact, gl.IsEmergencyContact,
                 new GuardianDto(
-                    gl.Guardian.Id, gl.Guardian.FirstName, gl.Guardian.LastName, gl.Guardian.Profession, gl.Guardian.IsDeceased, gl.Guardian.Notes,
+                    gl.Guardian.Id, gl.Guardian.FirstName, gl.Guardian.LastName, gl.Guardian.Profession, gl.Guardian.ProfessionDomain, gl.Guardian.IsDeceased, gl.Guardian.Notes,
                     gl.Guardian.Phones.Where(p => !p.IsDeleted).OrderByDescending(p => p.IsPrimary).Select(p => new GuardianPhoneDto(p.Id, p.CountryCode, p.Number, p.Type, p.IsPrimary)).ToList(),
                     gl.Guardian.Emails.Where(e => !e.IsDeleted).OrderByDescending(e => e.IsPrimary).Select(e => new GuardianEmailDto(e.Id, e.Address, e.Type, e.IsPrimary)).ToList()
                 )
@@ -106,7 +106,7 @@ public class SearchGuardiansQueryHandler : IRequestHandler<SearchGuardiansQuery,
 
 // Create guardian + link (unit-scoped)
 public record CreateGuardianCommand(
-    Guid MemberId, string FirstName, string LastName, string? Profession, bool IsDeceased,
+    Guid MemberId, string FirstName, string LastName, string? Profession, string? ProfessionDomain, bool IsDeceased,
     string RelationshipType, bool IsPrimaryContact, bool IsEmergencyContact, string? Notes
 ) : IRequest<Result<Guid>>;
 
@@ -124,7 +124,7 @@ public class CreateGuardianCommandHandler : IRequestHandler<CreateGuardianComman
         var guardian = new Guardian
         {
             FirstName = request.FirstName, LastName = request.LastName,
-            Profession = request.Profession, IsDeceased = request.IsDeceased, Notes = request.Notes,
+            Profession = request.Profession, ProfessionDomain = request.ProfessionDomain, IsDeceased = request.IsDeceased, Notes = request.Notes,
         };
         _context.Guardians.Add(guardian);
 
@@ -142,7 +142,7 @@ public class CreateGuardianCommandHandler : IRequestHandler<CreateGuardianComman
 
 // Update guardian info (unit-scoped)
 public record UpdateGuardianCommand(
-    Guid Id, string FirstName, string LastName, string? Profession, bool IsDeceased, string? Notes
+    Guid Id, string FirstName, string LastName, string? Profession, string? ProfessionDomain, bool IsDeceased, string? Notes
 ) : IRequest<Result<bool>>;
 
 public class UpdateGuardianCommandHandler : IRequestHandler<UpdateGuardianCommand, Result<bool>>
@@ -162,6 +162,7 @@ public class UpdateGuardianCommandHandler : IRequestHandler<UpdateGuardianComman
         entity.FirstName = request.FirstName;
         entity.LastName = request.LastName;
         entity.Profession = request.Profession;
+        entity.ProfessionDomain = request.ProfessionDomain;
         entity.IsDeceased = request.IsDeceased;
         entity.Notes = request.Notes;
 
