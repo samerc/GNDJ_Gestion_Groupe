@@ -6,6 +6,9 @@ import { PERMISSIONS } from '@/lib/constants'
 import MaitrisesPage from '@/pages/maitrises'
 import GroupAccessPage from '@/pages/admin/group-access'
 import CitiesAdminPage from '@/pages/admin/cities'
+import CampPage from '@/pages/camp'
+import CampsAdminPage from '@/pages/admin/camps'
+import CampDetailPage from '@/pages/admin/camp-detail'
 import RentreePage from '@/pages/rentree'
 import RentreeTemplatePage from '@/pages/admin/rentree-template'
 import { AppLayout } from '@/components/layout/app-layout'
@@ -109,6 +112,13 @@ export default function App() {
             <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
               <Route path="/maitrises" element={<MaitrisesPage />} />
               <Route path="/admin/cities" element={<CitiesAdminPage />} />
+            </Route>
+            <Route element={<PermissionRoute permission={PERMISSIONS.CAMP_GRADE} />}>
+              <Route path="/camp" element={<CampPage />} />
+            </Route>
+            <Route element={<PermissionRoute permission={PERMISSIONS.CAMP_MANAGE} />}>
+              <Route path="/admin/camps" element={<CampsAdminPage />} />
+              <Route path="/admin/camps/:id" element={<CampDetailPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.ROLES_VIEW} />}>
               <Route path="/admin/security-profiles" element={<SecurityProfilesPage />} />

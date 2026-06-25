@@ -899,6 +899,27 @@ A dependency-aware task list for starting a scout year, generated each year from
       no auto-completion from module state (manual checkbox, by design); per-task bulk deadline (set one date across
       all units of a rollup) not yet built — edit is per-unit-instance.
 
+### Camp BP — familles + grading (phase 1, 2026-06-25)
+A camp feature: split the whole group into balanced "familles" (mixed teams), each led by a Père + Mère.
+- **Entities** (migration `AddCampBp`): `Camp` (edition: name, scoutYear, famillesCount, status Setup→Assigned→Closed,
+  formula coefs), `Famille` (number, PereMemberId/MereMemberId), `CampParticipant` (memberId, branche/gender snapshot,
+  Force, Année, Note, IsLeaderCandidate, Role Membre/Pere/Mere, FamilleId, notes), `CampGame` + `CampGameEtapiste`.
+- **Note formula (customizable per camp):** `Note = ForceCoef×Force + multiplier(branche)×Année + Offset`. The
+  **multiplier defaults to the unit type's NumberOfYears** (Meute/Ronde 3, Compagnie 4, Troupe 5) — this is what
+  makes a Troupe Y3 outscore a Meute Y3 **without cumulating** (the user's own model, from their Excel
+  `Force + 5×Année − 4`). Année auto-derived from assignment tenure (scout year ~Oct 1), CU-adjustable. Coefs +
+  per-branch multipliers editable per camp.
+- **Flow:** CU marks **attendance** + **grades** (Force + année + Père/Mère candidate ★ + cas particulier) for their
+  own unit (`camp.grade`, unit-scoped) on the **`/camp`** page → CG runs the **balanced randomized draft**
+  (per branche×genre stratum, deal highest-Note first to the famille with fewest of that stratum, tie-broken by
+  lowest Note-sum → balances note/size/branch/gender) → CG assigns **Père/Mère** per famille (candidates = ★-flagged
+  + members in the older non-pool branches; pinned, excluded from balance) → CG **swaps/moves** members on a board
+  showing live size/avg-note(min=blue,max=amber)/♂♀/branche metrics → CG defines **Jeux** + étapiste sets (maîtrise
+  members). Phase 2 = scoring the games (later).
+- **Permissions** `camp.manage` (CG/super-admin) + `camp.grade` (CU; added to chef-unite seed). Setting
+  `camp.familles_count` (default per-camp). Pages: `/camp` (CU grading), `/admin/camps` + `/admin/camps/:id`
+  (CG: Familles board / Jeux / Paramètres). Backend + client build clean.
+
 ### Remaining / Next
 - [ ] Migration data cleanup: 181 orphans (kept — most are legit alumni), name spacing, GET /photo unit-scope;
       migration tool card-number split for re-import
