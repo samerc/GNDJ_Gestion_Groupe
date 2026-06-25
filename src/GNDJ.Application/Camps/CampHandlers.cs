@@ -84,16 +84,15 @@ public class GetCampQueryHandler(IApplicationDbContext context) : IRequestHandle
         var camp = await context.Camps.FirstOrDefaultAsync(c => c.Id == request.Id, ct);
         if (camp is null) return Result<CampDto>.Failure("Camp introuvable.");
 
-        var mults = CampNote.ParseMultipliers(camp.NoteBranchMultipliers);
         // Unit types actually present among this camp's member participants (the graded branches).
+        // The multiplier IS the unit type's NumberOfYears (data-driven, not per-camp).
         var branches = await context.CampParticipants
             .Where(p => p.CampId == camp.Id && !p.IsDeleted && p.Role == CampRole.Membre && p.UnitTypeId != null)
             .Select(p => p.UnitTypeId!.Value).Distinct().ToListAsync(ct);
         var types = await context.UnitTypes.Where(t => branches.Contains(t.Id))
             .Select(t => new { t.Id, t.Name, t.NumberOfYears }).ToListAsync(ct);
         var branchDtos = types.OrderBy(t => t.Name)
-            .Select(t => new BranchMultiplierDto(t.Id, t.Name,
-                mults.TryGetValue(t.Id, out var m) ? m : (t.NumberOfYears ?? 5), t.NumberOfYears ?? 5))
+            .Select(t => new BranchMultiplierDto(t.Id, t.Name, t.NumberOfYears ?? 5, t.NumberOfYears ?? 5))
             .ToList();
 
         var pc = await context.CampParticipants.Where(p => p.CampId == camp.Id && !p.IsDeleted && p.IsAttending && p.Role == CampRole.Membre)
@@ -140,13 +139,11 @@ public class UpdateCampCommandHandler(IApplicationDbContext context) : IRequestH
         camp.FamillesCount = request.FamillesCount;
         camp.NoteForceCoef = request.NoteForceCoef;
         camp.NoteOffset = request.NoteOffset;
-        if (request.BranchMultipliers is { Count: > 0 })
-            camp.NoteBranchMultipliers = JsonSerializer.Serialize(request.BranchMultipliers.ToDictionary(b => b.UnitTypeId.ToString(), b => b.Multiplier));
 
-        // Recompute every note with the new formula.
-        var mults = CampNote.ParseMultipliers(camp.NoteBranchMultipliers);
+        // Recompute every note with the new coefs (multiplier = unit type NumberOfYears).
+        var branchYears = await context.UnitTypes.ToDictionaryAsync(t => t.Id, t => t.NumberOfYears ?? 5, ct);
         var parts = await context.CampParticipants.Where(p => p.CampId == camp.Id && !p.IsDeleted).ToListAsync(ct);
-        foreach (var p in parts) p.Note = CampNote.Compute(camp, p, mults);
+        foreach (var p in parts) p.Note = CampNote.Compute(camp, p, branchYears);
 
         await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);

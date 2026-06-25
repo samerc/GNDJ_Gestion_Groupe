@@ -111,7 +111,7 @@ public class CampsController : BaseApiController
     public async Task<IActionResult> SetEtapistes(Guid gameId, [FromBody] EtapistesBody body) => Res(await Mediator.Send(new SetGameEtapistesCommand(gameId, body.MemberIds)));
     public record EtapistesBody(List<Guid> MemberIds);
 
-    [HttpGet("etapiste-candidates")]
+    [HttpGet("{id:guid}/etapiste-candidates")]
     [HasPermission(Permissions.CampManage)]
-    public async Task<IActionResult> EtapisteCandidates() => Res(await Mediator.Send(new GetEtapisteCandidatesQuery()));
+    public async Task<IActionResult> EtapisteCandidates(Guid id) => Res(await Mediator.Send(new GetEtapisteCandidatesQuery(id)));
 }

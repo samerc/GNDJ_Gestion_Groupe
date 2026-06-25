@@ -8,7 +8,7 @@ namespace GNDJ.Application.Camps;
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 public record CampFamilleMemberDto(Guid ParticipantId, Guid MemberId, string FirstName, string LastName,
-    string? Gender, string? Branche, double? Note, string Role);
+    string? Gender, string? Branche, string? UnitName, double? Note, string Role);
 
 public record CampFamilleDto(Guid Id, int Number, string? Name,
     Guid? PereMemberId, string? PereName, Guid? MereMemberId, string? MereName,
@@ -99,7 +99,8 @@ public class GetCampFamillesQueryHandler(IApplicationDbContext context) : IReque
         // Members flat (group in memory — avoids an untranslatable SQL GroupBy over entities).
         var memberRows = await context.CampParticipants
             .Where(p => p.CampId == request.CampId && !p.IsDeleted && p.Role == CampRole.Membre && p.FamilleId != null)
-            .Select(p => new { FamId = p.FamilleId!.Value, M = new CampFamilleMemberDto(p.Id, p.MemberId, p.Member.FirstName, p.Member.LastName, p.Gender, p.Branche, p.Note, p.Role) })
+            .Select(p => new { FamId = p.FamilleId!.Value, M = new CampFamilleMemberDto(p.Id, p.MemberId, p.Member.FirstName, p.Member.LastName, p.Gender, p.Branche,
+                p.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(), p.Note, p.Role) })
             .ToListAsync(ct);
         var map = memberRows.GroupBy(x => x.FamId).ToDictionary(g => g.Key, g => g.Select(x => x.M).ToList());
 
@@ -202,13 +203,14 @@ public class GetPereMereCandidatesQueryHandler(IApplicationDbContext context) : 
             .Select(p => new PereMereCandidateDto(p.MemberId, p.Member.FirstName, p.Member.LastName, p.Branche, true, p.Id))
             .ToListAsync(ct);
 
-        // Branches present in the graded pool; members in OTHER active branches are natural Père/Mère.
+        // Branches present in the graded pool; members in OTHER active branches (older youth:
+        // routiers/Noyau/JEM/Feu) are the natural Père/Mère — but NOT maîtrise (they're étapistes).
         var poolBranches = await context.CampParticipants
             .Where(p => p.CampId == request.CampId && !p.IsDeleted && p.Role == CampRole.Membre && p.UnitTypeId != null)
             .Select(p => p.UnitTypeId!.Value).Distinct().ToListAsync(ct);
 
         var leaders = await context.MemberAssignments
-            .Where(a => !a.IsDeleted && a.EndDate == null && !poolBranches.Contains(a.Unit.UnitTypeId))
+            .Where(a => !a.IsDeleted && a.EndDate == null && !a.FunctionalRole.IsMaitrise && !poolBranches.Contains(a.Unit.UnitTypeId))
             .Select(a => new PereMereCandidateDto(a.MemberId, a.Member.FirstName, a.Member.LastName, a.Unit.UnitType.Name, false, (Guid?)null))
             .ToListAsync(ct);
 

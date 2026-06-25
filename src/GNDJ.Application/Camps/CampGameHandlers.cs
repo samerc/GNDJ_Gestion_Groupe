@@ -87,17 +87,23 @@ public class SetGameEtapistesCommandHandler(IApplicationDbContext context) : IRe
     }
 }
 
-// Candidate étapistes = active leaders (members holding a maîtrise/leadership functional role).
-public record GetEtapisteCandidatesQuery() : IRequest<Result<IReadOnlyList<EtapisteCandidateDto>>>;
+// Candidate étapistes = maîtrise (any branch) + older non-camper youth (routiers/Noyau/JEM/Feu — the
+// branches not in the graded pool). Troupe/Compagnie campers cannot be étapistes.
+public record GetEtapisteCandidatesQuery(Guid CampId) : IRequest<Result<IReadOnlyList<EtapisteCandidateDto>>>;
 public class GetEtapisteCandidatesQueryHandler(IApplicationDbContext context) : IRequestHandler<GetEtapisteCandidatesQuery, Result<IReadOnlyList<EtapisteCandidateDto>>>
 {
     public async ValueTask<Result<IReadOnlyList<EtapisteCandidateDto>>> Handle(GetEtapisteCandidatesQuery request, CancellationToken ct)
     {
-        var leaders = await context.MemberAssignments
-            .Where(a => !a.IsDeleted && a.EndDate == null && a.FunctionalRole.IsMaitrise)
-            .Select(a => new EtapisteCandidateDto(a.MemberId, a.Member.FirstName, a.Member.LastName, a.Unit.Name, a.FunctionalRole.Name))
+        var poolBranches = await context.CampParticipants
+            .Where(p => p.CampId == request.CampId && !p.IsDeleted && p.Role == CampRole.Membre && p.UnitTypeId != null)
+            .Select(p => p.UnitTypeId!.Value).Distinct().ToListAsync(ct);
+
+        var cand = await context.MemberAssignments
+            .Where(a => !a.IsDeleted && a.EndDate == null && (a.FunctionalRole.IsMaitrise || !poolBranches.Contains(a.Unit.UnitTypeId)))
+            .Select(a => new EtapisteCandidateDto(a.MemberId, a.Member.FirstName, a.Member.LastName, a.Unit.Name,
+                a.FunctionalRole.IsMaitrise ? a.FunctionalRole.Name : a.Unit.UnitType.Name))
             .ToListAsync(ct);
-        var result = leaders.GroupBy(c => c.MemberId).Select(g => g.First())
+        var result = cand.GroupBy(c => c.MemberId).Select(g => g.First())
             .OrderBy(c => c.LastName).ThenBy(c => c.FirstName).ToList();
         return Result<IReadOnlyList<EtapisteCandidateDto>>.Success(result);
     }

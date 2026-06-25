@@ -918,7 +918,18 @@ A camp feature: split the whole group into balanced "familles" (mixed teams), ea
   members). Phase 2 = scoring the games (later).
 - **Permissions** `camp.manage` (CG/super-admin) + `camp.grade` (CU; added to chef-unite seed). Setting
   `camp.familles_count` (default per-camp). Pages: `/camp` (CU grading), `/admin/camps` + `/admin/camps/:id`
-  (CG: Familles board / Jeux / Paramètres). Backend + client build clean.
+  (CG: Familles board / Jeux / Paramètres).
+- **Refinements after the full live test (2026-06-26):** (a) multiplier is now **UnitType.NumberOfYears**
+  (data-driven, not per-camp; set Meute/Ronde 3, Compagnie 4, Troupe 5, … in the live DB + migration tool;
+  per-camp editor removed, shown read-only). (b) **Année auto-derive** rewritten: counts the distinct
+  **scout-years the member spent in their current unit across ALL assignments (incl. expired)** — fixes the old
+  tenure-from-active-assignment which returned 1 for everyone after the reimport. (c) **Pools:** campers exclude
+  maîtrise (chefs aren't graded); **Père/Mère** candidates = older youth (routiers/Noyau/JEM/Feu, non-maîtrise) +
+  ★-flagged Troupe/Compagnie; **Étapistes** = maîtrise + those older youth (Troupe/Compagnie campers can't be
+  étapistes). (d) Famille board shows the **unit** per member. **Tested live:** 851 youth → 50 familles in 3.3s,
+  balance excellent (size 15–18, note-sum spread 2, branches/gender ±1); 25 games + étapistes OK. Two EF
+  translation 500s found+fixed (grading OrderBy-over-DTO, familles GroupBy-over-entities). TODO: Commission BP
+  designation (2 ACG + ACUs the CG sets); phase 2 = game scoring.
 
 ### Remaining / Next
 - [ ] Migration data cleanup: 181 orphans (kept — most are legit alumni), name spacing, GET /photo unit-scope;

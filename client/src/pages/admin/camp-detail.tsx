@@ -56,19 +56,17 @@ function SettingsTab({ campId }: { campId: string }) {
   const archive = useArchiveCamp()
   const del = useDeleteCamp()
   const [form, setForm] = useState({ name: '', scoutYear: '', famillesCount: 0, noteForceCoef: 1, noteOffset: -4 })
-  const [mults, setMults] = useState<Record<string, number>>({})
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!camp) return
     setForm({ name: camp.name, scoutYear: camp.scoutYear, famillesCount: camp.famillesCount, noteForceCoef: camp.noteForceCoef, noteOffset: camp.noteOffset })
-    setMults(Object.fromEntries(camp.branchMultipliers.map(b => [b.unitTypeId, b.multiplier])))
   }, [camp])
 
   if (!camp) return null
   const save = async () => {
     try {
-      await update.mutateAsync({ ...form, branchMultipliers: Object.entries(mults).map(([unitTypeId, multiplier]) => ({ unitTypeId, multiplier })) })
+      await update.mutateAsync(form)
       toast.success('Paramètres enregistrés')
     } catch (e) { toast.error(parseApiError(e)) }
   }
@@ -90,13 +88,10 @@ function SettingsTab({ campId }: { campId: string }) {
         </div>
         {camp.branchMultipliers.length > 0 && (
           <div className="mt-3">
-            <p className="mb-1 text-xs font-medium text-muted-foreground">Multiplicateur par branche</p>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <p className="mb-1 text-xs font-medium text-muted-foreground">Multiplicateur par branche <span className="font-normal">(= nombre d'années de la branche, défini sur le type d'unité)</span></p>
+            <div className="flex flex-wrap gap-2">
               {camp.branchMultipliers.map(b => (
-                <div key={b.unitTypeId} className="flex items-center gap-2">
-                  <span className="flex-1 text-sm">{b.unitTypeName} <span className="text-xs text-muted-foreground">(déf. {b.defaultYears})</span></span>
-                  <Input type="number" min={1} value={mults[b.unitTypeId] ?? b.multiplier} onChange={e => setMults(m => ({ ...m, [b.unitTypeId]: Number(e.target.value) }))} className="h-8 w-20" />
-                </div>
+                <span key={b.unitTypeId} className="rounded border bg-muted/40 px-2 py-1 text-sm">{b.unitTypeName}: <b>×{b.multiplier}</b></span>
               ))}
             </div>
           </div>
@@ -178,11 +173,12 @@ function FamillesTab({ campId }: { campId: string }) {
                 {f.members.length === 0 ? <span className="text-xs text-muted-foreground">Vide</span> :
                   f.members.map(m => (
                     <button key={m.participantId} type="button" onClick={() => onMemberClick(m.participantId, f.id)}
-                      title={`${m.branche} · note ${m.note ?? '—'}`}
-                      className={cn('rounded border px-1.5 py-0.5 text-xs transition-colors',
+                      title={`${m.firstName} ${m.lastName} · ${m.branche} · ${m.unitName ?? '—'} · note ${m.note ?? '—'}`}
+                      className={cn('flex flex-col items-start rounded border px-1.5 py-0.5 text-xs leading-tight transition-colors',
                         selected?.participantId === m.participantId ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-muted',
                         m.gender === 'Féminin' ? 'border-pink-200' : 'border-blue-200')}>
-                      {m.firstName} {m.lastName.charAt(0)}.
+                      <span>{m.firstName} {m.lastName.charAt(0)}.</span>
+                      <span className={cn('text-[10px]', selected?.participantId === m.participantId ? 'text-primary-foreground/80' : 'text-muted-foreground')}>{m.unitName ?? m.branche}</span>
                     </button>
                   ))}
               </div>
@@ -280,7 +276,7 @@ function GamesTab({ campId }: { campId: string }) {
 }
 
 function EtapisteDialog({ campId, game, onClose }: { campId: string; game: CampGameDto; onClose: () => void }) {
-  const { data: candidates } = useEtapisteCandidates()
+  const { data: candidates } = useEtapisteCandidates(campId)
   const setEtapistes = useSetEtapistes(campId)
   const [selected, setSelected] = useState<Set<string>>(new Set(game.etapistes.map(e => e.memberId)))
   const [search, setSearch] = useState('')

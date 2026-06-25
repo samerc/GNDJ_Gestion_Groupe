@@ -20,7 +20,7 @@ export interface CampGradeRowDto {
   branche: string | null; unitName: string | null; force: number | null; annee: number | null; note: number | null
   isLeaderCandidate: boolean; role: string; notes: string | null
 }
-export interface CampFamilleMemberDto { participantId: string; memberId: string; firstName: string; lastName: string; gender: string | null; branche: string | null; note: number | null; role: string }
+export interface CampFamilleMemberDto { participantId: string; memberId: string; firstName: string; lastName: string; gender: string | null; branche: string | null; unitName: string | null; note: number | null; role: string }
 export interface CampFamilleDto {
   id: string; number: number; name: string | null
   pereMemberId: string | null; pereName: string | null; mereMemberId: string | null; mereName: string | null
@@ -46,7 +46,7 @@ export function useCreateCamp() {
 export function useUpdateCamp(id: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; scoutYear: string; famillesCount: number; noteForceCoef: number; noteOffset: number; branchMultipliers?: { unitTypeId: string; multiplier: number }[] }) =>
+    mutationFn: (data: { name: string; scoutYear: string; famillesCount: number; noteForceCoef: number; noteOffset: number }) =>
       apiClient.put(`/camps/${id}`, { id, ...data }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['camp', id] }); qc.invalidateQueries({ queryKey: ['camps'] }) },
   })
@@ -115,5 +115,5 @@ export function useSetEtapistes(campId: string) {
   const qc = useQueryClient()
   return useMutation({ mutationFn: ({ gameId, memberIds }: { gameId: string; memberIds: string[] }) => apiClient.post(`/camps/games/${gameId}/etapistes`, { memberIds }), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
 }
-export const useEtapisteCandidates = () =>
-  useQuery({ queryKey: ['camp-etapiste-candidates'], queryFn: () => apiClient.get<EtapisteCandidateDto[]>('/camps/etapiste-candidates').then(r => r.data) })
+export const useEtapisteCandidates = (campId?: string) =>
+  useQuery({ queryKey: ['camp-etapiste-candidates', campId], queryFn: () => apiClient.get<EtapisteCandidateDto[]>(`/camps/${campId}/etapiste-candidates`).then(r => r.data), enabled: !!campId })

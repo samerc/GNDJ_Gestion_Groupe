@@ -24,8 +24,8 @@ public class GetCampAttendanceQueryHandler(IApplicationDbContext context, ICurre
         var seesAll = CampScope.SeesAll(currentUser);
         var authorized = currentUser.AuthorizedUnitIds;
 
-        // Active members via their current assignment (one row per member, their current unit/branch).
-        var q = context.MemberAssignments.Where(a => !a.IsDeleted && a.EndDate == null);
+        // Active YOUTH via their current assignment (chefs/maîtrise are not campers — excluded).
+        var q = context.MemberAssignments.Where(a => !a.IsDeleted && a.EndDate == null && !a.FunctionalRole.IsMaitrise);
         if (!seesAll) q = q.Where(a => authorized.Contains(a.UnitId));
         if (request.UnitId is not null) q = q.Where(a => a.UnitId == request.UnitId);
 
@@ -68,22 +68,36 @@ public class SetCampAttendanceCommandHandler(IApplicationDbContext context, ICur
         var authorized = currentUser.AuthorizedUnitIds;
         var memberIds = request.Items.Select(i => i.MemberId).ToList();
 
-        // Current assignment per member (for snapshot + access check).
-        var assigns = await context.MemberAssignments
+        // Current (active) assignment per member — snapshot + access check.
+        var active = await context.MemberAssignments
             .Where(a => !a.IsDeleted && a.EndDate == null && memberIds.Contains(a.MemberId))
             .Select(a => new { a.MemberId, a.UnitId, a.Unit.UnitTypeId, Branche = a.Unit.UnitType.Name,
                 Years = a.Unit.UnitType.NumberOfYears, a.Member.Gender, a.StartDate })
             .ToListAsync(ct);
-        var assignByMember = assigns.GroupBy(a => a.MemberId).ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.StartDate).First());
+        var currentByMember = active.GroupBy(a => a.MemberId).ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.StartDate).First());
+
+        // ALL assignments (incl. ended) for année: count distinct scout-years spent in the *current unit*.
+        var allAssigns = await context.MemberAssignments
+            .Where(a => !a.IsDeleted && memberIds.Contains(a.MemberId))
+            .Select(a => new { a.MemberId, a.UnitId, a.StartDate, a.EndDate })
+            .ToListAsync(ct);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        static int Sy(DateOnly d) => d.Month >= 9 ? d.Year : d.Year - 1; // scout year starts ~Oct (Sept = new year)
+        int AnneeInUnit(Guid memberId, Guid unitId, int maxYears)
+        {
+            var years = new HashSet<int>();
+            foreach (var a in allAssigns.Where(x => x.MemberId == memberId && x.UnitId == unitId))
+                for (int y = Sy(a.StartDate); y <= Sy(a.EndDate ?? today); y++) years.Add(y);
+            var n = Math.Max(1, years.Count);
+            return maxYears > 0 ? Math.Min(n, maxYears) : n;
+        }
 
         var existing = await context.CampParticipants.Where(p => p.CampId == request.CampId && !p.IsDeleted && memberIds.Contains(p.MemberId)).ToListAsync(ct);
         var existingByMember = existing.ToDictionary(p => p.MemberId);
-        var mults = CampNote.ParseMultipliers(camp.NoteBranchMultipliers);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         foreach (var item in request.Items)
         {
-            if (!assignByMember.TryGetValue(item.MemberId, out var a)) continue;       // not an active member
+            if (!currentByMember.TryGetValue(item.MemberId, out var a)) continue;       // not an active member
             if (!seesAll && !authorized.Contains(a.UnitId)) continue;                   // out of scope
 
             if (existingByMember.TryGetValue(item.MemberId, out var p))
@@ -93,13 +107,12 @@ public class SetCampAttendanceCommandHandler(IApplicationDbContext context, ICur
             }
             else if (item.Attending)
             {
-                var np = new CampParticipant
+                context.CampParticipants.Add(new CampParticipant
                 {
                     CampId = request.CampId, MemberId = item.MemberId, IsAttending = true,
                     UnitId = a.UnitId, UnitTypeId = a.UnitTypeId, Branche = a.Branche, Gender = a.Gender,
-                    Annee = CampNote.AnneeFromStart(a.StartDate, today, a.Years ?? 0),
-                };
-                context.CampParticipants.Add(np);
+                    Annee = AnneeInUnit(item.MemberId, a.UnitId, a.Years ?? 0),
+                });
             }
         }
         await context.SaveChangesAsync(ct);
@@ -147,7 +160,7 @@ public class SaveCampGradesCommandHandler(IApplicationDbContext context, ICurren
         var ids = request.Grades.Select(g => g.ParticipantId).ToList();
         var parts = await context.CampParticipants.Where(p => p.CampId == request.CampId && !p.IsDeleted && ids.Contains(p.Id)).ToListAsync(ct);
         var byId = parts.ToDictionary(p => p.Id);
-        var mults = CampNote.ParseMultipliers(camp.NoteBranchMultipliers);
+        var branchYears = await context.UnitTypes.ToDictionaryAsync(t => t.Id, t => t.NumberOfYears ?? 5, ct);
 
         foreach (var g in request.Grades)
         {
@@ -159,7 +172,7 @@ public class SaveCampGradesCommandHandler(IApplicationDbContext context, ICurren
             p.Annee = g.Annee;
             p.IsLeaderCandidate = g.IsLeaderCandidate;
             p.Notes = string.IsNullOrWhiteSpace(g.Notes) ? null : g.Notes.Trim();
-            p.Note = CampNote.Compute(camp, p, mults);
+            p.Note = CampNote.Compute(camp, p, branchYears);
         }
         await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);

@@ -147,13 +147,19 @@ var unitTypes = new Dictionary<string, string>
     ["JEM"] = "Jeunes en Marche", ["FEU"] = "Feu", ["GRP"] = "Groupe",
     ["PIO"] = "Pionnières", ["NOY"] = "Noyau",
 };
+// Number of years per branch — drives the Camp BP Note multiplier (Note = Force + years×Année + offset).
+var unitTypeYears = new Dictionary<string, int>
+{
+    ["MEU"] = 3, ["RON"] = 3, ["COM"] = 4, ["TRO"] = 5,
+    ["CLA"] = 3, ["JEM"] = 3, ["FEU"] = 3, ["CAR"] = 4, ["PIO"] = 3, ["NOY"] = 1, ["GRP"] = 1,
+};
 if (!reuseOrg) foreach (var (code, name) in unitTypes)
 {
     var id = NewId();
     unitTypeIdMap[code] = id;
-    await Exec(conn, @"INSERT INTO unit_types (id, name, code, description, created_at, updated_at, is_deleted)
-        VALUES ($1, $2, $3, $4, $5, $5, false) ON CONFLICT DO NOTHING",
-        id, name, code, (string?)null, now);
+    await Exec(conn, @"INSERT INTO unit_types (id, name, code, description, number_of_years, created_at, updated_at, is_deleted)
+        VALUES ($1, $2, $3, $4, $5, $6, $6, false) ON CONFLICT DO NOTHING",
+        id, name, code, (string?)null, unitTypeYears.GetValueOrDefault(code, 3), now);
 }
 Console.WriteLine($"OK ({unitTypes.Count})");
 
