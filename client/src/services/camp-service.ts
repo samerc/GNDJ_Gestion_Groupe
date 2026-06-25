@@ -27,7 +27,7 @@ export interface CampFamilleDto {
   size: number; noteSum: number; avgNote: number; boys: number; girls: number
   branchCounts: Record<string, number>; members: CampFamilleMemberDto[]
 }
-export interface PereMereCandidateDto { memberId: string; firstName: string; lastName: string; branche: string | null; flagged: boolean; participantId: string | null }
+export interface PereMereCandidateDto { memberId: string; firstName: string; lastName: string; branche: string | null; gender: string | null; flagged: boolean; participantId: string | null }
 export interface EtapisteDto { memberId: string; firstName: string; lastName: string; unitName: string | null }
 export interface CampGameDto { id: string; name: string; description: string | null; etapistes: EtapisteDto[] }
 export interface EtapisteCandidateDto { memberId: string; firstName: string; lastName: string; unitName: string | null; roleName: string | null }

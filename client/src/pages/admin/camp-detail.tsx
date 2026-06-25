@@ -220,13 +220,16 @@ function LeaderDialog({ campId, famille, onClose }: { campId: string; famille: C
           </div>
           <Input placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)} />
           <div className="max-h-[40vh] space-y-1 overflow-y-auto">
-            {filtered.map(c => (
-              <div key={c.memberId} className="flex items-center gap-2 rounded border px-2 py-1.5 text-sm">
-                <span className="flex-1">{c.firstName} {c.lastName} <span className="text-xs text-muted-foreground">{c.branche}{c.flagged ? ' ★' : ''}</span></span>
-                <Button size="sm" variant={pere === c.memberId ? 'default' : 'outline'} className="h-7" onClick={() => setPere(pere === c.memberId ? null : c.memberId)}>Père</Button>
-                <Button size="sm" variant={mere === c.memberId ? 'default' : 'outline'} className="h-7" onClick={() => setMere(mere === c.memberId ? null : c.memberId)}>Mère</Button>
-              </div>
-            ))}
+            {filtered.map(c => {
+              const isMale = c.gender === 'Masculin', isFemale = c.gender === 'Féminin'
+              return (
+                <div key={c.memberId} className="flex items-center gap-2 rounded border px-2 py-1.5 text-sm">
+                  <span className="flex-1">{c.firstName} {c.lastName} <span className="text-xs text-muted-foreground">{c.gender === 'Masculin' ? '♂' : c.gender === 'Féminin' ? '♀' : ''} {c.branche}{c.flagged ? ' ★' : ''}</span></span>
+                  {isMale && <Button size="sm" variant={pere === c.memberId ? 'default' : 'outline'} className="h-7" onClick={() => setPere(pere === c.memberId ? null : c.memberId)}>Père</Button>}
+                  {isFemale && <Button size="sm" variant={mere === c.memberId ? 'default' : 'outline'} className="h-7" onClick={() => setMere(mere === c.memberId ? null : c.memberId)}>Mère</Button>}
+                </div>
+              )
+            })}
             {filtered.length === 0 && <p className="py-4 text-center text-xs text-muted-foreground">Aucun candidat.</p>}
           </div>
         </div>

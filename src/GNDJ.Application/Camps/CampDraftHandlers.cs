@@ -15,7 +15,7 @@ public record CampFamilleDto(Guid Id, int Number, string? Name,
     int Size, double NoteSum, double AvgNote, int Boys, int Girls,
     IReadOnlyDictionary<string, int> BranchCounts, IReadOnlyList<CampFamilleMemberDto> Members);
 
-public record PereMereCandidateDto(Guid MemberId, string FirstName, string LastName, string? Branche, bool Flagged, Guid? ParticipantId);
+public record PereMereCandidateDto(Guid MemberId, string FirstName, string LastName, string? Branche, string? Gender, bool Flagged, Guid? ParticipantId);
 
 // ─── Run the draft ───────────────────────────────────────────────────────────
 // Balanced randomized assignment: per (branche × genre) stratum, deal members (highest Note first,
@@ -164,6 +164,14 @@ public class SetFamillePereMereCommandHandler(IApplicationDbContext context) : I
         var fam = await context.Familles.FirstOrDefaultAsync(f => f.Id == request.FamilleId && !f.IsDeleted, ct);
         if (fam is null) return Result<bool>.Failure("Famille introuvable.");
 
+        // Père must be male, Mère female.
+        if (request.PereMemberId is not null
+            && await context.Members.Where(m => m.Id == request.PereMemberId).Select(m => m.Gender).FirstOrDefaultAsync(ct) != "Masculin")
+            return Result<bool>.Failure("Le Père doit être un garçon.");
+        if (request.MereMemberId is not null
+            && await context.Members.Where(m => m.Id == request.MereMemberId).Select(m => m.Gender).FirstOrDefaultAsync(ct) != "Féminin")
+            return Result<bool>.Failure("La Mère doit être une fille.");
+
         // Members being released from leadership → back to the drafted pool (Role = Membre).
         var oldLeaders = new[] { fam.PereMemberId, fam.MereMemberId }.Where(x => x != null).Select(x => x!.Value).ToList();
         var newLeaders = new[] { request.PereMemberId, request.MereMemberId }.Where(x => x != null).Select(x => x!.Value).ToList();
@@ -200,7 +208,7 @@ public class GetPereMereCandidatesQueryHandler(IApplicationDbContext context) : 
     {
         var flagged = await context.CampParticipants
             .Where(p => p.CampId == request.CampId && !p.IsDeleted && p.IsAttending && p.IsLeaderCandidate)
-            .Select(p => new PereMereCandidateDto(p.MemberId, p.Member.FirstName, p.Member.LastName, p.Branche, true, p.Id))
+            .Select(p => new PereMereCandidateDto(p.MemberId, p.Member.FirstName, p.Member.LastName, p.Branche, p.Gender, true, p.Id))
             .ToListAsync(ct);
 
         // Branches present in the graded pool; members in OTHER active branches (older youth:
@@ -211,7 +219,7 @@ public class GetPereMereCandidatesQueryHandler(IApplicationDbContext context) : 
 
         var leaders = await context.MemberAssignments
             .Where(a => !a.IsDeleted && a.EndDate == null && !a.FunctionalRole.IsMaitrise && !poolBranches.Contains(a.Unit.UnitTypeId))
-            .Select(a => new PereMereCandidateDto(a.MemberId, a.Member.FirstName, a.Member.LastName, a.Unit.UnitType.Name, false, (Guid?)null))
+            .Select(a => new PereMereCandidateDto(a.MemberId, a.Member.FirstName, a.Member.LastName, a.Unit.UnitType.Name, a.Member.Gender, false, (Guid?)null))
             .ToListAsync(ct);
 
         var all = flagged.Concat(leaders).GroupBy(c => c.MemberId).Select(g => g.OrderByDescending(x => x.Flagged).First())
