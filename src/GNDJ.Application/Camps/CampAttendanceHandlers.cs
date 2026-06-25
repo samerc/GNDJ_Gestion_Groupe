@@ -125,9 +125,9 @@ public class GetCampGradingQueryHandler(IApplicationDbContext context, ICurrentU
         var rows = await q.Select(p => new CampGradeRowDto(p.Id, p.MemberId, p.Member.FirstName, p.Member.LastName,
                 p.Gender, p.Branche, p.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(),
                 p.Force, p.Annee, p.Note, p.IsLeaderCandidate, p.Role, p.Notes))
-            .OrderBy(p => p.Branche).ThenBy(p => p.LastName).ThenBy(p => p.FirstName)
             .ToListAsync(ct);
-        return Result<IReadOnlyList<CampGradeRowDto>>.Success(rows);
+        var ordered = rows.OrderBy(p => p.Branche).ThenBy(p => p.LastName).ThenBy(p => p.FirstName).ToList();
+        return Result<IReadOnlyList<CampGradeRowDto>>.Success(ordered);
     }
 }
 

@@ -96,24 +96,17 @@ public class GetCampFamillesQueryHandler(IApplicationDbContext context) : IReque
         var familles = await context.Familles.Where(f => f.CampId == request.CampId && !f.IsDeleted && f.Number <= camp.FamillesCount)
             .OrderBy(f => f.Number).ToListAsync(ct);
 
-        var members = await context.CampParticipants
+        // Members flat (group in memory — avoids an untranslatable SQL GroupBy over entities).
+        var memberRows = await context.CampParticipants
             .Where(p => p.CampId == request.CampId && !p.IsDeleted && p.Role == CampRole.Membre && p.FamilleId != null)
-            .Select(p => new CampFamilleMemberDto(p.Id, p.MemberId, p.Member.FirstName, p.Member.LastName, p.Gender, p.Branche, p.Note, p.Role))
+            .Select(p => new { FamId = p.FamilleId!.Value, M = new CampFamilleMemberDto(p.Id, p.MemberId, p.Member.FirstName, p.Member.LastName, p.Gender, p.Branche, p.Note, p.Role) })
             .ToListAsync(ct);
-        var membersByFamille = members.GroupBy(m => m.MemberId).Select(g => g.First()).ToList(); // safety
+        var map = memberRows.GroupBy(x => x.FamId).ToDictionary(g => g.Key, g => g.Select(x => x.M).ToList());
 
         // Pere/Mere display names.
         var leaderIds = familles.SelectMany(f => new[] { f.PereMemberId, f.MereMemberId }).Where(x => x != null).Select(x => x!.Value).Distinct().ToList();
         var leaderNames = await context.Members.Where(m => leaderIds.Contains(m.Id))
             .Select(m => new { m.Id, m.FirstName, m.LastName }).ToDictionaryAsync(m => m.Id, m => $"{m.FirstName} {m.LastName}", ct);
-
-        var partByFamille = await context.CampParticipants
-            .Where(p => p.CampId == request.CampId && !p.IsDeleted && p.Role == CampRole.Membre && p.FamilleId != null)
-            .GroupBy(p => p.FamilleId!.Value)
-            .Select(g => new { FamilleId = g.Key,
-                Members = g.Select(x => new CampFamilleMemberDto(x.Id, x.MemberId, x.Member.FirstName, x.Member.LastName, x.Gender, x.Branche, x.Note, x.Role)).ToList() })
-            .ToListAsync(ct);
-        var map = partByFamille.ToDictionary(x => x.FamilleId, x => x.Members);
 
         var result = familles.Select(f =>
         {
