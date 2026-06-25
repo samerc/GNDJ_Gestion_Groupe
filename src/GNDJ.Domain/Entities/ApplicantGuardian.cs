@@ -11,6 +11,7 @@ public class ApplicantGuardian : BaseEntity
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string? Profession { get; set; }
+    public string? ProfessionDomain { get; set; }
     public string? PhoneCountryCode { get; set; }
     public string? PhoneNumber { get; set; }
     public string? Email { get; set; }

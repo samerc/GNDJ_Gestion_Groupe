@@ -857,8 +857,11 @@ Live-DB pass on the parent/contact data (untouched by passes 1–2). Backups `_b
 - [x] **UI:** guardian add/edit form (member-guardians) gained a **Domaine** SearchableSelect (from the managed
       list) before the free-text Profession; list shows "Domaine · Titre". GuardianDto/Create/Update + validators carry
       `professionDomain`.
-- [ ] **TODO — demande wizard parity:** ApplicantGuardian also stores Profession; add `profession_domain` there +
-      a wizard picker + carry it through SendDemandeResponses conversion, so new applicants self-categorize.
+- [x] **Demande wizard parity (2026-06-25):** `ApplicantGuardian.ProfessionDomain` (migration
+      `AddApplicantGuardianProfessionDomain`); `ApplicantConfigDto.ProfessionDomains` exposes the managed list to the
+      portal; the wizard guardian step has a **Domaine** picker before the free-text Profession;
+      SaveApplicantHousehold stores it and SendDemandeResponses carries it onto the converted real Guardian. New
+      applicants now self-categorize.
 
 ### Rentrée scoute — scout-year startup checklist (2026-06-25)
 A dependency-aware task list for starting a scout year, generated each year from an editable template.

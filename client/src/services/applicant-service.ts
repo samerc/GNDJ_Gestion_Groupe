@@ -13,6 +13,7 @@ export interface ApplicantConfig {
   cities: string[]
   units: string[]
   maxScoutRelations: number
+  professionDomains: string[]
 }
 
 export interface ApplicantGuardian {
@@ -21,6 +22,7 @@ export interface ApplicantGuardian {
   firstName: string
   lastName: string
   profession?: string | null
+  professionDomain?: string | null
   phoneCountryCode?: string | null
   phoneNumber?: string | null
   email?: string | null

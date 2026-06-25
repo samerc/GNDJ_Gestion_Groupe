@@ -142,7 +142,7 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context) : I
                 d.SubmittedAt, d.ResponseSentAt, d.CreatedMemberId,
                 d.ApplicantAccountId, acc?.Email ?? "", acc?.ContactName,
                 acc?.AddressCountry, acc?.AddressCity, acc?.AddressDetails,
-                gs.Select(g => new ApplicantGuardianDto(g.Id, g.Relationship, g.FirstName, g.LastName, g.Profession, g.PhoneCountryCode, g.PhoneNumber, g.Email, g.IsDeceased, g.IsPrimaryContact, g.IsEmergencyContact)).ToList(),
+                gs.Select(g => new ApplicantGuardianDto(g.Id, g.Relationship, g.FirstName, g.LastName, g.Profession, g.ProfessionDomain, g.PhoneCountryCode, g.PhoneNumber, g.Email, g.IsDeceased, g.IsPrimaryContact, g.IsEmergencyContact)).ToList(),
                 rs.Select(r => new ApplicantScoutRelationDto(r.Id, r.Status, r.Relationship, r.RelatedMemberId, r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName)).ToList(),
                 sibs);
         });
@@ -561,7 +561,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                     guardian = await FindExistingGuardian(ag, ct);
                     if (guardian is null)
                     {
-                        guardian = new Guardian { FirstName = ag.FirstName, LastName = ag.LastName, Profession = ag.Profession, IsDeceased = ag.IsDeceased };
+                        guardian = new Guardian { FirstName = ag.FirstName, LastName = ag.LastName, Profession = ag.Profession, ProfessionDomain = ag.ProfessionDomain, IsDeceased = ag.IsDeceased };
                         context.Guardians.Add(guardian);
                         if (!string.IsNullOrWhiteSpace(ag.PhoneNumber))
                             context.GuardianPhones.Add(new GuardianPhone { GuardianId = guardian.Id, CountryCode = ag.PhoneCountryCode ?? "", Number = ag.PhoneNumber!, Type = "Mobile", IsPrimary = true });

@@ -14,6 +14,7 @@ public class ApplicantGuardianConfiguration : IEntityTypeConfiguration<Applicant
         builder.Property(e => e.FirstName).HasMaxLength(100);
         builder.Property(e => e.LastName).HasMaxLength(100);
         builder.Property(e => e.Profession).HasMaxLength(150);
+        builder.Property(e => e.ProfessionDomain).HasMaxLength(100);
         builder.Property(e => e.PhoneCountryCode).HasMaxLength(10);
         builder.Property(e => e.PhoneNumber).HasMaxLength(30);
         builder.Property(e => e.Email).HasMaxLength(254);

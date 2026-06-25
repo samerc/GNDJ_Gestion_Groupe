@@ -48,7 +48,7 @@ function emptyChild(): DemandeInput {
   }
 }
 function blankGuardian(rel: string): ApplicantGuardian {
-  return { relationship: rel, firstName: '', lastName: '', profession: null, phoneCountryCode: '+961', phoneNumber: null, email: null, isDeceased: false, isPrimaryContact: rel === 'Père', isEmergencyContact: false }
+  return { relationship: rel, firstName: '', lastName: '', profession: null, professionDomain: null, phoneCountryCode: '+961', phoneNumber: null, email: null, isDeceased: false, isPrimaryContact: rel === 'Père', isEmergencyContact: false }
 }
 
 export default function DemandeWizardPage() {
@@ -289,7 +289,10 @@ export default function DemandeWizardPage() {
                     <Field label="Nom" required error={errors[`g_${i}_last`]}>
                       <Input value={g.lastName} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, lastName: e.target.value.toUpperCase() } : x))} className={errors[`g_${i}_last`] ? 'border-destructive' : ''} />
                     </Field>
-                    <Field label="Profession">
+                    <Field label="Domaine">
+                      <SearchableSelect value={g.professionDomain ?? ''} onValueChange={(v) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, professionDomain: v } : x))} options={(config?.professionDomains ?? []).map((d) => ({ value: d, label: d }))} placeholder="Domaine d'activité..." searchPlaceholder="Rechercher un domaine..." />
+                    </Field>
+                    <Field label="Profession (texte libre)">
                       <SearchableSelect value={g.profession ?? ''} onValueChange={(v) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, profession: v } : x))} options={PROFESSION_OPTIONS} searchPlaceholder="Rechercher une profession..." />
                     </Field>
                     <Field label="Téléphone"><Input value={g.phoneNumber ?? ''} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, phoneNumber: e.target.value } : x))} /></Field>

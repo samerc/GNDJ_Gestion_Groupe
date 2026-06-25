@@ -16,9 +16,10 @@ namespace GNDJ.Application.Applicants;
 public record ApplicantAuthDto(Guid AccountId, string Email, bool EmailVerified, string AccessToken, string RefreshToken, DateTime ExpiresAt);
 
 public record ApplicantConfigDto(bool IsOpen, string ScoutYear, int MaxPerAccount, int NotesMaxLength, bool RequireEmailVerification, string? IntroText,
-    IReadOnlyList<string> Schools, IReadOnlyList<string> Classes, IReadOnlyList<string> Cities, IReadOnlyList<string> Units, int MaxScoutRelations);
+    IReadOnlyList<string> Schools, IReadOnlyList<string> Classes, IReadOnlyList<string> Cities, IReadOnlyList<string> Units, int MaxScoutRelations,
+    IReadOnlyList<string> ProfessionDomains);
 
-public record ApplicantGuardianDto(Guid? Id, string Relationship, string FirstName, string LastName, string? Profession,
+public record ApplicantGuardianDto(Guid? Id, string Relationship, string FirstName, string LastName, string? Profession, string? ProfessionDomain,
     string? PhoneCountryCode, string? PhoneNumber, string? Email, bool IsDeceased, bool IsPrimaryContact, bool IsEmergencyContact);
 
 public record ApplicantScoutRelationDto(Guid? Id, string Status, string? Relationship, Guid? RelatedMemberId,
@@ -66,7 +67,7 @@ static class ApplicantHelpers
     [
         "demande.enabled", "demande.scout_year", "passage.scout_year", "demande.max_per_account",
         "demande.notes_max_length", "demande.require_email_verification", "demande.intro_text",
-        "demande.max_scout_relations", "member.schools", "member.classes", "member.cities"
+        "demande.max_scout_relations", "member.schools", "member.classes", "member.cities", "member.profession_domains"
     ];
 
     // Absolute safety cap enforced by SaveApplicantHouseholdCommandValidator regardless of the configurable
@@ -97,12 +98,13 @@ static class ApplicantHelpers
         var schools = ParseJsonArray(Get("member.schools"));
         var classes = ParseJsonArray(Get("member.classes"));
         var cities = ParseJsonArray(Get("member.cities"));
+        var professionDomains = ParseJsonArray(Get("member.profession_domains"));
 
         // Active units of the group — public (the public website already lists them). Helps applicants
         // indicate which unit a current-member relative belongs to, easing family matching for the CG.
         var units = await ctx.Units.Where(u => u.IsActive).OrderBy(u => u.Name).Select(u => u.Name).ToListAsync(ct);
 
-        return new ApplicantConfigDto(enabled, year, max, notesLen, requireVerify, intro, schools, classes, cities, units, maxRelations);
+        return new ApplicantConfigDto(enabled, year, max, notesLen, requireVerify, intro, schools, classes, cities, units, maxRelations, professionDomains);
     }
 
     public static DemandeDto ToDto(Demande d) => new(
@@ -308,7 +310,7 @@ public class GetApplicantProfileQueryHandler(IApplicationDbContext context, ICur
         if (account is null) return Result<ApplicantProfileDto>.Failure("Compte introuvable.");
 
         var guardians = await context.ApplicantGuardians.Where(g => g.ApplicantAccountId == id)
-            .Select(g => new ApplicantGuardianDto(g.Id, g.Relationship, g.FirstName, g.LastName, g.Profession,
+            .Select(g => new ApplicantGuardianDto(g.Id, g.Relationship, g.FirstName, g.LastName, g.Profession, g.ProfessionDomain,
                 g.PhoneCountryCode, g.PhoneNumber, g.Email, g.IsDeceased, g.IsPrimaryContact, g.IsEmergencyContact))
             .ToListAsync(ct);
 
@@ -370,6 +372,7 @@ public class SaveApplicantHouseholdCommandHandler(IApplicationDbContext context,
                 FirstName = g.FirstName.Trim(),
                 LastName = g.LastName.Trim(),
                 Profession = g.Profession,
+                ProfessionDomain = g.ProfessionDomain,
                 PhoneCountryCode = g.PhoneCountryCode,
                 PhoneNumber = g.PhoneNumber,
                 Email = g.Email,
@@ -454,6 +457,7 @@ public class SaveApplicantHouseholdCommandValidator : AbstractValidator<SaveAppl
             g.RuleFor(x => x.PhoneCountryCode).MaximumLength(10);
             g.RuleFor(x => x.PhoneNumber).MaximumLength(30);
             g.RuleFor(x => x.Profession).MaximumLength(150).Must(NoHtml);
+            g.RuleFor(x => x.ProfessionDomain).MaximumLength(100).Must(NoHtml);
             g.RuleFor(x => x.Relationship).MaximumLength(50).Must(NoHtml);
         });
         RuleForEach(x => x.ScoutRelations).ChildRules(r =>
