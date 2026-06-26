@@ -29,6 +29,9 @@ import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut } from 'lucide
 import { toast } from 'sonner'
 
 interface PassageDestination {
+  unitId: string
+  unitCode: string
+  unitName: string
   unitTypeId: string
   unitTypeName: string
   kind: 'same' | 'up'
@@ -453,19 +456,20 @@ export default function PassagePage() {
               <label className="text-sm font-medium">Unité de destination</label>
               {(() => {
                 // Drive the choices from the parcours scout: stay in the SAME unit (team/function change)
-                // or move to the configured progression target unit(s). Fall back to all units if no parcours.
-                const hasSame = destinations.some(d => d.kind === 'same')
-                const upTypeIds = new Set(destinations.filter(d => d.kind === 'up').map(d => d.unitTypeId))
-                const sameUnits = hasSame ? units.filter(u => u.id === editingMember?.currentUnitId) : []
-                const upUnits = units.filter(u => upTypeIds.has(u.unitTypeId))
-                const hasParcours = destinations.length > 0 && (sameUnits.length > 0 || upUnits.length > 0)
+                // or move to a progression target unit (returned by the endpoint even if out of the CU's
+                // scope, e.g. Noyau). Fall back to the CU's own units if no parcours is defined.
+                const sameUnits = destinations.filter(d => d.kind === 'same')
+                const upUnits = destinations.filter(d => d.kind === 'up')
+                const hasParcours = destinations.length > 0
+                const changeRoleForType = (newType: string | undefined) => {
+                  const roleType = roles.find(r => r.id === propRoleId)?.unitTypeId
+                  if (roleType != null && roleType !== newType) setPropRoleId('')
+                }
                 return (
                   <Select value={propUnitId} onValueChange={(v) => {
                     setPropUnitId(v); setPropTeamId('')
-                    // If the destination unit type changed, the previously chosen function no longer applies.
-                    const newType = units.find(u => u.id === v)?.unitTypeId
-                    const roleType = roles.find(r => r.id === propRoleId)?.unitTypeId
-                    if (roleType != null && roleType !== newType) setPropRoleId('')
+                    const newType = destinations.find(d => d.unitId === v)?.unitTypeId ?? units.find(u => u.id === v)?.unitTypeId
+                    changeRoleForType(newType)
                   }}>
                     <SelectTrigger><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
                     <SelectContent>
@@ -474,13 +478,13 @@ export default function PassagePage() {
                           {sameUnits.length > 0 && (
                             <SelectGroup>
                               <SelectLabel>Même branche — changement d'équipe / fonction</SelectLabel>
-                              {sameUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
+                              {sameUnits.map(d => <SelectItem key={d.unitId} value={d.unitId}>{d.unitCode} — {d.unitName}</SelectItem>)}
                             </SelectGroup>
                           )}
                           {upUnits.length > 0 && (
                             <SelectGroup>
                               <SelectLabel>Unité supérieure (parcours scout)</SelectLabel>
-                              {upUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
+                              {upUnits.map(d => <SelectItem key={d.unitId} value={d.unitId}>{d.unitCode} — {d.unitName}</SelectItem>)}
                             </SelectGroup>
                           )}
                         </>
@@ -513,7 +517,9 @@ export default function PassagePage() {
               <label className="text-sm font-medium">Fonction</label>
               {(() => {
                 // Only the functions of the selected destination unit's type (+ global roles), non-archived.
-                const destTypeId = units.find(u => u.id === propUnitId)?.unitTypeId
+                // The destination may be out of the CU's scope (e.g. Noyau), so resolve its type from the
+                // destinations list first, falling back to the scoped units list.
+                const destTypeId = destinations.find(d => d.unitId === propUnitId)?.unitTypeId ?? units.find(u => u.id === propUnitId)?.unitTypeId
                 const fnRoles = roles.filter(r => !r.isArchived && (r.unitTypeId == null || r.unitTypeId === destTypeId))
                 return (
                   <Select value={propRoleId} onValueChange={setPropRoleId}>

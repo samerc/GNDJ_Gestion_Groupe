@@ -83,11 +83,13 @@ public class GetPassageSuggestionQueryHandler(IApplicationDbContext context) : I
     }
 }
 
-// Get ALL allowed passage destinations for a member, driven by the parcours scout (UnitTypeProgression).
-// Returns the current unit type (kind "same" — staying for a team/function change) PLUS every configured
-// progression target for that type + gender (kind "up" — moving to the unité supérieure).
+// Get the allowed passage destination UNITS for a member, driven by the parcours scout
+// (UnitTypeProgression). Returns the member's CURRENT unit (kind "same" — staying for a team/function
+// change) PLUS every active unit of each configured progression target type for the member's gender
+// (kind "up" — moving to the unité supérieure). Concrete units are returned (not just types) because the
+// caller (a CU) can't see units outside their own scope, yet must be able to propose a move to them.
 public record GetPassageDestinationsQuery(Guid MemberId) : IRequest<Result<IReadOnlyList<PassageDestinationDto>>>;
-public record PassageDestinationDto(Guid UnitTypeId, string UnitTypeName, string Kind, string Reason);
+public record PassageDestinationDto(Guid UnitId, string UnitCode, string UnitName, Guid UnitTypeId, string UnitTypeName, string Kind, string Reason);
 
 public class GetPassageDestinationsQueryHandler(IApplicationDbContext context) : IRequestHandler<GetPassageDestinationsQuery, Result<IReadOnlyList<PassageDestinationDto>>>
 {
@@ -106,19 +108,28 @@ public class GetPassageDestinationsQueryHandler(IApplicationDbContext context) :
         var currentTypeId = assignment.Unit.UnitTypeId;
         var result = new List<PassageDestinationDto>
         {
-            new(currentTypeId, assignment.Unit.UnitType.Name, "same", "Même branche — changement d'équipe ou de fonction")
+            new(assignment.Unit.Id, assignment.Unit.Code, assignment.Unit.Name, currentTypeId,
+                assignment.Unit.UnitType.Name, "same", "Même branche — changement d'équipe ou de fonction")
         };
 
-        var paths = await context.UnitTypeProgressions
-            .Where(p => p.FromUnitTypeId == currentTypeId && p.PathType == "member")
-            .Include(p => p.ToUnitType)
-            .OrderBy(p => p.DisplayOrder)
-            .ToListAsync(ct);
+        var targetTypeIds = (await context.UnitTypeProgressions
+                .Where(p => p.FromUnitTypeId == currentTypeId && p.PathType == "member")
+                .OrderBy(p => p.DisplayOrder)
+                .ToListAsync(ct))
+            .Where(p => p.Gender == member.Gender || p.Gender == null)
+            .Select(p => p.ToUnitTypeId)
+            .Where(id => id != currentTypeId)
+            .Distinct()
+            .ToList();
 
-        foreach (var p in paths.Where(p => p.Gender == member.Gender || p.Gender == null))
+        if (targetTypeIds.Count > 0)
         {
-            if (p.ToUnitTypeId == currentTypeId || result.Any(r => r.UnitTypeId == p.ToUnitTypeId)) continue;
-            result.Add(new PassageDestinationDto(p.ToUnitTypeId, p.ToUnitType.Name, "up", "Unité supérieure (parcours scout)"));
+            var upUnits = await context.Units
+                .Where(u => u.IsActive && targetTypeIds.Contains(u.UnitTypeId))
+                .Select(u => new { u.Id, u.Code, u.Name, u.UnitTypeId, UnitTypeName = u.UnitType.Name })
+                .ToListAsync(ct);
+            foreach (var u in upUnits.OrderBy(u => u.UnitTypeName).ThenBy(u => u.Code))
+                result.Add(new PassageDestinationDto(u.Id, u.Code, u.Name, u.UnitTypeId, u.UnitTypeName, "up", "Unité supérieure (parcours scout)"));
         }
 
         return Result<IReadOnlyList<PassageDestinationDto>>.Success(result);
