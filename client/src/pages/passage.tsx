@@ -516,11 +516,11 @@ export default function PassagePage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Fonction</label>
               {(() => {
-                // Only the functions of the selected destination unit's type (+ global roles), non-archived.
-                // The destination may be out of the CU's scope (e.g. Noyau), so resolve its type from the
-                // destinations list first, falling back to the scoped units list.
+                // Only the functions of the selected destination unit's TYPE (e.g. C3 → Compagnie functions
+                // only), non-archived. The destination may be out of the CU's scope (e.g. Noyau), so resolve
+                // its type from the destinations list first, falling back to the scoped units list.
                 const destTypeId = destinations.find(d => d.unitId === propUnitId)?.unitTypeId ?? units.find(u => u.id === propUnitId)?.unitTypeId
-                const fnRoles = roles.filter(r => !r.isArchived && (r.unitTypeId == null || r.unitTypeId === destTypeId))
+                const fnRoles = roles.filter(r => !r.isArchived && (destTypeId ? r.unitTypeId === destTypeId : true))
                 return (
                   <Select value={propRoleId} onValueChange={setPropRoleId}>
                     <SelectTrigger><SelectValue placeholder="Sélectionner une fonction" /></SelectTrigger>
