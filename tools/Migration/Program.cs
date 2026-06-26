@@ -797,8 +797,8 @@ foreach (var bf in Directory.GetFiles(bpDir, "*.xlsx"))
         if (openIds.Count > 0)
             await Exec(conn, "DELETE FROM member_assignments WHERE member_id = $1 AND end_date IS NULL", memId);
         await Exec(conn, @"INSERT INTO member_assignments (id, member_id, unit_id, team_id, functional_role_id, start_date, end_date, notes, created_at, updated_at, is_deleted)
-            VALUES ($1, $2, $3, $4, $5, $6, NULL, $7, $8, $8, false)",
-            NewId(), memId, unitId, teamId ?? (object)DBNull.Value, roleId, passageDate, "BP 2025-2026", now);
+            VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, $7, $7, false)",
+            NewId(), memId, unitId, teamId ?? (object)DBNull.Value, roleId, passageDate, now);
         bpChanged++;
     }
 }
