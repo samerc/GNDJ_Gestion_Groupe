@@ -117,3 +117,13 @@ export function useSetEtapistes(campId: string) {
 }
 export const useEtapisteCandidates = (campId?: string) =>
   useQuery({ queryKey: ['camp-etapiste-candidates', campId], queryFn: () => apiClient.get<EtapisteCandidateDto[]>(`/camps/${campId}/etapiste-candidates`).then(r => r.data), enabled: !!campId })
+
+// ── PDF reports ──
+async function downloadPdf(url: string, filename: string) {
+  const r = await apiClient.get(url, { responseType: 'blob' })
+  const blobUrl = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }))
+  const a = document.createElement('a'); a.href = blobUrl; a.download = filename; a.click(); URL.revokeObjectURL(blobUrl)
+}
+export const printFamille = (campId: string, number: number) => downloadPdf(`/camps/${campId}/familles/${number}/pdf`, `Famille_${number}.pdf`)
+export const printAllFamilles = (campId: string) => downloadPdf(`/camps/${campId}/familles/pdf`, 'Familles.pdf')
+export const printUnitList = (campId: string) => downloadPdf(`/camps/${campId}/unit-list/pdf`, 'Liste_par_unite.pdf')

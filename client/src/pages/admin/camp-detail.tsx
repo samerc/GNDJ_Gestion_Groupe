@@ -4,6 +4,7 @@ import {
   useCamp, useUpdateCamp, useArchiveCamp, useDeleteCamp,
   useCampFamilles, useRunDraft, useMoveParticipant, useSwapParticipants, useSetLeaders, useLeaderCandidates,
   useCampGames, useCreateGame, useDeleteGame, useSetEtapistes, useEtapisteCandidates,
+  printFamille, printAllFamilles, printUnitList,
   type CampFamilleDto, type CampGameDto,
 } from '@/services/camp-service'
 import { Button } from '@/components/ui/button'
@@ -16,7 +17,7 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
-import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users } from 'lucide-react'
+import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function CampDetailPage() {
@@ -175,7 +176,11 @@ function FamillesTab({ campId }: { campId: string }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">Choisissez deux familles (<b>A</b> et <b>B</b>) dans le tableau, puis glissez-déposez un membre d'une famille à l'autre (ou sur un membre pour échanger).</p>
-        <Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />{draft.isPending ? 'Tirage…' : 'Lancer le tirage'}</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => printAllFamilles(campId).catch(() => toast.error('Erreur'))}><Printer className="mr-1 h-4 w-4" />Toutes les familles</Button>
+          <Button variant="outline" size="sm" onClick={() => printUnitList(campId).catch(() => toast.error('Erreur'))}><Printer className="mr-1 h-4 w-4" />Liste par unité</Button>
+          <Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />{draft.isPending ? 'Tirage…' : 'Lancer le tirage'}</Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row">
@@ -214,7 +219,7 @@ function FamillesTab({ campId }: { campId: string }) {
           <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={e => setDrag(e.active.data.current as DragData)} onDragEnd={onDragEnd}>
             <div className="grid gap-3 md:grid-cols-2">
               {[famA, famB].map((f, i) => f
-                ? <FamilleColumn key={f.id} f={f} label={i === 0 ? 'A' : 'B'} onEditLeaders={() => setLeaderDialog(f)} />
+                ? <FamilleColumn key={f.id} campId={campId} f={f} label={i === 0 ? 'A' : 'B'} onEditLeaders={() => setLeaderDialog(f)} />
                 : <div key={i} className="flex min-h-[200px] items-center justify-center rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
                     Sélectionnez une famille <b className="mx-1">{i === 0 ? 'A' : 'B'}</b> dans le tableau.
                   </div>)}
@@ -233,7 +238,7 @@ function FamillesTab({ campId }: { campId: string }) {
   )
 }
 
-function FamilleColumn({ f, label, onEditLeaders }: { f: CampFamilleDto; label: string; onEditLeaders: () => void }) {
+function FamilleColumn({ campId, f, label, onEditLeaders }: { campId: string; f: CampFamilleDto; label: string; onEditLeaders: () => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: `col-${f.id}`, data: { type: 'col', familleId: f.id } })
   return (
     <div ref={setNodeRef} className={cn('rounded-lg border transition-colors', isOver && 'ring-2 ring-primary')}>
@@ -245,11 +250,14 @@ function FamilleColumn({ f, label, onEditLeaders }: { f: CampFamilleDto; label: 
             <p className="text-sm text-muted-foreground">{f.size} membres · moy. {f.avgNote} · {f.boys}♂ {f.girls}♀</p>
           </div>
         </div>
-        <button type="button" onClick={onEditLeaders} className="flex items-center gap-1.5 rounded border px-2 py-1 text-xs hover:bg-muted/40">
-          <Crown className="h-3.5 w-3.5 text-amber-500" />
-          <span className="text-muted-foreground">P:</span> <b>{f.pereName ?? '—'}</b>
-          <span className="ml-1 text-muted-foreground">M:</span> <b>{f.mereName ?? '—'}</b>
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button type="button" onClick={onEditLeaders} className="flex items-center gap-1.5 rounded border px-2 py-1 text-xs hover:bg-muted/40">
+            <Crown className="h-3.5 w-3.5 text-amber-500" />
+            <span className="text-muted-foreground">P:</span> <b>{f.pereName ?? '—'}</b>
+            <span className="ml-1 text-muted-foreground">M:</span> <b>{f.mereName ?? '—'}</b>
+          </button>
+          <Button variant="outline" size="icon" className="h-7 w-7" title="Imprimer cette famille" onClick={() => printFamille(campId, f.number).catch(() => toast.error('Erreur'))}><Printer className="h-3.5 w-3.5" /></Button>
+        </div>
       </div>
       <div className="max-h-[60vh] space-y-1 overflow-y-auto p-2">
         {f.members.length === 0 ? <p className="p-4 text-center text-sm text-muted-foreground">Famille vide — déposez des membres ici.</p> :

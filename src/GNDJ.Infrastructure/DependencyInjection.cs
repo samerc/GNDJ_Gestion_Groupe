@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddSingleton<ITrombinoscoreService, TrombinoscoreService>();
         services.AddSingleton<IMemberCardService, MemberCardService>();
         services.AddSingleton<IRosterService, RosterService>();
+        services.AddSingleton<ICampReportService, CampReportService>();
         services.AddSingleton<IExportService, ExportService>();
 
         // JWT Authentication

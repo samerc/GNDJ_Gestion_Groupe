@@ -69,6 +69,25 @@ public class CampsController : BaseApiController
     [HasPermission(Permissions.CampManage)]
     public async Task<IActionResult> Familles(Guid id) => Res(await Mediator.Send(new GetCampFamillesQuery(id)));
 
+    // ── PDF reports (CU + CG) ──
+    private IActionResult Pdf(GNDJ.Application.Common.Models.Result<byte[]> r, string filename)
+        => r.IsSuccess ? File(r.Value!, "application/pdf", filename) : BadRequest(new { error = r.Error });
+
+    [HttpGet("{id:guid}/familles/{number:int}/pdf")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> FamillePdf(Guid id, int number)
+        => Pdf(await Mediator.Send(new GenerateCampReportQuery(id, "famille", number)), $"Famille_{number}.pdf");
+
+    [HttpGet("{id:guid}/familles/pdf")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> AllFamillesPdf(Guid id)
+        => Pdf(await Mediator.Send(new GenerateCampReportQuery(id, "all", null)), "Familles.pdf");
+
+    [HttpGet("{id:guid}/unit-list/pdf")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> UnitListPdf(Guid id)
+        => Pdf(await Mediator.Send(new GenerateCampReportQuery(id, "units", null)), "Liste_par_unite.pdf");
+
     [HttpPost("participants/{participantId:guid}/move")]
     [HasPermission(Permissions.CampManage)]
     public async Task<IActionResult> Move(Guid participantId, [FromBody] MoveBody body) => Res(await Mediator.Send(new MoveCampParticipantCommand(participantId, body.FamilleId)));
