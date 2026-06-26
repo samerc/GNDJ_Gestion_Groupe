@@ -304,10 +304,7 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
                 </Button>
               </div>
             )}
-            <div className="space-y-2">
-              <RequiredLabel>Notes</RequiredLabel>
-              <Input value={form.notes ?? ''} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value || null }))} />
-            </div>
+            {/* Notes field removed for now — functions don't carry notes (user request 2026-06-26). */}
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>

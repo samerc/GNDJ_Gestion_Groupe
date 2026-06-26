@@ -759,8 +759,8 @@ foreach (var bf in Directory.GetFiles(bpDir, "*.xlsx"))
                 memId = NewId();
                 var card = gender == "Masculin" ? $"M-{nextMaleCard++:D4}" : $"F-{nextFemaleCard++:D4}";
                 await Exec(conn, @"INSERT INTO members (id, first_name, last_name, gender, card_number, notes, created_at, updated_at, is_deleted)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $7, false)",
-                    memId, first, last, gender ?? (object)DBNull.Value, card, "Créé depuis BP 2025-2026", now);
+                    VALUES ($1, $2, $3, $4, $5, NULL, $6, $6, false)",
+                    memId, first, last, gender ?? (object)DBNull.Value, card, now);
                 if (!memberByLast.TryGetValue(Norm(last), out var lst2)) { lst2 = new(); memberByLast[Norm(last)] = lst2; }
                 lst2.Add((memId, gender, Norm(first), Norm(pere)));
                 if (!string.IsNullOrWhiteSpace(pere))
