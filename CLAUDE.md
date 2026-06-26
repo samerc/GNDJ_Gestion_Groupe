@@ -930,6 +930,19 @@ A camp feature: split the whole group into balanced "familles" (mixed teams), ea
   balance excellent (size 15–18, note-sum spread 2, branches/gender ±1); 25 games + étapistes OK. Two EF
   translation 500s found+fixed (grading OrderBy-over-DTO, familles GroupBy-over-entities). TODO: Commission BP
   designation (2 ACG + ACUs the CG sets); phase 2 = game scoring.
+- **Père = male / Mère = female (2026-06-26):** PereMereCandidateDto carries gender; the Père/Mère dialog shows only
+  the gender-appropriate button (♂→Père, ♀→Mère) and SetFamillePereMere rejects a non-male Père / non-female Mère.
+- **Familles board = drag-drop two-pane (2026-06-26):** left = famille table (big F# + avg-note bar, low=blue
+  high=amber) where you pick two familles **A**/**B**; right = the two familles as columns of member cards (full
+  name, ♂/♀, branche·unité, note). dnd-kit: drag a member onto the other **column** = move, onto a **member** = swap.
+  Replaced the cramped chip grid. Fixed the Père/Mère dialog header that showed the Père name but only `✓` for the
+  Mère (now `nameOf()` resolves both against the full candidate list, not the search-filtered one).
+- **Printable PDF reports (2026-06-26):** `ICampReportService` (QuestPDF, `CampReportService`) +
+  `GenerateCampReportQuery(campId, kind, familleNumber?)`. Three reports: **single famille** (Père/Mère + member
+  table branche/unité/note), **all familles one-per-page**, **unit list grouped by unit with each member's famille
+  number**. Endpoints `GET /camps/{id}/familles/{number}/pdf`, `/familles/pdf`, `/unit-list/pdf` (camp.grade).
+  Board UI: printer icon per A/B column + "Toutes les familles" / "Liste par unité" buttons (download helpers in
+  camp-service.ts). Smoke-tested live → valid PDFs. **NEXT: user wants changes to these reports.**
 
 ### Remaining / Next
 - [ ] Migration data cleanup: 181 orphans (kept — most are legit alumni), name spacing, GET /photo unit-scope;
