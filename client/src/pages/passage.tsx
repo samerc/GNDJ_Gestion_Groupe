@@ -516,11 +516,12 @@ export default function PassagePage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Fonction</label>
               {(() => {
-                // Only the functions of the selected destination unit's TYPE (e.g. C3 → Compagnie functions
-                // only), non-archived. The destination may be out of the CU's scope (e.g. Noyau), so resolve
-                // its type from the destinations list first, falling back to the scoped units list.
+                // Only the functions of the selected destination unit's TYPE (e.g. C3 → Compagnie functions,
+                // N → Noyau functions), non-archived. This is a MEMBER passage (the parcours is a member
+                // parcours), so maîtrise (leadership) functions are excluded. The destination may be out of
+                // the CU's scope (e.g. Noyau), so resolve its type from the destinations list first.
                 const destTypeId = destinations.find(d => d.unitId === propUnitId)?.unitTypeId ?? units.find(u => u.id === propUnitId)?.unitTypeId
-                const fnRoles = roles.filter(r => !r.isArchived && (destTypeId ? r.unitTypeId === destTypeId : true))
+                const fnRoles = roles.filter(r => !r.isArchived && !r.isMaitrise && (destTypeId ? r.unitTypeId === destTypeId : true))
                 return (
                   <Select value={propRoleId} onValueChange={setPropRoleId}>
                     <SelectTrigger><SelectValue placeholder="Sélectionner une fonction" /></SelectTrigger>
