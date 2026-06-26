@@ -8,15 +8,15 @@ import {
 } from '@/services/camp-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { DndContext, DragOverlay, useDraggable, useDroppable, pointerWithin, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
-import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, ArrowLeftRight, X } from 'lucide-react'
+import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function CampDetailPage() {
@@ -112,8 +112,8 @@ function SettingsTab({ campId }: { campId: string }) {
   )
 }
 
-// ─── Familles board (master–detail) ──────────────────────────────────────────
-type SwapSel = { participantId: string; familleId: string; name: string }
+// ─── Familles board: famille table + two-pane drag & drop ────────────────────
+type DragData = { participantId: string; familleId: string; name: string }
 
 function FamillesTab({ campId }: { campId: string }) {
   const { data: familles, isLoading } = useCampFamilles(campId)
@@ -121,13 +121,18 @@ function FamillesTab({ campId }: { campId: string }) {
   const move = useMoveParticipant(campId)
   const swap = useSwapParticipants(campId)
   const [confirmDraft, setConfirmDraft] = useState(false)
-  const [selId, setSelId] = useState<string | null>(null)
-  const [swapSel, setSwapSel] = useState<SwapSel | null>(null)
+  const [slotA, setSlotA] = useState<string | null>(null)
+  const [slotB, setSlotB] = useState<string | null>(null)
   const [leaderDialog, setLeaderDialog] = useState<CampFamilleDto | null>(null)
+  const [drag, setDrag] = useState<DragData | null>(null)
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
   useEffect(() => {
-    if (familles && familles.length > 0 && (!selId || !familles.some(f => f.id === selId))) setSelId(familles[0].id)
-  }, [familles, selId])
+    if (!familles || familles.length === 0) return
+    if (!slotA || !familles.some(f => f.id === slotA)) setSlotA(familles[0].id)
+    if ((!slotB || !familles.some(f => f.id === slotB)) && familles.length > 1) setSlotB(familles[1].id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [familles])
 
   if (isLoading) return <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div>
   if ((familles ?? []).length === 0) return (
@@ -144,104 +149,78 @@ function FamillesTab({ campId }: { campId: string }) {
   const avgs = fl.filter(f => f.size > 0).map(f => f.avgNote)
   const minA = avgs.length ? Math.min(...avgs) : 0
   const maxA = avgs.length ? Math.max(...avgs) : 1
-  const sel = fl.find(f => f.id === selId) ?? fl[0]
+  const famA = fl.find(f => f.id === slotA) ?? null
+  const famB = fl.find(f => f.id === slotB) ?? null
 
-  const doMove = async (participantId: string, familleId: string) => {
-    try { await move.mutateAsync({ participantId, familleId }); toast.success('Déplacé') } catch (e) { toast.error(parseApiError(e)) }
+  const pickFamille = (id: string) => {
+    if (id === slotA) setSlotA(null)
+    else if (id === slotB) setSlotB(null)
+    else if (!slotA) setSlotA(id)
+    else if (!slotB) setSlotB(id)
+    else { setSlotA(id); setSlotB(null) }
   }
-  const onSwapClick = async (m: SwapSel) => {
-    if (!swapSel) { setSwapSel(m); return }
-    if (swapSel.participantId === m.participantId) { setSwapSel(null); return }
-    try { await swap.mutateAsync({ participantAId: swapSel.participantId, participantBId: m.participantId }); toast.success('Échangés') }
-    catch (e) { toast.error(parseApiError(e)) }
-    setSwapSel(null)
+
+  const onDragEnd = async (e: DragEndEvent) => {
+    setDrag(null)
+    const a = e.active.data.current as DragData | undefined
+    const o = e.over?.data.current as ({ type: string; familleId: string; participantId?: string }) | undefined
+    if (!a || !o || o.familleId === a.familleId) return
+    try {
+      if (o.type === 'member' && o.participantId) { await swap.mutateAsync({ participantAId: a.participantId, participantBId: o.participantId }); toast.success('Échangés') }
+      else { await move.mutateAsync({ participantId: a.participantId, familleId: o.familleId }); toast.success('Déplacé') }
+    } catch (err) { toast.error(parseApiError(err)) }
   }
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        {swapSel
-          ? <div className="flex items-center gap-2 rounded-md border border-primary/40 bg-primary/5 px-2 py-1 text-sm">
-              <ArrowLeftRight className="h-4 w-4 text-primary" /><span>Échange : <b>{swapSel.name}</b> — choisissez un membre dans une autre famille</span>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSwapSel(null)}><X className="h-3.5 w-3.5" /></Button>
-            </div>
-          : <p className="text-sm text-muted-foreground">Sélectionnez une famille à gauche ; déplacez ou échangez ses membres à droite.</p>}
+        <p className="text-sm text-muted-foreground">Choisissez deux familles (<b>A</b> et <b>B</b>) dans le tableau, puis glissez-déposez un membre d'une famille à l'autre (ou sur un membre pour échanger).</p>
         <Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />{draft.isPending ? 'Tirage…' : 'Lancer le tirage'}</Button>
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row">
-        {/* Left: famille list with avg-note bars */}
-        <div className="lg:w-64 lg:shrink-0">
-          <div className="max-h-[70vh] overflow-y-auto rounded-lg border">
+        {/* Left: famille table */}
+        <div className="lg:w-72 lg:shrink-0">
+          <div className="max-h-[72vh] overflow-y-auto rounded-lg border">
+            <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+              <span className="w-14">Famille</span><span className="w-8 text-right">Eff.</span><span className="flex-1">Moyenne</span>
+            </div>
             {fl.map(f => {
               const pct = maxA > minA ? Math.round(((f.avgNote - minA) / (maxA - minA)) * 100) : 50
               const low = f.size > 0 && f.avgNote === minA, high = f.size > 0 && f.avgNote === maxA && minA !== maxA
+              const isA = slotA === f.id, isB = slotB === f.id
               return (
-                <button key={f.id} type="button" onClick={() => setSelId(f.id)}
-                  className={cn('flex w-full items-center gap-2 border-b px-2 py-1.5 text-left text-sm last:border-b-0', sel.id === f.id ? 'bg-primary/10' : 'hover:bg-muted/40')}>
-                  <span className="w-12 shrink-0 font-medium">F{f.number}</span>
-                  <span className="w-7 shrink-0 text-xs text-muted-foreground tabular-nums">{f.size}</span>
-                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                    <span className={cn('block h-full rounded-full', low ? 'bg-blue-500' : high ? 'bg-amber-500' : 'bg-primary/60')} style={{ width: `${Math.max(6, pct)}%` }} />
+                <button key={f.id} type="button" onClick={() => pickFamille(f.id)}
+                  className={cn('flex w-full items-center gap-2 border-b px-3 py-2 text-left last:border-b-0', (isA || isB) ? 'bg-primary/10' : 'hover:bg-muted/40')}>
+                  <span className="flex w-14 items-center gap-1.5">
+                    {(isA || isB) && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{isA ? 'A' : 'B'}</span>}
+                    <span className="text-base font-semibold">F{f.number}</span>
                   </span>
-                  <span className={cn('w-9 shrink-0 text-right text-xs tabular-nums', low && 'text-blue-600', high && 'text-amber-600')}>{f.avgNote}</span>
+                  <span className="w-8 shrink-0 text-right text-sm text-muted-foreground tabular-nums">{f.size}</span>
+                  <span className="flex flex-1 items-center gap-2">
+                    <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
+                      <span className={cn('block h-full rounded-full', low ? 'bg-blue-500' : high ? 'bg-amber-500' : 'bg-primary/60')} style={{ width: `${Math.max(6, pct)}%` }} />
+                    </span>
+                    <span className={cn('w-8 shrink-0 text-right text-sm font-medium tabular-nums', low && 'text-blue-600', high && 'text-amber-600')}>{f.avgNote}</span>
+                  </span>
                 </button>
               )
             })}
           </div>
         </div>
 
-        {/* Right: selected famille detail */}
-        <div className="min-w-0 flex-1 rounded-lg border">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
-            <div>
-              <h3 className="font-semibold">Famille {sel.number}</h3>
-              <p className="text-xs text-muted-foreground">{sel.size} membres · moy. {sel.avgNote} · {sel.boys}♂ {sel.girls}♀ · {Object.entries(sel.branchCounts).map(([b, n]) => `${b.slice(0, 3)} ${n}`).join(' · ')}</p>
+        {/* Right: two columns with drag & drop */}
+        <div className="min-w-0 flex-1">
+          <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={e => setDrag(e.active.data.current as DragData)} onDragEnd={onDragEnd}>
+            <div className="grid gap-3 md:grid-cols-2">
+              {[famA, famB].map((f, i) => f
+                ? <FamilleColumn key={f.id} f={f} label={i === 0 ? 'A' : 'B'} onEditLeaders={() => setLeaderDialog(f)} />
+                : <div key={i} className="flex min-h-[200px] items-center justify-center rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                    Sélectionnez une famille <b className="mx-1">{i === 0 ? 'A' : 'B'}</b> dans le tableau.
+                  </div>)}
             </div>
-            <button type="button" onClick={() => setLeaderDialog(sel)} className="flex items-center gap-1.5 rounded border px-2 py-1 text-xs hover:bg-muted/40">
-              <Crown className="h-3.5 w-3.5 text-amber-500" />
-              <span className="text-muted-foreground">Père:</span> <b>{sel.pereName ?? '—'}</b>
-              <span className="ml-1 text-muted-foreground">Mère:</span> <b>{sel.mereName ?? '—'}</b>
-              <span className="ml-1 text-primary">Modifier</span>
-            </button>
-          </div>
-
-          {sel.members.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">Famille vide.</p> :
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40 text-xs text-muted-foreground">
-                  <tr>
-                    <th className="p-2 text-left font-medium">Nom complet</th>
-                    <th className="p-2 text-left font-medium">Branche</th>
-                    <th className="p-2 text-left font-medium">Unité</th>
-                    <th className="p-2 text-right font-medium">Note</th>
-                    <th className="p-2 text-right font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...sel.members].sort((a, b) => (b.note ?? 0) - (a.note ?? 0)).map(m => (
-                    <tr key={m.participantId} className={cn('border-t', swapSel?.participantId === m.participantId && 'bg-primary/10')}>
-                      <td className="p-2">{m.firstName} {m.lastName} <span className="text-muted-foreground">{m.gender === 'Féminin' ? '♀' : m.gender === 'Masculin' ? '♂' : ''}</span></td>
-                      <td className="p-2 text-muted-foreground">{m.branche}</td>
-                      <td className="p-2 text-muted-foreground">{m.unitName ?? '—'}</td>
-                      <td className="p-2 text-right font-medium tabular-nums">{m.note ?? '—'}</td>
-                      <td className="p-2">
-                        <div className="flex items-center justify-end gap-1">
-                          <Select value="" onValueChange={v => doMove(m.participantId, v)}>
-                            <SelectTrigger className="h-7 w-[120px] text-xs"><SelectValue placeholder="Déplacer →" /></SelectTrigger>
-                            <SelectContent>{fl.filter(x => x.id !== sel.id).map(x => <SelectItem key={x.id} value={x.id}>Famille {x.number} ({x.size})</SelectItem>)}</SelectContent>
-                          </Select>
-                          <Button variant={swapSel?.participantId === m.participantId ? 'default' : 'outline'} size="icon" className="h-7 w-7"
-                            title="Échanger" onClick={() => onSwapClick({ participantId: m.participantId, familleId: sel.id, name: `${m.firstName} ${m.lastName}` })}>
-                            <ArrowLeftRight className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>}
+            <DragOverlay>{drag ? <div className="rounded border bg-background px-2 py-1 text-sm font-medium shadow-lg">{drag.name}</div> : null}</DragOverlay>
+          </DndContext>
         </div>
       </div>
 
@@ -254,6 +233,50 @@ function FamillesTab({ campId }: { campId: string }) {
   )
 }
 
+function FamilleColumn({ f, label, onEditLeaders }: { f: CampFamilleDto; label: string; onEditLeaders: () => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `col-${f.id}`, data: { type: 'col', familleId: f.id } })
+  return (
+    <div ref={setNodeRef} className={cn('rounded-lg border transition-colors', isOver && 'ring-2 ring-primary')}>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{label}</span>
+          <div>
+            <h3 className="font-semibold">Famille {f.number}</h3>
+            <p className="text-sm text-muted-foreground">{f.size} membres · moy. {f.avgNote} · {f.boys}♂ {f.girls}♀</p>
+          </div>
+        </div>
+        <button type="button" onClick={onEditLeaders} className="flex items-center gap-1.5 rounded border px-2 py-1 text-xs hover:bg-muted/40">
+          <Crown className="h-3.5 w-3.5 text-amber-500" />
+          <span className="text-muted-foreground">P:</span> <b>{f.pereName ?? '—'}</b>
+          <span className="ml-1 text-muted-foreground">M:</span> <b>{f.mereName ?? '—'}</b>
+        </button>
+      </div>
+      <div className="max-h-[60vh] space-y-1 overflow-y-auto p-2">
+        {f.members.length === 0 ? <p className="p-4 text-center text-sm text-muted-foreground">Famille vide — déposez des membres ici.</p> :
+          [...f.members].sort((a, b) => (b.note ?? 0) - (a.note ?? 0)).map(m => <MemberCard key={m.participantId} m={m} familleId={f.id} />)}
+      </div>
+    </div>
+  )
+}
+
+function MemberCard({ m, familleId }: { m: CampFamilleDto['members'][number]; familleId: string }) {
+  const name = `${m.firstName} ${m.lastName}`
+  const { attributes, listeners, setNodeRef: dragRef, isDragging } = useDraggable({ id: `drag-${m.participantId}`, data: { participantId: m.participantId, familleId, name } })
+  const { setNodeRef: dropRef, isOver } = useDroppable({ id: `drop-${m.participantId}`, data: { type: 'member', familleId, participantId: m.participantId } })
+  return (
+    <div ref={el => { dragRef(el); dropRef(el) }} {...listeners} {...attributes}
+      className={cn('flex cursor-grab items-center gap-2 rounded border px-2 py-1.5 text-sm active:cursor-grabbing',
+        isDragging && 'opacity-40', isOver && 'ring-2 ring-primary',
+        m.gender === 'Féminin' ? 'border-l-2 border-l-pink-300' : 'border-l-2 border-l-blue-300')}>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-medium">{name} <span className="text-muted-foreground">{m.gender === 'Féminin' ? '♀' : '♂'}</span></div>
+        <div className="truncate text-xs text-muted-foreground">{m.branche} · {m.unitName ?? '—'}</div>
+      </div>
+      <span className="shrink-0 font-semibold tabular-nums">{m.note ?? '—'}</span>
+    </div>
+  )
+}
+
 function LeaderDialog({ campId, famille, onClose }: { campId: string; famille: CampFamilleDto; onClose: () => void }) {
   const { data: candidates } = useLeaderCandidates(campId)
   const setLeaders = useSetLeaders(campId)
@@ -262,6 +285,7 @@ function LeaderDialog({ campId, famille, onClose }: { campId: string; famille: C
   const [search, setSearch] = useState('')
 
   const filtered = (candidates ?? []).filter(c => `${c.firstName} ${c.lastName}`.toLowerCase().includes(search.toLowerCase()))
+  const nameOf = (id: string) => { const c = (candidates ?? []).find(x => x.memberId === id); return c ? `${c.firstName} ${c.lastName}` : null }
   const save = async () => {
     try { await setLeaders.mutateAsync({ familleId: famille.id, pereMemberId: pere, mereMemberId: mere }); toast.success('Enregistré'); onClose() }
     catch (e) { toast.error(parseApiError(e)) }
@@ -272,9 +296,9 @@ function LeaderDialog({ campId, famille, onClose }: { campId: string; famille: C
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Père / Mère — Famille {famille.number}</DialogTitle></DialogHeader>
         <div className="space-y-2">
-          <div className="flex gap-2 text-sm">
-            <span className="rounded bg-muted px-2 py-1">Père: {filtered.find(c => c.memberId === pere)?.firstName ? `${filtered.find(c => c.memberId === pere)?.firstName}` : (pere ? '✓' : '—')}</span>
-            <span className="rounded bg-muted px-2 py-1">Mère: {mere ? '✓' : '—'}</span>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="rounded bg-muted px-2 py-1">Père : <b>{pere ? (nameOf(pere) ?? '✓') : '—'}</b></span>
+            <span className="rounded bg-muted px-2 py-1">Mère : <b>{mere ? (nameOf(mere) ?? '✓') : '—'}</b></span>
             {(pere || mere) && <Button variant="ghost" size="sm" onClick={() => { setPere(null); setMere(null) }}>Effacer</Button>}
           </div>
           <Input placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)} />
