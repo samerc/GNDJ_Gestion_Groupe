@@ -7,7 +7,7 @@ public record CampReportFamille(int Number, string? PereName, string? MereName, 
 
 public record CampReportUnit(string UnitName, IReadOnlyList<CampReportMember> Members);
 
-public record CampReportMember(string Name, string? Gender, string? Branche, string? UnitName, double? Note, int? FamilleNumber);
+public record CampReportMember(string Name, string? Gender, string? Branche, string? UnitName, string? TeamName, double? Note, int? FamilleNumber, string? Role);
 
 public interface ICampReportService
 {

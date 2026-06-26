@@ -38,38 +38,47 @@ public class CampReportService : ICampReportService
         Document.Create(c => c.Page(page =>
         {
             Setup(page);
-            page.Content().PaddingTop(6).Column(col =>
+            page.Content().Column(col =>
             {
-                col.Item().Text("Liste par unité — n° de famille").FontSize(15).Bold();
-                col.Item().Text($"{data.CampName} — Année scoute {data.ScoutYear}").FontSize(9).Light();
-                foreach (var u in data.Units)
+                var units = data.Units.ToList();
+                for (int u = 0; u < units.Count; u++)
                 {
-                    col.Item().PaddingTop(10).Background(Colors.Grey.Lighten3).Padding(4)
-                        .Text($"{u.UnitName} ({u.Members.Count})").FontSize(11).SemiBold();
-                    col.Item().PaddingTop(2).Table(table =>
-                    {
-                        table.ColumnsDefinition(d => { d.RelativeColumn(3); d.RelativeColumn(1.5f); d.RelativeColumn(0.8f); d.RelativeColumn(1.2f); });
-                        table.Header(h =>
-                        {
-                            h.Cell().Element(HeadCell).Text("Nom complet");
-                            h.Cell().Element(HeadCell).Text("Branche");
-                            h.Cell().Element(HeadCell).AlignRight().Text("Note");
-                            h.Cell().Element(HeadCell).AlignRight().Text("Famille");
-                        });
-                        var alt = false;
-                        foreach (var m in u.Members.OrderBy(x => x.Name))
-                        {
-                            var bg = alt ? Colors.Grey.Lighten4 : Colors.White; alt = !alt;
-                            table.Cell().Background(bg).Padding(3).Text(m.Name);
-                            table.Cell().Background(bg).Padding(3).Text(m.Branche ?? "");
-                            table.Cell().Background(bg).Padding(3).AlignRight().Text(m.Note?.ToString() ?? "");
-                            table.Cell().Background(bg).Padding(3).AlignRight().Text(m.FamilleNumber?.ToString() ?? "—").SemiBold();
-                        }
-                    });
+                    col.Item().Element(e => UnitBlock(e, data, units[u]));
+                    if (u < units.Count - 1) col.Item().PageBreak();
                 }
             });
             Foot(page);
         })).GeneratePdf();
+
+    private static void UnitBlock(IContainer container, CampReportData data, CampReportUnit u) =>
+        container.Column(col =>
+        {
+            col.Item().Text(u.UnitName).FontSize(18).Bold();
+            col.Item().Text($"{data.CampName} — Année scoute {data.ScoutYear}").FontSize(9).Light();
+            col.Item().Text($"{u.Members.Count} membres").FontSize(9).Light();
+
+            foreach (var team in u.Members.GroupBy(m => m.TeamName ?? "Sans équipe").OrderBy(g => g.Key))
+            {
+                col.Item().PaddingTop(10).Background(Colors.Grey.Lighten3).Padding(4)
+                    .Text($"{team.Key} ({team.Count()})").FontSize(11).SemiBold();
+                col.Item().PaddingTop(2).Table(table =>
+                {
+                    table.ColumnsDefinition(d => { d.RelativeColumn(4); d.RelativeColumn(1); });
+                    table.Header(h =>
+                    {
+                        h.Cell().Element(HeadCell).Text("Nom complet");
+                        h.Cell().Element(HeadCell).AlignRight().Text("Famille");
+                    });
+                    var alt = false;
+                    foreach (var m in team.OrderBy(x => x.Name))
+                    {
+                        var bg = alt ? Colors.Grey.Lighten4 : Colors.White; alt = !alt;
+                        table.Cell().Background(bg).Padding(3).Text(m.Name);
+                        table.Cell().Background(bg).Padding(3).AlignRight().Text(m.FamilleNumber?.ToString() ?? "—").SemiBold();
+                    }
+                });
+            }
+        });
 
     // ── shared ──
     private static void Setup(PageDescriptor page)
@@ -95,33 +104,32 @@ public class CampReportService : ICampReportService
         {
             col.Item().Text($"Famille {f.Number}").FontSize(18).Bold();
             col.Item().Text($"{data.CampName} — Année scoute {data.ScoutYear}").FontSize(9).Light();
-            col.Item().PaddingTop(4).Row(r =>
-            {
-                r.RelativeItem().Text(t => { t.Span("Père : ").SemiBold(); t.Span(f.PereName ?? "—"); });
-                r.RelativeItem().Text(t => { t.Span("Mère : ").SemiBold(); t.Span(f.MereName ?? "—"); });
-            });
-            col.Item().Text($"{f.Members.Count} membres").FontSize(9).Light();
+            col.Item().Text($"{f.Members.Count(m => m.Role == null)} membres").FontSize(9).Light();
 
             col.Item().PaddingTop(8).Table(table =>
             {
-                table.ColumnsDefinition(d => { d.RelativeColumn(0.5f); d.RelativeColumn(3); d.RelativeColumn(1.5f); d.RelativeColumn(2.2f); d.RelativeColumn(0.8f); });
+                table.ColumnsDefinition(d => { d.RelativeColumn(0.5f); d.RelativeColumn(3.5f); d.RelativeColumn(1.6f); d.RelativeColumn(2.2f); });
                 table.Header(h =>
                 {
                     h.Cell().Element(HeadCell).Text("#");
                     h.Cell().Element(HeadCell).Text("Nom complet");
                     h.Cell().Element(HeadCell).Text("Branche");
                     h.Cell().Element(HeadCell).Text("Unité");
-                    h.Cell().Element(HeadCell).AlignRight().Text("Note");
                 });
                 var i = 1; var alt = false;
                 foreach (var m in f.Members)
                 {
-                    var bg = alt ? Colors.Grey.Lighten4 : Colors.White; alt = !alt;
-                    table.Cell().Background(bg).Padding(3).Text((i++).ToString());
-                    table.Cell().Background(bg).Padding(3).Text($"{m.Name} {(m.Gender == "Féminin" ? "♀" : m.Gender == "Masculin" ? "♂" : "")}");
+                    var leader = m.Role != null;
+                    var bg = leader ? Colors.Blue.Lighten5 : (alt ? Colors.Grey.Lighten4 : Colors.White);
+                    if (!leader) alt = !alt;
+                    table.Cell().Background(bg).Padding(3).Text(leader ? "" : (i++).ToString());
+                    table.Cell().Background(bg).Padding(3).Text(t =>
+                    {
+                        var span = t.Span(leader ? $"{m.Name} ({m.Role})" : m.Name);
+                        if (leader) span.SemiBold();
+                    });
                     table.Cell().Background(bg).Padding(3).Text(m.Branche ?? "");
                     table.Cell().Background(bg).Padding(3).Text(m.UnitName ?? "");
-                    table.Cell().Background(bg).Padding(3).AlignRight().Text(m.Note?.ToString() ?? "");
                 }
             });
         });

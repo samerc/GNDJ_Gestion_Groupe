@@ -22,18 +22,47 @@ public class GenerateCampReportQueryHandler(IApplicationDbContext context, ICamp
             .Select(p => new CampReportMember(
                 p.Member.FirstName + " " + p.Member.LastName, p.Gender, p.Branche,
                 p.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(),
-                p.Note, p.Famille != null ? p.Famille.Number : (int?)null))
+                p.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Team!.Name).FirstOrDefault(),
+                p.Note, p.Famille != null ? p.Famille.Number : (int?)null, null))
             .ToListAsync(ct);
 
         var fams = await context.Familles.Where(f => f.CampId == camp.Id && !f.IsDeleted && f.Number <= camp.FamillesCount)
             .OrderBy(f => f.Number).Select(f => new { f.Number, f.PereMemberId, f.MereMemberId }).ToListAsync(ct);
         var leaderIds = fams.SelectMany(f => new[] { f.PereMemberId, f.MereMemberId }).Where(x => x != null).Select(x => x!.Value).Distinct().ToList();
-        var names = await context.Members.Where(m => leaderIds.Contains(m.Id))
-            .Select(m => new { m.Id, N = m.FirstName + " " + m.LastName }).ToDictionaryAsync(m => m.Id, m => m.N, ct);
-        string? Name(Guid? id) => id != null && names.TryGetValue(id.Value, out var n) ? n : null;
 
-        var famillesData = fams.Select(f => new CampReportFamille(f.Number, Name(f.PereMemberId), Name(f.MereMemberId),
-            parts.Where(m => m.FamilleNumber == f.Number).OrderBy(m => m.Branche).ThenByDescending(m => m.Note ?? 0).ToList())).ToList();
+        var leaderInfo = await context.Members.Where(m => leaderIds.Contains(m.Id))
+            .Select(m => new
+            {
+                m.Id,
+                Name = m.FirstName + " " + m.LastName,
+                UnitName = m.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(),
+                TeamName = m.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Team!.Name).FirstOrDefault(),
+            }).ToListAsync(ct);
+        var leaderBranche = (await context.CampParticipants
+            .Where(p => p.CampId == camp.Id && !p.IsDeleted && leaderIds.Contains(p.MemberId))
+            .Select(p => new { p.MemberId, p.Branche }).ToListAsync(ct))
+            .GroupBy(x => x.MemberId).ToDictionary(g => g.Key, g => g.First().Branche);
+
+        string? Name(Guid? id) => id != null ? leaderInfo.FirstOrDefault(x => x.Id == id.Value)?.Name : null;
+        CampReportMember? LeaderRow(Guid? id, string role, int fam)
+        {
+            if (id == null) return null;
+            var info = leaderInfo.FirstOrDefault(x => x.Id == id.Value);
+            if (info == null) return null;
+            leaderBranche.TryGetValue(id.Value, out var br);
+            return new CampReportMember(info.Name, null, br, info.UnitName, info.TeamName, null, fam, role);
+        }
+
+        var famillesData = fams.Select(f =>
+        {
+            var rows = new List<CampReportMember>();
+            var pere = LeaderRow(f.PereMemberId, "Père", f.Number);
+            var mere = LeaderRow(f.MereMemberId, "Mère", f.Number);
+            if (pere != null) rows.Add(pere);
+            if (mere != null) rows.Add(mere);
+            rows.AddRange(parts.Where(m => m.FamilleNumber == f.Number).OrderBy(m => m.Branche).ThenByDescending(m => m.Note ?? 0));
+            return new CampReportFamille(f.Number, Name(f.PereMemberId), Name(f.MereMemberId), rows);
+        }).ToList();
 
         var unitsData = parts.GroupBy(m => m.UnitName ?? "—").OrderBy(g => g.Key)
             .Select(g => new CampReportUnit(g.Key, g.OrderBy(m => m.Name).ToList())).ToList();
