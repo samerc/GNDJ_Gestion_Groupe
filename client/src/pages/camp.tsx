@@ -122,12 +122,12 @@ export default function CampPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-xs text-muted-foreground">
               <tr>
-                <th className="p-2 text-center font-medium w-24">Ne vient pas</th>
                 <SortHead k="name" label="Membre" />
                 <SortHead k="team" label="Équipe" />
                 <SortHead k="annee" label="Année" className="text-left" />
                 <SortHead k="force" label="Force /5" className="text-left" />
                 <th className="p-2 text-center font-medium w-24">Père/Mère</th>
+                <th className="p-2 text-center font-medium w-24">Ne vient pas</th>
                 <SortHead k="note" label="Note" className="text-right" />
                 <th className="p-2 text-left font-medium">Cas particulier</th>
               </tr>
@@ -139,10 +139,6 @@ export default function CampPage() {
                 const absent = !r.attending
                 return (
                   <tr key={g.memberId} className={`border-t ${absent ? 'bg-muted/30 text-muted-foreground' : ''}`}>
-                    <td className="p-2 text-center">
-                      <input type="checkbox" className="h-4 w-4 accent-orange-500" checked={absent}
-                        onChange={e => set(g.memberId, { attending: !e.target.checked })} title="Cocher si le membre ne vient pas au camp" />
-                    </td>
                     <td className="p-2">{g.firstName} {g.lastName}</td>
                     <td className="p-2 text-muted-foreground">{g.teamName ?? '—'}</td>
                     <td className="p-2"><Input type="number" min={1} max={10} value={r.annee ?? ''} disabled={absent} onChange={e => set(g.memberId, { annee: e.target.value ? Number(e.target.value) : null })} className="h-8 w-16" /></td>
@@ -155,6 +151,10 @@ export default function CampPage() {
                     <td className="p-2 text-center">
                       <input type="checkbox" className="h-4 w-4" checked={r.isLeaderCandidate} disabled={absent}
                         onChange={e => set(g.memberId, { isLeaderCandidate: e.target.checked })} title="Candidat Père / Mère" />
+                    </td>
+                    <td className="p-2 text-center">
+                      <input type="checkbox" className="h-4 w-4 accent-orange-500" checked={absent}
+                        onChange={e => set(g.memberId, { attending: !e.target.checked })} title="Cocher si le membre ne vient pas au camp" />
                     </td>
                     <td className="p-2 text-right font-medium tabular-nums">{!absent && note != null ? note : '—'}</td>
                     <td className="p-2"><Input value={r.notes} disabled={absent} onChange={e => set(g.memberId, { notes: e.target.value })} className="h-8" placeholder="—" /></td>
