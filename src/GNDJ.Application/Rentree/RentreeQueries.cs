@@ -1,4 +1,5 @@
 using GNDJ.Application.Common.Interfaces;
+using GNDJ.Domain.Enums;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
@@ -89,7 +90,10 @@ public class GetRentreeTasksQueryHandler(IApplicationDbContext context, ICurrent
                 isMine, t.Status != "done" && t.DueDate.HasValue && t.DueDate.Value < today);
         });
 
-        if (request.MineOnly)
+        // Managers (super-admin / rentree.manage = CG) can see everyone's tasks; everyone else
+        // (a CU, an assistant, a regular member) only ever sees the tasks assigned to them.
+        var isManager = currentUser.IsSuperAdmin || currentUser.Permissions.Contains(Permissions.RentreeManage);
+        if (request.MineOnly || !isManager)
             result = result.Where(t => t.IsMine);
 
         return result.ToList();

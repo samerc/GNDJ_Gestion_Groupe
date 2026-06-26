@@ -28,6 +28,16 @@ public class UnitTypeProgressionsController : BaseApiController
         return Ok(result.Value);
     }
 
+    // All allowed passage destinations (current branch + parcours-scout targets) for the propose dialog.
+    [HttpGet("destinations/{memberId:guid}")]
+    [HasPermission(Permissions.PassagePropose)]
+    public async Task<IActionResult> GetDestinations(Guid memberId)
+    {
+        var result = await Mediator.Send(new GetPassageDestinationsQuery(memberId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     [HttpPost]
     [HasPermission(Permissions.UnitTypesManage)]
     public async Task<IActionResult> Create([FromBody] CreateUnitTypeProgressionCommand command)

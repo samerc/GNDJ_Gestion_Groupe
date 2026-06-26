@@ -124,6 +124,7 @@ export interface MemberCotisationCellDto {
   cotisationId: string | null
   receiptNumber: string | null
   paymentDate: string | null
+  willNotPay: boolean
   payments: CotisationPaymentCellDto[]
 }
 

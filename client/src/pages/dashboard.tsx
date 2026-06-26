@@ -170,7 +170,9 @@ export default function DashboardPage() {
   // Super-admins and Chefs de Groupe (group-level managers) see the group-wide dashboard.
   if (user.isSuperAdmin || hasPermission(PERMISSIONS.MAITRISE_MANAGE)) return <AdminDashboard />
 
-  const isUnitLeader = hasPermission(PERMISSIONS.UNITS_EDIT)
+  // A unit leader (Chef d'unité) manages members in their unit. We key off members.edit because
+  // chef-unite holds it while read-only youth and chef-équipe do not (chef-unite lost units.edit).
+  const isUnitLeader = hasPermission(PERMISSIONS.MEMBERS_EDIT)
 
   // Regular members go straight to profile
   if (!isUnitLeader) return <Navigate to="/my-profile" replace />

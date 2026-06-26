@@ -9,6 +9,10 @@ public class MemberCotisation : BaseEntity
     public DateOnly PaymentDate { get; set; }
     public string ReceiptNumber { get; set; } = string.Empty; // e.g. "GNDJ-2025-0001"
     public string? Notes { get; set; }
+    // CU/CG mark: this member will not pay (exempt) for this scout year. Shared between roles
+    // (the flag lives on the per-member-per-year row, so whoever sets it, both see it).
+    // An exemption-only row has no Payments and an empty ReceiptNumber.
+    public bool WillNotPay { get; set; }
 
     public Member Member { get; set; } = null!;
     public ICollection<CotisationPayment> Payments { get; set; } = [];

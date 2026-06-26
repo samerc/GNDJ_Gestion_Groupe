@@ -942,7 +942,44 @@ A camp feature: split the whole group into balanced "familles" (mixed teams), ea
   table branche/unité/note), **all familles one-per-page**, **unit list grouped by unit with each member's famille
   number**. Endpoints `GET /camps/{id}/familles/{number}/pdf`, `/familles/pdf`, `/unit-list/pdf` (camp.grade).
   Board UI: printer icon per A/B column + "Toutes les familles" / "Liste par unité" buttons (download helpers in
-  camp-service.ts). Smoke-tested live → valid PDFs. **NEXT: user wants changes to these reports.**
+  camp-service.ts). Smoke-tested live → valid PDFs.
+- **Report tweaks (2026-06-26):** unit list = **one unit per page**, no branche, members grouped **per équipe**;
+  famille sheet lists **Père/Mère as numbered members** (tinted, no gender sign, no note column — `# · Nom · Unité`).
+
+### CU experience pass (2026-06-26)
+A batch of fixes from a live CU (chef d'unité) test session. Key root cause: `chef-unite` holds `members.edit`
+but **NOT `units.edit`** (it was dropped), so anything gated on `units.edit` was invisible to a CU.
+- **CU lands on their unit roster.** Dashboard + sidebar "Mon unité" were gated on `units.edit` (which no CU has)
+  → re-gated on **`members.edit`** (chef-unite has it; read-only youth & chef-équipe don't). A CU now lands on the
+  `UnitLeaderDashboard` (their unit roster w/ member detail) as their default page. NOTE: `unitAccess` is built from
+  ALL active assignments (youth included) so it can't be the leader signal — `members.edit` is. (dashboard.tsx,
+  sidebar.tsx)
+- **Camp BP grading page reworked (camp.tsx + backend):** ONE searchable + sortable table (no more separate
+  "Présences" dialog). Columns: **Ne vient pas** checkbox (default = vient; unchecking attendance greys the row),
+  Membre (no gender sign), **Équipe**, Année, Force, **Père/Mère = plain checkbox** (was a ★ star), Note, Cas
+  particulier. `GetCampGrading` now returns ALL eligible youth in scope (attending or not) + `teamName` +
+  `isAttending` + année default; `SaveCampGrades` is **member-keyed** (`{memberId, attending, force, annee,
+  isLeaderCandidate, notes}`) and upserts/flips the participant (attendance + grade in one save).
+- **Rentrée: a CU only ever sees their OWN tasks.** `GetRentreeTasksQuery` forces mine-only for non-managers
+  (not super-admin / not `rentree.manage`); the "Toutes / Mes tâches" toggle + unit filter are hidden for them.
+- **Passage propose is parcours-driven.** New `GET /unit-type-progressions/destinations/{memberId}` returns the
+  **current branch (kind "same" — équipe/fonction change) + every parcours-scout target (kind "up" — unité
+  supérieure)** for the member's gender. The propose dialog's destination dropdown is now **grouped** by those two
+  kinds (e.g. Compagnie → Compagnie units + Noyau), falling back to all units if no parcours. The 3 row actions
+  (Pas de changement / Proposer / Quitte le groupe) restyled as consistent outline buttons (green/blue/orange).
+- **Documents & Cotisations relift (unit-documents.tsx):** bigger status icons (h-11 cells, h-5 icons) + larger
+  legend/header/name text; cotisation cell is now **green = payée / red = non payée / slate = ne paiera pas**.
+- **Cotisation "ne paiera pas" (exempt) flag — shared CU↔CG.** New `MemberCotisation.WillNotPay` (migration
+  `AddCotisationWillNotPay`; the unique receipt index now excludes empty receipts so exemption-only marker rows
+  coexist). `PUT /cotisations/exempt {memberId, scoutYear, willNotPay}` (cotisations.edit) upserts/removes a
+  marker row (no payments, empty receipt). Set it on the CU matrix dialog OR the member-detail Cotisations tab
+  (CG) — it's one shared per-(member,year) fact. Summary excludes exempt from "impayés" + reports a new
+  `membersExempt`/`exemptMembers`; unpaid list drops paid OR exempt. "Paid" everywhere now = a cotisation **with a
+  payment line** (so empty markers don't read as paid).
+- **Ma fiche fixes (my-profile.tsx):** the global "Modifier" button only edited Profil/Médical but showed on every
+  tab → now **only rendered on those two tabs** (Tabs made controlled). Assignments tab was hard `readOnly` → now
+  `readOnly={!assignments.create}` so a leader can manage assignments from their own fiche (youth stay read-only).
+  Documents upload already worked (own profile → canUpload); the dead Modifier button was the confusion.
 
 ### Remaining / Next
 - [ ] Migration data cleanup: 181 orphans (kept — most are legit alumni), name spacing, GET /photo unit-scope;

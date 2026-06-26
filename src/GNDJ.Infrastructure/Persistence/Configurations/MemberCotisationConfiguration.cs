@@ -17,7 +17,9 @@ public class MemberCotisationConfiguration : IEntityTypeConfiguration<MemberCoti
         builder.HasOne(e => e.Member).WithMany(m => m.Cotisations).HasForeignKey(e => e.MemberId).OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(e => e.MemberId);
-        builder.HasIndex(e => e.ReceiptNumber).IsUnique().HasFilter("is_deleted = false");
+        // Exemption-only rows ("will not pay") carry an empty receipt number — exclude them from the
+        // unique receipt index so several exempt members can coexist.
+        builder.HasIndex(e => e.ReceiptNumber).IsUnique().HasFilter("is_deleted = false AND receipt_number <> ''");
         builder.HasIndex(e => new { e.MemberId, e.ScoutYear }).IsUnique().HasFilter("is_deleted = false");
     }
 }

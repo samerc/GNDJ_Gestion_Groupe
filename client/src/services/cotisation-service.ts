@@ -15,6 +15,7 @@ export interface MemberCotisationDto {
   paymentDate: string
   receiptNumber: string
   notes: string | null
+  willNotPay: boolean
   payments: CotisationPaymentDto[]
   createdAt: string
 }
@@ -49,6 +50,7 @@ export interface UnitCotisationSummaryDto {
   unitName: string
   totalMembers: number
   paidMembers: number
+  exemptMembers: number
   totals: CurrencyTotalDto[]
 }
 
@@ -56,6 +58,7 @@ export interface CotisationSummaryDto {
   totalActiveMembers: number
   membersWithPayment: number
   membersWithoutPayment: number
+  membersExempt: number
   totalsByCurrency: CurrencyTotalDto[]
   byUnit: UnitCotisationSummaryDto[]
 }
@@ -87,6 +90,20 @@ export function useUpdateCotisation(memberId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cotisations', memberId] })
       qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
+    },
+  })
+}
+
+// Mark/unmark a member as exempt ("ne paiera pas") for a scout year. Shared CU/CG flag.
+export function useSetCotisationExempt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { memberId: string; scoutYear: string; willNotPay: boolean }) =>
+      apiClient.put('/cotisations/exempt', data),
+    onSuccess: (_r, data) => {
+      qc.invalidateQueries({ queryKey: ['cotisations', data.memberId] })
+      qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
+      qc.invalidateQueries({ queryKey: ['cotisations', 'summary'] })
     },
   })
 }

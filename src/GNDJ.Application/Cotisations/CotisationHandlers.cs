@@ -13,6 +13,7 @@ public record CotisationPaymentDto(Guid Id, decimal Amount, string Currency, str
 public record MemberCotisationDto(
     Guid Id, Guid MemberId, string ScoutYear,
     DateOnly PaymentDate, string ReceiptNumber, string? Notes,
+    bool WillNotPay,
     List<CotisationPaymentDto> Payments, DateTime CreatedAt
 );
 
@@ -45,7 +46,7 @@ public class GetMemberCotisationsQueryHandler(IApplicationDbContext context, ICu
             .OrderByDescending(c => c.ScoutYear)
             .Select(c => new MemberCotisationDto(
                 c.Id, c.MemberId, c.ScoutYear,
-                c.PaymentDate, c.ReceiptNumber, c.Notes,
+                c.PaymentDate, c.ReceiptNumber, c.Notes, c.WillNotPay,
                 c.Payments.Where(p => !p.IsDeleted).Select(p => new CotisationPaymentDto(p.Id, p.Amount, p.Currency, p.PaymentMethod)).ToList(),
                 c.CreatedAt
             ))
@@ -211,6 +212,57 @@ public class UpdateCotisationCommandHandler(IApplicationDbContext context, ICurr
     }
 }
 
+// Set / clear the "will not pay" (exempt) flag for a member + scout year.
+// Shared between CU and CG: it lives on the per-member-per-year cotisation row, so whoever sets it,
+// the other sees it. When no cotisation row exists yet, an exemption-only marker row is created
+// (no payments, empty receipt); clearing the flag on such a marker deletes it.
+public record SetCotisationExemptCommand(Guid MemberId, string ScoutYear, bool WillNotPay) : IRequest<Result<bool>>;
+
+public class SetCotisationExemptCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<SetCotisationExemptCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(SetCotisationExemptCommand request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.ScoutYear))
+            return Result<bool>.Failure("L'année scoute est requise.");
+
+        if (!await CotisationAccessHelper.CanAccessMember(context, currentUser, request.MemberId, ct))
+            return Result<bool>.Failure("Accès non autorisé à ce membre.");
+
+        var entity = await context.MemberCotisations
+            .Include(c => c.Payments.Where(p => !p.IsDeleted))
+            .FirstOrDefaultAsync(c => c.MemberId == request.MemberId && c.ScoutYear == request.ScoutYear, ct);
+
+        if (entity is null)
+        {
+            if (!request.WillNotPay) return Result<bool>.Success(true); // nothing to clear
+            entity = new MemberCotisation
+            {
+                MemberId = request.MemberId,
+                ScoutYear = request.ScoutYear,
+                PaymentDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                ReceiptNumber = string.Empty,
+                WillNotPay = true
+            };
+            context.MemberCotisations.Add(entity);
+        }
+        else if (!request.WillNotPay && entity.ReceiptNumber == string.Empty && entity.Payments.All(p => p.IsDeleted))
+        {
+            // Clearing an exemption-only marker → remove it entirely.
+            context.MemberCotisations.Remove(entity);
+        }
+        else
+        {
+            entity.WillNotPay = request.WillNotPay;
+        }
+
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("Update", "MemberCotisation", entity.Id,
+            newValues: new { request.WillNotPay, request.ScoutYear }, cancellationToken: ct);
+
+        return Result<bool>.Success(true);
+    }
+}
+
 // Delete cotisation
 public record DeleteCotisationCommand(Guid Id) : IRequest<Result<bool>>;
 
@@ -294,12 +346,13 @@ public record CotisationSummaryDto(
     int TotalActiveMembers,
     int MembersWithPayment,
     int MembersWithoutPayment,
+    int MembersExempt,
     List<CurrencyTotalDto> TotalsByCurrency,
     List<UnitCotisationSummaryDto> ByUnit
 );
 
 public record CurrencyTotalDto(string Currency, decimal Total, int Count);
-public record UnitCotisationSummaryDto(string UnitName, int TotalMembers, int PaidMembers, List<CurrencyTotalDto> Totals);
+public record UnitCotisationSummaryDto(string UnitName, int TotalMembers, int PaidMembers, int ExemptMembers, List<CurrencyTotalDto> Totals);
 
 public class GetCotisationSummaryQueryHandler(IApplicationDbContext context) : IRequestHandler<GetCotisationSummaryQuery, CotisationSummaryDto>
 {
@@ -317,14 +370,16 @@ public class GetCotisationSummaryQueryHandler(IApplicationDbContext context) : I
         // memory, and "paid" = a cotisation record exists (independent of payment lines, as before).
         var cotisations = await context.MemberCotisations
             .Where(c => c.ScoutYear == request.ScoutYear && activeMemberIds.Contains(c.MemberId))
-            .Select(c => new { c.MemberId, Payments = c.Payments.Where(p => !p.IsDeleted).Select(p => new { p.Amount, p.Currency }).ToList() })
+            .Select(c => new { c.MemberId, c.WillNotPay, Payments = c.Payments.Where(p => !p.IsDeleted).Select(p => new { p.Amount, p.Currency }).ToList() })
             .ToListAsync(ct);
 
         var payments = cotisations
             .SelectMany(c => c.Payments.Select(p => new { c.MemberId, p.Amount, p.Currency }))
             .ToList();
 
-        var paidSet = cotisations.Select(c => c.MemberId).Distinct().ToHashSet();
+        // Paid = a cotisation with at least one payment line. Exempt = "will not pay" with no payment.
+        var paidSet = cotisations.Where(c => c.Payments.Count > 0).Select(c => c.MemberId).Distinct().ToHashSet();
+        var exemptSet = cotisations.Where(c => c.WillNotPay && c.Payments.Count == 0).Select(c => c.MemberId).Distinct().ToHashSet();
 
         var totalsByCurrency = payments
             .GroupBy(p => p.Currency)
@@ -338,11 +393,12 @@ public class GetCotisationSummaryQueryHandler(IApplicationDbContext context) : I
                 var unitMemberIds = g.Select(a => a.MemberId).Distinct().ToList();
                 var unitPayments = payments.Where(p => unitMemberIds.Contains(p.MemberId)).ToList();
                 var unitPaid = unitMemberIds.Count(id => paidSet.Contains(id));
+                var unitExempt = unitMemberIds.Count(id => exemptSet.Contains(id));
                 var unitTotals = unitPayments
                     .GroupBy(p => p.Currency)
                     .Select(cg => new CurrencyTotalDto(cg.Key, cg.Sum(p => p.Amount), cg.Count()))
                     .ToList();
-                return new UnitCotisationSummaryDto(g.Key, unitMemberIds.Count, unitPaid, unitTotals);
+                return new UnitCotisationSummaryDto(g.Key, unitMemberIds.Count, unitPaid, unitExempt, unitTotals);
             })
             .OrderBy(u => u.UnitName)
             .ToList();
@@ -350,7 +406,8 @@ public class GetCotisationSummaryQueryHandler(IApplicationDbContext context) : I
         return new CotisationSummaryDto(
             activeMemberIds.Count,
             paidSet.Count,
-            activeMemberIds.Count - paidSet.Count,
+            activeMemberIds.Count - paidSet.Count - exemptSet.Count,
+            exemptSet.Count,
             totalsByCurrency,
             unitGroups
         );
@@ -374,13 +431,14 @@ public class GetUnpaidCotisationsQueryHandler(IApplicationDbContext context, ICu
             query = query.Where(a => authorizedUnitIds.Contains(a.UnitId));
         }
 
-        var paidMemberIds = await context.MemberCotisations
-            .Where(c => c.ScoutYear == request.ScoutYear)
+        // Settled = paid (has a payment line) OR exempt ("will not pay"). Both drop off the unpaid list.
+        var settledMemberIds = await context.MemberCotisations
+            .Where(c => c.ScoutYear == request.ScoutYear && (c.WillNotPay || c.Payments.Any(p => !p.IsDeleted)))
             .Select(c => c.MemberId)
             .ToListAsync(ct);
 
         return await query
-            .Where(a => !paidMemberIds.Contains(a.MemberId))
+            .Where(a => !settledMemberIds.Contains(a.MemberId))
             .Select(a => new UnpaidCotisationDto(a.MemberId, a.Member.FirstName + " " + a.Member.LastName, a.Unit.Name))
             .Distinct()
             .OrderBy(u => u.MemberName)

@@ -67,7 +67,7 @@ export default function CotisationDashboardPage() {
                   <AlertTriangle className="h-8 w-8 text-orange-500" />
                   <div>
                     <div className="text-2xl font-bold text-orange-600">{summary.membersWithoutPayment}</div>
-                    <p className="text-sm text-muted-foreground">Impayés</p>
+                    <p className="text-sm text-muted-foreground">Impayés{summary.membersExempt > 0 && <span className="ml-1 text-slate-500">· {summary.membersExempt} exempté(s)</span>}</p>
                   </div>
                 </div>
               </CardContent>
@@ -138,11 +138,12 @@ export default function CotisationDashboardPage() {
                             <Badge className="bg-green-600">{u.paidMembers}</Badge>
                           </td>
                           <td className="px-3 py-2 text-center">
-                            {u.totalMembers - u.paidMembers > 0 ? (
-                              <Badge variant="destructive">{u.totalMembers - u.paidMembers}</Badge>
+                            {u.totalMembers - u.paidMembers - u.exemptMembers > 0 ? (
+                              <Badge variant="destructive">{u.totalMembers - u.paidMembers - u.exemptMembers}</Badge>
                             ) : (
                               <Badge variant="outline">0</Badge>
                             )}
+                            {u.exemptMembers > 0 && <span className="ml-1 text-xs text-slate-500">+{u.exemptMembers} exempté(s)</span>}
                           </td>
                           <td className="px-3 py-2 text-right">
                             {u.totals.length > 0 ? (

@@ -16,8 +16,9 @@ export interface CampAttendeeDto {
   branche: string | null; isAttending: boolean; participantId: string | null; role: string
 }
 export interface CampGradeRowDto {
-  participantId: string; memberId: string; firstName: string; lastName: string; gender: string | null
-  branche: string | null; unitName: string | null; force: number | null; annee: number | null; note: number | null
+  participantId: string | null; memberId: string; firstName: string; lastName: string; gender: string | null
+  branche: string | null; unitName: string | null; teamName: string | null; isAttending: boolean
+  force: number | null; annee: number | null; note: number | null
   isLeaderCandidate: boolean; role: string; notes: string | null
 }
 export interface CampFamilleMemberDto { participantId: string; memberId: string; firstName: string; lastName: string; gender: string | null; branche: string | null; unitName: string | null; note: number | null; role: string }
@@ -71,7 +72,7 @@ export const useCampGrading = (campId?: string, unitId?: string) =>
   useQuery({ queryKey: ['camp-grading', campId, unitId ?? 'all'], queryFn: () => apiClient.get<CampGradeRowDto[]>(`/camps/${campId}/grading`, { params: unitId ? { unitId } : {} }).then(r => r.data), enabled: !!campId })
 export function useSaveCampGrades(campId: string) {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: (grades: { participantId: string; force: number | null; annee: number | null; isLeaderCandidate: boolean; notes: string | null }[]) => apiClient.post(`/camps/${campId}/grading`, { campId, grades }), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-grading'] }) })
+  return useMutation({ mutationFn: (grades: { memberId: string; attending: boolean; force: number | null; annee: number | null; isLeaderCandidate: boolean; notes: string | null }[]) => apiClient.post(`/camps/${campId}/grading`, { campId, grades }), onSuccess: () => { qc.invalidateQueries({ queryKey: ['camp-grading'] }); qc.invalidateQueries({ queryKey: ['camp-attendance'] }) } })
 }
 
 // ── Draft + familles (CG) ──

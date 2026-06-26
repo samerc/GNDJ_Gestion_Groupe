@@ -222,6 +222,7 @@ public record MemberCotisationCellDto(
     Guid? CotisationId,
     string? ReceiptNumber,
     DateOnly? PaymentDate,
+    bool WillNotPay,
     List<CotisationPaymentCellDto> Payments
 );
 
@@ -308,7 +309,7 @@ public class GetUnitDocumentsMatrixQueryHandler(IApplicationDbContext context, I
 
                 var cot = allCotisations.FirstOrDefault(c => c.MemberId == g.Key);
                 var cotCell = new MemberCotisationCellDto(
-                    cot?.Id, cot?.ReceiptNumber, cot?.PaymentDate,
+                    cot?.Id, cot?.ReceiptNumber, cot?.PaymentDate, cot?.WillNotPay ?? false,
                     cot?.Payments.Select(p => new CotisationPaymentCellDto(p.Amount, p.Currency, p.PaymentMethod)).ToList() ?? []
                 );
 

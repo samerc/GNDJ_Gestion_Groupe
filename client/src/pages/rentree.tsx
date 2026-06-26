@@ -246,7 +246,7 @@ export default function RentreePage() {
               <SelectContent>{years!.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
             </Select>
           )}
-          {!mineOnly && units.length > 0 && (
+          {canManage && !mineOnly && units.length > 0 && (
             <Select value={unitFilter} onValueChange={setUnitFilter}>
               <SelectTrigger className="h-9 w-48 text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -255,10 +255,14 @@ export default function RentreePage() {
               </SelectContent>
             </Select>
           )}
-          <div className="flex h-9 items-center rounded-md border p-0.5 text-xs">
-            <button type="button" className={cn('h-full rounded px-2.5 font-medium', !mineOnly ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')} onClick={() => setMineOnly(false)}>Toutes</button>
-            <button type="button" className={cn('h-full rounded px-2.5 font-medium', mineOnly ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')} onClick={() => setMineOnly(true)}>Mes tâches</button>
-          </div>
+          {/* Only managers (CG / super-admin) can switch to the whole-group view; everyone else only ever
+              sees their own tasks (also enforced server-side). */}
+          {canManage && (
+            <div className="flex h-9 items-center rounded-md border p-0.5 text-xs">
+              <button type="button" className={cn('h-full rounded px-2.5 font-medium', !mineOnly ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')} onClick={() => setMineOnly(false)}>Toutes</button>
+              <button type="button" className={cn('h-full rounded px-2.5 font-medium', mineOnly ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')} onClick={() => setMineOnly(true)}>Mes tâches</button>
+            </div>
+          )}
           {canManage && (
             <>
               <Button variant="outline" size="sm" asChild><Link to="/admin/rentree-template"><Settings2 className="mr-1 h-4 w-4" />Modèle</Link></Button>

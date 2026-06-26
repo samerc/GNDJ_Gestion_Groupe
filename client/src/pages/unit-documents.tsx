@@ -7,7 +7,7 @@ import {
   useUnitDocumentsMatrix, useReviewDocumentMatrix, downloadDocument, downloadUnitDocumentsZip,
   type MemberDocRowDto, type MemberDocCellDto, type DocTypeColumnDto
 } from '@/services/document-service'
-import { useCreateCotisation, useUpdateCotisation } from '@/services/cotisation-service'
+import { useCreateCotisation, useUpdateCotisation, useSetCotisationExempt } from '@/services/cotisation-service'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,7 +15,7 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2 } from 'lucide-react'
+import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban } from 'lucide-react'
 
 // ─── Cell rendering helpers ────────────────────────────────
 function docStatusColor(cell: MemberDocCellDto): string {
@@ -29,12 +29,12 @@ function docStatusColor(cell: MemberDocCellDto): string {
 }
 
 function docStatusIcon(cell: MemberDocCellDto) {
-  if (!cell.documentId) return <Minus className="h-4 w-4" />
-  if (cell.isExpired) return <AlertTriangle className="h-4 w-4" />
+  if (!cell.documentId) return <Minus className="h-5 w-5" />
+  if (cell.isExpired) return <AlertTriangle className="h-5 w-5" />
   switch (cell.status) {
-    case 'Approved': return <CheckCircle className="h-4 w-4" />
-    case 'Rejected': return <XCircle className="h-4 w-4" />
-    default: return <Clock className="h-4 w-4" />
+    case 'Approved': return <CheckCircle className="h-5 w-5" />
+    case 'Rejected': return <XCircle className="h-5 w-5" />
+    default: return <Clock className="h-5 w-5" />
   }
 }
 
@@ -83,6 +83,15 @@ export default function UnitDocumentsPage() {
   const [cotNotes, setCotNotes] = useState('')
   const createCotisation = useCreateCotisation('')
   const updateCotisation = useUpdateCotisation('')
+  const setExempt = useSetCotisationExempt()
+
+  const toggleExempt = async (member: MemberDocRowDto, willNotPay: boolean) => {
+    try {
+      await setExempt.mutateAsync({ memberId: member.memberId, scoutYear: currentScoutYear, willNotPay })
+      toast.success(willNotPay ? 'Membre marqué « ne paiera pas »' : 'Exemption retirée')
+      setCotisationMember(null)
+    } catch (err) { setError(parseApiError(err)) }
+  }
 
   const [error, setError] = useState('')
   const [downloading, setDownloading] = useState(false)
@@ -178,7 +187,7 @@ export default function UnitDocumentsPage() {
   const openCotisation = (member: MemberDocRowDto) => {
     setCotisationMember(member)
     setError('')
-    if (member.cotisation.cotisationId) {
+    if (member.cotisation.cotisationId && member.cotisation.payments.length > 0) {
       setCotPayments(member.cotisation.payments.map(p => ({ amount: p.amount, currency: p.currency, paymentMethod: p.paymentMethod })))
       setCotPaymentDate(member.cotisation.paymentDate ?? '')
       setCotNotes('')
@@ -253,12 +262,16 @@ export default function UnitDocumentsPage() {
       ) : (
         <>
           {/* Legend */}
-          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground px-1">
-            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-green-50 text-green-600"><CheckCircle className="h-3 w-3" /></span> Approuvé</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-amber-50 text-amber-600"><Clock className="h-3 w-3" /></span> En attente</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-red-50 text-red-500"><XCircle className="h-3 w-3" /></span> Refusé</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-red-50 text-red-500"><AlertTriangle className="h-3 w-3" /></span> Expiré</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-5 w-5 items-center justify-center rounded bg-gray-100 text-gray-400"><Minus className="h-3 w-3" /></span> Manquant</span>
+          <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-muted-foreground px-1">
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-green-50 text-green-600"><CheckCircle className="h-4 w-4" /></span> Approuvé</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-amber-50 text-amber-600"><Clock className="h-4 w-4" /></span> En attente</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 text-red-500"><XCircle className="h-4 w-4" /></span> Refusé</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 text-red-500"><AlertTriangle className="h-4 w-4" /></span> Expiré</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-gray-400"><Minus className="h-4 w-4" /></span> Manquant</span>
+            <span className="mx-1 h-5 w-px self-center bg-border" />
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-green-50 text-green-700"><DollarSign className="h-4 w-4" /></span> Cotisation payée</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 text-red-500"><Receipt className="h-4 w-4" /></span> Non payée</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-slate-100 text-slate-500"><Ban className="h-4 w-4" /></span> Ne paiera pas</span>
           </div>
 
           <div className="rounded-lg border shadow-sm overflow-auto">
@@ -269,7 +282,7 @@ export default function UnitDocumentsPage() {
                   {matrix.docTypes.map(dt => (
                     <th key={dt.id} className="px-2 py-3 text-center font-medium min-w-24">
                       <div className="flex flex-col items-center gap-0.5">
-                        <span className="text-xs leading-tight">{dt.name}</span>
+                        <span className="text-sm leading-tight">{dt.name}</span>
                         <button
                           className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
                           onClick={() => handleDownloadZip(dt.id)}
@@ -302,7 +315,7 @@ export default function UnitDocumentsPage() {
                       </tr>
                     )}
                     <tr key={member.memberId} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
-                      <td className="sticky left-0 z-10 bg-background px-4 py-2.5 font-medium">
+                      <td className="sticky left-0 z-10 bg-background px-4 py-2.5 text-[15px] font-medium">
                         {member.firstName} {member.lastName}
                       </td>
                       {member.documents.map((cell) => {
@@ -314,7 +327,7 @@ export default function UnitDocumentsPage() {
                           className="px-1 py-1.5 text-center"
                         >
                           <div
-                            className={`group relative mx-auto flex h-9 w-9 items-center justify-center rounded-md cursor-pointer transition-all hover:scale-110 ${docStatusColor(cell)}`}
+                            className={`group relative mx-auto flex h-11 w-11 items-center justify-center rounded-md cursor-pointer transition-all hover:scale-110 ${docStatusColor(cell)}`}
                             title={docStatusLabel(cell)}
                             tabIndex={0}
                             onClick={() => openPreview(member, cell, docType)}
@@ -347,29 +360,33 @@ export default function UnitDocumentsPage() {
                         </td>
                         )
                       })}
-                      {/* Cotisation cell */}
+                      {/* Cotisation cell — green = payée, red = non payée, slate = ne paiera pas */}
                       <td className="px-1 py-1.5 text-center">
-                        <div
-                          className={`mx-auto flex h-9 items-center justify-center gap-1 rounded-md px-2 cursor-pointer transition-all hover:scale-105 ${
-                            member.cotisation.cotisationId
-                              ? 'bg-green-50 text-green-700'
-                              : 'bg-gray-50 text-gray-400'
-                          }`}
-                          onClick={() => openCotisation(member)}
-                          title={member.cotisation.cotisationId
-                            ? `${member.cotisation.payments.map(p => `${p.amount} ${p.currency}`).join(' + ')} — ${member.cotisation.receiptNumber}`
+                        {(() => {
+                          const cot = member.cotisation
+                          const paid = !!cot.cotisationId && cot.payments.length > 0
+                          const exempt = cot.willNotPay && !paid
+                          const cls = paid ? 'bg-green-50 text-green-700' : exempt ? 'bg-slate-100 text-slate-500' : 'bg-red-50 text-red-500'
+                          const title = paid
+                            ? `${cot.payments.map(p => `${p.amount} ${p.currency}`).join(' + ')} — ${cot.receiptNumber}`
+                            : exempt ? 'Ne paiera pas (exempté) — Cliquer pour modifier'
                             : 'Cotisation non payée — Cliquer pour enregistrer'
-                          }
-                        >
-                          {member.cotisation.cotisationId ? (
-                            <>
-                              <DollarSign className="h-3.5 w-3.5" />
-                              <span className="text-xs font-medium">{member.cotisation.payments.length}</span>
-                            </>
-                          ) : (
-                            <Receipt className="h-3.5 w-3.5" />
-                          )}
-                        </div>
+                          return (
+                            <div
+                              className={`mx-auto flex h-11 items-center justify-center gap-1 rounded-md px-2.5 cursor-pointer transition-all hover:scale-105 ${cls}`}
+                              onClick={() => openCotisation(member)}
+                              title={title}
+                            >
+                              {paid ? (
+                                <><DollarSign className="h-5 w-5" /><span className="text-sm font-semibold">{cot.payments.length}</span></>
+                              ) : exempt ? (
+                                <Ban className="h-5 w-5" />
+                              ) : (
+                                <Receipt className="h-5 w-5" />
+                              )}
+                            </div>
+                          )
+                        })()}
                       </td>
                     </tr></>
                   )
@@ -487,6 +504,21 @@ export default function UnitDocumentsPage() {
             <form onSubmit={handleCotisationSubmit} className="space-y-4">
               {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
               <p className="text-sm text-muted-foreground">Année scoute : {currentScoutYear}</p>
+
+              {cotisationMember?.cotisation.willNotPay ? (
+                <div className="flex items-center justify-between rounded-md bg-slate-100 p-3 text-sm">
+                  <span className="flex items-center gap-2 text-slate-600"><Ban className="h-4 w-4" />Marqué « ne paiera pas » pour cette année.</span>
+                  <Button type="button" variant="outline" size="sm" disabled={setExempt.isPending}
+                    onClick={() => cotisationMember && toggleExempt(cotisationMember, false)}>Retirer l'exemption</Button>
+                </div>
+              ) : (
+                <div className="flex justify-end">
+                  <Button type="button" variant="ghost" size="sm" className="text-slate-600 hover:text-slate-800" disabled={setExempt.isPending}
+                    onClick={() => cotisationMember && toggleExempt(cotisationMember, true)}>
+                    <Ban className="mr-1 h-3.5 w-3.5" />Ce membre ne paiera pas
+                  </Button>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <RequiredLabel required>Date de paiement</RequiredLabel>

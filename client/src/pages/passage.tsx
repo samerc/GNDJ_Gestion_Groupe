@@ -19,7 +19,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
@@ -27,6 +27,13 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
+
+interface PassageDestination {
+  unitTypeId: string
+  unitTypeName: string
+  kind: 'same' | 'up'
+  reason: string
+}
 
 interface MemberRow {
   memberId: string
@@ -84,6 +91,7 @@ export default function PassagePage() {
   const [propNotes, setPropNotes] = useState('')
   const [formError, setFormError] = useState('')
   const [suggestionHint, setSuggestionHint] = useState<string | null>(null)
+  const [destinations, setDestinations] = useState<PassageDestination[]>([])
 
   const units = unitsData?.items ?? []
   const roles = rolesData ?? []
@@ -158,24 +166,18 @@ export default function PassagePage() {
     setFormError('')
     setSuggestionHint(null)
 
-    // If already has a passage, use its proposed unit
-    if (row.passage?.proposedUnitId) {
-      setPropUnitId(row.passage.proposedUnitId)
-    } else {
-      // Try to auto-suggest from progression path
-      setPropUnitId(row.currentUnitId)
-      try {
-        const { data: suggestion } = await apiClient.get(`/unit-type-progressions/suggest/${row.memberId}`)
-        if (suggestion?.suggestedUnitTypeId) {
-          // Find a unit of that type
-          const suggestedUnit = units.find(u => u.unitTypeId === suggestion.suggestedUnitTypeId)
-          if (suggestedUnit) {
-            setPropUnitId(suggestedUnit.id)
-            setSuggestionHint(suggestion.reason)
-          }
-        }
-      } catch { /* suggestion is optional */ }
-    }
+    // Load the allowed destinations from the parcours scout (current branch + progression targets).
+    setDestinations([])
+    try {
+      const { data: dests } = await apiClient.get<PassageDestination[]>(`/unit-type-progressions/destinations/${row.memberId}`)
+      setDestinations(dests ?? [])
+      const up = (dests ?? []).filter(d => d.kind === 'up')
+      if (up.length > 0) setSuggestionHint(`Parcours scout : ${up.map(d => d.unitTypeName).join(', ')} (unité supérieure)`)
+    } catch { /* destinations are optional */ }
+
+    // Default the destination to the member's current unit (changement d'équipe/fonction); the CU can
+    // switch to the unité supérieure from the grouped dropdown.
+    setPropUnitId(row.passage?.proposedUnitId ?? row.currentUnitId)
 
     setProposeDialogOpen(true)
   }
@@ -369,8 +371,8 @@ export default function PassagePage() {
                         {statusBadge(row.passage)}
                       </div>
                     ) : (
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="outline" onClick={async () => {
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50 hover:text-green-800" onClick={async () => {
                           try {
                             await proposeMutation.mutateAsync({
                               memberId: row.memberId,
@@ -385,10 +387,10 @@ export default function PassagePage() {
                         }} disabled={proposeMutation.isPending}>
                           <Check className="mr-1 h-3 w-3" />Pas de changement
                         </Button>
-                        <Button size="sm" onClick={() => openPropose(row)}>
-                          Proposer
+                        <Button size="sm" variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50 hover:text-blue-800" onClick={() => openPropose(row)}>
+                          <ArrowRightLeft className="mr-1 h-3 w-3" />Proposer
                         </Button>
-                        <Button size="sm" variant="ghost" className="text-orange-600 hover:text-orange-700" title="Quitte le groupe" onClick={async () => {
+                        <Button size="sm" variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-800" title="Quitte le groupe" onClick={async () => {
                           try {
                             await proposeMutation.mutateAsync({
                               memberId: row.memberId,
@@ -449,12 +451,40 @@ export default function PassagePage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Unité de destination</label>
-              <Select value={propUnitId} onValueChange={(v) => { setPropUnitId(v); setPropTeamId('') }}>
-                <SelectTrigger><SelectValue placeholder="Selectionner une unite" /></SelectTrigger>
-                <SelectContent>
-                  {units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {(() => {
+                // Drive the choices from the parcours scout: same branch (team/function change) + the
+                // configured progression target(s). Fall back to all units if no parcours is defined.
+                const sameTypeIds = new Set(destinations.filter(d => d.kind === 'same').map(d => d.unitTypeId))
+                const upTypeIds = new Set(destinations.filter(d => d.kind === 'up').map(d => d.unitTypeId))
+                const sameUnits = units.filter(u => sameTypeIds.has(u.unitTypeId))
+                const upUnits = units.filter(u => upTypeIds.has(u.unitTypeId))
+                const hasParcours = destinations.length > 0 && (sameUnits.length > 0 || upUnits.length > 0)
+                return (
+                  <Select value={propUnitId} onValueChange={(v) => { setPropUnitId(v); setPropTeamId('') }}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
+                    <SelectContent>
+                      {hasParcours ? (
+                        <>
+                          {sameUnits.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>Même branche — changement d'équipe / fonction</SelectLabel>
+                              {sameUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
+                            </SelectGroup>
+                          )}
+                          {upUnits.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>Unité supérieure (parcours scout)</SelectLabel>
+                              {upUnits.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
+                            </SelectGroup>
+                          )}
+                        </>
+                      ) : (
+                        units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)
+                      )}
+                    </SelectContent>
+                  </Select>
+                )
+              })()}
             </div>
 
             {propUnitId === editingMember?.currentUnitId && (

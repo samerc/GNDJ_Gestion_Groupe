@@ -1,7 +1,7 @@
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { useState } from 'react'
-import { useMemberCotisations, useCreateCotisation, useUpdateCotisation, useDeleteCotisation, downloadReceipt, type MemberCotisationDto, type PaymentLineInput } from '@/services/cotisation-service'
+import { useMemberCotisations, useCreateCotisation, useUpdateCotisation, useDeleteCotisation, useSetCotisationExempt, downloadReceipt, type MemberCotisationDto, type PaymentLineInput } from '@/services/cotisation-service'
 import { useSettingValue } from '@/services/settings-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { Plus, Download, Pencil, Trash2, Receipt } from 'lucide-react'
+import { Plus, Download, Pencil, Trash2, Receipt, Ban } from 'lucide-react'
 
 const CURRENCY_OPTIONS = [
   { value: 'USD', label: 'USD ($)' },
@@ -46,6 +46,16 @@ export function MemberCotisations({ memberId, memberName }: Props) {
   const createMutation = useCreateCotisation(memberId)
   const updateMutation = useUpdateCotisation(memberId)
   const deleteMutation = useDeleteCotisation(memberId)
+  const exemptMutation = useSetCotisationExempt()
+
+  const year = currentScoutYear ?? '2025-2026'
+  const isExempt = !!cotisations?.some(c => c.scoutYear === year && c.willNotPay)
+  const toggleExempt = async () => {
+    try {
+      await exemptMutation.mutateAsync({ memberId, scoutYear: year, willNotPay: !isExempt })
+      toast.success(!isExempt ? 'Membre marqué « ne paiera pas »' : 'Exemption retirée')
+    } catch (err) { setError(parseApiError(err)) }
+  }
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<MemberCotisationDto | null>(null)
@@ -166,11 +176,24 @@ export function MemberCotisations({ memberId, memberName }: Props) {
           </div>
         </CardHeader>
         <CardContent>
-          {!cotisations || cotisations.length === 0 ? (
+          {hasPermission(PERMISSIONS.COTISATIONS_EDIT) && (
+            <div className="mb-3 flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
+              <span className="flex items-center gap-2 text-sm">
+                <Ban className={`h-4 w-4 ${isExempt ? 'text-slate-600' : 'text-muted-foreground'}`} />
+                {isExempt ? <span className="text-slate-700">Ne paiera pas pour {year}</span> : <span className="text-muted-foreground">Cotisation attendue pour {year}</span>}
+              </span>
+              <Button variant="outline" size="sm" disabled={exemptMutation.isPending} onClick={toggleExempt}>
+                {isExempt ? "Retirer l'exemption" : 'Marquer « ne paiera pas »'}
+              </Button>
+            </div>
+          )}
+          {(() => {
+            const realCotisations = (cotisations ?? []).filter(c => c.payments.length > 0)
+            return realCotisations.length === 0 ? (
             <p className="text-sm text-muted-foreground">Aucune cotisation enregistrée.</p>
           ) : (
             <div className="space-y-3">
-              {cotisations.map(c => (
+              {realCotisations.map(c => (
                 <div key={c.id} className="flex items-start gap-3 rounded-md border p-3">
                   <Receipt className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
@@ -209,7 +232,8 @@ export function MemberCotisations({ memberId, memberName }: Props) {
                 </div>
               ))}
             </div>
-          )}
+          )
+          })()}
         </CardContent>
       </Card>
 

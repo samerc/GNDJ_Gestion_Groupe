@@ -24,11 +24,15 @@ import { useSettingArray, useSettingValue, useCities } from '@/services/settings
 import { parseApiError } from '@/lib/error-utils'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
+import { PERMISSIONS } from '@/lib/constants'
 import { Save, Phone, Mail, MapPin, Plus, Trash2, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function MyProfilePage() {
   const user = useAuthStore((s) => s.user)
+  const hasPermission = useAuthStore((s) => s.hasPermission)
+  const [activeTab, setActiveTab] = useState('profile')
+  const canManageOwnAssignments = hasPermission(PERMISSIONS.ASSIGNMENTS_CREATE)
   const memberId = user?.memberId ?? ''
   const { data: member, isLoading } = useMember(memberId)
   const updateMutation = useUpdateMember()
@@ -172,21 +176,25 @@ export default function MyProfilePage() {
             <p className="text-sm text-muted-foreground">{user?.email}</p>
           </div>
         </div>
-        {!editing ? (
-          <Button onClick={startEdit}>Modifier</Button>
-        ) : (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setEditing(false)}>Annuler</Button>
-            <Button onClick={handleSave} disabled={updateMutation.isPending}>
-              <Save className="mr-2 h-4 w-4" />{updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
-            </Button>
-          </div>
+        {/* The Modifier button edits the Profil + Médical fields, so only show it on those tabs.
+            Other tabs (Contact, Famille, Documents…) have their own inline add/edit actions. */}
+        {(activeTab === 'profile' || activeTab === 'medical') && (
+          !editing ? (
+            <Button onClick={startEdit}>Modifier</Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setEditing(false)}>Annuler</Button>
+              <Button onClick={handleSave} disabled={updateMutation.isPending}>
+                <Save className="mr-2 h-4 w-4" />{updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+              </Button>
+            </div>
+          )
         )}
       </div>
 
       {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
-      <Tabs defaultValue="profile">
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v !== 'profile' && v !== 'medical') setEditing(false) }}>
         <TabsList className="overflow-x-auto flex-nowrap">
           <TabsTrigger value="profile">Profil</TabsTrigger>
           <TabsTrigger value="contact">Contact ({member.phones.length + member.emails.length + member.addresses.length})</TabsTrigger>
@@ -301,7 +309,9 @@ export default function MyProfilePage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="assignments"><MemberAssignments memberId={memberId} memberName={`${member.firstName} ${member.lastName}`} readOnly /></TabsContent>
+        {/* A regular member can't edit their own assignments (leaders assign them); a leader
+            (assignments.create) can manage them from here too. */}
+        <TabsContent value="assignments"><MemberAssignments memberId={memberId} memberName={`${member.firstName} ${member.lastName}`} readOnly={!canManageOwnAssignments} /></TabsContent>
         <TabsContent value="famille"><MemberGuardians memberId={memberId} /></TabsContent>
 
         <TabsContent value="documents">

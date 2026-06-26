@@ -40,6 +40,16 @@ public class CotisationsController : BaseApiController
         return NoContent();
     }
 
+    // Mark/unmark a member as exempt ("ne paiera pas") for a scout year. CU or CG; shared flag.
+    [HttpPut("exempt")]
+    [HasPermission(Permissions.CotisationsEdit)]
+    public async Task<IActionResult> SetExempt([FromBody] SetCotisationExemptCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.CotisationsDelete)]
     public async Task<IActionResult> Delete(Guid id)

@@ -83,6 +83,48 @@ public class GetPassageSuggestionQueryHandler(IApplicationDbContext context) : I
     }
 }
 
+// Get ALL allowed passage destinations for a member, driven by the parcours scout (UnitTypeProgression).
+// Returns the current unit type (kind "same" — staying for a team/function change) PLUS every configured
+// progression target for that type + gender (kind "up" — moving to the unité supérieure).
+public record GetPassageDestinationsQuery(Guid MemberId) : IRequest<Result<IReadOnlyList<PassageDestinationDto>>>;
+public record PassageDestinationDto(Guid UnitTypeId, string UnitTypeName, string Kind, string Reason);
+
+public class GetPassageDestinationsQueryHandler(IApplicationDbContext context) : IRequestHandler<GetPassageDestinationsQuery, Result<IReadOnlyList<PassageDestinationDto>>>
+{
+    public async ValueTask<Result<IReadOnlyList<PassageDestinationDto>>> Handle(GetPassageDestinationsQuery request, CancellationToken ct)
+    {
+        var member = await context.Members.FindAsync([request.MemberId], ct);
+        if (member is null) return Result<IReadOnlyList<PassageDestinationDto>>.Failure("Membre introuvable.");
+
+        var assignment = await context.MemberAssignments
+            .Where(a => a.MemberId == request.MemberId && a.EndDate == null)
+            .Include(a => a.Unit).ThenInclude(u => u.UnitType)
+            .FirstOrDefaultAsync(ct);
+        if (assignment is null)
+            return Result<IReadOnlyList<PassageDestinationDto>>.Success([]);
+
+        var currentTypeId = assignment.Unit.UnitTypeId;
+        var result = new List<PassageDestinationDto>
+        {
+            new(currentTypeId, assignment.Unit.UnitType.Name, "same", "Même branche — changement d'équipe ou de fonction")
+        };
+
+        var paths = await context.UnitTypeProgressions
+            .Where(p => p.FromUnitTypeId == currentTypeId && p.PathType == "member")
+            .Include(p => p.ToUnitType)
+            .OrderBy(p => p.DisplayOrder)
+            .ToListAsync(ct);
+
+        foreach (var p in paths.Where(p => p.Gender == member.Gender || p.Gender == null))
+        {
+            if (p.ToUnitTypeId == currentTypeId || result.Any(r => r.UnitTypeId == p.ToUnitTypeId)) continue;
+            result.Add(new PassageDestinationDto(p.ToUnitTypeId, p.ToUnitType.Name, "up", "Unité supérieure (parcours scout)"));
+        }
+
+        return Result<IReadOnlyList<PassageDestinationDto>>.Success(result);
+    }
+}
+
 // Create
 public record CreateUnitTypeProgressionCommand(
     Guid? AssociationId, Guid FromUnitTypeId, Guid ToUnitTypeId,

@@ -59,11 +59,11 @@ const adminNavItems = [
   { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: null },
 ]
 
-// Unit leader nav — "Mon unité" and "Documents" only visible to CU (units.edit permission)
+// Unit leader nav — "Mon unité" and "Documents" only visible to CU (members.edit permission)
 const leaderNavItems = [
   { path: '/my-profile', label: 'Ma fiche', icon: Users, permission: null },
   { path: '/my-documents', label: 'Mes documents', icon: FileText, permission: null },
-  { path: '/dashboard', label: 'Mon unité', icon: Building2, permission: PERMISSIONS.UNITS_EDIT },
+  { path: '/dashboard', label: 'Mon unité', icon: Building2, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/unit-documents', label: 'Documents', icon: FileText, permission: PERMISSIONS.DOCUMENTS_APPROVE },
   { path: '/passage', label: 'Passage des membres', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_PROPOSE },
   { path: '/photo-session', label: 'Session photo', icon: Camera, permission: PERMISSIONS.MEMBERS_EDIT },

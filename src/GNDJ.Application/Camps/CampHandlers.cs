@@ -20,8 +20,9 @@ public record BranchMultiplierDto(Guid UnitTypeId, string UnitTypeName, int Mult
 public record CampAttendeeDto(Guid MemberId, string FirstName, string LastName, string? Gender, string? UnitName,
     string? Branche, bool IsAttending, Guid? ParticipantId, string Role);
 
-public record CampGradeRowDto(Guid ParticipantId, Guid MemberId, string FirstName, string LastName, string? Gender,
-    string? Branche, string? UnitName, int? Force, int? Annee, double? Note, bool IsLeaderCandidate, string Role, string? Notes);
+public record CampGradeRowDto(Guid? ParticipantId, Guid MemberId, string FirstName, string LastName, string? Gender,
+    string? Branche, string? UnitName, string? TeamName, bool IsAttending,
+    int? Force, int? Annee, double? Note, bool IsLeaderCandidate, string Role, string? Notes);
 
 // ─── Note formula ────────────────────────────────────────────────────────────
 public static class CampNote
