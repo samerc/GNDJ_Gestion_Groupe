@@ -104,16 +104,15 @@ public class CampReportService : ICampReportService
         {
             col.Item().Text($"Famille {f.Number}").FontSize(18).Bold();
             col.Item().Text($"{data.CampName} — Année scoute {data.ScoutYear}").FontSize(9).Light();
-            col.Item().Text($"{f.Members.Count(m => m.Role == null)} membres").FontSize(9).Light();
+            col.Item().Text($"{f.Members.Count} membres").FontSize(9).Light();
 
             col.Item().PaddingTop(8).Table(table =>
             {
-                table.ColumnsDefinition(d => { d.RelativeColumn(0.5f); d.RelativeColumn(3.5f); d.RelativeColumn(1.6f); d.RelativeColumn(2.2f); });
+                table.ColumnsDefinition(d => { d.RelativeColumn(0.5f); d.RelativeColumn(4f); d.RelativeColumn(2.2f); });
                 table.Header(h =>
                 {
                     h.Cell().Element(HeadCell).Text("#");
                     h.Cell().Element(HeadCell).Text("Nom complet");
-                    h.Cell().Element(HeadCell).Text("Branche");
                     h.Cell().Element(HeadCell).Text("Unité");
                 });
                 var i = 1; var alt = false;
@@ -122,13 +121,12 @@ public class CampReportService : ICampReportService
                     var leader = m.Role != null;
                     var bg = leader ? Colors.Blue.Lighten5 : (alt ? Colors.Grey.Lighten4 : Colors.White);
                     if (!leader) alt = !alt;
-                    table.Cell().Background(bg).Padding(3).Text(leader ? "" : (i++).ToString());
+                    table.Cell().Background(bg).Padding(3).Text((i++).ToString());
                     table.Cell().Background(bg).Padding(3).Text(t =>
                     {
                         var span = t.Span(leader ? $"{m.Name} ({m.Role})" : m.Name);
                         if (leader) span.SemiBold();
                     });
-                    table.Cell().Background(bg).Padding(3).Text(m.Branche ?? "");
                     table.Cell().Background(bg).Padding(3).Text(m.UnitName ?? "");
                 }
             });
