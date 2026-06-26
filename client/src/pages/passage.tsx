@@ -452,15 +452,21 @@ export default function PassagePage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Unité de destination</label>
               {(() => {
-                // Drive the choices from the parcours scout: same branch (team/function change) + the
-                // configured progression target(s). Fall back to all units if no parcours is defined.
-                const sameTypeIds = new Set(destinations.filter(d => d.kind === 'same').map(d => d.unitTypeId))
+                // Drive the choices from the parcours scout: stay in the SAME unit (team/function change)
+                // or move to the configured progression target unit(s). Fall back to all units if no parcours.
+                const hasSame = destinations.some(d => d.kind === 'same')
                 const upTypeIds = new Set(destinations.filter(d => d.kind === 'up').map(d => d.unitTypeId))
-                const sameUnits = units.filter(u => sameTypeIds.has(u.unitTypeId))
+                const sameUnits = hasSame ? units.filter(u => u.id === editingMember?.currentUnitId) : []
                 const upUnits = units.filter(u => upTypeIds.has(u.unitTypeId))
                 const hasParcours = destinations.length > 0 && (sameUnits.length > 0 || upUnits.length > 0)
                 return (
-                  <Select value={propUnitId} onValueChange={(v) => { setPropUnitId(v); setPropTeamId('') }}>
+                  <Select value={propUnitId} onValueChange={(v) => {
+                    setPropUnitId(v); setPropTeamId('')
+                    // If the destination unit type changed, the previously chosen function no longer applies.
+                    const newType = units.find(u => u.id === v)?.unitTypeId
+                    const roleType = roles.find(r => r.id === propRoleId)?.unitTypeId
+                    if (roleType != null && roleType !== newType) setPropRoleId('')
+                  }}>
                     <SelectTrigger><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
                     <SelectContent>
                       {hasParcours ? (
@@ -505,12 +511,19 @@ export default function PassagePage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Fonction</label>
-              <Select value={propRoleId} onValueChange={setPropRoleId}>
-                <SelectTrigger><SelectValue placeholder="Selectionner une fonction" /></SelectTrigger>
-                <SelectContent>
-                  {roles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {(() => {
+                // Only the functions of the selected destination unit's type (+ global roles), non-archived.
+                const destTypeId = units.find(u => u.id === propUnitId)?.unitTypeId
+                const fnRoles = roles.filter(r => !r.isArchived && (r.unitTypeId == null || r.unitTypeId === destTypeId))
+                return (
+                  <Select value={propRoleId} onValueChange={setPropRoleId}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner une fonction" /></SelectTrigger>
+                    <SelectContent>
+                      {fnRoles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )
+              })()}
             </div>
 
             <div className="space-y-2">
