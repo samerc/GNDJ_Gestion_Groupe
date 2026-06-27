@@ -44,3 +44,6 @@ read-xlsx.csx
 
 # Local scratch / data-review files (PII) — never commit
 tmp_*
+
+# Per-machine deploy target (remembered by deploy/update.ps1)
+deploy/target.txt

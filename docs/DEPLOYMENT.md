@@ -338,15 +338,23 @@ Because the client uses the **relative** `/api/v1`, switching `new.gndj.org` →
 
 ## 13. Updating the app (redeploy) — the easy way
 
-Two scripts in `deploy/` make shipping a change a two-step routine. **No IIS reconfiguration** — you only
-do §6 once.
+**One command** (run on the server, which needs the .NET SDK + Node.js to build):
+```powershell
+./deploy/update.ps1 -Target C:\inetpub\gndj    # first time — the target is then remembered
+./deploy/update.ps1                            # every time after
+./deploy/update.ps1 -Pull                      # git pull --ff-only first, then build + ship
+```
+`update.ps1` just chains the two scripts below (build → ship) and remembers the target in
+`deploy\target.txt` (git-ignored). **No IIS reconfiguration** — you only do §6 once.
 
-**On a build machine** (dev box or the server, with .NET SDK + Node.js):
+Under the hood it runs the two stages, which you can also call separately:
+
+**Build** (dev box or the server, with .NET SDK + Node.js):
 ```powershell
 ./deploy/publish.ps1          # → builds API + client into .\publish
 ```
 
-**On the server** (or pointing `-Target` at a UNC share of the site folder):
+**Ship** (on the server, or pointing `-Target` at a UNC share of the site folder):
 ```powershell
 ./deploy/deploy.ps1 -Source .\publish -Target C:\inetpub\gndj
 ```
