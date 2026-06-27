@@ -437,11 +437,17 @@ public class GetUnpaidCotisationsQueryHandler(IApplicationDbContext context, ICu
             .Select(c => c.MemberId)
             .ToListAsync(ct);
 
-        return await query
+        // Materialize then dedup + order in memory — EF can't translate Distinct()+OrderBy() over a
+        // projected DTO with a computed name. A member with two active assignments would otherwise appear
+        // twice, so dedup by member id.
+        var rows = await query
             .Where(a => !settledMemberIds.Contains(a.MemberId))
             .Select(a => new UnpaidCotisationDto(a.MemberId, a.Member.FirstName + " " + a.Member.LastName, a.Unit.Name))
-            .Distinct()
-            .OrderBy(u => u.MemberName)
             .ToListAsync(ct);
+
+        return rows
+            .DistinctBy(r => r.MemberId)
+            .OrderBy(r => r.MemberName)
+            .ToList();
     }
 }
