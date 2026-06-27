@@ -337,6 +337,51 @@ No code rebuild is needed — the app uses relative URLs.
 
 ---
 
+## Part 11 — Reset the data back to the import (testing only)
+
+While you're **testing** (before real users start), you can wipe whatever you changed and reset the
+database back to the clean imported snapshot — the `gndj_data_*.dump` file from the package. A ready
+script does it safely.
+
+> ⚠️ **Destructive — use ONLY before go-live.** It deletes *everything* in the database and replaces it
+> with the snapshot. Once the group is entering real data, do **not** use this — you'd lose their work
+> (use a recent backup instead, see the note at the end).
+
+**Keep the snapshot somewhere stable**, e.g.:
+```powershell
+New-Item -ItemType Directory -Force C:\gndj-backups | Out-Null
+Copy-Item "C:\Users\Samer\Desktop\gndj-staging\gndj_data_20260626_2002.dump" C:\gndj-backups\ -Force
+```
+
+**To reset**, open **PowerShell as Administrator**, go to the package folder, and run the script with the
+path to the snapshot:
+```powershell
+cd C:\Users\Samer\Desktop\gndj-staging
+.\reset-to-import.ps1 -Dump C:\gndj-backups\gndj_data_20260626_2002.dump
+```
+- It asks for the **postgres** password, then makes you type **`RESET`** to confirm.
+- It stops IIS, reloads the snapshot (~10 seconds), and starts IIS again. The harmless `unaccent COMMENT`
+  error appears - ignore it. It prints `members = …` when done.
+- Add **`-ClearUploads`** to also empty `C:\inetpub\www\gndj\uploads` (uploaded docs/photos) for a fully
+  clean slate:
+  ```powershell
+  .\reset-to-import.ps1 -Dump C:\gndj-backups\gndj_data_20260626_2002.dump -ClearUploads
+  ```
+
+**Make a fresh baseline any time** (e.g. after you set up SMTP/settings you want to keep) so future resets
+restore *that* state instead:
+```powershell
+$bin = "C:\Program Files\PostgreSQL\18\bin"
+$env:PGPASSWORD = "<postgres-password>"
+& "$bin\pg_dump.exe" -h localhost -U gndj_admin -d gndj --no-owner --no-privileges --exclude-table='_bak_*' -Fc -f "C:\gndj-backups\gndj_baseline_$(Get-Date -Format yyyyMMdd_HHmm).dump"
+Remove-Item Env:\PGPASSWORD
+```
+Then pass that newer file to `-Dump`. **Once you go live, schedule this `pg_dump` (e.g. nightly via Task
+Scheduler)** so you always have a recent backup to restore from — that's the real safety net, not the
+import snapshot.
+
+---
+
 ## Appendix A — Troubleshooting
 
 | Symptom | Likely cause / fix |
