@@ -243,6 +243,43 @@ Browse to `https://new.gndj.org` — the React app loads; log in with the super-
 
 ---
 
+## 6b. TLS certificate — Let's Encrypt via win-acme
+
+Free, auto-renewing HTTPS for `new.gndj.org` using **win-acme** (`wacs.exe`). The app **serves the ACME
+HTTP-01 challenge itself** (see note below), so issuance *and* the ~60-day auto-renewals just work.
+
+**Before you run it:**
+- DNS: `new.gndj.org` **A record → the server's public IP**, and it must resolve publicly.
+- Firewall: inbound **80 and 443** open (HTTP-01 validation hits port 80).
+- The IIS site (§6) has both bindings for the host: **http :80** and **https :443**. The :443 binding can
+  start with a self-signed/placeholder cert — win-acme replaces it.
+- The site/app pool is **running** (the app answers the challenge), and PostgreSQL is up so it starts.
+
+**Issue the cert:**
+1. Download win-acme from <https://www.win-acme.com/>, unzip on the server, run **`wacs.exe` as
+   Administrator**.
+2. `N` → **Create certificate (default settings)** → pick the **IIS site `GNDJ`** → select the
+   `new.gndj.org` binding (or "all bindings of this site").
+3. win-acme validates via **HTTP-01** (writes a token under `<site>\.well-known\acme-challenge\` which the
+   app serves), fetches the cert from Let's Encrypt, **installs it into the Windows cert store, binds it to
+   the :443 binding**, and creates a **scheduled task** that renews automatically (~every 60 days, same
+   validation — hands-off).
+4. Accept the Let's Encrypt ToS / enter an email for expiry notices when prompted.
+
+Verify: `https://new.gndj.org` shows a valid padlock; `wacs.exe --list` shows the renewal.
+
+> **Why the app must serve the challenge:** this is a single in-process ASP.NET Core site, so IIS hands
+> *every* request (including `/.well-known/acme-challenge/<token>`) to the app, and the SPA fallback would
+> otherwise return `index.html` for it. `Program.cs` explicitly serves
+> `<ContentRoot>\.well-known\acme-challenge` (extensionless, no dot-dir exclusion) **before** the SPA
+> fallback, which is exactly where win-acme's IIS HTTP-01 plugin writes the token. Keep the app pool
+> started (IIS **Application Initialization** helps) so renewals can validate.
+
+> **Alternatives** if HTTP-01 ever isn't possible (e.g. port 80 closed): win-acme also supports
+> **DNS-01** (a TXT record — manual, or automated with a DNS-provider plugin) and **TLS-ALPN-01**.
+
+---
+
 ## 7. First-run checklist
 
 - [ ] `appsettings.Production.json` present with real DB connection, strong `Jwt:Secret`, strong
@@ -302,15 +339,16 @@ hashed assets + no-cache `index.html`) and turn off IIS dynamic compression. Eve
 
 ## 10. Changing the domain later
 
-Because the client uses the **relative** `/api/v1`, switching `new.gndj.org` → the final domain needs
+Because the client uses the **relative** `/api/v1`, switching `new.gndj.org` → `gndj.org` needs
 **no client rebuild**. Steps when you switch:
-1. DNS A record for the new host → server IP.
-2. IIS: add the new **HTTPS binding** + cert (and the new host on the :80 binding); remove the old once
-   cut over.
-3. Update `AllowedHosts` (if restricted) and the in-app **`app.base_url`** setting to the new
-   `https://...` (so email links use it).
-4. `Jwt:Issuer/Audience` are the constant `"GNDJ"` (not host-based) — **no change needed**.
-5. No CORS to update (same-origin).
+1. DNS A record for `gndj.org` → server IP.
+2. IIS: add the new host to the **:80 binding** and add a **:443 binding** for `gndj.org`.
+3. **New TLS cert** — re-run **`wacs.exe`** (§6b) and create a certificate for `gndj.org` (or add it to the
+   existing one so the cert covers both hosts during cut-over). win-acme binds it + sets up auto-renewal.
+4. Update `AllowedHosts` (if restricted) and the in-app **`app.base_url`** setting to `https://gndj.org`
+   (so email links use it).
+5. `Jwt:Issuer/Audience` are the constant `"GNDJ"` (not host-based) — **no change needed**.
+6. No CORS to update (same-origin). Remove the old `new.gndj.org` bindings once traffic is cut over.
 
 ---
 

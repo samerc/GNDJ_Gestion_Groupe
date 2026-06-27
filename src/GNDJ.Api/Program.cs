@@ -1,6 +1,8 @@
 using System.IO.Compression;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.FileProviders.Physical;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using FluentValidation;
@@ -299,6 +301,20 @@ if (!app.Environment.IsDevelopment())
 // API routes are matched by controllers first; everything else falls back to the SPA shell below.
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
+// ACME HTTP-01 challenge (Let's Encrypt / win-acme): serve the extensionless token files written to the
+// site root's .well-known/acme-challenge. Without this, the SPA fallback below returns index.html for the
+// challenge URL and cert issuance + every auto-renewal fail. Dot-prefixed dirs are excluded by the default
+// static-file provider, so we serve them explicitly with no exclusion filters.
+var acmeChallengePath = Path.Combine(app.Environment.ContentRootPath, ".well-known", "acme-challenge");
+Directory.CreateDirectory(acmeChallengePath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(acmeChallengePath, ExclusionFilters.None),
+    RequestPath = "/.well-known/acme-challenge",
+    ServeUnknownFileTypes = true,
+    DefaultContentType = "text/plain",
+});
 
 if (app.Environment.IsDevelopment())
 {
