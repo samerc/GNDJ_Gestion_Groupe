@@ -981,6 +981,24 @@ but **NOT `units.edit`** (it was dropped), so anything gated on `units.edit` was
   `readOnly={!assignments.create}` so a leader can manage assignments from their own fiche (youth stay read-only).
   Documents upload already worked (own profile → canUpload); the dead Modifier button was the confusion.
 
+### Production deployment + load test (2026-06-27/28)
+- **LIVE at https://new.gndj.org** (temp domain → gndj.org later) on a separate server: 8-core AMD EPYC,
+  24 GB, Windows Server 2025, PostgreSQL 18, **behind Cloudflare**, IIS in-process at `C:\inetpub\www\gndj`,
+  HTTPS via **win-acme** (Let's Encrypt auto-renew). Full state in memory `project_production_deployment.md`.
+- **TLS/ACME fix:** `Program.cs` serves `<ContentRoot>/.well-known/acme-challenge` (extensionless, no
+  dot-dir exclusion) BEFORE the SPA fallback — required so win-acme HTTP-01 issuance/renewal works on the
+  single in-process SPA site. **`Cloudflare.Enabled` must be true** in prod appsettings (CF IP ranges in
+  base config) for correct per-IP rate limiting + client IPs.
+- **Docs/scripts:** `docs/INSTALL_GUIDE.md` (beginner step-by-step), `docs/DEPLOYMENT.md` (§4b staging-from-
+  dump, §6b win-acme), `deploy/update.ps1` (one-command build+ship, remembers target), `deploy/reset-to-
+  import.ps1` (DESTRUCTIVE test reset to a pg_dump snapshot). Site path is `C:\inetpub\www\gndj` everywhere.
+- **Load/functional test** (`temp/test_gndj.py`, browser UA — Cloudflare 403s python-urllib): **35/35 pass**.
+  Reads ~250 ms / ~33 req/s @ 50 concurrent; logins bcrypt-bound ~1.4 s (intentional, WF10). 8 cores ample.
+- **Bugs found + fixed:** (1) `GET /cotisations/unpaid` 500 — EF can't translate `Distinct()+OrderBy()` over
+  a projected DTO → materialize + `DistinctBy`+`OrderBy` in memory (pre-existing; broke CG impayés list).
+  (2) Login/Refresh did 3–5 redundant DB round-trips → one shared `Auth/Common/AuthAccess.LoadAsync`
+  (behaviour preserved). `GET /demandes` needs `?scoutYear=` (not a bug).
+
 ### Remaining / Next
 - [ ] Migration data cleanup: 181 orphans (kept — most are legit alumni), name spacing, GET /photo unit-scope;
       migration tool card-number split for re-import
