@@ -1,3 +1,4 @@
+using GNDJ.Application.Auth.Common;
 using GNDJ.Application.Auth.DTOs;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
@@ -31,29 +32,8 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
         if (user is null)
             return Result<AuthResponse>.Failure("Jeton de rafraîchissement invalide ou expiré.");
 
-        // Load permissions for new token
-        var permissions = user.IsSuperAdmin
-            ? [.. Domain.Enums.Permissions.All]
-            : await _context.MemberAssignments
-                .Where(a => a.MemberId == user.MemberId && a.EndDate == null)
-                .Select(a => a.FunctionalRole.SecurityProfile)
-                .SelectMany(sp => sp.Permissions)
-                .Select(p => p.Permission)
-                .Distinct()
-                .ToListAsync(cancellationToken);
-
-        // A group-level profile (Chef de Groupe) sees ALL units, like a super admin.
-        var isGroupLevel = !user.IsSuperAdmin && await _context.MemberAssignments
-            .Where(a => a.MemberId == user.MemberId && a.EndDate == null)
-            .AnyAsync(a => a.FunctionalRole.SecurityProfile.IsGroupLevel, cancellationToken);
-
-        var unitIds = (user.IsSuperAdmin || isGroupLevel)
-            ? await _context.Units.Select(u => u.Id).ToListAsync(cancellationToken)
-            : await _context.MemberAssignments
-                .Where(a => a.MemberId == user.MemberId && a.EndDate == null)
-                .Select(a => a.UnitId)
-                .Distinct()
-                .ToListAsync(cancellationToken);
+        // Permissions + authorized units in one round-trip (same as Login).
+        var (permissions, unitIds) = await AuthAccess.LoadAsync(_context, user.MemberId, user.IsSuperAdmin, cancellationToken);
 
         // Rotate tokens
         var accessToken = _tokenService.GenerateAccessToken(user, permissions, unitIds);

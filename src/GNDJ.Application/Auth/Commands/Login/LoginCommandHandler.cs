@@ -1,3 +1,4 @@
+using GNDJ.Application.Auth.Common;
 using GNDJ.Application.Auth.DTOs;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
@@ -35,9 +36,8 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
             return Result<AuthResponse>.Failure("Adresse courriel ou mot de passe incorrect.");
         }
 
-        // Load permissions from active assignments -> functional roles -> security profiles -> permissions
-        var permissions = await LoadUserPermissions(user.Id, user.IsSuperAdmin, cancellationToken);
-        var unitIds = await LoadAuthorizedUnitIds(user.Id, user.IsSuperAdmin, cancellationToken);
+        // Permissions + authorized units in one round-trip over the member's active assignments.
+        var (permissions, unitIds) = await AuthAccess.LoadAsync(_context, user.MemberId, user.IsSuperAdmin, cancellationToken);
 
         var accessToken = _tokenService.GenerateAccessToken(user, permissions, unitIds);
         var refreshToken = _tokenService.GenerateRefreshToken();
@@ -55,44 +55,5 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
             user.Id, user.MemberId, user.Email, accessToken, refreshToken,
             DateTime.UtcNow.AddMinutes(15), permissions
         ));
-    }
-
-    private async Task<List<string>> LoadUserPermissions(Guid userId, bool isSuperAdmin, CancellationToken ct)
-    {
-        if (isSuperAdmin)
-            return [.. Domain.Enums.Permissions.All];
-
-        var user = await _context.Users.FindAsync([userId], ct);
-        if (user is null) return [];
-
-        return await _context.MemberAssignments
-            .Where(a => a.MemberId == user.MemberId && a.EndDate == null)
-            .Select(a => a.FunctionalRole.SecurityProfile)
-            .SelectMany(sp => sp.Permissions)
-            .Select(p => p.Permission)
-            .Distinct()
-            .ToListAsync(ct);
-    }
-
-    private async Task<List<Guid>> LoadAuthorizedUnitIds(Guid userId, bool isSuperAdmin, CancellationToken ct)
-    {
-        if (isSuperAdmin)
-            return await _context.Units.Select(u => u.Id).ToListAsync(ct);
-
-        var user = await _context.Users.FindAsync([userId], ct);
-        if (user is null) return [];
-
-        // A group-level profile (e.g. Chef de Groupe) sees ALL units, like a super admin.
-        var isGroupLevel = await _context.MemberAssignments
-            .Where(a => a.MemberId == user.MemberId && a.EndDate == null)
-            .AnyAsync(a => a.FunctionalRole.SecurityProfile.IsGroupLevel, ct);
-        if (isGroupLevel)
-            return await _context.Units.Select(u => u.Id).ToListAsync(ct);
-
-        return await _context.MemberAssignments
-            .Where(a => a.MemberId == user.MemberId && a.EndDate == null)
-            .Select(a => a.UnitId)
-            .Distinct()
-            .ToListAsync(ct);
     }
 }
