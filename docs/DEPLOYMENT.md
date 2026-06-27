@@ -121,6 +121,62 @@ CREATE DATABASE gndj OWNER gndj_admin;
 
 ---
 
+## 4b. Test / staging deployment with a data snapshot
+
+To stand up a **test** instance on a separate server **with the current real data** (instead of a fresh
+empty DB), ship a `pg_dump` snapshot alongside the published package. The dump carries the **EF migration
+history**, so the API starts against it without re-migrating.
+
+**On the source (dev) box — produce the two artifacts:**
+
+1. **Code package** — `./deploy/publish.ps1` → the `publish/` folder (API + React build in `wwwroot/`).
+   Contains **no data**.
+2. **Data snapshot** — first remove anything you don't want on staging (e.g. test documents, cotisations,
+   passages, camps), then dump, excluding the `_bak_*` helper/backup tables:
+   ```powershell
+   & "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe" -h localhost -U gndj_admin -d gndj `
+     --no-owner --no-privileges --exclude-table='_bak_*' -Fc -f gndj_data.dump
+   ```
+
+Copy `publish/`, `gndj_data.dump`, and your filled-in `appsettings.Production.json` to the staging server.
+
+**On the staging server — restore + run:**
+
+1. **Prereqs** — §1 (.NET 10 runtime for a Kestrel test, or the Hosting Bundle for IIS; PostgreSQL 18).
+2. **Create the DB as a Postgres superuser** — the dump needs the `unaccent` extension, which a normal
+   user cannot create:
+   ```sql
+   CREATE USER gndj_admin WITH PASSWORD '<STRONG-DB-PASSWORD>';
+   CREATE DATABASE gndj OWNER gndj_admin;
+   \c gndj
+   CREATE EXTENSION IF NOT EXISTS unaccent;
+   ```
+3. **Restore** (still as superuser):
+   ```powershell
+   & "C:\Program Files\PostgreSQL\18\bin\pg_restore.exe" --no-owner --no-privileges `
+     --role=gndj_admin -d gndj -h localhost -U postgres gndj_data.dump
+   ```
+   Sanity: `SELECT count(*) FROM members;`.
+4. **Config** — §5 (`appsettings.Production.json`: staging connection string, a **fresh** `Jwt:Secret`,
+   `AllowedHosts`). With restored data the existing `admin@gndj.local` account is already present — log in
+   with its current password (`SuperAdmin:Password` only seeds a *new* empty DB).
+5. **Run** — IIS per §6, **or** a quick Kestrel smoke test (no IIS):
+   ```powershell
+   cd <publish>; $env:ASPNETCORE_ENVIRONMENT="Production"; $env:ASPNETCORE_URLS="http://0.0.0.0:5000"
+   dotnet GNDJ.Api.dll
+   ```
+   Browse `http://<staging-host>:5000` (open the firewall for the port if remote).
+
+> **Fresh-install variant (no data):** skip the dump/restore — create an empty `gndj` DB + the `unaccent`
+> extension and let the API build the schema + seed on first start (§4). Useful for testing a true
+> first-time install.
+
+> **Re-deploying code to staging later:** rebuild with `publish.ps1` and ship with
+> `deploy/deploy.ps1 -Source publish -Target <site path>` (§13) — it preserves `uploads/`, `logs/`, and
+> `appsettings.Production.json`.
+
+---
+
 ## 5. Configuration & secrets (do NOT commit real secrets)
 
 The app reads `ConnectionStrings:DefaultConnection`, `Jwt:*`, and `SuperAdmin:*`. Override the
