@@ -99,7 +99,7 @@ Copy-Item client/dist/* publish/wwwroot/ -Recurse -Force
 > the IIS setup again.
 
 `dotnet publish` generates a `web.config` with the ANCM handler. Copy the whole **`publish/`** folder to
-the server, e.g. `C:\inetpub\gndj`.
+the server, e.g. `C:\inetpub\www\gndj`.
 
 ---
 
@@ -181,7 +181,7 @@ Copy `publish/`, `gndj_data.dump`, and your filled-in `appsettings.Production.js
 
 The app reads `ConnectionStrings:DefaultConnection`, `Jwt:*`, and `SuperAdmin:*`. Override the
 placeholders from `appsettings.json` with a server-only **`appsettings.Production.json`** placed next to
-the API in `C:\inetpub\gndj` (this file is git-ignored / created only on the server):
+the API in `C:\inetpub\www\gndj` (this file is git-ignored / created only on the server):
 
 ```json
 {
@@ -223,7 +223,7 @@ Critical:
 
 1. **App pool**: create `gndj` → **.NET CLR version = "No Managed Code"** (ANCM hosts the runtime),
    Pipeline = Integrated. Identity = `ApplicationPoolIdentity` (default).
-2. **Site**: create `GNDJ` → physical path `C:\inetpub\gndj` → app pool `gndj`.
+2. **Site**: create `GNDJ` → physical path `C:\inetpub\www\gndj` → app pool `gndj`.
 3. **Bindings**:
    - `https` : port 443 : host `new.gndj.org` : select the TLS cert.
    - `http` : port 80 : host `new.gndj.org` (for the HTTP→HTTPS redirect / ACME challenges).
@@ -236,8 +236,8 @@ Critical:
    `maxAllowedContentLength` is ~28.6 MB, which covers 20 MB — but set it explicitly if you change it:
    site → Request Filtering → Edit Feature Settings → Maximum allowed content length = `20971520`.
 7. **Folder permissions**: grant the app pool identity (`IIS AppPool\gndj`) **Modify** on:
-   - `C:\inetpub\gndj\uploads`  (created on first upload — pre-create it)
-   - `C:\inetpub\gndj\logs`
+   - `C:\inetpub\www\gndj\uploads`  (created on first upload — pre-create it)
+   - `C:\inetpub\www\gndj\logs`
 
 Browse to `https://new.gndj.org` — the React app loads; log in with the super-admin credentials.
 
@@ -356,7 +356,7 @@ Because the client uses the **relative** `/api/v1`, switching `new.gndj.org` →
 
 - **Database**: schedule `pg_dump` (e.g. nightly via Task Scheduler) →
   `pg_dump -U gndj_admin -F c -f gndj_YYYYMMDD.dump gndj`. Keep off-box copies.
-- **Uploads**: back up `C:\inetpub\gndj\uploads` (the only file state outside the DB).
+- **Uploads**: back up `C:\inetpub\www\gndj\uploads` (the only file state outside the DB).
 - **Logs**: `logs\gndj-*.log` (30-day rolling) + `application_logs` table (Warning+). Watch these after
   go-live.
 - **Updates/redeploy**: stop the site (or app pool) → copy new `publish/` over → start. The app
@@ -378,7 +378,7 @@ Because the client uses the **relative** `/api/v1`, switching `new.gndj.org` →
 
 **One command** (run on the server, which needs the .NET SDK + Node.js to build):
 ```powershell
-./deploy/update.ps1 -Target C:\inetpub\gndj    # first time — the target is then remembered
+./deploy/update.ps1 -Target C:\inetpub\www\gndj    # first time — the target is then remembered
 ./deploy/update.ps1                            # every time after
 ./deploy/update.ps1 -Pull                      # git pull --ff-only first, then build + ship
 ```
@@ -394,7 +394,7 @@ Under the hood it runs the two stages, which you can also call separately:
 
 **Ship** (on the server, or pointing `-Target` at a UNC share of the site folder):
 ```powershell
-./deploy/deploy.ps1 -Source .\publish -Target C:\inetpub\gndj
+./deploy/deploy.ps1 -Source .\publish -Target C:\inetpub\www\gndj
 ```
 
 `deploy.ps1` does a near-zero-downtime swap:

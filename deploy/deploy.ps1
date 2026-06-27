@@ -7,7 +7,7 @@
   copies the new files, then brings it back. Runtime state (uploads/, logs/) and the
   server-only appsettings.Production.json are NEVER touched.
 .EXAMPLE
-  ./deploy/deploy.ps1 -Source .\publish -Target C:\inetpub\gndj
+  ./deploy/deploy.ps1 -Source .\publish -Target C:\inetpub\www\gndj
 .EXAMPLE
   ./deploy/deploy.ps1 -Source .\publish -Target \\GNDJ-SRV\gndj$   # remote share
 #>

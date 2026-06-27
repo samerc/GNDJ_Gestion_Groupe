@@ -13,7 +13,7 @@
   Run this ON THE SERVER (needs .NET SDK + Node.js to build), or point -Target at a UNC share of the
   site folder from a build box.
 .EXAMPLE
-  ./deploy/update.ps1 -Target C:\inetpub\gndj      # first time: sets + remembers the target
+  ./deploy/update.ps1 -Target C:\inetpub\www\gndj      # first time: sets + remembers the target
 .EXAMPLE
   ./deploy/update.ps1                              # afterwards: just this
 .EXAMPLE
@@ -33,7 +33,7 @@ $targetFile = Join-Path $PSScriptRoot "target.txt"
 if (-not $Target) { $Target = $env:GNDJ_DEPLOY_TARGET }
 if (-not $Target -and (Test-Path $targetFile)) { $Target = (Get-Content $targetFile -Raw).Trim() }
 if (-not $Target) {
-  throw "No deploy target. Pass -Target <site path> once (it's remembered), set GNDJ_DEPLOY_TARGET, or create deploy\target.txt. e.g. C:\inetpub\gndj"
+  throw "No deploy target. Pass -Target <site path> once (it's remembered), set GNDJ_DEPLOY_TARGET, or create deploy\target.txt. e.g. C:\inetpub\www\gndj"
 }
 Set-Content $targetFile $Target -NoNewline -Encoding utf8   # remember for next time
 

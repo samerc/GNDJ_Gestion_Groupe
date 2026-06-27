@@ -72,7 +72,7 @@ PostgreSQL 18 is already installed on the server. Nothing to install. (We use it
 
 ## Part 2 — Put the app files on the server
 
-We'll keep the website files in **`C:\inetpub\gndj`** (the standard place).
+We'll keep the website files in **`C:\inetpub\www\gndj`** (the standard place).
 
 1. Make sure the **`gndj-staging`** folder is on the server (copy it via Remote Desktop drive sharing, a
    USB drive, or a file share).
@@ -80,13 +80,13 @@ We'll keep the website files in **`C:\inetpub\gndj`** (the standard place).
    `gndj-staging` folder actually is:
    ```powershell
    $pkg = "C:\Users\Samer\Desktop\gndj-staging"     # <-- where you put the gndj-staging folder
-   New-Item -ItemType Directory -Force "C:\inetpub\gndj" | Out-Null
-   Copy-Item "$pkg\publish\*" "C:\inetpub\gndj\" -Recurse -Force
-   New-Item -ItemType Directory -Force "C:\inetpub\gndj\uploads", "C:\inetpub\gndj\logs" | Out-Null
+   New-Item -ItemType Directory -Force "C:\inetpub\www\gndj" | Out-Null
+   Copy-Item "$pkg\publish\*" "C:\inetpub\www\gndj\" -Recurse -Force
+   New-Item -ItemType Directory -Force "C:\inetpub\www\gndj\uploads", "C:\inetpub\www\gndj\logs" | Out-Null
    ```
 3. Confirm the app is there:
    ```powershell
-   Test-Path "C:\inetpub\gndj\GNDJ.Api.dll"      # must print True
+   Test-Path "C:\inetpub\www\gndj\GNDJ.Api.dll"      # must print True
    ```
 
 Keep your `gndj-staging` folder — you still need the **database file** inside it for Part 3.
@@ -164,7 +164,7 @@ $secret = "<THE-KEY-YOU-JUST-COPIED>"
   "SuperAdmin": { "Email": "admin@gndj.local", "Password": "unused-because-data-was-restored" },
   "AllowedHosts": "new.gndj.org"
 }
-"@ | Set-Content "C:\inetpub\gndj\appsettings.Production.json" -Encoding utf8
+"@ | Set-Content "C:\inetpub\www\gndj\appsettings.Production.json" -Encoding utf8
 ```
 
 > **Keep this file safe** — it contains the database password. It stays only on the server (never in
@@ -177,7 +177,7 @@ $secret = "<THE-KEY-YOU-JUST-COPIED>"
 This runs the app directly for 1 minute to confirm the database + config are correct, before we involve IIS.
 
 ```powershell
-cd C:\inetpub\gndj
+cd C:\inetpub\www\gndj
 $env:ASPNETCORE_ENVIRONMENT = "Production"
 $env:ASPNETCORE_URLS = "http://localhost:5000"
 dotnet GNDJ.Api.dll
@@ -186,7 +186,7 @@ dotnet GNDJ.Api.dll
   there waiting.
 - Open a browser **on the server** and go to `http://localhost:5000` → the GNDJ **login page** should load.
   Log in as **`admin@gndj.local`** (its existing password) → you should see real data.
-- **Bad sign:** the program prints an error and exits. Open `C:\inetpub\gndj\logs\gndj-*.log` and read the
+- **Bad sign:** the program prints an error and exits. Open `C:\inetpub\www\gndj\logs\gndj-*.log` and read the
   last lines (usually a wrong DB password). Fix Part 4 and retry.
 
 Press **Ctrl+C** in the PowerShell window to stop the test. Then continue to IIS.
@@ -213,7 +213,7 @@ Open **Internet Information Services (IIS) Manager** (Start → type "IIS").
 2. Fill in:
    - **Site name:** `GNDJ`
    - **Application pool:** click **Select…** and choose **gndj**.
-   - **Physical path:** `C:\inetpub\gndj`
+   - **Physical path:** `C:\inetpub\www\gndj`
    - **Binding:** Type **http**, IP **All Unassigned**, Port **80**, **Host name:** `new.gndj.org`
 3. Click **OK**. (We add HTTPS in Part 7.)
 
@@ -237,8 +237,8 @@ Open **Internet Information Services (IIS) Manager** (Start → type "IIS").
 
 In **PowerShell as Administrator**:
 ```powershell
-icacls "C:\inetpub\gndj\uploads" /grant "IIS AppPool\gndj:(OI)(CI)M" /T
-icacls "C:\inetpub\gndj\logs"    /grant "IIS AppPool\gndj:(OI)(CI)M" /T
+icacls "C:\inetpub\www\gndj\uploads" /grant "IIS AppPool\gndj:(OI)(CI)M" /T
+icacls "C:\inetpub\www\gndj\logs"    /grant "IIS AppPool\gndj:(OI)(CI)M" /T
 ```
 
 ### 6.6 Restart and test over HTTP
@@ -295,7 +295,7 @@ So visitors who type `http://` are sent to `https://`:
 2. Go to **Admin → Paramètres** and set **`app.base_url`** to `https://new.gndj.org` (used in email links
    like password resets).
 3. Check **Email / SMTP** settings if you'll send mail; send yourself a test (password reset) to confirm.
-4. Look at `C:\inetpub\gndj\logs\gndj-*.log` — no repeated errors.
+4. Look at `C:\inetpub\www\gndj\logs\gndj-*.log` — no repeated errors.
 
 You're live. 🎉
 
@@ -307,7 +307,7 @@ When there's a new version of the app, you don't redo any of the above. On the s
 .NET **SDK** + **Node.js** to rebuild — install those once if you'll build here), from the source code
 folder run:
 ```powershell
-.\deploy\update.ps1 -Target C:\inetpub\gndj    # first time
+.\deploy\update.ps1 -Target C:\inetpub\www\gndj    # first time
 .\deploy\update.ps1                            # every time after (target is remembered)
 .\deploy\update.ps1 -Pull                      # also pull the latest code first
 ```
@@ -316,7 +316,7 @@ with near‑zero downtime. Database changes in a release apply automatically on 
 
 > Prefer not to install build tools on the server? Build the package on another machine
 > (`.\deploy\publish.ps1`), copy the `publish\` folder over, then run
-> `.\deploy\deploy.ps1 -Source .\publish -Target C:\inetpub\gndj`.
+> `.\deploy\deploy.ps1 -Source .\publish -Target C:\inetpub\www\gndj`.
 
 ---
 
@@ -328,7 +328,7 @@ When you move from `new.gndj.org` to the final `gndj.org`:
    for the eventual https).
 3. Get a certificate for the new name: run `cd C:\win-acme; .\wacs.exe` again and create a certificate for
    **gndj.org** (it adds the https binding + auto‑renew).
-4. Edit `C:\inetpub\gndj\appsettings.Production.json`: change `"AllowedHosts"` to `gndj.org` (or
+4. Edit `C:\inetpub\www\gndj\appsettings.Production.json`: change `"AllowedHosts"` to `gndj.org` (or
    `new.gndj.org;gndj.org` during the overlap), then `iisreset`.
 5. In the app, update **`app.base_url`** (Admin → Paramètres) to `https://gndj.org`.
 6. Once everyone uses the new address, remove the old `new.gndj.org` bindings.
@@ -341,7 +341,7 @@ No code rebuild is needed — the app uses relative URLs.
 
 | Symptom | Likely cause / fix |
 |---------|--------------------|
-| **HTTP 500.30 / 500.31** on the page | The app failed to start. Read `C:\inetpub\gndj\logs\gndj-*.log`. Usually a wrong DB password in `appsettings.Production.json` (Part 4) or `.NET 10 Hosting Bundle` missing (Part 1.1). |
+| **HTTP 500.30 / 500.31** on the page | The app failed to start. Read `C:\inetpub\www\gndj\logs\gndj-*.log`. Usually a wrong DB password in `appsettings.Production.json` (Part 4) or `.NET 10 Hosting Bundle` missing (Part 1.1). |
 | **HTTP 502.5** | ASP.NET Core Module can't launch the app — Hosting Bundle not installed, or app pool isn't **No Managed Code**. Re‑check Parts 1.1 and 6.1. |
 | **Login page blank / 404 for `/assets/...`** | The React files didn't copy. Re‑do Part 2 (copy `publish\*`, which must include a `wwwroot\` folder with `index.html`). |
 | **`pg_restore` "must be owner of extension unaccent"** | Harmless — ignore (see note in Part 3). |
