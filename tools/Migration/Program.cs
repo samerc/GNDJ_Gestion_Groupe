@@ -297,6 +297,12 @@ for (int r = 2; r <= wsMembers.LastRowUsed()!.RowNumber(); r++)
     }
 }
 
+// Per-member name corrections, keyed by WEBDEV IDMEMBRES (the source had NOM/PRENOM swapped or wrong).
+var nameOverrides = new Dictionary<int, (string First, string Last)>
+{
+    [1931] = ("Angelina", "ELIAS"), // WEBDEV recorded NOM=ANGELINA / PRENOM=Elias (fields swapped)
+};
+
 for (int r = 2; r <= wsMembers.LastRowUsed()!.RowNumber(); r++)
 {
     var oldId = int.TryParse(Cell(wsMembers, r, 2), out var oid) ? oid : 0;
@@ -305,6 +311,7 @@ for (int r = 2; r <= wsMembers.LastRowUsed()!.RowNumber(); r++)
     var cardRaw = Cell(wsMembers, r, 3);
     var lastName = Cell(wsMembers, r, 4);
     var firstName = Cell(wsMembers, r, 5);
+    if (nameOverrides.TryGetValue(oldId, out var nameFix)) { firstName = nameFix.First; lastName = nameFix.Last; }
     var dob = ParseDate(Cell(wsMembers, r, 6));
     var gender = Cell(wsMembers, r, 14) == "F" ? "Féminin" : Cell(wsMembers, r, 14) == "M" ? "Masculin" : null;
     var bloodType = NullIfEmpty(Cell(wsMembers, r, 16));
