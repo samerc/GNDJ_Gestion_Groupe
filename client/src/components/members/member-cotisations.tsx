@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Tip } from '@/components/ui/tooltip'
 import { Plus, Download, Pencil, Trash2, Receipt, Ban } from 'lucide-react'
 
 const CURRENCY_OPTIONS = [
@@ -224,18 +225,18 @@ export function MemberCotisations({ memberId, memberName }: Props) {
                     {c.notes && <p className="mt-1 text-xs text-muted-foreground">{c.notes}</p>}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadReceipt(c)} title="Télécharger le reçu">
+                    <Tip content="Télécharger le reçu"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadReceipt(c)}>
                       <Download className="h-3.5 w-3.5" />
-                    </Button>
+                    </Button></Tip>
                     {hasPermission(PERMISSIONS.COTISATIONS_EDIT) && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)} title="Modifier">
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}>
                         <Pencil className="h-3.5 w-3.5" />
-                      </Button>
+                      </Button></Tip>
                     )}
                     {hasPermission(PERMISSIONS.COTISATIONS_DELETE) && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(c)} title="Supprimer">
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(c)}>
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
+                      </Button></Tip>
                     )}
                   </div>
                 </div>
@@ -300,9 +301,9 @@ export function MemberCotisations({ memberId, memberName }: Props) {
                       </Select>
                     </div>
                     {payments.length > 1 && (
-                      <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => removePaymentLine(idx)}>
+                      <Tip content="Supprimer la ligne"><Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => removePaymentLine(idx)}>
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
+                      </Button></Tip>
                     )}
                   </div>
                 ))}

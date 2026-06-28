@@ -15,6 +15,7 @@ import { useMembers, useMember, useCreateMember, useUpdateMember, type MemberFor
 import { MemberPhoto } from '@/components/shared/member-photo'
 import { useUnits } from '@/services/unit-service'
 import { Button } from '@/components/ui/button'
+import { Tip } from '@/components/ui/tooltip'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RequiredLabel } from '@/components/shared/required-label'
@@ -126,20 +127,22 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
               {member.dateOfBirth && ` — Né(e) le ${new Date(member.dateOfBirth).toLocaleDateString('fr-FR')}`}
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={async () => {
-            try {
-              const response = await generateMemberCard(memberId)
-              const blob = new Blob([response.data], { type: 'application/pdf' })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url
-              a.download = `Carte_${member.firstName}_${member.lastName}.pdf`
-              a.click()
-              URL.revokeObjectURL(url)
-            } catch (err) { toast.error(parseApiError(err)) }
-          }} title="Télécharger la carte">
-            <CreditCard className="h-4 w-4" />
-          </Button>
+          <Tip content="Télécharger la carte de membre">
+            <Button variant="outline" size="sm" onClick={async () => {
+              try {
+                const response = await generateMemberCard(memberId)
+                const blob = new Blob([response.data], { type: 'application/pdf' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `Carte_${member.firstName}_${member.lastName}.pdf`
+                a.click()
+                URL.revokeObjectURL(url)
+              } catch (err) { toast.error(parseApiError(err)) }
+            }}>
+              <CreditCard className="h-4 w-4" />
+            </Button>
+          </Tip>
         </div>
       </div>
 
@@ -198,11 +201,12 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
                   <dt className="text-xs text-muted-foreground">Numéro de carte (SDL/GDL)</dt>
                   <dd className="flex items-center gap-1.5 text-sm font-medium">
                     {member.externalCardNumber || '—'}
-                    <button type="button" className="text-muted-foreground hover:text-foreground"
-                      title="Modifier le numéro de carte"
-                      onClick={() => { setCardDraft(member.externalCardNumber ?? ''); setCardEditOpen(true) }}>
-                      <Pencil className="h-3 w-3" />
-                    </button>
+                    <Tip content="Modifier le numéro de carte">
+                      <button type="button" className="text-muted-foreground hover:text-foreground"
+                        onClick={() => { setCardDraft(member.externalCardNumber ?? ''); setCardEditOpen(true) }}>
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    </Tip>
                   </dd>
                 </div>
               </div>
@@ -431,10 +435,12 @@ export default function MembersPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">Membres</h1>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setExportOpen(true)} disabled={!unitFilter || unitFilter === 'all' || unitFilter === 'none'}>
-              <FileSpreadsheet className="mr-1 h-4 w-4" />
-              Exporter
-            </Button>
+            <Tip content="Exporter l'unité en Excel ou CSV">
+              <Button variant="outline" size="sm" onClick={() => setExportOpen(true)} disabled={!unitFilter || unitFilter === 'all' || unitFilter === 'none'}>
+                <FileSpreadsheet className="mr-1 h-4 w-4" />
+                Exporter
+              </Button>
+            </Tip>
             <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />Nouveau membre</Button>
           </div>
         </div>
@@ -443,9 +449,11 @@ export default function MembersPage() {
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Rechercher par nom, prénom ou carte..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-8 pr-8 h-8 text-sm" />
             {search && (
-              <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => { setSearch(''); setPage(1) }}>
-                <X className="h-3.5 w-3.5" />
-              </button>
+              <Tip content="Effacer la recherche">
+                <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => { setSearch(''); setPage(1) }}>
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </Tip>
             )}
           </div>
           <Select value={unitFilter} onValueChange={(v) => { setUnitFilter(v); setPage(1) }}>
@@ -588,9 +596,11 @@ export default function MembersPage() {
                     <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v || null }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher une nationalité..." />
                   </div>
                   {form.nationality && (
-                    <Button variant="ghost" size="icon" type="button" className="h-7 w-7 shrink-0" onClick={() => setForm(f => ({ ...f, nationality: '' }))}>
-                      <X className="h-3 w-3" />
-                    </Button>
+                    <Tip content="Effacer la nationalité">
+                      <Button variant="ghost" size="icon" type="button" className="h-7 w-7 shrink-0" onClick={() => setForm(f => ({ ...f, nationality: '' }))}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Tip>
                   )}
                 </div>
               </div>
@@ -681,18 +691,22 @@ export default function MembersPage() {
                 <span className="text-muted-foreground">Nom d'utilisateur :</span>
                 <div className="flex items-center gap-2 mt-1">
                   <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{credentialsDialog?.username}</code>
-                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(credentialsDialog?.username ?? ''); toast.success('Copié !') }}>
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
+                  <Tip content="Copier le nom d'utilisateur">
+                    <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(credentialsDialog?.username ?? ''); toast.success('Copié !') }}>
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                  </Tip>
                 </div>
               </div>
               <div>
                 <span className="text-muted-foreground">Mot de passe :</span>
                 <div className="flex items-center gap-2 mt-1">
                   <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{credentialsDialog?.password}</code>
-                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(credentialsDialog?.password ?? ''); toast.success('Copié !') }}>
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
+                  <Tip content="Copier le mot de passe">
+                    <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(credentialsDialog?.password ?? ''); toast.success('Copié !') }}>
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                  </Tip>
                 </div>
               </div>
             </div>

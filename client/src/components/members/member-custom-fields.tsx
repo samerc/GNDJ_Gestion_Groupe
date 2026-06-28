@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Tip } from '@/components/ui/tooltip'
 import { Check, X, Pencil, Trash2, ListPlus } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -101,22 +102,22 @@ function FieldRow({ field, existing, memberId }: { field: CustomFieldListDto; ex
       {editing ? (
         <div className="flex items-center gap-2">
           {renderEditor()}
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSave} disabled={setMutation.isPending}>
+          <Tip content="Enregistrer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSave} disabled={setMutation.isPending}>
             <Check className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(false)}>
+          </Button></Tip>
+          <Tip content="Annuler"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(false)}>
             <X className="h-3.5 w-3.5" />
-          </Button>
+          </Button></Tip>
         </div>
       ) : (
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={startEdit}>
+          <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={startEdit}>
             <Pencil className="h-3.5 w-3.5" />
-          </Button>
+          </Button></Tip>
           {existing && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDelete} disabled={deleteMutation.isPending}>
+            <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDelete} disabled={deleteMutation.isPending}>
               <Trash2 className="h-3.5 w-3.5 text-destructive" />
-            </Button>
+            </Button></Tip>
           )}
         </div>
       )}

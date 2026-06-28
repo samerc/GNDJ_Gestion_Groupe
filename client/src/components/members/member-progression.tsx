@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Tip } from '@/components/ui/tooltip'
 import { Plus, Trash2, Star, Award, MapPin, Calendar } from 'lucide-react'
 
 // "Progression" tab of the member detail page / Ma fiche / CU dashboard. Lists the member's
@@ -129,9 +130,9 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
                     {p.notes && <p className="mt-1 text-xs text-muted-foreground">{p.notes}</p>}
                   </div>
                   {canManage && (
-                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setDeleting(p)}>
+                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setDeleting(p)}>
                       <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
+                    </Button></Tip>
                   )}
                 </div>
               ))}

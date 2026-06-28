@@ -5,6 +5,7 @@ import { useMember } from '@/services/member-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Tip } from '@/components/ui/tooltip'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -58,9 +59,11 @@ function MemberDetailPanel({ memberId, onBack }: { memberId: string; onBack?: ()
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center gap-3 border-b px-4 py-3 shrink-0 bg-card">
         {onBack && (
-          <Button variant="ghost" size="icon" className="md:hidden shrink-0 -ml-2" onClick={onBack} aria-label="Retour à la liste">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+          <Tip content="Retour à la liste">
+            <Button variant="ghost" size="icon" className="md:hidden shrink-0 -ml-2" onClick={onBack} aria-label="Retour à la liste">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Tip>
         )}
         <MemberPhoto
           memberId={memberId}
@@ -340,31 +343,43 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
         </div>
         {/* Action bar: a single horizontally-scrollable row so it never wraps into a pile on mobile. */}
         <div className="flex items-center gap-2 overflow-x-auto flex-nowrap pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <Button variant="outline" size="sm" className="shrink-0" onClick={() => setRosterOpen(true)}>
-            <List className="mr-1 h-4 w-4" />Liste
-          </Button>
-          <Button variant="outline" size="sm" className="shrink-0" onClick={() => setTrombiOpen(true)}>
-            <FileDown className="mr-1 h-4 w-4" />Trombinoscope
-          </Button>
-          <Button variant="outline" size="sm" className="shrink-0" onClick={() => setExportOpen(true)}>
-            <FileSpreadsheet className="mr-1 h-4 w-4" />
-            Exporter
-          </Button>
-          <Button variant="outline" size="sm" className="shrink-0" onClick={handleBulkCards} disabled={bulkCardsLoading}>
-            <CreditCard className="mr-1 h-4 w-4" />
-            {bulkCardsLoading ? 'Génération...' : 'Cartes'}
-          </Button>
-          <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate('/photo-session')}>
-            <Camera className="mr-1 h-4 w-4" />
-            Photos
-          </Button>
+          <Tip content="Liste des membres (PDF)">
+            <Button variant="outline" size="sm" className="shrink-0" onClick={() => setRosterOpen(true)}>
+              <List className="mr-1 h-4 w-4" />Liste
+            </Button>
+          </Tip>
+          <Tip content="Trombinoscope (PDF avec photos)">
+            <Button variant="outline" size="sm" className="shrink-0" onClick={() => setTrombiOpen(true)}>
+              <FileDown className="mr-1 h-4 w-4" />Trombinoscope
+            </Button>
+          </Tip>
+          <Tip content="Exporter en Excel ou CSV">
+            <Button variant="outline" size="sm" className="shrink-0" onClick={() => setExportOpen(true)}>
+              <FileSpreadsheet className="mr-1 h-4 w-4" />
+              Exporter
+            </Button>
+          </Tip>
+          <Tip content="Imprimer les cartes de membre">
+            <Button variant="outline" size="sm" className="shrink-0" onClick={handleBulkCards} disabled={bulkCardsLoading}>
+              <CreditCard className="mr-1 h-4 w-4" />
+              {bulkCardsLoading ? 'Génération...' : 'Cartes'}
+            </Button>
+          </Tip>
+          <Tip content="Session photo de l'unité">
+            <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate('/photo-session')}>
+              <Camera className="mr-1 h-4 w-4" />
+              Photos
+            </Button>
+          </Tip>
           {reportTemplates && reportTemplates.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="shrink-0">
-                  <FileText className="mr-1 h-4 w-4" />
-                  Rapports
-                </Button>
+                <Tip content="Rapports personnalisés">
+                  <Button variant="outline" size="sm" className="shrink-0">
+                    <FileText className="mr-1 h-4 w-4" />
+                    Rapports
+                  </Button>
+                </Tip>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {reportTemplates.map(t => (

@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { Tip } from '@/components/ui/tooltip'
 import { Plus, Pencil, Trash2, Phone, Mail, Users2, Search, UserPlus, Link } from 'lucide-react'
 
 const RELATIONSHIP_OPTIONS = [
@@ -174,12 +175,12 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
                   {gl.isEmergencyContact && <Badge variant="destructive">Urgence</Badge>}
                 </div>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(gl)}>
+                  <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(gl)}>
                     <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setUnlinking(gl)}>
+                  </Button></Tip>
+                  <Tip content="Retirer le lien"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setUnlinking(gl)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  </Button></Tip>
                 </div>
               </div>
               {(gl.guardian.professionDomain || gl.guardian.profession) && (
@@ -208,9 +209,9 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
                         <span>{p.countryCode} {p.number}</span>
                         <span className="text-muted-foreground text-xs">{p.type}</span>
                         {p.isPrimary && <Badge variant="outline" className="text-xs h-5">Principal</Badge>}
-                        <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => deletePhoneMutation.mutate(p.id)}>
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => deletePhoneMutation.mutate(p.id)}>
                           <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
+                        </Button></Tip>
                       </div>
                     ))}
                   </div>
@@ -233,9 +234,9 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
                         <span>{em.address}</span>
                         <span className="text-muted-foreground text-xs">{em.type}</span>
                         {em.isPrimary && <Badge variant="outline" className="text-xs h-5">Principal</Badge>}
-                        <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => deleteEmailMutation.mutate(em.id)}>
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => deleteEmailMutation.mutate(em.id)}>
                           <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
+                        </Button></Tip>
                       </div>
                     ))}
                   </div>

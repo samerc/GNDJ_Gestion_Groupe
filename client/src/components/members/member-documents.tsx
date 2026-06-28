@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Tip } from '@/components/ui/tooltip'
 import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus } from 'lucide-react'
 
 // Status badge for a doc. Expiry overrides the workflow status (an expired doc reads "Expiré"
@@ -225,24 +226,24 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                 {/* Actions */}
                 <div className="flex shrink-0 items-center gap-1.5">
                   {doc && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)} title="Télécharger">
+                    <Tip content="Télécharger le document"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)}>
                       <Download className="h-4 w-4" />
-                    </Button>
+                    </Button></Tip>
                   )}
                   {doc && doc.status !== 'Approved' && hasPermission(PERMISSIONS.DOCUMENTS_APPROVE) && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleQuickReview(doc.id, 'Approved')} title="Approuver">
+                    <Tip content="Approuver"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleQuickReview(doc.id, 'Approved')}>
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                    </Button>
+                    </Button></Tip>
                   )}
                   {doc && doc.status !== 'Rejected' && hasPermission(PERMISSIONS.DOCUMENTS_APPROVE) && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setReviewOpen(doc); setReviewNotes('') }} title="Refuser">
+                    <Tip content="Refuser"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setReviewOpen(doc); setReviewNotes('') }}>
                       <XCircle className="h-4 w-4 text-red-500" />
-                    </Button>
+                    </Button></Tip>
                   )}
                   {doc && hasPermission(PERMISSIONS.DOCUMENTS_DELETE) && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleting(doc)} title="Supprimer">
+                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleting(doc)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    </Button></Tip>
                   )}
                   {/* Upload only offered when nothing is on file or the last one was rejected ("Renvoyer"). */}
                   {canUpload && (!doc || doc.status === 'Rejected') && (

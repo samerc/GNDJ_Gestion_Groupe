@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { Tip } from '@/components/ui/tooltip'
 import { Plus, Pencil, Trash2, StopCircle, Building2 } from 'lucide-react'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
@@ -160,16 +161,16 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
                   </div>
                   {!readOnly && (
                     <div className="flex gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Modifier" onClick={() => openEdit(a)}>
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(a)}>
                         <Pencil className="h-4 w-4" />
-                      </Button>
+                      </Button></Tip>
                       {/* One-click "end today": closes the post with endDate = today (moves it to history). */}
-                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Désactiver" onClick={async () => { try { await endMutation.mutateAsync({ id: a.id, endDate: new Date().toISOString().split('T')[0] }); toast.success('Affectation terminée') } catch { /* handled by query refresh */ } }}>
+                      <Tip content="Terminer aujourd'hui"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={async () => { try { await endMutation.mutateAsync({ id: a.id, endDate: new Date().toISOString().split('T')[0] }); toast.success('Affectation terminée') } catch { /* handled by query refresh */ } }}>
                         <StopCircle className="h-4 w-4 text-orange-500" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleting(a)}>
+                      </Button></Tip>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleting(a)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      </Button></Tip>
                     </div>
                   )}
                 </div>
@@ -212,12 +213,12 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
                         </div>
                         {!readOnly && (
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 shrink-0">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(a)}>
+                            <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(a)}>
                               <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(a)}>
+                            </Button></Tip>
+                            <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(a)}>
                               <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                            </Button>
+                            </Button></Tip>
                           </div>
                         )}
                       </div>
