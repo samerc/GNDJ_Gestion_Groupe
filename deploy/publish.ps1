@@ -4,7 +4,7 @@
 .DESCRIPTION
   Run on a build machine (dev box or the server) that has the .NET SDK and Node.js.
   Produces .\publish containing the published API with the React build in wwwroot/.
-  Then ship .\publish to the server with deploy.ps1 (see docs/DEPLOYMENT.md §13).
+  Then ship .\publish to the server with deploy.ps1 (see docs/DEPLOYMENT.md Part 9-10).
 .EXAMPLE
   ./deploy/publish.ps1
 #>

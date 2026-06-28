@@ -1,567 +1,572 @@
-# GNDJ — Deployment Guide (Windows Server 2025 + IIS)
+# GNDJ — Deployment & Installation Guide (Windows Server + IIS)
 
-Target: **Windows Server 2025**, IIS installed, **PostgreSQL 18** on the box, public domain
-**`new.gndj.org`** (temporary — see [Changing the domain](#10-changing-the-domain-later)).
+This is the **single source of truth** for deploying GNDJ. It has two halves:
 
-## 0. How the app is wired (read first)
+- **Part I — First-time install (Parts 1–8):** a copy‑paste, click‑by‑click walkthrough that takes a blank
+  Windows Server to a live site at **https://new.gndj.org**. No prior IIS/PostgreSQL knowledge needed.
+- **Part II — Operations & reference (Parts 9+):** updating the app, building the package, the domain
+  switch, backups, performance tuning, Cloudflare, and the technical rationale.
 
-- **Backend**: ASP.NET Core 10 (`src/GNDJ.Api`) → Kestrel/IIS. Talks to PostgreSQL.
-  Runs EF migrations + seed **automatically on startup**.
-- **Frontend**: React + Vite (`client/`). `npm run build` → static files in `client/dist/`.
-  It calls the API at the **relative** path `/api/v1` (`client/src/lib/constants.ts`). So the
-  SPA and the API **must be served from the same origin** (same scheme+host+port) — then there is
-  **no CORS** and the domain can change without rebuilding the client.
-- **Uploads** (member docs/photos, CMS images) are written to an `uploads/` folder next to the API
-  and **served by the API** (not IIS). This folder must persist across deploys and be writable.
-- **Logs**: rolling files in `logs/` next to the API **and** a `application_logs` table in PostgreSQL.
+Production today: **Windows Server 2025**, **PostgreSQL 18** on the box, **IIS** in‑process, **behind
+Cloudflare**, TLS via **win‑acme**. If something goes wrong during install, jump to **Appendix —
+Troubleshooting** at the bottom.
 
-### Recommended topology — one site, same origin
-
-```
-Browser ──HTTPS──► IIS (new.gndj.org:443, TLS)
-                      │  ASP.NET Core Hosting Bundle (in-process)
-                      ▼
-                   GNDJ.Api  ──►  PostgreSQL 18 (localhost:5432)
-                   serves:  /api/v1/*  (controllers)
-                            /         (React build from wwwroot, SPA fallback)
-                            uploads via /api/... endpoints
-```
-
-One IIS site hosts **one ASP.NET Core process** that serves both the API and the React build.
-This is the simplest, most robust option: same origin (relative `/api` just works), no CORS, no ARR
-reverse-proxy, correct client IPs for rate limiting, TLS terminated at IIS.
-
-> It requires a **small code change** (the API doesn't serve the SPA yet) — see
-> [§2 Required code changes](#2-required-code-changes-one-time). If you'd rather not touch code, see
-> [Appendix A](#appendix-a-alternative-iis-static--reverse-proxy-no-code-change).
+> Throughout, values you must supply are shown like `<THIS>` — replace the whole thing including the `< >`.
+> **PowerShell as Administrator:** Start → type `powershell` → right‑click *Windows PowerShell* → *Run as
+> administrator*.
 
 ---
 
-## 1. Server prerequisites (install once)
+## How it's wired (read first)
 
-1. **.NET 10 Hosting Bundle** — installs the .NET runtime + the **ASP.NET Core Module v2 (ANCM)** for IIS.
-   Download "ASP.NET Core Runtime 10.x — Hosting Bundle", install, then `iisreset`.
-   Verify: `dotnet --list-runtimes` shows `Microsoft.AspNetCore.App 10.x`.
-2. **PostgreSQL 18** — already installed. You'll create the DB + login in §4.
-3. **IIS features**: Web Server role with *Static Content*, *Application Initialization* (optional, keeps
-   the app warm), and *Dynamic/Static Compression* (we let the app compress API responses; see §9).
-4. **A TLS certificate** for `new.gndj.org`:
-   - Public domain → use **win-acme** (`wacs.exe`) for a free Let's Encrypt cert with auto-renewal, **or**
-   - an internal/commercial cert imported into the server's certificate store.
-5. (Build machine only) **Node.js 20+** to run `npm run build`. You can build the frontend on the dev
-   box and copy `dist/` to the server — Node is **not** required on the server.
+- **Backend**: ASP.NET Core 10 (`src/GNDJ.Api`) under IIS in‑process. Talks to PostgreSQL and runs EF
+  migrations + seed **automatically on startup**.
+- **Frontend**: React + Vite (`client/`). `npm run build` → static files; the API serves them from its
+  `wwwroot/`. The SPA calls the API at the **relative** path `/api/v1`, so the SPA and API **must be the
+  same origin** — then there's **no CORS** and the domain can change without rebuilding the client.
+- **Uploads** (member docs/photos, CMS images) live in an `uploads/` folder next to the API and are served
+  **by the API**. It must persist across deploys and be writable.
+- **Logs**: rolling files in `logs/` next to the API **and** an `application_logs` table in PostgreSQL.
+
+```
+Browser ──HTTPS──► Cloudflare ──► IIS (new.gndj.org:443, TLS)
+                                     │  ASP.NET Core Hosting Bundle (in-process)
+                                     ▼
+                                  GNDJ.Api  ──►  PostgreSQL 18 (localhost:5432)
+                                  serves:  /api/v1/*   (controllers)
+                                           /          (React build from wwwroot, SPA fallback)
+```
+
+One IIS site = one ASP.NET Core process serving both the API and the React build. Simplest and most robust:
+same origin, no CORS, no reverse proxy, correct client IPs for rate limiting, TLS at the edge + IIS.
 
 ---
 
-## 2. Code changes for hosting (already applied)
+# PART I — First-time install
 
-These are **already in `src/GNDJ.Api/Program.cs`** — listed here so you know what makes the single-site
-topology work:
+## What you are installing
 
-1. **Serves the React build + SPA fallback** — `UseDefaultFiles()` + `UseStaticFiles()` (serves `wwwroot/`,
-   the Vite build) and `MapFallbackToFile("index.html")` after `MapControllers()` (SPA client routes →
-   `index.html`; API routes match first).
-2. **Re-asserts the 1 MB body limit under IIS in-process** —
-   `Configure<IISServerOptions>(o => o.MaxRequestBodySize = 1 MB)` (Kestrel's limit is ignored in-process).
-   The 20 MB upload endpoints still override per-action with `[RequestSizeLimit]`; make sure IIS allows it
-   (see §6).
-3. **HSTS in production** — `app.UseHsts()` when not Development (TLS terminates at IIS; binding is HTTPS).
+- A **website** (the GNDJ app) served by **IIS** (the Windows web server).
+- Its **database** in **PostgreSQL** (already installed on the server).
+- A free **HTTPS certificate** from Let's Encrypt (so the site is `https://`).
 
-Still **your** call at deploy time (config, not code): set `"AllowedHosts": "new.gndj.org"` in
-`appsettings.Production.json` (see §5).
+When you're done, people open `https://new.gndj.org` and use the app.
 
----
+## Before you start — gather these
 
-## 3. Build the deployable package ("staging files")
-
-The whole app ships as **one folder** — the published API with the React build inside its `wwwroot/`. Build
-it with the bundled script on any machine that has the **.NET SDK + Node.js** (your dev box or the server):
-
-```powershell
-./deploy/publish.ps1                                   # → .\publish  (in the repo)
-# …or build straight into your staging folder:
-./deploy/publish.ps1 -OutDir "C:\Users\Administrator\Desktop\gndj-staging\publish"
-```
-
-It runs three steps (a **full** build — backend DLLs **and** the frontend, so it's correct even when only
-the React app changed):
-
-```powershell
-# 1. Backend — framework-dependent publish (also generates web.config with the ANCM handler)
-dotnet publish src/GNDJ.Api/GNDJ.Api.csproj -c Release -o publish
-
-# 2. Frontend — production build
-cd client; npm ci; npm run build; cd ..               # → client/dist
-
-# 3. Put the SPA inside the API's wwwroot
-New-Item -ItemType Directory -Force publish/wwwroot | Out-Null
-Copy-Item client/dist/* publish/wwwroot/ -Recurse -Force
-```
-
-The result — the **staging package** — is self-contained. Copy the whole folder to the server's site path
-(`C:\inetpub\www\gndj`).
-
-> ⚠️ Always do a **full `publish.ps1`** (not a DLL-only copy) whenever the frontend changed — the React build
-> is content-hash-split into many chunk files, so a stale `wwwroot/` would serve a broken/old UI.
-
-### Ship the package to the server
-
-Pick the path that matches **where you built**:
-
-**A — You build ON the server** (SDK + Node installed there). One command does build + ship:
-```powershell
-./deploy/update.ps1 -Target C:\inetpub\www\gndj     # first time; the target is then remembered
-./deploy/update.ps1                                 # every time after
-```
-
-**B — You build on a different machine** (e.g. the dev box) and the server is separate. Build the package,
-copy it across, then ship it **on the server**:
-```powershell
-# on the build box:
-./deploy/publish.ps1 -OutDir "C:\Users\Administrator\Desktop\gndj-staging\publish"
-#   then copy that folder to the server — RDP copy/paste, a zip, or a UNC share
-
-# on the server:
-./deploy/deploy.ps1 -Source <path to the copied publish folder> -Target C:\inetpub\www\gndj
-```
-(If the site folder is reachable as a UNC share from the build box, you can skip the copy and ship directly:
-`./deploy/deploy.ps1 -Source .\publish -Target \\SERVER\gndj$`.)
-
-`deploy.ps1` swaps the files with near-zero downtime and **preserves** `uploads/`, `logs/`, and the
-server-only `appsettings.Production.json` (mechanics in §13). On the first request after a deploy the app
-**auto-runs any new EF migrations** — no manual EF step.
-
-> **First install vs. update.** The commands above only place the files.
-> - **Brand-new server** → also do the one-time setup: §1 prerequisites, §4 database, §5 secrets
->   (`appsettings.Production.json`), §6 IIS site + app pool, §6b TLS, §9b performance tuning. For a guided,
->   click-by-click first install, follow **`docs/INSTALL_GUIDE.md`**.
-> - **Already-running site** → just `update.ps1` / `deploy.ps1`. **No IIS reconfiguration** — §6 is done once.
->   See **§13**.
+| You need | Notes |
+|----------|-------|
+| The **`gndj-staging` folder** | The deployment package. Contains `publish\`, the database file `gndj_data_*.dump`, and config samples. Copy it onto the server (e.g. the Desktop). To build it yourself, see **Part 10**. |
+| The **`postgres` password** | The PostgreSQL superuser password. |
+| A new **database password** | You invent one for the app's DB user `gndj_admin`. Write it down. |
+| The **domain** `new.gndj.org` | Its DNS **A record must point to this server's public IP** before the certificate step. |
+| **Administrator** access | You'll open PowerShell and IIS Manager "as Administrator". |
 
 ---
 
-## 4. Database
+## 1. Install the prerequisites
 
-PostgreSQL 18 is already on the box. Create the database + login (psql as a superuser):
+### 1.1 .NET 10 Hosting Bundle (runs the app under IIS)
 
-```sql
-CREATE USER gndj_admin WITH PASSWORD '<STRONG-DB-PASSWORD>';
-CREATE DATABASE gndj OWNER gndj_admin;
-```
-
-- Keep PostgreSQL bound to **localhost only** (`listen_addresses = 'localhost'`) — the API connects locally.
-- **Migrations + seed run automatically** the first time the API starts (`Database.MigrateAsync()` +
-  `SeedData.*`). No manual EF step needed.
-- **Going live with real data**: after your pre-import data cleanup, run the migration tool against the
-  prod DB (`tools/Migration`) — point its connection string at the server and run it once. (It expects an
-  empty schema; let the API create the schema on first start, then import.)
-
----
-
-## 4b. Test / staging deployment with a data snapshot
-
-To stand up a **test** instance on a separate server **with the current real data** (instead of a fresh
-empty DB), ship a `pg_dump` snapshot alongside the published package. The dump carries the **EF migration
-history**, so the API starts against it without re-migrating.
-
-**On the source (dev) box — produce the two artifacts:**
-
-1. **Code package** — `./deploy/publish.ps1` → the `publish/` folder (API + React build in `wwwroot/`).
-   Contains **no data**.
-2. **Data snapshot** — first remove anything you don't want on staging (e.g. test documents, cotisations,
-   passages, camps), then dump, excluding the `_bak_*` helper/backup tables:
+1. On the server, browse **https://dotnet.microsoft.com/download/dotnet/10.0**.
+2. Under **ASP.NET Core Runtime 10.x**, download the **Hosting Bundle** (the link says "Hosting Bundle").
+   *Not* the SDK, *not* the plain runtime.
+3. Run the installer → **Install** → **Close**.
+4. In **PowerShell as Administrator**:
    ```powershell
-   & "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe" -h localhost -U gndj_admin -d gndj `
-     --no-owner --no-privileges --exclude-table='_bak_*' -Fc -f gndj_data.dump
+   iisreset
+   dotnet --list-runtimes
    ```
+   You should see a line containing **`Microsoft.AspNetCore.App 10.`**. The bundle also installs IIS's
+   "ASP.NET Core Module" (ANCM) which lets IIS run the app.
 
-Copy `publish/`, `gndj_data.dump`, and your filled-in `appsettings.Production.json` to the staging server.
+### 1.2 Make sure IIS is installed
 
-**On the staging server — restore + run:**
-
-1. **Prereqs** — §1 (.NET 10 runtime for a Kestrel test, or the Hosting Bundle for IIS; PostgreSQL 18).
-2. **Create the DB as a Postgres superuser** — the dump needs the `unaccent` extension, which a normal
-   user cannot create:
-   ```sql
-   CREATE USER gndj_admin WITH PASSWORD '<STRONG-DB-PASSWORD>';
-   CREATE DATABASE gndj OWNER gndj_admin;
-   \c gndj
-   CREATE EXTENSION IF NOT EXISTS unaccent;
-   ```
-3. **Restore** (still as superuser):
+1. Start → type **Internet Information Services (IIS) Manager** → Enter. If it opens, skip to 1.3.
+2. If not found, install it (PowerShell as Administrator), then re‑run the Hosting Bundle (1.1) and `iisreset`:
    ```powershell
-   & "C:\Program Files\PostgreSQL\18\bin\pg_restore.exe" --no-owner --no-privileges `
-     --role=gndj_admin -d gndj -h localhost -U postgres gndj_data.dump
+   Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole, IIS-WebServer, IIS-StaticContent, IIS-DefaultDocument, IIS-HttpCompressionStatic, IIS-ApplicationInit -All
    ```
-   Sanity: `SELECT count(*) FROM members;`.
-4. **Config** — §5 (`appsettings.Production.json`: staging connection string, a **fresh** `Jwt:Secret`,
-   `AllowedHosts`). With restored data the existing `admin@gndj.local` account is already present — log in
-   with its current password (`SuperAdmin:Password` only seeds a *new* empty DB).
-5. **Run** — IIS per §6, **or** a quick Kestrel smoke test (no IIS):
-   ```powershell
-   cd <publish>; $env:ASPNETCORE_ENVIRONMENT="Production"; $env:ASPNETCORE_URLS="http://0.0.0.0:5000"
-   dotnet GNDJ.Api.dll
-   ```
-   Browse `http://<staging-host>:5000` (open the firewall for the port if remote).
 
-> **Fresh-install variant (no data):** skip the dump/restore — create an empty `gndj` DB + the `unaccent`
-> extension and let the API build the schema + seed on first start (§4). Useful for testing a true
-> first-time install.
+### 1.3 PostgreSQL
 
-> **Re-deploying code to staging later:** rebuild with `publish.ps1` and ship with
-> `deploy/deploy.ps1 -Source publish -Target <site path>` (§13) — it preserves `uploads/`, `logs/`, and
-> `appsettings.Production.json`.
+PostgreSQL 18 is already installed. Nothing to do here — we use it in Part 3.
+
+> **Node.js** is only needed to *build* the package, and only on the build machine (Part 10). The server
+> doesn't need it if you deploy a pre‑built `gndj-staging`/`publish` folder.
 
 ---
 
-## 5. Configuration & secrets (do NOT commit real secrets)
+## 2. Put the app files on the server
 
-The app reads `ConnectionStrings:DefaultConnection`, `Jwt:*`, and `SuperAdmin:*`. Override the
-placeholders from `appsettings.json` with a server-only **`appsettings.Production.json`** placed next to
-the API in `C:\inetpub\www\gndj` (this file is git-ignored / created only on the server):
+The site files live in **`C:\inetpub\www\gndj`** (the standard place).
 
-```json
+1. Get the **`gndj-staging`** folder onto the server (RDP drive sharing, USB, or a file share).
+2. **PowerShell as Administrator** — edit the first line to where your folder actually is:
+   ```powershell
+   $pkg = "C:\Users\Samer\Desktop\gndj-staging"     # <-- where you put the gndj-staging folder
+   New-Item -ItemType Directory -Force "C:\inetpub\www\gndj" | Out-Null
+   Copy-Item "$pkg\publish\*" "C:\inetpub\www\gndj\" -Recurse -Force
+   New-Item -ItemType Directory -Force "C:\inetpub\www\gndj\uploads", "C:\inetpub\www\gndj\logs" | Out-Null
+   ```
+3. Confirm:
+   ```powershell
+   Test-Path "C:\inetpub\www\gndj\GNDJ.Api.dll"      # must print True
+   ```
+
+Keep `gndj-staging` — you still need the **database file** inside it for Part 3.
+
+---
+
+## 3. Set up the database (with the real data)
+
+Create the app's login + database, enable one extension, then load the data file. **PowerShell as
+Administrator** — edit the two passwords on the first lines:
+
+```powershell
+$bin = "C:\Program Files\PostgreSQL\18\bin"
+$env:PGPASSWORD = "<POSTGRES-SUPERUSER-PASSWORD>"      # the 'postgres' password
+$AppDbPassword  = "<INVENT-A-STRONG-APP-DB-PASSWORD>"  # NEW password for the app DB user — write it down
+
+# 1. Create the app login + empty database
+& "$bin\psql.exe" -U postgres -h 127.0.0.1 -d postgres -c "CREATE USER gndj_admin WITH PASSWORD '$AppDbPassword';"
+& "$bin\psql.exe" -U postgres -h 127.0.0.1 -d postgres -c "CREATE DATABASE gndj OWNER gndj_admin;"
+
+# 2. Enable the 'unaccent' extension the app needs (must be done by the superuser)
+& "$bin\psql.exe" -U postgres -h 127.0.0.1 -d gndj -c "CREATE EXTENSION IF NOT EXISTS unaccent;"
+
+# 3. Load the data — edit the path to your .dump file inside gndj-staging
+& "$bin\pg_restore.exe" --no-owner --no-privileges --role=gndj_admin -h 127.0.0.1 -U postgres -d gndj `
+  "C:\Users\Samer\Desktop\gndj-staging\gndj_data_20260626_2002.dump"
+
+# 4. Check it loaded (expect ~2490 members, ~21 units)
+& "$bin\psql.exe" -U postgres -h 127.0.0.1 -d gndj -c "SELECT (SELECT count(*) FROM members) AS members, (SELECT count(*) FROM units) AS units;"
+Remove-Item Env:\PGPASSWORD
+```
+
+**Expected:** step 4 prints something like `members 2493 · units 21`.
+
+> **One harmless error is normal:** during step 3 you may see `ERROR: must be owner of extension unaccent …
+> COMMENT ON EXTENSION` and `errors ignored on restore: 1`. Ignore it — only a cosmetic description line.
+> As long as step 4 shows the member count, the data loaded.
+
+- Keep PostgreSQL bound to **localhost only** (`listen_addresses = 'localhost'`).
+- **Fresh install with no data instead?** Skip the dump: create an empty `gndj` DB + the `unaccent`
+  extension and let the API build the schema + seed on first start. (The migration tool in `tools/Migration`
+  imports real data into an empty schema if you ever need that path.)
+
+---
+
+## 4. Configure the app (passwords & secret)
+
+The app reads its DB connection and security key from **`appsettings.Production.json`** next to the app.
+
+### 4.1 Generate a JWT secret — run once and copy the line it prints
+```powershell
+[Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
+```
+
+### 4.2 Create `appsettings.Production.json` — replace the two `<...>` values
+```powershell
+$dbpw   = "<THE-APP-DB-PASSWORD-FROM-PART-3>"
+$secret = "<THE-KEY-YOU-JUST-COPIED>"
+@"
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=gndj;Username=gndj_admin;Password=<STRONG-DB-PASSWORD>;Pooling=true;Minimum Pool Size=5;Maximum Pool Size=50;Connection Idle Lifetime=300"
+    "DefaultConnection": "Host=localhost;Port=5432;Database=gndj;Username=gndj_admin;Password=$dbpw;Pooling=true;Minimum Pool Size=10;Maximum Pool Size=50;Connection Idle Lifetime=300"
   },
   "Jwt": {
-    "Secret": "<RANDOM-64-CHAR-SECRET>",
+    "Secret": "$secret",
     "Issuer": "GNDJ",
     "Audience": "GNDJ",
     "AccessTokenExpirationMinutes": 15,
     "RefreshTokenExpirationDays": 7
   },
-  "SuperAdmin": {
-    "Email": "admin@gndj.org",
-    "Password": "<STRONG-ADMIN-PASSWORD>"
-  },
-  "AllowedHosts": "new.gndj.org"
+  "SuperAdmin": { "Email": "admin@gndj.local", "Password": "unused-because-data-was-restored" },
+  "AllowedHosts": "new.gndj.org",
+  "Cloudflare": { "Enabled": false }
 }
+"@ | Set-Content "C:\inetpub\www\gndj\appsettings.Production.json" -Encoding utf8
 ```
 
-Critical:
-- **`Jwt:Secret`** — replace the placeholder with a long random value (≥ 32 chars; 64 recommended).
-  If it ever changes, all existing tokens are invalidated (everyone re-logs-in).
-- **`SuperAdmin:Password`** — set this **before the first start**; the seed creates the super-admin with
-  it. Otherwise the default `Admin123!` is created (then change it immediately in-app).
-- Environment is selected by `ASPNETCORE_ENVIRONMENT=Production` (set on the IIS site, §7) so
-  `appsettings.Production.json` is loaded.
-- Alternatively, secrets can be set as **environment variables** with `__` for nesting, e.g.
-  `ConnectionStrings__DefaultConnection`, `Jwt__Secret`, `SuperAdmin__Password`.
-- **SMTP passwords** live in the database (configured in-app under Email / SMTP). Treat the DB as
-  sensitive; restrict the `application_logs`/DB access accordingly.
-- After first start, set the **`app.base_url`** setting in-app (Admin → Paramètres) to
-  `https://new.gndj.org` — it's used for links in emails (password reset, applicant verification).
+Critical notes:
+- **`Jwt:Secret`** — long random value (≥ 32 chars, 64 recommended). Changing it later logs everyone out.
+- **`SuperAdmin:Password`** — only used to seed a **new empty** DB. With restored data, `admin@gndj.local`
+  already exists — log in with its current password.
+- The **pool size (50)** stays well under PostgreSQL `max_connections` (100) — leaves headroom for backups
+  and tooling.
+- **`Cloudflare:Enabled`** — leave `false` for now; flip to `true` once traffic is proxied (see **Part 17**).
+- **Keep this file safe** — it has the DB password, stays only on the server (never in source control), and
+  is **never overwritten** by future deploys.
 
 ---
 
-## 6. IIS site setup
+## 5. Quick test before IIS (recommended)
 
-1. **App pool**: create `gndj` → **.NET CLR version = "No Managed Code"** (ANCM hosts the runtime),
-   Pipeline = Integrated. Identity = `ApplicationPoolIdentity` (default).
-2. **Site**: create `GNDJ` → physical path `C:\inetpub\www\gndj` → app pool `gndj`.
-3. **Bindings**:
-   - `https` : port 443 : host `new.gndj.org` : select the TLS cert.
-   - `http` : port 80 : host `new.gndj.org` (for the HTTP→HTTPS redirect / ACME challenges).
-4. **Environment variable**: site → Configuration Editor →
-   `system.webServer/aspNetCore` → `environmentVariables` → add `ASPNETCORE_ENVIRONMENT = Production`.
-   (Or set it in `web.config`'s `<aspNetCore><environmentVariables>`.)
-5. **HTTP→HTTPS redirect**: add a URL Rewrite rule (or the "HTTP Redirect"/HSTS) so port-80 traffic
-   goes to `https://new.gndj.org`.
-6. **Request limits for uploads**: the 20 MB upload endpoints need IIS to allow large bodies. IIS default
-   `maxAllowedContentLength` is ~28.6 MB, which covers 20 MB — but set it explicitly if you change it:
-   site → Request Filtering → Edit Feature Settings → Maximum allowed content length = `20971520`.
-7. **Folder permissions**: grant the app pool identity (`IIS AppPool\gndj`) **Modify** on:
-   - `C:\inetpub\www\gndj\uploads`  (created on first upload — pre-create it)
-   - `C:\inetpub\www\gndj\logs`
+Run the app directly for a minute to confirm DB + config before involving IIS:
+```powershell
+cd C:\inetpub\www\gndj
+$env:ASPNETCORE_ENVIRONMENT = "Production"
+$env:ASPNETCORE_URLS = "http://localhost:5000"
+dotnet GNDJ.Api.dll
+```
+- **Good sign:** console prints startup lines ending with **`GNDJ API listening on:`** and waits.
+- Browse `http://localhost:5000` **on the server** → the GNDJ login page loads. Log in as
+  `admin@gndj.local` → real data.
+- **Bad sign:** it errors and exits → read `C:\inetpub\www\gndj\logs\gndj-*.log` (usually a wrong DB
+  password). Fix Part 4 and retry.
 
-Browse to `https://new.gndj.org` — the React app loads; log in with the super-admin credentials.
+Press **Ctrl+C** to stop, then continue to IIS.
 
 ---
 
-## 6b. TLS certificate — Let's Encrypt via win-acme
+## 6. Set up IIS (the real web server)
 
-Free, auto-renewing HTTPS for `new.gndj.org` using **win-acme** (`wacs.exe`). The app **serves the ACME
-HTTP-01 challenge itself** (see note below), so issuance *and* the ~60-day auto-renewals just work.
+Open **IIS Manager** (Start → "IIS").
 
-**Before you run it:**
-- DNS: `new.gndj.org` **A record → the server's public IP**, and it must resolve publicly.
-- Firewall: inbound **80 and 443** open (HTTP-01 validation hits port 80).
-- The IIS site (§6) has both bindings for the host: **http :80** and **https :443**. The :443 binding can
-  start with a self-signed/placeholder cert — win-acme replaces it.
-- The site/app pool is **running** (the app answers the challenge), and PostgreSQL is up so it starts.
+### 6.1 Application Pool
+1. Left panel → **Application Pools** → right **Actions** → **Add Application Pool…**.
+2. **Name:** `gndj` · **.NET CLR version:** **No Managed Code** · **Managed pipeline mode:** **Integrated** → **OK**.
 
-**Issue the cert:**
-1. Download win-acme from <https://www.win-acme.com/>, unzip on the server, run **`wacs.exe` as
-   Administrator**.
-2. `N` → **Create certificate (default settings)** → pick the **IIS site `GNDJ`** → select the
-   `new.gndj.org` binding (or "all bindings of this site").
-3. win-acme validates via **HTTP-01** (writes a token under `<site>\.well-known\acme-challenge\` which the
-   app serves), fetches the cert from Let's Encrypt, **installs it into the Windows cert store, binds it to
-   the :443 binding**, and creates a **scheduled task** that renews automatically (~every 60 days, same
-   validation — hands-off).
-4. Accept the Let's Encrypt ToS / enter an email for expiry notices when prompted.
+### 6.2 Site
+1. Left panel → right‑click **Sites** → **Add Website…**.
+2. **Site name:** `GNDJ` · **Application pool:** **Select…** → **gndj** · **Physical path:**
+   `C:\inetpub\www\gndj` · **Binding:** http, All Unassigned, port **80**, **Host name:** `new.gndj.org` → **OK**.
 
-Verify: `https://new.gndj.org` shows a valid padlock; `wacs.exe --list` shows the renewal.
+### 6.3 Mark it Production
+1. Click the **GNDJ** site → **Configuration Editor**.
+2. **Section** dropdown → paste `system.webServer/aspNetCore` → Enter.
+3. **environmentVariables** row → **`…`** button → **Add** → Name `ASPNETCORE_ENVIRONMENT`, Value
+   `Production` → OK → **Apply**.
 
-> **Why the app must serve the challenge:** this is a single in-process ASP.NET Core site, so IIS hands
-> *every* request (including `/.well-known/acme-challenge/<token>`) to the app, and the SPA fallback would
-> otherwise return `index.html` for it. `Program.cs` explicitly serves
-> `<ContentRoot>\.well-known\acme-challenge` (extensionless, no dot-dir exclusion) **before** the SPA
-> fallback, which is exactly where win-acme's IIS HTTP-01 plugin writes the token. Keep the app pool
-> started (IIS **Application Initialization** helps) so renewals can validate.
+### 6.4 Allow large uploads (member docs up to 20 MB)
+GNDJ site → **Request Filtering** → Actions → **Edit Feature Settings…** → **Maximum allowed content length**
+= `20971520` → OK.
 
-> **Alternatives** if HTTP-01 ever isn't possible (e.g. port 80 closed): win-acme also supports
-> **DNS-01** (a TXT record — manual, or automated with a DNS-provider plugin) and **TLS-ALPN-01**.
+### 6.5 Grant write permission for uploads & logs
+```powershell
+icacls "C:\inetpub\www\gndj\uploads" /grant "IIS AppPool\gndj:(OI)(CI)M" /T
+icacls "C:\inetpub\www\gndj\logs"    /grant "IIS AppPool\gndj:(OI)(CI)M" /T
+```
 
----
+### 6.6 Restart and test over HTTP
+```powershell
+iisreset
+```
+Browse `http://new.gndj.org` (or `http://localhost` if DNS isn't pointing here yet) → login page loads.
 
-## 7. First-run checklist
-
-- [ ] `appsettings.Production.json` present with real DB connection, strong `Jwt:Secret`, strong
-      `SuperAdmin:Password`.
-- [ ] `ASPNETCORE_ENVIRONMENT=Production` set on the site/app pool.
-- [ ] App pool identity has Modify on `uploads\` and `logs\`.
-- [ ] HTTPS binding + valid cert; HTTP→HTTPS redirect works.
-- [ ] App starts (check `logs\gndj-*.log`); migrations applied (tables exist); super-admin can log in.
-- [ ] `app.base_url` setting = `https://new.gndj.org`; send a test email (password reset) to confirm SMTP.
-- [ ] `demande.enabled` and `demande.scout_year` set as desired for the public enrollment portal.
+> **Compression:** the app already gzip/brotli‑compresses API responses, so turn **IIS *dynamic*
+> compression OFF** for the site and leave **static** compression on (IIS Manager → site → *Compression*).
 
 ---
 
-## 8. Firewall & network
+## 7. Get the HTTPS certificate (Let's Encrypt via win-acme)
 
-- Inbound **80 + 443** open to the internet (or your network).
-- **5432 (PostgreSQL) bound to localhost only** — never expose it publicly.
-- DNS: `new.gndj.org` **A record → server public IP**.
+Makes the site `https://` with a free cert that **auto‑renews**.
 
----
+> **First:** (a) `new.gndj.org` DNS **points to this server**, and (b) the site is reachable on **port 80
+> from the internet** (open the firewall for 80 and 443).
 
-## 9. Caching — what to consider
+1. Download **win‑acme** from **https://www.win-acme.com/**, unzip on the server (e.g. `C:\win-acme`).
+2. **PowerShell as Administrator**:
+   ```powershell
+   cd C:\win-acme
+   .\wacs.exe
+   ```
+3. Type **`N`** → **Create certificate (default settings)**.
+4. Choose the **GNDJ** site (type its number).
+5. Choose **new.gndj.org** (or "all bindings").
+6. Accept the Let's Encrypt terms + enter an **email** (expiry warnings).
+7. win‑acme validates the domain, downloads the cert, **adds the HTTPS (443) binding**, and **schedules
+   auto‑renewal**. Type **`Q`** to quit.
 
-The app **already** does the server-side caching that matters at this scale; the main thing *you* add at
-deploy time is **static-asset cache headers**.
+Test: **https://new.gndj.org** → padlock + login page.
 
-**Already built in (no action needed):**
-- **Response compression** (gzip + brotli) for API responses — `UseResponseCompression`.
-- **Output caching** on read-heavy public endpoints — `ShortCache` (2 min) / `LookupData` (10 min).
-  The base policy is **no-cache**, so authenticated API responses are never cached. (In-memory, per
-  process — fine for a single server.)
-- **Settings cache** (5-min refresh) and a general memory cache.
+> The app is already built to answer Let's Encrypt's HTTP‑01 check (it serves
+> `.well-known/acme-challenge` before the SPA fallback), so issuance **and every auto‑renewal** work with no
+> extra config. If validation fails it's almost always DNS not pointing here yet or port 80 blocked — fix
+> and re‑run `.\wacs.exe`.
 
-**You should configure at deploy time:**
-1. **SPA static assets** — ✅ **now handled in code** (`Program.cs` `UseStaticFiles` `OnPrepareResponse`):
-   `/assets/*` (Vite's content-hashed, immutable files) → `Cache-Control: public, max-age=31536000,
-   immutable`; everything else incl. `index.html` → `no-cache` so new deploys are picked up immediately.
-   No `web.config` static-cache block needed. (Was previously a manual TODO — implemented 2026-06-28.)
-2. **Avoid double compression** — since ASP.NET Core compresses API responses, **disable IIS *dynamic*
-   compression** for the app (leave **static** compression on for the SPA's `.js/.css`). Otherwise IIS
-   re-compresses already-compressed responses (wasted CPU).
-
-**Optional / later:**
-- A CDN or **Cloudflare** in front of `new.gndj.org` can cache the public site (units/news/pages — all
-  `ShortCache`-friendly and anonymous) and serve TLS/edge. Not needed for a single-org server, but easy to
-  add later since the public pages are anonymous and cache-friendly.
-- If you ever run **multiple app instances** (scale-out), the in-memory output/settings caches would need
-  to become distributed (Redis). Single server → not applicable.
-
-**Net answer:** yes, but it's mostly already handled — just set the static-asset cache headers (immutable
-hashed assets + no-cache `index.html`) and turn off IIS dynamic compression. Everything else is in place.
+### 7.1 Redirect http → https (optional)
+Install the free **URL Rewrite** module and add a rule to `https://new.gndj.org`, or keep both bindings and
+add the redirect when convenient.
 
 ---
 
-## 9b. Performance tuning (run on the server) ⚡
+## 8. Final checks (first login)
 
-Three high-impact tuning steps that the app code can't set for you. Run each **once** on the server (the
-profile script is the exception — you re-run it seasonally). All are in `deploy/`.
+1. **https://new.gndj.org** → log in as `admin@gndj.local`.
+2. **Admin → Paramètres** → set **`app.base_url`** to `https://new.gndj.org` (used in email links).
+3. Check **Email / SMTP** if you'll send mail; send yourself a password‑reset test.
+4. Look at `logs\gndj-*.log` — no repeated errors.
 
-### 1. IIS app pool — stop cold starts (`deploy/tune-apppool.ps1`)
-IIS defaults kill the worker after **20 min idle** and recycle it every **29 h**; each shutdown forces a
-full cold start (process relaunch + JIT + EF model build + the startup `SeedData` passes), so the next
-visitor waits several seconds. Run as Administrator:
+You're live. 🎉 → Now apply the **performance tuning** in **Part 15** (app‑pool warm‑up + PostgreSQL).
+
+---
+
+# PART II — Operations & reference
+
+## 9. Deploying updates (the easy way)
+
+When there's a new version, you **don't** redo any of the above. From the source folder on a machine with
+the .NET **SDK** + **Node.js**:
+```powershell
+.\deploy\update.ps1 -Target C:\inetpub\www\gndj    # first time — target is then remembered
+.\deploy\update.ps1                            # every time after
+.\deploy\update.ps1 -Pull                      # git pull --ff-only first, then build + ship
+```
+`update.ps1` chains **build** (`publish.ps1`) → **ship** (`deploy.ps1`) and remembers the target in
+`deploy\target.txt` (git‑ignored). **No IIS reconfiguration** — Part 6 is done once.
+
+`deploy.ps1` does a near‑zero‑downtime swap:
+1. drops `app_offline.htm` so ANCM stops the app gracefully and releases DLL locks (no manual app‑pool stop),
+2. `robocopy`s the new files over — **preserving `uploads\`, `logs\`, and `appsettings.Production.json`**
+   (never copied or purged),
+3. removes `app_offline.htm`; the app restarts and **re‑runs any new EF migrations automatically** on the
+   first request.
+
+> **If you build on a *separate* machine from the server:** build with `publish.ps1`, copy `publish\` over,
+> then run `deploy.ps1 -Source <copied publish> -Target C:\inetpub\www\gndj` on the server (or
+> `-Target \\SERVER\gndj$` against an SMB share). See **Part 10**.
+
+Roll‑forward only; to **roll back**, keep the previous `publish\` folder and re‑run `deploy.ps1` with it.
+If a release adds a migration, take a `pg_dump` first (Part 13) for anything risky.
+
+---
+
+## 10. Build the deployable package ("staging files")
+
+The whole app ships as **one folder** — the published API with the React build inside its `wwwroot/`. Build
+it on any machine with the **.NET SDK + Node.js**:
+
+```powershell
+./deploy/publish.ps1                                   # → .\publish
+# …or straight into your staging folder:
+./deploy/publish.ps1 -OutDir "C:\Users\Administrator\Desktop\gndj-staging\publish"
+```
+
+It runs a **full** build (backend DLLs **and** the frontend, so it's correct even when only the React app
+changed):
+```powershell
+dotnet publish src/GNDJ.Api/GNDJ.Api.csproj -c Release -o publish   # also generates web.config (ANCM)
+cd client; npm ci; npm run build; cd ..                            # → client/dist
+New-Item -ItemType Directory -Force publish/wwwroot | Out-Null
+Copy-Item client/dist/* publish/wwwroot/ -Recurse -Force
+```
+
+> ⚠️ Always do a **full `publish.ps1`** (not a DLL‑only copy) whenever the frontend changed — the React
+> build is content‑hash‑split into many chunk files, so a stale `wwwroot/` serves a broken/old UI.
+
+**Ship it** — pick the path that matches where you built:
+
+- **Build ON the server** → one command (Part 9): `./deploy/update.ps1 -Target C:\inetpub\www\gndj`.
+- **Build on a different machine** → build, copy `publish\` to the server (RDP/zip/share), then on the
+  server: `./deploy/deploy.ps1 -Source <copied publish> -Target C:\inetpub\www\gndj`.
+- **UNC share reachable from the build box** → skip the copy:
+  `./deploy/deploy.ps1 -Source .\publish -Target \\SERVER\gndj$`.
+
+On the first request after a deploy the app **auto‑runs any new EF migrations** — no manual EF step.
+
+---
+
+## 11. Switching the domain to gndj.org (later)
+
+`new.gndj.org` → `gndj.org` needs **no client rebuild** (relative `/api/v1`):
+1. Point `gndj.org`'s **DNS A record** at this server.
+2. IIS → **GNDJ** → **Bindings…** → **Add** `http:80` host `gndj.org` (and the eventual https).
+3. Get a cert for the new name: `cd C:\win-acme; .\wacs.exe` → certificate for **gndj.org** (adds https +
+   auto‑renew). Or add it to the existing cert so it covers both during cut‑over.
+4. Edit `appsettings.Production.json` → `"AllowedHosts"` = `gndj.org` (or `new.gndj.org;gndj.org` during
+   overlap) → `iisreset`.
+5. App → **Paramètres** → set **`app.base_url`** to `https://gndj.org`.
+6. `Jwt:Issuer/Audience` are the constant `"GNDJ"` — no change. Remove the old `new.gndj.org` bindings once
+   traffic is cut over.
+
+---
+
+## 12. Reset the data back to the import (testing only)
+
+While **testing** (before real users), you can wipe changes and reset the DB to the clean imported snapshot.
+
+> ⚠️ **Destructive — ONLY before go‑live.** It replaces *everything* in the DB with the snapshot. Once the
+> group enters real data, never use this — restore from a recent backup instead.
+
+Keep the snapshot somewhere stable, then run the bundled script with the path to it:
+```powershell
+New-Item -ItemType Directory -Force C:\gndj-backups | Out-Null
+Copy-Item "C:\Users\Samer\Desktop\gndj-staging\gndj_data_20260626_2002.dump" C:\gndj-backups\ -Force
+
+cd C:\Users\Samer\Desktop\gndj-staging
+.\reset-to-import.ps1 -Dump C:\gndj-backups\gndj_data_20260626_2002.dump
+```
+- Asks for the **postgres** password, then makes you type **`RESET`**.
+- Stops IIS, reloads the snapshot (~10 s), starts IIS. The harmless `unaccent COMMENT` error appears —
+  ignore it. Prints `members = …` when done.
+- Add **`-ClearUploads`** to also empty `uploads\` for a fully clean slate.
+
+**Make a fresh baseline** any time (e.g. after configuring SMTP/settings you want to keep):
+```powershell
+$bin = "C:\Program Files\PostgreSQL\18\bin"
+$env:PGPASSWORD = "<postgres-password>"
+& "$bin\pg_dump.exe" -h localhost -U gndj_admin -d gndj --no-owner --no-privileges --exclude-table='_bak_*' -Fc -f "C:\gndj-backups\gndj_baseline_$(Get-Date -Format yyyyMMdd_HHmm).dump"
+Remove-Item Env:\PGPASSWORD
+```
+Then pass that newer file to `-Dump`.
+
+---
+
+## 13. Backups, logs, monitoring
+
+- **Database**: schedule `pg_dump` nightly (Task Scheduler) →
+  `pg_dump -U gndj_admin -F c -f gndj_YYYYMMDD.dump gndj`. Keep off‑box copies. **This is the real safety
+  net** once live — not the import snapshot.
+- **Uploads**: back up `C:\inetpub\www\gndj\uploads` (the only file state outside the DB).
+- **Logs**: `logs\gndj-*.log` (30‑day rolling) + `application_logs` table (Warning+). Watch after go‑live.
+- **Health**: the app exposes `GET /health` (liveness) for uptime monitoring and IIS warm‑up.
+
+---
+
+## 14. Test / staging from a data snapshot
+
+To stand up a **separate test instance with the current real data**, ship a `pg_dump` snapshot alongside the
+package. The dump carries the EF migration history, so the API starts without re‑migrating.
+
+**On the dev box:** `publish.ps1` (code, no data) + a snapshot (remove test docs/cotisations/passages/camps
+first), excluding `_bak_*`:
+```powershell
+& "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe" -h localhost -U gndj_admin -d gndj `
+  --no-owner --no-privileges --exclude-table='_bak_*' -Fc -f gndj_data.dump
+```
+**On the staging server:** create the DB as a superuser (`CREATE USER`/`CREATE DATABASE` +
+`CREATE EXTENSION unaccent`), `pg_restore` the dump (Part 3), fill in `appsettings.Production.json` with a
+**fresh `Jwt:Secret`**, then run via IIS (Part 6) or a quick Kestrel smoke test
+(`$env:ASPNETCORE_URLS="http://0.0.0.0:5000"; dotnet GNDJ.Api.dll`).
+
+---
+
+# PART III — Reference & advanced
+
+## 15. Performance tuning (run on the server) ⚡
+
+Three high‑impact steps the app can't set for you. All scripts are in `deploy/`.
+
+### 15.1 IIS app pool — stop cold starts (`deploy/tune-apppool.ps1`)
+IIS defaults kill the worker after **20 min idle** and recycle it every **29 h**; each shutdown forces a full
+cold start (process relaunch + JIT + EF model build + startup seeding), so the next visitor waits seconds.
 ```powershell
 ./deploy/tune-apppool.ps1               # defaults: pool "gndj", site "GNDJ", 03:00 recycle
 ```
-It disables the idle time-out, replaces the clock-based recycle with one 3 AM recycle, sets the pool to
-**AlwaysRunning**, and enables **site preload** so the app re-warms itself after a recycle/reboot. Idempotent.
-This is the single biggest user-perceived-latency fix. (Pairs with the `GET /health` warm-up probe.)
+Disables the idle time‑out, replaces the clock recycle with one 3 AM recycle, sets **AlwaysRunning** + site
+**preload** (warms via `GET /health`). Idempotent. **The single biggest user‑perceived‑latency fix.**
 
-### 2. PostgreSQL — seasonal High/Low profile (`deploy/pg-profile.ps1`)
-This box is **shared** with other sites and GNDJ's load is seasonal (Sept–Oct = passage/demandes/rentrée).
-Rather than claiming RAM year-round, toggle a profile:
+### 15.2 PostgreSQL — seasonal High/Low profile (`deploy/pg-profile.ps1`)
+The box is **shared** with other sites and GNDJ's load is seasonal (Sept–Oct = passage/demandes/rentrée):
 ```powershell
-./deploy/pg-profile.ps1 -Profile High   # before September: GNDJ gets more cache (shared_buffers 4GB, eff_cache 12GB)
-./deploy/pg-profile.ps1 -Profile Low    # after the rush: conservative, frees RAM for the other sites (1GB / 4GB)
+./deploy/pg-profile.ps1 -Profile High   # before September: more cache (shared_buffers 4GB / eff_cache 12GB)
+./deploy/pg-profile.ps1 -Profile Low    # after the rush: conservative (1GB / 4GB), frees RAM for other sites
 ```
-It writes settings via `ALTER SYSTEM` (your `postgresql.conf` stays untouched) and restarts PostgreSQL
-(asks first — a restart blips **every** DB on the instance). Stock PG18 ships with `shared_buffers=128MB`
-on a 24 GB box, so even the Low profile is a meaningful upgrade. Tune the numbers in the script to how much
-RAM the other sites need. Verify after: `psql -U postgres -c "SHOW shared_buffers;"`.
+Writes settings via `ALTER SYSTEM` (your `postgresql.conf` stays untouched) and restarts PostgreSQL (asks
+first — a restart blips every DB on the instance). Stock PG18 ships `shared_buffers=128MB`, so even Low is a
+real upgrade. Verify: `psql -U postgres -c "SHOW shared_buffers;"`.
 
-### 3. Connection pool + IIS compression (manual, once)
-- **Npgsql pool** — the production connection string in `appsettings.Production.json` should pin the pool
-  so a stray tool can't exhaust PostgreSQL: append
-  `;Pooling=true;Minimum Pool Size=10;Maximum Pool Size=50;Connection Idle Lifetime=300`. App max 50 stays
-  well under PG `max_connections=100` (set by the profile script), leaving headroom for `pg_dump`/psql/win-acme.
-- **IIS dynamic compression OFF** for the site (the app already gzip/brotli's API responses); leave **static**
-  compression on. IIS Manager → site → *Compression* → uncheck *dynamic*, keep *static* checked.
+### 15.3 Connection pool + IIS compression (manual, once)
+- **Npgsql pool** — the prod connection string should pin the pool so a stray tool can't exhaust PostgreSQL:
+  `;Pooling=true;Minimum Pool Size=10;Maximum Pool Size=50;Connection Idle Lifetime=300` (Part 4 already
+  includes it). App max 50 stays under PG `max_connections=100`.
+- **IIS dynamic compression OFF** for the site (the app already compresses API responses); leave **static**
+  compression on.
 
 ---
 
-## 10. Changing the domain later
+## 16. Caching — what's built in
 
-Because the client uses the **relative** `/api/v1`, switching `new.gndj.org` → `gndj.org` needs
-**no client rebuild**. Steps when you switch:
-1. DNS A record for `gndj.org` → server IP.
-2. IIS: add the new host to the **:80 binding** and add a **:443 binding** for `gndj.org`.
-3. **New TLS cert** — re-run **`wacs.exe`** (§6b) and create a certificate for `gndj.org` (or add it to the
-   existing one so the cert covers both hosts during cut-over). win-acme binds it + sets up auto-renewal.
-4. Update `AllowedHosts` (if restricted) and the in-app **`app.base_url`** setting to `https://gndj.org`
-   (so email links use it).
-5. `Jwt:Issuer/Audience` are the constant `"GNDJ"` (not host-based) — **no change needed**.
-6. No CORS to update (same-origin). Remove the old `new.gndj.org` bindings once traffic is cut over.
+Already handled by the app (no action): **response compression** (gzip+brotli), **output caching** on
+read‑heavy public endpoints (`ShortCache` 2 min / `LookupData` 10 min; authenticated responses never
+cached), and **static‑asset cache headers** — `Program.cs` sends `/assets/*` (Vite content‑hashed)
+`max-age=31536000, immutable` and `index.html` `no-cache`, so browsers and Cloudflare skip revalidation and
+new deploys appear immediately. No `web.config` static‑cache block needed.
 
 ---
 
-## 11. Backups, logs, monitoring
+## 17. Cloudflare (in front of the public site)
 
-- **Database**: schedule `pg_dump` (e.g. nightly via Task Scheduler) →
-  `pg_dump -U gndj_admin -F c -f gndj_YYYYMMDD.dump gndj`. Keep off-box copies.
-- **Uploads**: back up `C:\inetpub\www\gndj\uploads` (the only file state outside the DB).
-- **Logs**: `logs\gndj-*.log` (30-day rolling) + `application_logs` table (Warning+). Watch these after
-  go-live.
-- **Updates/redeploy**: stop the site (or app pool) → copy new `publish/` over → start. The app
-  re-runs migrations on start. Consider IIS *Application Initialization* to avoid first-hit cold start.
+Cloudflare gives edge TLS, DDoS protection, a global cache for anonymous pages, and a WAF. The app is
+same‑origin, so it sits cleanly in front of `new.gndj.org`.
+
+**Setup:** add the zone + switch nameservers; DNS `A new → <server IP>` **Proxied** (orange cloud); keep a
+valid origin cert on IIS (a free **Cloudflare Origin Certificate** is ideal) and set **SSL/TLS = Full
+(strict)**; turn on **Always Use HTTPS** + **HSTS** at the edge.
+
+**Cache rules:** add a rule `URI path starts with /api/ → Bypass cache` (never cache dynamic/authenticated
+traffic). The origin's headers already make `/assets/*` edge‑cacheable and keep `index.html` uncached.
+
+**Restore the real client IP (REQUIRED if proxied) ⚠** — when proxied, every request reaches the origin from
+a Cloudflare IP, which would collapse all visitors into one rate‑limit bucket. The fix is **already
+implemented**: set **`"Cloudflare": { "Enabled": true }`** in `appsettings.Production.json` and restart the
+app pool. The app then reads the true client IP from `CF-Connecting-IP`, but **only trusts it from
+Cloudflare's own IP ranges** (pre‑seeded in `appsettings.json` `Cloudflare:IpRanges`). Verify in
+`logs\gndj-*.log` that request `RemoteIP` is the **visitor's** IP, not a `104.x/172.x` Cloudflare address.
+**Defense‑in‑depth:** also restrict the Windows firewall so 80/443 accept only Cloudflare's ranges.
+
+What Cloudflare does **not** change: the relative `/api` same‑origin model, `app.base_url`, or the app's own
+compression/output‑cache/rate‑limit (belt and braces at the origin).
 
 ---
 
-## 12. Pre-production hardening backlog (track separately)
+## 18. Code changes that make single‑site hosting work (already applied)
 
-- [ ] Secrets out of source → `appsettings.Production.json`/env vars (covered above). **Do this.**
-- [ ] httpOnly-cookie refresh tokens — today the JWT lives in `localStorage` (XSS exposure). Over HTTPS
-      it's acceptable for launch; moving the refresh token to an httpOnly cookie is a future hardening.
+These are already in `src/GNDJ.Api/Program.cs` — listed so you know what makes the topology work:
+1. **Serves the React build + SPA fallback** — `UseDefaultFiles()` + `UseStaticFiles()` (serves `wwwroot/`)
+   and `MapFallbackToFile("index.html")` after `MapControllers()` (API routes match first; other paths →
+   the SPA shell).
+2. **ACME challenge** — serves `.well-known/acme-challenge` before the SPA fallback so win‑acme HTTP‑01
+   issuance/renewal works on the single in‑process site.
+3. **1 MB body limit under IIS in‑process** — `Configure<IISServerOptions>` (Kestrel's is ignored
+   in‑process); 20 MB upload endpoints override per‑action (allow it in IIS, Part 6.4).
+4. **HSTS in production** — `app.UseHsts()` when not Development.
+
+The only deploy‑time config (not code): `"AllowedHosts"` and `"Cloudflare:Enabled"` in
+`appsettings.Production.json`.
+
+---
+
+## 19. Pre‑production hardening backlog (track separately)
+
+- [ ] Secrets out of source → `appsettings.Production.json` / env vars (done above). **Keep it that way.**
+- [ ] httpOnly‑cookie refresh tokens — today the JWT lives in `localStorage` (XSS exposure). Acceptable over
+      HTTPS for launch; moving the refresh token to an httpOnly cookie is a future hardening.
 - [ ] Encrypt/externalize SMTP credentials stored in the DB.
-- [ ] Consider a dedicated PostgreSQL backup/retention policy + restore drill.
+- [ ] A dedicated PostgreSQL backup/retention policy + a restore drill.
 
 ---
 
-## 13. Updating the app (redeploy) — the easy way
+## 20. Alternative topology — IIS static + reverse proxy (no code change)
 
-**One command** (run on the server, which needs the .NET SDK + Node.js to build):
-```powershell
-./deploy/update.ps1 -Target C:\inetpub\www\gndj    # first time — the target is then remembered
-./deploy/update.ps1                            # every time after
-./deploy/update.ps1 -Pull                      # git pull --ff-only first, then build + ship
-```
-`update.ps1` just chains the two scripts below (build → ship) and remembers the target in
-`deploy\target.txt` (git-ignored). **No IIS reconfiguration** — you only do §6 once. (If you build on a
-**separate** machine from the server, build there and ship with `deploy.ps1` instead — see §3 path **B**.)
+If you'd rather not have the API serve the SPA:
+1. **Site 1** `new.gndj.org` → physical path = `client/dist` (static SPA) with a `web.config`: URL Rewrite +
+   **ARR** rule `^api/(.*)` → `http://localhost:5000/api/{R:1}`; SPA fallback → `/index.html`.
+2. **Site 2** (API) → published `GNDJ.Api`, ANCM, bound to **localhost:5000** only.
+3. Install **ARR** + **URL Rewrite** modules.
+4. Add **`UseForwardedHeaders`** to the API (behind ARR, `RemoteIpAddress` is `127.0.0.1`, which breaks
+   per‑IP rate limiting) reading `X-Forwarded-For`.
 
-Under the hood it runs the two stages, which you can also call separately:
-
-**Build** (dev box or the server, with .NET SDK + Node.js):
-```powershell
-./deploy/publish.ps1          # → builds API + client into .\publish
-```
-
-**Ship** (on the server, or pointing `-Target` at a UNC share of the site folder):
-```powershell
-./deploy/deploy.ps1 -Source .\publish -Target C:\inetpub\www\gndj
-```
-
-`deploy.ps1` does a near-zero-downtime swap:
-1. drops `app_offline.htm` so ANCM stops the app gracefully and releases the DLL locks (no manual app-pool
-   stop, no file-lock errors),
-2. `robocopy`s the new files over — **preserving `uploads\`, `logs\`, and `appsettings.Production.json`**
-   (they're never copied or purged),
-3. removes `app_offline.htm`; the app restarts and re-runs EF migrations automatically on the first request.
-
-**Getting `publish/` to the server** — pick whatever fits:
-- Build **on the server** (install the .NET SDK + Node there) → run both scripts locally. Simplest.
-- Build on the dev box → copy `publish/` to the server via RDP drive redirection / a file share, then run
-  `deploy.ps1` there.
-- Build on the dev box → run `deploy.ps1 -Target \\SERVER\gndj$` against an SMB share of the site folder.
-- **Automated remote push** (optional): enable PowerShell Remoting (WinRM) and wrap it, or use **IIS Web
-  Deploy** (`msdeploy`) for a single-command push from CI. Overkill for now, but available.
-
-Roll-forward only; to **roll back**, keep the previous `publish/` folder and re-run `deploy.ps1` with it.
-
-Tip: a DB migration ships automatically with the code (runs on startup). If a release adds a migration,
-the first request after deploy applies it — take a `pg_dump` first (see §11) for anything risky.
+Trade‑off: no code change, but more IIS moving parts. The single‑site topology (the rest of this guide) is
+simpler and preferred.
 
 ---
 
-## 14. Cloudflare (optional, recommended for the public site)
+## Appendix — Troubleshooting
 
-Cloudflare gives free edge TLS, DDoS protection, a global cache for the anonymous public pages, and a WAF.
-Because the app is same-origin, it sits cleanly in front of `new.gndj.org`.
+| Symptom | Likely cause / fix |
+|---------|--------------------|
+| **HTTP 500.30 / 500.31** | App failed to start. Read `logs\gndj-*.log`. Usually a wrong DB password in `appsettings.Production.json` (Part 4) or the .NET 10 Hosting Bundle missing (Part 1.1). |
+| **HTTP 502.5** | ANCM can't launch the app — Hosting Bundle missing, or app pool isn't **No Managed Code**. Re‑check Parts 1.1 and 6.1. |
+| **Login page blank / 404 for `/assets/...`** | The React files didn't copy. Re‑do Part 2 (`publish\*` must include a `wwwroot\` with `index.html`). |
+| **`pg_restore` "must be owner of extension unaccent"** | Harmless — ignore (Part 3). |
+| **Can't connect to DB / password error in logs** | `gndj_admin` password in `appsettings.Production.json` ≠ what you set in Part 3. Fix the file, `iisreset`. |
+| **win‑acme "validation failed"** | DNS for `new.gndj.org` not pointing here yet, or port 80 blocked. Fix DNS/firewall, re‑run `.\wacs.exe`. |
+| **Uploads fail / "access denied" in logs** | App pool can't write `uploads\`/`logs\`. Re‑run the `icacls` commands (Part 6.5). |
+| **Large document upload rejected** | Set Request Filtering max length to `20971520` (Part 6.4). |
+| **All clients hit the rate limit (429) at once** | Behind Cloudflare without `Cloudflare:Enabled=true` — every request looks like one IP. Set it (Part 17) and restart. |
 
-### Setup
-1. **Add the zone**: add `gndj.org` to Cloudflare and switch the registrar's **nameservers** to the two
-   Cloudflare assigns. (This moves DNS for the whole domain — coordinate it.)
-2. **DNS record**: `A  new  →  <server public IP>`, **Proxied** (orange cloud).
-3. **Origin TLS**: keep a valid cert on IIS so Cloudflare can talk to the origin securely. Best option:
-   create a **Cloudflare Origin Certificate** (free, 15-year) and bind it in IIS for `new.gndj.org`
-   (replaces, or coexists with, the Let's Encrypt cert). Then set **SSL/TLS mode = Full (strict)**.
-4. **SSL/TLS → Edge Certificates**: turn on **Always Use HTTPS** and **Automatic HTTPS Rewrites**; enable
-   **HSTS** at the edge (the app also sends HSTS).
-
-### Caching rules (important — don't cache the API)
-The origin already sends the right cache headers (immutable hashed assets, `no-cache` `index.html`), and
-Cloudflare respects them. Add one safety rule so dynamic/authenticated traffic is never cached:
-- **Cache Rule**: if URI path starts with `/api/` → **Bypass cache**.
-- Leave the default on for `/assets/*` (Cloudflare caches them at the edge per the origin's
-  `max-age=1y, immutable`). `index.html` stays uncached because the origin says `no-cache`.
-- Optional: a Cache Rule for `/assets/*` → "Eligible for cache, respect origin TTL" to be explicit.
-
-### Restore the real client IP (REQUIRED if proxied) ⚠
-When Cloudflare proxies, every request reaches the origin from a **Cloudflare IP**. The app partitions
-**rate limiting by client IP** (`ctx.Connection.RemoteIpAddress`), so without a fix all visitors collapse
-into one bucket — a start-of-year login/registration burst could trip the 429 limiter globally. The fix is
-**already implemented**: when enabled, the app reads the true client IP from Cloudflare's `CF-Connecting-IP`
-header, but **only trusts it for connections coming from Cloudflare's own IP ranges** (otherwise the header
-is spoofable and the per-IP limiter could be bypassed). It is **off by default**.
-
-**Flip the switch** — on the server only, once traffic is actually proxied through Cloudflare. In
-`appsettings.Production.json` (next to the API), set:
-
-```json
-{
-  "Cloudflare": { "Enabled": true }
-}
-```
-
-That's the only change needed. The Cloudflare IP ranges are pre-seeded in `appsettings.json`
-(`Cloudflare:IpRanges`) — you normally don't touch them; update that list only if Cloudflare ever changes
-its published ranges (https://www.cloudflare.com/ips/). Restart the app pool (or redeploy) after flipping it.
-
-- **Do NOT enable it** unless Cloudflare proxying is on — if the origin is reachable directly, a spoofed
-  `CF-Connecting-IP` would only be honoured from a real Cloudflare peer anyway (the range check protects
-  you), but leaving it off avoids any ambiguity.
-- **Defense-in-depth**: also restrict the Windows firewall so 80/443 accept connections **only from
-  Cloudflare's ranges**, so the origin can't be reached directly at all.
-- Verify after enabling: hit the site and check `logs\gndj-*.log` — the `RemoteIP` on request lines should
-  be the **visitor's** IP, not a Cloudflare `104.x/172.x` address.
-
-### What Cloudflare does NOT change
-- The relative `/api` SPA calls and same-origin model are unaffected.
-- `app.base_url` stays `https://new.gndj.org`.
-- The app's own compression/output-cache/rate-limit still run at the origin (belt and braces).
-
----
-
-## Appendix A — Alternative: IIS static + reverse proxy (no code change)
-
-If you prefer not to add SPA hosting to the API:
-1. **Site 1** `new.gndj.org` → physical path = `client/dist` (static SPA). Add a `web.config` with:
-   - URL Rewrite + **ARR** rule: `^api/(.*)` → reverse-proxy to `http://localhost:5000/api/{R:1}`.
-   - SPA fallback rule: non-file requests → `/index.html`.
-2. **Site 2** (API) → the published `GNDJ.Api`, ANCM, bound to **localhost:5000** only.
-3. Install **ARR (Application Request Routing)** + **URL Rewrite** modules.
-4. **Add `UseForwardedHeaders`** to the API — behind the ARR proxy, `RemoteIpAddress` would otherwise be
-   `127.0.0.1`, which **breaks per-IP rate limiting** (all clients share one bucket). Configure it to
-   read `X-Forwarded-For` from the proxy.
-
-Trade-off: no code change to the API, but more IIS moving parts (ARR), and you must wire forwarded headers
-correctly. The single-site topology (§0–§6) is simpler and preferred.
+To **restart the app** any time: `iisreset`, or IIS Manager → site → **Restart**.

@@ -989,9 +989,11 @@ but **NOT `units.edit`** (it was dropped), so anything gated on `units.edit` was
   dot-dir exclusion) BEFORE the SPA fallback — required so win-acme HTTP-01 issuance/renewal works on the
   single in-process SPA site. **`Cloudflare.Enabled` must be true** in prod appsettings (CF IP ranges in
   base config) for correct per-IP rate limiting + client IPs.
-- **Docs/scripts:** `docs/INSTALL_GUIDE.md` (beginner step-by-step), `docs/DEPLOYMENT.md` (§4b staging-from-
-  dump, §6b win-acme), `deploy/update.ps1` (one-command build+ship, remembers target), `deploy/reset-to-
-  import.ps1` (DESTRUCTIVE test reset to a pg_dump snapshot). Site path is `C:\inetpub\www\gndj` everywhere.
+- **Docs/scripts:** `docs/DEPLOYMENT.md` is the SINGLE deploy guide (Part I = copy-paste first install Parts
+  1–8; Part II = ops/reference: updates, build-the-package, domain switch, backups, perf tuning, Cloudflare).
+  INSTALL_GUIDE.md was merged into it (2026-06-28). `deploy/update.ps1` (one-command build+ship, remembers
+  target), `deploy/reset-to-import.ps1` (DESTRUCTIVE test reset to a pg_dump snapshot). Site path is
+  `C:\inetpub\www\gndj` everywhere.
 - **Load/functional test** (`temp/test_gndj.py`, browser UA — Cloudflare 403s python-urllib): **35/35 pass**.
   Reads ~250 ms / ~33 req/s @ 50 concurrent; logins bcrypt-bound ~1.4 s (intentional, WF10). 8 cores ample.
 - **Bugs found + fixed:** (1) `GET /cotisations/unpaid` 500 — EF can't translate `Distinct()+OrderBy()` over
@@ -1004,7 +1006,7 @@ Full-stack audit (4 parallel agents: DB/EF, backend API, frontend, infra) + fixe
 (compression, per-IP rate limiting, bcrypt gate, prior over-fetch fixes hold). Shipped:
 - **Static-asset cache headers (code):** `Program.cs` `UseStaticFiles` `OnPrepareResponse` → `/assets/*`
   (Vite content-hashed) `max-age=31536000, immutable`; everything else (incl. index.html) `no-cache`. Was a
-  documented manual TODO never implemented; lets browser + Cloudflare edge skip revalidation. (DEPLOYMENT §9.)
+  documented manual TODO never implemented; lets browser + Cloudflare edge skip revalidation. (DEPLOYMENT Part 16.)
 - **DbContext pooling:** `AddDbContext` → `AddDbContextPool`. Required making the two EF interceptors
   (Auditable/SoftDelete) + `ICurrentUserAccessor` **singletons** — they're stateless and read the current user
   lazily from the singleton `IHttpContextAccessor` at SaveChanges time, so pooling is safe. Verified login/
@@ -1031,7 +1033,7 @@ Full-stack audit (4 parallel agents: DB/EF, backend API, frontend, infra) + fixe
   warm-up + monitoring); email channel `Unbounded`→`Bounded(10_000)` (SMTP-outage memory safety).
 - **Ops scripts (run on server):** `deploy/tune-apppool.ps1` (idle-timeout 0 / no periodic recycle /
   AlwaysRunning / preload — kills cold starts) and `deploy/pg-profile.ps1 -Profile High|Low` (seasonal PG memory
-  toggle for the **shared** box: High Sept–Oct, Low rest of year; ALTER SYSTEM + restart). DEPLOYMENT §9b.
+  toggle for the **shared** box: High Sept–Oct, Low rest of year; ALTER SYSTEM + restart). DEPLOYMENT Part 15.
 - **Evaluated + deliberately SKIPPED:** broad settings-cache refactor (hot paths read no settings; the one
   frequent reader already batches; batch handlers must read fresh for txn correctness) and frontend bulk-settings
   (the `GET /settings` list endpoint is admin-only by design — per-key reads stay open to all users). Async
