@@ -6,12 +6,22 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// Read-only audit-log viewer — base route api/v1/audit-logs (overrides the [controller] default).
-// [Authorize] = JWT or API-key required; everything gated by AuditView (admin).
+/// <summary>
+/// Read-only audit-log viewer. Base route api/v1/audit-logs. Requires JWT or API-key auth; every action requires
+/// audit.view (admin).
+/// </summary>
 [Authorize]
 [Route("api/v1/audit-logs")]
 public class AuditLogsController : BaseApiController
 {
+    /// <summary>Lists audit-log entries filtered by entity, action, user and date range, paginated. Requires audit.view.</summary>
+    /// <param name="entityType">Filter to a single audited entity type.</param>
+    /// <param name="action">Filter to a single action (Create, Update, Delete, etc.).</param>
+    /// <param name="userId">Filter to entries produced by this user.</param>
+    /// <param name="from">Lower bound (inclusive) on the entry timestamp.</param>
+    /// <param name="to">Upper bound (inclusive) on the entry timestamp.</param>
+    /// <param name="page">1-based page number.</param>
+    /// <param name="pageSize">Page size.</param>
     [HttpGet]
     [HasPermission(Permissions.AuditView)]
     public async Task<IActionResult> GetAll(
@@ -23,7 +33,7 @@ public class AuditLogsController : BaseApiController
         return Ok(result);
     }
 
-    // /filters — distinct entity types / actions / users to populate the viewer's filter dropdowns.
+    /// <summary>Returns the distinct entity types, actions and users to populate the viewer's filter dropdowns. Requires audit.view.</summary>
     [HttpGet("filters")]
     [HasPermission(Permissions.AuditView)]
     public async Task<IActionResult> GetFilters()

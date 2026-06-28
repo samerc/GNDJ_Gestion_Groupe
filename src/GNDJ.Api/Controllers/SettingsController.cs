@@ -8,13 +8,16 @@ using Microsoft.AspNetCore.OutputCaching;
 
 namespace GNDJ.Api.Controllers;
 
-// Key-value app settings. Route api/v1/settings (from BaseApiController).
-// Most reads/writes need associations.manage (admin); GetByKey is auth-only (any user resolves a single setting).
-// UpdateSetting validates Value against the setting's ValueType and busts the settings + output caches.
-// EXCEPTION: cities is gated by maitrise.manage (CG-curatable) — see the UpdateCities note below.
+/// <summary>
+/// Key-value application settings. Base route api/v1/settings. Requires authentication (JWT or API key).
+/// Most reads/writes need associations.manage (admin); GetByKey is open to any authenticated user.
+/// UpdateSetting validates Value against the setting's ValueType and busts the settings + output caches.
+/// The cities list is an exception, editable with maitrise.manage so a Chef de Groupe can curate it.
+/// </summary>
 [Authorize]
 public class SettingsController : BaseApiController
 {
+    /// <summary>Lists all settings. Requires associations.manage.</summary>
     [HttpGet]
     [HasPermission(Permissions.AssociationsManage)]
     [OutputCache(PolicyName = "LookupData")]
@@ -24,7 +27,11 @@ public class SettingsController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Resolves a single setting by key. Open to any authenticated user.</summary>
+    /// <param name="key">The setting key to look up.</param>
+    /// <response code="404">No setting exists for the given key.</response>
     [HttpGet("{key}")]
+    [ProducesResponseType(404)]
     [OutputCache(PolicyName = "ShortCache")]
     public async Task<IActionResult> GetByKey(string key)
     {
@@ -33,6 +40,10 @@ public class SettingsController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>
+    /// Updates a setting's value (validated against its ValueType) and busts the caches; the route key must match
+    /// the command body's Key. Requires associations.manage.
+    /// </summary>
     [HttpPut("{key}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Update(string key, [FromBody] UpdateSettingCommand command,
@@ -47,8 +58,10 @@ public class SettingsController : BaseApiController
         return NoContent();
     }
 
-    // Managed cities list — editable by a Chef de Groupe (maitrise.manage) as well as super-admin,
-    // unlike the system settings above which require associations.manage.
+    /// <summary>
+    /// Updates the managed cities list and busts the caches. Requires maitrise.manage (Chef de Groupe or super-admin),
+    /// unlike the system settings above which require associations.manage.
+    /// </summary>
     [HttpPut("cities")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> UpdateCities([FromBody] UpdateCitiesCommand command,

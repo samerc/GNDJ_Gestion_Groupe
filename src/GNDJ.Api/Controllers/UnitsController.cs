@@ -9,14 +9,19 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// Units CRUD — base route api/v1/units (from BaseApiController's [controller] convention).
-// [Authorize] = JWT or API-key required; view via UnitsView, writes split across UnitsCreate/Edit/Delete.
+/// <summary>
+/// Units CRUD. Base route api/v1/units. Requires authentication (JWT or API key).
+/// View via units.view; writes split across units.create / units.edit / units.delete.
+/// </summary>
 [Authorize]
 public class UnitsController : BaseApiController
 {
+    /// <summary>
+    /// Lists units (paged), optionally filtered by association, unit type, active state and search term.
+    /// Results are still unit-scoped per caller. Requires units.view.
+    /// </summary>
     [HttpGet]
     [HasPermission(Permissions.UnitsView)]
-    // Optional filters narrow the list (association / unit type / active state); results are still unit-scoped per caller.
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search,
         [FromQuery] Guid? associationId,
@@ -29,7 +34,10 @@ public class UnitsController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Gets a single unit by id. Requires units.view.</summary>
+    /// <response code="404">No unit exists for the given id.</response>
     [HttpGet("{id:guid}")]
+    [ProducesResponseType(404)]
     [HasPermission(Permissions.UnitsView)]
     public async Task<IActionResult> GetById(Guid id)
     {
@@ -38,7 +46,10 @@ public class UnitsController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Creates a unit. Requires units.create.</summary>
+    /// <response code="201">Unit created; returns its id.</response>
     [HttpPost]
+    [ProducesResponseType(201)]
     [HasPermission(Permissions.UnitsCreate)]
     public async Task<IActionResult> Create([FromBody] CreateUnitCommand command)
     {
@@ -47,6 +58,7 @@ public class UnitsController : BaseApiController
         return Created($"/api/v1/units/{result.Value}", new { id = result.Value });
     }
 
+    /// <summary>Updates a unit. Requires units.edit.</summary>
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.UnitsEdit)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUnitCommand command)
@@ -57,6 +69,7 @@ public class UnitsController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Deletes a unit. Requires units.delete.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.UnitsDelete)]
     public async Task<IActionResult> Delete(Guid id)

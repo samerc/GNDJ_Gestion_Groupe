@@ -6,14 +6,16 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// PDF / Excel / CSV report generation (trombinoscope, member cards, roster, export).
-// Route: api/v1/reports. [Authorize] = JWT/API-key. All actions gated on MembersView;
-// every action streams a binary File() response (PDF or spreadsheet), not JSON.
+/// <summary>
+/// PDF / Excel / CSV report generation (trombinoscope, member cards, roster, export), base route <c>api/v1/reports</c>.
+/// Authenticated via JWT or API key; every action requires members.view and streams a binary File response
+/// (PDF or spreadsheet), not JSON.
+/// </summary>
 [Authorize]
 [Route("api/v1/reports")]
 public class ReportsController : BaseApiController
 {
-    // A4/A3 photo grid PDF. POST body carries unit/team/column selection.
+    /// <summary>Generates the trombinoscope PDF (A4/A3 photo grid). Body carries the unit/team/column selection. Requires members.view.</summary>
     [HttpPost("trombinoscope")]
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> Trombinoscope([FromBody] GenerateTrombinoscoreQuery query)
@@ -24,6 +26,7 @@ public class ReportsController : BaseApiController
         return File(result.Value!, "application/pdf", $"Trombinoscope_{DateTime.Now:yyyyMMdd}.pdf");
     }
 
+    /// <summary>Generates a single member's credit-card-sized card PDF. Requires members.view.</summary>
     [HttpGet("member-card/{memberId:guid}")]
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> MemberCard(Guid memberId)
@@ -33,7 +36,7 @@ public class ReportsController : BaseApiController
         return File(result.Value!, "application/pdf", "Carte_Membre.pdf");
     }
 
-    // 10 cards per A4 page (cut lines) for every member of the unit.
+    /// <summary>Generates a bulk member-card PDF (10 cards per A4 page with cut lines) for every member of the unit. Requires members.view.</summary>
     [HttpGet("bulk-cards/{unitId:guid}")]
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> BulkCards(Guid unitId)
@@ -43,6 +46,7 @@ public class ReportsController : BaseApiController
         return File(result.Value!, "application/pdf", $"Cartes_Membres_{DateTime.Now:yyyyMMdd}.pdf");
     }
 
+    /// <summary>Generates the roster PDF (A4 landscape, selectable columns, grouped by team). Requires members.view.</summary>
     [HttpPost("roster")]
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> Roster([FromBody] GenerateRosterQuery query)
@@ -52,7 +56,7 @@ public class ReportsController : BaseApiController
         return File(result.Value!, "application/pdf", $"Liste_{DateTime.Now:yyyyMMdd}.pdf");
     }
 
-    // Excel (.xlsx) or CSV export; format + content-type chosen by the query result.
+    /// <summary>Generates a member data export as an Excel (.xlsx) or CSV file; format and content-type come from the query result. Requires members.view.</summary>
     [HttpPost("export")]
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> Export([FromBody] GenerateExportQuery query)

@@ -6,18 +6,25 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// Admin CMS for news articles (Actualités). All actions require the content.manage permission.
+/// <summary>
+/// Admin CMS for news articles (Actualités). Route api/v1/news. Auth is JWT or API-key.
+/// All actions require the content.manage permission (the public-facing list/article live on PublicController).
+/// </summary>
 [Authorize]
 [Route("api/v1/news")]
 public class NewsController : BaseApiController
 {
+    /// <summary>Lists all news articles for the admin (published and drafts). Requires content.manage.</summary>
     [HttpGet]
     [HasPermission(Permissions.ContentManage)]
     public async Task<IActionResult> GetAll()
         => Ok(await Mediator.Send(new GetNewsPostsAdminQuery()));
 
+    /// <summary>Gets a single news article by id for editing. Requires content.manage.</summary>
+    /// <response code="404">No article with this id.</response>
     [HttpGet("{id:guid}")]
     [HasPermission(Permissions.ContentManage)]
+    [ProducesResponseType(404)]
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await Mediator.Send(new GetNewsPostByIdQuery(id));
@@ -25,8 +32,11 @@ public class NewsController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Creates a news article (auto-slug from title, auto-excerpt from body). Requires content.manage.</summary>
+    /// <response code="201">Article created; body contains the new id.</response>
     [HttpPost]
     [HasPermission(Permissions.ContentManage)]
+    [ProducesResponseType(201)]
     public async Task<IActionResult> Create([FromBody] CreateNewsPostCommand command)
     {
         var result = await Mediator.Send(command);
@@ -34,6 +44,7 @@ public class NewsController : BaseApiController
         return Created($"/api/v1/news/{result.Value}", new { id = result.Value });
     }
 
+    /// <summary>Updates a news article. Requires content.manage.</summary>
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.ContentManage)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateNewsPostCommand command)
@@ -44,6 +55,7 @@ public class NewsController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Deletes a news article. Requires content.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.ContentManage)]
     public async Task<IActionResult> Delete(Guid id)

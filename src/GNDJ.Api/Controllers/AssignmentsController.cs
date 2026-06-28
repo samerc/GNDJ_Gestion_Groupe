@@ -10,11 +10,21 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// Member assignments (member ↔ unit/team/role over a date range) — base route api/v1/assignments.
-// [Authorize] = JWT or API-key required; view via AssignmentsView, writes split across AssignmentsCreate/Edit/Delete.
+/// <summary>
+/// Member assignments (member linked to a unit/team/role over a date range). Base route api/v1/assignments.
+/// Requires JWT or API-key auth; reads require assignments.view, writes split across
+/// assignments.create / assignments.edit / assignments.delete.
+/// </summary>
 [Authorize]
 public class AssignmentsController : BaseApiController
 {
+    /// <summary>Lists assignments with optional filters and pagination. Requires assignments.view.</summary>
+    /// <param name="memberId">Filter to a single member.</param>
+    /// <param name="unitId">Filter to a single unit.</param>
+    /// <param name="teamId">Filter to a single team.</param>
+    /// <param name="isActive">When set, filters to active (true) or ended (false) assignments.</param>
+    /// <param name="page">1-based page number.</param>
+    /// <param name="pageSize">Page size.</param>
     [HttpGet]
     [HasPermission(Permissions.AssignmentsView)]
     public async Task<IActionResult> GetAll(
@@ -25,6 +35,8 @@ public class AssignmentsController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Creates an assignment. Requires assignments.create.</summary>
+    [ProducesResponseType(201)]
     [HttpPost]
     [HasPermission(Permissions.AssignmentsCreate)]
     public async Task<IActionResult> Create([FromBody] CreateAssignmentCommand command)
@@ -34,6 +46,7 @@ public class AssignmentsController : BaseApiController
         return Created($"/api/v1/assignments/{result.Value}", new { id = result.Value });
     }
 
+    /// <summary>Updates an assignment. Requires assignments.edit.</summary>
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.AssignmentsEdit)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateAssignmentCommand command)
@@ -44,7 +57,7 @@ public class AssignmentsController : BaseApiController
         return NoContent();
     }
 
-    // Sub-route /{id}/end — sets the assignment's end date ("Terminer aujourd'hui") rather than full edit/delete.
+    /// <summary>Sets an assignment's end date ("Terminer aujourd'hui") without a full edit. Requires assignments.edit.</summary>
     [HttpPut("{id:guid}/end")]
     [HasPermission(Permissions.AssignmentsEdit)]
     public async Task<IActionResult> End(Guid id, [FromBody] EndAssignmentCommand command)
@@ -55,6 +68,7 @@ public class AssignmentsController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Deletes an assignment. Requires assignments.delete.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.AssignmentsDelete)]
     public async Task<IActionResult> Delete(Guid id)

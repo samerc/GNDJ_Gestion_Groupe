@@ -9,12 +9,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// Unit types (Meute/Troupe/...) CRUD — base route api/v1/unit-types (overrides the [controller] default).
-// [Authorize] = JWT or API-key required; view gated by UnitTypesView, writes by UnitTypesManage.
+/// <summary>
+/// Unit types (Meute/Troupe/...) CRUD. Base route api/v1/unit-types. Requires authentication (JWT or API key).
+/// View gated by unit_types.view; writes by unit_types.manage.
+/// </summary>
 [Authorize]
 [Route("api/v1/unit-types")]
 public class UnitTypesController : BaseApiController
 {
+    /// <summary>Lists unit types (paged), optionally filtered by search term. Requires unit_types.view.</summary>
     [HttpGet]
     [HasPermission(Permissions.UnitTypesView)]
     public async Task<IActionResult> GetAll([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
@@ -23,7 +26,10 @@ public class UnitTypesController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Gets a single unit type by id. Requires unit_types.view.</summary>
+    /// <response code="404">No unit type exists for the given id.</response>
     [HttpGet("{id:guid}")]
+    [ProducesResponseType(404)]
     [HasPermission(Permissions.UnitTypesView)]
     public async Task<IActionResult> GetById(Guid id)
     {
@@ -32,7 +38,10 @@ public class UnitTypesController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Creates a unit type. Requires unit_types.manage.</summary>
+    /// <response code="201">Unit type created; returns its id.</response>
     [HttpPost]
+    [ProducesResponseType(201)]
     [HasPermission(Permissions.UnitTypesManage)]
     public async Task<IActionResult> Create([FromBody] CreateUnitTypeCommand command)
     {
@@ -41,6 +50,7 @@ public class UnitTypesController : BaseApiController
         return Created($"/api/v1/unit-types/{result.Value}", new { id = result.Value });
     }
 
+    /// <summary>Updates a unit type. Requires unit_types.manage.</summary>
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.UnitTypesManage)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUnitTypeCommand command)
@@ -51,6 +61,7 @@ public class UnitTypesController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Deletes a unit type. Requires unit_types.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.UnitTypesManage)]
     public async Task<IActionResult> Delete(Guid id)

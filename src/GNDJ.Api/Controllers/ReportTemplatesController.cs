@@ -6,14 +6,17 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// CG-defined report templates (CU generates reports from them).
-// Route: api/v1/report-templates. [Authorize] = JWT/API-key.
-// Read is MembersView (CUs list templates); write is AssociationsManage (CG-only).
+/// <summary>
+/// CG-defined report templates that CUs generate reports from, base route <c>api/v1/report-templates</c>.
+/// Authenticated via JWT or API key. Reading requires members.view (CUs list templates); writing requires
+/// associations.manage (CG-only).
+/// </summary>
 [Authorize]
 [Route("api/v1/report-templates")]
 public class ReportTemplatesController : BaseApiController
 {
-    // activeOnly=true → only enabled templates (the CU picker); false → all (admin list).
+    /// <summary>Lists report templates. Requires members.view.</summary>
+    /// <param name="activeOnly">When true, returns only enabled templates (the CU picker); otherwise all (admin list).</param>
     [HttpGet]
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> GetAll([FromQuery] bool activeOnly = false)
@@ -22,6 +25,9 @@ public class ReportTemplatesController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Creates a report template. Requires associations.manage.</summary>
+    /// <response code="201">Template created; body carries the new id.</response>
+    [ProducesResponseType(201)]
     [HttpPost]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Create([FromBody] CreateReportTemplateCommand command)
@@ -31,6 +37,7 @@ public class ReportTemplatesController : BaseApiController
         return Created($"/api/v1/report-templates/{result.Value}", new { id = result.Value });
     }
 
+    /// <summary>Updates a report template. Requires associations.manage.</summary>
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateReportTemplateCommand command)
@@ -41,6 +48,7 @@ public class ReportTemplatesController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Deletes a report template. Requires associations.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Delete(Guid id)

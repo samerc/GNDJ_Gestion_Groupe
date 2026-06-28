@@ -8,12 +8,16 @@ namespace GNDJ.Api.Controllers;
 
 // ─── Scout Stages ──────────────────────────
 
-// Scout progression stages (per unit type, ordered). Route api/v1/scout-stages.
-// Read = progression.view, mutate/reorder = progression.manage. Delete archives (IsActive=false) if used, else hard-deletes.
+/// <summary>
+/// Scout progression stages (per unit type, ordered). Route api/v1/scout-stages. Auth is JWT or API-key.
+/// Read requires progression.view; mutate/reorder require progression.manage. Delete archives (IsActive=false) when the stage is used, else hard-deletes.
+/// </summary>
 [Authorize]
 [Route("api/v1/scout-stages")]
 public class ScoutStagesController : BaseApiController
 {
+    /// <summary>Lists scout stages, optionally filtered by unit type. Requires progression.view.</summary>
+    /// <param name="unitTypeId">Optional unit-type filter; omit for all stages.</param>
     [HttpGet]
     [HasPermission(Permissions.ProgressionView)]
     public async Task<IActionResult> GetAll([FromQuery] Guid? unitTypeId)
@@ -22,6 +26,8 @@ public class ScoutStagesController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Lists active stages of a unit type for pickers (ladder view). Requires progression.view.</summary>
+    /// <param name="unitTypeId">Unit type whose stages to list.</param>
     [HttpGet("list")]
     [HasPermission(Permissions.ProgressionView)]
     public async Task<IActionResult> GetList([FromQuery] Guid unitTypeId)
@@ -30,8 +36,11 @@ public class ScoutStagesController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Creates a scout stage (code auto-generated from name if blank). Requires progression.manage.</summary>
+    /// <response code="201">Stage created; body contains the new id.</response>
     [HttpPost]
     [HasPermission(Permissions.ProgressionManage)]
+    [ProducesResponseType(201)]
     public async Task<IActionResult> Create([FromBody] CreateScoutStageCommand command)
     {
         var result = await Mediator.Send(command);
@@ -39,6 +48,7 @@ public class ScoutStagesController : BaseApiController
         return Created($"/api/v1/scout-stages/{result.Value}", new { id = result.Value });
     }
 
+    /// <summary>Updates a scout stage. Requires progression.manage.</summary>
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.ProgressionManage)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateScoutStageCommand command)
@@ -49,6 +59,7 @@ public class ScoutStagesController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Deletes a scout stage, or archives it (IsActive=false) if it is used by any progression. Requires progression.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.ProgressionManage)]
     public async Task<IActionResult> Delete(Guid id)
@@ -58,6 +69,7 @@ public class ScoutStagesController : BaseApiController
         return Ok(new { archived = result.Value });
     }
 
+    /// <summary>Reorders scout stages within a unit type (drag-and-drop). Requires progression.manage.</summary>
     [HttpPut("reorder")]
     [HasPermission(Permissions.ProgressionManage)]
     public async Task<IActionResult> Reorder([FromBody] ReorderScoutStagesCommand command)
@@ -70,12 +82,16 @@ public class ScoutStagesController : BaseApiController
 
 // ─── Badges ────────────────────────────────
 
-// Badges (per unit type, ordered, linked to badge-type stages). Route api/v1/badges.
-// Read = progression.view, mutate/reorder = progression.manage. Delete archives if used, else hard-deletes.
+/// <summary>
+/// Badges (per unit type, ordered, linked to badge-type stages). Route api/v1/badges. Auth is JWT or API-key.
+/// Read requires progression.view; mutate/reorder require progression.manage. Delete archives when the badge is used, else hard-deletes.
+/// </summary>
 [Authorize]
 [Route("api/v1/badges")]
 public class BadgesController : BaseApiController
 {
+    /// <summary>Lists badges, optionally filtered by unit type. Requires progression.view.</summary>
+    /// <param name="unitTypeId">Optional unit-type filter; omit for all badges.</param>
     [HttpGet]
     [HasPermission(Permissions.ProgressionView)]
     public async Task<IActionResult> GetAll([FromQuery] Guid? unitTypeId)
@@ -84,6 +100,8 @@ public class BadgesController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Lists active badges of a unit type for pickers (chip grid). Requires progression.view.</summary>
+    /// <param name="unitTypeId">Unit type whose badges to list.</param>
     [HttpGet("list")]
     [HasPermission(Permissions.ProgressionView)]
     public async Task<IActionResult> GetList([FromQuery] Guid unitTypeId)
@@ -92,8 +110,11 @@ public class BadgesController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Creates a badge (code auto-generated from name if blank). Requires progression.manage.</summary>
+    /// <response code="201">Badge created; body contains the new id.</response>
     [HttpPost]
     [HasPermission(Permissions.ProgressionManage)]
+    [ProducesResponseType(201)]
     public async Task<IActionResult> Create([FromBody] CreateBadgeCommand command)
     {
         var result = await Mediator.Send(command);
@@ -101,6 +122,7 @@ public class BadgesController : BaseApiController
         return Created($"/api/v1/badges/{result.Value}", new { id = result.Value });
     }
 
+    /// <summary>Updates a badge. Requires progression.manage.</summary>
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.ProgressionManage)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateBadgeCommand command)
@@ -111,6 +133,7 @@ public class BadgesController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Deletes a badge, or archives it (IsActive=false) if it is held by any member. Requires progression.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.ProgressionManage)]
     public async Task<IActionResult> Delete(Guid id)
@@ -120,6 +143,7 @@ public class BadgesController : BaseApiController
         return Ok(new { archived = result.Value });
     }
 
+    /// <summary>Reorders badges within a unit type (drag-and-drop). Requires progression.manage.</summary>
     [HttpPut("reorder")]
     [HasPermission(Permissions.ProgressionManage)]
     public async Task<IActionResult> Reorder([FromBody] ReorderBadgesCommand command)
@@ -132,13 +156,15 @@ public class BadgesController : BaseApiController
 
 // ─── Member Progressions ───────────────────
 
-// A member's earned stages/badges. Route api/v1/progressions.
-// Create/Delete = progression.manage; the member-read below is auth-only (handler enforces unit-scope/own-profile).
+/// <summary>
+/// A member's earned stages/badges. Route api/v1/progressions. Auth is JWT or API-key.
+/// Create/Delete require progression.manage; the member-read is auth-only (handler enforces own-profile or unit-scoped access).
+/// </summary>
 [Authorize]
 [Route("api/v1/progressions")]
 public class ProgressionsController : BaseApiController
 {
-    // No permission attribute — handler enforces own-profile or unit-scoped access.
+    /// <summary>Lists a member's progressions (stages/badges earned). Auth-only; handler enforces own-profile or unit-scoped access.</summary>
     [HttpGet("member/{memberId:guid}")]
     public async Task<IActionResult> GetMemberProgressions(Guid memberId)
     {
@@ -147,8 +173,11 @@ public class ProgressionsController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>Records a stage/badge a member earned (date, location, notes). Requires progression.manage.</summary>
+    /// <response code="201">Progression recorded; body contains the new id.</response>
     [HttpPost]
     [HasPermission(Permissions.ProgressionManage)]
+    [ProducesResponseType(201)]
     public async Task<IActionResult> Create([FromBody] CreateMemberProgressionCommand command)
     {
         var result = await Mediator.Send(command);
@@ -156,6 +185,7 @@ public class ProgressionsController : BaseApiController
         return Created($"/api/v1/progressions/{result.Value}", new { id = result.Value });
     }
 
+    /// <summary>Deletes a member progression record. Requires progression.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.ProgressionManage)]
     public async Task<IActionResult> Delete(Guid id)

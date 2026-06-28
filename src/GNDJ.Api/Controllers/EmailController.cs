@@ -6,13 +6,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// Email infrastructure admin: SMTP servers + email templates.
-// Route: api/v1/email. [Authorize] = JWT/API-key. Whole controller gated on AssociationsManage.
+/// <summary>
+/// Email infrastructure admin: SMTP servers and email templates. Base route api/v1/email; requires authentication
+/// (JWT/API-key). Every action requires associations.manage.
+/// </summary>
 [Authorize]
 [Route("api/v1/email")]
 public class EmailController : BaseApiController
 {
-    // SMTP Servers
+    /// <summary>Lists configured SMTP servers. Requires associations.manage.</summary>
     [HttpGet("smtp-servers")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> GetSmtpServers()
@@ -21,7 +23,9 @@ public class EmailController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Creates an SMTP server configuration. Requires associations.manage.</summary>
     [HttpPost("smtp-servers")]
+    [ProducesResponseType(201)]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> CreateSmtpServer([FromBody] CreateSmtpServerCommand command)
     {
@@ -30,6 +34,7 @@ public class EmailController : BaseApiController
         return Created("", new { id = result.Value });
     }
 
+    /// <summary>Updates an SMTP server configuration. Requires associations.manage.</summary>
     [HttpPut("smtp-servers/{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> UpdateSmtpServer(Guid id, [FromBody] UpdateSmtpServerCommand command)
@@ -40,6 +45,7 @@ public class EmailController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Deletes an SMTP server configuration. Requires associations.manage.</summary>
     [HttpDelete("smtp-servers/{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> DeleteSmtpServer(Guid id)
@@ -49,7 +55,10 @@ public class EmailController : BaseApiController
         return NoContent();
     }
 
-    // Sends a live test email through the stored SMTP config to verify credentials/connectivity.
+    /// <summary>
+    /// Sends a live test email through the stored SMTP config to verify credentials/connectivity.
+    /// Requires associations.manage.
+    /// </summary>
     [HttpPost("smtp-servers/{id:guid}/test")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> TestSmtp(Guid id, [FromBody] TestSmtpCommand command)
@@ -60,7 +69,7 @@ public class EmailController : BaseApiController
         return Ok(new { success = true });
     }
 
-    // Email Templates
+    /// <summary>Lists email templates. Requires associations.manage.</summary>
     [HttpGet("templates")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> GetTemplates()
@@ -69,7 +78,10 @@ public class EmailController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Returns a single email template by id. Requires associations.manage.</summary>
+    /// <response code="404">Email template not found.</response>
     [HttpGet("templates/{id:guid}")]
+    [ProducesResponseType(404)]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> GetTemplate(Guid id)
     {
@@ -78,7 +90,9 @@ public class EmailController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Creates an email template. Requires associations.manage.</summary>
     [HttpPost("templates")]
+    [ProducesResponseType(201)]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> CreateTemplate([FromBody] CreateEmailTemplateCommand command)
     {
@@ -87,6 +101,7 @@ public class EmailController : BaseApiController
         return Created("", new { id = result.Value });
     }
 
+    /// <summary>Updates an email template. Requires associations.manage.</summary>
     [HttpPut("templates/{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> UpdateTemplate(Guid id, [FromBody] UpdateEmailTemplateCommand command)
@@ -97,6 +112,7 @@ public class EmailController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Deletes an email template. Requires associations.manage.</summary>
     [HttpDelete("templates/{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> DeleteTemplate(Guid id)

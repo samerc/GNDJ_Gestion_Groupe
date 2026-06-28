@@ -12,14 +12,21 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace GNDJ.Api.Controllers;
 
-// Internal-user (User/Member) authentication: base route api/v1/auth.
-// Mostly anonymous endpoints (register/login/refresh/forgot/reset). login/refresh/change-password are
-// rate-limited via the "auth" policy (per-IP); register/forgot/reset via the abuse-prone "forms" policy.
-// me/logout/change-password require [Authorize]. NOTE: applicant (enrollment portal) auth lives in a
-// SEPARATE controller with its own JWT — this controller never issues applicant tokens.
+/// <summary>
+/// Internal-user (User/Member) authentication — base route <c>api/v1/auth</c>.
+/// </summary>
+/// <remarks>
+/// Mostly anonymous endpoints (register/login/refresh/forgot/reset). login/refresh/change-password are
+/// rate-limited via the "auth" policy (per-IP); register/forgot/reset via the abuse-prone "forms" policy.
+/// me/logout/change-password require authentication. Applicant (enrollment portal) auth lives in a
+/// SEPARATE controller with its own JWT — this one never issues applicant tokens.
+/// </remarks>
 [Route("api/v1/auth")]
 public class AuthController : BaseApiController
 {
+    /// <summary>Create a new internal user + member account.</summary>
+    /// <response code="201">Account created.</response>
+    /// <response code="400">Validation failed, or the email is already in use.</response>
     [HttpPost("register")]
     [EnableRateLimiting("forms")]
     public async Task<IActionResult> Register([FromBody] RegisterCommand command)
@@ -29,6 +36,10 @@ public class AuthController : BaseApiController
         return Created("", result.Value);
     }
 
+    /// <summary>Authenticate and receive a JWT access token + refresh token.</summary>
+    /// <response code="200">Authenticated; returns the token pair, expiry and permissions.</response>
+    /// <response code="401">Invalid email or password.</response>
+    [ProducesResponseType(401)]
     [HttpPost("login")]
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> Login([FromBody] LoginCommand command)
@@ -38,6 +49,10 @@ public class AuthController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>Exchange a valid refresh token for a fresh access/refresh token pair (rotation).</summary>
+    /// <response code="200">New token pair issued.</response>
+    /// <response code="401">Refresh token invalid or expired.</response>
+    [ProducesResponseType(401)]
     [HttpPost("refresh")]
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> Refresh([FromBody] RefreshTokenCommand command)
@@ -47,6 +62,9 @@ public class AuthController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>Sign out: invalidate the current user's stored refresh token.</summary>
+    /// <response code="204">Logged out.</response>
+    /// <response code="401">Not authenticated.</response>
     [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
@@ -56,6 +74,9 @@ public class AuthController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Get the authenticated user's profile, permissions and unit access (drives the UI).</summary>
+    /// <response code="200">Current user info.</response>
+    /// <response code="401">Not authenticated.</response>
     [Authorize]
     [HttpGet("me")]
     public async Task<IActionResult> Me()
@@ -65,6 +86,8 @@ public class AuthController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>Request a password-reset email.</summary>
+    /// <response code="200">Generic confirmation — always returned, never revealing whether the account exists (anti-enumeration).</response>
     [HttpPost("forgot-password")]
     [AllowAnonymous]
     [EnableRateLimiting("forms")]
@@ -75,6 +98,9 @@ public class AuthController : BaseApiController
         return Ok(new { message = "Si un compte existe avec cette adresse, un email de réinitialisation a été envoyé." });
     }
 
+    /// <summary>Set a new password using the reset token from the email link.</summary>
+    /// <response code="200">Password reset.</response>
+    /// <response code="400">Token invalid/expired or the new password fails the strength policy.</response>
     [HttpPost("reset-password")]
     [AllowAnonymous]
     [EnableRateLimiting("forms")]
@@ -85,6 +111,10 @@ public class AuthController : BaseApiController
         return Ok(new { message = "Mot de passe réinitialisé avec succès." });
     }
 
+    /// <summary>Change the authenticated user's password (requires the current one; invalidates other sessions).</summary>
+    /// <response code="200">Password changed.</response>
+    /// <response code="400">Current password wrong, or the new password fails the strength policy.</response>
+    /// <response code="401">Not authenticated.</response>
     [Authorize]
     [HttpPost("change-password")]
     [EnableRateLimiting("auth")]

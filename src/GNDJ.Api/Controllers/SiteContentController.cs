@@ -6,16 +6,21 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// Admin editor for the public site's built-in texts (home, footer, contact). Requires content.manage.
+/// <summary>
+/// Admin editor for the public site's built-in texts (home, footer, contact), base route <c>api/v1/site-content</c>.
+/// Although the site itself is anonymous, these admin endpoints require authentication and the content.manage permission.
+/// </summary>
 [Authorize]
 [Route("api/v1/site-content")]
 public class SiteContentController : BaseApiController
 {
+    /// <summary>Returns the editable site texts. Requires content.manage.</summary>
     [HttpGet]
     [HasPermission(Permissions.ContentManage)]
     public async Task<IActionResult> Get()
         => Ok(await Mediator.Send(new GetSiteContentQuery()));
 
+    /// <summary>Updates the editable site texts. Requires content.manage.</summary>
     [HttpPut]
     [HasPermission(Permissions.ContentManage)]
     public async Task<IActionResult> Update([FromBody] UpdateSiteContentCommand command)

@@ -6,13 +6,20 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace GNDJ.Api.Controllers;
 
-// Image upload for CMS content (news/pages rich text). Upload requires content.manage; serving is
-// anonymous (images are public). Magic-byte validated, path-traversal guarded.
+/// <summary>
+/// Image upload and serving for CMS content (news/pages rich text). Base route api/v1/content/images. Upload
+/// requires content.manage; serving is anonymous (images are public). Files are magic-byte validated and
+/// path-traversal guarded.
+/// </summary>
 [Route("api/v1/content/images")]
 public class ContentImagesController : BaseApiController
 {
     private static readonly string[] Allowed = { "jpg", "jpeg", "png", "webp", "gif" };
 
+    /// <summary>
+    /// Uploads a content image (JPG, PNG, WEBP or GIF, max 5 MB, magic-byte validated) and returns its public URL.
+    /// Requires content.manage. Rate-limited.
+    /// </summary>
     [HttpPost]
     [Authorize]
     [HasPermission(Permissions.ContentManage)]
@@ -52,6 +59,9 @@ public class ContentImagesController : BaseApiController
         return Ok(new { url = $"/api/v1/content/images/{fileName}" });
     }
 
+    /// <summary>Serves a previously uploaded content image by file name. Anonymous.</summary>
+    /// <response code="404">No image with that file name.</response>
+    [ProducesResponseType(404)]
     [HttpGet("{fileName}")]
     [AllowAnonymous]
     public IActionResult Get(string fileName)

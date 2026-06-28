@@ -10,10 +10,12 @@ using System.Text.Json;
 
 namespace GNDJ.Api.Controllers;
 
-// Member document upload / download / review + CU compliance matrix and zip export.
-// Route: api/v1/documents. [Authorize] = JWT/API-key. Mixed auth model: read/upload/download
-// actions have NO permission attribute (members act on their own docs; handlers enforce
-// unit-scope for leaders), while review/delete/matrix use the Documents* permission family.
+/// <summary>
+/// Member document upload / download / review, plus the CU compliance matrix and zip export. Base route
+/// api/v1/documents; requires authentication (JWT/API-key). Mixed auth model: read/upload/download actions have no
+/// permission attribute (members act on their own docs; handlers enforce unit-scope for leaders), while
+/// review/delete/matrix/zip use the documents.* permission family.
+/// </summary>
 [Authorize]
 [Route("api/v1/documents")]
 public class DocumentsController : BaseApiController
@@ -25,6 +27,10 @@ public class DocumentsController : BaseApiController
         _context = context;
     }
 
+    /// <summary>
+    /// Lists a member's documents. Auth-only: members view their own; a unit leader views members in their unit
+    /// (unit-scoped access enforced in the handler).
+    /// </summary>
     // No permission attribute — members can view their own documents.
     // Handler checks unit-scoped access for CU viewing other members.
     [HttpGet("member/{memberId:guid}")]
@@ -35,9 +41,15 @@ public class DocumentsController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>
+    /// Uploads a document file for a member (multipart form). Validates size, extension and magic bytes
+    /// (PDF/JPG/PNG); rate-limited; 20MB hard cap. Auth-only: members upload their own, a CU uploads for members in
+    /// their unit (access enforced in the handler).
+    /// </summary>
     // No permission attribute — members can upload their own documents,
     // CU can upload for members in their unit. Handler checks access.
     [HttpPost("upload")]
+    [ProducesResponseType(201)]
     [EnableRateLimiting("upload")]
     [RequestSizeLimit(20 * 1024 * 1024)] // 20MB hard limit
     public async Task<IActionResult> Upload([FromForm] Guid memberId, [FromForm] Guid documentTypeId,
@@ -124,8 +136,14 @@ public class DocumentsController : BaseApiController
         return Created($"/api/v1/documents/{result.Value}", new { id = result.Value });
     }
 
+    /// <summary>
+    /// Downloads a document as its original file (content type per stored MIME). Path-traversal guarded. Auth-only:
+    /// members can download their own documents.
+    /// </summary>
+    /// <response code="404">Document not found, or the file no longer exists on the server.</response>
     // No permission attribute — members can download their own documents.
     [HttpGet("{id:guid}/download")]
+    [ProducesResponseType(404)]
     public async Task<IActionResult> Download(Guid id)
     {
         var doc = await Mediator.Send(new GetDocumentFileQuery(id));
@@ -141,6 +159,7 @@ public class DocumentsController : BaseApiController
         return File(stream, doc.MimeType, doc.FileName);
     }
 
+    /// <summary>Approves or rejects a document (with optional notes). Requires documents.approve.</summary>
     [HttpPut("{id:guid}/review")]
     [HasPermission(Permissions.DocumentsApprove)]
     public async Task<IActionResult> Review(Guid id, [FromBody] ReviewDocumentCommand command)
@@ -151,6 +170,7 @@ public class DocumentsController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Deletes a member document. Requires documents.delete.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.DocumentsDelete)]
     public async Task<IActionResult> Delete(Guid id)
@@ -160,6 +180,8 @@ public class DocumentsController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Lists documents expiring within the given window. Requires documents.view.</summary>
+    /// <param name="daysAhead">Look-ahead window in days (default 30).</param>
     [HttpGet("expiring")]
     [HasPermission(Permissions.DocumentsView)]
     public async Task<IActionResult> GetExpiring([FromQuery] int daysAhead = 30)
@@ -168,7 +190,10 @@ public class DocumentsController : BaseApiController
         return Ok(result);
     }
 
-    // CU compliance matrix: members x doc types (+ cotisation) for the scout year.
+    /// <summary>
+    /// Returns the CU compliance matrix (members by document types, plus cotisation) for a unit and scout year.
+    /// Requires documents.view.
+    /// </summary>
     [HttpGet("unit/{unitId:guid}/matrix")]
     [HasPermission(Permissions.DocumentsView)]
     public async Task<IActionResult> GetUnitMatrix(Guid unitId, [FromQuery] string scoutYear = "2025-2026")
@@ -178,8 +203,13 @@ public class DocumentsController : BaseApiController
         return Ok(result.Value);
     }
 
-    // Streams a zip of the unit's documents (optionally filtered by doc type), organized into
-    // MemberName/DocTypeName folders. Each file re-checked against the uploads root (traversal guard).
+    /// <summary>
+    /// Returns a zip file of the unit's documents (optionally filtered by doc type), organized into
+    /// MemberName/DocTypeName folders. Each file is re-checked against the uploads root (traversal guard).
+    /// Requires documents.view.
+    /// </summary>
+    /// <param name="unitId">The unit whose documents to export.</param>
+    /// <param name="docTypeId">Optional document type filter; when omitted, all the unit's documents are included.</param>
     [HttpGet("unit/{unitId:guid}/zip")]
     [HasPermission(Permissions.DocumentsView)]
     public async Task<IActionResult> DownloadZip(Guid unitId, [FromQuery] Guid? docTypeId)

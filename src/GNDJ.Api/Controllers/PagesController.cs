@@ -6,18 +6,25 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// Admin CMS for static content pages (Le Groupe / À propos…). Requires content.manage.
+/// <summary>
+/// Admin CMS for static content pages (Le Groupe / À propos…). Route api/v1/pages. Auth is JWT or API-key.
+/// Pages support a one-level parent/child hierarchy and a draggable display order; all actions require content.manage.
+/// </summary>
 [Authorize]
 [Route("api/v1/pages")]
 public class PagesController : BaseApiController
 {
+    /// <summary>Lists all content pages for the admin (the nested tree). Requires content.manage.</summary>
     [HttpGet]
     [HasPermission(Permissions.ContentManage)]
     public async Task<IActionResult> GetAll()
         => Ok(await Mediator.Send(new GetPagesAdminQuery()));
 
+    /// <summary>Gets a single content page by id for editing. Requires content.manage.</summary>
+    /// <response code="404">No page with this id.</response>
     [HttpGet("{id:guid}")]
     [HasPermission(Permissions.ContentManage)]
+    [ProducesResponseType(404)]
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await Mediator.Send(new GetPageByIdQuery(id));
@@ -25,8 +32,11 @@ public class PagesController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Creates a content page (auto-slug from title). Requires content.manage.</summary>
+    /// <response code="201">Page created; body contains the new id.</response>
     [HttpPost]
     [HasPermission(Permissions.ContentManage)]
+    [ProducesResponseType(201)]
     public async Task<IActionResult> Create([FromBody] CreatePageCommand command)
     {
         var result = await Mediator.Send(command);
@@ -34,6 +44,7 @@ public class PagesController : BaseApiController
         return Created($"/api/v1/pages/{result.Value}", new { id = result.Value });
     }
 
+    /// <summary>Updates a content page. Requires content.manage.</summary>
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.ContentManage)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePageCommand command)
@@ -44,6 +55,7 @@ public class PagesController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Deletes a content page. Requires content.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.ContentManage)]
     public async Task<IActionResult> Delete(Guid id)
@@ -53,6 +65,7 @@ public class PagesController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Reorders pages within their parent (drag-and-drop display order). Requires content.manage.</summary>
     [HttpPut("reorder")]
     [HasPermission(Permissions.ContentManage)]
     public async Task<IActionResult> Reorder([FromBody] ReorderPagesCommand command)

@@ -6,13 +6,18 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// Parcours scouts: the group-wide path between unit types (drives passage suggestions). Route api/v1/unit-type-progressions.
-// Read = unit_types.view, mutate = unit_types.manage. suggest/{memberId} + destinations/{memberId} feed the passage
-// propose dialog (allowed targets for a member) and are gated by passage.propose instead of the controller default.
+/// <summary>
+/// Parcours scouts: the group-wide path between unit types (drives passage suggestions).
+/// Base route api/v1/unit-type-progressions. Requires authentication (JWT or API key).
+/// Read needs unit_types.view, mutate needs unit_types.manage; the suggest and destinations
+/// endpoints feed the passage propose dialog and instead require passage.propose.
+/// </summary>
 [Authorize]
 [Route("api/v1/unit-type-progressions")]
 public class UnitTypeProgressionsController : BaseApiController
 {
+    /// <summary>Lists progression paths. Requires unit_types.view.</summary>
+    /// <param name="associationId">Optional; paths are group-wide now, kept for backward compatibility.</param>
     [HttpGet]
     [HasPermission(Permissions.UnitTypesView)]
     public async Task<IActionResult> Get([FromQuery] Guid? associationId)
@@ -22,6 +27,7 @@ public class UnitTypeProgressionsController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Suggests the passage destination for a member based on the parcours. Requires passage.propose.</summary>
     [HttpGet("suggest/{memberId:guid}")]
     [HasPermission(Permissions.PassagePropose)]
     public async Task<IActionResult> GetSuggestion(Guid memberId)
@@ -31,7 +37,10 @@ public class UnitTypeProgressionsController : BaseApiController
         return Ok(result.Value);
     }
 
-    // All allowed passage destinations (current branch + parcours-scout targets) for the propose dialog.
+    /// <summary>
+    /// Returns all allowed passage destinations (current branch + parcours-scout targets) for the propose dialog.
+    /// Requires passage.propose.
+    /// </summary>
     [HttpGet("destinations/{memberId:guid}")]
     [HasPermission(Permissions.PassagePropose)]
     public async Task<IActionResult> GetDestinations(Guid memberId)
@@ -41,7 +50,10 @@ public class UnitTypeProgressionsController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>Creates a progression path. Requires unit_types.manage.</summary>
+    /// <response code="201">Path created; returns its id.</response>
     [HttpPost]
+    [ProducesResponseType(201)]
     [HasPermission(Permissions.UnitTypesManage)]
     public async Task<IActionResult> Create([FromBody] CreateUnitTypeProgressionCommand command)
     {
@@ -50,6 +62,7 @@ public class UnitTypeProgressionsController : BaseApiController
         return Created($"/api/v1/unit-type-progressions/{result.Value}", new { id = result.Value });
     }
 
+    /// <summary>Updates a progression path. Requires unit_types.manage.</summary>
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.UnitTypesManage)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUnitTypeProgressionCommand command)
@@ -60,6 +73,7 @@ public class UnitTypeProgressionsController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Deletes a progression path. Requires unit_types.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.UnitTypesManage)]
     public async Task<IActionResult> Delete(Guid id)

@@ -21,12 +21,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Api.Controllers;
 
-// Members resource (CRUD + contacts + photos + password reset); base route api/v1/members.
-// [Authorize] + per-action members.* permissions. Unit-scoping/IDOR is enforced in the query/command
-// handlers, NOT here: a non-super-admin only sees/edits members with an ACTIVE assignment in one of their
-// authorized units (or their own record). GetAll has list filters incl. ?alumni=true (former members,
-// identity-only — contact withheld) and ?unitId/?teamId/?noUnit/?search/?sort. Photo upload/serve and the
-// reset-password endpoint carry their own access/validation notes inline below.
+/// <summary>
+/// Members resource (CRUD plus contacts, photos and password reset). Base route api/v1/members. Auth is JWT or API-key.
+/// Per-action members.* permissions apply. Unit-scoping/IDOR is enforced in the query/command handlers, not here: a
+/// non-super-admin only sees/edits members with an ACTIVE assignment in one of their authorized units (or their own
+/// record). GetAll has list filters including alumni=true (former members, identity-only — contact withheld) plus
+/// unitId/teamId/noUnit/search/sort. Photo upload/serve and reset-password carry their own access/validation notes.
+/// </summary>
 [Authorize]
 public class MembersController : BaseApiController
 {
@@ -36,6 +37,14 @@ public class MembersController : BaseApiController
     {
         _context = context;
     }
+    /// <summary>Lists members (paged), scoped to authorized units. Requires members.view.</summary>
+    /// <param name="search">Optional name search (accent-insensitive).</param>
+    /// <param name="unitId">Optional unit filter.</param>
+    /// <param name="teamId">Optional team filter.</param>
+    /// <param name="noUnit">When true, returns members with no active assignment.</param>
+    /// <param name="alumni">When true, returns former members (identity only; contact withheld).</param>
+    /// <param name="sortBy">Optional sort column.</param>
+    /// <param name="sortDir">Optional sort direction (asc/desc).</param>
     [HttpGet]
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> GetAll(
@@ -47,8 +56,11 @@ public class MembersController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Gets a member's full profile. Requires members.view; own profile or members in authorized units.</summary>
+    /// <response code="404">No accessible member with this id.</response>
     [HttpGet("{id:guid}")]
     [HasPermission(Permissions.MembersView)]
+    [ProducesResponseType(404)]
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await Mediator.Send(new GetMemberByIdQuery(id));
@@ -56,8 +68,11 @@ public class MembersController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Creates a member (auto card number; optionally an auto user account). Requires members.create.</summary>
+    /// <response code="201">Member created; body contains the created member.</response>
     [HttpPost]
     [HasPermission(Permissions.MembersCreate)]
+    [ProducesResponseType(201)]
     public async Task<IActionResult> Create([FromBody] CreateMemberCommand command)
     {
         var result = await Mediator.Send(command);
@@ -65,6 +80,7 @@ public class MembersController : BaseApiController
         return Created($"/api/v1/members/{result.Value!.MemberId}", result.Value);
     }
 
+    /// <summary>Updates a member. Requires members.edit; own profile or members in authorized units.</summary>
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateMemberCommand command)
@@ -75,8 +91,11 @@ public class MembersController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Soft-deletes a member. Requires members.delete.</summary>
+    /// <response code="404">No member with this id.</response>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.MembersDelete)]
+    [ProducesResponseType(404)]
     public async Task<IActionResult> Delete(Guid id)
     {
         var result = await Mediator.Send(new DeleteMemberCommand(id));
@@ -89,10 +108,14 @@ public class MembersController : BaseApiController
         return NoContent();
     }
 
-    // Leader/CG resets a member's password → generates a temp password (returned once in the body).
-    // Handler additionally requires super-admin OR an active-unit-leader of the member; 404 if no user account.
+    /// <summary>
+    /// Leader/CG resets a member's password, generating a temp password (returned once in the body). Requires members.edit;
+    /// handler additionally requires super-admin OR an active-unit-leader of the member.
+    /// </summary>
+    /// <response code="404">The member has no user account.</response>
     [HttpPost("{id:guid}/reset-password")]
     [HasPermission(Permissions.MembersEdit)]
+    [ProducesResponseType(404)]
     public async Task<IActionResult> ResetPassword(Guid id)
     {
         var result = await Mediator.Send(new ResetMemberPasswordCommand(id));
@@ -107,8 +130,11 @@ public class MembersController : BaseApiController
 
     // --- Contact endpoints ---
 
+    /// <summary>Adds a phone number to a member. Requires members.edit.</summary>
+    /// <response code="201">Phone added; body contains the new id.</response>
     [HttpPost("{memberId:guid}/phones")]
     [HasPermission(Permissions.MembersEdit)]
+    [ProducesResponseType(201)]
     public async Task<IActionResult> AddPhone(Guid memberId, [FromBody] AddPhoneCommand command)
     {
         if (memberId != command.MemberId) return BadRequest(new { error = "L'identifiant ne correspond pas." });
@@ -117,6 +143,7 @@ public class MembersController : BaseApiController
         return Created("", new { id = result.Value });
     }
 
+    /// <summary>Deletes a member phone number. Requires members.edit.</summary>
     [HttpDelete("phones/{phoneId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> DeletePhone(Guid phoneId)
@@ -126,8 +153,11 @@ public class MembersController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Adds an email address to a member. Requires members.edit.</summary>
+    /// <response code="201">Email added; body contains the new id.</response>
     [HttpPost("{memberId:guid}/emails")]
     [HasPermission(Permissions.MembersEdit)]
+    [ProducesResponseType(201)]
     public async Task<IActionResult> AddEmail(Guid memberId, [FromBody] AddEmailCommand command)
     {
         if (memberId != command.MemberId) return BadRequest(new { error = "L'identifiant ne correspond pas." });
@@ -136,6 +166,7 @@ public class MembersController : BaseApiController
         return Created("", new { id = result.Value });
     }
 
+    /// <summary>Deletes a member email address. Requires members.edit.</summary>
     [HttpDelete("emails/{emailId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> DeleteEmail(Guid emailId)
@@ -145,8 +176,11 @@ public class MembersController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Adds an address to a member. Requires members.edit.</summary>
+    /// <response code="201">Address added; body contains the new id.</response>
     [HttpPost("{memberId:guid}/addresses")]
     [HasPermission(Permissions.MembersEdit)]
+    [ProducesResponseType(201)]
     public async Task<IActionResult> AddAddress(Guid memberId, [FromBody] AddAddressCommand command)
     {
         if (memberId != command.MemberId) return BadRequest(new { error = "L'identifiant ne correspond pas." });
@@ -155,6 +189,7 @@ public class MembersController : BaseApiController
         return Created("", new { id = result.Value });
     }
 
+    /// <summary>Deletes a member address. Requires members.edit.</summary>
     [HttpDelete("addresses/{addressId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> DeleteAddress(Guid addressId)
@@ -164,6 +199,7 @@ public class MembersController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Updates a member phone number. Requires members.edit.</summary>
     [HttpPut("phones/{phoneId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> UpdatePhone(Guid phoneId, [FromBody] UpdatePhoneCommand command)
@@ -174,6 +210,7 @@ public class MembersController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Updates a member email address. Requires members.edit.</summary>
     [HttpPut("emails/{emailId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> UpdateEmail(Guid emailId, [FromBody] UpdateEmailCommand command)
@@ -184,6 +221,7 @@ public class MembersController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Updates a member address. Requires members.edit.</summary>
     [HttpPut("addresses/{addressId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> UpdateAddress(Guid addressId, [FromBody] UpdateAddressCommand command)
@@ -196,12 +234,15 @@ public class MembersController : BaseApiController
 
     // --- Photo endpoints ---
 
-    // Photo upload — this action does its own access check + JPG/PNG magic-byte validation (handler-less,
-    // talks to the DbContext directly). Access: super-admin, the member themselves, or a leader of one of the
-    // member's ACTIVE units. File saved as {memberId}.{ext} under uploads/photos (old photo deleted).
+    /// <summary>
+    /// Uploads a member photo (JPG/PNG, max 5MB; magic-byte validated, saved under uploads/photos, old photo replaced).
+    /// Requires members.edit; access is super-admin, the member themselves, or a leader of one of the member's ACTIVE units.
+    /// </summary>
+    /// <response code="404">No member with this id.</response>
     [HttpPost("{memberId:guid}/photo")]
     [HasPermission(Permissions.MembersEdit)]
     [RequestSizeLimit(5 * 1024 * 1024)] // 5MB
+    [ProducesResponseType(404)]
     public async Task<IActionResult> UploadPhoto(Guid memberId, IFormFile file, [FromServices] ICurrentUserService currentUser)
     {
         if (file is null || file.Length == 0)
@@ -268,9 +309,13 @@ public class MembersController : BaseApiController
         return Ok(new { photoPath = member.PhotoPath });
     }
 
-    // Serves the member photo (PhysicalFile). Auth-only — no members.view nor unit-scope check (TODO:
-    // unit-scope this); path-traversal guarded via GetFullPath + StartsWith(uploadsRoot).
+    /// <summary>
+    /// Serves a member's photo file. Auth-only (no members.view nor unit-scope check; TODO unit-scope this);
+    /// path-traversal guarded via GetFullPath + StartsWith(uploadsRoot).
+    /// </summary>
+    /// <response code="404">The member has no photo or the file is missing.</response>
     [HttpGet("{memberId:guid}/photo")]
+    [ProducesResponseType(404)]
     public async Task<IActionResult> GetPhoto(Guid memberId)
     {
         var member = await _context.Members.FindAsync(memberId);

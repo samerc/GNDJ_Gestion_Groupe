@@ -4,6 +4,13 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Emit the XML doc file so .NET 10's OpenAPI generator surfaces controller/action
+         <summary>/<param>/<response> comments in the Swagger spec.
+         Suppressed (CS1570 — malformed XML — is intentionally NOT suppressed):
+           1591 = "missing XML comment on public member" (we don't document every trivial member),
+           1573 = "parameter has no matching param tag" (we document only non-obvious params). -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591;1573</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

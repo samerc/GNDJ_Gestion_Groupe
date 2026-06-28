@@ -6,12 +6,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// Leadership (maîtrise) members grouped by unit. Route api/v1/maitrises.
-// CG/super-admin only (maitrise.manage) — Get lists the hierarchy; Remove ends a leadership function; Transfer moves a leader to another unit.
+/// <summary>
+/// Leadership (maîtrise) members grouped by unit. Route api/v1/maitrises.
+/// CG/super-admin only (maitrise.manage). Auth is JWT or API-key.
+/// </summary>
 [Authorize]
 [Route("api/v1/maitrises")]
 public class MaitrisesController : BaseApiController
 {
+    /// <summary>Lists the leadership hierarchy grouped by unit. Requires maitrise.manage.</summary>
     [HttpGet]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> Get()
@@ -20,6 +23,7 @@ public class MaitrisesController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Ends a member's leadership function, removing them from the maîtrise. Requires maitrise.manage.</summary>
     [HttpPost("remove")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> Remove([FromBody] RemoveFromMaitriseCommand command)
@@ -29,6 +33,7 @@ public class MaitrisesController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Transfers a leader to another unit, assigning a new function there (keep-both or close-old). Requires maitrise.manage.</summary>
     [HttpPost("transfer")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> Transfer([FromBody] TransferMaitriseCommand command)

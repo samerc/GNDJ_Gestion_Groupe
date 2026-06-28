@@ -6,12 +6,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// External API-key management — base route api/v1/api-keys (overrides the [controller] default).
-// [Authorize] = JWT or API-key required; every action gated by AssociationsManage (no dedicated key family — admin-only).
+/// <summary>
+/// External API-key management. Base route api/v1/api-keys. Requires JWT or API-key auth; every action is
+/// admin-only (requires associations.manage).
+/// </summary>
 [Authorize]
 [Route("api/v1/api-keys")]
 public class ApiKeysController : BaseApiController
 {
+    /// <summary>Lists all API keys (hashes withheld). Requires associations.manage.</summary>
     [HttpGet]
     [HasPermission(Permissions.AssociationsManage)] // Admin-only
     public async Task<IActionResult> GetAll()
@@ -20,6 +23,11 @@ public class ApiKeysController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>
+    /// Creates an API key and returns the plaintext key once (only the hash is stored thereafter).
+    /// Requires associations.manage.
+    /// </summary>
+    [ProducesResponseType(201)]
     [HttpPost]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Create([FromBody] CreateApiKeyCommand command)
@@ -30,7 +38,10 @@ public class ApiKeysController : BaseApiController
 
     }
 
-    // /{id}/toggle — flips active state; returns the new isActive (not 204) so the UI can reflect it without a refetch.
+    /// <summary>
+    /// Toggles the key's active state and returns the new isActive value (so the UI can reflect it without a refetch).
+    /// Requires associations.manage.
+    /// </summary>
     [HttpPut("{id:guid}/toggle")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Toggle(Guid id)
@@ -40,6 +51,7 @@ public class ApiKeysController : BaseApiController
         return Ok(new { isActive = result.Value });
     }
 
+    /// <summary>Deletes an API key. Requires associations.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Delete(Guid id)

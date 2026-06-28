@@ -160,6 +160,32 @@ builder.Services.AddOpenApi(options =>
 
         return Task.CompletedTask;
     });
+
+    // Document the common error responses on every operation, derived from its metadata — so we don't
+    // have to scatter [ProducesResponseType] across ~150 endpoints. A body-bound write can return 400
+    // (FluentValidation), an authenticated endpoint 401, and a permission-gated one 403. Per-action XML
+    // <summary>/<response> comments still provide the human descriptions on top of this.
+    options.AddOperationTransformer((operation, context, _) =>
+    {
+        var metadata = context.Description.ActionDescriptor.EndpointMetadata;
+        var isAnonymous = metadata.OfType<Microsoft.AspNetCore.Authorization.IAllowAnonymous>().Any();
+        var authorizeData = metadata.OfType<Microsoft.AspNetCore.Authorization.IAuthorizeData>().ToList();
+        var requiresAuth = !isAnonymous && authorizeData.Count > 0;
+        var requiresPermission = requiresAuth && authorizeData.Any(a => a.Policy is not null && a.Policy.StartsWith("Permission:"));
+        var hasBody = context.Description.ParameterDescriptions.Any(p => p.Source == Microsoft.AspNetCore.Mvc.ModelBinding.BindingSource.Body);
+
+        operation.Responses ??= new Microsoft.OpenApi.OpenApiResponses();
+        void EnsureResponse(string code, string description)
+        {
+            if (!operation.Responses.ContainsKey(code))
+                operation.Responses[code] = new Microsoft.OpenApi.OpenApiResponse { Description = description };
+        }
+
+        if (hasBody) EnsureResponse("400", "Requête invalide (échec de validation).");
+        if (requiresAuth) EnsureResponse("401", "Authentification requise ou jeton invalide / expiré.");
+        if (requiresPermission) EnsureResponse("403", "Permission insuffisante pour cette action.");
+        return Task.CompletedTask;
+    });
 });
 
 // CORS for React dev server

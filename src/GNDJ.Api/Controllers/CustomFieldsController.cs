@@ -6,13 +6,16 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// Admin-defined custom member fields (definitions) + their per-member values.
-// Route: api/v1/custom-fields. [Authorize] = JWT/API-key required.
-// Field DEFINITIONS are gated on AssociationsManage; per-member VALUES on Members view/edit.
+/// <summary>
+/// Admin-defined custom member field definitions and their per-member values. Base route api/v1/custom-fields;
+/// requires authentication (JWT/API-key). Field definitions are gated on associations.manage; per-member values
+/// on members.view / members.edit.
+/// </summary>
 [Authorize]
 [Route("api/v1/custom-fields")]
 public class CustomFieldsController : BaseApiController
 {
+    /// <summary>Lists all custom field definitions. Requires associations.manage.</summary>
     [HttpGet]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> GetAll()
@@ -21,6 +24,7 @@ public class CustomFieldsController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Lists active custom field definitions. Auth-only — needed by any member form (e.g. Ma fiche).</summary>
     // No permission attribute — active field defs needed by any member form (e.g. Ma fiche).
     [HttpGet("active")]
     public async Task<IActionResult> GetActive()
@@ -29,7 +33,9 @@ public class CustomFieldsController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Creates a custom field definition. Requires associations.manage.</summary>
     [HttpPost]
+    [ProducesResponseType(201)]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Create([FromBody] CreateCustomFieldCommand command)
     {
@@ -38,6 +44,7 @@ public class CustomFieldsController : BaseApiController
         return Created($"/api/v1/custom-fields/{result.Value}", new { id = result.Value });
     }
 
+    /// <summary>Updates a custom field definition. Requires associations.manage.</summary>
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCustomFieldCommand command)
@@ -48,6 +55,7 @@ public class CustomFieldsController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Deletes a custom field definition. Requires associations.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Delete(Guid id)
@@ -57,6 +65,7 @@ public class CustomFieldsController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Lists a member's custom field values. Requires members.view.</summary>
     [HttpGet("member/{memberId:guid}")]
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> GetMemberValues(Guid memberId)
@@ -65,6 +74,7 @@ public class CustomFieldsController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Sets (creates or updates) a member's value for a custom field. Requires members.edit.</summary>
     [HttpPut("member/{memberId:guid}/{customFieldId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> SetValue(Guid memberId, Guid customFieldId, [FromBody] SetValueRequest request)
@@ -74,6 +84,7 @@ public class CustomFieldsController : BaseApiController
         return Ok(new { id = result.Value });
     }
 
+    /// <summary>Deletes a member's custom field value. Requires members.edit.</summary>
     [HttpDelete("values/{id:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> DeleteValue(Guid id)
