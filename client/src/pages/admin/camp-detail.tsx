@@ -25,6 +25,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
 export default function CampDetailPage() {
@@ -268,7 +269,7 @@ function FamilleColumn({ campId, f, label, onEditLeaders }: { campId: string; f:
             <span className="text-muted-foreground">P:</span> <b>{f.pereName ?? '—'}</b>
             <span className="ml-1 text-muted-foreground">M:</span> <b>{f.mereName ?? '—'}</b>
           </button>
-          <Button variant="outline" size="icon" className="h-7 w-7" title="Imprimer cette famille" onClick={() => printFamille(campId, f.number).catch(() => toast.error('Erreur'))}><Printer className="h-3.5 w-3.5" /></Button>
+          <Tip content="Imprimer la famille (PDF)"><Button variant="outline" size="icon" className="h-7 w-7" onClick={() => printFamille(campId, f.number).catch(() => toast.error('Erreur'))}><Printer className="h-3.5 w-3.5" /></Button></Tip>
         </div>
       </div>
       <div className="max-h-[60vh] space-y-1 overflow-y-auto p-2">
@@ -363,7 +364,7 @@ function GamesTab({ campId }: { campId: string }) {
     <div className="max-w-2xl space-y-3">
       <div className="flex gap-2">
         <Input value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') add() }} placeholder="Nom du jeu / étape…" />
-        <Button onClick={add}><Plus className="h-4 w-4" /></Button>
+        <Tip content="Ajouter"><Button onClick={add}><Plus className="h-4 w-4" /></Button></Tip>
       </div>
       {(games ?? []).length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Aucun jeu.</p> :
         <div className="space-y-2">{games!.map(g => (
@@ -372,7 +373,7 @@ function GamesTab({ campId }: { campId: string }) {
               <p className="font-medium">{g.name}</p>
               <div className="flex gap-1">
                 <Button variant="outline" size="sm" onClick={() => setEtapisteFor(g)}><Users className="mr-1 h-3.5 w-3.5" />Étapistes ({g.etapistes.length})</Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => del.mutate(g.id)}><Trash2 className="h-4 w-4" /></Button>
+                <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => del.mutate(g.id)}><Trash2 className="h-4 w-4" /></Button></Tip>
               </div>
             </div>
             {g.etapistes.length > 0 && <p className="mt-1 text-xs text-muted-foreground">{g.etapistes.map(e => `${e.firstName} ${e.lastName}`).join(', ')}</p>}

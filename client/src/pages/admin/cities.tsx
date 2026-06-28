@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 import { Plus, X, Search, MapPin, Pencil, Check } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
 // Accent/case-insensitive key for dedup + filtering (strips diacritics via NFD).
@@ -89,12 +90,12 @@ export default function CitiesAdminPage() {
         <div className="flex gap-2 sm:max-w-sm sm:flex-1">
           <Input value={draft} onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCity() } }} placeholder="Ajouter une ville…" />
-          <Button type="button" variant="outline" onClick={addCity}><Plus className="h-4 w-4" /></Button>
+          <Tip content="Ajouter la ville"><Button type="button" variant="outline" onClick={addCity}><Plus className="h-4 w-4" /></Button></Tip>
         </div>
         <div className="relative sm:max-w-xs sm:flex-1">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filtrer…" className="pl-8 pr-8" />
-          {filter && <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setFilter('')}><X className="h-3.5 w-3.5" /></button>}
+          {filter && <Tip content="Effacer"><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setFilter('')}><X className="h-3.5 w-3.5" /></button></Tip>}
         </div>
         <span className="flex items-center text-xs text-muted-foreground">
           {cities.length} ville{cities.length > 1 ? 's' : ''}{dirty && ' · non enregistré'}
@@ -117,13 +118,13 @@ export default function CitiesAdminPage() {
                         <Input autoFocus value={editDraft} onChange={(e) => setEditDraft(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') saveRename(); if (e.key === 'Escape') setEditing(null) }}
                           onBlur={saveRename} className="h-7 text-sm" />
-                        <button type="button" className="text-emerald-600" onMouseDown={(e) => e.preventDefault()} onClick={saveRename}><Check className="h-4 w-4" /></button>
+                        <Tip content="Enregistrer"><button type="button" className="text-emerald-600" onMouseDown={(e) => e.preventDefault()} onClick={saveRename}><Check className="h-4 w-4" /></button></Tip>
                       </div>
                     ) : (
                       <>
                         <span className="flex-1 truncate">{city}</span>
-                        <button type="button" className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100" title="Renommer" onClick={() => startRename(city)}><Pencil className="h-3.5 w-3.5" /></button>
-                        <button type="button" className={cn('text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100')} title="Retirer" onClick={() => removeCity(city)}><X className="h-3.5 w-3.5" /></button>
+                        <Tip content="Renommer"><button type="button" className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100" onClick={() => startRename(city)}><Pencil className="h-3.5 w-3.5" /></button></Tip>
+                        <Tip content="Retirer"><button type="button" className={cn('text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100')} onClick={() => removeCity(city)}><X className="h-3.5 w-3.5" /></button></Tip>
                       </>
                     )}
                   </div>

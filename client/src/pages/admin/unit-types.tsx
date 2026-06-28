@@ -17,6 +17,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Plus, Pencil, Trash2, Search, FolderTree } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
 export default function UnitTypesPage() {
@@ -148,12 +149,12 @@ export default function UnitTypesPage() {
                     <TableCell className="text-center">{item.unitCount}</TableCell>
                     <TableCell>
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
+                        <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
                           <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleting(item)}>
+                        </Button></Tip>
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(item)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        </Button></Tip>
                       </div>
                     </TableCell>
                   </TableRow>

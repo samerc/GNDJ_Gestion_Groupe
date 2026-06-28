@@ -20,6 +20,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { useMembers } from '@/services/member-service'
 import { ArrowLeft, Plus, Pencil, Trash2, UsersRound, ChevronDown, ChevronUp } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
 interface UnitDetail {
@@ -124,7 +125,7 @@ export default function UnitDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/units')}><ArrowLeft className="h-5 w-5" /></Button>
+          <Tip content="Retour"><Button variant="ghost" size="icon" onClick={() => navigate('/units')}><ArrowLeft className="h-5 w-5" /></Button></Tip>
           <div>
             <h1 className="text-2xl font-bold">{unit.name}</h1>
             <p className="text-sm text-muted-foreground">{unit.associationName ?? 'Inter-associations'} — {unit.unitTypeName} — Code: {unit.code}</p>
@@ -191,8 +192,8 @@ export default function UnitDetailPage() {
                   >
                     {!team.isMaitrise && (
                       <div className="flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
-                        <button className="text-muted-foreground hover:text-foreground p-0.5" onClick={() => handleMoveTeam(team.id, -1)} title="Monter"><ChevronUp className="h-3.5 w-3.5" /></button>
-                        <button className="text-muted-foreground hover:text-foreground p-0.5" onClick={() => handleMoveTeam(team.id, 1)} title="Descendre"><ChevronDown className="h-3.5 w-3.5" /></button>
+                        <Tip content="Monter"><button className="text-muted-foreground hover:text-foreground p-0.5" onClick={() => handleMoveTeam(team.id, -1)}><ChevronUp className="h-3.5 w-3.5" /></button></Tip>
+                        <Tip content="Descendre"><button className="text-muted-foreground hover:text-foreground p-0.5" onClick={() => handleMoveTeam(team.id, 1)}><ChevronDown className="h-3.5 w-3.5" /></button></Tip>
                       </div>
                     )}
                     <div className="flex items-center gap-2">
@@ -215,12 +216,12 @@ export default function UnitDetailPage() {
                     </div>
                     <div className="flex gap-1 items-center">
                       {expandedTeam === team.id ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(team) }}>
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(team) }}>
                         <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setDeleting(team) }}>
+                      </Button></Tip>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setDeleting(team) }}>
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
+                      </Button></Tip>
                     </div>
                   </div>
                   {expandedTeam === team.id && (

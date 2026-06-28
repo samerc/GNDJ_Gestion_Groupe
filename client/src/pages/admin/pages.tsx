@@ -23,6 +23,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { Tip } from '@/components/ui/tooltip'
 import { Plus, Pencil, Trash2, FileText, GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -35,15 +36,15 @@ function PageRowInner({ page, onEdit, onDelete }: { page: PageAdmin; onEdit: (p:
   return (
     <div ref={setNodeRef} style={style}>
       <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2.5">
-        <button type="button" className="cursor-grab text-muted-foreground hover:text-foreground" {...attributes} {...listeners}><GripVertical className="h-4 w-4" /></button>
+        <Tip content="Glisser pour réordonner"><button type="button" className="cursor-grab text-muted-foreground hover:text-foreground" {...attributes} {...listeners}><GripVertical className="h-4 w-4" /></button></Tip>
         <span className="flex-1 truncate">
           <span className="font-medium">{page.title}</span>
           <span className="ml-2 text-xs text-muted-foreground">/p/{page.slug}</span>
         </span>
         {!page.parentId && !page.showInMenu && <Badge variant="outline" className="text-muted-foreground">Hors menu</Badge>}
         <Badge variant={page.isPublished ? 'default' : 'secondary'}>{page.isPublished ? 'Publié' : 'Brouillon'}</Badge>
-        <Button variant="ghost" size="icon" onClick={() => onEdit(page)} title="Modifier"><Pencil className="h-4 w-4" /></Button>
-        <Button variant="ghost" size="icon" onClick={() => onDelete(page)} title="Supprimer"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => onEdit(page)}><Pencil className="h-4 w-4" /></Button></Tip>
+        <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => onDelete(page)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
       </div>
       {/* Sub-pages nest inside the parent's sortable block, so they move with it */}
       <Children parentId={page.id} onEdit={onEdit} onDelete={onDelete} />

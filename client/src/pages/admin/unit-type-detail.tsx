@@ -10,6 +10,7 @@ import { StagesLadder, BadgesGrid } from '@/pages/admin/progression'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Tip } from '@/components/ui/tooltip'
 import { ArrowLeft, Shield, Star, Award } from 'lucide-react'
 
 interface UnitTypeDetail {
@@ -33,7 +34,7 @@ export default function UnitTypeDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/admin/unit-types')}><ArrowLeft className="h-5 w-5" /></Button>
+        <Tip content="Retour"><Button variant="ghost" size="icon" onClick={() => navigate('/admin/unit-types')}><ArrowLeft className="h-5 w-5" /></Button></Tip>
         <div>
           <h1 className="text-2xl font-bold">{unitType.name}</h1>
           <p className="text-sm text-muted-foreground">

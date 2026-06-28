@@ -18,6 +18,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Pencil, Trash2, Search, FileText } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
 const defaultForm: DocumentTypeFormData = { name: '', code: '', description: '', requiresExpiry: false, requiresApproval: true, isActive: true, displayOrder: 0 }
@@ -144,8 +145,8 @@ export default function DocumentTypesPage() {
                     <TableCell className="text-center text-muted-foreground">{item.displayOrder}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleting(item)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button></Tip>
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(item)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
                       </div>
                     </TableCell>
                   </TableRow>

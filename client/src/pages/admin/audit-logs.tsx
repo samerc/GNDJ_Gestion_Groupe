@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ScrollText, Eye } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
 
 const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   Create: { label: 'Création', color: 'bg-green-100 text-green-800' },
@@ -190,9 +191,11 @@ export default function AuditLogsPage() {
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{log.ipAddress ?? '—'}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
+                        <Tip content="Voir le détail">
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                        </Tip>
                       </TableCell>
                     </TableRow>
                   )

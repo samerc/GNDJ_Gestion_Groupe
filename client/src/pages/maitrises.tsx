@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { parseApiError } from '@/lib/error-utils'
 import { UserMinus, ArrowRightLeft, Crown, ChevronRight } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
 // CG-only page (perm maitrise.manage): the leaders (maîtrise) of every unit, grouped into
@@ -80,12 +81,12 @@ export default function MaitrisesPage() {
                         <div className="font-medium text-sm truncate">{m.lastName} {m.firstName}</div>
                         <div className="text-xs text-muted-foreground">{m.functionName}</div>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => setTransferTarget(m)}>
+                      <Tip content="Transférer vers une autre unité"><Button variant="ghost" size="sm" onClick={() => setTransferTarget(m)}>
                         <ArrowRightLeft className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Transférer</span>
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setRemoveTarget(m)}>
+                      </Button></Tip>
+                      <Tip content="Retirer de la maîtrise"><Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setRemoveTarget(m)}>
                         <UserMinus className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Retirer</span>
-                      </Button>
+                      </Button></Tip>
                     </div>
                   ))}
                 </div>

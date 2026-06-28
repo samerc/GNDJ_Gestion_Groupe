@@ -20,6 +20,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { cn } from '@/lib/utils'
 import { Plus, Pencil, Trash2, Award, Star, GripVertical } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
@@ -193,7 +194,7 @@ function StageCard({ stage, index, busy, checked, onCheck, onEdit, onDelete, onT
     <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn('flex items-center gap-3 rounded-lg border bg-card p-3', isDragging && 'shadow-lg', !stage.isActive && 'opacity-55')}>
       <input type="checkbox" className="h-4 w-4 shrink-0 accent-primary" aria-label={`Sélectionner ${stage.name}`} checked={checked} onChange={onCheck} />
-      <button {...attributes} {...listeners} className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing"><GripVertical className="h-4 w-4" /></button>
+      <Tip content="Glisser pour réordonner"><button {...attributes} {...listeners} className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing"><GripVertical className="h-4 w-4" /></button></Tip>
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">{index + 1}</div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -204,9 +205,9 @@ function StageCard({ stage, index, busy, checked, onCheck, onEdit, onDelete, onT
         {stage.description && <p className="truncate text-xs text-muted-foreground">{stage.description}</p>}
       </div>
       {stage.progressionCount > 0 && <span className="hidden whitespace-nowrap text-xs text-muted-foreground sm:inline">{stage.progressionCount} membre{stage.progressionCount > 1 ? 's' : ''}</span>}
-      <Switch checked={stage.isActive} onCheckedChange={onToggle} disabled={busy} />
-      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}><Pencil className="h-3.5 w-3.5" /></Button>
-      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onDelete}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+      <Tip content={stage.isActive ? 'Désactiver' : 'Activer'}><Switch checked={stage.isActive} onCheckedChange={onToggle} disabled={busy} /></Tip>
+      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
+      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={onDelete}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></Tip>
     </li>
   )
 }
@@ -324,10 +325,10 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
                 <div className="truncate font-medium">{b.name}</div>
                 <div className="text-xs text-muted-foreground">{b.code}{b.progressionCount > 0 ? ` · ${b.progressionCount} membre${b.progressionCount > 1 ? 's' : ''}` : ''}</div>
               </div>
-              <Switch checked={b.isActive} onCheckedChange={() => toggleActive(b)} disabled={updateMutation.isPending} />
+              <Tip content={b.isActive ? 'Désactiver' : 'Activer'}><Switch checked={b.isActive} onCheckedChange={() => toggleActive(b)} disabled={updateMutation.isPending} /></Tip>
               <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(b)}><Pencil className="h-3.5 w-3.5" /></Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(b)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(b)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
+                <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(b)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></Tip>
               </div>
             </div>
           ))}

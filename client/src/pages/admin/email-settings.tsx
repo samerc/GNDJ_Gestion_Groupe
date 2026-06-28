@@ -22,6 +22,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { RequiredLabel } from '@/components/shared/required-label'
+import { Tip } from '@/components/ui/tooltip'
 import { Plus, Trash2, Pencil, Server, FileText, Send } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -230,9 +231,9 @@ function SmtpTab() {
                   <TableCell>{s.isActive ? <Badge className="bg-green-600">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(s)} title="Modifier"><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => openTest(s.id)} title="Tester"><Send className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleting(s)} title="Supprimer"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button></Tip>
+                      <Tip content="Envoyer un test"><Button variant="ghost" size="icon" onClick={() => openTest(s.id)}><Send className="h-4 w-4" /></Button></Tip>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(s)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -437,8 +438,8 @@ function TemplatesTab() {
                   <TableCell>{tpl.isActive ? <Badge className="bg-green-600">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(tpl)} title="Modifier"><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleting(tpl)} title="Supprimer"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(tpl)}><Pencil className="h-4 w-4" /></Button></Tip>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(tpl)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
                     </div>
                   </TableCell>
                 </TableRow>

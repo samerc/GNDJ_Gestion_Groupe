@@ -16,6 +16,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Plus, Pencil, Trash2, FileText, FileSpreadsheet } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
 const REPORT_TYPE_OPTIONS = [
@@ -158,12 +159,16 @@ export default function ReportTemplatesPage() {
                       {t.name}
                     </CardTitle>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(t)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(t)}>
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
+                      <Tip content="Modifier">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(t)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </Tip>
+                      <Tip content="Supprimer">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(t)}>
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </Tip>
                     </div>
                   </div>
                 </CardHeader>

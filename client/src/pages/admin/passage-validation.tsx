@@ -31,6 +31,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Tip } from '@/components/ui/tooltip'
 import {
   ArrowRightLeft,
   ArrowRight,
@@ -422,35 +423,38 @@ export default function PassageValidationPage() {
                   <td className="px-3 py-2">{statusBadge(p.status)}</td>
                   <td className="px-3 py-2">
                     <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => quickApprove(p)}
-                        disabled={reviewMutation.isPending}
-                        title="Approuver"
-                      >
-                        <Check className="h-3.5 w-3.5 text-green-600" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => quickReject(p)}
-                        disabled={reviewMutation.isPending}
-                        title="Rejeter"
-                      >
-                        <X className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => openEditDialog(p)}
-                        title="Modifier"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
+                      <Tip content="Approuver">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => quickApprove(p)}
+                          disabled={reviewMutation.isPending}
+                        >
+                          <Check className="h-3.5 w-3.5 text-green-600" />
+                        </Button>
+                      </Tip>
+                      <Tip content="Rejeter">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => quickReject(p)}
+                          disabled={reviewMutation.isPending}
+                        >
+                          <X className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </Tip>
+                      <Tip content="Modifier la décision">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => openEditDialog(p)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </Tip>
                     </div>
                   </td>
                 </tr>

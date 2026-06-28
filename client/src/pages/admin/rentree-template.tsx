@@ -22,6 +22,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { cn } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ArrowLeft, X, Users } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
 const ROLES = [
@@ -110,8 +111,8 @@ export default function RentreeTemplatePage() {
         {(templates ?? []).map((t, idx) => (
           <div key={t.id} className="flex items-center gap-2 rounded-lg border p-2.5">
             <div className="flex flex-col">
-              <button className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={idx === 0} onClick={() => move(idx, -1)}><ChevronUp className="h-3.5 w-3.5" /></button>
-              <button className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={idx === (templates!.length - 1)} onClick={() => move(idx, 1)}><ChevronDown className="h-3.5 w-3.5" /></button>
+              <Tip content="Monter"><button className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={idx === 0} onClick={() => move(idx, -1)}><ChevronUp className="h-3.5 w-3.5" /></button></Tip>
+              <Tip content="Descendre"><button className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={idx === (templates!.length - 1)} onClick={() => move(idx, 1)}><ChevronDown className="h-3.5 w-3.5" /></button></Tip>
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
@@ -124,8 +125,8 @@ export default function RentreeTemplatePage() {
                 {t.dependsOnTemplateIds.length > 0 && <span>· {t.dependsOnTemplateIds.length} dépendance(s)</span>}
               </div>
             </div>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleting(t)}><Trash2 className="h-3.5 w-3.5" /></Button>
+            <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
+            <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleting(t)}><Trash2 className="h-3.5 w-3.5" /></Button></Tip>
           </div>
         ))}
         {(templates ?? []).length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">Aucune tâche dans le modèle.</p>}
@@ -171,7 +172,7 @@ export default function RentreeTemplatePage() {
                     {form.assigneeMemberIds.map((id, i) => (
                       <span key={id} className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs">
                         {form.assigneeMemberNames[i] ?? '?'}
-                        <button onClick={() => setForm({ ...form, assigneeMemberIds: form.assigneeMemberIds.filter(x => x !== id), assigneeMemberNames: form.assigneeMemberNames.filter((_, j) => j !== i) })}><X className="h-3 w-3" /></button>
+                        <Tip content="Retirer"><button onClick={() => setForm({ ...form, assigneeMemberIds: form.assigneeMemberIds.filter(x => x !== id), assigneeMemberNames: form.assigneeMemberNames.filter((_, j) => j !== i) })}><X className="h-3 w-3" /></button></Tip>
                       </span>
                     ))}
                   </div>

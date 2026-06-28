@@ -16,6 +16,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { NATIONALITY_OPTIONS, PHONE_COUNTRY_CODES, COUNTRY_OPTIONS, PROFESSION_OPTIONS } from '@/lib/options'
 import { Save, X, Settings2, Search, Plus, Trash2 } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
 // Settings already edited on dedicated pages — hidden from the generic Paramètres page.
@@ -87,7 +88,7 @@ function ExchangeRateEditor({ value, onChange }: { value: string; onChange: (jso
           <Input className="w-24" placeholder="LBP" value={r.code} onChange={(e) => commit(rows.map((x, j) => j === i ? { ...x, code: e.target.value } : x))} />
           <span className="text-sm text-muted-foreground">=</span>
           <Input className="w-40" type="number" step="any" placeholder="Taux" value={r.rate} onChange={(e) => commit(rows.map((x, j) => j === i ? { ...x, rate: e.target.value } : x))} />
-          <Button type="button" variant="ghost" size="icon" onClick={() => commit(rows.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          <Tip content="Supprimer la devise"><Button type="button" variant="ghost" size="icon" onClick={() => commit(rows.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
         </div>
       ))}
       <Button type="button" variant="outline" size="sm" onClick={() => commit([...rows, { code: '', rate: '' }])}><Plus className="mr-1 h-3.5 w-3.5" />Ajouter une devise</Button>
@@ -169,7 +170,7 @@ function SettingEditor({ setting, onSave }: { setting: SettingDto; onSave: (key:
                 {items.map((item) => (
                   <Badge key={item} variant="secondary" className="gap-1 px-3 py-1.5 text-sm">
                     {options ? (options.find(o => o.value === item)?.label ?? item) : item}
-                    <button type="button" onClick={() => setItems(items.filter(i => i !== item))} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+                    <Tip content="Retirer"><button type="button" onClick={() => setItems(items.filter(i => i !== item))} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button></Tip>
                   </Badge>
                 ))}
                 {items.length === 0 && <span className="text-sm text-muted-foreground">Aucune valeur</span>}
@@ -256,7 +257,7 @@ export default function SettingsPage() {
         <div className="relative w-full max-w-xs">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Rechercher un paramètre..." value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9 pr-8" />
-          {query && <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setQuery('')}><X className="h-3.5 w-3.5" /></button>}
+          {query && <Tip content="Effacer la recherche"><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setQuery('')}><X className="h-3.5 w-3.5" /></button></Tip>}
         </div>
       </div>
 

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Plus, Trash2 } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
 function Field({ label, value, onChange, textarea, max }: { label: string; value: string; onChange: (v: string) => void; textarea?: boolean; max?: number }) {
@@ -82,7 +83,7 @@ export default function AdminSiteTextsPage() {
                   <Input placeholder="Titre" value={v.title} maxLength={100} onChange={(e) => setHome({ values: home.values.map((x, j) => j === i ? { ...x, title: e.target.value } : x) })} />
                   <Input placeholder="Texte" value={v.text} maxLength={500} onChange={(e) => setHome({ values: home.values.map((x, j) => j === i ? { ...x, text: e.target.value } : x) })} />
                 </div>
-                <Button type="button" variant="ghost" size="icon" onClick={() => setHome({ values: home.values.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                <Tip content="Supprimer"><Button type="button" variant="ghost" size="icon" onClick={() => setHome({ values: home.values.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
               </div>
             ))}
           </div>
@@ -98,7 +99,7 @@ export default function AdminSiteTextsPage() {
                 <Input placeholder="Valeur (ex. 1935)" value={s.value} maxLength={20} onChange={(e) => setHome({ stats: home.stats.map((x, j) => j === i ? { ...x, value: e.target.value } : x) })} />
                 <Input placeholder="Libellé" value={s.label} maxLength={100} onChange={(e) => setHome({ stats: home.stats.map((x, j) => j === i ? { ...x, label: e.target.value } : x) })} />
               </div>
-              <Button type="button" variant="ghost" size="icon" onClick={() => setHome({ stats: home.stats.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+              <Tip content="Supprimer"><Button type="button" variant="ghost" size="icon" onClick={() => setHome({ stats: home.stats.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
             </div>
           ))}
         </div>

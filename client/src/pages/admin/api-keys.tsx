@@ -18,6 +18,7 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { Plus, Trash2, Key, Copy, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
 // Whitelisted scopes the backend recognizes; *-own scopes require a bound member.
@@ -182,15 +183,19 @@ export default function ApiKeysPage() {
                   <TableCell className="text-muted-foreground">{item.expiresAt ? formatDate(item.expiresAt) : 'Aucune'}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => handleToggle(item.id)} title={item.isActive ? 'Desactiver' : 'Activer'}>
-                        {item.isActive
-                          ? <ToggleRight className="h-4 w-4 text-green-600" />
-                          : <ToggleLeft className="h-4 w-4 text-muted-foreground" />
-                        }
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleting(item)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <Tip content={item.isActive ? 'Désactiver' : 'Activer'}>
+                        <Button variant="ghost" size="icon" onClick={() => handleToggle(item.id)}>
+                          {item.isActive
+                            ? <ToggleRight className="h-4 w-4 text-green-600" />
+                            : <ToggleLeft className="h-4 w-4 text-muted-foreground" />
+                          }
+                        </Button>
+                      </Tip>
+                      <Tip content="Supprimer">
+                        <Button variant="ghost" size="icon" onClick={() => setDeleting(item)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </Tip>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -267,9 +272,11 @@ export default function ApiKeysPage() {
             </div>
             <div className="flex items-center gap-2">
               <code className="flex-1 rounded-md bg-muted p-3 text-sm font-mono break-all select-all">{createdKey}</code>
-              <Button variant="outline" size="icon" onClick={handleCopyKey} title="Copier">
-                <Copy className="h-4 w-4" />
-              </Button>
+              <Tip content="Copier la clé">
+                <Button variant="outline" size="icon" onClick={handleCopyKey}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </Tip>
             </div>
           </div>
           <DialogFooter>

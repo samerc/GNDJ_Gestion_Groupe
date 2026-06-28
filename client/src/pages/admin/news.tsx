@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Tip } from '@/components/ui/tooltip'
 import { Plus, Pencil, Trash2, Newspaper } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -109,8 +110,8 @@ export default function AdminNewsPage() {
                   <TableCell className="text-muted-foreground">{new Date(p.publishedAt ?? p.createdAt).toLocaleDateString('fr-FR')}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(p)} title="Modifier"><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleting(p)} title="Supprimer"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button></Tip>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(p)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
                     </div>
                   </TableCell>
                 </TableRow>
