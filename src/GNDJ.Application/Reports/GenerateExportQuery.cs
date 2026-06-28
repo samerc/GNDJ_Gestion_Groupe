@@ -49,6 +49,11 @@ public class GenerateExportQueryHandler(
 
         if (unit is null) return Result<ExportResult>.Failure("Unité introuvable.");
 
+        // Reports show the school CODE (CNDJ, CSG, …), not the long name — resolve via member.school_codes.
+        var schoolCodesJson = await context.Settings
+            .Where(s => s.Key == "member.school_codes").Select(s => s.Value).FirstOrDefaultAsync(ct);
+        var schoolCode = Common.SchoolCode.Resolver(schoolCodesJson);
+
         var query = context.MemberAssignments
             .Where(a => a.UnitId == request.UnitId && a.EndDate == null);
 
@@ -103,7 +108,7 @@ public class GenerateExportQueryHandler(
                     return new ExportMemberData(
                         $"{a.FirstName} {a.LastName}", a.CardNumber, a.Gender,
                         a.DateOfBirth?.ToString("dd/MM/yyyy"), age,
-                        a.BloodType, a.Nationality, a.School, a.Classe, a.Section,
+                        a.BloodType, a.Nationality, schoolCode(a.School), a.Classe, a.Section,
                         a.Phone, a.Email, a.RoleName, a.TeamName,
                         customByMember.GetValueOrDefault(a.Id, [])
                     );

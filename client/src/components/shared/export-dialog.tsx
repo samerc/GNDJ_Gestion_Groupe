@@ -30,7 +30,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
     label: 'Identite',
     columns: [
       { key: 'name', label: 'Nom' },
-      { key: 'cardNumber', label: 'N\u00b0 carte' },
+      { key: 'cardNumber', label: 'Matricule' },
       { key: 'gender', label: 'Genre' },
       { key: 'dateOfBirth', label: 'Date naissance' },
       { key: 'age', label: '\u00c2ge' },

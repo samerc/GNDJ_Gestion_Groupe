@@ -29,7 +29,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
   {
     label: 'Identité',
     columns: [
-      { key: 'cardNumber', label: 'N° carte' },
+      { key: 'cardNumber', label: 'Matricule' },
       { key: 'gender', label: 'Sexe' },
       { key: 'dateOfBirth', label: 'Date de naissance' },
       { key: 'age', label: 'Âge' },

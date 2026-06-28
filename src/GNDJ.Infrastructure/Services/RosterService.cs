@@ -15,7 +15,7 @@ public class RosterService : IRosterService
     private static readonly Dictionary<string, (string Label, float Width)> ColumnDefs = new()
     {
         ["name"] = ("Nom", 3),
-        ["cardNumber"] = ("N\u00b0 carte", 1.2f),
+        ["cardNumber"] = ("Matricule", 1.2f),
         ["gender"] = ("Genre", 1),
         ["dateOfBirth"] = ("Date naiss.", 1.5f),
         ["age"] = ("\u00c2ge", 0.7f),

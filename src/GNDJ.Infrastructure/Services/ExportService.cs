@@ -14,7 +14,7 @@ public class ExportService : IExportService
     private static readonly Dictionary<string, string> ColumnLabels = new()
     {
         ["name"] = "Nom",
-        ["cardNumber"] = "N\u00b0 carte",
+        ["cardNumber"] = "Matricule",
         ["gender"] = "Genre",
         ["dateOfBirth"] = "Date naissance",
         ["age"] = "\u00c2ge",
