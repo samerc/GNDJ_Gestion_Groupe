@@ -4,7 +4,7 @@ import apiClient from '@/lib/api-client'
 export interface RosterMemberDto {
   memberId: string; firstName: string; lastName: string; cardNumber: string | null
   functionalRoleName: string; primaryPhone: string | null; primaryEmail: string | null
-  dateOfBirth: string | null
+  dateOfBirth: string | null; photoPath: string | null
 }
 
 export interface TeamRosterDto {

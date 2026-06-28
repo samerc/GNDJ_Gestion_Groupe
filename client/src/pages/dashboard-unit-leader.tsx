@@ -32,7 +32,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, FileText } from 'lucide-react'
+import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, FileText, ArrowLeft } from 'lucide-react'
 
 interface Props { unitId: string }
 
@@ -45,7 +45,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   )
 }
 
-function MemberDetailPanel({ memberId }: { memberId: string }) {
+function MemberDetailPanel({ memberId, onBack }: { memberId: string; onBack?: () => void }) {
   const { data: member, isLoading } = useMember(memberId)
 
   if (isLoading) return <div className="flex items-center justify-center h-full"><LoadingSpinner /></div>
@@ -54,6 +54,11 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center gap-3 border-b px-4 py-3 shrink-0 bg-card">
+        {onBack && (
+          <Button variant="ghost" size="icon" className="md:hidden shrink-0 -ml-2" onClick={onBack} aria-label="Retour à la liste">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        )}
         <MemberPhoto
           memberId={memberId}
           name={`${member.firstName} ${member.lastName}`}
@@ -313,56 +318,57 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
     <div className="flex flex-col h-[calc(100vh-8rem)]">
       {/* Top bar */}
       <div className="shrink-0 space-y-3 pb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">{data.unitName}</h1>
-            <p className="text-xs text-muted-foreground">{data.unitTypeName}</p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold truncate">{data.unitName}</h1>
+            <p className="text-xs text-muted-foreground truncate">{data.unitTypeName}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex gap-4 text-center">
-              <div><p className="text-lg font-bold">{data.totalMembers}</p><p className="text-xs text-muted-foreground">Membres</p></div>
-              <div><p className="text-lg font-bold">{data.totalTeams}</p><p className="text-xs text-muted-foreground">Équipes</p></div>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setRosterOpen(true)}>
-              <List className="mr-1 h-4 w-4" />Liste
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setTrombiOpen(true)}>
-              <FileDown className="mr-1 h-4 w-4" />Trombinoscope
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
-              <FileSpreadsheet className="mr-1 h-4 w-4" />
-              Exporter
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleBulkCards} disabled={bulkCardsLoading}>
-              <CreditCard className="mr-1 h-4 w-4" />
-              {bulkCardsLoading ? 'Génération...' : 'Cartes'}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate('/photo-session')}>
-              <Camera className="mr-1 h-4 w-4" />
-              Photos
-            </Button>
-            {reportTemplates && reportTemplates.length > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <FileText className="mr-1 h-4 w-4" />
-                    Rapports
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {reportTemplates.map(t => (
-                    <DropdownMenuItem
-                      key={t.id}
-                      onClick={() => handleCustomReport(t)}
-                      disabled={generatingReport === t.id}
-                    >
-                      {generatingReport === t.id ? 'Génération...' : t.name}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+          <div className="flex gap-4 text-center shrink-0">
+            <div><p className="text-lg font-bold leading-none">{data.totalMembers}</p><p className="text-xs text-muted-foreground">Membres</p></div>
+            <div><p className="text-lg font-bold leading-none">{data.totalTeams}</p><p className="text-xs text-muted-foreground">Équipes</p></div>
           </div>
+        </div>
+        {/* Action bar: a single horizontally-scrollable row so it never wraps into a pile on mobile. */}
+        <div className="flex items-center gap-2 overflow-x-auto flex-nowrap pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <Button variant="outline" size="sm" className="shrink-0" onClick={() => setRosterOpen(true)}>
+            <List className="mr-1 h-4 w-4" />Liste
+          </Button>
+          <Button variant="outline" size="sm" className="shrink-0" onClick={() => setTrombiOpen(true)}>
+            <FileDown className="mr-1 h-4 w-4" />Trombinoscope
+          </Button>
+          <Button variant="outline" size="sm" className="shrink-0" onClick={() => setExportOpen(true)}>
+            <FileSpreadsheet className="mr-1 h-4 w-4" />
+            Exporter
+          </Button>
+          <Button variant="outline" size="sm" className="shrink-0" onClick={handleBulkCards} disabled={bulkCardsLoading}>
+            <CreditCard className="mr-1 h-4 w-4" />
+            {bulkCardsLoading ? 'Génération...' : 'Cartes'}
+          </Button>
+          <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate('/photo-session')}>
+            <Camera className="mr-1 h-4 w-4" />
+            Photos
+          </Button>
+          {reportTemplates && reportTemplates.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="shrink-0">
+                  <FileText className="mr-1 h-4 w-4" />
+                  Rapports
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {reportTemplates.map(t => (
+                  <DropdownMenuItem
+                    key={t.id}
+                    onClick={() => handleCustomReport(t)}
+                    disabled={generatingReport === t.id}
+                  >
+                    {generatingReport === t.id ? 'Génération...' : t.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -380,10 +386,18 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
         </div>
       </div>
 
-      {/* 2-column layout */}
+      {/* 2-column layout. On mobile it's a one-pane-at-a-time master/detail (list, then full-screen
+          detail with a back button); on md+ it's the resizable split pane. */}
       <div className="flex flex-col md:flex-row flex-1 min-h-0 rounded-lg border overflow-hidden">
-        {/* Left: member list */}
-        <div className="overflow-y-auto bg-muted/30 shrink-0 max-h-64 md:max-h-full border-b md:border-b-0" style={{ width: leftWidth }}>
+        {/* Left: member list — full width on mobile, fixed (drag-resizable) width on desktop. Hidden on
+            mobile once a member is selected so the detail gets the whole screen. */}
+        <div
+          className={cn(
+            'overflow-y-auto bg-muted/30 w-full md:w-[var(--left-w)] md:shrink-0 md:max-h-full md:flex-none md:block',
+            selectedMemberId ? 'hidden' : 'flex-1 min-h-0',
+          )}
+          style={{ '--left-w': `${leftWidth}px` } as React.CSSProperties}
+        >
           {grouped.length === 0 ? (
             <div className="flex items-center justify-center h-full text-sm text-muted-foreground p-4">Aucun membre trouvé</div>
           ) : (
@@ -405,9 +419,13 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
                     )}
                     onClick={() => setSelectedMemberId(m.memberId)}
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-medium shrink-0">
-                      {m.firstName[0]}{m.lastName[0]}
-                    </div>
+                    <MemberPhoto
+                      memberId={m.memberId}
+                      name={`${m.firstName} ${m.lastName}`}
+                      photoPath={m.photoPath}
+                      size={32}
+                      className="shrink-0"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{m.lastName} {m.firstName}</p>
                       <p className="text-xs text-muted-foreground truncate">{m.functionalRoleName}</p>
@@ -424,10 +442,15 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
           <DragHandle onDrag={handleDrag} />
         </div>
 
-        {/* Right: member detail */}
-        <div className="flex-1 min-w-0 overflow-hidden">
+        {/* Right: member detail — full screen on mobile when a member is selected; placeholder only on desktop. */}
+        <div
+          className={cn(
+            'flex-1 min-w-0 min-h-0 overflow-hidden',
+            selectedMemberId ? 'flex flex-col' : 'hidden md:block',
+          )}
+        >
           {selectedMemberId ? (
-            <MemberDetailPanel memberId={selectedMemberId} />
+            <MemberDetailPanel memberId={selectedMemberId} onBack={() => setSelectedMemberId(null)} />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               <div className="text-center">

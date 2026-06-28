@@ -16,6 +16,10 @@ public class TrombinoscoreService : ITrombinoscoreService
         var margin = useA3 ? 20f : 15f;
         var cellWidth = useA3 ? 70f : 56f;
         var photoSize = useA3 ? 55f : 44f;
+        // Member photos are 3:4 portrait (camera capture is 600×800). Use a matching portrait box so the
+        // photo FILLS it instead of being letterboxed inside a square (which made photos look smaller than
+        // the grey placeholder). The placeholder uses the same box, so both render identically sized.
+        var photoHeight = photoSize * 4f / 3f;
         var nameFontSize = useA3 ? 6f : 5f;
         var headerFontSize = useA3 ? 11f : 10f;
 
@@ -75,7 +79,7 @@ public class TrombinoscoreService : ITrombinoscoreService
                                                     try
                                                     {
                                                         cell.Item().AlignCenter()
-                                                            .Width(photoSize).Height(photoSize)
+                                                            .Width(photoSize).Height(photoHeight)
                                                             .Image(fullPath).FitArea();
                                                         photoRendered = true;
                                                     }
@@ -86,7 +90,7 @@ public class TrombinoscoreService : ITrombinoscoreService
                                             if (!photoRendered)
                                             {
                                                 cell.Item().AlignCenter()
-                                                    .Width(photoSize).Height(photoSize)
+                                                    .Width(photoSize).Height(photoHeight)
                                                     .Background(Colors.Grey.Lighten2)
                                                     .AlignCenter().AlignMiddle()
                                                     .Text(GetInitials(member.Name))

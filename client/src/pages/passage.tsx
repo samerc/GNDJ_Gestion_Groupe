@@ -283,6 +283,59 @@ export default function PassagePage() {
     }
   }
 
+  const handleNoChange = async (row: MemberRow) => {
+    try {
+      await proposeMutation.mutateAsync({
+        memberId: row.memberId, scoutYear: passageScoutYear,
+        proposedUnitId: row.currentUnitId, proposedTeamId: row.currentTeamId,
+        proposedRoleId: row.currentRoleId, cuNotes: null,
+      })
+      toast.success('Pas de changement enregistré')
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
+
+  const handleLeaving = async (row: MemberRow) => {
+    try {
+      await proposeMutation.mutateAsync({
+        memberId: row.memberId, scoutYear: passageScoutYear,
+        proposedUnitId: row.currentUnitId, proposedTeamId: row.currentTeamId,
+        proposedRoleId: row.currentRoleId, cuNotes: null, isLeaving: true,
+      })
+      toast.success('Départ enregistré (en attente de validation)')
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
+
+  // Proposition cell/section — shared by the desktop table and the mobile cards.
+  const renderProposition = (row: MemberRow) => (
+    row.passage ? (
+      <div className="space-y-1">
+        <div className="flex items-center gap-1">
+          <ArrowRight className="h-3 w-3 text-muted-foreground" />
+          <span className="text-xs">{row.passage.proposedUnitName}</span>
+          {row.passage.proposedTeamName && (
+            <span className="text-xs text-muted-foreground">/ {row.passage.proposedTeamName}</span>
+          )}
+        </div>
+        {row.passage.proposedRoleName !== row.currentRoleName && (
+          <div className="text-xs text-blue-600">Fonction : {row.passage.proposedRoleName}</div>
+        )}
+        {statusBadge(row.passage)}
+      </div>
+    ) : (
+      <div className="flex flex-wrap gap-1.5">
+        <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50 hover:text-green-800" onClick={() => handleNoChange(row)} disabled={proposeMutation.isPending}>
+          <Check className="mr-1 h-3 w-3" />Pas de changement
+        </Button>
+        <Button size="sm" variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50 hover:text-blue-800" onClick={() => openPropose(row)}>
+          <ArrowRightLeft className="mr-1 h-3 w-3" />Proposer
+        </Button>
+        <Button size="sm" variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-800" title="Quitte le groupe" onClick={() => handleLeaving(row)} disabled={proposeMutation.isPending}>
+          <LogOut className="mr-1 h-3 w-3" />Quitte le groupe
+        </Button>
+      </div>
+    )
+  )
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -316,7 +369,45 @@ export default function PassagePage() {
       {memberRows.length === 0 ? (
         <EmptyState icon={Users} title="Aucun membre" description="Aucun membre actif dans cette unite." />
       ) : (
-        <div className="rounded-lg border overflow-x-auto">
+        <>
+        {/* Mobile: one card per member (the desktop table is too wide for a phone) */}
+        <div className="space-y-2 md:hidden">
+          <div className="flex items-center justify-between px-1">
+            <button type="button" className="text-xs text-primary underline" onClick={toggleAll}>
+              {selected.size === memberRows.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+            </button>
+            <span className="text-xs text-muted-foreground">{memberRows.length} membre(s)</span>
+          </div>
+          {memberRows.map(row => (
+            <Card key={row.memberId}>
+              <CardContent className="p-3 space-y-2">
+                <div className="flex items-start gap-2">
+                  <input type="checkbox" className="mt-1 shrink-0" checked={selected.has(row.memberId)} onChange={() => toggleSelect(row.memberId)} />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium leading-tight">{row.memberName}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {[row.cardNumber, row.age !== null ? `${row.age} ans` : null].filter(Boolean).join(' · ')}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {row.currentUnitName}{row.currentTeamName ? ` · ${row.currentTeamName}` : ''} · {row.currentRoleName}
+                    </div>
+                  </div>
+                  {row.passage && (
+                    <div className="flex gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPropose(row)} title="Modifier"><ArrowRightLeft className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeletingPassage(row.passage)} title="Supprimer"><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                    </div>
+                  )}
+                </div>
+                <div className="pl-6">{renderProposition(row)}</div>
+                {row.passage?.cuNotes && <div className="pl-6 text-xs text-muted-foreground">{row.passage.cuNotes}</div>}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Desktop: full table */}
+        <div className="rounded-lg border overflow-x-auto hidden md:block">
           <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="border-b bg-muted/40">
@@ -359,58 +450,7 @@ export default function PassagePage() {
                   <td className="px-3 py-2">{row.currentUnitName}</td>
                   <td className="px-3 py-2">{row.currentTeamName ?? '-'}</td>
                   <td className="px-3 py-2">
-                    {row.passage ? (
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1">
-                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-xs">{row.passage.proposedUnitName}</span>
-                          {row.passage.proposedTeamName && (
-                            <span className="text-xs text-muted-foreground">/ {row.passage.proposedTeamName}</span>
-                          )}
-                        </div>
-                        {row.passage.proposedRoleName !== row.currentRoleName && (
-                          <div className="text-xs text-blue-600">Fonction : {row.passage.proposedRoleName}</div>
-                        )}
-                        {statusBadge(row.passage)}
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-1.5">
-                        <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50 hover:text-green-800" onClick={async () => {
-                          try {
-                            await proposeMutation.mutateAsync({
-                              memberId: row.memberId,
-                              scoutYear: passageScoutYear,
-                              proposedUnitId: row.currentUnitId,
-                              proposedTeamId: row.currentTeamId,
-                              proposedRoleId: row.currentRoleId,
-                              cuNotes: null,
-                            })
-                            toast.success('Pas de changement enregistré')
-                          } catch (err) { toast.error(parseApiError(err)) }
-                        }} disabled={proposeMutation.isPending}>
-                          <Check className="mr-1 h-3 w-3" />Pas de changement
-                        </Button>
-                        <Button size="sm" variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50 hover:text-blue-800" onClick={() => openPropose(row)}>
-                          <ArrowRightLeft className="mr-1 h-3 w-3" />Proposer
-                        </Button>
-                        <Button size="sm" variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-800" title="Quitte le groupe" onClick={async () => {
-                          try {
-                            await proposeMutation.mutateAsync({
-                              memberId: row.memberId,
-                              scoutYear: passageScoutYear,
-                              proposedUnitId: row.currentUnitId,
-                              proposedTeamId: row.currentTeamId,
-                              proposedRoleId: row.currentRoleId,
-                              cuNotes: null,
-                              isLeaving: true,
-                            })
-                            toast.success('Départ enregistré (en attente de validation)')
-                          } catch (err) { toast.error(parseApiError(err)) }
-                        }} disabled={proposeMutation.isPending}>
-                          <LogOut className="mr-1 h-3 w-3" />Quitte le groupe
-                        </Button>
-                      </div>
-                    )}
+                    {renderProposition(row)}
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground max-w-[150px] truncate">
                     {row.passage?.cuNotes ?? ''}
@@ -434,6 +474,7 @@ export default function PassagePage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {/* Propose Dialog (single member) */}

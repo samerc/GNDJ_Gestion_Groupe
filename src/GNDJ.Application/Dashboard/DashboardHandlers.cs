@@ -33,7 +33,8 @@ public record RosterMemberDto(
     int FunctionalRoleRank,
     string? PrimaryPhone,
     string? PrimaryEmail,
-    DateOnly? DateOfBirth
+    DateOnly? DateOfBirth,
+    string? PhotoPath
 );
 
 public record GetUnitDashboardQuery(Guid UnitId) : IRequest<UnitDashboardDto?>;
@@ -72,6 +73,7 @@ public class GetUnitDashboardQueryHandler : IRequestHandler<GetUnitDashboardQuer
                 a.Member.LastName,
                 a.Member.CardNumber,
                 a.Member.DateOfBirth,
+                a.Member.PhotoPath,
                 a.TeamId,
                 TeamName = a.Team != null ? a.Team.Name : null,
                 TeamTotem = a.Team != null ? a.Team.Totem : null,
@@ -97,14 +99,14 @@ public class GetUnitDashboardQueryHandler : IRequestHandler<GetUnitDashboardQuer
                 g.Key.TeamTotem,
                 g.Key.TeamColor1,
                 g.Key.TeamColor2,
-                g.Select(a => new RosterMemberDto(a.MemberId, a.FirstName, a.LastName, a.CardNumber, a.RoleName, a.RoleRank, a.PrimaryPhone, a.PrimaryEmail, a.DateOfBirth))
+                g.Select(a => new RosterMemberDto(a.MemberId, a.FirstName, a.LastName, a.CardNumber, a.RoleName, a.RoleRank, a.PrimaryPhone, a.PrimaryEmail, a.DateOfBirth, a.PhotoPath))
                     .OrderByDescending(m => m.FunctionalRoleRank).ThenBy(m => m.LastName).ThenBy(m => m.FirstName).ToList()
             ))
             .ToList();
 
         var unassigned = assignments
             .Where(a => a.TeamId == null)
-            .Select(a => new RosterMemberDto(a.MemberId, a.FirstName, a.LastName, a.CardNumber, a.RoleName, a.RoleRank, a.PrimaryPhone, a.PrimaryEmail, a.DateOfBirth))
+            .Select(a => new RosterMemberDto(a.MemberId, a.FirstName, a.LastName, a.CardNumber, a.RoleName, a.RoleRank, a.PrimaryPhone, a.PrimaryEmail, a.DateOfBirth, a.PhotoPath))
             .OrderByDescending(m => m.FunctionalRoleRank).ThenBy(m => m.LastName).ThenBy(m => m.FirstName)
             .ToList();
 
