@@ -535,68 +535,120 @@ Console.Write("11. Assignments... ");
 var wsAssign = OpenSheet("UniteFonc.xlsx");
 int assignCount = 0;
 int autoTeamCount = 0;
+int skippedJunk = 0;
+var importToday = DateOnly.FromDateTime(DateTime.Today);
+
+// Read every UniteFonc row first, then process GROUPED BY MEMBER. Grouping lets us handle the common
+// WEBDEV quirk where a historical function (EnCours = 0) has a real DATEDEB but a BLANK DATEFIN: rather
+// than collapsing it to a zero-day record, we carry its end forward to the START of the member's NEXT
+// function (incl. their active EnCours = 1 row). A function with no later row falls back to the end of
+// its scout year (next October 1, capped at today). Rows with neither a start nor an end and EnCours = 0
+// are abandoned/incomplete source entries (often duplicates) and are skipped entirely.
+var assignRows = new List<(int OldMember, string Unit, string Totem, string Func, DateOnly? Start, DateOnly? End, string? Notes, bool EnCours)>();
 for (int r = 2; r <= wsAssign.LastRowUsed()!.RowNumber(); r++)
 {
     var oldMemberId = int.TryParse(Cell(wsAssign, r, 3), out var aom) ? aom : 0;
-    var unitCode = Cell(wsAssign, r, 5);    // UNITE
-    var totem = Cell(wsAssign, r, 6);       // TOTEM
-    var funcCode = Cell(wsAssign, r, 7);    // FONCTION1
-    var startDate = ParseDate(Cell(wsAssign, r, 9));
-    var endDate = ParseDate(Cell(wsAssign, r, 10));
-    var notes = NullIfEmpty(Cell(wsAssign, r, 11));
-    var enCours = Cell(wsAssign, r, 13) == "1"; // EnCours = source-of-truth "currently active" flag
+    if (oldMemberId == 0) continue;
+    assignRows.Add((
+        oldMemberId,
+        Cell(wsAssign, r, 5), Cell(wsAssign, r, 6), Cell(wsAssign, r, 7),
+        ParseDate(Cell(wsAssign, r, 9)), ParseDate(Cell(wsAssign, r, 10)),
+        NullIfEmpty(Cell(wsAssign, r, 11)), Cell(wsAssign, r, 13) == "1"));
+}
 
-    if (oldMemberId == 0 || !memberIdMap.TryGetValue(oldMemberId, out var memId)) continue;
-    if (!unitIdMap.TryGetValue(unitCode, out var unitId)) continue;
+foreach (var grp in assignRows.GroupBy(x => x.OldMember))
+{
+    if (!memberIdMap.TryGetValue(grp.Key, out var memId)) continue;
 
-    var roleId = roleIdMap.GetValueOrDefault(funcCode);
-    if (roleId == Guid.Empty) continue;
+    // Drop abandoned rows (no start, no end, historical) — they'd otherwise become zero-day blips.
+    var rows = grp.Where(x => x.Start != null || x.End != null || x.EnCours).ToList();
+    skippedJunk += grp.Count() - rows.Count;
 
-    Guid? teamId = null;
-    if (!string.IsNullOrWhiteSpace(totem) && totem != "--" && totem != "-")
+    // Chronological order; an active-but-dateless row defaults to today and so sorts last.
+    rows = rows.OrderBy(x => x.Start ?? (x.EnCours ? importToday : DateOnly.MaxValue)).ToList();
+
+    for (int i = 0; i < rows.Count; i++)
     {
-        if (teamLookup.TryGetValue(TeamKey(unitCode, totem), out var tid))
-        {
-            teamId = tid;
-        }
-        else if (enCours)
-        {
-            // Active member whose totem has no team in PatEqSiz (e.g. JEM "Jeunes en Marche").
-            // Auto-create the team so the member is attached rather than left team-less.
-            var newTid = NewId();
-            var isMait = totem.StartsWith(".");
-            var nm = isMait ? totem.TrimStart('.').Trim() : totem;
-            if (string.IsNullOrWhiteSpace(nm)) nm = totem;
-            await Exec(conn, @"INSERT INTO teams (id, name, description, unit_id, display_order, totem, adjective, color1, color2, is_maitrise, created_at, updated_at, is_deleted)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, false)",
-                newTid, nm, (string?)null, unitId, 900 + autoTeamCount, totem,
-                (string?)null, (string?)null, (string?)null, isMait, now);
-            RegisterTeam(unitCode, totem, newTid);
-            teamId = newTid;
-            autoTeamCount++;
-        }
-    }
+        var row = rows[i];
+        if (!unitIdMap.TryGetValue(row.Unit, out var unitId)) continue;
+        var roleId = roleIdMap.GetValueOrDefault(row.Func);
+        if (roleId == Guid.Empty) continue;
 
-    // Active iff EnCours = 1. If EnCours = 0 the assignment is historical and MUST be closed,
-    // even when DATEFIN is blank (WEBDEV often left it empty). Use DATEFIN when present,
-    // otherwise fall back to the start date so the record is marked closed.
-    var start = startDate ?? DateOnly.FromDateTime(DateTime.Today);
-    DateOnly? closedEnd = enCours ? null : (endDate ?? start);
+        Guid? teamId = null;
+        if (!string.IsNullOrWhiteSpace(row.Totem) && row.Totem != "--" && row.Totem != "-")
+        {
+            if (teamLookup.TryGetValue(TeamKey(row.Unit, row.Totem), out var tid))
+            {
+                teamId = tid;
+            }
+            else if (row.EnCours)
+            {
+                // Active member whose totem has no team in PatEqSiz (e.g. JEM "Jeunes en Marche").
+                // Auto-create the team so the member is attached rather than left team-less.
+                var newTid = NewId();
+                var isMait = row.Totem.StartsWith(".");
+                var nm = isMait ? row.Totem.TrimStart('.').Trim() : row.Totem;
+                if (string.IsNullOrWhiteSpace(nm)) nm = row.Totem;
+                await Exec(conn, @"INSERT INTO teams (id, name, description, unit_id, display_order, totem, adjective, color1, color2, is_maitrise, created_at, updated_at, is_deleted)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, false)",
+                    newTid, nm, (string?)null, unitId, 900 + autoTeamCount, row.Totem,
+                    (string?)null, (string?)null, (string?)null, isMait, now);
+                RegisterTeam(row.Unit, row.Totem, newTid);
+                teamId = newTid;
+                autoTeamCount++;
+            }
+        }
 
-    // A function carried over multiple scout years is split into one assignment per scout year,
-    // cut on October 1 (the scout-year boundary). See SplitScoutYears for the exact month rules.
-    foreach (var (segStart, segEnd) in SplitScoutYears(start, closedEnd, enCours))
-    {
-        await Exec(conn, @"INSERT INTO member_assignments (id, member_id, unit_id, team_id, functional_role_id, start_date, end_date, notes, created_at, updated_at, is_deleted)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, false)",
-            NewId(), memId, unitId, teamId ?? (object)DBNull.Value, roleId,
-            segStart,
-            segEnd.HasValue ? segEnd.Value : (object)DBNull.Value,
-            notes ?? (object)DBNull.Value, now);
-        assignCount++;
+        var start = row.Start ?? importToday;
+        DateOnly? closedEnd;
+        if (row.EnCours)
+        {
+            closedEnd = null;                       // EnCours = 1 → the current, open-ended assignment
+        }
+        else if (row.End.HasValue)
+        {
+            closedEnd = row.End;                    // historical with a real recorded end
+        }
+        else
+        {
+            // Historical with a blank DATEFIN: carry forward to the next function's start so the real
+            // duration is preserved instead of collapsing to one day.
+            DateOnly? nextStart = null;
+            for (int j = i + 1; j < rows.Count; j++)
+            {
+                var ns = rows[j].Start ?? (rows[j].EnCours ? importToday : (DateOnly?)null);
+                if (ns.HasValue && ns.Value > start) { nextStart = ns; break; }
+            }
+            if (nextStart.HasValue)
+            {
+                closedEnd = nextStart;
+            }
+            else
+            {
+                // No later function: assume they finished that scout year (next October 1, capped at today)
+                // rather than leaving a misleading single-day record.
+                var nextOct1 = start >= new DateOnly(start.Year, 10, 1)
+                    ? new DateOnly(start.Year + 1, 10, 1)
+                    : new DateOnly(start.Year, 10, 1);
+                closedEnd = nextOct1 > importToday ? importToday : nextOct1;
+            }
+        }
+
+        // A function spanning multiple scout years is split into one assignment per scout year,
+        // cut on October 1 (the scout-year boundary). See SplitScoutYears for the exact month rules.
+        foreach (var (segStart, segEnd) in SplitScoutYears(start, closedEnd, row.EnCours))
+        {
+            await Exec(conn, @"INSERT INTO member_assignments (id, member_id, unit_id, team_id, functional_role_id, start_date, end_date, notes, created_at, updated_at, is_deleted)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, false)",
+                NewId(), memId, unitId, teamId ?? (object)DBNull.Value, roleId,
+                segStart,
+                segEnd.HasValue ? segEnd.Value : (object)DBNull.Value,
+                row.Notes ?? (object)DBNull.Value, now);
+            assignCount++;
+        }
     }
 }
-Console.WriteLine($"OK ({assignCount}, auto-created teams: {autoTeamCount})");
+Console.WriteLine($"OK ({assignCount}, auto-created teams: {autoTeamCount}, skipped junk: {skippedJunk})");
 
 // ═══════════════════════════════════════════════════════════════
 // STEP 11b: BP 2026 roster override — authoritative 2025-2026 placement
