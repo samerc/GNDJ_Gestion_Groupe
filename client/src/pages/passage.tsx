@@ -25,7 +25,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut } from 'lucide-react'
+import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut, Search, ArrowUpDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
 // One allowed move target for a member, from the parcours scout: kind 'same' = stay in the branch
@@ -48,6 +49,7 @@ interface MemberRow {
   age: number | null
   currentUnitId: string
   currentUnitName: string
+  currentUnitCode: string
   currentTeamName: string | null
   currentRoleName: string
   currentRoleId: string
@@ -63,6 +65,15 @@ function calculateAge(dob: string | null): number | null {
   const m = today.getMonth() - birth.getMonth()
   if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
   return age
+}
+
+type SortCol = 'name' | 'age' | 'unit' | 'team' | 'role' | 'status'
+
+// Bucket a row for the status filter: no proposal yet ("todo"), leaving, or its passage status.
+function rowState(row: MemberRow): string {
+  if (!row.passage) return 'todo'
+  if (row.passage.isLeaving) return 'leaving'
+  return row.passage.status.toLowerCase()
 }
 
 // "Passage annuel" — chef d'unité (CU) screen. Lists the CU's active members for the upcoming scout year so
@@ -94,6 +105,12 @@ export default function PassagePage() {
   const [editingMember, setEditingMember] = useState<MemberRow | null>(null)
   const [deletingPassage, setDeletingPassage] = useState<PassageDto | null>(null)
 
+  // Search / filter / sort for the member table
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<SortCol>('name')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+
   // Form state for propose dialog
   const [propUnitId, setPropUnitId] = useState('')
   const [propTeamId, setPropTeamId] = useState<string>('')
@@ -115,17 +132,21 @@ export default function PassagePage() {
     const members = membersData?.items ?? []
     const assignments = assignmentsData?.items ?? []
     const passageMap = new Map((passages ?? []).map(p => [p.memberId, p]))
+    // Resolve unit short-codes (e.g. "C3") from the loaded units list — the assignment DTO only has the name.
+    const unitCodeById = new Map((unitsData?.items ?? []).map(u => [u.id, u.code]))
 
     return members.map(m => {
       const assignment = assignments.find(a => a.memberId === m.id)
+      const cuId = assignment?.unitId ?? unitId
       return {
         memberId: m.id,
         memberName: `${m.firstName} ${m.lastName}`,
         cardNumber: m.cardNumber,
         dateOfBirth: m.dateOfBirth,
         age: calculateAge(m.dateOfBirth),
-        currentUnitId: assignment?.unitId ?? unitId,
+        currentUnitId: cuId,
         currentUnitName: assignment?.unitName ?? unitName,
+        currentUnitCode: unitCodeById.get(cuId) ?? assignment?.unitName ?? unitName,
         currentTeamName: assignment?.teamName ?? null,
         currentRoleName: assignment?.functionalRoleName ?? '-',
         currentRoleId: assignment?.functionalRoleId ?? '',
@@ -133,7 +154,26 @@ export default function PassagePage() {
         passage: passageMap.get(m.id) ?? null,
       }
     })
-  }, [membersData, assignmentsData, passages, unitId, unitName])
+  }, [membersData, assignmentsData, passages, unitsData, unitId, unitName])
+
+  // Apply the search box, the status filter, and the active column sort.
+  const displayRows = useMemo(() => {
+    let rows = memberRows
+    const q = search.trim().toLowerCase()
+    if (q) rows = rows.filter(r => r.memberName.toLowerCase().includes(q) || (r.cardNumber?.toLowerCase().includes(q) ?? false))
+    if (statusFilter !== 'all') rows = rows.filter(r => rowState(r) === statusFilter)
+    const dir = sortDir === 'asc' ? 1 : -1
+    return [...rows].sort((a, b) => {
+      switch (sortBy) {
+        case 'age': return ((a.age ?? 999) - (b.age ?? 999)) * dir
+        case 'unit': return a.currentUnitCode.localeCompare(b.currentUnitCode) * dir
+        case 'team': return (a.currentTeamName ?? 'zzz').localeCompare(b.currentTeamName ?? 'zzz') * dir
+        case 'role': return a.currentRoleName.localeCompare(b.currentRoleName) * dir
+        case 'status': return rowState(a).localeCompare(rowState(b)) * dir
+        default: return a.memberName.localeCompare(b.memberName) * dir
+      }
+    })
+  }, [memberRows, search, statusFilter, sortBy, sortDir])
 
   const isLoading = statusLoading || passagesLoading || membersLoading
 
@@ -164,10 +204,27 @@ export default function PassagePage() {
     })
   }
 
+  // Select-all operates on the currently VISIBLE (filtered/searched) rows.
   const toggleAll = () => {
-    if (selected.size === memberRows.length) setSelected(new Set())
-    else setSelected(new Set(memberRows.map(m => m.memberId)))
+    const ids = displayRows.map(m => m.memberId)
+    const allSelected = ids.length > 0 && ids.every(id => selected.has(id))
+    setSelected(allSelected ? new Set() : new Set(ids))
   }
+
+  const toggleSort = (col: SortCol) => {
+    if (sortBy === col) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortBy(col); setSortDir('asc') }
+  }
+
+  // Clickable sortable column header.
+  const sortTh = (col: SortCol, label: string) => (
+    <th className="px-3 py-2 text-left font-medium">
+      <button type="button" onClick={() => toggleSort(col)} className="inline-flex items-center gap-1 hover:text-foreground">
+        {label}
+        <ArrowUpDown className={cn('h-3 w-3', sortBy === col ? 'opacity-80' : 'opacity-30')} />
+      </button>
+    </th>
+  )
 
   const openPropose = async (row: MemberRow) => {
     setEditingMember(row)
@@ -382,15 +439,34 @@ export default function PassagePage() {
         <EmptyState icon={Users} title="Aucun membre" description="Aucun membre actif dans cette unite." />
       ) : (
         <>
+        {/* Search box + status filter (apply to both the desktop table and the mobile cards) */}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Rechercher un membre..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8" />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-60"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les statuts</SelectItem>
+              <SelectItem value="todo">À proposer</SelectItem>
+              <SelectItem value="pending">En attente</SelectItem>
+              <SelectItem value="approved">Approuvé / Pas de changement</SelectItem>
+              <SelectItem value="leaving">Quitte le groupe</SelectItem>
+              <SelectItem value="rejected">Rejeté</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Mobile: one card per member (the desktop table is too wide for a phone) */}
         <div className="space-y-2 md:hidden">
           <div className="flex items-center justify-between px-1">
             <button type="button" className="text-xs text-primary underline" onClick={toggleAll}>
-              {selected.size === memberRows.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+              {displayRows.length > 0 && displayRows.every(r => selected.has(r.memberId)) ? 'Tout désélectionner' : 'Tout sélectionner'}
             </button>
-            <span className="text-xs text-muted-foreground">{memberRows.length} membre(s)</span>
+            <span className="text-xs text-muted-foreground">{displayRows.length} membre(s)</span>
           </div>
-          {memberRows.map(row => (
+          {displayRows.map(row => (
             <Card key={row.memberId}>
               <CardContent className="p-3 space-y-2">
                 <div className="flex items-start gap-2">
@@ -401,7 +477,7 @@ export default function PassagePage() {
                       {[row.cardNumber, row.age !== null ? `${row.age} ans` : null].filter(Boolean).join(' · ')}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {row.currentUnitName}{row.currentTeamName ? ` · ${row.currentTeamName}` : ''} · {row.currentRoleName}
+                      {row.currentUnitCode}{row.currentTeamName ? ` · ${row.currentTeamName}` : ''} · {row.currentRoleName}
                     </div>
                   </div>
                   {row.passage && (
@@ -426,21 +502,22 @@ export default function PassagePage() {
                 <th className="px-3 py-2 w-10">
                   <input
                     type="checkbox"
-                    checked={selected.size === memberRows.length && memberRows.length > 0}
+                    checked={displayRows.length > 0 && displayRows.every(r => selected.has(r.memberId))}
                     onChange={toggleAll}
                   />
                 </th>
-                <th className="px-3 py-2 text-left font-medium">Membre</th>
-                <th className="px-3 py-2 text-left font-medium">Age</th>
-                <th className="px-3 py-2 text-left font-medium">Unite actuelle</th>
-                <th className="px-3 py-2 text-left font-medium">Equipe</th>
-                <th className="px-3 py-2 text-left font-medium">Proposition</th>
+                {sortTh('name', 'Membre')}
+                {sortTh('age', 'Âge')}
+                {sortTh('unit', 'Unité')}
+                {sortTh('team', 'Équipe')}
+                {sortTh('role', 'Fonction')}
+                {sortTh('status', 'Proposition')}
                 <th className="px-3 py-2 text-left font-medium">Notes</th>
                 <th className="w-20" />
               </tr>
             </thead>
             <tbody>
-              {memberRows.map((row, idx) => (
+              {displayRows.map((row, idx) => (
                 <tr key={row.memberId} className={`border-b hover:bg-muted/20 ${idx % 2 === 1 ? 'bg-muted/10' : ''}`}>
                   <td className="px-3 py-2">
                     <input
@@ -453,14 +530,10 @@ export default function PassagePage() {
                     <div className="font-medium">{row.memberName}</div>
                     {row.cardNumber && <div className="text-xs text-muted-foreground">{row.cardNumber}</div>}
                   </td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-1">
-                      {row.age !== null ? `${row.age} ans` : '-'}
-                      {/* Age warning placeholder — would need unit type age ranges from backend */}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2">{row.currentUnitName}</td>
+                  <td className="px-3 py-2">{row.age !== null ? `${row.age} ans` : '-'}</td>
+                  <td className="px-3 py-2">{row.currentUnitCode}</td>
                   <td className="px-3 py-2">{row.currentTeamName ?? '-'}</td>
+                  <td className="px-3 py-2">{row.currentRoleName}</td>
                   <td className="px-3 py-2">
                     {renderProposition(row)}
                   </td>
@@ -483,6 +556,9 @@ export default function PassagePage() {
                   </td>
                 </tr>
               ))}
+              {displayRows.length === 0 && (
+                <tr><td colSpan={9} className="px-3 py-6 text-center text-sm text-muted-foreground">Aucun membre ne correspond.</td></tr>
+              )}
             </tbody>
           </table>
         </div>
