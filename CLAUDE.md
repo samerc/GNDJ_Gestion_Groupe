@@ -1059,9 +1059,43 @@ Full-stack audit (4 parallel agents: DB/EF, backend API, frontend, infra) + fixe
   required-permission notes, plus `[ProducesResponseType]` for non-systematic 404/201/anonymous-401. Removed the
   WeatherForecast template leftover. Verified live: spec lists summaries + response codes on every operation.
 
+### Post-publish polish 2 (2026-06-29) — all on main, NOT yet deployed
+- **Assignment history — full cross-unit view:** `GetAssignmentsQuery` was unit-scoped, so a CU only saw a
+  member's assignments in their OWN unit (hiding e.g. their Ronde years). Now, when querying a specific member
+  you're allowed to see (own record, or a member active in one of your units — same rule as the member detail),
+  it returns the FULL history across all units; plain list views keep strict unit-scoping.
+- **Collapsed-history migration bug (big):** WEBDEV `UniteFonc` rows with `EnCours=0` + a real start but a
+  BLANK `DATEFIN` imported as zero-day assignments (end=start), erasing real durations (815 rows / 682 members;
+  + 203 dateless junk / 157 members). Migration STEP 11 reworked: group per member, carry an open-ended
+  historical function to the NEXT function's start (incl. the active row), Oct-1 fallback for a last function,
+  skip dateless junk (BP-compatible). LIVE DEV DB fixed in place (backup `_bak_assign_collapse_20260629`):
+  205 junk deleted, 451 extended to next-assignment, 442 alumni-last extended to next Oct 1, 18 same-unit+role
+  duplicates deleted; 50 zero-day kept (real prior branches like Noyau, 1-day markers for members to correct).
+  Detail in memory `project_migration_cleanup_todo.md`. NOTE: a member's pre-WEBDEV history that was never
+  digitized (e.g. Karen ABI HAIDAR's Ronde/Compagnie) is unrecoverable.
+- **Tooltips:** new reusable shadcn `Tooltip` (`@radix-ui/react-tooltip`) + one-line `<Tip content>` wrapper;
+  `TooltipProvider` in AppLayout. ~100 French tooltips on icon-only/action buttons across member, CU, CG and
+  super-admin views (replaced the few native `title=`).
+- **Reports — school codes + Matricule:** new backend `SchoolCode` resolver (reads `member.school_codes`,
+  accent/case-insensitive) → roster (PDF) and export (Excel/CSV) show CNDJ/CSG etc.; schools WITHOUT a code
+  keep their FULL name (no acronym fallback on the backend). Renamed the report "N° carte" column → "Matricule"
+  (it holds the internal matricule post card-number split) in both services + the column pickers.
+- **Passage page:** search box + status filter (À proposer / En attente / Approuvé / Quitte / Rejeté) +
+  click-to-sort headers; added a Fonction column (was only Équipe); Unité now shows the short-code (C3) not the
+  full name (resolved from the units list). Filters/sort apply to the mobile cards too.
+- **Member name fix:** IDMEMBRES 1931 = Angelina ELIAS (WEBDEV had NOM/PRENOM swapped) — live DB + a
+  `nameOverrides` map in the migration tool.
+- **Documents zip friendly error:** zip is a blob, so the backend's JSON 400 ("no documents") came back as an
+  unreadable Blob → always generic error. New `parseBlobError` (client/src/lib/error-utils) reads the blob's
+  JSON; the empty-unit case now shows a friendly info toast, real failures an error toast with the real message.
+
 ### Remaining / Next
+- [ ] **Deploy:** prod still runs the pre-2026-06-28 build; everything since (perf pass, Swagger, all of the
+      above) is on main and needs a full publish (build+ship) + the live-DB collapse fixes reach prod only via a
+      fresh pg_dump+restore. Run the ops scripts (tune-apppool.ps1, pg-profile.ps1) on the server.
 - [ ] Migration data cleanup: 181 orphans (kept — most are legit alumni), name spacing, GET /photo unit-scope;
-      migration tool card-number split for re-import
+      migration tool card-number split for re-import; 50 kept zero-day markers await member date corrections
+- [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies
 - [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies
 - [ ] Perf (optional later): async Serilog file sink (Serilog.Sinks.Async); DbContextCheck on /health; batch the
       demande-send in-loop unit/role/email lookups (now indexed, so low priority)
