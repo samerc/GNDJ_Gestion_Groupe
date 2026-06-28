@@ -72,34 +72,71 @@ Still **your** call at deploy time (config, not code): set `"AllowedHosts": "new
 
 ---
 
-## 3. Build & publish
+## 3. Build the deployable package ("staging files")
 
-**Easiest:** run the bundled script on a machine with the .NET SDK + Node.js — it does all the steps below
-and leaves a ready package in `publish/`:
+The whole app ships as **one folder** — the published API with the React build inside its `wwwroot/`. Build
+it with the bundled script on any machine that has the **.NET SDK + Node.js** (your dev box or the server):
 
 ```powershell
-./deploy/publish.ps1
+./deploy/publish.ps1                                   # → .\publish  (in the repo)
+# …or build straight into your staging folder:
+./deploy/publish.ps1 -OutDir "C:\Users\Administrator\Desktop\gndj-staging\publish"
 ```
 
-What it does (equivalent manual steps):
+It runs three steps (a **full** build — backend DLLs **and** the frontend, so it's correct even when only
+the React app changed):
 
 ```powershell
-# 1. Backend — framework-dependent publish
+# 1. Backend — framework-dependent publish (also generates web.config with the ANCM handler)
 dotnet publish src/GNDJ.Api/GNDJ.Api.csproj -c Release -o publish
 
 # 2. Frontend — production build
-cd client; npm ci; npm run build; cd ..    # → client/dist
+cd client; npm ci; npm run build; cd ..               # → client/dist
 
 # 3. Put the SPA inside the API's wwwroot
 New-Item -ItemType Directory -Force publish/wwwroot | Out-Null
 Copy-Item client/dist/* publish/wwwroot/ -Recurse -Force
 ```
 
-> For **updates** to an already-running site, use the one-command redeploy in **§13** instead of doing
-> the IIS setup again.
+The result — the **staging package** — is self-contained. Copy the whole folder to the server's site path
+(`C:\inetpub\www\gndj`).
 
-`dotnet publish` generates a `web.config` with the ANCM handler. Copy the whole **`publish/`** folder to
-the server, e.g. `C:\inetpub\www\gndj`.
+> ⚠️ Always do a **full `publish.ps1`** (not a DLL-only copy) whenever the frontend changed — the React build
+> is content-hash-split into many chunk files, so a stale `wwwroot/` would serve a broken/old UI.
+
+### Ship the package to the server
+
+Pick the path that matches **where you built**:
+
+**A — You build ON the server** (SDK + Node installed there). One command does build + ship:
+```powershell
+./deploy/update.ps1 -Target C:\inetpub\www\gndj     # first time; the target is then remembered
+./deploy/update.ps1                                 # every time after
+```
+
+**B — You build on a different machine** (e.g. the dev box) and the server is separate. Build the package,
+copy it across, then ship it **on the server**:
+```powershell
+# on the build box:
+./deploy/publish.ps1 -OutDir "C:\Users\Administrator\Desktop\gndj-staging\publish"
+#   then copy that folder to the server — RDP copy/paste, a zip, or a UNC share
+
+# on the server:
+./deploy/deploy.ps1 -Source <path to the copied publish folder> -Target C:\inetpub\www\gndj
+```
+(If the site folder is reachable as a UNC share from the build box, you can skip the copy and ship directly:
+`./deploy/deploy.ps1 -Source .\publish -Target \\SERVER\gndj$`.)
+
+`deploy.ps1` swaps the files with near-zero downtime and **preserves** `uploads/`, `logs/`, and the
+server-only `appsettings.Production.json` (mechanics in §13). On the first request after a deploy the app
+**auto-runs any new EF migrations** — no manual EF step.
+
+> **First install vs. update.** The commands above only place the files.
+> - **Brand-new server** → also do the one-time setup: §1 prerequisites, §4 database, §5 secrets
+>   (`appsettings.Production.json`), §6 IIS site + app pool, §6b TLS, §9b performance tuning. For a guided,
+>   click-by-click first install, follow **`docs/INSTALL_GUIDE.md`**.
+> - **Already-running site** → just `update.ps1` / `deploy.ps1`. **No IIS reconfiguration** — §6 is done once.
+>   See **§13**.
 
 ---
 
@@ -418,7 +455,8 @@ Because the client uses the **relative** `/api/v1`, switching `new.gndj.org` →
 ./deploy/update.ps1 -Pull                      # git pull --ff-only first, then build + ship
 ```
 `update.ps1` just chains the two scripts below (build → ship) and remembers the target in
-`deploy\target.txt` (git-ignored). **No IIS reconfiguration** — you only do §6 once.
+`deploy\target.txt` (git-ignored). **No IIS reconfiguration** — you only do §6 once. (If you build on a
+**separate** machine from the server, build there and ship with `deploy.ps1` instead — see §3 path **B**.)
 
 Under the hood it runs the two stages, which you can also call separately:
 
