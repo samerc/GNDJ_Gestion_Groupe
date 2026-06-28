@@ -26,6 +26,13 @@ const RELATIONSHIP_OPTIONS = [
   { value: 'Autre', label: 'Autre' },
 ]
 
+// "Famille" tab of the member detail page: parents/tutors (guardians) linked to this member,
+// with their phones/emails. Guardians are SHARED entities — siblings reuse the same guardian
+// record — so "Ajouter" offers two modes: search an existing guardian and LINK it (re-uses the
+// shared record), or create a brand-new one. A guardian carries an activity Domaine + free-text
+// Profession; each link carries the relationship type + primary/emergency-contact flags. Editing
+// updates BOTH the shared guardian and this member's link (two mutations). Removing only unlinks
+// (the guardian record survives for other members).
 interface MemberGuardiansProps { memberId: string }
 
 export function MemberGuardians({ memberId }: MemberGuardiansProps) {
@@ -78,6 +85,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
     setError('')
     if (!editForm.firstName.trim() || !editForm.lastName.trim()) { setError('Le prénom et le nom sont requis.'); return }
     try {
+      // Save the shared guardian fields and the per-member link separately (two endpoints).
       await updateMutation.mutateAsync({ id: editForm.id, firstName: editForm.firstName, lastName: editForm.lastName, profession: editForm.profession || null, professionDomain: editForm.professionDomain || null, isDeceased: editForm.isDeceased, notes: editForm.notes || null })
       await updateLinkMutation.mutateAsync({ linkId: editForm.linkId, relationshipType: editForm.relationshipType, isPrimaryContact: editForm.isPrimaryContact, isEmergencyContact: editForm.isEmergencyContact })
       toast.success('Tuteur modifié')
@@ -93,6 +101,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
     setAddDialogOpen(true)
   }
 
+  // Pick a search result: stage it in linkForm (reveals the relationship picker + "Lier" inline).
   const selectExisting = (g: GuardianSearchDto) => {
     setLinkForm({ guardianId: g.id, relationshipType: 'Père', isPrimaryContact: false, isEmergencyContact: false })
     setMode('search')
@@ -298,6 +307,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
                 </div>
                 <div className="space-y-2">
                   <RequiredLabel required>Nom</RequiredLabel>
+                  {/* Family name is force-uppercased on input (matches the member-form convention). */}
                   <Input className={fieldClass('lastName')} value={form.lastName} onChange={(e) => { setForm(f => ({ ...f, lastName: e.target.value.toUpperCase() })); clearField('lastName') }} required />
                 </div>
               </div>

@@ -1,3 +1,7 @@
+// Admin screen (CG/super-admin): define reusable report templates that CUs then
+// generate per-unit. A template = report type (roster PDF or Excel/CSV export) +
+// format + a selected set of columns (stored as a JSON string). isActive controls
+// whether it's offered to unit leaders.
 import { useState } from 'react'
 import { useReportTemplates, useCreateReportTemplate, useUpdateReportTemplate, useDeleteReportTemplate, type ReportTemplateDto, type ReportTemplateFormData } from '@/services/report-template-service'
 import { parseApiError } from '@/lib/error-utils'
@@ -19,6 +23,7 @@ const REPORT_TYPE_OPTIONS = [
   { value: 'export', label: 'Export (Excel/CSV)' },
 ]
 
+// Allowed formats per report type; switching the type resets format to the first entry.
 const FORMAT_OPTIONS: Record<string, { value: string; label: string }[]> = {
   roster: [{ value: 'pdf', label: 'PDF' }],
   export: [
@@ -27,6 +32,7 @@ const FORMAT_OPTIONS: Record<string, { value: string; label: string }[]> = {
   ],
 }
 
+// Column catalog grouped for the checkbox picker; keys must match the backend export/roster column ids.
 const ALL_COLUMNS = [
   { group: 'Identité', columns: [
     { key: 'name', label: 'Nom' },
@@ -71,6 +77,7 @@ export default function ReportTemplatesPage() {
     isActive: true, displayOrder: 0,
   }
   const [form, setForm] = useState<ReportTemplateFormData>(defaultForm)
+  // Column selection kept as a Set for cheap toggles; serialized to form.columnsJson on submit.
   const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set(['name', 'cardNumber', 'age']))
 
   const openCreate = () => {
@@ -83,7 +90,7 @@ export default function ReportTemplatesPage() {
 
   const openEdit = (item: ReportTemplateDto) => {
     setEditing(item)
-    const cols: string[] = JSON.parse(item.columnsJson)
+    const cols: string[] = JSON.parse(item.columnsJson) // hydrate the column Set from the saved JSON
     setForm({
       name: item.name, description: item.description, reportType: item.reportType,
       format: item.format, columnsJson: item.columnsJson, isActive: item.isActive,

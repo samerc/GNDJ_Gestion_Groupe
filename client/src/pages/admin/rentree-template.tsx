@@ -1,3 +1,9 @@
+// Admin "Modèle de rentrée" editor (super-admin / CG, perm rentree.manage). Defines the master list
+// of scout-year startup tasks that get copied into per-year RentreeTask instances on "Generate".
+// Each template has a phase, an assignee = a ROLE (security-profile code, optionally fanned out into
+// one task per unit) OR specific MEMBERS, a fuzzy deadline label, and DEPENDENCIES on other
+// templates. Tasks are ordered via up/down arrows (persisted as a reordered id list). Editing the
+// model does NOT touch already-generated year lists.
 import { useState } from 'react'
 import { Link } from 'react-router'
 import {
@@ -46,10 +52,10 @@ export default function RentreeTemplatePage() {
   const [form, setForm] = useState<Form | null>(null)
   const [deleting, setDeleting] = useState<RentreeTemplate | null>(null)
   const [memberSearch, setMemberSearch] = useState('')
-  const debounced = useDebounce(memberSearch)
+  const debounced = useDebounce(memberSearch) // member picker (assigneeType === 'members')
   const { data: memberResults } = useMembers({ search: debounced || undefined, pageSize: 8 })
 
-  const phases = [...new Set((templates ?? []).map(t => t.phase))]
+  const phases = [...new Set((templates ?? []).map(t => t.phase))] // existing phases → datalist suggestions
 
   const openNew = () => setForm({ ...blank, phase: phases[0] ?? 'Configuration' })
   const openEdit = (t: RentreeTemplate) => setForm({
@@ -62,6 +68,8 @@ export default function RentreeTemplatePage() {
   const submit = async () => {
     if (!form) return
     try {
+      // Send only the fields relevant to the chosen assigneeType (role vs members) so stale values
+      // from the other branch aren't persisted; fan-out applies to role assignees only.
       await save.mutateAsync({
         id: form.id, title: form.title, description: form.description || null, phase: form.phase,
         assigneeType: form.assigneeType, assigneeRole: form.assigneeType === 'role' ? form.assigneeRole : null,
@@ -73,6 +81,7 @@ export default function RentreeTemplatePage() {
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
+  // Swap a template with its neighbour and persist the full reordered id list (server rewrites order).
   const move = async (idx: number, dir: -1 | 1) => {
     if (!templates) return
     const arr = [...templates]

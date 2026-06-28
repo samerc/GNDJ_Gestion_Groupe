@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.DeleteEmail;
 
+// Removes a member email. Access (IDOR guard, on the owning member): own profile / super-admin / active unit leader.
 public record DeleteEmailCommand(Guid Id) : IRequest<Result<bool>>;
 
 public class DeleteEmailCommandHandler : IRequestHandler<DeleteEmailCommand, Result<bool>>

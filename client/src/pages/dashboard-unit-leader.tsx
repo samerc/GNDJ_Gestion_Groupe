@@ -36,6 +36,7 @@ import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, Credi
 
 interface Props { unitId: string }
 
+// Small labelled read-only value (dash placeholder when empty), used throughout the detail panel.
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div>
@@ -45,6 +46,8 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   )
 }
 
+// Right-pane member file: header + tabbed sections (info/contact/family/units/medical/docs/
+// cotisations/progression/custom). `onBack` is the mobile-only return-to-list arrow.
 function MemberDetailPanel({ memberId, onBack }: { memberId: string; onBack?: () => void }) {
   const { data: member, isLoading } = useMember(memberId)
 
@@ -221,6 +224,9 @@ function DragHandle({ onDrag }: { onDrag: (deltaX: number) => void }) {
   )
 }
 
+// Chef d'unité's home screen: a master/detail roster of one unit. Left = searchable member list
+// grouped by team; right = the selected member's full file. Top action bar exports the roster as
+// trombinoscope / list / cards / spreadsheet / custom report templates, and links to the photo session.
 export default function UnitLeaderDashboard({ unitId }: Props) {
   const navigate = useNavigate()
   const { data, isLoading } = useUnitDashboard(unitId)
@@ -237,6 +243,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const currentScoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
   const [generatingReport, setGeneratingReport] = useState<string | null>(null)
 
+  // Run a CG-defined report template (roster PDF or data export) for this unit and trigger a download.
   const handleCustomReport = async (template: { id: string; name: string; reportType: string; format: string; columnsJson: string }) => {
     setGeneratingReport(template.id)
     try {
@@ -290,11 +297,14 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   if (isLoading) return <LoadingSpinner variant="page" />
   if (!data) return <p className="text-muted-foreground">Unité introuvable.</p>
 
+  // Flatten the team-grouped dashboard payload into one list, stamping each member with its team
+  // name/color (null for unassigned) so search/filter can work over a single array.
   const allMembers: (RosterMemberDto & { teamName: string | null; teamColor1: string | null })[] = [
     ...data.teams.flatMap(t => t.members.map(m => ({ ...m, teamName: t.teamName, teamColor1: t.color1 }))),
     ...data.unassignedMembers.map(m => ({ ...m, teamName: null, teamColor1: null })),
   ]
 
+  // Apply the debounced name/card search, then the team filter ('none' = members with no team).
   let filtered = allMembers
   if (debouncedSearch) {
     const s = debouncedSearch.toLowerCase()
@@ -304,7 +314,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
     filtered = teamFilter === 'none' ? filtered.filter(m => !m.teamName) : filtered.filter(m => m.teamName === teamFilter)
   }
 
-  // Group by team
+  // Re-group the filtered list back into team sections, preserving first-seen team order.
   const grouped: { teamName: string | null; teamColor1: string | null; members: typeof filtered }[] = []
   const seen = new Set<string | null>()
   for (const m of filtered) {

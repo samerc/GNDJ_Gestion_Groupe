@@ -7,6 +7,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Camps;
 
+// Camp BP — the CU grading stage (upstream of the CG draft). A CU marks, for their own youth: who is
+// attending, Force, année-in-branch, and Père/Mère candidacy. A CampParticipant row is created on demand
+// the first time a member is touched; its Note is (re)computed via CampNote on every save.
+// The "année default" helper (AnneeInUnit / Sy) is duplicated across handlers: it counts the DISTINCT
+// scout-years a member has spent in their CURRENT unit across all assignments (incl. ended ones),
+// capped at the unit type's NumberOfYears. Scout year boundary ≈ Oct 1 (September counts as the new year).
+
 static class CampScope
 {
     // CG (camp.manage / super-admin) sees the whole group; a CU sees only their authorized units.

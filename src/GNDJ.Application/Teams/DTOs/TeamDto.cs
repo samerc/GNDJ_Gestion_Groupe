@@ -1,5 +1,7 @@
 namespace GNDJ.Application.Teams.DTOs;
 
+// A team/sizaine within a unit. Totem + Adjective form the full sizaine name; IsMaitrise marks the
+// leadership team (pinned first in rosters/trombinoscope); MemberCount = active assignments.
 public record TeamDto(
     Guid Id,
     string Name,

@@ -7,6 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Maitrises;
 
+// CG-only tools for managing the group's leaders (maîtrise = members holding an IsMaitrise function):
+// view them grouped by unit, remove one (ends the leadership assignment), or transfer one to another
+// unit (keeping or closing the old function). All operate on MemberAssignment rows.
+
 // ── Hierarchical maîtrise view: each unit (Maîtrise de Groupe first) with its leaders, by rank ──
 public record MaitriseMemberDto(Guid AssignmentId, Guid MemberId, string FirstName, string LastName,
     string? PhotoPath, Guid FunctionalRoleId, string FunctionName, int Rank);

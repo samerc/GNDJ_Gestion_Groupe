@@ -12,6 +12,11 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace GNDJ.Api.Controllers;
 
+// Internal-user (User/Member) authentication: base route api/v1/auth.
+// Mostly anonymous endpoints (register/login/refresh/forgot/reset). login/refresh/change-password are
+// rate-limited via the "auth" policy (per-IP); register/forgot/reset via the abuse-prone "forms" policy.
+// me/logout/change-password require [Authorize]. NOTE: applicant (enrollment portal) auth lives in a
+// SEPARATE controller with its own JWT — this controller never issues applicant tokens.
 [Route("api/v1/auth")]
 public class AuthController : BaseApiController
 {
@@ -65,6 +70,7 @@ public class AuthController : BaseApiController
     [EnableRateLimiting("forms")]
     public async Task<IActionResult> ForgotPassword([FromBody] RequestPasswordResetCommand command)
     {
+        // Always 200 with a generic message (never reveals whether the account exists) — anti-enumeration.
         await Mediator.Send(command);
         return Ok(new { message = "Si un compte existe avec cette adresse, un email de réinitialisation a été envoyé." });
     }

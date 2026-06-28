@@ -2,6 +2,7 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// One payment line on a MemberCotisation (a cotisation can be settled in several currencies/installments).
 public class CotisationPayment : BaseEntity
 {
     public Guid CotisationId { get; set; }

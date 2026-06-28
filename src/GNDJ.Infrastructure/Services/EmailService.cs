@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Infrastructure.Services;
 
+// Sends a templated email: loads the DB-stored EmailTemplate by code, resolves the SMTP server
+// (the template's own, else the first active one), substitutes {{variables}}, and sends via
+// System.Net.Mail. Variable substitution HTML-encodes user-supplied values for the HTML body as an
+// XSS defense at the sink (see ReplaceVariables / SendAsync).
 public class EmailService : IEmailService
 {
     private readonly GndjDbContext _context;

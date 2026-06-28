@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.AuditLogs;
 
+// Read-only viewer over the append-only audit trail written by IAuditService on every mutation.
+// OldValues/NewValues are stored as JSON strings (rendered as a key/value table by the admin UI).
 public record AuditLogDto(
     Guid Id, Guid? UserId, string? UserEmail,
     string Action, string EntityType, Guid? EntityId,
@@ -12,6 +14,7 @@ public record AuditLogDto(
     string? IpAddress, DateTime Timestamp
 );
 
+// Paginated audit-log query with entity-type / action / user / date-range filters (newest first).
 public record GetAuditLogsQuery(
     string? EntityType, string? Action, Guid? UserId,
     DateTime? From, DateTime? To,

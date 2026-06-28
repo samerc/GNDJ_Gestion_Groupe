@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
+// API keys resource: scoped external-integration keys (admin). Queries key on ['api-keys'].
+
 export interface ApiKeyDto {
   id: string
   name: string
@@ -19,6 +21,7 @@ export interface ApiKeyCreatedDto {
   key: string
 }
 
+// GET /api-keys → list (prefix only, never the full key).
 export function useApiKeys() {
   return useQuery({
     queryKey: ['api-keys'],
@@ -26,6 +29,7 @@ export function useApiKeys() {
   })
 }
 
+// POST /api-keys → create; returns the plaintext key ONCE (shown to copy). Invalidates the list.
 export function useCreateApiKey() {
   const qc = useQueryClient()
   return useMutation({
@@ -35,6 +39,7 @@ export function useCreateApiKey() {
   })
 }
 
+// PUT /api-keys/{id}/toggle → flip active state; invalidates the list.
 export function useToggleApiKey() {
   const qc = useQueryClient()
   return useMutation({
@@ -43,6 +48,7 @@ export function useToggleApiKey() {
   })
 }
 
+// DELETE /api-keys/{id} → delete; invalidates the list.
 export function useDeleteApiKey() {
   const qc = useQueryClient()
   return useMutation({

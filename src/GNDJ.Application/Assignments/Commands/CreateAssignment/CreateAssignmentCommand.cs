@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Assignments.Commands.CreateAssignment;
 
+// Places a member into a unit/team with a role. Handler enforces target-unit authorization +
+// FK existence + that the team belongs to the unit.
 public record CreateAssignmentCommand(
     Guid MemberId, Guid UnitId, Guid? TeamId, Guid FunctionalRoleId,
     DateOnly StartDate, DateOnly? EndDate, string? Notes

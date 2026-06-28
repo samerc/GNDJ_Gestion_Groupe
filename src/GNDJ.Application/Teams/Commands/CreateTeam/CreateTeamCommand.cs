@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Teams.Commands.CreateTeam;
 
+// Create a team in a unit. Unit-scoped: caller must be super-admin or authorized for the target unit.
+// Name is unique within the unit. IsMaitrise flags the leadership team.
 public record CreateTeamCommand(
     string Name, Guid UnitId, string? Description,
     string? Totem, string? Adjective, string? Color1, string? Color2, int DisplayOrder, bool IsMaitrise

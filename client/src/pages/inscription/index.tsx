@@ -7,10 +7,14 @@ import { Card, CardContent } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { CalendarClock } from 'lucide-react'
 
+// Public entry screen for the applicant (parent/future member) portal at /inscription.
+// Anonymous: shows the intro + Créer un compte / Se connecter, or a "fermées" notice when
+// inscriptions are closed. Already-logged-in applicants are bounced straight to the portail.
 export default function InscriptionLandingPage() {
   const isAuthenticated = useApplicantStore((s) => s.isAuthenticated)
   const { data: config, isLoading } = useApplicantConfig()
 
+  // Skip the landing for a returning applicant who still has a valid session.
   if (isAuthenticated) return <Navigate to="/inscription/portail" replace />
 
   return (

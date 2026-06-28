@@ -4,6 +4,8 @@ using Mediator;
 
 namespace GNDJ.Application.Assignments.Commands.DeleteAssignment;
 
+// Removes an assignment entirely (correcting a mistake — use EndAssignment to retire one normally).
+// Unit-scoped to the assignment's unit.
 public record DeleteAssignmentCommand(Guid Id) : IRequest<Result<bool>>;
 
 public class DeleteAssignmentCommandHandler : IRequestHandler<DeleteAssignmentCommand, Result<bool>>

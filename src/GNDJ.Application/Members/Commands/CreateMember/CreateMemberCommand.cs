@@ -7,8 +7,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.CreateMember;
 
+// Returned to the caller so the credentials dialog can show the auto-created login once.
 public record CreateMemberResult(Guid MemberId, string Username, string TemporaryPassword);
 
+// Creates a member AND auto-provisions a User login for them (username derived from the name,
+// temporary password). CardNumber is ignored on input — the matricule is auto-generated below.
 public record CreateMemberCommand(
     string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender,
     string? CardNumber, string? ExternalCardNumber, string? BloodType, string? Nationality, string? School,
@@ -65,7 +68,8 @@ public class CreateMemberCommandHandler : IRequestHandler<CreateMemberCommand, R
 
     public async ValueTask<Result<CreateMemberResult>> Handle(CreateMemberCommand request, CancellationToken cancellationToken)
     {
-        // Auto-generate card number: M-0001 for boys, F-0001 for girls
+        // Auto-generate internal matricule: M-0001 for boys, F-0001 for girls. IgnoreQueryFilters so
+        // soft-deleted members still reserve their number (no reuse → no collisions on the next insert).
         var prefix = request.Gender == "Féminin" ? "F" : "M";
         var lastCard = await _context.Members
             .IgnoreQueryFilters()

@@ -1,3 +1,4 @@
+// Associations resource: top-level scout org units. List/create/update/delete CRUD. Queries key on ['associations'].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { PaginatedResult } from '@/types/api'
@@ -17,6 +18,7 @@ export interface AssociationFormData {
   description?: string | null
 }
 
+// Paginated associations list (GET /associations); optional search. Keyed ['associations', params].
 export function useAssociations(params: { search?: string; page?: number; pageSize?: number }) {
   return useQuery({
     queryKey: ['associations', params],
@@ -24,6 +26,7 @@ export function useAssociations(params: { search?: string; page?: number; pageSi
   })
 }
 
+// POST /associations; invalidates ['associations'].
 export function useCreateAssociation() {
   const qc = useQueryClient()
   return useMutation({
@@ -32,6 +35,7 @@ export function useCreateAssociation() {
   })
 }
 
+// PUT /associations/:id; invalidates ['associations'].
 export function useUpdateAssociation() {
   const qc = useQueryClient()
   return useMutation({
@@ -41,6 +45,7 @@ export function useUpdateAssociation() {
   })
 }
 
+// DELETE /associations/:id; invalidates ['associations'].
 export function useDeleteAssociation() {
   const qc = useQueryClient()
   return useMutation({

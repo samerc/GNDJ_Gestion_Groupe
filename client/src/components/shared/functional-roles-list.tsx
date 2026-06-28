@@ -33,6 +33,13 @@ interface FunctionalRolesListProps {
   sortable?: boolean // drag-to-rank mode (unit-type page); the order sets the rank
 }
 
+// Manages functional roles (fonctions) — create/edit/delete + bulk delete, with two layouts:
+//  - sortable (unit-type detail page): a dnd-kit ladder where top = most senior (drag sets the rank),
+//    a star toggle picks the "default for new members" role, plus archived/global sections;
+//  - table (all-types admin page): a flat sortable-by-API table with row checkboxes.
+// Delete is archive-if-used: a role held by members is archived (kept on them, hidden from pickers)
+// rather than hard-deleted; the confirm dialog lists the affected members.
+
 export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColumn = false, showUnitTypeField = false, sortable = false }: FunctionalRolesListProps) {
   const { data: rolesRaw } = useFunctionalRoles(unitTypeId)
   const { data: profiles } = useSecurityProfiles()

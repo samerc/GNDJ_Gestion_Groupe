@@ -5,6 +5,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Infrastructure.Persistence.Repositories;
 
+// Thin generic repository over a DbSet<T>. Add/Update/Remove only stage changes — they are NOT persisted
+// until IUnitOfWork.SaveChangesAsync runs (see UnitOfWork). Query() exposes the raw IQueryable so callers
+// can compose/project; the soft-delete filter on the context still applies.
 public class GenericRepository<T> : IRepository<T> where T : BaseEntity
 {
     protected readonly GndjDbContext Context;

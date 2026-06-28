@@ -5,6 +5,10 @@ import { Header } from './header'
 import { SessionWarning } from '@/components/shared/session-warning'
 import { RentreeOverduePopup } from '@/components/rentree/overdue-popup'
 
+// ROLE: authenticated app shell — sidebar + header around the routed <Outlet>.
+// Used as the layout route wrapping every signed-in page. Mounts the global
+// Sonner <Toaster>, the idle session-expiry warning, and the once-per-session
+// rentrée-overdue reminder so they're present on all inner pages.
 export function AppLayout() {
   return (
     <div className="flex h-screen">

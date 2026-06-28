@@ -60,12 +60,17 @@ const PAYMENT_METHOD_OPTIONS = [
   { value: 'Autre', label: 'Autre' },
 ]
 
+// "Documents & Cotisations" — chef d'unité (CU) screen. A members × document-types matrix for the CU's
+// unit(s): each cell shows a member's upload status per doc type (with hover quick approve/reject + a
+// click-to-preview dialog), plus a trailing cotisation cell (payée / non payée / exempté) that opens a
+// payment dialog. Unit-scoped to the CU's authorized units; the unit picker only shows when they lead >1.
 export default function UnitDocumentsPage() {
   const user = useAuthStore((s) => s.user)
   const currentScoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
   const defaultAmount = useSettingValue('cotisation.default_amount')
   const [selectedUnit, setSelectedUnit] = useState<string>(user?.unitAccess[0]?.unitId ?? '')
 
+  // Effective unit = explicit pick, else the CU's first authorized unit.
   const unitId = selectedUnit || user?.unitAccess[0]?.unitId || ''
   const { data: matrix, isLoading } = useUnitDocumentsMatrix(unitId, currentScoutYear)
   const reviewMutation = useReviewDocumentMatrix(unitId)
@@ -85,6 +90,7 @@ export default function UnitDocumentsPage() {
   const updateCotisation = useUpdateCotisation('')
   const setExempt = useSetCotisationExempt()
 
+  // Mark/unmark a member as "ne paiera pas" for the year — a shared CU↔CG fact (no payment line).
   const toggleExempt = async (member: MemberDocRowDto, willNotPay: boolean) => {
     try {
       await setExempt.mutateAsync({ memberId: member.memberId, scoutYear: currentScoutYear, willNotPay })
@@ -105,7 +111,7 @@ export default function UnitDocumentsPage() {
     setReviewNotes('')
     setError('')
     setPreviewError(false)
-    // Fetch blob for preview
+    // Fetch the file as a blob and hold an object URL for inline <img>/<iframe> preview (revoked on close).
     try {
       const response = await downloadDocument(cell.documentId)
       const blob = new Blob([response.data], { type: cell.mimeType ?? 'application/octet-stream' })
@@ -184,6 +190,8 @@ export default function UnitDocumentsPage() {
   }
 
   // ─── Cotisation logic ──────────────────────────────
+  // Open the payment dialog: prefill from the existing cotisation if one has payment lines, else seed a
+  // single line at the default amount + today's date.
   const openCotisation = (member: MemberDocRowDto) => {
     setCotisationMember(member)
     setError('')
@@ -207,6 +215,7 @@ export default function UnitDocumentsPage() {
       return
     }
     try {
+      // Update the year's existing cotisation, or create one — single record per (member, year).
       if (cotisationMember.cotisation.cotisationId) {
         await updateCotisation.mutateAsync({
           id: cotisationMember.cotisation.cotisationId,
@@ -303,6 +312,7 @@ export default function UnitDocumentsPage() {
               </thead>
               <tbody>
                 {matrix.members.map((member, idx) => {
+                  // Members arrive pre-grouped by team; emit a team-name separator row at each boundary.
                   const prevMember = idx > 0 ? matrix.members[idx - 1] : null
                   const showTeamHeader = member.teamName && member.teamName !== prevMember?.teamName
 

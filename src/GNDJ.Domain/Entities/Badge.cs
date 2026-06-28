@@ -2,6 +2,7 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// A badge awardable within a unit type, selected on a badge-stage progression. Archived = IsActive false.
 public class Badge : BaseEntity
 {
     public Guid UnitTypeId { get; set; }

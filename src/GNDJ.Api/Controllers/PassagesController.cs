@@ -6,10 +6,16 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Annual passage workflow: members move unit/team/role between scout years.
+// Route: api/v1/passages. [Authorize] = JWT/API-key.
+// Status flow: Pending -> Approved -> Finalized (or Rejected). CU proposes (PassagePropose),
+// CG reviews/finalizes (PassageManage), read is PassageView. scoutYear query param is required
+// on all read endpoints (a passage round is scoped to one year).
 [Authorize]
 [Route("api/v1/passages")]
 public class PassagesController : BaseApiController
 {
+    // CU view: proposals for one unit. PassageView (read-only for the unit's leader).
     [HttpGet("unit/{unitId:guid}")]
     [HasPermission(Permissions.PassageView)]
     public async Task<IActionResult> GetPassagesByUnit(Guid unitId, [FromQuery] string scoutYear)
@@ -21,6 +27,7 @@ public class PassagesController : BaseApiController
         return Ok(result.Value);
     }
 
+    // CG review list across all units; optional status / unit filters.
     [HttpGet]
     [HasPermission(Permissions.PassageManage)]
     public async Task<IActionResult> GetAllPassages([FromQuery] string scoutYear, [FromQuery] string? status, [FromQuery] Guid? unitId)
@@ -32,6 +39,7 @@ public class PassagesController : BaseApiController
         return Ok(result.Value);
     }
 
+    // CG completeness view: expected vs. missing passage lines per unit (finalize gate).
     [HttpGet("summary")]
     [HasPermission(Permissions.PassageManage)]
     public async Task<IActionResult> GetPassageSummary([FromQuery] string scoutYear)
@@ -43,6 +51,7 @@ public class PassagesController : BaseApiController
         return Ok(result.Value);
     }
 
+    // No permission attribute — any authenticated user checks whether the CG has opened the round.
     [HttpGet("status")]
     public async Task<IActionResult> IsPassageOpen([FromQuery] string scoutYear)
     {
@@ -60,6 +69,7 @@ public class PassagesController : BaseApiController
         return Created($"/api/v1/passages/{result.Value}", new { id = result.Value });
     }
 
+    // Bulk CU propose (e.g. "Pas de changement" for many members at once); returns processed count.
     [HttpPost("bulk")]
     [HasPermission(Permissions.PassagePropose)]
     public async Task<IActionResult> BulkPropose([FromBody] BulkProposePassageCommand command)
@@ -88,6 +98,9 @@ public class PassagesController : BaseApiController
         return Ok(new { count = result.Value });
     }
 
+    // CG finalize: ends old assignments + creates new ones for all Approved lines.
+    // Serialized via Postgres advisory lock + idempotent (double-click / two-CG safe); blocked
+    // until every active member in scope has a line. Returns count finalized.
     [HttpPost("finalize")]
     [HasPermission(Permissions.PassageManage)]
     public async Task<IActionResult> Finalize([FromBody] FinalizePassagesCommand command)
@@ -97,6 +110,7 @@ public class PassagesController : BaseApiController
         return Ok(new { count = result.Value });
     }
 
+    // CG opens/closes the passage process for the year (gates CU proposals).
     [HttpPost("toggle")]
     [HasPermission(Permissions.PassageManage)]
     public async Task<IActionResult> Toggle([FromBody] TogglePassageCommand command)

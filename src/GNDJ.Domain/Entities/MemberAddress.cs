@@ -2,6 +2,7 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// A postal address for a member. City is matched against the managed member.cities list at entry.
 public class MemberAddress : BaseEntity
 {
     public Guid MemberId { get; set; }

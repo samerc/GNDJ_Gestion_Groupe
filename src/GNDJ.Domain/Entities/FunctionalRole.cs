@@ -2,6 +2,8 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// A role a member can hold within a unit type (Louveteau, Chef d'unité, Aumônier…). Binds a SecurityProfile
+// (its permissions) and drives display ordering. A null UnitTypeId = a global/cross-type role.
 public class FunctionalRole : BaseEntity
 {
     public string Name { get; set; } = string.Empty;

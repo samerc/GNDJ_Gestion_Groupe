@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// A named permission set (super-admin, chef-unite, chef-de-groupe, ...) assigned via functional roles.
 public class SecurityProfileConfiguration : IEntityTypeConfiguration<SecurityProfile>
 {
     public void Configure(EntityTypeBuilder<SecurityProfile> builder)

@@ -1,3 +1,4 @@
+// Summary banner shown atop a form when one or more fields failed validation (paired with use-form-validation).
 export function FormFieldErrors({ show }: { show: boolean }) {
   if (!show) return null
   return (

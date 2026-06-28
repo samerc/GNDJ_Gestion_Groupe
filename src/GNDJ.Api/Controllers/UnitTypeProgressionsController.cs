@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Parcours scouts: the group-wide path between unit types (drives passage suggestions). Route api/v1/unit-type-progressions.
+// Read = unit_types.view, mutate = unit_types.manage. suggest/{memberId} + destinations/{memberId} feed the passage
+// propose dialog (allowed targets for a member) and are gated by passage.propose instead of the controller default.
 [Authorize]
 [Route("api/v1/unit-type-progressions")]
 public class UnitTypeProgressionsController : BaseApiController

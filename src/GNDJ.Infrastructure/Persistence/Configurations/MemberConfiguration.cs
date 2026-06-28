@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// Core scout/leader person record — the hub the whole domain hangs off.
 public class MemberConfiguration : IEntityTypeConfiguration<Member>
 {
     public void Configure(EntityTypeBuilder<Member> builder)
@@ -24,6 +25,8 @@ public class MemberConfiguration : IEntityTypeConfiguration<Member>
         builder.Property(e => e.PhotoPath).HasMaxLength(500);
 
         builder.HasIndex(e => new { e.LastName, e.FirstName });
+        // card_number is the internal matricule (M-/F-), distinct from the official ExternalCardNumber;
+        // uniqueness skips nulls so a few legacy rows without a matricule don't collide.
         builder.HasIndex(e => e.CardNumber).IsUnique().HasFilter("is_deleted = false AND card_number IS NOT NULL");
     }
 }

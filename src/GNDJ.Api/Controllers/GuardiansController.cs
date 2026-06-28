@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Guardians/parents (shared across siblings) + their links, phones, emails — base route api/v1/guardians.
+// Routes mix member-nested (members/{memberId}/guardians) and flat sub-resource paths (guardian-links/, phones/, emails/).
+// [Authorize] = JWT or API-key required; reads gated by MembersView, all writes by MembersEdit (guardian data is member data).
 [Authorize]
 public class GuardiansController : BaseApiController
 {
@@ -14,12 +17,13 @@ public class GuardiansController : BaseApiController
     public async Task<IActionResult> GetMemberGuardians(Guid memberId)
     {
         var result = await Mediator.Send(new GetMemberGuardiansQuery(memberId));
-        if (!result.IsSuccess) return Forbid();
+        if (!result.IsSuccess) return Forbid(); // unit-scope/IDOR: handler fails when caller can't access this member
         return Ok(result.Value);
     }
 
     [HttpGet("search")]
     [HasPermission(Permissions.MembersView)]
+    // Typeahead for linking an existing shared guardian; <2 chars returns empty (no full-table scan / leak).
     public async Task<IActionResult> Search([FromQuery] string q)
     {
         if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
@@ -58,6 +62,7 @@ public class GuardiansController : BaseApiController
         return NoContent();
     }
 
+    // Attaches an EXISTING shared guardian to this member (sibling case) — distinct from Create which adds a new one.
     [HttpPost("members/{memberId:guid}/guardians/link")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> Link(Guid memberId, [FromBody] LinkGuardianCommand command)

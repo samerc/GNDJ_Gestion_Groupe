@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.UnitTypes.Commands.DeleteUnitType;
 
+// Delete a unit type — blocked while any unit still references it.
 public record DeleteUnitTypeCommand(Guid Id) : IRequest<Result<bool>>;
 
 public class DeleteUnitTypeCommandHandler : IRequestHandler<DeleteUnitTypeCommand, Result<bool>>

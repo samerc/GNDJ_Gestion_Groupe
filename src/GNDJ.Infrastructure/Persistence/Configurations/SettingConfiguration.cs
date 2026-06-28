@@ -4,11 +4,13 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// Key-value app configuration store (schools, classes, exchange rates, feature toggles, ...).
 public class SettingConfiguration : IEntityTypeConfiguration<Setting>
 {
     public void Configure(EntityTypeBuilder<Setting> builder)
     {
         builder.ToTable("settings");
+        // Natural string PK (the setting key) instead of the usual UUIDv7 — settings are looked up by name.
         builder.HasKey(e => e.Key);
         builder.Property(e => e.Key).HasMaxLength(100).IsRequired();
         builder.Property(e => e.Value).HasColumnType("text").IsRequired();

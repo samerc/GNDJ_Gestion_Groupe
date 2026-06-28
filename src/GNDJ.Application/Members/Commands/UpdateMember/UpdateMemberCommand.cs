@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.UpdateMember;
 
+// Edits a member's core profile. Authorization is checked in the handler (own profile / unit leader).
 public record UpdateMemberCommand(
     Guid Id, string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender,
     string? CardNumber, string? ExternalCardNumber, string? BloodType, string? Nationality, string? School,

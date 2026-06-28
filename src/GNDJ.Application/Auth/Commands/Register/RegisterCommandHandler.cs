@@ -7,6 +7,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Auth.Commands.Register;
 
+// Creates a Member + its primary email + a login User in one transaction, then issues tokens. A new
+// account has no roles, so it gets empty permissions/units (just "Ma fiche" access until a chef assigns one).
+// The "email already exists" path returns a deliberately vague message to avoid user enumeration.
 public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<AuthResponse>>
 {
     private readonly IApplicationDbContext _context;

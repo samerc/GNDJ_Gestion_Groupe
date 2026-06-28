@@ -1,3 +1,6 @@
+// Static {value,label} option lists for form selects (French labels). Values are the canonical
+// strings stored in the DB; keep in sync with the server's allowed-set validators. PINNED_* surface
+// common choices at the top of SearchableSelect. (Schools/cities/professions live in DB settings.)
 export const GENDER_OPTIONS = [
   { value: 'Masculin', label: 'Masculin' },
   { value: 'Féminin', label: 'Féminin' },

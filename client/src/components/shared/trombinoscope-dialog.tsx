@@ -1,3 +1,7 @@
+// Dialog that generates the unit "trombinoscope" (photo grid) PDF. Opened from the CU dashboard.
+// Lets the leader pick which teams to include (all-by-default) and whether to print photos, then calls
+// the report API and triggers a client-side blob download. The server picks A4/A3 paper based on member
+// count. School year comes from the cotisation.current_scout_year setting.
 import { useState } from 'react'
 import { generateTrombinoscope } from '@/services/report-service'
 import { useTeams } from '@/services/team-service'
@@ -42,8 +46,10 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
     setGenerating(true)
     setError('')
     try {
+      // null teamIds = server includes every team (the "all selected" default).
       const teamIds = allSelected ? null : Array.from(selectedTeams)
       const response = await generateTrombinoscope({ unitId, scoutYear, includePhotos, teamIds })
+      // Wrap the raw PDF bytes in a blob and click a temporary anchor to download it.
       const blob = new Blob([response.data], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')

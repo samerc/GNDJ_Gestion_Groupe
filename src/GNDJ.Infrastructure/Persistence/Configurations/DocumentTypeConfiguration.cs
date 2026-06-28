@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// Admin-defined category of member document (with expiry/approval flags).
 public class DocumentTypeConfiguration : IEntityTypeConfiguration<DocumentType>
 {
     public void Configure(EntityTypeBuilder<DocumentType> builder)

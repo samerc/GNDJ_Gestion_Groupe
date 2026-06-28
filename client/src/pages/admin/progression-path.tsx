@@ -1,3 +1,9 @@
+// Admin "Parcours de progression" screen (super-admin / CG). Defines and visualizes the group-wide
+// progression FLOW between unit types as a set of directed edges (from → to). Paths are group-wide
+// (SDL + GDL merged) and distinguished by gender + path type (member vs leader/chef), NOT by
+// association. The page renders a per-(gender,pathType) BRANCHING DIAGRAM — a node can lead to
+// several destinations (e.g. Noyau → Meute / Ronde / Compagnie), so the tree stacks — plus a flat,
+// editable list of every link below it.
 import { useState, useMemo } from 'react'
 import { useUnitTypeProgressions, useCreateUnitTypeProgression, useUpdateUnitTypeProgression, useDeleteUnitTypeProgression, type UnitTypeProgressionDto } from '@/services/unit-type-progression-service'
 import { useQuery } from '@tanstack/react-query'
@@ -49,6 +55,7 @@ function buildGraph(edges: UnitTypeProgressionDto[], unitTypes: UnitTypeDto[]) {
     toIds.add(e.toUnitTypeId)
     fromIds.add(e.fromUnitTypeId)
   }
+  // Roots = nodes that are a source but never a destination (the entry points of the flow).
   let roots = [...fromIds].filter(id => !toIds.has(id))
   if (roots.length === 0 && edges.length > 0) roots = [edges[0].fromUnitTypeId] // fully cyclic fallback
   const nodeInfo: Record<string, NodeInfo> = {}
@@ -75,6 +82,7 @@ interface PathRow {
 function Branch({ id, row, visited }: { id: string; row: PathRow; visited: Set<string> }) {
   const node = row.nodeInfo[id]
   if (!node) return null
+  // `visited` is the ancestor chain on this path — filter it out of children to break cycles.
   const kids = (row.childrenMap[id] ?? []).filter(k => !visited.has(k))
   const next = new Set(visited).add(id)
   return (

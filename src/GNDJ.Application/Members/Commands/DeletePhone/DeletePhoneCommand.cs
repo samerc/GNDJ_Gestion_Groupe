@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.DeletePhone;
 
+// Removes a member phone. Access (IDOR guard, on the owning member): own profile / super-admin / active unit leader.
 public record DeletePhoneCommand(Guid Id) : IRequest<Result<bool>>;
 
 public class DeletePhoneCommandHandler : IRequestHandler<DeletePhoneCommand, Result<bool>>

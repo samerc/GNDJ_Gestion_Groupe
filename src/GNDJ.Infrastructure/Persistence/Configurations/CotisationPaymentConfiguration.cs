@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// Individual (multi-currency) payment lines making up a member's yearly cotisation.
 public class CotisationPaymentConfiguration : IEntityTypeConfiguration<CotisationPayment>
 {
     public void Configure(EntityTypeBuilder<CotisationPayment> builder)

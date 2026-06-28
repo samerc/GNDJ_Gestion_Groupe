@@ -5,8 +5,13 @@ using QuestPDF.Infrastructure;
 
 namespace GNDJ.Infrastructure.Services;
 
+// Generates a printable unit roster as an A4-landscape PDF table (QuestPDF). Columns are
+// caller-selectable from a fixed set; members are grouped under a per-team subheader (omitted when
+// there's a single team), with zebra striping. Unknown column keys resolve to member custom fields.
 public class RosterService : IRosterService
 {
+    // Column key → (French header label, relative width). RelativeColumn widths share the page
+    // proportionally, so e.g. Email (2.5) gets ~3.5× the width of Âge (0.7).
     private static readonly Dictionary<string, (string Label, float Width)> ColumnDefs = new()
     {
         ["name"] = ("Nom", 3),

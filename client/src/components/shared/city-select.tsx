@@ -21,6 +21,8 @@ export function CitySelect({
   className?: string
   cities: string[]
 }) {
+  // inList = the current value matches a managed city (case-insensitive). Start in free-text ("custom")
+  // mode when there's an existing value that isn't on the list, so legacy/unusual entries stay editable.
   const inList = value ? cities.some((c) => c.toLowerCase() === value.toLowerCase()) : false
   const [custom, setCustom] = useState(!!value && !inList)
 

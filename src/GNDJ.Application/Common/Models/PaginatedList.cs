@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Common.Models;
 
+// A single page of results plus the paging metadata the client needs (total count/pages, has next/prev).
+// CreateAsync runs the count + the Skip/Take page in two queries against an IQueryable (DB-side paging).
 public class PaginatedList<T>
 {
     public IReadOnlyList<T> Items { get; }

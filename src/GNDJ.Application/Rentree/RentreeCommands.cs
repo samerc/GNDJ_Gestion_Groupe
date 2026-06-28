@@ -7,6 +7,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Rentree;
 
+// Rentrée scoute — the start-of-year checklist. A reusable TEMPLATE of tasks (with assignees,
+// dependencies and fuzzy deadlines) is generated each year into concrete RentreeTask instances:
+// a role task flagged FanOutPerUnit becomes one task per active unit; assignees resolve from who
+// currently holds the task's security-profile (per-unit for fan-out); dependencies are then wired
+// task→task. A task can't be completed while a prerequisite is still open.
+
 // ── Template CRUD (super-admin + CG) ─────────────────────────────────────────
 public record SaveRentreeTemplateCommand(
     Guid? Id, string Title, string? Description, string Phase,
@@ -112,6 +118,8 @@ public class GenerateRentreeChecklistCommandHandler(IApplicationDbContext contex
             .Select(a => new { a.UnitId, a.MemberId, Code = a.FunctionalRole.SecurityProfile.Code })
             .ToListAsync(ct);
 
+        // ResolveGroup → everyone holding that security-profile anywhere (group-wide task);
+        // ResolveUnit → only that profile's holders within one unit (per-unit fan-out task).
         Guid[] ResolveGroup(string? role) =>
             role is null ? [] : holders.Where(h => h.Code == role).Select(h => h.MemberId).Distinct().ToArray();
         Guid[] ResolveUnit(string? role, Guid unitId) =>

@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Admin-defined custom member fields (definitions) + their per-member values.
+// Route: api/v1/custom-fields. [Authorize] = JWT/API-key required.
+// Field DEFINITIONS are gated on AssociationsManage; per-member VALUES on Members view/edit.
 [Authorize]
 [Route("api/v1/custom-fields")]
 public class CustomFieldsController : BaseApiController
@@ -18,6 +21,7 @@ public class CustomFieldsController : BaseApiController
         return Ok(result);
     }
 
+    // No permission attribute — active field defs needed by any member form (e.g. Ma fiche).
     [HttpGet("active")]
     public async Task<IActionResult> GetActive()
     {

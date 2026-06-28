@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// Applicant-declared "proches scouts" (existing/former scouts in the family) to help CG match siblings.
 public class ApplicantScoutRelationConfiguration : IEntityTypeConfiguration<ApplicantScoutRelation>
 {
     public void Configure(EntityTypeBuilder<ApplicantScoutRelation> builder)
@@ -19,6 +20,7 @@ public class ApplicantScoutRelationConfiguration : IEntityTypeConfiguration<Appl
         builder.Property(e => e.OtherGroupName).HasMaxLength(200);
 
         builder.HasIndex(e => e.ApplicantAccountId);
+        // Optional link to a matched existing member; null it out if that member is removed (keep the declaration).
         builder.HasOne(e => e.RelatedMember).WithMany()
             .HasForeignKey(e => e.RelatedMemberId).OnDelete(DeleteBehavior.SetNull);
     }

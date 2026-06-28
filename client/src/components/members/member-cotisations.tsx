@@ -33,6 +33,12 @@ function formatAmount(amount: number, currency: string): string {
   return `${amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} ${symbol}`
 }
 
+// "Cotisations" tab of the member detail page (CG/leader view). Lists paid cotisations per scout
+// year — each cotisation is one receipt with multiple multi-currency payment lines — with receipt
+// PDF download, edit, delete. Also exposes the shared "ne paiera pas" (exempt) flag for the current
+// year: a per-(member, year) fact CU and CG both see. An exemption is stored as a marker cotisation
+// row with NO payment lines, so the list filters to payments.length > 0 to hide markers, and the
+// toggle here upserts/removes that marker via a dedicated endpoint.
 interface Props {
   memberId: string
   memberName?: string
@@ -48,6 +54,7 @@ export function MemberCotisations({ memberId, memberName }: Props) {
   const deleteMutation = useDeleteCotisation(memberId)
   const exemptMutation = useSetCotisationExempt()
 
+  // Exemption is per current scout year; detected from the marker row's willNotPay flag.
   const year = currentScoutYear ?? '2025-2026'
   const isExempt = !!cotisations?.some(c => c.scoutYear === year && c.willNotPay)
   const toggleExempt = async () => {
@@ -149,6 +156,7 @@ export function MemberCotisations({ memberId, memberName }: Props) {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
+      // Filename embeds member name (spaces → _), year and receipt number for easy filing.
       const namePart = memberName ? `${memberName.replace(/\s+/g, '_')}_` : ''
       a.download = `Recu_${namePart}${cotisation.scoutYear}_${cotisation.receiptNumber}.pdf`
       a.click()
@@ -188,6 +196,7 @@ export function MemberCotisations({ memberId, memberName }: Props) {
             </div>
           )}
           {(() => {
+            // Drop exemption marker rows (no payments) — only show actual paid cotisations.
             const realCotisations = (cotisations ?? []).filter(c => c.payments.length > 0)
             return realCotisations.length === 0 ? (
             <p className="text-sm text-muted-foreground">Aucune cotisation enregistrée.</p>

@@ -9,11 +9,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Teams (sizaines/équipes within a unit) CRUD — base route api/v1/teams.
+// [Authorize] = JWT or API-key required; view via TeamsView, writes split across TeamsCreate/Edit/Delete.
 [Authorize]
 public class TeamsController : BaseApiController
 {
     [HttpGet]
     [HasPermission(Permissions.TeamsView)]
+    // unitId filter scopes teams to one unit (used by the cascading unit→team dropdowns).
     public async Task<IActionResult> GetAll([FromQuery] Guid? unitId, [FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var result = await Mediator.Send(new GetTeamsQuery(unitId, search, page, pageSize));

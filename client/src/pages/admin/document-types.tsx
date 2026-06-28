@@ -1,3 +1,7 @@
+// Admin CRUD screen for Document Types (super-admin) — defines the dynamic document slots members must
+// fill (these drive the Ma fiche checklist + the CU documents matrix). Per type: requiresExpiry (member
+// must supply an expiry date), requiresApproval (a leader must approve after upload), isActive ("actif
+// cette année" — toggles whether it's expected this scout year), and displayOrder. Standard list/dialog.
 import { parseApiError } from '@/lib/error-utils'
 import { useState, useRef } from 'react'
 import { useDebounce } from '@/hooks/use-debounce'
@@ -80,6 +84,7 @@ export default function DocumentTypesPage() {
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending
+  // Latch so the search box survives a 0-result filter (see associations.tsx).
   if (data && data.totalCount > 0) hasLoadedOnce.current = true
   const showSearch = hasLoadedOnce.current || (data && data.totalCount > 0)
 

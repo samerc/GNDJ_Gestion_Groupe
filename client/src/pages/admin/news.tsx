@@ -1,3 +1,7 @@
+// Admin screen (CG/super-admin, content.manage): public-site news CMS.
+// List + create/edit/delete articles authored in a TipTap rich-text editor (with
+// inline image upload). Each post is tagged Group / a branch (UnitType) / a single
+// Unit, and a publish toggle controls visibility on the public site.
 import { useState, useEffect } from 'react'
 import { parseApiError } from '@/lib/error-utils'
 import {
@@ -33,11 +37,13 @@ export default function AdminNewsPage() {
   const [form, setForm] = useState<NewsFormData>(emptyForm)
   const [error, setError] = useState('')
 
+  // Full post body is fetched lazily only when editing (the list DTO omits bodyHtml).
   const { data: editData } = useNewsPost(editingId)
   const createMutation = useCreateNews()
   const updateMutation = useUpdateNews()
   const deleteMutation = useDeleteNews()
 
+  // Populate the form once the edited post's full data arrives.
   useEffect(() => {
     if (editingId && editData) {
       setForm({ title: editData.title, bodyHtml: editData.bodyHtml, isPublished: editData.isPublished, tagType: editData.tagType, tagUnitTypeId: editData.tagUnitTypeId, tagUnitId: editData.tagUnitId })
@@ -51,6 +57,7 @@ export default function AdminNewsPage() {
     e.preventDefault()
     setError('')
     if (!form.title.trim()) { setError('Le titre est requis.'); return }
+    // TipTap emits an empty doc as "<p></p>" — treat that as no content.
     if (!form.bodyHtml.trim() || form.bodyHtml === '<p></p>') { setError('Le contenu est requis.'); return }
     if (form.tagType === 'UnitType' && !form.tagUnitTypeId) { setError('Choisissez une branche.'); return }
     if (form.tagType === 'Unit' && !form.tagUnitId) { setError('Choisissez une unité.'); return }
@@ -126,6 +133,7 @@ export default function AdminNewsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Concerne</label>
+                {/* Switching tag type clears both id fields; the matching id picker below is shown conditionally */}
                 <Select value={form.tagType} onValueChange={(v) => setForm(f => ({ ...f, tagType: v, tagUnitTypeId: null, tagUnitId: null }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>

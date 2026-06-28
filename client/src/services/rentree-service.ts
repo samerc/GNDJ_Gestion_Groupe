@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
+// Rentrée resource: scout-year startup checklist (per-year tasks generated from templates). Queries key on ['rentree', ...].
+
 export interface RentreeTask {
   id: string
   templateId: string | null
@@ -42,10 +44,12 @@ export interface RentreeTemplate {
   dependsOnTemplateIds: string[]
 }
 
+// GET /rentree/years → scout years that have generated tasks.
 export function useRentreeYears() {
   return useQuery({ queryKey: ['rentree', 'years'], queryFn: () => apiClient.get<string[]>('/rentree/years').then(r => r.data) })
 }
 
+// GET /rentree/tasks?scoutYear&mineOnly → year's tasks; non-managers are forced mine-only server-side. Disabled until scoutYear.
 export function useRentreeTasks(scoutYear: string | undefined, mineOnly = false) {
   return useQuery({
     queryKey: ['rentree', 'tasks', scoutYear, mineOnly],
@@ -54,10 +58,12 @@ export function useRentreeTasks(scoutYear: string | undefined, mineOnly = false)
   })
 }
 
+// GET /rentree/my-overdue → my tasks past a fixed due date (drives the login popup).
 export function useMyOverdueRentree() {
   return useQuery({ queryKey: ['rentree', 'my-overdue'], queryFn: () => apiClient.get<RentreeTask[]>('/rentree/my-overdue').then(r => r.data) })
 }
 
+// POST /rentree/tasks/{id}/complete → mark done/undone (blocked while prerequisites unfinished); invalidates ['rentree'].
 export function useCompleteRentreeTask() {
   const qc = useQueryClient()
   return useMutation({
@@ -66,6 +72,7 @@ export function useCompleteRentreeTask() {
   })
 }
 
+// POST /rentree/generate → build a year's tasks from the template (fans out per-unit, wires deps); overwrite replaces. Invalidates ['rentree'].
 export function useGenerateRentree() {
   const qc = useQueryClient()
   return useMutation({
@@ -75,6 +82,7 @@ export function useGenerateRentree() {
   })
 }
 
+// PUT /rentree/tasks/{id} → CG edits a task (title/desc/deadline/assignees); invalidates ['rentree'].
 export function useUpdateRentreeTask() {
   const qc = useQueryClient()
   return useMutation({
@@ -84,6 +92,7 @@ export function useUpdateRentreeTask() {
   })
 }
 
+// DELETE /rentree/tasks/{id} → delete a task; invalidates ['rentree'].
 export function useDeleteRentreeTask() {
   const qc = useQueryClient()
   return useMutation({
@@ -93,10 +102,12 @@ export function useDeleteRentreeTask() {
 }
 
 // ── Templates ──
+// GET /rentree/templates → master task definitions (used to generate each year).
 export function useRentreeTemplates() {
   return useQuery({ queryKey: ['rentree', 'templates'], queryFn: () => apiClient.get<RentreeTemplate[]>('/rentree/templates').then(r => r.data) })
 }
 
+// POST /rentree/templates → create or update a template (id null = create); invalidates ['rentree'].
 export function useSaveRentreeTemplate() {
   const qc = useQueryClient()
   return useMutation({
@@ -109,6 +120,7 @@ export function useSaveRentreeTemplate() {
   })
 }
 
+// DELETE /rentree/templates/{id} → delete a template; invalidates ['rentree'].
 export function useDeleteRentreeTemplate() {
   const qc = useQueryClient()
   return useMutation({
@@ -117,6 +129,7 @@ export function useDeleteRentreeTemplate() {
   })
 }
 
+// PUT /rentree/templates/reorder → persist new template order; invalidates ['rentree'].
 export function useReorderRentreeTemplates() {
   const qc = useQueryClient()
   return useMutation({

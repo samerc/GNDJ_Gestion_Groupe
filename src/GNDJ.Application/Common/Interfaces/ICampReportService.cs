@@ -9,6 +9,7 @@ public record CampReportUnit(string UnitName, IReadOnlyList<CampReportMember> Me
 
 public record CampReportMember(string Name, string? Gender, string? Branche, string? UnitName, string? TeamName, double? Note, int? FamilleNumber, string? Role);
 
+// Renders Camp BP PDFs: a single famille sheet, all familles (one per page), or members grouped by unit.
 public interface ICampReportService
 {
     byte[] Famille(CampReportData data, int familleNumber);   // one famille

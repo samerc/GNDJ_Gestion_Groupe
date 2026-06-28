@@ -7,6 +7,7 @@ const IDLE_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes idle → show warning / log
 const REFRESH_BUFFER_MS = 3 * 60 * 1000  // Auto-refresh when < 3 min remaining
 const CHECK_INTERVAL_MS = 30 * 1000
 
+// Decode the JWT `exp` (ms epoch) without verifying — just to time the refresh/warning locally.
 function getTokenExpiry(): number | null {
   const token = localStorage.getItem('accessToken')
   if (!token) return null
@@ -29,6 +30,9 @@ async function refreshSession(): Promise<boolean> {
   }
 }
 
+// Mounted once in the app shell. Polls the JWT expiry every 30s: while the user is active it silently
+// auto-refreshes the token before it lapses; once idle past IDLE_TIMEOUT it shows a countdown banner and
+// logs out at expiry. Tracks activity via throttled global event listeners.
 export function SessionWarning() {
   const { isAuthenticated, logout } = useAuthStore()
   const [showWarning, setShowWarning] = useState(false)

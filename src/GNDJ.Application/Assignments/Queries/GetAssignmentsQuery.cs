@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Assignments.Queries;
 
+// Paginated assignments, unit-scoped for non-super-admins. IsActive filter maps to EndDate null/not-null.
+// Active assignments are listed first (open-ended, then most recent start).
 public record GetAssignmentsQuery(
     Guid? MemberId, Guid? UnitId, Guid? TeamId, bool? IsActive,
     int Page = 1, int PageSize = 20

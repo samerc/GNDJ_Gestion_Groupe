@@ -1,3 +1,4 @@
+// Guardians resource: parents/tutors (shared across siblings) + their phones/emails + per-member links. Mutations invalidate ['guardians', memberId]. Guardian list keyed ['guardians', memberId].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
@@ -7,6 +8,7 @@ export interface GuardianDto { id: string; firstName: string; lastName: string; 
 export interface GuardianLinkDto { linkId: string; guardianId: string; relationshipType: string; isPrimaryContact: boolean; isEmergencyContact: boolean; guardian: GuardianDto }
 export interface GuardianSearchDto { id: string; firstName: string; lastName: string; profession: string | null }
 
+// A member's guardian links (GET /guardians/members/:id/guardians). Keyed ['guardians', memberId].
 export function useMemberGuardians(memberId: string) {
   return useQuery({
     queryKey: ['guardians', memberId],
@@ -15,6 +17,7 @@ export function useMemberGuardians(memberId: string) {
   })
 }
 
+// Guardian typeahead (GET /guardians/search?q=) for linking an existing guardian; fires at ≥2 chars. Keyed ['guardians-search', search].
 export function useSearchGuardians(search: string) {
   return useQuery({
     queryKey: ['guardians-search', search],
@@ -23,6 +26,7 @@ export function useSearchGuardians(search: string) {
   })
 }
 
+// POST /guardians/members/:id/guardians — create + link a new guardian. Invalidates ['guardians', memberId].
 export function useCreateGuardian(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -32,6 +36,7 @@ export function useCreateGuardian(memberId: string) {
   })
 }
 
+// POST /guardians/members/:id/guardians/link — link an existing guardian (sibling sharing). Invalidates ['guardians', memberId].
 export function useLinkGuardian(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -41,6 +46,7 @@ export function useLinkGuardian(memberId: string) {
   })
 }
 
+// PUT /guardians/:id — edit the shared guardian record (name/profession/etc.). Invalidates ['guardians', memberId].
 export function useUpdateGuardian(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -50,6 +56,7 @@ export function useUpdateGuardian(memberId: string) {
   })
 }
 
+// PUT /guardians/guardian-links/:linkId — edit this member's link (relationship, primary/emergency flags). Invalidates ['guardians', memberId].
 export function useUpdateGuardianLink(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -59,6 +66,7 @@ export function useUpdateGuardianLink(memberId: string) {
   })
 }
 
+// DELETE /guardians/guardian-links/:linkId — unlink (guardian record kept for other members). Invalidates ['guardians', memberId].
 export function useUnlinkGuardian(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -67,6 +75,7 @@ export function useUnlinkGuardian(memberId: string) {
   })
 }
 
+// POST /guardians/:guardianId/phones; memberId only scopes cache invalidation ['guardians', memberId].
 export function useAddGuardianPhone(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -76,6 +85,7 @@ export function useAddGuardianPhone(memberId: string) {
   })
 }
 
+// POST /guardians/:guardianId/emails; memberId only scopes cache invalidation ['guardians', memberId].
 export function useAddGuardianEmail(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -85,6 +95,7 @@ export function useAddGuardianEmail(memberId: string) {
   })
 }
 
+// DELETE /guardians/phones/:phoneId; memberId only scopes cache invalidation ['guardians', memberId].
 export function useDeleteGuardianPhone(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -93,6 +104,7 @@ export function useDeleteGuardianPhone(memberId: string) {
   })
 }
 
+// DELETE /guardians/emails/:emailId; memberId only scopes cache invalidation ['guardians', memberId].
 export function useDeleteGuardianEmail(memberId: string) {
   const qc = useQueryClient()
   return useMutation({

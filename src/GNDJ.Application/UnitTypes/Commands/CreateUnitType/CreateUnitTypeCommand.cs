@@ -8,6 +8,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.UnitTypes.Commands.CreateUnitType;
 
+// Create a unit type (branch: Meute, Troupe…). Code is unique; Color is unique per type (drives the
+// colour-coding in functions/diagrams). NumberOfYears also feeds the Camp BP note multiplier;
+// PublicDescription is the shared text shown for this branch on the public site.
 public record CreateUnitTypeCommand(string Name, string Code, string? Description, int? NumberOfYears, int? AgeMin, int? AgeMax, string? Color, string? PublicDescription = null) : IRequest<Result<Guid>>;
 
 public class CreateUnitTypeCommandValidator : AbstractValidator<CreateUnitTypeCommand>

@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Email;
 
+// CRUD + connectivity test for the SMTP servers that templates send through.
 // DTOs — Password is never returned
 public record SmtpServerDto(Guid Id, string Name, string Host, int Port, string Username, string FromEmail, string FromName, bool UseSsl, bool IsActive, DateTime CreatedAt);
 public record SmtpServerListDto(Guid Id, string Name, string Host, bool IsActive);
@@ -69,7 +70,7 @@ public class CreateSmtpServerCommandHandler(IApplicationDbContext context, IAudi
     }
 }
 
-// Update
+// Update — Password is optional: when blank/null the stored password is kept (UI never re-shows it).
 public record UpdateSmtpServerCommand(Guid Id, string Name, string Host, int Port, string Username, string? Password, string FromEmail, string FromName, bool UseSsl, bool IsActive) : IRequest<Result<bool>>;
 
 public class UpdateSmtpServerCommandValidator : AbstractValidator<UpdateSmtpServerCommand>
@@ -133,7 +134,7 @@ public class DeleteSmtpServerCommandHandler(IApplicationDbContext context, IAudi
     }
 }
 
-// Test
+// Test — sends a real message via the saved server config to verify host/port/credentials/SSL.
 public record TestSmtpCommand(Guid SmtpServerId, string TestEmail) : IRequest<Result<bool>>;
 
 public class TestSmtpCommandValidator : AbstractValidator<TestSmtpCommand>

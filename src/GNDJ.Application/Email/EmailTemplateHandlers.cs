@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Email;
 
+// CRUD for the email templates the app sends (referenced by Code; rendered with {{variables}} and an
+// optional bound SMTP server). Code is unique.
 // Allowed template modules — kept in sync with the frontend MODULE_OPTIONS (email-settings.tsx).
 public static class EmailTemplateModules
 {

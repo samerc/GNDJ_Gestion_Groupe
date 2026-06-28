@@ -1,3 +1,7 @@
+// Dialog that generates the unit roster ("Liste des membres") PDF (A4 landscape). Opened from the CU
+// dashboard / unit detail. Offers a grouped column picker (identity / school / contact / assignment /
+// medical) with select-all/none; name+firstname are always included server-side. Optionally scoped to a
+// single team via teamId. Calls the report API and downloads the returned PDF blob.
 import { useState } from 'react'
 import { generateRoster } from '@/services/report-service'
 import { useSettingValue } from '@/services/settings-service'
@@ -62,6 +66,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
   },
 ]
 
+// Flat list of every selectable column key — used to seed/reset the selection to "all".
 const ALL_COLUMN_KEYS = COLUMN_GROUPS.flatMap(g => g.columns.map(c => c.key))
 
 export function RosterDialog({ unitId, unitName, teamId, open, onOpenChange }: Props) {
@@ -88,6 +93,7 @@ export function RosterDialog({ unitId, unitName, teamId, open, onOpenChange }: P
     try {
       const columns = Array.from(selected)
       const response = await generateRoster({ unitId, teamId: teamId || null, scoutYear, columns })
+      // Wrap the raw PDF bytes in a blob and click a temporary anchor to download it.
       const blob = new Blob([response.data], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')

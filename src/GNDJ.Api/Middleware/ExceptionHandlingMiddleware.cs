@@ -3,6 +3,11 @@ using FluentValidation;
 
 namespace GNDJ.Api.Middleware;
 
+// Last-resort exception translator: maps unhandled exceptions bubbling out of the pipeline
+// to consistent JSON responses so handlers/validators can throw rather than format errors.
+//   ValidationException (FluentValidation) -> 400 with a per-property errors map (ProblemDetails-ish)
+//   UnauthorizedAccessException            -> 403 "Accès refusé."
+//   anything else                          -> 500 (logged) with a generic message (no leak)
 public class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;

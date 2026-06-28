@@ -3,6 +3,8 @@ using GNDJ.Application.Common.Validation;
 
 namespace GNDJ.Application.Auth.Commands.Register;
 
+// Guards registration input: valid/capped email, password meets the shared StrongPassword policy and is
+// confirmed, and names are present, length-capped, and free of angle brackets (NoHtml).
 public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
 {
     public RegisterCommandValidator()

@@ -2,6 +2,7 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// A phone number for a member. IsPrimary marks the preferred one; IsEmergency marks an emergency contact.
 public class MemberPhone : BaseEntity
 {
     public Guid MemberId { get; set; }

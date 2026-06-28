@@ -1,3 +1,6 @@
+// Admin screen (super-admin): read-only audit log viewer.
+// Paged, filterable by entity/action/date range; row click opens a detail dialog
+// that renders the old/new JSON snapshots as a friendly key-value table.
 import { useState } from 'react'
 import { useAuditLogs, useAuditFilterOptions, type AuditLogDto } from '@/services/audit-service'
 import { Button } from '@/components/ui/button'
@@ -37,6 +40,8 @@ const ENTITY_LABELS: Record<string, string> = {
   GuardianLink: 'Lien parent',
 }
 
+// Best-effort human label for a log row, sniffed from the first recognizable field
+// in the JSON snapshot (Name → Email → Title → full name → …). Empty if none found.
 function entitySummary(log: AuditLogDto): string {
   // Try to extract a meaningful label from newValues or oldValues
   const json = log.newValues || log.oldValues
@@ -55,6 +60,8 @@ function entitySummary(log: AuditLogDto): string {
   return ''
 }
 
+// Renders a stored JSON snapshot as a key-value table; falls back to raw <pre>
+// for non-objects or unparseable strings.
 function JsonViewer({ json }: { json: string | null }) {
   if (!json) return <span className="text-muted-foreground">—</span>
   try {
@@ -109,6 +116,7 @@ export default function AuditLogsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
         <div className="space-y-1">
           <label className="text-sm text-muted-foreground">Entité</label>
+          {/* '_all' is a sentinel option (Radix Select can't hold an empty value) → mapped back to '' (no filter) */}
           <Select value={entityType} onValueChange={(v) => { setEntityType(v === '_all' ? '' : v); setPage(1) }}>
             <SelectTrigger><SelectValue placeholder="Toutes" /></SelectTrigger>
             <SelectContent>

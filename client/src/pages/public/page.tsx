@@ -42,6 +42,7 @@ export default function PublicStandalonePage() {
             </aside>
           )}
           <div className={cn(hasSideNav && 'lg:col-span-3')}>
+            {/* CMS body — author HTML, sanitized by RichContent (DOMPurify) before render */}
             <RichContent html={page.bodyHtml} />
           </div>
         </div>

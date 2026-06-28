@@ -8,14 +8,16 @@ import { Button } from '@/components/ui/button'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { CheckCircle2, Mail, MapPin } from 'lucide-react'
 
+// Public contact page at `/contact` — anonymous. Posts the message to the backend (rate-limited
+// + honeypot-guarded), which emails a chef. On success swaps the form for a confirmation panel.
 export default function PublicContactPage() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
-  const [website, setWebsite] = useState('') // honeypot
+  const [website, setWebsite] = useState('') // honeypot: bots fill it, real users can't see it → backend rejects
   const [error, setError] = useState('')
-  const [sent, setSent] = useState(false)
+  const [sent, setSent] = useState(false) // true after a successful send → show confirmation instead of the form
   const sendMutation = useSendContact()
   const { data: config } = usePublicSiteConfig()
-  const contact = config?.content.contact
+  const contact = config?.content.contact // CMS-editable intro/address copy
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -18,6 +18,9 @@ import {
 import { LogOut, Menu, KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
 
+// ROLE: top bar for the authenticated shell — mobile sidebar toggle (lg-hidden)
+// + user dropdown (change-password dialog, logout). Session auto-refresh lives in
+// the auth store / SessionWarning; this only exposes the manual actions.
 export function Header() {
   const { user, logout } = useAuthStore()
   const { setMobileOpen } = useSidebarStore()
@@ -29,6 +32,7 @@ export function Header() {
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordError, setPasswordError] = useState('')
 
+  // Client-side guard (match + min length); the server enforces the full StrongPassword policy.
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setPasswordError('')

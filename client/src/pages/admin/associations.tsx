@@ -1,3 +1,6 @@
+// Admin CRUD screen for Associations (super-admin only — top of the org hierarchy; a unit may belong
+// to one association or none). Standard paginated list + debounced search + create/edit dialog +
+// delete confirm. Same shape as the other org-config admin pages (unit-types, document-types).
 import { parseApiError } from '@/lib/error-utils'
 import { useState, useRef } from 'react'
 import { useDebounce } from '@/hooks/use-debounce'
@@ -76,6 +79,8 @@ export default function AssociationsPage() {
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending
+  // Latch once any data has loaded so the search box stays visible even after a search returns 0 rows
+  // (otherwise filtering to no results would hide the input the user is typing in).
   if (data && data.totalCount > 0) hasLoadedOnce.current = true
   const showSearch = hasLoadedOnce.current || (data && data.totalCount > 0)
 

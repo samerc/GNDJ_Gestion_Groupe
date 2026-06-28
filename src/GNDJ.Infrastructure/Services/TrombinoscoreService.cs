@@ -5,10 +5,15 @@ using QuestPDF.Infrastructure;
 
 namespace GNDJ.Infrastructure.Services;
 
+// Generates a unit trombinoscope (photo wall) PDF (QuestPDF): a grid of member photo cells grouped
+// under team headers. Page size auto-scales — A3 for large units (>60 members) so cells stay legible,
+// A4 otherwise — and all dimensions (cell/photo/font) derive from that choice. Members without a
+// usable photo get an initials placeholder sized identically to a real photo.
 public class TrombinoscoreService : ITrombinoscoreService
 {
     public byte[] Generate(TrombinoscoreData data)
     {
+        // Larger units overflow A4 with readable photos, so switch to the bigger A3 sheet past a threshold.
         var totalMembers = data.Teams.Sum(t => t.Members.Count);
         var useA3 = totalMembers > 60;
 
@@ -24,7 +29,7 @@ public class TrombinoscoreService : ITrombinoscoreService
         var headerFontSize = useA3 ? 11f : 10f;
 
         var usableWidth = pageSize.Width - (margin * 2);
-        var perRow = (int)(usableWidth / cellWidth);
+        var perRow = (int)(usableWidth / cellWidth); // how many photo cells fit across one row
 
         var document = Document.Create(container =>
         {

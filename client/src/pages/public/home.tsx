@@ -8,16 +8,21 @@ function formatDate(d: string | null) {
   return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+// Icons paired positionally with the CMS-defined home.values entries (1st value → Heart, etc.).
 const VALUE_ICONS = [Heart, Tent, Users]
 
+// Public landing page at `/` — the anonymous visitor's first screen. Mixes CMS-editable copy
+// (hero / values / stats / CTA, all from the `site.content` setting) with LIVE data sections
+// (featured units + latest news). Registration CTAs only appear when inscriptions are open.
 export default function PublicHomePage() {
   const { data: config } = usePublicSiteConfig()
   const { data: groups } = usePublicUnits()
   const { data: news } = usePublicNews(1, 3)
+  // Flatten all branch groups into a single list, take the first 4 for the "Nos unités" teaser.
   const featuredUnits = (groups ?? []).flatMap((g) => g.units).slice(0, 4)
   const latestNews = news?.items ?? []
-  const home = config?.content.home
-  const inscriptionsOpen = config?.inscriptionsOpen ?? false
+  const home = config?.content.home // CMS-authored home copy; undefined until config loads
+  const inscriptionsOpen = config?.inscriptionsOpen ?? false // gates all "Demande d'inscription" CTAs
 
   return (
     <>

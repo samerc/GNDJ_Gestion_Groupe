@@ -1,3 +1,5 @@
+// Custom fields resource: admin-defined member fields (text/number/select/boolean) + per-member values.
+// Queries key on ['custom-fields', ...].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
@@ -32,6 +34,7 @@ export interface MemberCustomFieldValueDto {
   value: string
 }
 
+// GET /custom-fields — all field definitions for the admin page. Keyed ['custom-fields'].
 export function useCustomFields() {
   return useQuery({
     queryKey: ['custom-fields'],
@@ -39,6 +42,7 @@ export function useCustomFields() {
   })
 }
 
+// GET /custom-fields/active — slim active fields for rendering on member forms.
 export function useActiveCustomFields() {
   return useQuery({
     queryKey: ['custom-fields', 'active'],
@@ -46,6 +50,7 @@ export function useActiveCustomFields() {
   })
 }
 
+// GET /custom-fields/member/{id} — a member's field values. Keyed ['custom-fields','member',memberId].
 export function useMemberCustomFieldValues(memberId: string) {
   return useQuery({
     queryKey: ['custom-fields', 'member', memberId],
@@ -54,6 +59,7 @@ export function useMemberCustomFieldValues(memberId: string) {
   })
 }
 
+// POST /custom-fields — define a new field. Invalidates ['custom-fields'].
 export function useCreateCustomField() {
   const qc = useQueryClient()
   return useMutation({
@@ -63,6 +69,7 @@ export function useCreateCustomField() {
   })
 }
 
+// PUT /custom-fields/{id} — edit a field definition.
 export function useUpdateCustomField() {
   const qc = useQueryClient()
   return useMutation({
@@ -72,6 +79,7 @@ export function useUpdateCustomField() {
   })
 }
 
+// DELETE /custom-fields/{id} — remove a field definition.
 export function useDeleteCustomField() {
   const qc = useQueryClient()
   return useMutation({
@@ -80,6 +88,7 @@ export function useDeleteCustomField() {
   })
 }
 
+// PUT /custom-fields/member/{memberId}/{fieldId} — upsert one field value. Invalidates the member's values.
 export function useSetMemberCustomFieldValue(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -89,6 +98,7 @@ export function useSetMemberCustomFieldValue(memberId: string) {
   })
 }
 
+// DELETE /custom-fields/values/{id} — clear one member's field value.
 export function useDeleteMemberCustomFieldValue(memberId: string) {
   const qc = useQueryClient()
   return useMutation({

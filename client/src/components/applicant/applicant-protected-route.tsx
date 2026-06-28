@@ -4,6 +4,11 @@ import { Toaster } from 'sonner'
 import { useApplicantStore } from '@/stores/applicant-store'
 import { Button } from '@/components/ui/button'
 
+// ROLE: layout + auth gate for the signed-in applicant portal (/inscription/*).
+// Uses the ISOLATED applicant JWT (applicant claim) — never touches the User/Member
+// auth store or app permissions. Redirects to the applicant login when unauthenticated.
+// Mounts its own Sonner <Toaster> (the portal lives outside AppLayout, so without this
+// every portal toast fired into the void — the "Soumettre did nothing" silent-toast bug).
 export function ApplicantProtectedRoute() {
   const isAuthenticated = useApplicantStore((s) => s.isAuthenticated)
   const logout = useApplicantStore((s) => s.logout)

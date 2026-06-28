@@ -1,5 +1,6 @@
 namespace GNDJ.Domain.Enums;
 
+// Lifecycle of a membership application (Demande). Decisions are staged and only revealed when the batch is sent.
 public static class DemandeStatus
 {
     public const string Draft = "Draft";         // applicant still editing
@@ -8,6 +9,7 @@ public static class DemandeStatus
     public const string Declined = "Declined";   // CG declined (staged) — notified when the batch is sent
 }
 
+// Standing of an applicant's declared scout relation (ApplicantScoutRelation) — helps the CG match families.
 public static class ScoutRelationStatus
 {
     public const string CurrentInGroup = "CurrentInGroup"; // a current scout in our group (linked member)

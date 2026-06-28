@@ -4,6 +4,8 @@ using Mediator;
 
 namespace GNDJ.Application.Assignments.Commands.EndAssignment;
 
+// Closes an open assignment by setting its EndDate (the "Terminer" action) — keeps it as history
+// rather than deleting it. Rejects an already-ended assignment or an EndDate before the start.
 public record EndAssignmentCommand(Guid Id, DateOnly EndDate) : IRequest<Result<bool>>;
 
 public class EndAssignmentCommandHandler : IRequestHandler<EndAssignmentCommand, Result<bool>>

@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Http;
 
 namespace GNDJ.Infrastructure.Services;
 
+// Writes audit-trail rows for sensitive mutations. Captures WHO (current user), WHAT (action +
+// entity type/id), the before/after state (serialized to JSON), and request provenance (IP + user
+// agent from the ambient HttpContext) so admin actions can be reviewed after the fact.
 public class AuditService : IAuditService
 {
     private readonly GndjDbContext _context;

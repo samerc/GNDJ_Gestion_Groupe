@@ -1,3 +1,10 @@
+// Members master/detail screen (admin + CG + CU).
+// Left: searchable, paginated member list (accent-insensitive search server-side) with an
+// Actifs/Anciens (alumni) toggle and unit filter. Right: the selected member's full detail panel
+// (tabbed Informations/Famille/Unités/Documents/Cotisations/Progression/Infos compl./Médical) with
+// inline editing, photo, card PDF, and the SDL/GDL external-card-number editor.
+// The split is drag-resizable on desktop. A create dialog returns auto-generated login credentials.
+// Route param :id deep-links a member into the right panel.
 import { parseApiError } from '@/lib/error-utils'
 import { useState, useRef, useCallback, type ReactNode, type ComponentType } from 'react'
 import { useParams } from 'react-router'
@@ -80,6 +87,8 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
 
   const age = computeAge(member.dateOfBirth)
 
+  // Save only the SDL/GDL external card number; resend the rest of the member unchanged
+  // (UpdateMember is a full replace, so omitting fields would null them — internal matricule untouched).
   const saveExternalCard = async () => {
     try {
       await updateMember.mutateAsync({
@@ -292,6 +301,8 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
 }
 
 // ─── Drag handle ─────────────────────────
+// Resizes the master/detail split: tracks mouse delta on document (not the element) so the
+// drag keeps working if the pointer leaves the thin handle; restores cursor/select on mouseup.
 function DragHandle({ onDrag }: { onDrag: (deltaX: number) => void }) {
   const dragging = useRef(false)
   const lastX = useRef(0)
@@ -377,6 +388,7 @@ export default function MembersPage() {
     setPage(1)
   }
 
+  // unitFilter is a single Select holding three kinds of value: 'all', 'none' (no unit), or a unit id.
   const unitId = unitFilter === 'all' || unitFilter === 'none' ? undefined : unitFilter
   const noUnit = unitFilter === 'none' ? true : undefined
 
@@ -441,6 +453,7 @@ export default function MembersPage() {
             <SelectContent>
               <SelectItem value="all">Toutes les unités</SelectItem>
               {units?.items.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+              {/* Export is enabled only for a concrete unit (not 'all'/'none') — unit-scoped report */}
               <SelectItem value="none">Sans unité</SelectItem>
             </SelectContent>
           </Select>
@@ -657,7 +670,7 @@ export default function MembersPage() {
         />
       )}
 
-      {/* Credentials dialog */}
+      {/* Credentials dialog — one-time view of the new member's login; closing selects them in the detail panel */}
       <Dialog open={!!credentialsDialog} onOpenChange={() => { if (credentialsDialog) setSelectedMemberId(credentialsDialog.memberId); setCredentialsDialog(null) }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Compte créé avec succès</DialogTitle></DialogHeader>

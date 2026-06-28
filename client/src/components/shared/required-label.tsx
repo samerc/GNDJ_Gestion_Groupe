@@ -6,6 +6,7 @@ interface RequiredLabelProps {
   children: React.ReactNode
 }
 
+// Field label that appends a red asterisk when the field is required.
 export function RequiredLabel({ htmlFor, required = false, children }: RequiredLabelProps) {
   return (
     <Label htmlFor={htmlFor}>

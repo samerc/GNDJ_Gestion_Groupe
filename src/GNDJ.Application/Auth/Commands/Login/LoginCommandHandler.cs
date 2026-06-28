@@ -7,6 +7,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Auth.Commands.Login;
 
+// Verifies credentials (bcrypt), then loads the user's permissions + authorized units in one query
+// (AuthAccess) for the JWT. Both success and failure are audited; the failure message is intentionally
+// generic (same text for unknown email vs. wrong password) to avoid user enumeration.
 public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResponse>>
 {
     private readonly IApplicationDbContext _context;

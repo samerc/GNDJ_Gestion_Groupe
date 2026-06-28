@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Http;
 
 namespace GNDJ.Infrastructure.Identity;
 
+// Resolves the current applicant (public enrollment portal) from the JWT claims, kept strictly
+// separate from member identity: returns null unless the token is an applicant token, so an applicant
+// can never be treated as a member and vice versa.
 public class CurrentApplicantService : ICurrentApplicantService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;

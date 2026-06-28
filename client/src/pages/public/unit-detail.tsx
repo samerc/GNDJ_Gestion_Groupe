@@ -3,6 +3,7 @@ import { ArrowLeft, Users, Shield } from 'lucide-react'
 import { PageHero } from '@/components/public/page-hero'
 import { usePublicUnitDetail, usePublicSiteConfig, type PublicLeader } from '@/services/public-service'
 
+// Format an age range into a French label, tolerating either bound being absent (returns null if both are).
 function ageLabel(min: number | null, max: number | null) {
   if (min != null && max != null) return `${min} – ${max} ans`
   if (min != null) return `${min} ans et +`
@@ -10,10 +11,12 @@ function ageLabel(min: number | null, max: number | null) {
   return null
 }
 
+// First letters of up to two name words → avatar initials (no member photos exposed publicly).
 function initials(name: string) {
   return name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('')
 }
 
+// One maîtrise (leader) entry: initials avatar + name + role.
 function LeaderCard({ leader }: { leader: PublicLeader }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-card">
@@ -28,10 +31,12 @@ function LeaderCard({ leader }: { leader: PublicLeader }) {
   )
 }
 
+// Public unit detail at `/unites/:slug` — anonymous. Shows the unit's plain-text presentation,
+// its teams, an "En bref" facts panel, the maîtrise roster, and (when open) a join CTA.
 export default function PublicUnitDetailPage() {
   const { slug } = useParams()
   const { data: unit, isLoading, isError } = usePublicUnitDetail(slug)
-  const { data: config } = usePublicSiteConfig()
+  const { data: config } = usePublicSiteConfig() // only for inscriptionsOpen (join CTA gate)
 
   if (isLoading) {
     return (
@@ -71,6 +76,7 @@ export default function PublicUnitDetailPage() {
 
         <div className="mt-8 grid gap-12 lg:grid-cols-3">
           <div className="lg:col-span-2">
+            {/* Plain-text presentation (whitespace-pre-line keeps line breaks) — not CMS HTML, so no RichContent */}
             {unit.publicDescription ? (
               <div className="whitespace-pre-line text-pretty leading-relaxed text-foreground/90">
                 {unit.publicDescription}

@@ -1,3 +1,5 @@
+// Public group-site resource: units, site config, contact form. All anonymous via publicApi (no auth).
+// Keyed on ['public', ...]. SiteContent shape is the source of truth re-exported by site-content-service.
 import { useQuery, useMutation } from '@tanstack/react-query'
 import publicApi from '@/lib/public-api-client'
 
@@ -35,6 +37,7 @@ export interface SiteContent {
 }
 export interface PublicSiteConfig { inscriptionsOpen: boolean; content: SiteContent }
 
+// GET /public/site-config (anonymous) → inscriptionsOpen flag (= demande.enabled) + editable site texts; 60s staleTime.
 export function usePublicSiteConfig() {
   return useQuery({
     queryKey: ['public', 'site-config'],
@@ -67,6 +70,7 @@ export interface PublicUnitDetail {
   totalYouth: number
 }
 
+// GET /public/units (anonymous) → published units grouped by branch (unit type) for the public list.
 export function usePublicUnits() {
   return useQuery({
     queryKey: ['public', 'units'],
@@ -74,6 +78,7 @@ export function usePublicUnits() {
   })
 }
 
+// GET /public/units/{slug} (anonymous) → published unit detail (maîtrise, teams, founding year); disabled until slug set.
 export function usePublicUnitDetail(slug: string | undefined) {
   return useQuery({
     queryKey: ['public', 'unit', slug],
@@ -90,6 +95,7 @@ export interface ContactPayload {
   website: string // honeypot — must stay empty
 }
 
+// POST /public/contact (anonymous) → contact form; rate-limited + honeypot (website must stay empty) server-side.
 export function useSendContact() {
   return useMutation({
     mutationFn: (data: ContactPayload) => publicApi.post('/public/contact', data),

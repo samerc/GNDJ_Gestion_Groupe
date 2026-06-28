@@ -5,9 +5,13 @@ import { usePublicSiteConfig } from '@/services/public-service'
 import { LoginForm } from '@/components/auth/login-form'
 import { Button } from '@/components/ui/button'
 
+// "Espace membres" — login screen for existing members/chefs (JWT auth).
+// Anonymous-only: an already-authenticated user is bounced to /dashboard.
+// When enrollment is open it also offers a link into the public inscription portal.
 export default function LoginPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { data: config } = usePublicSiteConfig()
+  // inscriptionsOpen mirrors the demande.enabled setting — gates the "Demande d'inscription" CTA below.
   const inscriptionsOpen = config?.inscriptionsOpen ?? false
 
   if (isAuthenticated) {

@@ -1,3 +1,5 @@
+// Member documents resource: per-member uploads + approve/reject review, expiry tracking,
+// and the unit-scoped CU documents matrix. Queries key on ['documents', ...].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
@@ -30,6 +32,7 @@ export interface ExpiringDocumentDto {
   isExpired: boolean
 }
 
+// GET /documents/member/{id} — all docs for one member. Keyed ['documents', memberId].
 export function useMemberDocuments(memberId: string) {
   return useQuery({
     queryKey: ['documents', memberId],
@@ -38,6 +41,7 @@ export function useMemberDocuments(memberId: string) {
   })
 }
 
+// POST /documents/upload (multipart). Reports % via onUploadProgress; invalidates member docs + matrix.
 export function useUploadDocument(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -57,6 +61,7 @@ export function useUploadDocument(memberId: string) {
   })
 }
 
+// PUT /documents/{id}/review — approve/reject with optional notes. Invalidates member docs + matrix.
 export function useReviewDocument(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -69,6 +74,7 @@ export function useReviewDocument(memberId: string) {
   })
 }
 
+// DELETE /documents/{id}. Invalidates member docs + matrix.
 export function useDeleteDocument(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -80,6 +86,7 @@ export function useDeleteDocument(memberId: string) {
   })
 }
 
+// GET /documents/expiring — docs expiring within daysAhead (default 30), for dashboard warnings.
 export function useExpiringDocuments(daysAhead = 30) {
   return useQuery({
     queryKey: ['documents', 'expiring', daysAhead],
@@ -87,6 +94,7 @@ export function useExpiringDocuments(daysAhead = 30) {
   })
 }
 
+// GET /documents/{id}/download — raw file as a blob (not a hook).
 export function downloadDocument(id: string) {
   return apiClient.get(`/documents/${id}/download`, { responseType: 'blob' })
 }
@@ -140,6 +148,8 @@ export interface MemberDocCellDto {
   createdAt: string | null
 }
 
+// GET /documents/unit/{unitId}/matrix — members × doc-types grid + cotisation cell; requires scoutYear.
+// Unit-scoped. Keyed ['documents','matrix',unitId,scoutYear].
 export function useUnitDocumentsMatrix(unitId: string, scoutYear: string) {
   return useQuery({
     queryKey: ['documents', 'matrix', unitId, scoutYear],
@@ -148,6 +158,7 @@ export function useUnitDocumentsMatrix(unitId: string, scoutYear: string) {
   })
 }
 
+// PUT /documents/{id}/review — quick approve/reject from the matrix; invalidates only the unit matrix.
 export function useReviewDocumentMatrix(unitId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -157,6 +168,7 @@ export function useReviewDocumentMatrix(unitId: string) {
   })
 }
 
+// GET /documents/unit/{unitId}/zip — all unit docs (optionally one doc type) as a blob, by member folder.
 export function downloadUnitDocumentsZip(unitId: string, docTypeId?: string) {
   const params = docTypeId ? { docTypeId } : {}
   return apiClient.get(`/documents/unit/${unitId}/zip`, { params, responseType: 'blob' })

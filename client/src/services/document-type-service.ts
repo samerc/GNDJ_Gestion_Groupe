@@ -1,3 +1,5 @@
+// Document types resource: admin-managed catalogue of document kinds (code, expiry/approval flags,
+// isActive). Queries key on ['document-types', ...].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { PaginatedResult } from '@/types/api'
@@ -33,6 +35,7 @@ export interface DocumentTypeFormData {
   displayOrder: number
 }
 
+// GET /document-types — paginated admin list (search/page). Keyed ['document-types', params].
 export function useDocumentTypes(params: { search?: string; page?: number; pageSize?: number }) {
   return useQuery({
     queryKey: ['document-types', params],
@@ -40,6 +43,7 @@ export function useDocumentTypes(params: { search?: string; page?: number; pageS
   })
 }
 
+// GET /document-types/list — slim active list for pickers/matrix columns.
 export function useDocumentTypeList() {
   return useQuery({
     queryKey: ['document-types', 'list'],
@@ -47,6 +51,7 @@ export function useDocumentTypeList() {
   })
 }
 
+// POST /document-types. Invalidates the list.
 export function useCreateDocumentType() {
   const qc = useQueryClient()
   return useMutation({
@@ -55,6 +60,7 @@ export function useCreateDocumentType() {
   })
 }
 
+// PUT /document-types/{id}. Invalidates the list.
 export function useUpdateDocumentType() {
   const qc = useQueryClient()
   return useMutation({
@@ -64,6 +70,7 @@ export function useUpdateDocumentType() {
   })
 }
 
+// DELETE /document-types/{id}. Invalidates the list.
 export function useDeleteDocumentType() {
   const qc = useQueryClient()
   return useMutation({

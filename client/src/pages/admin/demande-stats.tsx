@@ -1,3 +1,9 @@
+// CG enrollment statistics dashboard ("/admin/demande-stats", perm demande.view). Read-only overview of the
+// season's inscription demandes for the configured scout year: status pipeline (total/à traiter/acceptées/
+// refusées/envoyées + décidées progress + acceptance rate), per-unit capacity (projected after passage, vs
+// quota — quotas are edited on the review page, not here), candidate demographics, and family/data-quality
+// counts. The byGender/byClasse/bySchool buckets are grouped accent- & case-insensitively server-side so
+// legacy spellings ("Féminin"/"Feminin") collapse into one row; school labels are shortened via useSchoolCode.
 import { useNavigate } from 'react-router'
 import { useDemandeStatistics, useUnitOccupancy, type CountItem, type UnitOccupancy } from '@/services/demande-admin-service'
 import { useSettingValue, useSchoolCode } from '@/services/settings-service'
@@ -49,6 +55,8 @@ function BarList({ items, labelOf }: { items: CountItem[]; labelOf?: (label: str
   )
 }
 
+// One unit row in the capacity table. "Places restantes" = quota − already-accepted (null when no quota set);
+// non-positive turns amber with a warning icon (unit at/over capacity).
 function OccRow({ u }: { u: UnitOccupancy }) {
   const remaining = u.quota != null ? u.quota - u.accepted : null
   return (
@@ -76,6 +84,7 @@ export default function DemandeStatsPage() {
   if (isLoading) return <LoadingSpinner variant="page" />
   if (!stats) return null
 
+  // Acceptance rate is over DECIDED demandes (not total) so pending ones don't drag it down; null until any decided.
   const acceptanceRate = stats.decided > 0 ? Math.round((stats.approved / stats.decided) * 100) : null
   const decidedPct = stats.total > 0 ? Math.round((stats.decided / stats.total) * 100) : 0
   const occList = (occupancy ?? []).slice().sort((a, b) => a.unitCode.localeCompare(b.unitCode))

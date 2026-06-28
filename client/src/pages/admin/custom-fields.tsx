@@ -1,3 +1,7 @@
+// Admin CRUD screen for Custom Fields (super-admin) — admin-defined extra member attributes
+// (text/number/select/boolean) surfaced on the member "Infos complémentaires" tab and optionally on
+// the member card PDF (showOnCard). Not paginated (small set). For type=select, the comma-separated
+// options string is serialized to/from a JSON string array at the API boundary (see handleSubmit/openEdit).
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
@@ -35,6 +39,8 @@ interface FormData {
 
 const defaultForm: FormData = { name: '', code: '', fieldType: 'text', options: '', displayOrder: 0, isActive: true, showOnCard: false }
 
+// Slugify the display name into a stable storage code (lowercase, accents stripped, non-alnum → "_").
+// Auto-applied while typing the name unless the user has manually edited the code field (codeManual).
 function nameToCode(name: string): string {
   return name
     .toLowerCase()
@@ -68,9 +74,10 @@ export default function CustomFieldsPage() {
 
   const openEdit = (item: CustomFieldDto) => {
     setEditing(item)
+    // Stored options are a JSON string array; show them back as the comma-separated text the user typed.
     const opts = item.options ? (() => { try { return (JSON.parse(item.options) as string[]).join(', ') } catch { return '' } })() : ''
     setForm({ name: item.name, code: item.code, fieldType: item.fieldType, options: opts, displayOrder: item.displayOrder, isActive: item.isActive, showOnCard: item.showOnCard })
-    setCodeManual(true)
+    setCodeManual(true) // never auto-rewrite an existing field's code from its name
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -80,6 +87,7 @@ export default function CustomFieldsPage() {
     setError('')
     if (!validate({ name: !form.name, code: !form.code })) return
 
+    // Only "select" fields carry options; persist them as a JSON string array (null for other types).
     const optionsJson = form.fieldType === 'select' && form.options.trim()
       ? JSON.stringify(form.options.split(',').map(o => o.trim()).filter(Boolean))
       : null
@@ -191,7 +199,7 @@ export default function CustomFieldsPage() {
               <RequiredLabel htmlFor="cf-code" required>Code</RequiredLabel>
               <Input id="cf-code" className={fieldClass('code')} value={form.code} onChange={(e) => {
                 setForm(f => ({ ...f, code: e.target.value }))
-                setCodeManual(true)
+                setCodeManual(true) // user took over the code → stop auto-deriving it from the name
                 clearField('code')
               }} required />
             </div>

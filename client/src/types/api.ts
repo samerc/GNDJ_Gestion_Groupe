@@ -1,3 +1,4 @@
+// Shared API envelope types: server pagination wrapper + the error shape parsed by parseApiError.
 export interface PaginatedResult<T> {
   items: T[]
   page: number

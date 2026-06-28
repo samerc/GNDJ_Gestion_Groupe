@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Camps;
 
+// Camp BP — printable PDF reports of the assigned familles. Gathers the participant + Père/Mère rows
+// and delegates layout to ICampReportService.
 // Kind: "famille" (one), "all" (all familles one per page), "units" (unit list with famille numbers).
 public record GenerateCampReportQuery(Guid CampId, string Kind, int? FamilleNumber) : IRequest<Result<byte[]>>;
 

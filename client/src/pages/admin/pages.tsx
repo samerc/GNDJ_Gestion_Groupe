@@ -1,3 +1,8 @@
+// Admin screen (CG/super-admin, content.manage): public-site Pages CMS.
+// Standalone content pages (one-level parent→child hierarchy) authored in TipTap.
+// Pages render as a drag-to-reorder tree: each level is its own dnd-kit context
+// (siblings sharing a parentId), and a parent's children nest *inside* its sortable
+// row so a parent drags with its sub-pages. showInMenu controls top-nav visibility.
 import { useState, useEffect, useMemo } from 'react'
 import { parseApiError } from '@/lib/error-utils'
 import {
@@ -23,6 +28,7 @@ import { toast } from 'sonner'
 
 const emptyForm: PageFormData = { title: '', bodyHtml: '', isPublished: false, showInMenu: true, parentId: null }
 
+// One sortable page row (drag handle, slug, status badges, edit/delete) + its nested children block.
 function PageRowInner({ page, onEdit, onDelete }: { page: PageAdmin; onEdit: (p: PageAdmin) => void; onDelete: (p: PageAdmin) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: page.id })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
@@ -51,10 +57,12 @@ function Level({ items, parentId, onEdit, onDelete }: {
   onEdit: (p: PageAdmin) => void; onDelete: (p: PageAdmin) => void
 }) {
   const reorderMutation = useReorderPages()
-  const [local, setLocal] = useState(items)
+  const [local, setLocal] = useState(items) // optimistic local order; resynced when the cache updates
   useEffect(() => setLocal(items), [items])
+  // 5px activation distance so clicking the edit/delete buttons doesn't start a drag.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
+  // Reorder within this level, then persist the new sibling order (scoped to parentId).
   const handleDragEnd = (e: DragEndEvent) => {
     const { active, over } = e
     if (!over || active.id === over.id) return
@@ -106,6 +114,7 @@ export default function AdminPagesPage() {
     if (editingId && editData) setForm({ title: editData.title, bodyHtml: editData.bodyHtml, isPublished: editData.isPublished, showInMenu: editData.showInMenu, parentId: editData.parentId })
   }, [editingId, editData])
 
+  // Root pages (no parent) drive the top-level sortable list; children are pulled per-parent in <Children>.
   const topLevel = useMemo(() => (pages ?? []).filter(p => !p.parentId).sort((a, b) => a.displayOrder - b.displayOrder), [pages])
   // Parent options = top-level pages (one level of nesting), excluding the page being edited.
   const parentOptions = topLevel.filter(p => p.id !== editingId)
@@ -117,6 +126,7 @@ export default function AdminPagesPage() {
     e.preventDefault()
     setError('')
     if (!form.title.trim()) { setError('Le titre est requis.'); return }
+    // TipTap emits an empty doc as "<p></p>" — treat that as no content.
     if (!form.bodyHtml.trim() || form.bodyHtml === '<p></p>') { setError('Le contenu est requis.'); return }
     try {
       if (editingId) { await updateMutation.mutateAsync({ id: editingId, ...form }); toast.success('Page modifiée') }

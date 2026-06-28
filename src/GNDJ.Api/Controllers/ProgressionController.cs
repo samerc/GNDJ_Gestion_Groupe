@@ -8,6 +8,8 @@ namespace GNDJ.Api.Controllers;
 
 // ─── Scout Stages ──────────────────────────
 
+// Scout progression stages (per unit type, ordered). Route api/v1/scout-stages.
+// Read = progression.view, mutate/reorder = progression.manage. Delete archives (IsActive=false) if used, else hard-deletes.
 [Authorize]
 [Route("api/v1/scout-stages")]
 public class ScoutStagesController : BaseApiController
@@ -68,6 +70,8 @@ public class ScoutStagesController : BaseApiController
 
 // ─── Badges ────────────────────────────────
 
+// Badges (per unit type, ordered, linked to badge-type stages). Route api/v1/badges.
+// Read = progression.view, mutate/reorder = progression.manage. Delete archives if used, else hard-deletes.
 [Authorize]
 [Route("api/v1/badges")]
 public class BadgesController : BaseApiController
@@ -128,10 +132,13 @@ public class BadgesController : BaseApiController
 
 // ─── Member Progressions ───────────────────
 
+// A member's earned stages/badges. Route api/v1/progressions.
+// Create/Delete = progression.manage; the member-read below is auth-only (handler enforces unit-scope/own-profile).
 [Authorize]
 [Route("api/v1/progressions")]
 public class ProgressionsController : BaseApiController
 {
+    // No permission attribute — handler enforces own-profile or unit-scoped access.
     [HttpGet("member/{memberId:guid}")]
     public async Task<IActionResult> GetMemberProgressions(Guid memberId)
     {

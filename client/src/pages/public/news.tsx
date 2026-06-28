@@ -9,8 +9,10 @@ function formatDate(d: string | null) {
   return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+// Public news index at `/actualites` — anonymous, paginated grid of published posts (12/page),
+// each linking to its article. Skeleton/error/empty states handled before the grid.
 export default function PublicNewsPage() {
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useState(1) // 1-based; drives the paged query + Précédent/Suivant
   const { data, isLoading, isError } = usePublicNews(page, 12)
 
   return (

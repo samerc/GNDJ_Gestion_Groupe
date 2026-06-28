@@ -7,6 +7,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Camps;
 
+// Camp BP — edition CRUD + the Note formula (the score that drives the balanced famille draft).
+// A camp's lifecycle status is Setup → Assigned (after the draft) → Closed.
+
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 public record CampListDto(Guid Id, string Name, string ScoutYear, int FamillesCount, string Status, bool IsArchived,
     int ParticipantCount, int GradedCount, int AssignedCount);
@@ -40,7 +43,10 @@ public static class CampNote
         catch { return []; }
     }
 
-    // Note = ForceCoef*Force + multiplier(branche)*Année + Offset.
+    // Note = ForceCoef*Force + multiplier(branche)*Année + Offset. The branch multiplier is the unit
+    // type's NumberOfYears (e.g. Meute 3, Troupe 5) — this makes a Troupe Y3 outscore a Meute Y3 so older
+    // branches weigh more, WITHOUT cumulating across years. `multipliers` is keyed by UnitTypeId; 5 is the
+    // fallback when a type's NumberOfYears is unset.
     public static double? Compute(Camp camp, CampParticipant p, IReadOnlyDictionary<Guid, int> multipliers)
     {
         if (p.Force is null || p.Annee is null || p.UnitTypeId is null) return null;

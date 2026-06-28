@@ -5,11 +5,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Api.Middleware;
 
+// Authenticates external integrations via the X-API-Key header (the second auth scheme
+// alongside JWT Bearer). On a valid key it builds a ClaimsPrincipal whose claims mirror what
+// a logged-in user would have ("permissions", "member_id", "unit_ids") so downstream
+// authorization (PermissionAuthorizationHandler) + CurrentUserService work transparently.
+// Runs AFTER JWT auth: if the request is already authenticated (or carries no key), it no-ops.
 public class ApiKeyMiddleware
 {
     private readonly RequestDelegate _next;
 
-    // Map API key scopes to internal permissions
+    // Map each public API-key scope to the internal permission strings it grants.
     private static readonly Dictionary<string, string[]> ScopeToPermissions = new()
     {
         ["members:read-own"] = ["members.view"],
@@ -46,6 +51,8 @@ public class ApiKeyMiddleware
             return;
         }
 
+        // First 8 chars are the stored (indexed) prefix — narrows the bcrypt scan to the few
+        // active keys sharing that prefix rather than verifying every key in the table.
         var prefix = apiKeyValue[..8];
         var db = context.RequestServices.GetRequiredService<GndjDbContext>();
 
@@ -53,6 +60,7 @@ public class ApiKeyMiddleware
             .Where(k => k.KeyPrefix == prefix && k.IsActive && !k.IsDeleted)
             .ToListAsync();
 
+        // Confirm the full key against the bcrypt hash (prefix alone is not a credential).
         ApiKey? matchedKey = null;
         foreach (var candidate in candidates)
         {
@@ -99,6 +107,8 @@ public class ApiKeyMiddleware
             new("permissions", string.Join(",", permissions)),
         };
 
+        // A key may be bound to a specific member ("read-own" scopes) — carry that identity
+        // plus the member's active-unit access so unit-scoped handlers filter correctly.
         if (matchedKey.MemberId.HasValue)
         {
             claims.Add(new("member_id", matchedKey.MemberId.Value.ToString()));

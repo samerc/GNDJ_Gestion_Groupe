@@ -8,6 +8,10 @@ using Microsoft.AspNetCore.OutputCaching;
 
 namespace GNDJ.Api.Controllers;
 
+// Key-value app settings. Route api/v1/settings (from BaseApiController).
+// Most reads/writes need associations.manage (admin); GetByKey is auth-only (any user resolves a single setting).
+// UpdateSetting validates Value against the setting's ValueType and busts the settings + output caches.
+// EXCEPTION: cities is gated by maitrise.manage (CG-curatable) — see the UpdateCities note below.
 [Authorize]
 public class SettingsController : BaseApiController
 {

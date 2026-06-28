@@ -3,6 +3,8 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Interfaces;
 
+// Generic persistence abstraction for an aggregate (implemented in Infrastructure over EF Core).
+// Add/Update/Remove stage changes; IUnitOfWork.SaveChangesAsync commits them.
 public interface IRepository<T> where T : BaseEntity
 {
     Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);

@@ -1,3 +1,7 @@
+// Admin screen (super-admin): manage API keys for external integrations.
+// List / create / toggle active / delete. The raw secret is returned only once
+// at creation and shown in a one-time dialog (only the prefix is stored after).
+// Scopes are picked from a fixed whitelist; a key can optionally be bound to a member.
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
 import { useApiKeys, useCreateApiKey, useToggleApiKey, useDeleteApiKey, type ApiKeyDto } from '@/services/api-key-service'
@@ -16,6 +20,7 @@ import { useFormValidation } from '@/hooks/use-form-validation'
 import { Plus, Trash2, Key, Copy, ToggleLeft, ToggleRight } from 'lucide-react'
 import { toast } from 'sonner'
 
+// Whitelisted scopes the backend recognizes; *-own scopes require a bound member.
 const AVAILABLE_SCOPES = [
   { value: 'members:read-own', label: 'Lire son profil' },
   { value: 'documents:upload', label: 'Envoyer des documents' },
@@ -44,6 +49,7 @@ export default function ApiKeysPage() {
   const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
 
   const { data: apiKeys, isLoading } = useApiKeys()
+  // Members loaded for the optional "Membre lié" dropdown (large page to cover the roster).
   const { data: membersData } = useMembers({ pageSize: 500 })
   const createMutation = useCreateApiKey()
   const toggleMutation = useToggleApiKey()
@@ -70,12 +76,13 @@ export default function ApiKeysPage() {
     try {
       const result = await createMutation.mutateAsync({
         name: form.name,
-        scopes: form.scopes.join(','),
+        scopes: form.scopes.join(','), // backend expects a comma-joined scope string
         memberId: form.memberId || null,
         expiresAt: form.expiresAt || null,
       })
       toast.success('Cle API creee')
       setFormOpen(false)
+      // Capture the one-time plaintext key from the response and surface the reveal dialog.
       setCreatedKey(result.key)
       setCreatedKeyDialogOpen(true)
     } catch (err) {
@@ -248,7 +255,7 @@ export default function ApiKeysPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Key display dialog (shown once after creation) */}
+      {/* Key display dialog (shown once after creation) — the plaintext secret is never retrievable again */}
       <Dialog open={createdKeyDialogOpen} onOpenChange={(open) => { if (!open) { setCreatedKey(null); setCreatedKeyDialogOpen(false) } }}>
         <DialogContent>
           <DialogHeader>

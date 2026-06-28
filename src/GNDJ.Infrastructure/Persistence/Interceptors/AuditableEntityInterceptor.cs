@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace GNDJ.Infrastructure.Persistence.Interceptors;
 
+// On every SaveChanges, stamps Created/Updated timestamps + user id on BaseEntity rows so no handler
+// has to set them by hand. Registered as a singleton (pooled DbContext); reads the current user lazily
+// via ICurrentUserAccessor at save time, so it holds no per-request state.
 public class AuditableEntityInterceptor : SaveChangesInterceptor
 {
     private readonly ICurrentUserAccessor _currentUserAccessor;

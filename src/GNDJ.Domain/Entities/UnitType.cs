@@ -2,6 +2,9 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// A branch/category (Meute, Troupe, Compagnie…) shared by all Units of that kind. Carries the age band,
+// gender eligibility, public description, and the functional roles available to its units. NumberOfYears
+// also feeds the Camp BP note multiplier.
 public class UnitType : BaseEntity
 {
     public string Name { get; set; } = string.Empty;

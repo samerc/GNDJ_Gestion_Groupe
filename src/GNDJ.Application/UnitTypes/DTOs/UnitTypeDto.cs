@@ -1,5 +1,6 @@
 namespace GNDJ.Application.UnitTypes.DTOs;
 
+// List-row shape for a unit type (branch). UnitCount = derived count of non-deleted units of this type.
 public record UnitTypeDto(
     Guid Id,
     string Name,
@@ -14,6 +15,7 @@ public record UnitTypeDto(
     string? PublicDescription
 );
 
+// Full unit-type record for the edit/detail view.
 public record UnitTypeDetailDto(
     Guid Id,
     string Name,

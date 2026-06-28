@@ -1,3 +1,10 @@
+// Camp BP detail / management page ("/admin/camps/:id", perm camp.manage — CG/super-admin). Three tabs:
+//  - FamillesTab: the familles board. CG runs the balanced randomized draft (useRunDraft), then fine-tunes by
+//    picking two familles (slots A/B) and drag-dropping members between the two columns (onto a column = move,
+//    onto a member = swap); assigns Père/Mère per famille (gender-restricted).
+//  - GamesTab: define jeux/étapes and pick their étapiste sets (maîtrise members).
+//  - SettingsTab: edit camp metadata + the Note formula coefficients (the per-branch multiplier is read-only,
+//    sourced from each unit type's NumberOfYears).
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router'
 import {
@@ -128,6 +135,7 @@ function FamillesTab({ campId }: { campId: string }) {
   const [drag, setDrag] = useState<DragData | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
+  // Default the two compared slots to the first two familles (and re-seed if a selected one disappears).
   useEffect(() => {
     if (!familles || familles.length === 0) return
     if (!slotA || !familles.some(f => f.id === slotA)) setSlotA(familles[0].id)
@@ -147,12 +155,14 @@ function FamillesTab({ campId }: { campId: string }) {
   )
 
   const fl = familles!
+  // min/max average note across non-empty familles → drives the per-famille bar fill + low(blue)/high(amber) tint.
   const avgs = fl.filter(f => f.size > 0).map(f => f.avgNote)
   const minA = avgs.length ? Math.min(...avgs) : 0
   const maxA = avgs.length ? Math.max(...avgs) : 1
   const famA = fl.find(f => f.id === slotA) ?? null
   const famB = fl.find(f => f.id === slotB) ?? null
 
+  // Toggle a famille into slot A/B: re-clicking clears it; both full → reset to A only.
   const pickFamille = (id: string) => {
     if (id === slotA) setSlotA(null)
     else if (id === slotB) setSlotB(null)
@@ -161,6 +171,8 @@ function FamillesTab({ campId }: { campId: string }) {
     else { setSlotA(id); setSlotB(null) }
   }
 
+  // Drop resolution: onto another member = swap the two; onto a column = move into that famille.
+  // No-op when dropped back on the same famille.
   const onDragEnd = async (e: DragEndEvent) => {
     setDrag(null)
     const a = e.active.data.current as DragData | undefined
@@ -269,6 +281,7 @@ function FamilleColumn({ campId, f, label, onEditLeaders }: { campId: string; f:
 
 function MemberCard({ m, familleId }: { m: CampFamilleDto['members'][number]; familleId: string }) {
   const name = `${m.firstName} ${m.lastName}`
+  // Each card is both draggable and a drop target (drop = swap) — the two refs are merged on one element below.
   const { attributes, listeners, setNodeRef: dragRef, isDragging } = useDraggable({ id: `drag-${m.participantId}`, data: { participantId: m.participantId, familleId, name } })
   const { setNodeRef: dropRef, isOver } = useDroppable({ id: `drop-${m.participantId}`, data: { type: 'member', familleId, participantId: m.participantId } })
   return (
@@ -312,6 +325,7 @@ function LeaderDialog({ campId, famille, onClose }: { campId: string; famille: C
           <Input placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)} />
           <div className="max-h-[40vh] space-y-1 overflow-y-auto">
             {filtered.map(c => {
+              // Père = male only, Mère = female only — show just the gender-appropriate button (backend also enforces).
               const isMale = c.gender === 'Masculin', isFemale = c.gender === 'Féminin'
               return (
                 <div key={c.memberId} className="flex items-center gap-2 rounded border px-2 py-1.5 text-sm">

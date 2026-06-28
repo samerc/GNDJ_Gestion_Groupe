@@ -1,3 +1,6 @@
+// Admin screen (super-admin): member-card designer. Edits the single `card.config`
+// JSON setting (org name + per-field visibility toggles) that drives the printed
+// member-card PDF, with a live credit-card-sized preview using dummy data.
 import { useState, useEffect } from 'react'
 import { useSetting, useUpdateSetting } from '@/services/settings-service'
 import { Button } from '@/components/ui/button'
@@ -9,6 +12,7 @@ import { Save, CreditCard, User, Hash, Building2, Users, Shield, Calendar, Dropl
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
 
+// Catalog of card fields; `alwaysOn` fields (name) can't be toggled off.
 const CARD_FIELDS = [
   { key: 'photo', label: 'Photo', icon: User },
   { key: 'name', label: 'Nom complet', icon: User, alwaysOn: true },
@@ -38,8 +42,10 @@ export default function CardDesignerPage() {
   const { data: setting, isLoading } = useSetting('card.config')
   const updateSetting = useUpdateSetting()
   const [config, setConfig] = useState<CardConfig>(DEFAULT_CONFIG)
+  // `loaded` gates the one-time hydration from the saved setting so subsequent edits aren't overwritten.
   const [loaded, setLoaded] = useState(false)
 
+  // Hydrate config once from the persisted JSON (merging onto defaults so new fields default on).
   useEffect(() => {
     if (setting?.value && !loaded) {
       try {
@@ -143,7 +149,7 @@ export default function CardDesignerPage() {
           </CardContent>
         </Card>
 
-        {/* Right: Live preview */}
+        {/* Right: live preview — credit-card aspect ratio (1.59 ≈ 85.6×54mm), dummy data, mirrors PDF layout */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Aperçu</CardTitle>

@@ -1,3 +1,9 @@
+// Admin screen (super-admin): generic key-value Paramètres editor.
+// Settings are grouped into category tabs (with a flat search mode) and rendered
+// with type-aware widgets driven by SettingDto.valueType: boolean→Switch,
+// number→stepper, date→date picker, json_array→tag editor, plus special-cased
+// editors for exchange rates and for keys that have a fixed options list.
+// Each SettingEditor saves its own row; settings with dedicated pages are hidden.
 import { parseApiError } from '@/lib/error-utils'
 import { useState, useEffect, useMemo } from 'react'
 import { useSettings, useUpdateSetting, type SettingDto } from '@/services/settings-service'
@@ -17,6 +23,8 @@ const HIDDEN_KEYS = new Set(['site.content', 'card.config'])
 // Technical keys moved to an "Avancé" tab.
 const ADVANCED_KEYS = new Set(['app.base_url', 'user_domain'])
 
+// Keys whose value is constrained to a fixed option list (renders as SearchableSelect,
+// single for scalars / multi-pick for json_array). Labels resolved from these too.
 const SETTING_OPTIONS: Record<string, { value: string; label: string }[]> = {
   pinned_nationalities: NATIONALITY_OPTIONS,
   default_country_code: PHONE_COUNTRY_CODES,
@@ -45,11 +53,12 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 const CATEGORY_ORDER = ['members', 'famille', 'documents', 'cotisations', 'passage', 'demande', 'contact', 'general', 'reports', 'site', 'advanced']
 
+// Tab a setting belongs to: ADVANCED_KEYS are pulled out of their natural category into "Avancé".
 function effectiveCategory(s: SettingDto) {
   return ADVANCED_KEYS.has(s.key) ? 'advanced' : s.category
 }
 
-// ---- Exchange-rate editor (json object {code: rate}) ----
+// ---- Exchange-rate editor: edits a json object {currencyCode: rate} as add/remove rows ----
 function ExchangeRateEditor({ value, onChange }: { value: string; onChange: (json: string) => void }) {
   const [rows, setRows] = useState<{ code: string; rate: string }[]>([])
   useEffect(() => {
@@ -59,6 +68,7 @@ function ExchangeRateEditor({ value, onChange }: { value: string; onChange: (jso
     } catch { setRows([]) }
   }, [value])
 
+  // Update local rows + re-serialize to the parent: skip blank codes / non-numeric rates, uppercase codes.
   const commit = (next: { code: string; rate: string }[]) => {
     setRows(next)
     const obj: Record<string, number> = {}
@@ -86,6 +96,7 @@ function ExchangeRateEditor({ value, onChange }: { value: string; onChange: (jso
   )
 }
 
+// Add-a-value input for json_array settings without a fixed options list (Enter or button adds).
 function ArrayFreeTextInput({ onAdd }: { onAdd: (val: string) => void }) {
   const [text, setText] = useState('')
   const handleAdd = () => { if (!text.trim()) return; onAdd(text.trim()); setText('') }
@@ -99,11 +110,13 @@ function ArrayFreeTextInput({ onAdd }: { onAdd: (val: string) => void }) {
   )
 }
 
+// Single-row editor: picks the widget from valueType (+ special cases) and self-saves on change.
+// `value` holds scalar string values; `items` holds the parsed list for json_array settings.
 function SettingEditor({ setting, onSave }: { setting: SettingDto; onSave: (key: string, value: string) => Promise<void> }) {
   const [value, setValue] = useState(setting.value)
   const [items, setItems] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [saved, setSaved] = useState(false) // brief "Enregistré" badge after a save
 
   const isArray = setting.valueType === 'json_array'
   const isBool = setting.valueType === 'boolean'
@@ -128,6 +141,7 @@ function SettingEditor({ setting, onSave }: { setting: SettingDto; onSave: (key:
 
   const handleSave = () => persist(isArray ? JSON.stringify(items) : value)
 
+  // Drives the conditional "Enregistrer" button; booleans persist immediately so they're never "changed".
   const hasChanged = isArray ? JSON.stringify(items) !== setting.value : value !== setting.value
   const isSelectSingle = !isArray && !isBool && options
 
@@ -213,6 +227,7 @@ export default function SettingsPage() {
 
   const visible = useMemo(() => (settings ?? []).filter(s => !HIDDEN_KEYS.has(s.key)), [settings])
 
+  // visible settings bucketed by effective category for the tab layout.
   const grouped = useMemo(() => {
     const g: Record<string, SettingDto[]> = {}
     for (const s of visible) { const c = effectiveCategory(s); (g[c] ??= []).push(s) }
@@ -221,10 +236,11 @@ export default function SettingsPage() {
 
   const categories = CATEGORY_ORDER.filter(c => grouped[c]?.length)
   const [tab, setTab] = useState<string>('')
-  useEffect(() => { if (categories.length && !tab) setTab(categories[0]) }, [categories, tab])
+  useEffect(() => { if (categories.length && !tab) setTab(categories[0]) }, [categories, tab]) // default to first non-empty tab
 
   if (isLoading) return <LoadingSpinner variant="form" />
 
+  // Non-empty search query switches to a flat results list (across all categories) instead of tabs.
   const q = query.trim().toLowerCase()
   const searchResults = q
     ? visible.filter(s => s.label.toLowerCase().includes(q) || (s.description ?? '').toLowerCase().includes(q) || s.key.toLowerCase().includes(q))

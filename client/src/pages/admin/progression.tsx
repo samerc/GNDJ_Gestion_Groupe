@@ -1,3 +1,7 @@
+// Admin "Progression scoute" screen (super-admin / CG). Manages, per unit type, the scout STAGES
+// (an ordered, drag-reorderable ladder) and BADGES (a chip grid). A unit-type pill picker at the top
+// scopes both. Delete = archive-if-used (a stage/badge held by members is deactivated, not removed);
+// the same StagesLadder/BadgesGrid are also embedded on the unit-type detail page.
 import { parseApiError } from '@/lib/error-utils'
 import { useEffect, useState } from 'react'
 import {
@@ -26,6 +30,7 @@ export default function ProgressionPage() {
   const unitTypes = unitTypesData?.items.map(ut => ({ id: ut.id, name: ut.name })) ?? []
   const [selected, setSelected] = useState('')
 
+  // Default to the first unit type once loaded (unit-type-first UX — no all-types jumble).
   useEffect(() => { if (!selected && unitTypes.length) setSelected(unitTypes[0].id) }, [unitTypes, selected])
 
   return (
@@ -85,6 +90,8 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
   const stages = data ?? []
   const toggleOne = (id: string) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
 
+  // Bulk delete runs the per-item delete (archive-if-used) for each selection and tallies the
+  // outcomes (res.archived distinguishes archived-because-used from hard-deleted) into one toast.
   const handleBulkDelete = async () => {
     setBulkBusy(true)
     let deleted = 0, archived = 0, failed = 0
@@ -98,6 +105,8 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
     if (failed && !deleted && !archived) toast.error(parts.join(' · ')); else toast.success(parts.join(' · ') || 'Terminé')
   }
 
+  // Drag-reorder the ladder: compute the moved order locally and persist the new id sequence
+  // (server rewrites displayOrder from the array position).
   const handleDragEnd = (e: DragEndEvent) => {
     const { active, over } = e
     if (!over || active.id === over.id) return
@@ -113,6 +122,7 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
+  // Inline quick-add: name only — blank code lets the backend auto-slug a unique code per unit type.
   const quickAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newName.trim()) return
@@ -173,6 +183,8 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
   )
 }
 
+// One rung of the ladder: drag handle, position number (1-based), name + badge/usage info,
+// active Switch (inline toggle), edit/delete. `index` is the visual rank, not displayOrder.
 function StageCard({ stage, index, busy, checked, onCheck, onEdit, onDelete, onToggle }: {
   stage: ScoutStageDto; index: number; busy: boolean; checked: boolean; onCheck: () => void; onEdit: () => void; onDelete: () => void; onToggle: () => void
 }) {
@@ -275,6 +287,7 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
+  // Inline quick-add: name only — blank code lets the backend auto-slug a unique code per unit type.
   const quickAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newName.trim()) return

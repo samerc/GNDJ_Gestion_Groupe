@@ -15,6 +15,7 @@ public record ExportMemberData(
     IReadOnlyList<MemberCardCustomField> CustomFields
 );
 
+// Exports a unit roster (grouped by team, selected columns + custom fields) to Excel (.xlsx) or CSV.
 public interface IExportService
 {
     byte[] GenerateExcel(ExportData data);

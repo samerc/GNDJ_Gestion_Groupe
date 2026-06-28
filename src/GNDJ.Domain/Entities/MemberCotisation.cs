@@ -2,6 +2,9 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// A member's membership-fee record for one scout year (one row per member+year). Holds one or more
+// Payments (multi-currency). "Paid" = has at least one payment line; an exemption-only row (WillNotPay)
+// has none and an empty receipt number.
 public class MemberCotisation : BaseEntity
 {
     public Guid MemberId { get; set; }

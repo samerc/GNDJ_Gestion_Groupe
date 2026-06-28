@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Member dues (cotisations) per scout year. Route api/v1/cotisations.
+// Mutations need cotisations.create/edit/delete; the unpaid list + summary need cotisations.view (?scoutYear= required).
+// Member-read + receipt download are auth-only (own data / unit-scoped in handler); receipt is a PDF file stream.
 [Authorize]
 [Route("api/v1/cotisations")]
 public class CotisationsController : BaseApiController

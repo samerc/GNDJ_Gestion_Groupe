@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Leadership (maîtrise) members grouped by unit. Route api/v1/maitrises.
+// CG/super-admin only (maitrise.manage) — Get lists the hierarchy; Remove ends a leadership function; Transfer moves a leader to another unit.
 [Authorize]
 [Route("api/v1/maitrises")]
 public class MaitrisesController : BaseApiController

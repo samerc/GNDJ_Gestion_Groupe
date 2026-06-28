@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Email infrastructure admin: SMTP servers + email templates.
+// Route: api/v1/email. [Authorize] = JWT/API-key. Whole controller gated on AssociationsManage.
 [Authorize]
 [Route("api/v1/email")]
 public class EmailController : BaseApiController
@@ -47,6 +49,7 @@ public class EmailController : BaseApiController
         return NoContent();
     }
 
+    // Sends a live test email through the stored SMTP config to verify credentials/connectivity.
     [HttpPost("smtp-servers/{id:guid}/test")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> TestSmtp(Guid id, [FromBody] TestSmtpCommand command)

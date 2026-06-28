@@ -2,6 +2,8 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// An outgoing-mail (SMTP) configuration. EmailTemplates reference one; the active server is used to send.
+// NOTE: Password is stored in plaintext for now (flagged to encrypt/externalize for production).
 public class SmtpServer : BaseEntity
 {
     public string Name { get; set; } = string.Empty;

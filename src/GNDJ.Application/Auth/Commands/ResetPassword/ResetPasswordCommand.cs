@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Auth.Commands.ResetPassword;
 
+// Completes a "forgot password" flow: sets a new password using the emailed one-time token.
 public record ResetPasswordCommand(string Email, string Token, string NewPassword) : IRequest<Result<bool>>;
 
 public class ResetPasswordCommandValidator : AbstractValidator<ResetPasswordCommand>
@@ -33,9 +34,12 @@ public class ResetPasswordCommandHandler(
         if (user is null)
             return Result<bool>.Failure("Lien de réinitialisation invalide ou expiré.");
 
+        // Token must match exactly and not have expired (1h window). Same generic message as the
+        // unknown-email branch above so neither reveals which check failed.
         if (user.PasswordResetToken != request.Token || user.PasswordResetTokenExpiry < DateTime.UtcNow)
             return Result<bool>.Failure("Lien de réinitialisation invalide ou expiré.");
 
+        // Consume the token and invalidate any existing sessions (refresh token) once the password changes.
         user.PasswordHash = passwordHasher.Hash(request.NewPassword);
         user.PasswordResetToken = null;
         user.PasswordResetTokenExpiry = null;

@@ -1,3 +1,6 @@
+// Applicant-portal resource (public enrollment realm). Uses applicantApi (applicant JWT, separate from the
+// member/user auth) — NOT the authenticated apiClient. Keyed on ['applicant', ...]. Covers config, the applicant's
+// own household + demandes (draft → submit), and email verification.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import applicantApi from '@/lib/applicant-api-client'
 
@@ -82,6 +85,7 @@ export interface ApplicantProfile {
 
 export type DemandeInput = Omit<Demande, 'id' | 'scoutYear' | 'status' | 'decisionNotes' | 'submittedAt' | 'responseSentAt'>
 
+// GET /applicant/config → portal config (open flag, scout year, caps, school/class/city/unit/domain lists).
 export function useApplicantConfig() {
   return useQuery({
     queryKey: ['applicant', 'config'],
@@ -89,6 +93,7 @@ export function useApplicantConfig() {
   })
 }
 
+// GET /applicant/profile → the logged-in applicant's account, household (guardians + scout relations) and demandes.
 export function useApplicantProfile(enabled = true) {
   return useQuery({
     queryKey: ['applicant', 'profile'],
@@ -97,6 +102,7 @@ export function useApplicantProfile(enabled = true) {
   })
 }
 
+// PUT /applicant/household → save shared household (address, guardians, scout relations); invalidates profile.
 export function useSaveHousehold() {
   const qc = useQueryClient()
   return useMutation({
@@ -112,6 +118,7 @@ export function useSaveHousehold() {
   })
 }
 
+// POST /applicant/demandes → create a child demande (draft); enforces max-per-account server-side. Invalidates profile.
 export function useCreateDemande() {
   const qc = useQueryClient()
   return useMutation({
@@ -120,6 +127,7 @@ export function useCreateDemande() {
   })
 }
 
+// PUT /applicant/demandes/{id} → update a draft demande; invalidates profile.
 export function useUpdateDemande() {
   const qc = useQueryClient()
   return useMutation({
@@ -128,6 +136,7 @@ export function useUpdateDemande() {
   })
 }
 
+// POST /applicant/demandes/{id}/submit → submit a draft for CG review (may require verified email); invalidates profile.
 export function useSubmitDemande() {
   const qc = useQueryClient()
   return useMutation({
@@ -136,6 +145,7 @@ export function useSubmitDemande() {
   })
 }
 
+// DELETE /applicant/demandes/{id} → remove a draft demande; invalidates profile.
 export function useDeleteDemande() {
   const qc = useQueryClient()
   return useMutation({
@@ -144,12 +154,14 @@ export function useDeleteDemande() {
   })
 }
 
+// POST /applicant/verify-email → confirm the account via emailed token.
 export function useVerifyEmail() {
   return useMutation({
     mutationFn: (token: string) => applicantApi.post('/applicant/verify-email', { token }),
   })
 }
 
+// POST /applicant/resend-verification → re-send the verification email to the logged-in applicant.
 export function useResendVerification() {
   return useMutation({
     mutationFn: () => applicantApi.post('/applicant/resend-verification'),

@@ -9,12 +9,14 @@ import { HoneypotField } from '@/components/shared/honeypot-field'
 import type { AxiosError } from 'axios'
 import type { ApiError } from '@/types/api'
 
+// Member/chef login (the /login "Espace membres" card). On success the auth store stores the tokens
+// and we navigate to the dashboard.
 export function LoginForm() {
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [website, setWebsite] = useState('')
+  const [website, setWebsite] = useState('') // honeypot — must stay empty (bots fill it → server rejects)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 

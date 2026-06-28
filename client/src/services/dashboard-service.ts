@@ -1,3 +1,5 @@
+// Dashboard resource: read-only aggregates — the unit-leader roster and the CG/admin overview.
+// Queries key on ['dashboard', ...].
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
@@ -33,6 +35,8 @@ export interface AdminDashboardDto {
   ageGroups: AgeGroupDto[]
 }
 
+// GET /dashboard/unit/{unitId} — unit roster grouped by team (Maîtrise first) for the CU dashboard.
+// Unit-scoped. Keyed ['dashboard','unit',unitId].
 export function useUnitDashboard(unitId: string | undefined) {
   return useQuery({
     queryKey: ['dashboard', 'unit', unitId],
@@ -41,6 +45,8 @@ export function useUnitDashboard(unitId: string | undefined) {
   })
 }
 
+// GET /dashboard/admin — group-wide stats (counts/gender/units/ages/unpaid/docs), all scoped to the
+// selected scoutYear's active window. Keyed ['dashboard','admin',scoutYear].
 export function useAdminDashboard(scoutYear: string) {
   return useQuery({
     queryKey: ['dashboard', 'admin', scoutYear],

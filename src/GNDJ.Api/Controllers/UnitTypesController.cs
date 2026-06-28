@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Unit types (Meute/Troupe/...) CRUD — base route api/v1/unit-types (overrides the [controller] default).
+// [Authorize] = JWT or API-key required; view gated by UnitTypesView, writes by UnitTypesManage.
 [Authorize]
 [Route("api/v1/unit-types")]
 public class UnitTypesController : BaseApiController

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// Top-level scouting body a unit may belong to (e.g. SDL/GDL).
 public class AssociationConfiguration : IEntityTypeConfiguration<Association>
 {
     public void Configure(EntityTypeBuilder<Association> builder)
@@ -14,6 +15,7 @@ public class AssociationConfiguration : IEntityTypeConfiguration<Association>
         builder.Property(e => e.Code).HasMaxLength(50).IsRequired();
         builder.Property(e => e.Description).HasColumnType("text");
 
+        // Code uniqueness scoped to live rows so a soft-deleted association's code can be reused.
         builder.HasIndex(e => e.Code).IsUnique().HasFilter("is_deleted = false");
     }
 }

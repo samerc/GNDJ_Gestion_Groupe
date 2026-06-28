@@ -12,6 +12,9 @@ public record RentreeTemplateDto(
     IReadOnlyList<Guid> AssigneeMemberIds, IReadOnlyList<string> AssigneeMemberNames,
     string? DefaultDeadlineLabel, IReadOnlyList<Guid> DependsOnTemplateIds);
 
+// One task instance. The frontend rolls up per-unit instances sharing a TemplateId into one row.
+// Computed fields: IsBlocked (a dependency isn't done yet, with BlockedByTitles), IsMine (caller is an
+// assignee), IsOverdue (not done + past a FIXED DueDate; fuzzy DeadlineLabel never counts as overdue).
 public record RentreeTaskDto(
     Guid Id, Guid? TemplateId, string ScoutYear, string Title, string? Description, string Phase, int DisplayOrder,
     string AssigneeType, string? AssigneeRole, Guid? UnitId, string? UnitName,

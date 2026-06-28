@@ -125,9 +125,12 @@ const adminGroups: AdminGroup[] = [
   },
 ]
 
+// Shared nav body for both the desktop <Sidebar> and the mobile drawer.
+// Decides which nav set to show and filters every link by the current user's permissions.
 function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const location = useLocation()
   const { hasPermission, user } = useAuthStore()
+  // Pending-demande badge count — only fetched when the user can see demandes.
   const { data: pendingDemandes } = usePendingDemandeCount(hasPermission(PERMISSIONS.DEMANDE_VIEW))
 
   // Super admin sees admin nav, others see leader nav

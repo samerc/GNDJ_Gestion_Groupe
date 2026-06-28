@@ -8,10 +8,12 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { HoneypotField } from '@/components/shared/honeypot-field'
 
+// "Mot de passe oublié" — anonymous step 1 of password reset: enter email → backend
+// emails a reset link (token). Reached from the login page.
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
-  const [website, setWebsite] = useState('')
-  const [sent, setSent] = useState(false)
+  const [website, setWebsite] = useState('') // honeypot — must stay empty; bots filling it are rejected server-side
+  const [sent, setSent] = useState(false) // once true, show the generic confirmation (no user-enumeration)
   const [error, setError] = useState('')
   const mutation = useForgotPassword()
 

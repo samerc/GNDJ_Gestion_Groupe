@@ -4,8 +4,13 @@ using GNDJ.Application.Common.Interfaces;
 
 namespace GNDJ.Infrastructure.Services;
 
+// Exports a member roster to a spreadsheet — Excel (.xlsx via ClosedXML) or CSV. Both honour a
+// caller-chosen column set (validated against the known columns, falling back to a sensible default)
+// and the same value-resolution logic, so the two formats stay in sync. Unknown column keys resolve
+// to a member custom-field value of that name.
 public class ExportService : IExportService
 {
+    // Maps a column key (the API contract) to its French header label.
     private static readonly Dictionary<string, string> ColumnLabels = new()
     {
         ["name"] = "Nom",
@@ -90,6 +95,7 @@ public class ExportService : IExportService
         return result;
     }
 
+    // Keep only recognized column keys (drops anything unknown/malicious); empty selection → default set.
     private static List<string> ResolveColumns(IReadOnlyList<string> requested)
     {
         var columns = requested.Where(c => ColumnLabels.ContainsKey(c)).ToList();

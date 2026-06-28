@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
+// Report templates resource: CG-defined saved report configs (CU generates from them). Queries key on ['report-templates'].
+
 export interface ReportTemplateDto {
   id: string
   name: string
@@ -23,6 +25,7 @@ export interface ReportTemplateFormData {
   displayOrder: number
 }
 
+// GET /report-templates → list; activeOnly filters to enabled templates.
 export function useReportTemplates(activeOnly = false) {
   return useQuery({
     queryKey: ['report-templates', { activeOnly }],
@@ -30,6 +33,7 @@ export function useReportTemplates(activeOnly = false) {
   })
 }
 
+// POST /report-templates → create; invalidates the list.
 export function useCreateReportTemplate() {
   const qc = useQueryClient()
   return useMutation({
@@ -38,6 +42,7 @@ export function useCreateReportTemplate() {
   })
 }
 
+// PUT /report-templates/{id} → update; invalidates the list.
 export function useUpdateReportTemplate() {
   const qc = useQueryClient()
   return useMutation({
@@ -47,6 +52,7 @@ export function useUpdateReportTemplate() {
   })
 }
 
+// DELETE /report-templates/{id} → delete; invalidates the list.
 export function useDeleteReportTemplate() {
   const qc = useQueryClient()
   return useMutation({

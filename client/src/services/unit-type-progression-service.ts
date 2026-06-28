@@ -1,3 +1,4 @@
+// Parcours scouts: group-wide branch-to-branch progression paths (gender-keyed) that drive passage suggestions. List/CRUD + suggest. Queries key on ['unit-type-progressions'].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
@@ -24,6 +25,7 @@ export interface PassageSuggestionDto {
   reason: string | null
 }
 
+// Progression paths list (GET /unit-type-progressions). Keyed ['unit-type-progressions', associationId ?? 'all'].
 // Group-wide paths (no association split). Pass an associationId only for legacy/filtered views.
 export function useUnitTypeProgressions(associationId?: string) {
   return useQuery({
@@ -32,6 +34,7 @@ export function useUnitTypeProgressions(associationId?: string) {
   })
 }
 
+// Suggested next branch for a member (GET /unit-type-progressions/suggest/:memberId), matched by gender. Keyed ['passage-suggestion', memberId].
 export function usePassageSuggestion(memberId: string) {
   return useQuery({
     queryKey: ['passage-suggestion', memberId],
@@ -40,6 +43,7 @@ export function usePassageSuggestion(memberId: string) {
   })
 }
 
+// POST /unit-type-progressions; invalidates ['unit-type-progressions'].
 export function useCreateUnitTypeProgression() {
   const qc = useQueryClient()
   return useMutation({
@@ -49,6 +53,7 @@ export function useCreateUnitTypeProgression() {
   })
 }
 
+// PUT /unit-type-progressions/:id; invalidates ['unit-type-progressions'].
 export function useUpdateUnitTypeProgression() {
   const qc = useQueryClient()
   return useMutation({
@@ -58,6 +63,7 @@ export function useUpdateUnitTypeProgression() {
   })
 }
 
+// DELETE /unit-type-progressions/:id; invalidates ['unit-type-progressions'].
 export function useDeleteUnitTypeProgression() {
   const qc = useQueryClient()
   return useMutation({

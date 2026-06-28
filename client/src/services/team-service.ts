@@ -1,3 +1,4 @@
+// Teams resource: a sizaine/équipe within a unit (totem, colors, isMaitrise). List/CRUD. Mutations also invalidate ['units'] (memberCount/teamCount). Queries key on ['teams'].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { PaginatedResult } from '@/types/api'
@@ -29,6 +30,7 @@ export interface TeamFormData {
   isMaitrise?: boolean
 }
 
+// Paginated teams list (GET /teams); filter by unitId + search. Keyed ['teams', params].
 export function useTeams(params: { unitId?: string; search?: string; page?: number; pageSize?: number }) {
   return useQuery({
     queryKey: ['teams', params],
@@ -36,6 +38,7 @@ export function useTeams(params: { unitId?: string; search?: string; page?: numb
   })
 }
 
+// POST /teams; invalidates ['teams'] + ['units'].
 export function useCreateTeam() {
   const qc = useQueryClient()
   return useMutation({
@@ -44,6 +47,7 @@ export function useCreateTeam() {
   })
 }
 
+// PUT /teams/:id; invalidates ['teams'] + ['units'].
 export function useUpdateTeam() {
   const qc = useQueryClient()
   return useMutation({
@@ -53,6 +57,7 @@ export function useUpdateTeam() {
   })
 }
 
+// DELETE /teams/:id; invalidates ['teams'] + ['units'].
 export function useDeleteTeam() {
   const qc = useQueryClient()
   return useMutation({

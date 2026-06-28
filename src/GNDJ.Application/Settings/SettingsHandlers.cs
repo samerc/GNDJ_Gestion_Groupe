@@ -5,6 +5,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Settings;
 
+// App configuration is a typed key/value store: each Setting carries a ValueType (number/boolean/
+// json/json_array/date/string) that UpdateSetting validates the new Value against. Handlers below
+// read/write rows; consumers resolve values per-key at use time (no central cache to invalidate).
 public record SettingDto(string Key, string Value, string Category, string Label, string? Description, string ValueType);
 
 // Get all settings
@@ -41,7 +44,8 @@ public class GetSettingQueryHandler : IRequestHandler<GetSettingQuery, SettingDt
     }
 }
 
-// Update setting
+// Update setting — Value is validated against the existing setting's declared ValueType (see switch
+// below); the key/type itself is fixed by the seed and not created here.
 public record UpdateSettingCommand(string Key, string Value) : IRequest<Result<bool>>;
 
 public class UpdateSettingCommandHandler : IRequestHandler<UpdateSettingCommand, Result<bool>>

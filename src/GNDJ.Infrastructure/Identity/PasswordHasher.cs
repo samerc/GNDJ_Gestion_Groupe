@@ -2,6 +2,8 @@ using GNDJ.Application.Common.Interfaces;
 
 namespace GNDJ.Infrastructure.Identity;
 
+// BCrypt password hashing (login credentials) plus a one-way SHA-256 token hash.
+// Tuned for a small CPU-bound box: see WorkFactor + the concurrency gate below.
 public class PasswordHasher : IPasswordHasher
 {
     // Work factor 10 (~65ms/hash) — OWASP-recommended minimum, balances security with
@@ -27,6 +29,8 @@ public class PasswordHasher : IPasswordHasher
         finally { _gate.Release(); }
     }
 
+    // Refresh tokens are stored as a SHA-256 hex digest (fast, deterministic) rather than BCrypt
+    // so lookup can hit an index — an O(N) BCrypt scan over every stored token was the bottleneck.
     public string HashToken(string token)
     {
         var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token));

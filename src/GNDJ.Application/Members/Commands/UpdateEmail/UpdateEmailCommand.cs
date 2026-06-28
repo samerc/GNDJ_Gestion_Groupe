@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.UpdateEmail;
 
+// Edits a member email. Access (IDOR guard, on the owning member): own profile / super-admin / active unit leader.
 public record UpdateEmailCommand(Guid Id, string Address, string Type, bool IsPrimary, bool IsEmergency) : IRequest<Result<bool>>;
 
 public class UpdateEmailCommandValidator : AbstractValidator<UpdateEmailCommand>

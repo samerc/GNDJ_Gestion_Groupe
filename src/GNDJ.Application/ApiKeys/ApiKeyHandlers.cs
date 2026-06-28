@@ -9,6 +9,10 @@ using System.Security.Cryptography;
 
 namespace GNDJ.Application.ApiKeys;
 
+// API keys for external integrations. The raw key is shown once at creation and only its bcrypt hash
+// is stored; KeyPrefix (first 8 chars) is kept in clear for display/lookup. Scopes (CSV) are mapped to
+// permissions by ApiKeyMiddleware at request time. An optional MemberId binds the key to one member
+// (for *-own scopes).
 // DTOs
 public record ApiKeyDto(Guid Id, string Name, string KeyPrefix, string Scopes, Guid? MemberId, string? MemberName, bool IsActive, DateTime? ExpiresAt, DateTime? LastUsedAt, DateTime CreatedAt);
 public record ApiKeyCreatedDto(Guid Id, string Key); // Key only shown once at creation
@@ -83,7 +87,7 @@ public class CreateApiKeyCommandHandler(IApplicationDbContext context, IPassword
     }
 }
 
-// Toggle active
+// Toggle active — flips IsActive; returns the new state. Inactive keys are rejected at auth time.
 public record ToggleApiKeyCommand(Guid Id) : IRequest<Result<bool>>;
 
 public class ToggleApiKeyCommandHandler(IApplicationDbContext context, IAuditService auditService) : IRequestHandler<ToggleApiKeyCommand, Result<bool>>

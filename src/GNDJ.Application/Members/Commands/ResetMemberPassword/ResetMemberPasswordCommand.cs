@@ -5,8 +5,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.ResetMemberPassword;
 
+// Returned once so the CG/leader can relay the new credentials to the member.
 public record ResetMemberPasswordResult(string Username, string TemporaryPassword);
 
+// CG/leader resets a member's login: sets a fresh temp password and invalidates any active session +
+// pending reset link. Access = super-admin or active leader of the member's unit.
 public record ResetMemberPasswordCommand(Guid MemberId) : IRequest<Result<ResetMemberPasswordResult>>;
 
 public class ResetMemberPasswordCommandHandler(

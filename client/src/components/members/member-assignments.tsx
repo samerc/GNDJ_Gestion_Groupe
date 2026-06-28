@@ -16,6 +16,11 @@ import { Plus, Pencil, Trash2, StopCircle, Building2 } from 'lucide-react'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 
+// "Affectations" tab of the member detail page (also reused read-only on Ma fiche for youth).
+// Shows the member's current posts (unit / team / functional role) + a year-grouped history
+// timeline. Create assigns a new post; edit keeps unit/team/function fixed and only adjusts
+// dates; "Terminer aujourd'hui" closes a post by stamping endDate = today (active → history).
+// readOnly hides all mutation controls (used when the viewer can't manage assignments).
 interface MemberAssignmentsProps {
   memberId: string
   memberName: string
@@ -30,6 +35,7 @@ function getYear(d: string) {
   return new Date(d).getFullYear()
 }
 
+// Human-readable elapsed time between start and end (null end = ongoing, measured to now).
 function durationLabel(start: string, end: string | null) {
   const s = new Date(start)
   const e = end ? new Date(end) : new Date()
@@ -84,6 +90,7 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
     setError('')
     if (!validate({ unitId: !form.unitId, functionalRoleId: !form.functionalRoleId, startDate: !form.startDate })) return
     try {
+      // Empty optional fields normalize to null so the API stores absence, not "".
       const payload = { ...form, teamId: form.teamId || null, endDate: form.endDate || null, notes: form.notes || null }
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, ...payload })
@@ -103,6 +110,7 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
     try { await deleteMutation.mutateAsync(deleting.id); toast.success('Affectation supprimée'); setDeleting(null) } catch (err) { setError(parseApiError(err)); setDeleting(null) }
   }
 
+  // Split into current posts vs. history; history is newest-first then bucketed per start year.
   const activeAssignments = data?.items.filter(a => a.isActive) ?? []
   const pastAssignments = (data?.items.filter(a => !a.isActive) ?? []).sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
 
@@ -155,6 +163,7 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
                       <Button variant="ghost" size="icon" className="h-8 w-8" title="Modifier" onClick={() => openEdit(a)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
+                      {/* One-click "end today": closes the post with endDate = today (moves it to history). */}
                       <Button variant="ghost" size="icon" className="h-8 w-8" title="Désactiver" onClick={async () => { try { await endMutation.mutateAsync({ id: a.id, endDate: new Date().toISOString().split('T')[0] }); toast.success('Affectation terminée') } catch { /* handled by query refresh */ } }}>
                         <StopCircle className="h-4 w-4 text-orange-500" />
                       </Button>

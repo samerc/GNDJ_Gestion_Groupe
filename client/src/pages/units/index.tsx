@@ -1,3 +1,7 @@
+// Units admin list (super-admin). Searchable, paginated table with association + unit-type filters;
+// rows link to the unit detail page. Create/edit dialog covers the core fields plus a "Site public"
+// section (publish toggle, slug, founded date — the public description lives on the unit TYPE, shared).
+// Delete is hard (ConfirmDialog). Association is optional (e.g. Maîtrise de Groupe → "Inter-associations").
 import { parseApiError } from '@/lib/error-utils'
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router'
@@ -60,6 +64,7 @@ export default function UnitsPage() {
     setFormOpen(true)
   }
 
+  // Public-URL slug from the name: lowercase, strip accents, non-alphanumerics → single dashes, trim.
   const slugify = (s: string) =>
     s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
       .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
@@ -97,6 +102,7 @@ export default function UnitsPage() {
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending
+  // Remember that the list was non-empty at least once (distinguishes "no data yet" from "truly empty").
   if (data && data.totalCount > 0) hasLoadedOnce.current = true
 
   return (

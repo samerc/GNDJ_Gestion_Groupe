@@ -5,6 +5,10 @@ using QuestPDF.Infrastructure;
 
 namespace GNDJ.Infrastructure.Services;
 
+// Generates the Camp BP roster PDFs (QuestPDF, A4). Three layouts share the same page setup/footer:
+// a single famille sheet, all familles (one per page via PageBreak), and a unit list (one unit per
+// page, members grouped by team, showing each member's assigned famille number). Leaders (Père/Mère,
+// Role != null) are tinted blue and kept out of the zebra-striping alternation.
 public class CampReportService : ICampReportService
 {
     public byte[] Famille(CampReportData data, int familleNumber)

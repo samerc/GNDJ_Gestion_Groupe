@@ -7,6 +7,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Functional roles (per unit type). Route api/v1/functional-roles.
+// Read = roles.view, mutate = roles.manage. Reorder = drag-to-rank (top = most senior); set-default marks the
+// auto-assigned new-member role; Delete archives if used (else hard-deletes), Unarchive restores. {id}/members
+// lists who holds the role. group-access (Get/Set) is the CG-only per-area access editor — gated roles.manage_group.
 [Authorize]
 [Route("api/v1/functional-roles")]
 public class RolesController : BaseApiController
@@ -102,6 +106,9 @@ public class RolesController : BaseApiController
     }
 }
 
+// Security profiles (permission sets assigned to functional roles). Route api/v1/security-profiles.
+// Read = roles.view, mutate = roles.manage. {id}/members lists accounts holding the profile (super-admin profile
+// lists the flagged accounts since super-admin is a flag, not a role). Delete is blocked for system/in-use profiles.
 [Authorize]
 [Route("api/v1/security-profiles")]
 public class SecurityProfilesController : BaseApiController

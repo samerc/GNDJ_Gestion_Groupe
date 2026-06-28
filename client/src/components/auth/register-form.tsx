@@ -9,6 +9,8 @@ import { HoneypotField } from '@/components/shared/honeypot-field'
 import type { AxiosError } from 'axios'
 import type { ApiError } from '@/types/api'
 
+// Generic account registration form (kept available, but applicants use the isolated portal instead —
+// real members are created by a chef or by converting a demande).
 export function RegisterForm() {
   const navigate = useNavigate()
   const register = useAuthStore((s) => s.register)
@@ -18,7 +20,7 @@ export function RegisterForm() {
     confirmPassword: '',
     firstName: '',
     lastName: '',
-    website: '',
+    website: '', // honeypot — see HoneypotField; must stay empty
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -29,6 +31,7 @@ export function RegisterForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    // Client-side guards mirror the server StrongPassword policy + confirm-match.
     if (form.password.length < 8) { setError('Le mot de passe doit contenir au moins 8 caractères.'); return }
     if (form.password !== form.confirmPassword) { setError('Les mots de passe ne correspondent pas.'); return }
     setLoading(true)

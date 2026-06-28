@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.DeleteAddress;
 
+// Removes a member address. Access (IDOR guard, on the owning member): own profile / super-admin / active unit leader.
 public record DeleteAddressCommand(Guid Id) : IRequest<Result<bool>>;
 
 public class DeleteAddressCommandHandler : IRequestHandler<DeleteAddressCommand, Result<bool>>

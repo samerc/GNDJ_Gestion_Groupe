@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// Parent/tutor on an applicant household (shared across that account's demandes); converted to a real
+// Guardian when a demande is accepted.
 public class ApplicantGuardianConfiguration : IEntityTypeConfiguration<ApplicantGuardian>
 {
     public void Configure(EntityTypeBuilder<ApplicantGuardian> builder)

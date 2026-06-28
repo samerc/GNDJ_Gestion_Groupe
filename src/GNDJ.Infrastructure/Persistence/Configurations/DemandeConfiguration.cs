@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// A single child's enrollment request — flows submitted → CG decision → converted to a real Member.
 public class DemandeConfiguration : IEntityTypeConfiguration<Demande>
 {
     public void Configure(EntityTypeBuilder<Demande> builder)
@@ -32,6 +33,8 @@ public class DemandeConfiguration : IEntityTypeConfiguration<Demande>
         builder.HasIndex(e => e.ScoutYear);
         builder.HasIndex(e => e.Status);
 
+        // Restrict: the accepted unit and the member it produced are decision history — don't let
+        // deleting either silently erase the demande.
         builder.HasOne(e => e.DecidedUnit).WithMany()
             .HasForeignKey(e => e.DecidedUnitId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(e => e.CreatedMember).WithMany()

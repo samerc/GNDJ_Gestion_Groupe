@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// A sizaine/équipe within a unit (totem-named subgroup of members).
 public class TeamConfiguration : IEntityTypeConfiguration<Team>
 {
     public void Configure(EntityTypeBuilder<Team> builder)
@@ -17,9 +18,11 @@ public class TeamConfiguration : IEntityTypeConfiguration<Team>
         builder.Property(e => e.Color1).HasMaxLength(20);
         builder.Property(e => e.Color2).HasMaxLength(20);
 
+        // Restrict: don't let a unit delete silently wipe its teams.
         builder.HasOne(e => e.Unit).WithMany(u => u.Teams).HasForeignKey(e => e.UnitId).OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(e => e.UnitId);
+        // Team name unique within a unit (not globally) — same totem can recur across units.
         builder.HasIndex(e => new { e.Name, e.UnitId }).IsUnique().HasFilter("is_deleted = false");
     }
 }

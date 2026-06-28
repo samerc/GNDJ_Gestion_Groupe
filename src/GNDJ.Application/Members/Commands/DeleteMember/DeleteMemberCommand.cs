@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.DeleteMember;
 
+// Hard-deletes a member (soft-deleted via the SoftDelete interceptor). Blocked when the member still
+// has an active assignment — end their assignments first. Unit-scoped + super-admin only.
 public record DeleteMemberCommand(Guid Id) : IRequest<Result<bool>>;
 
 public class DeleteMemberCommandHandler : IRequestHandler<DeleteMemberCommand, Result<bool>>

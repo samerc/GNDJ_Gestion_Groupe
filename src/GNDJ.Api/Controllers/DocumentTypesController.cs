@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.OutputCaching;
 
 namespace GNDJ.Api.Controllers;
 
+// Admin-managed document type definitions (codes, expiry/approval flags).
+// Route: api/v1/document-types. [Authorize] = JWT/API-key.
+// Read uses DocumentTypesView; create/update/delete use DocumentTypesManage.
 [Authorize]
 [Route("api/v1/document-types")]
 public class DocumentTypesController : BaseApiController
@@ -28,6 +31,8 @@ public class DocumentTypesController : BaseApiController
         return Ok(result);
     }
 
+    // Lightweight lookup for upload/matrix pickers — gated on DocumentsView (not *TypesView)
+    // so any document uploader can list types; output-cached as static lookup data.
     [HttpGet("list")]
     [HasPermission(Permissions.DocumentsView)]
     [OutputCache(PolicyName = "LookupData")]

@@ -20,11 +20,14 @@ interface ApplicantState {
   setEmailVerified: (v: boolean) => void
 }
 
+// Save applicant tokens under the portal-specific keys (read by applicant-api-client).
 function persist(data: ApplicantAuthResponse) {
   localStorage.setItem(APPLICANT_ACCESS_KEY, data.accessToken)
   localStorage.setItem(APPLICANT_REFRESH_KEY, data.refreshToken)
 }
 
+// Auth state for the public enrollment portal — fully isolated from the member auth store (own tokens,
+// own /applicant endpoints, no permissions/units; `website` is the honeypot field).
 export const useApplicantStore = create<ApplicantState>((set) => ({
   isAuthenticated: !!localStorage.getItem(APPLICANT_ACCESS_KEY),
   email: null,

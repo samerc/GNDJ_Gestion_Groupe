@@ -4,6 +4,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Infrastructure.Persistence;
 
+// Database seeding + idempotent self-healing migrations run on app startup. SeedAsync does the initial
+// bootstrap (security profiles, functional roles, the super-admin user/member, default settings) ONLY on
+// a fresh DB; the other Seed* methods patch existing databases per-item (missing permissions/settings/
+// templates, new profiles, role ranks) so each is safe to run on every startup without duplicating rows.
 public static class SeedData
 {
     // Chef de Groupe = group-wide management WITHOUT system administration. Everything except:
@@ -50,6 +54,8 @@ public static class SeedData
         "Soins - Esthétique - Coiffure", "Sport et loisirs", "Sans profession / Au foyer", "Autre"
     });
 
+    // Fresh-DB bootstrap only — guarded by "any security profile exists" (IgnoreQueryFilters so a
+    // soft-deleted profile still counts), so it never re-runs / never duplicates on an existing DB.
     public static async Task SeedAsync(GndjDbContext context, string superAdminEmail, string superAdminPasswordHash)
     {
         if (await context.SecurityProfiles.IgnoreQueryFilters().AnyAsync())
@@ -153,6 +159,8 @@ public static class SeedData
         await context.SaveChangesAsync();
     }
 
+    // Back-fills permissions added after a profile was first seeded (e.g. the document/cotisation/passage
+    // features) onto the system profiles, adding only the ones each profile is still missing. Idempotent.
     public static async Task SeedMissingPermissionsAsync(GndjDbContext context)
     {
         // Define which permissions each profile should have for the new document/cotisation features

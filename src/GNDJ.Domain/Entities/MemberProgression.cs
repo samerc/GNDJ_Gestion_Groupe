@@ -2,6 +2,7 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// Records that a member reached a ScoutStage (optionally earning a Badge) on a date — their progression history.
 public class MemberProgression : BaseEntity
 {
     public Guid MemberId { get; set; }

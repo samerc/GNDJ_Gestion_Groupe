@@ -1,3 +1,5 @@
+// Progression resource: scout stages + badges (both per unit type, admin-managed, reorderable) and
+// member progression records. Queries key on ['scout-stages'|'badges'|'progressions', ...].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
@@ -9,6 +11,7 @@ export interface ScoutStageDto {
 export interface ScoutStageListDto { id: string; code: string; name: string; isBadgeStage: boolean }
 export interface ScoutStageFormData { unitTypeId: string; code: string; name: string; description?: string | null; displayOrder: number; isActive: boolean; isBadgeStage: boolean }
 
+// GET /scout-stages — full stage list, optionally filtered by unit type. Keyed ['scout-stages', unitTypeId].
 export function useScoutStages(unitTypeId?: string) {
   return useQuery({
     queryKey: ['scout-stages', unitTypeId],
@@ -16,6 +19,7 @@ export function useScoutStages(unitTypeId?: string) {
   })
 }
 
+// GET /scout-stages/list — slim list for pickers; requires unitTypeId.
 export function useScoutStageList(unitTypeId: string) {
   return useQuery({
     queryKey: ['scout-stages', 'list', unitTypeId],
@@ -24,6 +28,7 @@ export function useScoutStageList(unitTypeId: string) {
   })
 }
 
+// POST /scout-stages (code auto-generated from name if blank). Invalidates ['scout-stages'].
 export function useCreateScoutStage() {
   const qc = useQueryClient()
   return useMutation({
@@ -32,6 +37,7 @@ export function useCreateScoutStage() {
   })
 }
 
+// PUT /scout-stages/{id} (isActive=false also = archive).
 export function useUpdateScoutStage() {
   const qc = useQueryClient()
   return useMutation({
@@ -40,6 +46,7 @@ export function useUpdateScoutStage() {
   })
 }
 
+// DELETE /scout-stages/{id} — archives if used by members, else hard-deletes.
 export function useDeleteScoutStage() {
   const qc = useQueryClient()
   return useMutation({
@@ -49,6 +56,7 @@ export function useDeleteScoutStage() {
   })
 }
 
+// PUT /scout-stages/reorder — persist drag order (orderedIds, top→bottom).
 export function useReorderScoutStages() {
   const qc = useQueryClient()
   return useMutation({
@@ -65,6 +73,7 @@ export interface BadgeDto {
 export interface BadgeListDto { id: string; code: string; name: string }
 export interface BadgeFormData { unitTypeId: string; code: string; name: string; description?: string | null; displayOrder: number; isActive: boolean }
 
+// GET /badges — full badge list, optionally filtered by unit type. Keyed ['badges', unitTypeId].
 export function useBadges(unitTypeId?: string) {
   return useQuery({
     queryKey: ['badges', unitTypeId],
@@ -72,6 +81,7 @@ export function useBadges(unitTypeId?: string) {
   })
 }
 
+// GET /badges/list — slim list for pickers; requires unitTypeId.
 export function useBadgeList(unitTypeId: string) {
   return useQuery({
     queryKey: ['badges', 'list', unitTypeId],
@@ -80,6 +90,7 @@ export function useBadgeList(unitTypeId: string) {
   })
 }
 
+// POST /badges (code auto-generated from name if blank). Invalidates ['badges'].
 export function useCreateBadge() {
   const qc = useQueryClient()
   return useMutation({
@@ -88,6 +99,7 @@ export function useCreateBadge() {
   })
 }
 
+// PUT /badges/{id} (isActive=false also = archive).
 export function useUpdateBadge() {
   const qc = useQueryClient()
   return useMutation({
@@ -96,6 +108,7 @@ export function useUpdateBadge() {
   })
 }
 
+// DELETE /badges/{id} — archives if awarded to members, else hard-deletes.
 export function useDeleteBadge() {
   const qc = useQueryClient()
   return useMutation({
@@ -105,6 +118,7 @@ export function useDeleteBadge() {
   })
 }
 
+// PUT /badges/reorder — persist drag order (orderedIds).
 export function useReorderBadges() {
   const qc = useQueryClient()
   return useMutation({
@@ -123,6 +137,7 @@ export interface MemberProgressionDto {
 
 export interface CreateProgressionData { memberId: string; unitId: string; scoutStageId: string; badgeId?: string | null; date: string; location?: string | null; notes?: string | null }
 
+// GET /progressions/member/{id} — a member's progression history. Keyed ['progressions', memberId].
 export function useMemberProgressions(memberId: string) {
   return useQuery({
     queryKey: ['progressions', memberId],
@@ -131,6 +146,7 @@ export function useMemberProgressions(memberId: string) {
   })
 }
 
+// POST /progressions — record a stage (+ optional badge) for a member; needs memberId+unitId+stage.
 export function useCreateProgression(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -139,6 +155,7 @@ export function useCreateProgression(memberId: string) {
   })
 }
 
+// DELETE /progressions/{id}.
 export function useDeleteProgression(memberId: string) {
   const qc = useQueryClient()
   return useMutation({

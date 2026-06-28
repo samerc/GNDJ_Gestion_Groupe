@@ -260,7 +260,9 @@ if (cloudflareEnabled)
 
 var app = builder.Build();
 
-// Seed database
+// Apply pending migrations then run the idempotent seeders on every startup. Each Seed* call is a
+// no-op when its data already exists, so this safely back-fills new permissions/profiles/settings/
+// templates into databases provisioned before those features were added.
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<GndjDbContext>();
@@ -350,6 +352,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthentication();
+// API-key auth runs AFTER JWT authentication and BEFORE authorization: it only kicks in when no
+// JWT principal was set, populating an equivalent ClaimsPrincipal so [HasPermission] still applies.
 app.UseMiddleware<ApiKeyMiddleware>();
 app.UseAuthorization();
 
@@ -369,6 +373,8 @@ app.UseSerilogRequestLogging(options =>
 
 app.UseOutputCache();
 app.UseRateLimiter();
+// After the rate limiter (so flooders are throttled first) and after auth (so rejections can log
+// the user) — scans JSON write bodies for honeypot/attack signatures before they reach controllers.
 app.UseMiddleware<AbuseDetectionMiddleware>();
 app.MapHealthChecks("/health");
 app.MapControllers();

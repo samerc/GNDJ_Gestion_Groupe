@@ -1,3 +1,8 @@
+// Admin "Accès maîtrise" screen (CG-only, perm roles.manage_group). One card per group-maîtrise
+// function (CG, ACG, AUG, SG, …); for each, the CG sets the access level (Aucun / Lecture / Complet)
+// per area (Membres, Demandes, Cotisations, …). The head Chef de Groupe is fixed at full access
+// (fn.editable === false → read-only card). Backend lazy-forks the function to its own group-level
+// profile on first save and caps grants to what the editor holds (non-delegatable perms never given).
 import { useState, useMemo } from 'react'
 import { useGroupFunctionAccess, useSetGroupFunctionAccess, type GroupFunctionAccessDto } from '@/services/role-service'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,10 +48,11 @@ export default function GroupAccessPage() {
 
 function FunctionAccessCard({ fn }: { fn: GroupFunctionAccessDto }) {
   const setMutation = useSetGroupFunctionAccess()
+  // area key → level, snapshotted from the server; `levels` is the editable working copy.
   const initial = useMemo(() => Object.fromEntries(fn.areas.map(a => [a.key, a.level])) as Record<string, string>, [fn])
   const [levels, setLevels] = useState<Record<string, string>>(initial)
 
-  const dirty = fn.areas.some(a => levels[a.key] !== initial[a.key])
+  const dirty = fn.areas.some(a => levels[a.key] !== initial[a.key]) // any area changed → show Save
 
   const save = async () => {
     try {

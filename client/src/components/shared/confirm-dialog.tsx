@@ -23,6 +23,8 @@ interface ConfirmDialogProps {
   children?: ReactNode
 }
 
+// Reusable confirm/cancel modal (used for deletes, archives, etc.). `variant="destructive"` reddens the
+// confirm button; `children` slots extra content (e.g. an affected-members list) between text and buttons.
 export function ConfirmDialog({
   open,
   onOpenChange,

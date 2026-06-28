@@ -1,3 +1,6 @@
+// Cotisations resource: per-member yearly dues (multi-currency payment lines), exempt flag, receipt PDF,
+// and CG summary/unpaid views. Mutations also invalidate the docs matrix (shares the cotisation cell).
+// Queries key on ['cotisations', ...].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
@@ -63,6 +66,7 @@ export interface CotisationSummaryDto {
   byUnit: UnitCotisationSummaryDto[]
 }
 
+// GET /cotisations/member/{id} — one member's cotisations (all years). Keyed ['cotisations', memberId].
 export function useMemberCotisations(memberId: string) {
   return useQuery({
     queryKey: ['cotisations', memberId],
@@ -71,6 +75,7 @@ export function useMemberCotisations(memberId: string) {
   })
 }
 
+// POST /cotisations — one record per member+year with payment lines; returns it (receipt# auto-gen).
 export function useCreateCotisation(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -82,6 +87,7 @@ export function useCreateCotisation(memberId: string) {
   })
 }
 
+// PUT /cotisations/{id} — edit date/notes/payment lines.
 export function useUpdateCotisation(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -108,6 +114,7 @@ export function useSetCotisationExempt() {
   })
 }
 
+// DELETE /cotisations/{id}.
 export function useDeleteCotisation(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -119,6 +126,8 @@ export function useDeleteCotisation(memberId: string) {
   })
 }
 
+// GET /cotisations/summary — group totals + per-unit paid/exempt counts; requires scoutYear.
+// Keyed ['cotisations','summary',scoutYear].
 export function useCotisationSummary(scoutYear: string) {
   return useQuery({
     queryKey: ['cotisations', 'summary', scoutYear],
@@ -127,6 +136,7 @@ export function useCotisationSummary(scoutYear: string) {
   })
 }
 
+// GET /cotisations/unpaid — members with no payment (excludes exempt) for the year; requires scoutYear.
 export function useUnpaidCotisations(scoutYear: string) {
   return useQuery({
     queryKey: ['cotisations', 'unpaid', scoutYear],
@@ -135,6 +145,7 @@ export function useUnpaidCotisations(scoutYear: string) {
   })
 }
 
+// GET /cotisations/{id}/receipt — receipt PDF as a blob (not a hook).
 export function downloadReceipt(id: string) {
   return apiClient.get(`/cotisations/${id}/receipt`, { responseType: 'blob' })
 }

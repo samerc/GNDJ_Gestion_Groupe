@@ -9,11 +9,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Units CRUD — base route api/v1/units (from BaseApiController's [controller] convention).
+// [Authorize] = JWT or API-key required; view via UnitsView, writes split across UnitsCreate/Edit/Delete.
 [Authorize]
 public class UnitsController : BaseApiController
 {
     [HttpGet]
     [HasPermission(Permissions.UnitsView)]
+    // Optional filters narrow the list (association / unit type / active state); results are still unit-scoped per caller.
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search,
         [FromQuery] Guid? associationId,

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// One membership-fee record per member per scout year (with payment lines or an exemption marker).
 public class MemberCotisationConfiguration : IEntityTypeConfiguration<MemberCotisation>
 {
     public void Configure(EntityTypeBuilder<MemberCotisation> builder)
@@ -20,6 +21,7 @@ public class MemberCotisationConfiguration : IEntityTypeConfiguration<MemberCoti
         // Exemption-only rows ("will not pay") carry an empty receipt number — exclude them from the
         // unique receipt index so several exempt members can coexist.
         builder.HasIndex(e => e.ReceiptNumber).IsUnique().HasFilter("is_deleted = false AND receipt_number <> ''");
+        // Enforces the "single cotisation record per member per year" rule.
         builder.HasIndex(e => new { e.MemberId, e.ScoutYear }).IsUnique().HasFilter("is_deleted = false");
     }
 }

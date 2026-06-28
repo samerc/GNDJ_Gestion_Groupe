@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Reports;
 
+// Spreadsheet export (Excel .xlsx via ClosedXML, or UTF-8 CSV) of a unit/team roster — same data
+// gathering as the roster PDF, different sink. Returns bytes + content type + filename. Unit-scoped.
 public record GenerateExportQuery(
     Guid UnitId,
     Guid? TeamId,

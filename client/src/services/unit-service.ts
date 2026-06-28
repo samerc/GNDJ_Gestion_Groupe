@@ -1,3 +1,4 @@
+// Units resource: a scout unit (belongs to a unit-type, optionally an association). List/CRUD + public-site fields. Queries key on ['units'].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { PaginatedResult } from '@/types/api'
@@ -31,6 +32,7 @@ export interface UnitFormData {
   foundedDate?: string | null
 }
 
+// Paginated units list (GET /units); filter by association/unitType/isActive + search. Keyed ['units', params].
 export function useUnits(params: { search?: string; associationId?: string; unitTypeId?: string; isActive?: boolean; page?: number; pageSize?: number }) {
   return useQuery({
     queryKey: ['units', params],
@@ -38,6 +40,7 @@ export function useUnits(params: { search?: string; associationId?: string; unit
   })
 }
 
+// POST /units; invalidates ['units'].
 export function useCreateUnit() {
   const qc = useQueryClient()
   return useMutation({
@@ -46,6 +49,7 @@ export function useCreateUnit() {
   })
 }
 
+// PUT /units/:id; invalidates ['units'].
 export function useUpdateUnit() {
   const qc = useQueryClient()
   return useMutation({
@@ -55,6 +59,7 @@ export function useUpdateUnit() {
   })
 }
 
+// DELETE /units/:id; invalidates ['units'].
 export function useDeleteUnit() {
   const qc = useQueryClient()
   return useMutation({

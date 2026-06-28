@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// External API-key management — base route api/v1/api-keys (overrides the [controller] default).
+// [Authorize] = JWT or API-key required; every action gated by AssociationsManage (no dedicated key family — admin-only).
 [Authorize]
 [Route("api/v1/api-keys")]
 public class ApiKeysController : BaseApiController
@@ -24,9 +26,11 @@ public class ApiKeysController : BaseApiController
     {
         var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Created("", result.Value);
+        return Created("", result.Value); // returns the plaintext key ONCE — only the hash is stored
+
     }
 
+    // /{id}/toggle — flips active state; returns the new isActive (not 204) so the UI can reflect it without a refetch.
     [HttpPut("{id:guid}/toggle")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Toggle(Guid id)

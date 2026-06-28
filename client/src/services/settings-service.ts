@@ -1,3 +1,6 @@
+// Settings resource: key/value app config (categories, typed values). Hooks read the full set or a
+// single key; helpers parse values (array/string) and normalize/snap free-text names (school, city)
+// onto managed canonical lists. /settings/cities is CG-accessible; generic key writes are admin-only.
 import { useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
@@ -25,6 +28,7 @@ export function useSetting(key: string) {
   })
 }
 
+// Write one setting (value validated server-side against its valueType); invalidates all settings.
 export function useUpdateSetting() {
   const qc = useQueryClient()
   return useMutation({

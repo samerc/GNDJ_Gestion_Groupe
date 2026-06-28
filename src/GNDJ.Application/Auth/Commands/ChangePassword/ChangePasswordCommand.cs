@@ -6,6 +6,7 @@ using Mediator;
 
 namespace GNDJ.Application.Auth.Commands.ChangePassword;
 
+// Self-service password change for the logged-in user: requires the current password and a different new one.
 public record ChangePasswordCommand(string CurrentPassword, string NewPassword) : IRequest<Result<bool>>;
 
 public class ChangePasswordCommandValidator : AbstractValidator<ChangePasswordCommand>
@@ -38,6 +39,7 @@ public class ChangePasswordCommandHandler(
         if (!passwordHasher.Verify(request.CurrentPassword, user.PasswordHash))
             return Result<bool>.Failure("Le mot de passe actuel est incorrect.");
 
+        // Changing the password invalidates other sessions by clearing the refresh token.
         user.PasswordHash = passwordHasher.Hash(request.NewPassword);
         user.RefreshToken = null;
         user.RefreshTokenExpiry = null;

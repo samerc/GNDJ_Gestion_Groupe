@@ -7,6 +7,7 @@ interface EmptyStateProps {
   action?: React.ReactNode
 }
 
+// Centered placeholder shown when a list/section has no data, with an icon, message and optional CTA.
 export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">

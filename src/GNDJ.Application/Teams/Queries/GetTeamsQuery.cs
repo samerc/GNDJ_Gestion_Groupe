@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Teams.Queries;
 
+// Paginated team list, optionally filtered by unit + search (name/totem). Unit-scoped: non-super-admins
+// only see teams in their authorized units. Ordered by unit, then DisplayOrder, then name.
 public record GetTeamsQuery(Guid? UnitId, string? Search, int Page = 1, int PageSize = 20) : IRequest<PaginatedList<TeamDto>>;
 
 public class GetTeamsQueryHandler : IRequestHandler<GetTeamsQuery, PaginatedList<TeamDto>>

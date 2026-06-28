@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.UpdateAddress;
 
+// Edits a member address. Access (IDOR guard, on the owning member): own profile / super-admin / active unit leader.
 public record UpdateAddressCommand(Guid Id, string Type, string Country, string City, string? Details, bool IsPrimary) : IRequest<Result<bool>>;
 
 public class UpdateAddressCommandValidator : AbstractValidator<UpdateAddressCommand>

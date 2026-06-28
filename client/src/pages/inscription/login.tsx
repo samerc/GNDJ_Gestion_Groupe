@@ -9,12 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { HoneypotField } from '@/components/shared/honeypot-field'
 import { parseApiError } from '@/lib/error-utils'
 
+// Sign-in screen for the applicant portal — distinct from the member /login (separate auth store).
+// On success goes to the portail (list of demandes).
 export default function ApplicantLoginPage() {
   const navigate = useNavigate()
   const login = useApplicantStore((s) => s.login)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [website, setWebsite] = useState('')
+  const [website, setWebsite] = useState('') // honeypot anti-bot field
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 

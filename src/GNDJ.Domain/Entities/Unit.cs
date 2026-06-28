@@ -2,6 +2,8 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// A concrete unit (one branch instance) of a given UnitType, optionally under an Association.
+// Holds Teams and the member Assignments. Unit-scoped authorization keys off these assignments.
 public class Unit : BaseEntity
 {
     // Nullable: some units (e.g. Maîtrise de Groupe) span both associations and belong to none.

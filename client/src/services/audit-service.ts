@@ -1,3 +1,4 @@
+// Audit log resource: read-only viewer of mutation history (super-admin). Queries key on ['audit-logs', ...].
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { PaginatedResult } from '@/types/api'
@@ -20,6 +21,7 @@ export interface AuditFilterOptionsDto {
   actions: string[]
 }
 
+// GET /audit-logs — paginated, filterable by entity/action/user/date. Keyed ['audit-logs', params].
 export function useAuditLogs(params: {
   entityType?: string; action?: string; userId?: string
   from?: string; to?: string; page?: number; pageSize?: number
@@ -30,6 +32,7 @@ export function useAuditLogs(params: {
   })
 }
 
+// GET /audit-logs/filters — distinct entity types + actions to populate the filter dropdowns.
 export function useAuditFilterOptions() {
   return useQuery({
     queryKey: ['audit-logs', 'filters'],

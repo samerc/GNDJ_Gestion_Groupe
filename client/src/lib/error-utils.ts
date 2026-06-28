@@ -1,6 +1,8 @@
 import type { AxiosError } from 'axios'
 import type { ApiError } from '@/types/api'
 
+// Turn any thrown API error into a user-facing French message, in priority order:
+// field validation errors → single error → problem-details title → network/HTTP-status fallback.
 export function parseApiError(err: unknown): string {
   const axiosError = err as AxiosError<ApiError>
   const data = axiosError.response?.data

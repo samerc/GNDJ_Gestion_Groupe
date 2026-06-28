@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Units.Commands.UpdateUnit;
 
+// Update a unit, including its public-site fields (Slug/IsPublished/FoundedDate). AssociationId stays
+// optional (inter-association units); code unique per association scope; slug unique across units.
 public record UpdateUnitCommand(
     Guid Id, string Name, string Code, string? Description, Guid? AssociationId, Guid UnitTypeId, bool IsActive,
     string? Slug = null, bool IsPublished = false, DateOnly? FoundedDate = null

@@ -1,3 +1,5 @@
+// Member/chef/admin auth contracts. MeResponse drives client-side authz (permissions + unitAccess);
+// isSuperAdmin short-circuits every permission/unit check in the auth store.
 export interface AuthResponse {
   userId: string
   memberId: string

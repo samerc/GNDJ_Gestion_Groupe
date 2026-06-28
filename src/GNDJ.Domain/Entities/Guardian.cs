@@ -2,6 +2,8 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// A parent/tuteur. Shared across members via GuardianLink (siblings reference the same Guardian), which is
+// why guardians are deduped by name+email/phone on import and on demande approval.
 public class Guardian : BaseEntity
 {
     public string FirstName { get; set; } = string.Empty;
@@ -17,6 +19,7 @@ public class Guardian : BaseEntity
     public ICollection<GuardianEmail> Emails { get; set; } = [];
 }
 
+// Join row linking a shared Guardian to a specific Member with their relationship (and contact flags).
 public class GuardianLink : BaseEntity
 {
     public Guid GuardianId { get; set; }

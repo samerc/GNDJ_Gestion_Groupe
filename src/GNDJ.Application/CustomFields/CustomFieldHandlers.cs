@@ -8,6 +8,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.CustomFields;
 
+// Admin-defined extra member fields (text/number/select/boolean). FieldType drives input + validation;
+// Options holds the JSON array of choices for "select"; ShowOnCard surfaces the value on the member card.
+
 // DTOs
 public record CustomFieldDto(Guid Id, string Name, string Code, string FieldType, string? Options, int DisplayOrder, bool IsActive, bool ShowOnCard, int ValueCount);
 public record CustomFieldListDto(Guid Id, string Name, string Code, string FieldType, string? Options, bool ShowOnCard);
@@ -171,6 +174,7 @@ public class DeleteCustomFieldCommandHandler(IApplicationDbContext context, IAud
         if (entity is null)
             return Result<bool>.Failure("Champ personnalisé introuvable.");
 
+        // Blocked once any member has a value — deactivate (IsActive=false) to retire it without data loss.
         if (entity.Values.Any())
             return Result<bool>.Failure("Impossible de supprimer un champ ayant des valeurs existantes. Désactivez-le plutôt.");
 
@@ -182,7 +186,8 @@ public class DeleteCustomFieldCommandHandler(IApplicationDbContext context, IAud
     }
 }
 
-// SetMemberCustomFieldValue (upsert)
+// Upserts one member's value for a custom field (the Value string is validated against the field's
+// declared FieldType below). Unit-scoped to the member.
 public record SetMemberCustomFieldValueCommand(Guid MemberId, Guid CustomFieldId, string Value) : IRequest<Result<Guid>>;
 
 public class SetMemberCustomFieldValueCommandValidator : AbstractValidator<SetMemberCustomFieldValueCommand>

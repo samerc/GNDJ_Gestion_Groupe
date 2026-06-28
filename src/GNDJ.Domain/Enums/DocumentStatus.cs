@@ -1,5 +1,6 @@
 namespace GNDJ.Domain.Enums;
 
+// Review state of a MemberDocument (stored as a string, not a C# enum).
 public static class DocumentStatus
 {
     public const string Pending = "Pending";

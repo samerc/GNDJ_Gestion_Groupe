@@ -1,6 +1,9 @@
 import { Compass } from 'lucide-react'
 import { Toaster } from 'sonner'
 
+// ROLE: branded centered card shell for the UNAUTHENTICATED applicant pages
+// (register / login / verify-email). Mounts its own Sonner <Toaster> — same
+// silent-toast fix as ApplicantProtectedRoute, since these pages live outside AppLayout.
 export function ApplicantAuthShell({ children, subtitle }: { children: React.ReactNode; subtitle?: string }) {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-4">

@@ -8,14 +8,17 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { HoneypotField } from '@/components/shared/honeypot-field'
 
+// "Nouveau mot de passe" — anonymous step 2 of password reset: the user lands here from
+// the emailed link, which carries token+email as query params. Submits the new password.
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams()
+  // token+email come from the emailed reset link; both required (else the invalid-link card renders).
   const token = searchParams.get('token') ?? ''
   const email = searchParams.get('email') ?? ''
 
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [website, setWebsite] = useState('')
+  const [website, setWebsite] = useState('') // honeypot — see forgot-password.tsx
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const mutation = useResetPassword()
@@ -42,6 +45,7 @@ export default function ResetPasswordPage() {
     }
   }
 
+  // Guard: missing token/email means the link was malformed/incomplete — show invalid-link card.
   if (!token || !email) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-muted p-4">

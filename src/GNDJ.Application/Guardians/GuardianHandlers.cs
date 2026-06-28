@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Guardians;
 
 // DTOs
+// A parent/tutor. Guardians are SHARED across siblings — one Guardian, many GuardianLinks (one per child).
 public record GuardianDto(
     Guid Id, string FirstName, string LastName, string? Profession, string? ProfessionDomain, bool IsDeceased, string? Notes,
     IReadOnlyList<GuardianPhoneDto> Phones, IReadOnlyList<GuardianEmailDto> Emails
@@ -14,6 +15,7 @@ public record GuardianDto(
 public record GuardianPhoneDto(Guid Id, string CountryCode, string Number, string Type, bool IsPrimary);
 public record GuardianEmailDto(Guid Id, string Address, string Type, bool IsPrimary);
 
+// One guardian↔member link: the relationship (Père/Mère/…) + contact flags for THIS child.
 public record GuardianLinkDto(
     Guid LinkId, Guid GuardianId, string RelationshipType, bool IsPrimaryContact, bool IsEmergencyContact,
     GuardianDto Guardian
@@ -21,7 +23,8 @@ public record GuardianLinkDto(
 
 public record GuardianSearchDto(Guid Id, string FirstName, string LastName, string? Profession);
 
-// Helper: check if user can access a member
+// Unit-scoping helpers. Two flavours because a guardian is shared: member access = active assignment in
+// an authorized unit; guardian access = linked to AT LEAST ONE such member.
 static class GuardianAccessHelper
 {
     public static async Task<bool> CanAccessMember(IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
@@ -215,6 +218,8 @@ public class LinkGuardianCommandHandler : IRequestHandler<LinkGuardianCommand, R
         if (!await GuardianAccessHelper.CanAccessMember(_context, _currentUser, request.MemberId, cancellationToken))
             return Result<Guid>.Failure("Accès refusé.");
 
+        // Prevent a duplicate link (same guardian + member + relationship). A guardian may legitimately
+        // link to the same child under two different relationships, so RelationshipType is part of the key.
         var exists = await _context.GuardianLinks.AnyAsync(gl =>
             gl.GuardianId == request.GuardianId && gl.MemberId == request.MemberId && gl.RelationshipType == request.RelationshipType,
             cancellationToken);

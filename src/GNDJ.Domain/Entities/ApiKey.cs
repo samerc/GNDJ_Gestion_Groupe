@@ -2,6 +2,8 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// An API key for external integrations (X-API-Key auth). Only the BCrypt hash is stored; scopes map to a
+// permission subset and an optional MemberId binds the key to one member's own data.
 public class ApiKey : BaseEntity
 {
     public string Name { get; set; } = string.Empty;

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Units.Commands.DeleteUnit;
 
+// Delete a unit — blocked while it has any active (open-ended) member assignment.
 public record DeleteUnitCommand(Guid Id) : IRequest<Result<bool>>;
 
 public class DeleteUnitCommandHandler : IRequestHandler<DeleteUnitCommand, Result<bool>>

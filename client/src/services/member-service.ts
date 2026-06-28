@@ -1,3 +1,5 @@
+// Members resource: list/detail CRUD, contact sub-resources (phones/emails/addresses), photo upload,
+// and password reset. All calls are unit-scoped server-side; queries key on ['members', ...].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { PaginatedResult } from '@/types/api'
@@ -65,6 +67,7 @@ export interface MemberFormData {
   notes?: string | null
 }
 
+// Paginated member list. alumni=true switches to former-members (identity only); default is active.
 export function useMembers(params: { search?: string; unitId?: string; teamId?: string; noUnit?: boolean; alumni?: boolean; sortBy?: string; sortDir?: string; page?: number; pageSize?: number }) {
   return useQuery({
     queryKey: ['members', params],
@@ -72,6 +75,7 @@ export function useMembers(params: { search?: string; unitId?: string; teamId?: 
   })
 }
 
+// Single member detail (skipped until an id is provided).
 export function useMember(id: string) {
   return useQuery({
     queryKey: ['members', id],
@@ -80,6 +84,7 @@ export function useMember(id: string) {
   })
 }
 
+// Create a member; server auto-provisions a user account and returns its temp login credentials.
 export function useCreateMember() {
   const qc = useQueryClient()
   return useMutation({
@@ -108,6 +113,7 @@ export function useDeleteMember() {
   })
 }
 
+// CG/leader resets a member's password → returns a fresh temp password (no cache to invalidate).
 export function useResetMemberPassword() {
   return useMutation({
     mutationFn: (id: string) =>
@@ -115,7 +121,7 @@ export function useResetMemberPassword() {
   })
 }
 
-// Contact mutations
+// Contact mutations — phones/emails/addresses are sub-resources; all invalidate the member detail.
 export function useAddPhone(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -194,6 +200,7 @@ export function useUpdateAddress(memberId: string) {
   })
 }
 
+// Multipart photo upload; invalidates both detail and list (list shows the thumbnail).
 export function useUploadPhoto(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -211,6 +218,7 @@ export function useUploadPhoto(memberId: string) {
   })
 }
 
+// Authenticated photo endpoint URL (served with the JWT; MemberPhoto fetches it as a blob).
 export function getMemberPhotoUrl(memberId: string): string {
   return `/api/v1/members/${memberId}/photo`
 }

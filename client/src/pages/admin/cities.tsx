@@ -1,3 +1,7 @@
+// Admin "Villes" page ("/admin/cities", perm maitrise.manage — CG + super-admin). Curates the managed list of
+// cities (member.cities setting) offered in address pickers. Edits are local-only until "Enregistrer" persists
+// the whole array. Add/rename/remove are deduped accent- & case-insensitively (norm). Editing the list only
+// changes future suggestions — addresses already saved on members are untouched.
 import { useState, useEffect, useMemo, Fragment } from 'react'
 import { useCities, useUpdateCities } from '@/services/settings-service'
 import { Button } from '@/components/ui/button'
@@ -7,9 +11,11 @@ import { cn } from '@/lib/utils'
 import { Plus, X, Search, MapPin, Pencil, Check } from 'lucide-react'
 import { toast } from 'sonner'
 
+// Accent/case-insensitive key for dedup + filtering (strips diacritics via NFD).
 function norm(s: string): string {
   return s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 }
+// A–Z bucket letter for the alphabetical grouping; non-letters fall into "#".
 function firstLetter(s: string): string {
   const n = norm(s)
   const c = (n[0] ?? '#').toUpperCase()
@@ -27,6 +33,7 @@ export default function CitiesAdminPage() {
   const [editing, setEditing] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
 
+  // Sync from the fetched setting, but never clobber unsaved local edits (dirty guard).
   useEffect(() => {
     if (!dirty) setCities(stored)
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Reports;
 
+// Credit-card-sized member ID card PDF. Access: super-admin, the member themselves, or a leader of the
+// member's active unit. Fields shown are driven by the admin "card designer" (the card.config setting).
 public record GenerateMemberCardQuery(Guid MemberId) : IRequest<Result<byte[]>>;
 
 public class GenerateMemberCardQueryHandler(

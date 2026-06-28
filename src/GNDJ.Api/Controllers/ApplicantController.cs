@@ -5,8 +5,12 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace GNDJ.Api.Controllers;
 
-// Public applicant portal (demande d'inscription). Authed endpoints use the isolated "applicant" JWT;
-// handlers resolve the account via ICurrentApplicantService and reject non-applicant tokens.
+// Public applicant portal (demande d'inscription); base route api/v1/applicant. Authed endpoints use the
+// isolated "applicant" JWT (applicant claim — wholly separate from User/Member/permissions); handlers
+// resolve the account via ICurrentApplicantService and reject non-applicant tokens. Anonymous endpoints
+// (config/register/verify/login/refresh) carry honeypot fields; register/resend are "forms" rate-limited,
+// login/verify/refresh "auth" rate-limited. The [Authorize] endpoints below operate on the caller's own
+// account only (no cross-account access — see IDOR audit).
 [Route("api/v1/applicant")]
 public class ApplicantController : BaseApiController
 {

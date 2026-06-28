@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace GNDJ.Application.Common.Interfaces;
 
+// Application-layer abstraction over the EF Core context: exposes the DbSets + SaveChanges so handlers
+// depend on this interface (not the concrete GndjDbContext in Infrastructure), keeping the Clean Architecture
+// dependency direction. Soft-delete + audit-timestamp filtering happen transparently in the implementation.
 public interface IApplicationDbContext
 {
     DbSet<Association> Associations { get; }

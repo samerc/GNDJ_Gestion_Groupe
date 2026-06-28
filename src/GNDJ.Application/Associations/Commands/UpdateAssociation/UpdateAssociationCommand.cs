@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Associations.Commands.UpdateAssociation;
 
+// Update an association. Code stays unique across other associations (checked in the handler).
 public record UpdateAssociationCommand(Guid Id, string Name, string Code, string? Description) : IRequest<Result<bool>>;
 
 public class UpdateAssociationCommandValidator : AbstractValidator<UpdateAssociationCommand>

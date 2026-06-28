@@ -1,3 +1,6 @@
+// Camp BP list page ("/admin/camps", perm camp.manage — CG/super-admin). Lists camp editions (each splits the
+// whole group into balanced "familles") with status (Setup→Assigned→Closed) and progress counts; "Nouveau camp"
+// creates one (famillesCount optional → backend default). Each card links to camp-detail for the familles board.
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { useCamps, useCreateCamp, type CampListDto } from '@/services/camp-service'

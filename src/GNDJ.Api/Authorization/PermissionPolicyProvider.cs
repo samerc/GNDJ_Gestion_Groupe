@@ -3,6 +3,9 @@ using Microsoft.Extensions.Options;
 
 namespace GNDJ.Api.Authorization;
 
+// Synthesizes authorization policies on the fly so we never have to register one
+// AddPolicy(...) per permission. Any policy name starting with "Permission:" is turned
+// into a PermissionRequirement; everything else defers to the framework default provider.
 public class PermissionPolicyProvider : IAuthorizationPolicyProvider
 {
     private const string PolicyPrefix = "Permission:";
@@ -17,6 +20,7 @@ public class PermissionPolicyProvider : IAuthorizationPolicyProvider
     {
         if (policyName.StartsWith(PolicyPrefix, StringComparison.OrdinalIgnoreCase))
         {
+            // Strip the "Permission:" prefix to recover the bare permission string.
             var permission = policyName[PolicyPrefix.Length..];
             var policy = new AuthorizationPolicyBuilder()
                 .AddRequirements(new PermissionRequirement(permission))

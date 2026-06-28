@@ -16,6 +16,11 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Plus, Trash2, Star, Award, MapPin, Calendar } from 'lucide-react'
 
+// "Progression" tab of the member detail page / Ma fiche / CU dashboard. Lists the member's
+// recorded progression entries (a scout stage, plus a badge when the stage is a badge-stage,
+// with date/location/notes) and lets a manager add/delete them. Stage & badge pickers are
+// scoped to the member's unit TYPE (a Meute has different stages than a Troupe). unitId/
+// unitTypeId can be passed in, else they're auto-resolved from the active assignment below.
 interface Props {
   memberId: string
   unitId?: string      // current unit for default
@@ -42,6 +47,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
 
   const [form, setForm] = useState({ scoutStageId: '', badgeId: '', date: '', location: '', notes: '' })
 
+  // Badges only load (and the badge field only shows) when the chosen stage is a badge-stage.
   const selectedStage = stages?.find(s => s.id === form.scoutStageId)
   const { data: badges } = useBadgeList(selectedStage?.isBadgeStage ? (unitTypeId ?? '') : '')
 

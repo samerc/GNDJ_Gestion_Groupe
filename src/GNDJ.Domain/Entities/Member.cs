@@ -2,6 +2,9 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// The central person record (youth or leader). Aggregates contacts, guardians, assignments, documents,
+// cotisations and progressions. An optional 1:1 User gives login. "Active" membership is derived from
+// having an assignment with EndDate == null; members with only ended assignments are alumni (kept, not deleted).
 public class Member : BaseEntity
 {
     public string FirstName { get; set; } = string.Empty;
@@ -28,8 +31,8 @@ public class Member : BaseEntity
     public ICollection<MemberAddress> Addresses { get; set; } = [];
     public ICollection<MemberAssignment> Assignments { get; set; } = [];
     public ICollection<GuardianLink> GuardianLinks { get; set; } = [];
-    public ICollection<MemberRelationship> Relationships { get; set; } = [];
-    public ICollection<MemberRelationship> InverseRelationships { get; set; } = [];
+    public ICollection<MemberRelationship> Relationships { get; set; } = [];     // relations this member declares
+    public ICollection<MemberRelationship> InverseRelationships { get; set; } = []; // relations pointing back at this member
     public ICollection<MemberDocument> Documents { get; set; } = [];
     public ICollection<MemberCotisation> Cotisations { get; set; } = [];
     public ICollection<MemberProgression> Progressions { get; set; } = [];

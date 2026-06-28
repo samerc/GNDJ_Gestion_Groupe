@@ -10,6 +10,8 @@ namespace GNDJ.Application.Cotisations;
 // DTOs
 public record CotisationPaymentDto(Guid Id, decimal Amount, string Currency, string PaymentMethod);
 
+// One member's cotisation for a scout year. A single record per (member, year) carrying multiple
+// payment lines (multi-currency). WillNotPay marks an exemption (see SetCotisationExemptCommand).
 public record MemberCotisationDto(
     Guid Id, Guid MemberId, string ScoutYear,
     DateOnly PaymentDate, string ReceiptNumber, string? Notes,
@@ -17,7 +19,7 @@ public record MemberCotisationDto(
     List<CotisationPaymentDto> Payments, DateTime CreatedAt
 );
 
-// Helper
+// Unit-scoping helper: super-admin, own member, or active leader of the member's unit.
 static class CotisationAccessHelper
 {
     public static async Task<bool> CanAccessMember(IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
@@ -97,7 +99,8 @@ public class CreateCotisationCommandHandler(IApplicationDbContext context, ICurr
         if (!await CotisationAccessHelper.CanAccessMember(context, currentUser, request.MemberId, ct))
             return Result<CotisationCreatedDto>.Failure("Accès non autorisé à ce membre.");
 
-        // Check duplicate for same member + scout year
+        // One cotisation row per (member, year) — adding more payments means editing the existing one.
+        // (This also catches an exemption-only marker row created earlier by SetCotisationExemptCommand.)
         var exists = await context.MemberCotisations.AnyAsync(c =>
             c.MemberId == request.MemberId && c.ScoutYear == request.ScoutYear, ct);
         if (exists)
@@ -188,7 +191,8 @@ public class UpdateCotisationCommandHandler(IApplicationDbContext context, ICurr
         entity.PaymentDate = request.PaymentDate;
         entity.Notes = request.Notes;
 
-        // Replace all payment lines
+        // Full replace: drop every existing payment line and re-add from the request (the UI sends the
+        // complete set each time, so there's no per-line diff to track).
         foreach (var existing in entity.Payments.ToList())
         {
             context.CotisationPayments.Remove(existing);
@@ -339,7 +343,7 @@ public class GetReceiptDataQueryHandler(IApplicationDbContext context, ICurrentU
     }
 }
 
-// Cotisation summary for dashboard
+// Cotisation summary for dashboard (group-wide + per-unit paid/exempt counts and currency totals).
 public record GetCotisationSummaryQuery(string ScoutYear) : IRequest<CotisationSummaryDto>;
 
 public record CotisationSummaryDto(
@@ -406,6 +410,7 @@ public class GetCotisationSummaryQueryHandler(IApplicationDbContext context) : I
         return new CotisationSummaryDto(
             activeMemberIds.Count,
             paidSet.Count,
+            // "without payment" excludes both paid and exempt members.
             activeMemberIds.Count - paidSet.Count - exemptSet.Count,
             exemptSet.Count,
             totalsByCurrency,

@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.UnitTypes.Commands.UpdateUnitType;
 
+// Update a unit type. Code + Color stay unique (across other types); see CreateUnitTypeCommand for
+// what NumberOfYears / Color / PublicDescription drive elsewhere.
 public record UpdateUnitTypeCommand(Guid Id, string Name, string Code, string? Description, int? NumberOfYears, int? AgeMin, int? AgeMax, string? Color, string? PublicDescription = null) : IRequest<Result<bool>>;
 
 public class UpdateUnitTypeCommandValidator : AbstractValidator<UpdateUnitTypeCommand>

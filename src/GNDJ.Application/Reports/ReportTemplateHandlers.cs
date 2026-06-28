@@ -7,6 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Reports;
 
+// Saved report presets: the CG defines a named template (report type + format + chosen columns) once,
+// and a CU then generates roster/export reports from it without re-picking columns. CRUD only here;
+// ColumnsJson is the serialized column selection consumed by the roster/export generators.
+
 // DTOs
 public record ReportTemplateDto(
     Guid Id, string Name, string Description, string ReportType, string Format,

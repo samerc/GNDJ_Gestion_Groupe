@@ -15,12 +15,16 @@ import { parseApiError } from '@/lib/error-utils'
 import { UserMinus, ArrowRightLeft, Crown, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 
+// CG-only page (perm maitrise.manage): the leaders (maîtrise) of every unit, grouped into
+// collapsible per-unit cards ordered by rank. CG can remove a leader (ends the function) or
+// transfer them to another unit/function.
 export default function MaitrisesPage() {
   const { data: units, isLoading } = useMaitrises()
   const removeMutation = useRemoveFromMaitrise()
+  // The member targeted by the remove-confirm dialog / the transfer dialog (null = closed).
   const [removeTarget, setRemoveTarget] = useState<MaitriseMemberDto | null>(null)
   const [transferTarget, setTransferTarget] = useState<MaitriseMemberDto | null>(null)
-  const [expanded, setExpanded] = useState<Set<string>>(new Set()) // collapsed by default
+  const [expanded, setExpanded] = useState<Set<string>>(new Set()) // set of expanded unit ids; collapsed by default
   const toggle = (unitId: string) => setExpanded(prev => {
     const next = new Set(prev)
     next.has(unitId) ? next.delete(unitId) : next.add(unitId)
@@ -110,6 +114,8 @@ export default function MaitrisesPage() {
   )
 }
 
+// Move a leader to another unit. `keepOld` chooses cumul (add the new function, keep the old)
+// vs. mutation (close the old, open the new). Function list is scoped to the chosen unit's type.
 function TransferDialog({ member, onClose }: { member: MaitriseMemberDto; onClose: () => void }) {
   const { data: units } = useUnits({ isActive: true, pageSize: 300 })
   const transferMutation = useTransferMaitrise()
@@ -117,6 +123,7 @@ function TransferDialog({ member, onClose }: { member: MaitriseMemberDto; onClos
   const [newRoleId, setNewRoleId] = useState('')
   const [keepOld, setKeepOld] = useState(false)
 
+  // Roles depend on the picked unit's type; only non-archived maîtrise (leadership) functions are offered.
   const selectedUnit = units?.items.find(u => u.id === newUnitId)
   const { data: roles } = useFunctionalRoles(selectedUnit?.unitTypeId)
   const leaderRoles = roles?.filter(r => r.isMaitrise && !r.isArchived)

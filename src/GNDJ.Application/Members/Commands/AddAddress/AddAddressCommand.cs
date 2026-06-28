@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.AddAddress;
 
+// Adds an address to a member. Access (IDOR guard): own profile / super-admin / active unit leader.
 public record AddAddressCommand(Guid MemberId, string Type, string Country, string City, string? Details, bool IsPrimary) : IRequest<Result<Guid>>;
 
 public class AddAddressCommandValidator : AbstractValidator<AddAddressCommand>

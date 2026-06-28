@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Assignments.Commands.UpdateAssignment;
 
+// Edits an existing assignment. Authorization is checked against the assignment's CURRENT unit
+// (before the change); team-belongs-to-unit is re-validated against the new unit.
 public record UpdateAssignmentCommand(
     Guid Id, Guid UnitId, Guid? TeamId, Guid FunctionalRoleId,
     DateOnly StartDate, DateOnly? EndDate, string? Notes

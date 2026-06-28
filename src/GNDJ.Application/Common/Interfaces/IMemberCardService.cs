@@ -25,6 +25,8 @@ public record CardFieldSettings(
     bool Role, bool DateOfBirth, bool BloodType, bool EmergencyContact, bool CustomFields
 );
 
+// Renders member ID cards (credit-card sized) as PDF — single or bulk (10/A4) — using the admin's card
+// designer field toggles. Implemented with QuestPDF in Infrastructure.
 public interface IMemberCardService
 {
     byte[] Generate(MemberCardData data, CardSettings settings);

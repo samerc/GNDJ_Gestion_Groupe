@@ -2,6 +2,8 @@ using GNDJ.Domain.Interfaces;
 
 namespace GNDJ.Infrastructure.Persistence;
 
+// Commit boundary: flushes everything staged on the shared (scoped) DbContext in one SaveChanges,
+// so a handler's repository writes land atomically. Both interceptors (audit + soft-delete) fire here.
 public class UnitOfWork : IUnitOfWork
 {
     private readonly GndjDbContext _context;

@@ -2,6 +2,8 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// A named permission bundle (super-admin, chef-unite, chef-de-groupe, read-only…) attached to functional roles.
+// IsSystem profiles are seeded and protected from deletion. The actual grants live in Permissions.
 public class SecurityProfile : BaseEntity
 {
     public string Name { get; set; } = string.Empty;

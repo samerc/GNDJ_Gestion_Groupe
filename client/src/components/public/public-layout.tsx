@@ -31,6 +31,10 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn('whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors',
     isActive ? 'text-primary' : 'text-foreground/70 hover:text-foreground hover:bg-accent/10')
 
+// ROLE: shell for the anonymous public site (home, /unites, /actualites, /p/:slug, /contact).
+// Scroll-aware sticky header, nav built dynamically from CMS pages, and a footer.
+// Mounts its own Sonner <Toaster> (public site lives outside AppLayout). The
+// "Demande d'inscription" CTA only appears when inscriptions are open.
 export function PublicLayout() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -38,6 +42,7 @@ export function PublicLayout() {
   const { data: config } = usePublicSiteConfig()
   const inscriptionsOpen = config?.inscriptionsOpen ?? false
 
+  // Solidify the header background once the page is scrolled past the top.
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
     onScroll()
@@ -45,6 +50,7 @@ export function PublicLayout() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  // Lock body scroll while the mobile menu overlay is open (menu itself stays scrollable).
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }

@@ -1,5 +1,8 @@
 namespace GNDJ.Domain.Enums;
 
+// Canonical catalog of permission keys enforced server-side via [HasPermission(...)] and granted through
+// SecurityProfilePermission. `All` is the validation whitelist (a grant must be one of these) and the
+// super-admin/group-level grant set.
 public static class Permissions
 {
     public const string MembersView = "members.view";

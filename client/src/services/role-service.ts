@@ -1,3 +1,4 @@
+// Functional roles + security profiles + per-function group access. Roles map a member's function to a security profile; archive-instead-of-delete when used. Queries key on ['functionalRoles'], ['securityProfiles'], ['groupFunctionAccess'].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
@@ -46,6 +47,7 @@ export interface FunctionMemberDto {
   active: boolean
 }
 
+// Members holding a function (GET /functional-roles/:id/members); for the delete-confirm popup. Gated by enabled + roleId. Keyed ['functionalRoleMembers', roleId].
 export function useFunctionalRoleMembers(roleId: string | undefined, enabled: boolean) {
   return useQuery({
     queryKey: ['functionalRoleMembers', roleId],
@@ -63,6 +65,7 @@ export interface GroupFunctionAccessDto {
   areas: GroupAreaDto[]
 }
 
+// Per-group-function area access levels (GET /functional-roles/group-access); CG "Accès maîtrise" editor. Keyed ['groupFunctionAccess'].
 export function useGroupFunctionAccess() {
   return useQuery({
     queryKey: ['groupFunctionAccess'],
@@ -70,6 +73,7 @@ export function useGroupFunctionAccess() {
   })
 }
 
+// POST /functional-roles/:id/group-access — set per-area levels (lazy-forks the function's profile). Invalidates ['groupFunctionAccess'].
 export function useSetGroupFunctionAccess() {
   const qc = useQueryClient()
   return useMutation({
@@ -79,6 +83,7 @@ export function useSetGroupFunctionAccess() {
   })
 }
 
+// Members carrying a security profile (GET /security-profiles/:id/members); super-admin profile lists flagged accounts. Keyed ['securityProfileMembers', profileId].
 export function useSecurityProfileMembers(profileId: string | undefined) {
   return useQuery({
     queryKey: ['securityProfileMembers', profileId],
@@ -94,6 +99,7 @@ export interface SecurityProfileDto {
   isSystem: boolean
 }
 
+// Functional roles list (GET /functional-roles); optional unitTypeId filter. Keyed ['functionalRoles', unitTypeId].
 export function useFunctionalRoles(unitTypeId?: string) {
   return useQuery({
     queryKey: ['functionalRoles', unitTypeId],
@@ -101,6 +107,7 @@ export function useFunctionalRoles(unitTypeId?: string) {
   })
 }
 
+// Security profiles list (GET /security-profiles); for the role's profile picker. Keyed ['securityProfiles'].
 export function useSecurityProfiles() {
   return useQuery({
     queryKey: ['securityProfiles'],
@@ -108,6 +115,7 @@ export function useSecurityProfiles() {
   })
 }
 
+// POST /functional-roles (auto-ranks to senior end). Invalidates ['functionalRoles'].
 export function useCreateFunctionalRole() {
   const qc = useQueryClient()
   return useMutation({
@@ -116,6 +124,7 @@ export function useCreateFunctionalRole() {
   })
 }
 
+// PUT /functional-roles/:id. Invalidates ['functionalRoles'].
 export function useUpdateFunctionalRole() {
   const qc = useQueryClient()
   return useMutation({
@@ -125,6 +134,7 @@ export function useUpdateFunctionalRole() {
   })
 }
 
+// DELETE /functional-roles/:id (archive-if-used). Invalidates ['functionalRoles'].
 export function useDeleteFunctionalRole() {
   const qc = useQueryClient()
   return useMutation({
@@ -134,6 +144,7 @@ export function useDeleteFunctionalRole() {
   })
 }
 
+// POST /functional-roles/:id/unarchive — restores an archived function. Invalidates ['functionalRoles'].
 export function useUnarchiveFunctionalRole() {
   const qc = useQueryClient()
   return useMutation({
@@ -142,6 +153,7 @@ export function useUnarchiveFunctionalRole() {
   })
 }
 
+// PUT /functional-roles/reorder — drag-to-rank (top = most senior, highest rank). Invalidates ['functionalRoles'].
 export function useReorderFunctionalRoles() {
   const qc = useQueryClient()
   return useMutation({
@@ -150,6 +162,7 @@ export function useReorderFunctionalRoles() {
   })
 }
 
+// POST /functional-roles/:id/set-default — marks the auto-assigned role for new members (clears others in the unit type). Invalidates ['functionalRoles'].
 export function useSetDefaultFunctionalRole() {
   const qc = useQueryClient()
   return useMutation({

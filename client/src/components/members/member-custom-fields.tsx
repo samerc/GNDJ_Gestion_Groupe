@@ -9,10 +9,16 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Check, X, Pencil, Trash2, ListPlus } from 'lucide-react'
 import { toast } from 'sonner'
 
+// "Infos complémentaires" tab of the member detail page. Renders the admin-defined custom fields
+// (text/number/select/boolean) and lets each be edited inline per field type. Values are stored as
+// strings server-side; this component upserts on save and can clear (delete) an existing value.
 interface Props {
   memberId: string
 }
 
+// One field's row: shows the current value, swaps to a type-appropriate editor on "edit", and
+// upserts via setMutation (delete clears it). Enter saves / Escape cancels. `existing` is the
+// member's saved value for this field, undefined when none has been set yet.
 function FieldRow({ field, existing, memberId }: { field: CustomFieldListDto; existing: MemberCustomFieldValueDto | undefined; memberId: string }) {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
@@ -49,6 +55,7 @@ function FieldRow({ field, existing, memberId }: { field: CustomFieldListDto; ex
     if (e.key === 'Escape') setEditing(false)
   }
 
+  // Select-type fields store their choices as a JSON string array; tolerate malformed JSON.
   const options: string[] = field.options ? (() => { try { return JSON.parse(field.options) as string[] } catch { return [] } })() : []
 
   const displayValue = () => {

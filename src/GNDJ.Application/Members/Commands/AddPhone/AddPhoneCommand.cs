@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.AddPhone;
 
+// Adds a phone to a member. Access (IDOR guard): own profile, super-admin, or active unit leader.
 public record AddPhoneCommand(Guid MemberId, string CountryCode, string Number, string Type, bool IsPrimary, bool IsEmergency) : IRequest<Result<Guid>>;
 
 public class AddPhoneCommandValidator : AbstractValidator<AddPhoneCommand>
@@ -33,6 +34,7 @@ public class AddPhoneCommandHandler : IRequestHandler<AddPhoneCommand, Result<Gu
 
     public async ValueTask<Result<Guid>> Handle(AddPhoneCommand request, CancellationToken cancellationToken)
     {
+        // Not own profile and not super-admin → require an ACTIVE assignment in an authorized unit.
         if (!_currentUser.IsSuperAdmin && _currentUser.MemberId != request.MemberId)
         {
             var canAccess = await _context.MemberAssignments.AnyAsync(a =>

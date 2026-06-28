@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// CG-authored reusable export/report definitions (column set + format) that CUs later run.
 public class ReportTemplateConfiguration : IEntityTypeConfiguration<ReportTemplate>
 {
     public void Configure(EntityTypeBuilder<ReportTemplate> builder)

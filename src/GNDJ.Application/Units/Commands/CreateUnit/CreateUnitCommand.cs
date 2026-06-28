@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Units.Commands.CreateUnit;
 
+// Create a unit. AssociationId is optional (inter-association / no-association units). Code is unique
+// per association scope — the same code may exist under a different (or null) association.
 public record CreateUnitCommand(string Name, string Code, string? Description, Guid? AssociationId, Guid UnitTypeId) : IRequest<Result<Guid>>;
 
 public class CreateUnitCommandValidator : AbstractValidator<CreateUnitCommand>

@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Reports;
 
+// Trombinoscope PDF (photo grid of a unit, grouped by team, Maîtrise team first). Unit-scoped.
+// Gathers the roster then delegates layout to ITrombinoscoreService.
 public record GenerateTrombinoscoreQuery(
     Guid UnitId,
     string ScoutYear,

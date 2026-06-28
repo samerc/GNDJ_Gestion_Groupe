@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Auth.Queries;
 
+// Returns the authenticated user's own profile + permissions + per-unit access list, for the frontend
+// to drive role-based UI (sidebar, "Ma fiche", unit pages). Identity comes from the JWT, not the request.
 public record GetMeQuery : IRequest<Result<MeResponse>>;
 
 public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
@@ -31,6 +33,8 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
         if (user is null)
             return Result<MeResponse>.Failure("Utilisateur introuvable.");
 
+        // Active assignments only → the unit/role labels the UI shows; permissions come from the JWT
+        // (ICurrentUserService) rather than being re-derived here.
         var unitAccess = await _context.MemberAssignments
             .Where(a => a.MemberId == user.MemberId && a.EndDate == null)
             .Select(a => new UnitAccessDto(a.UnitId, a.Unit.Name, a.FunctionalRole.Name))

@@ -1,3 +1,8 @@
+// Single-select dropdown backed by a searchable command palette in a dialog — used for large option
+// lists (nationalities, professions, cities…) where a plain <select> is unwieldy. Optional pinnedValues
+// surface a "Fréquent" group at the top (e.g. Libanaise) above the full "Tous" list; selecting an item
+// fires onValueChange and closes the dialog. Filtering is handled by the underlying Command component
+// (matches on each item's label).
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -32,6 +37,7 @@ export function SearchableSelect({
   const [open, setOpen] = useState(false)
 
   const selectedLabel = options.find(o => o.value === value)?.label
+  // Split options into pinned favourites vs. the remainder (rest = all options when nothing is pinned).
   const pinned = pinnedValues.length > 0 ? options.filter(o => pinnedValues.includes(o.value)) : []
   const rest = pinnedValues.length > 0 ? options.filter(o => !pinnedValues.includes(o.value)) : options
 

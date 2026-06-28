@@ -1,3 +1,8 @@
+// In-app webcam capture for member photos (used by the photo-session workflow).
+// Opens getUserMedia, frames a 3:4 portrait with a dashed head/shoulders silhouette guide, and on
+// capture cover-crops the live frame to a fixed 600x800 JPEG (quality 0.85) handed back via onCapture.
+// Supports front/back camera toggle (facingMode) and falls back to a file import on desktop or when
+// camera access is denied. Has a capture -> preview (Garder/Reprendre) confirm step.
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { SwitchCamera, Camera, RotateCcw, Check, Upload } from 'lucide-react'

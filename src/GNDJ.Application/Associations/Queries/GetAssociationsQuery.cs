@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Associations.Queries;
 
+// Paginated, searchable (name/code) list of associations for the admin org-structure page.
 public record GetAssociationsQuery(string? Search, int Page = 1, int PageSize = 20) : IRequest<PaginatedList<AssociationDto>>;
 
 public class GetAssociationsQueryHandler : IRequestHandler<GetAssociationsQuery, PaginatedList<AssociationDto>>
@@ -34,6 +35,7 @@ public class GetAssociationsQueryHandler : IRequestHandler<GetAssociationsQuery,
     }
 }
 
+// Single association by id (edit view); null when not found.
 public record GetAssociationByIdQuery(Guid Id) : IRequest<AssociationDetailDto?>;
 
 public class GetAssociationByIdQueryHandler : IRequestHandler<GetAssociationByIdQuery, AssociationDetailDto?>

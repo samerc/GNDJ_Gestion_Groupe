@@ -9,6 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { HoneypotField } from '@/components/shared/honeypot-field'
 import { parseApiError } from '@/lib/error-utils'
 
+// Account-creation screen for the applicant portal (parent or future member).
+// Uses the ISOLATED applicant auth store (separate JWT/`applicant` claim — never the member User).
+// On success it lands on the portail; email verification happens later via the emailed link.
 export default function ApplicantRegisterPage() {
   const navigate = useNavigate()
   const register = useApplicantStore((s) => s.register)
@@ -16,10 +19,11 @@ export default function ApplicantRegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [website, setWebsite] = useState('')
+  const [website, setWebsite] = useState('') // honeypot — bots fill it, real users never see it
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // Live field checks drive the inline red borders below; re-checked on submit before the API call.
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   const pwdValid = password.length >= 8
   const match = password === confirm

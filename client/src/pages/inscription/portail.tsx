@@ -9,6 +9,8 @@ import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
 import { UserPlus, Pencil, Trash2, Users, MailWarning, CheckCircle2, XCircle, Clock, FileEdit } from 'lucide-react'
 
+// Maps a demande to its status badge. Status precedence mirrors the applicant's view of the
+// workflow (Brouillon → Soumise → Acceptée/Refusée once the CG's batch reply is out).
 function statusBadge(d: Demande) {
   // The CG's decision is only revealed once the response batch has been sent.
   if (d.responseSentAt) {
@@ -19,6 +21,8 @@ function statusBadge(d: Demande) {
   return <Badge className="bg-blue-600"><Clock className="mr-1 h-3 w-3" />Soumise</Badge>
 }
 
+// Applicant home after login: lists the account's demandes (one per child) as cards, with the
+// add/edit/delete entry points into the wizard and the verify-email / closed / quota banners.
 export default function ApplicantPortalPage() {
   const navigate = useNavigate()
   const { data: config } = useApplicantConfig()
@@ -30,8 +34,8 @@ export default function ApplicantPortalPage() {
   if (!profile) return null
 
   const demandes = profile.demandes
-  const max = config?.maxPerAccount ?? 5
-  const open = config?.isOpen ?? false
+  const max = config?.maxPerAccount ?? 5 // server-configured cap on children per account
+  const open = config?.isOpen ?? false // inscription period open? gates add/edit
   const reachedMax = demandes.length >= max
   const needsVerify = config?.requireEmailVerification && !profile.emailVerified
 
@@ -84,6 +88,8 @@ export default function ApplicantPortalPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {demandes.map((d) => {
+            // locked = no longer deletable (replied-to, or already submitted past Draft);
+            // editable = wizard can still be opened to change it (period open + not yet replied to).
             const locked = !!d.responseSentAt || !!d.submittedAt && d.status !== 'Draft'
             const editable = open && !d.responseSentAt
             return (

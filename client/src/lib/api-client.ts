@@ -2,17 +2,23 @@ import axios from 'axios'
 import { API_BASE_URL } from './constants'
 import type { AuthResponse } from '@/types/auth'
 
+// Authenticated axios client for the member/chef/admin realm. Request interceptor attaches the JWT;
+// response interceptor transparently refreshes on 401 and retries the original request once.
+// (Applicant portal + public site use their own clients so the realms never cross.)
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 })
 
+// Single-flight refresh guard: while one refresh is in progress, other 401s queue here instead of
+// each firing their own /auth/refresh.
 let isRefreshing = false
 let failedQueue: Array<{
   resolve: (token: string) => void
   reject: (error: unknown) => void
 }> = []
 
+// Resolve/reject all requests that queued while the refresh was in flight.
 function processQueue(error: unknown, token: string | null) {
   failedQueue.forEach(({ resolve, reject }) => {
     if (error) reject(error)
@@ -21,6 +27,7 @@ function processQueue(error: unknown, token: string | null) {
   failedQueue = []
 }
 
+// Attach the stored access token to every outgoing request.
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken')
   if (token) {
@@ -34,10 +41,12 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
+    // Only intercept 401s, and never retry a request we already retried (avoids refresh loops).
     if (error.response?.status !== 401 || originalRequest._retry) {
       return Promise.reject(error)
     }
 
+    // No refresh token → session is unrecoverable: clear storage and bounce to login.
     const refreshToken = localStorage.getItem('refreshToken')
     if (!refreshToken) {
       localStorage.removeItem('accessToken')
@@ -46,6 +55,7 @@ apiClient.interceptors.response.use(
       return Promise.reject(error)
     }
 
+    // A refresh is already running: park this request until it resolves, then replay with the new token.
     if (isRefreshing) {
       return new Promise<string>((resolve, reject) => {
         failedQueue.push({ resolve, reject })
@@ -59,6 +69,7 @@ apiClient.interceptors.response.use(
     originalRequest._retry = true
 
     try {
+      // Use a bare axios (not apiClient) so this refresh call can't itself be intercepted/retried.
       const { data } = await axios.post<AuthResponse>(
         `${API_BASE_URL}/auth/refresh`,
         { refreshToken },
@@ -72,6 +83,7 @@ apiClient.interceptors.response.use(
       originalRequest.headers.Authorization = `Bearer ${data.accessToken}`
       return apiClient(originalRequest)
     } catch (refreshError) {
+      // Refresh failed (expired/revoked): reject the queue and force re-login.
       processQueue(refreshError, null)
       localStorage.removeItem('accessToken')
       localStorage.removeItem('refreshToken')

@@ -7,6 +7,7 @@ interface SidebarState {
   setMobileOpen: (open: boolean) => void
 }
 
+// UI-only store: desktop collapse state + mobile drawer open/close for the app sidebar.
 export const useSidebarStore = create<SidebarState>((set) => ({
   collapsed: false,
   mobileOpen: false,

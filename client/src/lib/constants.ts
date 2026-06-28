@@ -1,5 +1,8 @@
+// All API calls are relative to this prefix (Vite proxies it to the backend in dev; same-origin in prod).
 export const API_BASE_URL = '/api/v1'
 
+// Canonical permission strings — mirror the server's Permissions.All set. Use these constants with
+// useAuthStore.hasPermission / PermissionRoute instead of hardcoding the strings.
 export const PERMISSIONS = {
   MEMBERS_VIEW: 'members.view',
   MEMBERS_CREATE: 'members.create',

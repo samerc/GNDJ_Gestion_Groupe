@@ -1,3 +1,7 @@
+// Admin detail screen for one unit type (super-admin). Tabbed sub-management of everything scoped
+// to a branch: Fonctions (FunctionalRolesList in sortable/drag-to-rank mode, pre-filtered to this
+// type), Étapes (StagesLadder) and Badges (BadgesGrid) — the per-unit-type progression editors
+// reused from the standalone Progression page. Reached by clicking a row on /admin/unit-types.
 import { useParams, useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'

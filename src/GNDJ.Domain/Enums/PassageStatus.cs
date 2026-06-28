@@ -1,5 +1,6 @@
 namespace GNDJ.Domain.Enums;
 
+// Passage workflow state: Pending (CU proposed) → Approved (CG) → Finalized (assignments applied); or Rejected.
 public static class PassageStatus
 {
     public const string Pending = "Pending";

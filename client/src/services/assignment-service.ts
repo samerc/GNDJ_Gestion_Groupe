@@ -1,3 +1,4 @@
+// Assignments resource: a member's placement (unit + team + function, start/end dates). Active = endDate null. Mutations invalidate ['assignments'] + ['members'] (+ ['units'] on create). Queries key on ['assignments'].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { PaginatedResult } from '@/types/api'
@@ -38,6 +39,7 @@ export interface FunctionalRoleDto {
   isArchived: boolean
 }
 
+// Paginated assignments list (GET /assignments); filter by member/unit/team/isActive. Keyed ['assignments', params].
 export function useAssignments(params: { memberId?: string; unitId?: string; teamId?: string; isActive?: boolean; page?: number; pageSize?: number }) {
   return useQuery({
     queryKey: ['assignments', params],
@@ -45,6 +47,7 @@ export function useAssignments(params: { memberId?: string; unitId?: string; tea
   })
 }
 
+// Functional roles for the assignment "Fonction" picker (GET /functional-roles); optional unitTypeId. Keyed ['functionalRoles', unitTypeId ?? 'all'].
 export function useFunctionalRoles(unitTypeId?: string) {
   return useQuery({
     queryKey: ['functionalRoles', unitTypeId ?? 'all'],
@@ -52,6 +55,7 @@ export function useFunctionalRoles(unitTypeId?: string) {
   })
 }
 
+// POST /assignments; invalidates ['assignments'] + ['members'] + ['units'].
 export function useCreateAssignment() {
   const qc = useQueryClient()
   return useMutation({
@@ -60,6 +64,7 @@ export function useCreateAssignment() {
   })
 }
 
+// PUT /assignments/:id; invalidates ['assignments'] + ['members'].
 export function useUpdateAssignment() {
   const qc = useQueryClient()
   return useMutation({
@@ -69,6 +74,7 @@ export function useUpdateAssignment() {
   })
 }
 
+// PUT /assignments/:id/end — closes an assignment with an endDate (member leaves). Invalidates ['assignments'] + ['members'].
 export function useEndAssignment() {
   const qc = useQueryClient()
   return useMutation({
@@ -78,6 +84,7 @@ export function useEndAssignment() {
   })
 }
 
+// DELETE /assignments/:id; invalidates ['assignments'] + ['members'].
 export function useDeleteAssignment() {
   const qc = useQueryClient()
   return useMutation({

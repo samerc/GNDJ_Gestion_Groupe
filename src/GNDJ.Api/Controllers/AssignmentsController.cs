@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Member assignments (member ↔ unit/team/role over a date range) — base route api/v1/assignments.
+// [Authorize] = JWT or API-key required; view via AssignmentsView, writes split across AssignmentsCreate/Edit/Delete.
 [Authorize]
 public class AssignmentsController : BaseApiController
 {
@@ -42,6 +44,7 @@ public class AssignmentsController : BaseApiController
         return NoContent();
     }
 
+    // Sub-route /{id}/end — sets the assignment's end date ("Terminer aujourd'hui") rather than full edit/delete.
     [HttpPut("{id:guid}/end")]
     [HasPermission(Permissions.AssignmentsEdit)]
     public async Task<IActionResult> End(Guid id, [FromBody] EndAssignmentCommand command)

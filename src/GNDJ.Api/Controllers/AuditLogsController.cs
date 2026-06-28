@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Read-only audit-log viewer — base route api/v1/audit-logs (overrides the [controller] default).
+// [Authorize] = JWT or API-key required; everything gated by AuditView (admin).
 [Authorize]
 [Route("api/v1/audit-logs")]
 public class AuditLogsController : BaseApiController
@@ -21,6 +23,7 @@ public class AuditLogsController : BaseApiController
         return Ok(result);
     }
 
+    // /filters — distinct entity types / actions / users to populate the viewer's filter dropdowns.
     [HttpGet("filters")]
     [HasPermission(Permissions.AuditView)]
     public async Task<IActionResult> GetFilters()

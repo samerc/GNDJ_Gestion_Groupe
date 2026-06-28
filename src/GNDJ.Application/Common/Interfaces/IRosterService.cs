@@ -16,6 +16,7 @@ public record RosterMemberData(
     IReadOnlyList<MemberCardCustomField> CustomFields
 );
 
+// Renders a printable unit roster PDF (A4 landscape, selectable columns, grouped by team).
 public interface IRosterService
 {
     byte[] Generate(RosterData data);

@@ -1,3 +1,8 @@
+// CG cotisation dashboard ("Tableau de bord — Cotisations"). Read-only group-wide payment overview for a chosen
+// scout year: summary tiles (active members / paid % / unpaid + exempt / total collected per currency), a paid
+// progress bar, a per-unit breakdown, and the list of members with no payment. "Payé" = a cotisation with a
+// payment line; exempt ("ne paiera pas") members are excluded from impayés. Multi-currency (USD/EUR/LBP) — totals
+// are per-currency, not converted.
 import { useState } from 'react'
 import { useCotisationSummary, useUnpaidCotisations } from '@/services/cotisation-service'
 import { useSettingValue } from '@/services/settings-service'
@@ -138,6 +143,7 @@ export default function CotisationDashboardPage() {
                             <Badge className="bg-green-600">{u.paidMembers}</Badge>
                           </td>
                           <td className="px-3 py-2 text-center">
+                            {/* Unpaid = members minus paid minus exempt (exempt shown separately, not as impayés) */}
                             {u.totalMembers - u.paidMembers - u.exemptMembers > 0 ? (
                               <Badge variant="destructive">{u.totalMembers - u.paidMembers - u.exemptMembers}</Badge>
                             ) : (

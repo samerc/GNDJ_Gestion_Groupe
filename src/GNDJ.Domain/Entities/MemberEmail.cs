@@ -2,6 +2,7 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// An email address for a member (see MemberPhone for the IsPrimary/IsEmergency convention).
 public class MemberEmail : BaseEntity
 {
     public Guid MemberId { get; set; }

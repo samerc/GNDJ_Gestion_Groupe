@@ -2,6 +2,9 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// One member's annual transition (passage) into the next scout year: a snapshot of the current placement,
+// the CU's proposal, and the CG's final decision. Workflow Pending → Approved → Finalized (or Rejected).
+// On finalize the old assignment is closed and a new one created (unless IsLeaving → member becomes alumni).
 public class Passage : BaseEntity
 {
     public string ScoutYear { get; set; } = string.Empty; // Year being transitioned INTO (e.g., "2026-2027")

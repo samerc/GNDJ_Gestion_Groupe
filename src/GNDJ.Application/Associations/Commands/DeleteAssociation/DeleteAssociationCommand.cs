@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Associations.Commands.DeleteAssociation;
 
+// Delete an association — blocked while it still contains units (referential safety).
 public record DeleteAssociationCommand(Guid Id) : IRequest<Result<bool>>;
 
 public class DeleteAssociationCommandHandler : IRequestHandler<DeleteAssociationCommand, Result<bool>>

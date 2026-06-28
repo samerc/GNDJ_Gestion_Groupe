@@ -1,3 +1,8 @@
+// Admin "Profils de sécurité" screen. Master/detail: a profile list on the left, and on the right
+// either the PERMISSION EDITOR (checklist grouped by category) or the MEMBERS tab (who holds this
+// profile via their active function). Permission editing + create/delete are gated by roles.manage
+// (super-admin); a Chef de Groupe with only roles.view sees the Membres tab read-only. System
+// profiles (isSystem) can't be deleted. Editor edits are staged locally until "Enregistrer".
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
 import { useSecurityProfiles, useSecurityProfile, useUpdateSecurityProfilePermissions, useCreateSecurityProfile, useDeleteSecurityProfile } from '@/services/security-profile-service'
@@ -217,6 +222,7 @@ function CreateProfileDialog({ open, onOpenChange, onCreated }: { open: boolean;
   const reset = () => { setName(''); setDescription(''); setPerms(new Set()); setError('') }
 
   const togglePerm = (perm: string) => setPerms(prev => { const n = new Set(prev); n.has(perm) ? n.delete(perm) : n.add(perm); return n })
+  // Group checkbox: if every child is on, clear them all; otherwise turn them all on.
   const toggleGroup = (group: typeof PERMISSION_GROUPS[0]) => setPerms(prev => {
     const n = new Set(prev)
     const allChecked = group.permissions.every(p => n.has(p.value))
@@ -306,6 +312,8 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
   if (isLoading) return <LoadingSpinner />
   if (!profile) return null
 
+  // editedPerms === null means "unmodified, mirror the server set"; once the user toggles anything it
+  // becomes a staged local copy (drives the dirty/Enregistrer state) until saved or reset.
   const currentPerms = editedPerms ?? new Set(profile.permissions)
   const hasChanges = editedPerms !== null
 
@@ -401,7 +409,7 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
           {PERMISSION_GROUPS.map(group => {
             const groupChecked = group.permissions.filter(p => currentPerms.has(p.value)).length
             const allChecked = groupChecked === group.permissions.length
-            const someChecked = groupChecked > 0 && !allChecked
+            const someChecked = groupChecked > 0 && !allChecked // → group checkbox shows indeterminate
 
             return (
               <div key={group.label} className="rounded-md border p-3">

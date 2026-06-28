@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 
 namespace GNDJ.Application.Auth.Commands.RequestPasswordReset;
 
+// Starts the "forgot password" flow: emails a one-time reset link for the given address.
 public record RequestPasswordResetCommand(string Email) : IRequest<Result<bool>>;
 
 public class RequestPasswordResetCommandValidator : AbstractValidator<RequestPasswordResetCommand>

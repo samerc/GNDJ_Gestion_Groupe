@@ -12,10 +12,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Demandes;
 
+// CG (admin) side of the enrolment workflow. An applicant submits a demande; the CG reviews it here
+// (filtered list, unit-occupancy/quota context, statistics), decides per demande (approve→unit /
+// decline), then SendDemandeResponses converts the approved ones into real members and emails everyone.
+// Decisions stay hidden from the applicant until SendDemandeResponses posts them all at once.
+
 // ============================================================
 // DTOs
 // ============================================================
 public record SiblingDto(Guid Id, string FirstName, string LastName, string Status, bool ResponseSent);
+
+// Full reviewable file for one demande: child fields + the account's shared household (address,
+// guardians, scout relations) + sibling demandes on the same account.
 
 public record DemandeReviewDto(
     Guid Id, string ScoutYear, string FirstName, string LastName, DateOnly? DateOfBirth, int? Age,
@@ -28,6 +36,8 @@ public record DemandeReviewDto(
     IReadOnlyList<ApplicantGuardianDto> Guardians, IReadOnlyList<ApplicantScoutRelationDto> ScoutRelations,
     IReadOnlyList<SiblingDto> Siblings);
 
+// Per-unit capacity card for the CG: current active members, Projected (after applying this year's
+// passage moves in/out), the editable intake Quota, and how many demandes are already Accepted into it.
 public record UnitOccupancyDto(
     Guid UnitId, string UnitCode, string UnitName, string? AssociationName, Guid UnitTypeId,
     string? Gender, int? AgeMin, int? AgeMax, int CurrentActive, int Projected, int? Quota, int Accepted);
@@ -92,7 +102,7 @@ static class DemandeAdminHelpers
 }
 
 // ============================================================
-// Review list
+// Review list — the CG's filterable triage table (submitted/decided demandes, never drafts)
 // ============================================================
 public record GetDemandesForReviewQuery(
     string ScoutYear, string? Status, string? Gender, string? Classe, string? School,

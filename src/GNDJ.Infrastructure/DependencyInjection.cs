@@ -14,6 +14,8 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace GNDJ.Infrastructure;
 
+// Composition root for the Infrastructure layer: wires the pooled EF Core context + interceptors,
+// repositories/UoW, identity & email/PDF services, and JWT bearer authentication.
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)

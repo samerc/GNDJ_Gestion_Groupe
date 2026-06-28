@@ -21,6 +21,12 @@ import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
 import { Check, ChevronLeft, ChevronRight, Plus, Trash2, Send, UserRound, Users, Link2 } from 'lucide-react'
 
+// 4-step demande (enrollment request) wizard — the core of the applicant portal.
+// Steps: 0 Enfant (per-child) → 1 Parents + adresse → 2 Proches scouts → 3 Récapitulatif/submit.
+// KEY MODEL: steps 1 & 2 + the address are the SHARED HOUSEHOLD (common to every child of the
+// account, persisted via saveHousehold); only step 0 is per-demande (this child). Free step nav
+// via the stepper; validation runs on-spot (inline) and on forward nav / submit. `id="new"` =
+// create flow, otherwise edit an existing demande.
 const STEPS = ['Enfant', 'Parents', 'Proches scouts', 'Récapitulatif']
 const GENDERS = ['Masculin', 'Féminin']
 const BLOOD = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
@@ -28,8 +34,9 @@ const G_REL = ['Père', 'Mère', 'Tuteur', 'Tutrice', 'Autre']
 const R_REL = ['Frère', 'Sœur', 'Cousin', 'Cousine', 'Oncle', 'Tante', 'Autre']
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-type Errors = Record<string, string>
+type Errors = Record<string, string> // field-key → message; guardian errors are keyed `g_<index>_<field>`
 
+// Labelled form-field wrapper: label (+ red * when required) above the control, error text below.
 function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
@@ -40,6 +47,7 @@ function Field({ label, required, error, children }: { label: string; required?:
   )
 }
 
+// Blank per-child (step 0) form state.
 function emptyChild(): DemandeInput {
   return {
     firstName: '', lastName: '', dateOfBirth: null, gender: null, nationality: null, school: null, classe: null,
@@ -47,6 +55,7 @@ function emptyChild(): DemandeInput {
     email: null, parentNotes: null,
   }
 }
+// Blank guardian row; the Père is defaulted as primary contact (form starts with Père + Mère rows).
 function blankGuardian(rel: string): ApplicantGuardian {
   return { relationship: rel, firstName: '', lastName: '', profession: null, professionDomain: null, phoneCountryCode: '+961', phoneNumber: null, email: null, isDeceased: false, isPrimaryContact: rel === 'Père', isEmergencyContact: false }
 }
@@ -61,18 +70,19 @@ export default function DemandeWizardPage() {
   const submitMutation = useSubmitDemande()
   const householdMutation = useSaveHousehold()
 
-  const [demandeId, setDemandeId] = useState(id)
+  const [demandeId, setDemandeId] = useState(id) // 'new' until first persist creates the record, then the real id
   const [step, setStep] = useState(0)
   const [errors, setErrors] = useState<Errors>({})
   const [saving, setSaving] = useState(false)
 
-  const [child, setChild] = useState<DemandeInput>(emptyChild())
-  const [schoolOther, setSchoolOther] = useState(false)
-  const [guardians, setGuardians] = useState<ApplicantGuardian[]>([blankGuardian('Père'), blankGuardian('Mère')])
-  const [relations, setRelations] = useState<ApplicantScoutRelation[]>([])
-  const [address, setAddress] = useState({ country: 'Liban', city: '', details: '' })
+  const [child, setChild] = useState<DemandeInput>(emptyChild()) // step 0, per-demande
+  const [schoolOther, setSchoolOther] = useState(false) // école "Autre…" → free-text input instead of the managed list
+  const [guardians, setGuardians] = useState<ApplicantGuardian[]>([blankGuardian('Père'), blankGuardian('Mère')]) // shared household
+  const [relations, setRelations] = useState<ApplicantScoutRelation[]>([]) // shared household
+  const [address, setAddress] = useState({ country: 'Liban', city: '', details: '' }) // shared household
 
-  const existing = useMemo(() => profile?.demandes.find((d) => d.id === id), [profile, id])
+  const existing = useMemo(() => profile?.demandes.find((d) => d.id === id), [profile, id]) // the demande being edited, if any
+  // Read-only once the CG has replied (responseSentAt) or the inscription period is closed.
   const readonly = !!existing && (!!existing.responseSentAt || !(config?.isOpen ?? false))
   const notesMax = config?.notesMaxLength ?? 500
   const maxRelations = config?.maxScoutRelations ?? 50
@@ -84,6 +94,8 @@ export default function DemandeWizardPage() {
     if (profile.scoutRelations.length) setRelations(profile.scoutRelations)
     setAddress({ country: profile.addressCountry ?? 'Liban', city: profile.addressCity ?? '', details: profile.addressDetails ?? '' })
     if (existing) {
+      // Strip server-managed/metadata fields off the demande so `rest` is exactly the editable
+      // DemandeInput shape for the child form. (void = silence unused-var lint on the discards.)
       const { id: _id, scoutYear, status, decisionNotes, submittedAt, responseSentAt, ...rest } = existing
       void _id; void scoutYear; void status; void decisionNotes; void submittedAt; void responseSentAt
       setChild(rest)
@@ -121,6 +133,10 @@ export default function DemandeWizardPage() {
     return e
   }
 
+  // Saves everything to the server: first the shared household (parents/relations/address — common
+  // to all of the account's children), then the child demande (create on first save, else update).
+  // Returns the demande id (newly created or existing) so callers can chain submit. Blank
+  // guardian/relation rows are filtered out before sending.
   async function persist(): Promise<string | null> {
     // shared household
     await householdMutation.mutateAsync({
@@ -133,6 +149,7 @@ export default function DemandeWizardPage() {
     if (demandeId === 'new') {
       const res = await createMutation.mutateAsync(child)
       setDemandeId(res.id)
+      // Swap the URL to the real id without a navigation, so a refresh/back stays on this demande.
       window.history.replaceState(null, '', `/inscription/portail/demande/${res.id}`)
       return res.id
     } else {
@@ -141,6 +158,9 @@ export default function DemandeWizardPage() {
     }
   }
 
+  // Stepper/Précédent/Suivant navigation. Read-only just jumps. Moving forward validates the
+  // current step first (blocks on errors), then persists progress before switching steps; going
+  // backward still persists but skips validation.
   async function go(target: number) {
     if (readonly) { setStep(target); return }
     // validate when moving forward past a gated step
@@ -155,6 +175,9 @@ export default function DemandeWizardPage() {
     setStep(target)
   }
 
+  // Final submit (step 3): re-validates the two gated steps (0 child, 1 parents) regardless of how
+  // the user navigated here, jumping back to the first step that has errors; then persists and
+  // transitions the demande to Submitted before returning to the portail.
   async function handleSubmit() {
     const e0 = validateStep(0), e1 = validateStep(1)
     const all = { ...e0, ...e1 }
@@ -229,6 +252,7 @@ export default function DemandeWizardPage() {
                       <SelectItem value="__other">Autre…</SelectItem>
                     </SelectContent>
                   </Select>
+                  {/* On blur, snap a typed school name onto the canonical list (accent/case-insensitive) to dedupe spellings; collapse back to the select if it matched. */}
                   {schoolOther && <Input className="mt-2" placeholder="Nom de l'école" value={child.school ?? ''} onChange={(e) => setC({ school: e.target.value })}
                     onBlur={(e) => { const matched = matchSchool(e.target.value, config?.schools ?? []); setC({ school: matched }); if ((config?.schools ?? []).includes(matched)) setSchoolOther(false) }} />}
                 </Field>

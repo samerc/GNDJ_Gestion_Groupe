@@ -9,6 +9,8 @@ function formatDate(d: string | null) {
   return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+// Public single-article page at `/actualites/:slug` — anonymous. Fetches one published post by
+// slug; shows loading/not-found fallbacks, then header (date + tag) and the CMS body.
 export default function PublicNewsArticlePage() {
   const { slug } = useParams()
   const { data: article, isLoading, isError } = usePublicNewsArticle(slug)
@@ -52,6 +54,7 @@ export default function PublicNewsArticlePage() {
           </span>
         </div>
 
+        {/* Article body — author HTML, sanitized by RichContent (DOMPurify) before render */}
         <RichContent html={article.bodyHtml} className="mt-8" />
       </article>
     </>

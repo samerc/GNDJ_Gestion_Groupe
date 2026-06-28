@@ -8,6 +8,8 @@ interface LoadingSpinnerProps {
   variant?: SkeletonVariant
 }
 
+// Loading placeholder. Default 'spinner'; the other variants render shape-matched skeletons so the
+// loading state mirrors each page's eventual layout (page/table/cards/detail/form/profile).
 export function LoadingSpinner({ className, variant = 'spinner' }: LoadingSpinnerProps) {
   switch (variant) {
     case 'page':

@@ -8,9 +8,12 @@ const applicantApi = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// Separate localStorage keys from the member realm so the two sessions coexist on one browser.
 export const APPLICANT_ACCESS_KEY = 'applicantAccessToken'
 export const APPLICANT_REFRESH_KEY = 'applicantRefreshToken'
 
+// Single-flight refresh guard (same pattern as api-client) — refreshes via /applicant/refresh and
+// redirects to /inscription/login (not /login) on failure.
 let isRefreshing = false
 let queue: Array<{ resolve: (t: string) => void; reject: (e: unknown) => void }> = []
 function flush(error: unknown, token: string | null) {

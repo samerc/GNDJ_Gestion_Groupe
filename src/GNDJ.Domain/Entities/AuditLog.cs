@@ -1,5 +1,6 @@
 namespace GNDJ.Domain.Entities;
 
+// Append-only record of a mutating action (Old/NewValues as JSON). Not a BaseEntity — never soft-deleted/edited.
 public class AuditLog
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();

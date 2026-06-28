@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
+// Maîtrises resource: leadership rosters grouped by unit (CG-only). Queries key on ['maitrises'].
+
 export interface MaitriseMemberDto {
   assignmentId: string
   memberId: string
@@ -22,6 +24,7 @@ export interface MaitriseUnitDto {
   members: MaitriseMemberDto[]
 }
 
+// GET /maitrises → leaders grouped by unit, members ordered by rank (group unit first).
 export function useMaitrises() {
   return useQuery({
     queryKey: ['maitrises'],
@@ -29,6 +32,7 @@ export function useMaitrises() {
   })
 }
 
+// POST /maitrises/remove → ends the leadership assignment; invalidates the list.
 export function useRemoveFromMaitrise() {
   const qc = useQueryClient()
   return useMutation({
@@ -37,6 +41,7 @@ export function useRemoveFromMaitrise() {
   })
 }
 
+// POST /maitrises/transfer → move a leader to another unit/function (keepOld keeps the original assignment open); invalidates the list.
 export function useTransferMaitrise() {
   const qc = useQueryClient()
   return useMutation({

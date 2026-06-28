@@ -3,6 +3,9 @@ using Mediator;
 
 namespace GNDJ.Application.Common.Behaviors;
 
+// Mediator pipeline step that runs all registered FluentValidation validators for a command/query BEFORE
+// its handler. Any failures throw a ValidationException (translated to a 400 by middleware), so handlers
+// can assume their input is already valid. No validators registered for a message => it passes straight through.
 public sealed class ValidationBehavior<TMessage, TResponse> : IPipelineBehavior<TMessage, TResponse>
     where TMessage : IMessage
 {

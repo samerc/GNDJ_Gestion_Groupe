@@ -4,6 +4,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Infrastructure.Persistence;
 
+// The single EF Core context for the whole app. Conventions applied here / via configuration:
+// snake_case column naming (set in DI), UUIDv7 keys, global soft-delete query filters (OnModelCreating),
+// and a Postgres f_unaccent DbFunction backing accent-insensitive member search. Also exposes the
+// transaction + advisory-lock primitives used by serialized batch operations (passage finalize, demande send).
 public class GndjDbContext : DbContext, IApplicationDbContext
 {
     public GndjDbContext(DbContextOptions<GndjDbContext> options) : base(options) { }

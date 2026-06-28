@@ -1,5 +1,7 @@
 namespace GNDJ.Application.Common.Models;
 
+// Outcome wrapper returned by every handler: success carries a Value, failure carries an Error message
+// (or a field->messages map for validation). Lets handlers signal expected failures without throwing.
 public class Result<T>
 {
     public bool IsSuccess { get; }

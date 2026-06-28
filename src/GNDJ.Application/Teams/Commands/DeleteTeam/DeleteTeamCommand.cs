@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Teams.Commands.DeleteTeam;
 
+// Delete a team — unit-scoped; blocked while it has any active (open-ended) member assignment.
 public record DeleteTeamCommand(Guid Id) : IRequest<Result<bool>>;
 
 public class DeleteTeamCommandHandler : IRequestHandler<DeleteTeamCommand, Result<bool>>

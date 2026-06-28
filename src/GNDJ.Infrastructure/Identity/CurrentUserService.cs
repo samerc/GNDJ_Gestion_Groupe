@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Http;
 
 namespace GNDJ.Infrastructure.Identity;
 
+// Exposes the current member/staff identity + authorization context to handlers by reading it back
+// out of the JWT claims on the ambient HttpContext (claims minted in TokenService.GenerateAccessToken).
+// Returns null/empty when unauthenticated (e.g. applicant or anonymous request) — callers guard.
 public class CurrentUserService : ICurrentUserService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;

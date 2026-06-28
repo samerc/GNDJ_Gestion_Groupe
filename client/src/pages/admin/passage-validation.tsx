@@ -1,3 +1,11 @@
+// CG annual-passage validation screen.
+// Audience: Chef de Groupe (passage.manage). Reviews per-member promotion proposals the CUs filed,
+// then rolls the whole group forward for a scout year.
+// Workflow: CG toggles the passage process open/close → CUs propose changes (handled elsewhere) →
+// here the CG reviews each proposal. Status flow per line: Pending → Approved | Rejected, then
+// Approved lines become Finalized on finalize (old assignments closed, new ones created).
+// Summary cards show totals; the finalize button is gated by a COMPLETENESS check — every active
+// member in scope must have a passage line (missingInScope === 0) before finalize is allowed.
 import { useState, useEffect } from 'react'
 import { useSettingValue } from '@/services/settings-service'
 import {
@@ -43,6 +51,7 @@ export default function PassageValidationPage() {
   const [scoutYear, setScoutYear] = useState('2026-2027')
   const [statusFilter, setStatusFilter] = useState<string>('Pending')
 
+  // Sync the selected year to the configured passage year once the setting loads.
   useEffect(() => { setScoutYear(passageScoutYear) }, [passageScoutYear])
   const [unitFilter, setUnitFilter] = useState<string>('_all')
 
@@ -104,6 +113,7 @@ export default function PassageValidationPage() {
     else setSelected(new Set(passageList.map(p => p.id)))
   }
 
+  // Approve as-is: accept the CU's proposed unit/team unchanged (role left to the new CU to assign).
   const quickApprove = async (passage: PassageDto) => {
     try {
       await reviewMutation.mutateAsync({
@@ -133,6 +143,8 @@ export default function PassageValidationPage() {
     }
   }
 
+  // Review-and-modify: open the dialog pre-filled with the final values if already set, else the CU proposal.
+  // finalRole is stored by name on the DTO, so resolve it back to a role id for the Select.
   const openEditDialog = (passage: PassageDto) => {
     setEditDialog(passage)
     setEditFinalUnitId(passage.finalUnitId ?? passage.proposedUnitId)
@@ -186,6 +198,8 @@ export default function PassageValidationPage() {
     }
   }
 
+  // Commit approved passages: close old assignments + create new ones. Scoped to the unit filter
+  // (or whole group). Backend only processes Approved lines and flips them Finalized (idempotent).
   const handleFinalize = async () => {
     try {
       const result = await finalizeMutation.mutateAsync({

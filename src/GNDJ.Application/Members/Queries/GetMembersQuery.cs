@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Queries;
 
+// Paginated member list, unit-scoped per caller. Two modes: active members (default) or the
+// Alumni view (former members, identity-only). See the handler for the scoping rules.
 public record GetMembersQuery(
     string? Search, Guid? UnitId, Guid? TeamId, bool? NoUnit, bool? Alumni,
     string? SortBy, string? SortDir,
@@ -130,6 +132,8 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
     }
 }
 
+// Full member detail. Access (IDOR guard): super-admin, the member themselves, or a leader with an
+// ACTIVE assignment of the member in an authorized unit; otherwise returns null (treated as 404).
 public record GetMemberByIdQuery(Guid Id) : IRequest<MemberDetailDto?>;
 
 public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, MemberDetailDto?>

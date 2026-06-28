@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.UnitTypes.Queries;
 
+// Paginated, searchable (name/code) list of unit types for the admin org-structure page.
 public record GetUnitTypesQuery(string? Search, int Page = 1, int PageSize = 20) : IRequest<PaginatedList<UnitTypeDto>>;
 
 public class GetUnitTypesQueryHandler : IRequestHandler<GetUnitTypesQuery, PaginatedList<UnitTypeDto>>
@@ -35,6 +36,7 @@ public class GetUnitTypesQueryHandler : IRequestHandler<GetUnitTypesQuery, Pagin
     }
 }
 
+// Single unit type by id (edit view); null when not found.
 public record GetUnitTypeByIdQuery(Guid Id) : IRequest<UnitTypeDetailDto?>;
 
 public class GetUnitTypeByIdQueryHandler : IRequestHandler<GetUnitTypeByIdQuery, UnitTypeDetailDto?>

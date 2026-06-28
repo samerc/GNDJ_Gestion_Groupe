@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Camp BP: split the group into balanced "familles" led by a Père/Mère. Route api/v1/camps.
+// Two permission tiers: camp.grade (CU — attendance + grading of their own unit, unit-scoped in the handler) and
+// camp.manage (CG — create/draft/familles/games/leaders). PDF report endpoints return application/pdf file streams.
 [Authorize]
 public class CampsController : BaseApiController
 {
@@ -61,6 +64,7 @@ public class CampsController : BaseApiController
     public async Task<IActionResult> Delete(Guid id) => Res(await Mediator.Send(new DeleteCampCommand(id)));
 
     // ── CG: draft + familles ──
+    // Runs the balanced randomized draft (deals graded participants across familles by branche×genre stratum).
     [HttpPost("{id:guid}/draft")]
     [HasPermission(Permissions.CampManage)]
     public async Task<IActionResult> Draft(Guid id) => Res(await Mediator.Send(new RunCampDraftCommand(id)));
@@ -97,6 +101,7 @@ public class CampsController : BaseApiController
     [HasPermission(Permissions.CampManage)]
     public async Task<IActionResult> Swap([FromBody] SwapCampParticipantsCommand command) => Res(await Mediator.Send(command));
 
+    // Pins a famille's Père (must be male) / Mère (must be female) — handler rejects a mismatched gender.
     [HttpPost("familles/{familleId:guid}/leaders")]
     [HasPermission(Permissions.CampManage)]
     public async Task<IActionResult> SetLeaders(Guid familleId, [FromBody] LeadersBody body)

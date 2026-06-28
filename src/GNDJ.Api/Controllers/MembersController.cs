@@ -21,6 +21,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Api.Controllers;
 
+// Members resource (CRUD + contacts + photos + password reset); base route api/v1/members.
+// [Authorize] + per-action members.* permissions. Unit-scoping/IDOR is enforced in the query/command
+// handlers, NOT here: a non-super-admin only sees/edits members with an ACTIVE assignment in one of their
+// authorized units (or their own record). GetAll has list filters incl. ?alumni=true (former members,
+// identity-only — contact withheld) and ?unitId/?teamId/?noUnit/?search/?sort. Photo upload/serve and the
+// reset-password endpoint carry their own access/validation notes inline below.
 [Authorize]
 public class MembersController : BaseApiController
 {
@@ -83,6 +89,8 @@ public class MembersController : BaseApiController
         return NoContent();
     }
 
+    // Leader/CG resets a member's password → generates a temp password (returned once in the body).
+    // Handler additionally requires super-admin OR an active-unit-leader of the member; 404 if no user account.
     [HttpPost("{id:guid}/reset-password")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> ResetPassword(Guid id)
@@ -188,6 +196,9 @@ public class MembersController : BaseApiController
 
     // --- Photo endpoints ---
 
+    // Photo upload — this action does its own access check + JPG/PNG magic-byte validation (handler-less,
+    // talks to the DbContext directly). Access: super-admin, the member themselves, or a leader of one of the
+    // member's ACTIVE units. File saved as {memberId}.{ext} under uploads/photos (old photo deleted).
     [HttpPost("{memberId:guid}/photo")]
     [HasPermission(Permissions.MembersEdit)]
     [RequestSizeLimit(5 * 1024 * 1024)] // 5MB
@@ -257,6 +268,8 @@ public class MembersController : BaseApiController
         return Ok(new { photoPath = member.PhotoPath });
     }
 
+    // Serves the member photo (PhysicalFile). Auth-only — no members.view nor unit-scope check (TODO:
+    // unit-scope this); path-traversal guarded via GetFullPath + StartsWith(uploadsRoot).
     [HttpGet("{memberId:guid}/photo")]
     public async Task<IActionResult> GetPhoto(Guid memberId)
     {

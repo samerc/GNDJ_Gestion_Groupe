@@ -19,12 +19,15 @@ import { cn } from '@/lib/utils'
 interface Props {
   content: string
   onChange: (html: string) => void
-  variables?: { key: string; label: string }[]
+  variables?: { key: string; label: string }[] // per-module {{placeholders}} for the "Variable" dropdown
   placeholder?: string
   className?: string
-  onImageUpload?: (file: File) => Promise<string>
+  onImageUpload?: (file: File) => Promise<string> // when provided, enables the image-insert button; returns the served URL
 }
 
+// TipTap-based WYSIWYG editor used by the email-template editor and the public CMS (news/pages).
+// Toolbar = formatting + lists + link + optional image upload + undo/redo + a module-specific
+// variable-insertion dropdown. Emits HTML via onChange.
 export function RichTextEditor({ content, onChange, variables, placeholder, className, onImageUpload }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -52,6 +55,7 @@ export function RichTextEditor({ content, onChange, variables, placeholder, clas
 
   if (!editor) return null
 
+  // Insert a {{key}} token at the cursor; the backend substitutes it when sending the email/rendering.
   const insertVariable = (variable: string) => {
     editor.chain().focus().insertContent(`{{${variable}}}`).run()
   }

@@ -5,6 +5,9 @@ using QuestPDF.Infrastructure;
 
 namespace GNDJ.Infrastructure.Services;
 
+// Generates a cotisation (membership-fee) receipt as an A5-landscape PDF (QuestPDF): logo header,
+// member/year/receipt-number block, a per-payment-line table (multi-currency), and a total converted
+// into the org's default currency via configured exchange rates. Includes a signature line in the footer.
 public class ReceiptService : IReceiptService
 {
     public byte[] GenerateReceipt(ReceiptData data)

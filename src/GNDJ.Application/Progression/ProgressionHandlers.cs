@@ -15,6 +15,7 @@ public record BadgeDto(Guid Id, Guid UnitTypeId, string UnitTypeName, string Cod
 public record ScoutStageListDto(Guid Id, string Code, string Name, bool IsBadgeStage);
 public record BadgeListDto(Guid Id, string Code, string Name);
 
+// A recorded progression event: a member reaching a stage (and, for badge-stages, the specific badge).
 public record MemberProgressionDto(
     Guid Id, Guid MemberId, Guid UnitId, string UnitName,
     Guid ScoutStageId, string ScoutStageCode, string ScoutStageName,
@@ -451,6 +452,7 @@ public class CreateMemberProgressionCommandHandler(IApplicationDbContext context
         var stage = await context.ScoutStages.FindAsync([request.ScoutStageId], ct);
         if (stage is null) return Result<Guid>.Failure("Étape introuvable.");
 
+        // A badge-stage records an awarded badge, so the BadgeId is mandatory for those stages.
         if (stage.IsBadgeStage && request.BadgeId is null)
             return Result<Guid>.Failure("Un badge est requis pour cette étape.");
 

@@ -11,6 +11,8 @@ import UnitLeaderDashboard from '@/pages/dashboard-unit-leader'
 import { Users, UserCheck, FileX, Receipt, UserMinus } from 'lucide-react'
 
 // ─── Horizontal bar chart ──────────────────
+// One labelled bar; width is value/max as a %. When the bar is too short (≤20%) to hold its
+// number inside, the value is rendered just past the bar's end instead (the `--w` CSS var).
 function ChartBar({ value, max, color, label, suffix }: { value: number; max: number; color: string; label: string; suffix?: string }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0
   return (
@@ -28,7 +30,10 @@ function ChartBar({ value, max, color, label, suffix }: { value: number; max: nu
   )
 }
 
+// Group-wide overview shown to super-admins and Chefs de Groupe: key counts, members-by-unit
+// and age-distribution charts, all scoped to the selected scout year (every tile is year-aware).
 function AdminDashboard() {
+  // Default the year selector to the configured current scout year (falls back if the setting is missing).
   const currentScoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
   const [scoutYear, setScoutYear] = useState(currentScoutYear)
   const { data, isLoading } = useAdminDashboard(scoutYear)
@@ -41,6 +46,7 @@ function AdminDashboard() {
     </div>
   )
 
+  // Bar-scale denominators (the largest bucket = 100% width); floor at 1 to avoid divide-by-zero.
   const maxUnitMembers = Math.max(...data.unitBreakdown.map(u => u.memberCount), 1)
   const maxAgeGroup = Math.max(...data.ageGroups.map(g => g.count), 1)
 
@@ -161,8 +167,11 @@ function AdminDashboard() {
   )
 }
 
+// Landing page after login. Routes each user to the right dashboard by role:
+// super-admin/CG → group overview, unit leader → their unit roster, everyone else → Ma fiche.
 export default function DashboardPage() {
   const { user, hasPermission } = useAuthStore()
+  // Active unit when a leader runs more than one unit (see the multi-unit branch below).
   const [selectedUnit, setSelectedUnit] = useState<string>('')
 
   if (!user) return <LoadingSpinner />
@@ -177,6 +186,7 @@ export default function DashboardPage() {
   // Regular members go straight to profile
   if (!isUnitLeader) return <Navigate to="/my-profile" replace />
 
+  // Multi-unit leader: show a unit picker above the roster (defaults to the first unit).
   if (isUnitLeader && user.unitAccess.length > 1) {
     const unitId = selectedUnit || user.unitAccess[0]?.unitId
     return (

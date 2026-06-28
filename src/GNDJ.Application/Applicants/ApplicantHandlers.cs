@@ -10,10 +10,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Applicants;
 
+// Public enrolment portal — the APPLICANT side (a parent registering their children), fully isolated
+// from the internal User/Member/permission system (own ApplicantAccount + JWT). Flow: register →
+// verify email → fill shared household (guardians, address, scout relations) → one Demande per child
+// (draft → submit). The CG then reviews/sends responses in DemandeAdminHandlers, which converts an
+// approved demande into a real Member.
+
 // ============================================================
 // DTOs
 // ============================================================
 public record ApplicantAuthDto(Guid AccountId, string Email, bool EmailVerified, string AccessToken, string RefreshToken, DateTime ExpiresAt);
+
+// Public config the wizard reads on load: whether enrolment is open + the managed pick-lists
+// (schools/classes/cities/units/profession domains) and caps, so the portal stays a thin client.
 
 public record ApplicantConfigDto(bool IsOpen, string ScoutYear, int MaxPerAccount, int NotesMaxLength, bool RequireEmailVerification, string? IntroText,
     IReadOnlyList<string> Schools, IReadOnlyList<string> Classes, IReadOnlyList<string> Cities, IReadOnlyList<string> Units, int MaxScoutRelations,
@@ -35,7 +44,8 @@ public record ApplicantProfileDto(Guid AccountId, string Email, bool EmailVerifi
     IReadOnlyList<ApplicantGuardianDto> Guardians, IReadOnlyList<ApplicantScoutRelationDto> ScoutRelations,
     IReadOnlyList<DemandeDto> Demandes);
 
-// Shared child-field payload for create/update
+// Shared child-field payload for create/update (the per-child part of a demande; the household part
+// lives on the account and is saved separately via SaveApplicantHousehold).
 public record DemandeInput(
     string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender,
     string? Nationality, string? School, string? Classe, string? Section,

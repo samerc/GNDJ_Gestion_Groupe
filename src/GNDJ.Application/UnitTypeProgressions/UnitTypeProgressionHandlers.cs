@@ -8,6 +8,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.UnitTypeProgressions;
 
+// "Parcours scout" — the group-wide, gender-distinguished map of which unit type a member/leader
+// advances to next (e.g. Meute → Troupe). CRUD here defines the paths; the suggestion/destinations
+// queries drive the passage propose dialog (where a member can go next year). PathType: "member" (youth
+// progression) vs "leader". AssociationId is nullable/legacy — paths are now global, keyed by gender.
+
 // DTOs
 public record UnitTypeProgressionDto(
     Guid Id, Guid? AssociationId, Guid FromUnitTypeId, string FromUnitTypeName,

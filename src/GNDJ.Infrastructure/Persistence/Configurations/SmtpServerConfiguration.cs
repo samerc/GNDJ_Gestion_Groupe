@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// Outbound SMTP server config stored in the DB (host/credentials/from-address).
 public class SmtpServerConfiguration : IEntityTypeConfiguration<SmtpServer>
 {
     public void Configure(EntityTypeBuilder<SmtpServer> builder)
@@ -19,6 +20,7 @@ public class SmtpServerConfiguration : IEntityTypeConfiguration<SmtpServer>
     }
 }
 
+// A reusable {{variable}}-driven email template, optionally pinned to a specific SMTP server.
 public class EmailTemplateConfiguration : IEntityTypeConfiguration<EmailTemplate>
 {
     public void Configure(EntityTypeBuilder<EmailTemplate> builder)
@@ -32,6 +34,7 @@ public class EmailTemplateConfiguration : IEntityTypeConfiguration<EmailTemplate
         builder.Property(e => e.BodyHtml).HasColumnType("text");
         builder.Property(e => e.Variables).HasColumnType("text");
 
+        // SetNull: deleting a server leaves templates intact (they fall back to the default server).
         builder.HasOne(e => e.SmtpServer).WithMany().HasForeignKey(e => e.SmtpServerId).OnDelete(DeleteBehavior.SetNull);
         builder.HasIndex(e => e.Code).IsUnique().HasFilter("is_deleted = false");
     }

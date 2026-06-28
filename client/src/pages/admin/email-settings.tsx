@@ -1,3 +1,8 @@
+// Admin screen "Email / SMTP" (super-admin). Two tabs:
+//  - SmtpTab: CRUD of SMTP servers (+ a "test" dialog that sends a probe email via the server).
+//  - TemplatesTab: CRUD of email templates (TipTap RichTextEditor body) bound to a module and an
+//    optional SMTP server. Templates use {{variable}} placeholders substituted server-side at send time;
+//    MODULE_VARIABLES drives both the reference chip list and the editor's variable-insertion dropdown.
 import { useState } from 'react'
 import { parseApiError } from '@/lib/error-utils'
 import {
@@ -21,6 +26,8 @@ import { Plus, Trash2, Pencil, Server, FileText, Send } from 'lucide-react'
 import { toast } from 'sonner'
 
 // -- Module variables --
+// Per-module set of {{placeholders}} the backend will substitute. Keyed by template.module; selecting a
+// module in the form swaps which chips/insert-dropdown entries are shown. Keys must match server expansion.
 const MODULE_VARIABLES: Record<string, { key: string; label: string }[]> = {
   auth: [
     { key: 'memberName', label: 'Nom du membre' },
@@ -129,6 +136,7 @@ function SmtpTab() {
   const openEdit = (server: SmtpServerDto) => {
     setEditing(server)
     setForm({
+      // password intentionally blanked: the server never returns it; empty on submit = "keep existing".
       name: server.name, host: server.host, port: server.port,
       username: server.username, password: '',
       fromEmail: server.fromEmail, fromName: server.fromName,
@@ -393,6 +401,7 @@ function TemplatesTab() {
     }
   }
 
+  // Variables for the selected module — fed to both the reference chips and the editor insert dropdown.
   const currentVariables = MODULE_VARIABLES[form.module] ?? []
 
   if (isLoading) return <LoadingSpinner variant="form" />

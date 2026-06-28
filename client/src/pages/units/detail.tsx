@@ -1,3 +1,8 @@
+// Unit detail page (route /units/:id, super-admin). Shows the unit header + summary cards, then the
+// list of teams: each team row is expandable to reveal its members (ranked, via <TeamMembers>).
+// Maîtrise teams are pinned first and tinted; non-Maîtrise teams reorder via up/down arrows
+// (handleMoveTeam swaps displayOrder with its neighbour). Create/edit dialog covers totem, adjective,
+// two colours, and the isMaitrise flag. Team delete is hard (ConfirmDialog).
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
 import { useFormValidation } from '@/hooks/use-form-validation'
@@ -94,6 +99,8 @@ export default function UnitDetailPage() {
     try { await deleteMutation.mutateAsync(deleting.id); toast.success('Équipe supprimée'); setDeleting(null) } catch (err) { setError(parseApiError(err)); setDeleting(null) }
   }
 
+  // Reorder a non-Maîtrise team by ±1: swap displayOrder with the adjacent team (two updates).
+  // Maîtrise teams are excluded (always pinned first), so ordering only applies among the rest.
   const handleMoveTeam = async (teamId: string, direction: number) => {
     if (!teams) return
     const sorted = [...teams.items].filter(t => !t.isMaitrise).sort((a, b) => a.displayOrder - b.displayOrder)

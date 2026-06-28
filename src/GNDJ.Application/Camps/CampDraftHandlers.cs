@@ -6,6 +6,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Camps;
 
+// Camp BP — splitting the whole group into balanced cross-branch "familles" (each led by a Père + Mère).
+// This file is the CG draft stage: run the balanced randomized draft, view/rebalance the familles board
+// (move/swap members), and pin a Père/Mère per famille. Grading (Force/année/Note) happens upstream in
+// CampAttendanceHandlers; the games stage is in CampGameHandlers.
+
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 public record CampFamilleMemberDto(Guid ParticipantId, Guid MemberId, string FirstName, string LastName,
     string? Gender, string? Branche, string? UnitName, double? Note, string Role);

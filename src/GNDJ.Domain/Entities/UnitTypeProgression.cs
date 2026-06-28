@@ -2,6 +2,8 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// An edge in the group's "parcours scout" graph: a member of FromUnitType normally moves up to ToUnitType
+// (by gender). Drives the progression diagram and the passage destination suggestions. Group-wide (association null).
 public class UnitTypeProgression : BaseEntity
 {
     public Guid? AssociationId { get; set; } // null = group-wide (paths are distinguished by gender, not association)

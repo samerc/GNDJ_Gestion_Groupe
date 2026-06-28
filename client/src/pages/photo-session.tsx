@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Check, ArrowLeft, Camera, Users } from 'lucide-react'
 
+// Camera capture for one member: snaps a photo, uploads it as a JPEG, then signals `onDone`.
 function PhotoUploader({ memberId, memberName, onDone }: { memberId: string; memberName: string; onDone: () => void }) {
   const uploadMutation = useUploadPhoto(memberId)
   const [uploading, setUploading] = useState(false)
@@ -46,6 +47,8 @@ function PhotoUploader({ memberId, memberName, onDone }: { memberId: string; mem
   )
 }
 
+// Batch photo workflow for a unit leader: pick a member from the list, capture their photo, repeat.
+// A progress bar tracks how many members now have a photo. Scoped to the leader's first unit.
 export default function PhotoSessionPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
@@ -56,14 +59,18 @@ export default function PhotoSessionPage() {
   const members = membersData?.items ?? []
 
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
+  // Members photographed this session — drives the green check + progress before the list refetches.
   const [capturedPhotos, setCapturedPhotos] = useState<Set<string>>(new Set())
+  // Per-member counter bumped after a capture to force MemberPhoto to re-fetch the (now updated) image.
   const [photoRefreshKeys, setPhotoRefreshKeys] = useState<Record<string, number>>({})
 
   const totalMembers = members.length
+  // "Has a photo" = either already stored (photoPath) or captured during this session.
   const withPhotos = members.filter(m => m.photoPath || capturedPhotos.has(m.id)).length
 
   const selectedMember = members.find(m => m.id === selectedMemberId)
 
+  // After an upload: mark the member done and bump its refresh key so the thumbnail reloads.
   const handleDone = () => {
     if (selectedMemberId) {
       setCapturedPhotos(prev => new Set(prev).add(selectedMemberId))

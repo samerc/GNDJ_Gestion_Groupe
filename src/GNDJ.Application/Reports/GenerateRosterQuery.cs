@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Reports;
 
+// Roster PDF (A4 landscape table) of a unit (or a single team), grouped by team with Maîtrise first.
+// `Columns` selects which of the built-in fields + custom fields to print; layout is in IRosterService.
 public record GenerateRosterQuery(
     Guid UnitId,
     Guid? TeamId,

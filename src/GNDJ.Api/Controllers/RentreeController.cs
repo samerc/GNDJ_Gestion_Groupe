@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Rentrée scoute startup checklist (per-year tasks from an editable template). Route api/v1/rentree.
+// Read endpoints are auth-only so the checklist is visible to every member; template/generate/task management
+// is gated by rentree.manage (super-admin + Chef de Groupe).
 [Authorize]
 public class RentreeController : BaseApiController
 {
@@ -57,6 +60,8 @@ public class RentreeController : BaseApiController
         return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
     }
 
+    // Copies the template → this year's tasks, fanning out per-unit role tasks into one task per active unit
+    // and resolving assignees + dependencies. Returns the count created.
     [HttpPost("generate")]
     [HasPermission(Permissions.RentreeManage)]
     public async Task<IActionResult> Generate([FromBody] GenerateRentreeChecklistCommand command)

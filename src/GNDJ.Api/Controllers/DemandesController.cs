@@ -5,7 +5,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
-// CG-side review & approval of membership applications (demandes).
+// CG-side review & approval of membership applications (demandes); base route api/v1/demandes.
+// No class-level [Authorize] — every action is gated by [HasPermission] instead: reads need demande.view,
+// writes (decide/bulk-decide/quota/send-responses) need demande.manage (both implied by Permissions.All for
+// super-admin + association-admin). Most read endpoints REQUIRE a ?scoutYear (400 if missing — not a bug).
 [Route("api/v1/demandes")]
 public class DemandesController : BaseApiController
 {
@@ -58,6 +61,7 @@ public class DemandesController : BaseApiController
         return Ok(new { success = true });
     }
 
+    // Bulk approve/decline (per-item unit), skips already-sent demandes; returns a per-item result summary.
     [HttpPost("bulk-decide")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> BulkDecide([FromBody] BulkDecideDemandeCommand command)
@@ -76,6 +80,9 @@ public class DemandesController : BaseApiController
         return Ok(new { success = true });
     }
 
+    // Converts approved demandes → real Members (card#, login, deduped guardians, base-role assignment) and
+    // queues the response emails. Advisory-locked + idempotent (skips already-sent) so a double-click / two CGs
+    // at once is safe; returns a conversion summary.
     [HttpPost("send-responses")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> SendResponses([FromBody] SendDemandeResponsesCommand command)

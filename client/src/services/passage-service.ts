@@ -1,3 +1,6 @@
+// Passage annuel resource: yearly member transitions (current → proposed → final unit/team/role),
+// CU propose / CG review-finalize workflow, open/close toggle. Queries key on ['passages', ...];
+// all mutations invalidate ['passages'].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
@@ -63,6 +66,7 @@ export interface PassageStatusDto {
   scoutYear: string
 }
 
+// GET /passages/unit/{unitId} — passage lines for one unit (CU page); requires scoutYear. Unit-scoped.
 export function usePassagesByUnit(unitId: string, scoutYear: string) {
   return useQuery({
     queryKey: ['passages', 'unit', unitId, scoutYear],
@@ -71,6 +75,7 @@ export function usePassagesByUnit(unitId: string, scoutYear: string) {
   })
 }
 
+// GET /passages — all lines (CG page), optional status/unit filters; requires scoutYear.
 export function useAllPassages(scoutYear: string, status?: string, unitId?: string) {
   return useQuery({
     queryKey: ['passages', 'all', scoutYear, status, unitId],
@@ -79,6 +84,7 @@ export function useAllPassages(scoutYear: string, status?: string, unitId?: stri
   })
 }
 
+// GET /passages/summary — CG completeness view (expected vs missing lines per unit + overall).
 export function usePassageSummary(scoutYear: string) {
   return useQuery({
     queryKey: ['passages', 'summary', scoutYear],
@@ -87,6 +93,7 @@ export function usePassageSummary(scoutYear: string) {
   })
 }
 
+// GET /passages/status — whether the passage process is open for the year (CG toggle state).
 export function usePassageStatus(scoutYear: string) {
   return useQuery({
     queryKey: ['passages', 'status', scoutYear],
@@ -94,6 +101,7 @@ export function usePassageStatus(scoutYear: string) {
   })
 }
 
+// POST /passages — CU proposes one member's change (isLeaving = quitte le groupe). "No change" auto-approves.
 export function useProposePassage() {
   const qc = useQueryClient()
   return useMutation({
@@ -103,6 +111,7 @@ export function useProposePassage() {
   })
 }
 
+// POST /passages/bulk — same proposal for many members; returns { count }.
 export function useBulkProposePassage() {
   const qc = useQueryClient()
   return useMutation({
@@ -112,6 +121,7 @@ export function useBulkProposePassage() {
   })
 }
 
+// PUT /passages/{id}/review — CG approve/reject/modify final unit/team/role.
 export function useReviewPassage() {
   const qc = useQueryClient()
   return useMutation({
@@ -121,6 +131,7 @@ export function useReviewPassage() {
   })
 }
 
+// POST /passages/bulk-review — approve/reject many at once; returns { count }.
 export function useBulkReviewPassage() {
   const qc = useQueryClient()
   return useMutation({
@@ -130,6 +141,8 @@ export function useBulkReviewPassage() {
   })
 }
 
+// POST /passages/finalize — CG applies approved lines (ends old + creates new assignments); returns
+// { count }. Blocked until every active member has a line; also invalidates ['members'].
 export function useFinalizePassages() {
   const qc = useQueryClient()
   return useMutation({
@@ -142,6 +155,7 @@ export function useFinalizePassages() {
   })
 }
 
+// POST /passages/toggle — CG opens/closes the passage process for the year.
 export function useTogglePassage() {
   const qc = useQueryClient()
   return useMutation({
@@ -151,6 +165,7 @@ export function useTogglePassage() {
   })
 }
 
+// DELETE /passages/{id} — remove a passage line.
 export function useDeletePassage() {
   const qc = useQueryClient()
   return useMutation({

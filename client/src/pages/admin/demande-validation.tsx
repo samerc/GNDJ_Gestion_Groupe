@@ -1,3 +1,11 @@
+// CG enrollment-request (demande d'inscription) triage screen.
+// Audience: Chef de Groupe (super-admin + association-admin via demande.manage).
+// Excel-style sortable TABLE of all demandes for a scout year + a right-side detail
+// drawer (Sheet) for the full applicant file. Supports per-row and bulk accept/decline
+// (each with a unit picker), one-click "suggested unit" chips, sibling grouping/highlight,
+// quota warnings, incomplete-dossier flags, and keyboard triage (A/R/arrows in the drawer).
+// Decisions are staged (Approved/Declined) and only become final/emailed on "Envoyer les réponses",
+// which is gated until every demande in scope is decided (no undecided 'Submitted' left).
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSettingValue, useSchoolCode } from '@/services/settings-service'
 import {
@@ -35,7 +43,9 @@ function unitFull(u: UnitOccupancy): boolean {
   return u.quota != null && u.accepted >= u.quota
 }
 
-// Best eligible unit for a demande: eligible + not full, balanced by fewest accepted then lowest projected.
+// Eligible (gender + age fits the unit) AND not over quota, balanced by fewest accepted this round
+// then lowest projected post-passage — spreads newcomers across units. Falls back to any eligible
+// unit if every eligible one is already full.
 function suggestUnit(d: DemandeReview, occupancy: UnitOccupancy[]): UnitOccupancy | null {
   const elig = occupancy.filter((u) => eligible(u, d))
   if (!elig.length) return null
@@ -61,6 +71,8 @@ function genderShort(g: string | null): string {
   return g === 'Masculin' ? 'M' : g === 'Féminin' ? 'F' : (g ?? '')
 }
 
+// Left-border colour + label for a row: green=accepted, red=declined, blue=still to study.
+// "(envoyée)" suffix once the response email has been sent (responseSentAt), which locks the row.
 function statusInfo(d: DemandeReview): { border: string; label: string } {
   if (d.status === 'Approved') return { border: 'border-l-green-500', label: d.responseSentAt ? 'Acceptée (envoyée)' : 'Acceptée' }
   if (d.status === 'Declined') return { border: 'border-l-red-500', label: d.responseSentAt ? 'Refusée (envoyée)' : 'Refusée' }
@@ -83,6 +95,7 @@ export default function DemandeValidationPage() {
   const siblingsTogether = useSettingValue('demande.decide_siblings_together') === 'true'
   const schoolCode = useSchoolCode()
 
+  // Server-side filters (status/gender/classe/age) vs client-side search box (handled in `rows`).
   const [status, setStatus] = useState('all')
   const [gender, setGender] = useState('all')
   const [classe, setClasse] = useState('')
@@ -121,6 +134,7 @@ export default function DemandeValidationPage() {
 
   const all = demandes ?? []
   const occList = occupancy ?? []
+  // Lookup maps for O(1) access by unit id / demande id (used by suggest, quota hints, bulk).
   const occByUnit = useMemo(() => Object.fromEntries(occList.map((u) => [u.unitId, u])), [occList])
   const byId = useMemo(() => Object.fromEntries(all.map((d) => [d.id, d])), [all])
 
@@ -157,6 +171,8 @@ export default function DemandeValidationPage() {
     return grouped
   }, [all, search, sortKey, sortDir, siblingsTogether, accountCounts])
 
+  // Send gate: there must be staged decisions to send AND no demande still undecided.
+  // status==='all' forces the user to view the full set so a filtered-out 'Submitted' can't be missed.
   const pendingSend = all.filter((d) => (d.status === 'Approved' || d.status === 'Declined') && !d.responseSentAt).length
   const undecided = all.filter((d) => d.status === 'Submitted' && !d.responseSentAt).length
   const canSend = pendingSend > 0 && undecided === 0 && status === 'all'
@@ -164,7 +180,7 @@ export default function DemandeValidationPage() {
   const detailIndex = rows.findIndex((d) => d.id === detailId)
   const detail = detailIndex >= 0 ? rows[detailIndex] : null
 
-  // Selectable = visible & not locked
+  // Selectable = visible & not locked (a sent response can no longer be re-decided).
   const selectableIds = useMemo(() => rows.filter((d) => !d.responseSentAt).map((d) => d.id), [rows])
   const selectedCount = selected.size
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id))
@@ -181,6 +197,7 @@ export default function DemandeValidationPage() {
   const openApprove = (d: DemandeReview, preset?: string) => { setApproveTarget(d); setPickUnit(preset ?? d.decidedUnitId ?? ''); setDecisionNote(d.decisionNotes ?? '') }
   const openDecline = (d: DemandeReview) => { setDeclineTarget(d); setDecisionNote(d.decisionNotes ?? '') }
 
+  // Stage a single decision (not yet emailed). Approve requires a target unit.
   const decide = async (d: DemandeReview, newStatus: 'Approved' | 'Declined', unitId: string | null, note: string | null) => {
     if (newStatus === 'Approved' && !unitId) { toast.error('Veuillez choisir une unité.'); return false }
     try {
@@ -206,6 +223,7 @@ export default function DemandeValidationPage() {
     if (!bulkUnit) { toast.error('Choisissez une unité.'); return }
     runBulk({ status: 'Approved', items: [...selected].map((id) => ({ id, decidedUnitId: bulkUnit })) }, 'acceptée(s)')
   }
+  // Accept the whole selection, each into its own suggestUnit() target; ones with no eligible unit are skipped.
   const bulkApproveSuggested = () => {
     const items: { id: string; decidedUnitId: string }[] = []
     let noSug = 0
@@ -219,6 +237,8 @@ export default function DemandeValidationPage() {
   }
   const bulkDecline = () => runBulk({ status: 'Declined', decisionNotes: bulkMotif || null, items: [...selected].map((id) => ({ id })) }, 'refusée(s)')
 
+  // Final, irreversible step: converts accepted demandes → real members (login + assignment) and
+  // emails every family. Backend is advisory-locked + idempotent.
   const handleSend = async () => {
     try {
       const r = await sendMutation.mutateAsync(scoutYear)
@@ -359,9 +379,10 @@ export default function DemandeValidationPage() {
               {rows.map((d) => {
                 const locked = !!d.responseSentAt
                 const si = statusInfo(d)
-                const isSibling = (accountCounts[d.accountId] ?? 0) > 1
+                const isSibling = (accountCounts[d.accountId] ?? 0) > 1 // amber-tinted row when same account has ≥2 demandes
                 const miss = missingInfo(d)
                 const decidedUnit = d.decidedUnitId ? occByUnit[d.decidedUnitId] : undefined
+                // Only undecided rows show the one-click suggested-unit chip; decided rows show their chosen unit.
                 const sug = !d.decidedUnitId && d.status === 'Submitted' ? suggestUnit(d, occList) : null
                 return (
                   <TableRow key={d.id} className={`cursor-pointer ${isSibling ? 'bg-amber-50/40' : ''}`} onClick={() => setDetailId(d.id)}>
@@ -499,6 +520,7 @@ function LegendItem({ color, label }: { color: string; label: string }) {
 
 function HeaderCheckbox({ checked, indeterminate, onChange }: { checked: boolean; indeterminate: boolean; onChange: () => void }) {
   const ref = useRef<HTMLInputElement>(null)
+  // `indeterminate` is a DOM-only property (no React prop) — must be set imperatively.
   useEffect(() => { if (ref.current) ref.current.indeterminate = indeterminate }, [indeterminate])
   return <input ref={ref} type="checkbox" className="h-4 w-4 rounded border-input accent-primary" checked={checked} onChange={onChange} onClick={(e) => e.stopPropagation()} />
 }
@@ -561,6 +583,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, hasPrev,
 }) {
   const locked = !!d.responseSentAt
   const suggested = useMemo(() => suggestUnit(d, occupancy), [d, occupancy])
+  // Local decision draft: pre-fill unit with the already-decided unit, else the suggestion.
   const [unit, setUnit] = useState(d.decidedUnitId ?? suggested?.unitId ?? '')
   const [note, setNote] = useState(d.status === 'Approved' ? (d.decisionNotes ?? '') : '')
   const [motif, setMotif] = useState(d.status === 'Declined' ? (d.decisionNotes ?? '') : '')

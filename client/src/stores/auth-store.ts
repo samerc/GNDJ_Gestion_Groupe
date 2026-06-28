@@ -14,6 +14,9 @@ interface AuthState {
   canAccessUnit: (unitId: string) => boolean
 }
 
+// Auth state for the member/chef/admin realm. Tokens live in localStorage (read by api-client's
+// interceptors); this store holds the decoded `user` (MeResponse) and exposes the client-side authz
+// helpers. isAuthenticated is seeded optimistically from a present token, then confirmed by loadUser.
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: !!localStorage.getItem('accessToken'),
@@ -46,6 +49,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: null, isAuthenticated: false })
   },
 
+  // Fetch /auth/me to hydrate the user (perms + unit access); clears the session if the token is bad.
   loadUser: async () => {
     set({ isLoading: true })
     try {
@@ -58,6 +62,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  // Client-side gate (UI only — server re-checks every request). Super admin passes everything.
   hasPermission: (permission: string) => {
     const { user } = get()
     if (!user) return false
@@ -65,6 +70,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return user.permissions.includes(permission)
   },
 
+  // True if the user may act on this unit (super admin = all; others = their assigned unitAccess).
   canAccessUnit: (unitId: string) => {
     const { user } = get()
     if (!user) return false

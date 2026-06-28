@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Reports;
 
+// Bulk member-card PDF — every active member of a unit, 10 cards per A4 page with cut lines.
+// Same card layout/config as GenerateMemberCardQuery; reuses its DeserializeCardSettings. Unit-scoped.
 public record GenerateBulkCardsQuery(Guid UnitId) : IRequest<Result<byte[]>>;
 
 public class GenerateBulkCardsQueryHandler(

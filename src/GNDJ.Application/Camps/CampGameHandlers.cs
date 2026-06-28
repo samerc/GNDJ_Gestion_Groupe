@@ -7,6 +7,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Camps;
 
+// Camp BP — games stage: define the camp's jeux and assign each one its set of étapistes (the leaders
+// who run/score it). Phase 2 (actually scoring the games) is not built yet.
+
 public record CampGameDto(Guid Id, string Name, string? Description, IReadOnlyList<EtapisteDto> Etapistes);
 public record EtapisteDto(Guid MemberId, string FirstName, string LastName, string? UnitName);
 public record EtapisteCandidateDto(Guid MemberId, string FirstName, string LastName, string? UnitName, string? RoleName);

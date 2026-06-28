@@ -59,7 +59,8 @@ public class GetMemberDocumentsQueryHandler(IApplicationDbContext context, ICurr
     }
 }
 
-// Upload document (metadata only — file saved by controller)
+// Upload document (metadata only — the controller already saved the file to disk). Status starts
+// Pending when the doc type RequiresApproval, else auto-Approved (stamped reviewed by the uploader).
 public record CreateMemberDocumentCommand(
     Guid MemberId, Guid DocumentTypeId, string Title,
     string FilePath, string FileName, long FileSize, string MimeType,
@@ -120,7 +121,8 @@ public class CreateMemberDocumentCommandHandler(IApplicationDbContext context, I
     }
 }
 
-// Approve / Reject
+// Approve / Reject a document (leader review). Status changes are allowed in either direction at any
+// time (approve→reject and back); the reviewer + timestamp are stamped on each change.
 public record ReviewDocumentCommand(Guid Id, string Status, string? ReviewNotes) : IRequest<Result<bool>>;
 
 public class ReviewDocumentCommandValidator : AbstractValidator<ReviewDocumentCommand>
@@ -182,7 +184,8 @@ public class DeleteMemberDocumentCommandHandler(IApplicationDbContext context, I
     }
 }
 
-// Get document file info (for download)
+// Resolves the on-disk path for a download. Returns null on missing OR unauthorized (controller 404s)
+// — the controller still applies the path-traversal guard before streaming the file.
 public record GetDocumentFileQuery(Guid Id) : IRequest<DocumentFileDto?>;
 public record DocumentFileDto(string FilePath, string FileName, string MimeType);
 
@@ -200,7 +203,8 @@ public class GetDocumentFileQueryHandler(IApplicationDbContext context, ICurrent
     }
 }
 
-// Unit documents matrix (CU page: all members × active doc types + cotisation)
+// Unit documents matrix (CU page: all active members × active doc types + the year's cotisation cell).
+// Queries are projected to slim records (no full entities) since this is the heaviest per-page load.
 public record GetUnitDocumentsMatrixQuery(Guid UnitId, string ScoutYear) : IRequest<Result<UnitDocumentsMatrixDto>>;
 
 public record UnitDocumentsMatrixDto(
@@ -289,6 +293,7 @@ public class GetUnitDocumentsMatrixQueryHandler(IApplicationDbContext context, I
 
                 var cells = docTypes.Select(dt =>
                 {
+                    // One cell per doc type → the most recently uploaded document of that type (or empty).
                     var doc = memberDocs
                         .Where(d => d.DocumentTypeId == dt.Id)
                         .OrderByDescending(d => d.CreatedAt)
@@ -327,7 +332,8 @@ public class GetUnitDocumentsMatrixQueryHandler(IApplicationDbContext context, I
     }
 }
 
-// Get documents for zip download (all or by doc type)
+// Lists a unit's document files for zip download (optionally filtered to one doc type). The controller
+// builds the archive (member-name folders) and re-checks each path against the uploads root.
 public record GetUnitDocumentFilesQuery(Guid UnitId, Guid? DocTypeId = null) : IRequest<Result<IReadOnlyList<ZipDocumentDto>>>;
 
 public record ZipDocumentDto(string MemberName, string DocTypeName, string FileName, string FilePath);
@@ -365,7 +371,7 @@ public class GetUnitDocumentFilesQueryHandler(IApplicationDbContext context, ICu
     }
 }
 
-// Dashboard: expiring documents
+// Dashboard: approved documents expiring within DaysAhead (or already expired). Unit-scoped for non-admins.
 public record GetExpiringDocumentsQuery(int DaysAhead = 30) : IRequest<IReadOnlyList<ExpiringDocumentDto>>;
 public record ExpiringDocumentDto(Guid DocumentId, Guid MemberId, string MemberName, string DocumentTypeName, string Title, DateOnly ExpiryDate, bool IsExpired);
 

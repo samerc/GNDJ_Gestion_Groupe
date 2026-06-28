@@ -8,7 +8,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Passages;
 
+// Annual passage workflow: each scout year the CU proposes where every member goes next
+// (Pending), the CG reviews/modifies/approves or rejects them (Approved/Rejected), then the CG
+// finalizes the whole year — ending current assignments and creating the new ones. A "no change"
+// proposal is auto-approved; a departure ("quitte le groupe") always needs CG review.
+
 // DTOs
+// One passage line for a member: a snapshot of Current/Proposed/Final (unit, team, role) + status.
 public record PassageDto(
     Guid Id, string ScoutYear, Guid MemberId, string MemberName, string? CardNumber,
     DateOnly? DateOfBirth, int? Age,
@@ -22,6 +28,8 @@ public record PassageDto(
     DateTime CreatedAt
 );
 
+// CG completeness view: status tallies + Expected (active members) vs MissingLines (active members
+// without a passage line) — the finalize gate blocks until MissingLines reaches 0.
 public record PassageSummaryDto(
     string ScoutYear, int TotalMembers, int Pending, int Approved, int Rejected, int Finalized,
     int ExpectedMembers, int MissingLines,
@@ -67,6 +75,7 @@ public class GetPassagesByUnitQueryHandler(IApplicationDbContext context, ICurre
                 p.Member.FirstName + " " + p.Member.LastName,
                 p.Member.CardNumber,
                 p.Member.DateOfBirth,
+                // age = year diff, minus 1 if this year's birthday hasn't occurred yet
                 p.Member.DateOfBirth != null ? today.Year - p.Member.DateOfBirth.Value.Year - (today < new DateOnly(today.Year, p.Member.DateOfBirth.Value.Month, p.Member.DateOfBirth.Value.Day) ? 1 : 0) : null,
                 p.CurrentUnitId, p.CurrentUnit.Code, p.CurrentUnit.Name,
                 p.CurrentTeamId != null ? context.Teams.Where(t => t.Id == p.CurrentTeamId).Select(t => t.Name).FirstOrDefault() : null,

@@ -1,3 +1,6 @@
+// CG-side enrollment-request (demande) review resource: triage/filter, single + bulk decide, quotas,
+// statistics, and "send responses" (converts approved demandes → members, emails applicants).
+// Authenticated apiClient; keyed on ['demandes', ...].
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { ApplicantGuardian, ApplicantScoutRelation } from '@/services/applicant-service'
@@ -86,6 +89,7 @@ export interface DemandeStatistics {
   incompleteDossiers: number
 }
 
+// GET /demandes?scoutYear&...filters → full review rows for the CG triage table; requires scoutYear (else disabled).
 export function useDemandesForReview(scoutYear: string, filters: DemandeFilters) {
   return useQuery({
     queryKey: ['demandes', 'review', scoutYear, filters],
@@ -94,6 +98,7 @@ export function useDemandesForReview(scoutYear: string, filters: DemandeFilters)
   })
 }
 
+// GET /demandes/pending-count → sidebar badge count; polls every 60s. Gated by `enabled`.
 export function usePendingDemandeCount(enabled: boolean) {
   return useQuery({
     queryKey: ['demandes', 'pending-count'],
@@ -103,6 +108,7 @@ export function usePendingDemandeCount(enabled: boolean) {
   })
 }
 
+// GET /demandes/statistics?scoutYear → CG stats dashboard (pipeline, demographics, families); requires scoutYear.
 export function useDemandeStatistics(scoutYear: string) {
   return useQuery({
     queryKey: ['demandes', 'statistics', scoutYear],
@@ -111,6 +117,7 @@ export function useDemandeStatistics(scoutYear: string) {
   })
 }
 
+// GET /demandes/occupancy?scoutYear → per-unit capacity (current/projected/quota/accepted); requires scoutYear.
 export function useUnitOccupancy(scoutYear: string) {
   return useQuery({
     queryKey: ['demandes', 'occupancy', scoutYear],
@@ -119,6 +126,8 @@ export function useUnitOccupancy(scoutYear: string) {
   })
 }
 
+// PUT /demandes/{id}/decide → accept (with unit) or decline (with motif) one demande; invalidates ['demandes'].
+// Decision stays hidden from the applicant until "send responses". Approve needs decidedUnitId.
 export function useDecideDemande() {
   const qc = useQueryClient()
   return useMutation({
@@ -128,6 +137,7 @@ export function useDecideDemande() {
   })
 }
 
+// POST /demandes/bulk-decide → decide many at once (per-item unit), skips already-sent. Returns {processed, skipped}; invalidates ['demandes'].
 export function useBulkDecideDemande() {
   const qc = useQueryClient()
   return useMutation({
@@ -137,6 +147,7 @@ export function useBulkDecideDemande() {
   })
 }
 
+// PUT /demandes/quota → set a unit's intake quota for the year; invalidates the occupancy cache.
 export function useSetIntakeQuota() {
   const qc = useQueryClient()
   return useMutation({
@@ -145,6 +156,8 @@ export function useSetIntakeQuota() {
   })
 }
 
+// POST /demandes/send-responses → advisory-locked, idempotent batch: approved demandes → real members + emails
+// applicants; blocked if any submitted demande is undecided. Returns {approved, declined}; invalidates demandes + members.
 export function useSendResponses() {
   const qc = useQueryClient()
   return useMutation({

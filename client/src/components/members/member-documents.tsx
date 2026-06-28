@@ -15,6 +15,8 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus } from 'lucide-react'
 
+// Status badge for a doc. Expiry overrides the workflow status (an expired doc reads "Expiré"
+// regardless of approval). Workflow: upload → "En attente" → "Approuvé" / "Refusé".
 function statusBadge(status: string, isExpired: boolean) {
   if (isExpired) return <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />Expiré</Badge>
   switch (status) {
@@ -24,6 +26,11 @@ function statusBadge(status: string, isExpired: boolean) {
   }
 }
 
+// "Documents" tab of the member detail page / Ma fiche. Renders ONE row per active document
+// TYPE (not per uploaded file) showing the latest file's status, so the dossier reads as a
+// checklist of required docs. Upload→pending→approve/reject workflow: the member (own profile)
+// or a leader uploads; reviewers with DOCUMENTS_APPROVE quick-approve or open the reject dialog
+// (with notes). isOwnProfile lets a member upload their own docs even without DOCUMENTS_CREATE.
 interface Props {
   memberId: string
   isOwnProfile?: boolean
@@ -124,6 +131,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const getDocForType = (docTypeId: string) =>
     documents?.filter(d => d.documentTypeId === docTypeId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
 
+  // A member may always upload to their own dossier; otherwise it requires the create permission.
   const canUpload = isOwnProfile || hasPermission(PERMISSIONS.DOCUMENTS_CREATE)
 
   // Compute progress stats
@@ -236,11 +244,14 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   )}
+                  {/* Upload only offered when nothing is on file or the last one was rejected ("Renvoyer"). */}
                   {canUpload && (!doc || doc.status === 'Rejected') && (
                     <Button
                       variant={doc ? 'outline' : 'default'}
                       size="sm"
                       onClick={() => {
+                        // Doc types that require an expiry first open a dialog to capture the date;
+                        // the rest jump straight to the file picker (timeout lets state settle first).
                         if (dt.requiresExpiry) {
                           setUploadingDocTypeId(dt.id)
                           setExpiryDate('')

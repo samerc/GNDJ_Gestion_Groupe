@@ -8,6 +8,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.DocumentTypes;
 
+// Admin-managed catalog of document types (what each member must provide). RequiresExpiry forces an
+// expiry date on upload; RequiresApproval routes uploads through the Pending→Approved review flow.
+
 // DTOs
 public record DocumentTypeDto(Guid Id, string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, int DocumentCount, DateTime CreatedAt);
 public record DocumentTypeDetailDto(Guid Id, string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, DateTime CreatedAt, DateTime UpdatedAt);
@@ -165,6 +168,8 @@ public class DeleteDocumentTypeCommandHandler(IApplicationDbContext context, IAu
         if (entity is null)
             return Result<bool>.Failure("Type de document introuvable.");
 
+        // Hard-block deletion when documents reference it (no archive fallback here — toggle IsActive to
+        // retire a type instead, which keeps existing documents but hides it from the upload matrix).
         if (entity.Documents.Any())
             return Result<bool>.Failure("Impossible de supprimer un type de document utilisé par des documents existants.");
 

@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Units.Queries;
 
+// Paginated unit list with search (name/code) + association/unit-type/active filters. Results are
+// unit-scoped: non-super-admins only see their authorized units.
 public record GetUnitsQuery(
     string? Search,
     Guid? AssociationId,
@@ -68,6 +70,7 @@ public class GetUnitsQueryHandler : IRequestHandler<GetUnitsQuery, PaginatedList
     }
 }
 
+// Single unit detail; returns null if not found OR the caller isn't authorized for that unit.
 public record GetUnitByIdQuery(Guid Id) : IRequest<UnitDetailDto?>;
 
 public class GetUnitByIdQueryHandler : IRequestHandler<GetUnitByIdQuery, UnitDetailDto?>

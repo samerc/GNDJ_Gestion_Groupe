@@ -4,6 +4,8 @@ using Mediator;
 
 namespace GNDJ.Application.Auth.Commands.Logout;
 
+// Invalidates the current session by nulling the stored refresh token so it can no longer be rotated.
+// The access token stays valid until it expires (~15 min) — there's no server-side access-token revocation.
 public class LogoutCommandHandler : IRequestHandler<LogoutCommand, Result<bool>>
 {
     private readonly IApplicationDbContext _context;

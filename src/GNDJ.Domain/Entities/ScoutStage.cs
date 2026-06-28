@@ -2,6 +2,8 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// An ordered progression step within a unit type (an étape). When IsBadgeStage, a progression at this stage
+// must also pick a Badge. Archived = IsActive false (hidden from pickers, kept on members who hold it).
 public class ScoutStage : BaseEntity
 {
     public Guid UnitTypeId { get; set; }

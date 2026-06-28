@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.AddEmail;
 
+// Adds an email to a member. Access (IDOR guard): own profile / super-admin / active unit leader.
 public record AddEmailCommand(Guid MemberId, string Address, string Type, bool IsPrimary, bool IsEmergency) : IRequest<Result<Guid>>;
 
 public class AddEmailCommandValidator : AbstractValidator<AddEmailCommand>

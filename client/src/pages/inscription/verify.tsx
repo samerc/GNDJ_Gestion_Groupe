@@ -7,13 +7,16 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle2, XCircle } from 'lucide-react'
 
+// Landing target of the email-verification link (/inscription/verify?token=…). Auto-fires the
+// verify mutation once on mount and shows ok / error; on success flips the store's emailVerified
+// flag so the portail drops its "vérifiez votre email" banner.
 export default function ApplicantVerifyPage() {
   const [params] = useSearchParams()
   const token = params.get('token') ?? ''
   const verify = useVerifyEmail()
   const setEmailVerified = useApplicantStore((s) => s.setEmailVerified)
   const [state, setState] = useState<'pending' | 'ok' | 'error'>('pending')
-  const ran = useRef(false)
+  const ran = useRef(false) // guard: ensures we POST the token exactly once (StrictMode double-mount / re-renders)
 
   useEffect(() => {
     if (ran.current) return

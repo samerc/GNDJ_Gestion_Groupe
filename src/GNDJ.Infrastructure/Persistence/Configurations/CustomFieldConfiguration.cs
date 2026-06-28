@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// Admin-defined extra member attribute (text/number/select/boolean).
 public class CustomFieldConfiguration : IEntityTypeConfiguration<CustomField>
 {
     public void Configure(EntityTypeBuilder<CustomField> builder)
@@ -20,6 +21,7 @@ public class CustomFieldConfiguration : IEntityTypeConfiguration<CustomField>
     }
 }
 
+// One member's value for one custom field.
 public class MemberCustomFieldValueConfiguration : IEntityTypeConfiguration<MemberCustomFieldValue>
 {
     public void Configure(EntityTypeBuilder<MemberCustomFieldValue> builder)
@@ -28,9 +30,11 @@ public class MemberCustomFieldValueConfiguration : IEntityTypeConfiguration<Memb
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Value).HasMaxLength(500).IsRequired();
 
+        // Cascade from both sides — a value exists only while its member and field both do.
         builder.HasOne(e => e.Member).WithMany().HasForeignKey(e => e.MemberId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne(e => e.CustomField).WithMany(cf => cf.Values).HasForeignKey(e => e.CustomFieldId).OnDelete(DeleteBehavior.Cascade);
 
+        // At most one value per (member, field) — the value is an upsert target.
         builder.HasIndex(e => new { e.MemberId, e.CustomFieldId }).IsUnique().HasFilter("is_deleted = false");
         builder.HasIndex(e => e.MemberId);
     }

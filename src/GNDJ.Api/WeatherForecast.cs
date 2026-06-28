@@ -1,5 +1,6 @@
 namespace GNDJ.Api;
 
+// Default ASP.NET project-template sample model (used only by WeatherForecastController).
 public class WeatherForecast
 {
     public DateOnly Date { get; set; }

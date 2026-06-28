@@ -28,6 +28,8 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 
+// One allowed move target for a member, from the parcours scout: kind 'same' = stay in the branch
+// (équipe/fonction change), kind 'up' = a progression target unit (unité supérieure).
 interface PassageDestination {
   unitId: string
   unitCode: string
@@ -63,6 +65,11 @@ function calculateAge(dob: string | null): number | null {
   return age
 }
 
+// "Passage annuel" — chef d'unité (CU) screen. Lists the CU's active members for the upcoming scout year so
+// the CU can submit a passage line for each: "Pas de changement", "Proposer" a move (équipe/fonction or up
+// to a higher unit via the parcours scout), or "Quitte le groupe". Single + bulk proposals. Only visible
+// while the CG has OPENED the passage process; otherwise shows a closed-state card. CG reviews/finalizes
+// elsewhere. Renders as a card list on mobile, a full table on desktop.
 export default function PassagePage() {
   const { user } = useAuthStore()
   const passageScoutYear = useSettingValue('passage.scout_year') ?? '2026-2027'
@@ -99,11 +106,11 @@ export default function PassagePage() {
   const units = unitsData?.items ?? []
   const roles = rolesData ?? []
 
-  // Teams filtered by selected unit
+  // Teams of the destination unit currently chosen in the propose dialog (only relevant when staying in-unit).
   const { data: teamsData } = useTeams({ unitId: propUnitId || undefined, pageSize: 100 })
   const teams = teamsData?.items ?? []
 
-  // Build member rows with assignment + passage data
+  // Join members with their active assignment (current unit/team/role) and any existing passage proposal.
   const memberRows: MemberRow[] = useMemo(() => {
     const members = membersData?.items ?? []
     const assignments = assignmentsData?.items ?? []
@@ -132,6 +139,7 @@ export default function PassagePage() {
 
   if (isLoading) return <LoadingSpinner variant="table" />
 
+  // Gate: the CU can only act while the CG has opened the passage process for this year.
   if (!passageStatus?.isOpen) {
     return (
       <div className="space-y-6">
@@ -273,6 +281,8 @@ export default function PassagePage() {
     }
   }
 
+  // Colored status pill for a proposal; an approved proposal that keeps the same unit+role reads as
+  // "Pas de changement" rather than "Approuvé".
   const statusBadge = (passage: PassageDto) => {
     if (passage.isLeaving) return <Badge className="bg-orange-600">Quitte le groupe{passage.status === 'Approved' ? ' ✓' : passage.status === 'Rejected' ? ' ✗' : ''}</Badge>
     switch (passage.status) {
@@ -283,6 +293,7 @@ export default function PassagePage() {
     }
   }
 
+  // One-click "Pas de changement": propose keeping the member's current unit/team/role (auto-approved by CG).
   const handleNoChange = async (row: MemberRow) => {
     try {
       await proposeMutation.mutateAsync({
@@ -294,6 +305,7 @@ export default function PassagePage() {
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
+  // One-click "Quitte le groupe": flags the member as leaving; always needs CG review (becomes alumni on finalize).
   const handleLeaving = async (row: MemberRow) => {
     try {
       await proposeMutation.mutateAsync({

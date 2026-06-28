@@ -2,6 +2,8 @@ import { Navigate } from 'react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { RegisterForm } from '@/components/auth/register-form'
 
+// Legacy self-service account registration (kept wired but unused in normal flow —
+// new members come through the applicant inscription portal instead). Anonymous-only.
 export default function RegisterPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// Default ASP.NET project-template sample endpoint — not part of the GNDJ API surface.
 [ApiController]
 [Route("[controller]")]
 public class WeatherForecastController : ControllerBase

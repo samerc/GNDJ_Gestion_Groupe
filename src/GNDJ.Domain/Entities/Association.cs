@@ -2,6 +2,8 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// Top-level org division (e.g. SDL / GDL). Owns Units. A Unit's association is nullable — some units
+// (Maîtrise de Groupe) span both associations and belong to none.
 public class Association : BaseEntity
 {
     public string Name { get; set; } = string.Empty;

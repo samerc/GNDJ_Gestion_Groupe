@@ -1,5 +1,8 @@
 namespace GNDJ.Application.Units.DTOs;
 
+// List-row shape for a unit. AssociationId is nullable: a unit may belong to no association or span
+// both (e.g. Maîtrise de Groupe) — shown as "Inter-associations". Slug/IsPublished/FoundedDate drive
+// the public website.
 public record UnitDto(
     Guid Id,
     string Name,
@@ -17,6 +20,7 @@ public record UnitDto(
     DateOnly? FoundedDate
 );
 
+// Full unit record for the edit/detail view (adds timestamps to UnitDto's fields).
 public record UnitDetailDto(
     Guid Id,
     string Name,

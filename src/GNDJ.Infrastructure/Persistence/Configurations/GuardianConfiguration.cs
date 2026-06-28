@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// Parent/tutor shared across siblings (one guardian links to many members via GuardianLink).
 public class GuardianConfiguration : IEntityTypeConfiguration<Guardian>
 {
     public void Configure(EntityTypeBuilder<Guardian> builder)
@@ -20,6 +21,7 @@ public class GuardianConfiguration : IEntityTypeConfiguration<Guardian>
     }
 }
 
+// Many-to-many join enabling shared guardians + sibling detection between a guardian and a member.
 public class GuardianLinkConfiguration : IEntityTypeConfiguration<GuardianLink>
 {
     public void Configure(EntityTypeBuilder<GuardianLink> builder)
@@ -33,10 +35,12 @@ public class GuardianLinkConfiguration : IEntityTypeConfiguration<GuardianLink>
 
         builder.HasIndex(e => e.GuardianId);
         builder.HasIndex(e => e.MemberId);
+        // The same guardian can't link to the same member twice under the same relationship (dedup on merge).
         builder.HasIndex(e => new { e.GuardianId, e.MemberId, e.RelationshipType }).IsUnique().HasFilter("is_deleted = false");
     }
 }
 
+// Guardian phone numbers (also a dedup lookup key — see the Number index below).
 public class GuardianPhoneConfiguration : IEntityTypeConfiguration<GuardianPhone>
 {
     public void Configure(EntityTypeBuilder<GuardianPhone> builder)
@@ -55,6 +59,7 @@ public class GuardianPhoneConfiguration : IEntityTypeConfiguration<GuardianPhone
     }
 }
 
+// Guardian email addresses (also a dedup lookup key — see the Address index below).
 public class GuardianEmailConfiguration : IEntityTypeConfiguration<GuardianEmail>
 {
     public void Configure(EntityTypeBuilder<GuardianEmail> builder)

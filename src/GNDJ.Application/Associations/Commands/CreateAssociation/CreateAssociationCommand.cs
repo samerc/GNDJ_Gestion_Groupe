@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Associations.Commands.CreateAssociation;
 
+// Create an association. Code must be unique (checked in the handler).
 public record CreateAssociationCommand(string Name, string Code, string? Description) : IRequest<Result<Guid>>;
 
 public class CreateAssociationCommandValidator : AbstractValidator<CreateAssociationCommand>

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Teams.Commands.UpdateTeam;
 
+// Update a team. Unit-scoped on the team's current unit; name stays unique within the unit.
 public record UpdateTeamCommand(
     Guid Id, string Name, Guid UnitId, string? Description,
     string? Totem, string? Adjective, string? Color1, string? Color2, int DisplayOrder, bool IsMaitrise

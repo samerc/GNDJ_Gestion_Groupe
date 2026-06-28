@@ -1,3 +1,7 @@
+// Dialog that exports the unit member list as a spreadsheet (Excel .xlsx via ClosedXML, or UTF-8 CSV).
+// Opened from the CU dashboard / admin members page. Grouped column picker (name always forced on) plus
+// a format radio; optionally scoped to a single team via teamId. Calls the report API and downloads the
+// returned blob with the matching MIME type / extension.
 import { useState } from 'react'
 import { generateExport } from '@/services/report-service'
 import { useSettingValue } from '@/services/settings-service'
@@ -63,6 +67,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
   },
 ]
 
+// Columns ticked when the dialog first opens (a sensible subset, not every column).
 const DEFAULT_SELECTED = new Set(['name', 'cardNumber', 'age', 'phone', 'email', 'role', 'team'])
 
 export function ExportDialog({ unitId, unitName, teamId, open, onOpenChange }: Props) {
@@ -96,6 +101,7 @@ export function ExportDialog({ unitId, unitName, teamId, open, onOpenChange }: P
         columns: Array.from(selectedCols),
         format,
       })
+      // Pick extension + MIME from the chosen format, then download the blob via a temporary anchor.
       const ext = format === 'csv' ? 'csv' : 'xlsx'
       const contentType = format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       const blob = new Blob([response.data], { type: contentType })

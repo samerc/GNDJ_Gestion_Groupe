@@ -1,5 +1,6 @@
 namespace GNDJ.Application.Members.DTOs;
 
+// Row in the members list (PrimaryEmail/Phone are withheld — null — in the alumni view).
 public record MemberListDto(
     Guid Id,
     string FirstName,
@@ -18,6 +19,7 @@ public record MemberListDto(
     string? FatherName
 );
 
+// Full member profile incl. contact collections (phones/emails/addresses), primary-first.
 public record MemberDetailDto(
     Guid Id,
     string FirstName,

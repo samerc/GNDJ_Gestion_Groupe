@@ -2,6 +2,8 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
+// A reusable saved report definition (which columns/format) the CG creates and a CU generates — e.g. a
+// roster or export preset. ColumnsJson is the ordered list of column keys to include.
 public class ReportTemplate : BaseEntity
 {
     public string Name { get; set; } = string.Empty;

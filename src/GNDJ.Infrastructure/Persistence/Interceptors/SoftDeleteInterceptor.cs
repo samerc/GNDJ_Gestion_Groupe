@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace GNDJ.Infrastructure.Persistence.Interceptors;
 
+// Converts a physical delete of any BaseEntity into a soft-delete: flips state Deleted -> Modified and
+// sets IsDeleted/DeletedAt/DeletedBy, so rows are never actually removed (paired with the global
+// IsDeleted query filter in GndjDbContext). Singleton + lazy user resolution, same rationale as the audit interceptor.
 public class SoftDeleteInterceptor : SaveChangesInterceptor
 {
     private readonly ICurrentUserAccessor _currentUserAccessor;

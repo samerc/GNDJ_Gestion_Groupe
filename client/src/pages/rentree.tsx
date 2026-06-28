@@ -40,6 +40,7 @@ function CheckDot({ task, canManage, onToggle }: { task: RentreeTask; canManage:
   )
 }
 
+// Deadline chip: fixed dueDate (formatted) takes precedence over the fuzzy text label; turns red if overdue.
 function Deadline({ task }: { task: RentreeTask }) {
   if (!task.deadlineLabel && !task.dueDate) return null
   return (
@@ -129,6 +130,11 @@ function RollupRow({ r, expanded, onExpand, canManage, onToggle, onEdit, onDelet
   )
 }
 
+// "Rentrée scoute" — scout-year startup checklist, visible to ALL members. Each member sees the tasks
+// assigned to them (round-check to complete; locked while a prerequisite is unfinished). Managers (CG /
+// super-admin, canManage) additionally get: the whole-group view, a per-unit filter, edit/delete per task,
+// generate-from-template, and the "Modèle" editor link. In the whole-group view, per-unit task instances
+// (one per active unit) collapse into a single RollupRow with an X/N progress bar.
 export default function RentreePage() {
   const { user, hasPermission } = useAuthStore()
   const canManage = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.RENTREE_MANAGE)
@@ -161,9 +167,13 @@ export default function RentreePage() {
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], 'fr'))
   }, [tasks])
 
+  // Collapse per-unit duplicates into rollups only in the unfiltered whole-group view; "Mes tâches" and a
+  // single-unit filter show flat rows.
   const rollupMode = !mineOnly && unitFilter === 'all'
 
-  // Build phase → items, rolling up per-unit tasks when in rollup mode.
+  // Build phase → items (preserving first-seen phase order). In rollup mode, per-unit tasks sharing a
+  // templateId collapse into one Rollup (with done/blocked counts); group tasks stay 'single'. A phase's
+  // done count treats a rollup as done only when all its units are done.
   const phases = useMemo(() => {
     let source = tasks ?? []
     if (!mineOnly && unitFilter !== 'all') source = source.filter(t => t.unitId === unitFilter)

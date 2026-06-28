@@ -3,6 +3,7 @@ import { ArrowRight, Compass, Users } from 'lucide-react'
 import { PageHero } from '@/components/public/page-hero'
 import { usePublicUnits, type PublicUnitListItem } from '@/services/public-service'
 
+// Format an age range into a French label, tolerating either bound being absent (returns null if both are).
 function ageLabel(min: number | null, max: number | null) {
   if (min != null && max != null) return `${min} – ${max} ans`
   if (min != null) return `${min} ans et +`
@@ -10,6 +11,7 @@ function ageLabel(min: number | null, max: number | null) {
   return null
 }
 
+// Single unit tile linking to its public detail page.
 function UnitCard({ unit }: { unit: PublicUnitListItem }) {
   const age = ageLabel(unit.ageMin, unit.ageMax)
   return (
@@ -36,6 +38,8 @@ function UnitCard({ unit }: { unit: PublicUnitListItem }) {
   )
 }
 
+// Public units index at `/unites` — anonymous. Lists published units grouped by branch
+// (unit type), each group headed by its colour bar + shared category description.
 export default function PublicUnitsPage() {
   const { data: groups, isLoading, isError } = usePublicUnits()
 

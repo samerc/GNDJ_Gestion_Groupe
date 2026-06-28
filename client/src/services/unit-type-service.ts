@@ -1,3 +1,4 @@
+// Unit-types resource: a branch category (Meute, Troupe, ...) with age range, color, public description. List/CRUD. Queries key on ['unitTypes'].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { PaginatedResult } from '@/types/api'
@@ -27,6 +28,7 @@ export interface UnitTypeFormData {
   publicDescription?: string | null
 }
 
+// Paginated unit-types list (GET /unit-types); optional search. Keyed ['unitTypes', params].
 export function useUnitTypes(params: { search?: string; page?: number; pageSize?: number }) {
   return useQuery({
     queryKey: ['unitTypes', params],
@@ -34,6 +36,7 @@ export function useUnitTypes(params: { search?: string; page?: number; pageSize?
   })
 }
 
+// POST /unit-types; invalidates ['unitTypes'].
 export function useCreateUnitType() {
   const qc = useQueryClient()
   return useMutation({
@@ -42,6 +45,7 @@ export function useCreateUnitType() {
   })
 }
 
+// PUT /unit-types/:id; invalidates ['unitTypes'].
 export function useUpdateUnitType() {
   const qc = useQueryClient()
   return useMutation({
@@ -51,6 +55,7 @@ export function useUpdateUnitType() {
   })
 }
 
+// DELETE /unit-types/:id; invalidates ['unitTypes'].
 export function useDeleteUnitType() {
   const qc = useQueryClient()
   return useMutation({

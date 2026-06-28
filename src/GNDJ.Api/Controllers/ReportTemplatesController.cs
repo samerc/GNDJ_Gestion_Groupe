@@ -6,10 +6,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GNDJ.Api.Controllers;
 
+// CG-defined report templates (CU generates reports from them).
+// Route: api/v1/report-templates. [Authorize] = JWT/API-key.
+// Read is MembersView (CUs list templates); write is AssociationsManage (CG-only).
 [Authorize]
 [Route("api/v1/report-templates")]
 public class ReportTemplatesController : BaseApiController
 {
+    // activeOnly=true → only enabled templates (the CU picker); false → all (admin list).
     [HttpGet]
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> GetAll([FromQuery] bool activeOnly = false)

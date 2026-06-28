@@ -5,11 +5,15 @@ using QuestPDF.Infrastructure;
 
 namespace GNDJ.Infrastructure.Services;
 
+// Generates credit-card-sized member ID cards (QuestPDF). Two modes: a single card on a card-sized
+// page, and a bulk A4 sheet laying out 2×5 = 10 cards with thin cut guides between them for scissors.
+// Card content is configurable via CardSettings (which fields to show + org name).
 public class MemberCardService : IMemberCardService
 {
+    // Card geometry in PDF points (1pt = 1/72"); a standard ID-1 / credit-card face is 85.6×54mm.
     private const float CardWidth = 242; // 85.6mm
     private const float CardHeight = 153; // 53.98mm
-    private const int CardsPerRow = 2;
+    private const int CardsPerRow = 2;    // bulk sheet: 2 cards across × 5 down = 10 per A4 page
     private const int CardsPerCol = 5;
     private const float CutLineMargin = 8;
 
@@ -127,9 +131,10 @@ public class MemberCardService : IMemberCardService
                                     photoCol.Item().Width(45).Height(50).Image(fullPath).FitArea();
                                     photoRendered = true;
                                 }
-                                catch { }
+                                catch { } // corrupt/unreadable image — fall through to the initials placeholder
                             }
                         }
+                        // No usable photo: draw a grey tile with the member's initials instead
                         if (!photoRendered)
                         {
                             var initials = GetInitials(data.MemberName);

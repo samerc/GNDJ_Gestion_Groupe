@@ -11,9 +11,12 @@ import { toast } from 'sonner'
 type Row = { attending: boolean; force: number | null; annee: number | null; isLeaderCandidate: boolean; notes: string }
 type SortKey = 'name' | 'team' | 'annee' | 'force' | 'note'
 
-// CU page: one table to mark who is NOT coming + grade each member (force + année + Père/Mère candidate).
+// Camp BP — CU (chef d'unité) grading page. ONE searchable/sortable table over the CU's own eligible youth:
+// mark who is NOT coming, then grade each member (force + année + Père/Mère candidate + cas particulier).
+// Grades feed the CG's balanced "familles" draft. Unit-scoped server-side. Operates on the single active camp.
 export default function CampPage() {
   const { data: camps, isLoading: loadingCamps } = useCamps()
+  // The one live camp = first non-archived, else most recent.
   const active = useMemo(() => camps?.find(c => !c.isArchived) ?? camps?.[0], [camps])
   const campId = active?.id
   const { data: camp } = useCamp(campId)
@@ -21,11 +24,12 @@ export default function CampPage() {
   const { data: grading, isLoading } = useCampGrading(campId)
   const saveGrades = useSaveCampGrades(campId ?? '')
 
-  const [rows, setRows] = useState<Record<string, Row>>({})
+  const [rows, setRows] = useState<Record<string, Row>>({}) // local edits, keyed by memberId
   const [dirty, setDirty] = useState(false)
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'team', dir: 1 })
 
+  // Seed the editable rows from the server whenever the grading payload (re)loads; clears the dirty flag.
   useEffect(() => {
     if (!grading) return
     const m: Record<string, Row> = {}
@@ -33,6 +37,9 @@ export default function CampPage() {
     setRows(m); setDirty(false)
   }, [grading])
 
+  // The camp's customizable note formula: Note = ForceCoef×Force + multiplier(branche)×Année + Offset.
+  // The per-branch multiplier defaults to the unit type's NumberOfYears (Troupe 5 > Meute 3, etc.) so a
+  // higher branch outscores a lower one at the same Année without cumulating. Null until force+année set.
   const noteOf = (branche: string | null, force: number | null, annee: number | null) => {
     if (!camp || force == null || annee == null) return null
     const mult = camp.branchMultipliers.find(b => b.unitTypeName === branche)?.multiplier ?? 5
@@ -43,6 +50,8 @@ export default function CampPage() {
     setRows(r => ({ ...r, [mid]: { ...r[mid], ...patch } })); setDirty(true)
   }
 
+  // Save is member-keyed: send a row for every member in scope (fall back to defaults for any untouched
+  // one), so attendance + grade are upserted together server-side.
   const save = async () => {
     try {
       await saveGrades.mutateAsync((grading ?? []).map(g => {
@@ -55,6 +64,8 @@ export default function CampPage() {
 
   const toggleSort = (key: SortKey) => setSort(s => s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 })
 
+  // Search-filtered + sorted view. Sort reads the LIVE edited values (rows) for annee/force/note so the
+  // table reorders as you grade; ties break by name. (camp dep is needed for noteOf inside val.)
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase()
     let list = (grading ?? [])

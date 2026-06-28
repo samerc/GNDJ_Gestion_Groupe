@@ -10,6 +10,10 @@ using System.Text.Json;
 
 namespace GNDJ.Api.Controllers;
 
+// Member document upload / download / review + CU compliance matrix and zip export.
+// Route: api/v1/documents. [Authorize] = JWT/API-key. Mixed auth model: read/upload/download
+// actions have NO permission attribute (members act on their own docs; handlers enforce
+// unit-scope for leaders), while review/delete/matrix use the Documents* permission family.
 [Authorize]
 [Route("api/v1/documents")]
 public class DocumentsController : BaseApiController
@@ -127,6 +131,7 @@ public class DocumentsController : BaseApiController
         var doc = await Mediator.Send(new GetDocumentFileQuery(id));
         if (doc is null) return NotFound(new { error = "Document introuvable." });
 
+        // Path-traversal guard: resolved path must stay under the uploads root.
         var uploadsRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "uploads"));
         var fullPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), doc.FilePath));
         if (!fullPath.StartsWith(uploadsRoot) || !System.IO.File.Exists(fullPath))
@@ -163,6 +168,7 @@ public class DocumentsController : BaseApiController
         return Ok(result);
     }
 
+    // CU compliance matrix: members x doc types (+ cotisation) for the scout year.
     [HttpGet("unit/{unitId:guid}/matrix")]
     [HasPermission(Permissions.DocumentsView)]
     public async Task<IActionResult> GetUnitMatrix(Guid unitId, [FromQuery] string scoutYear = "2025-2026")
@@ -172,6 +178,8 @@ public class DocumentsController : BaseApiController
         return Ok(result.Value);
     }
 
+    // Streams a zip of the unit's documents (optionally filtered by doc type), organized into
+    // MemberName/DocTypeName folders. Each file re-checked against the uploads root (traversal guard).
     [HttpGet("unit/{unitId:guid}/zip")]
     [HasPermission(Permissions.DocumentsView)]
     public async Task<IActionResult> DownloadZip(Guid unitId, [FromQuery] Guid? docTypeId)

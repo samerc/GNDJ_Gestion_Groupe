@@ -1,3 +1,7 @@
+// Admin CRUD screen for Unit Types / branches (super-admin) — e.g. Meute, Troupe, Compagnie.
+// Configures the per-branch attributes used app-wide: numberOfYears (also the Camp BP note multiplier),
+// ageMin/ageMax (passage age hints), a UNIQUE color (used in functions list + diagrams), and the public
+// site description. Rows navigate to the detail page (functions/stages/badges); edit/delete are inline.
 import { parseApiError } from '@/lib/error-utils'
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router'
@@ -33,6 +37,7 @@ export default function UnitTypesPage() {
   const updateMutation = useUpdateUnitType()
   const deleteMutation = useDeleteUnitType()
 
+  // Latch so the search box survives a 0-result filter (see associations.tsx).
   if (data && data.totalCount > 0) hasLoadedOnce.current = true
   const showSearch = hasLoadedOnce.current || (data && data.totalCount > 0)
 
@@ -129,6 +134,7 @@ export default function UnitTypesPage() {
               </TableHeader>
               <TableBody>
                 {data.items.map((item) => (
+                  // Whole row opens the detail page; the action cell stops propagation so its buttons don't navigate
                   <TableRow key={item.id} className="cursor-pointer" onClick={() => navigate(`/admin/unit-types/${item.id}`)}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">

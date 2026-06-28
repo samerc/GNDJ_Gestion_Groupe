@@ -1,3 +1,8 @@
+// Standalone member detail page (route /members/:id), distinct from the master/detail panel in index.tsx.
+// Audience: admin / CG / CU with members.edit. Tabbed (Profil / Contact / Unités / Famille / Médical /
+// Documents / Cotisations). Profil+Médical share one inline edit mode (the top "Modifier" button); the
+// Contact tab manages phones/emails/addresses via their own add+edit+delete dialogs (separate mutations).
+// The "Réinitialiser le mot de passe" action (members.edit only) returns one-time temp credentials.
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
@@ -65,7 +70,7 @@ export default function MemberDetailPage() {
   const [emailForm, setEmailForm] = useState({ address: '', type: 'Personnel', isPrimary: false, isEmergency: false })
   const [addressForm, setAddressForm] = useState({ type: 'Domicile', country: '', city: '', details: '', isPrimary: false })
 
-  // Contact editing state
+  // Contact editing state — the "editing<X>" entity (non-null = its edit dialog open) plus its draft form.
   const [editingPhone, setEditingPhone] = useState<MemberPhoneDto | null>(null)
   const [editPhoneForm, setEditPhoneForm] = useState({ countryCode: '', number: '', type: '', isPrimary: false, isEmergency: false })
   const [editingEmail, setEditingEmail] = useState<MemberEmailDto | null>(null)
@@ -128,6 +133,8 @@ export default function MemberDetailPage() {
     setEditing(true)
   }
 
+  // Save Profil + Médical together (one form covers both tabs). Required-field guard before the API call;
+  // empty strings are sent as null since the backend treats them as cleared values.
   const handleSave = async () => {
     setError('')
     const missing: string[] = []
@@ -275,6 +282,8 @@ export default function MemberDetailPage() {
                   </div>
                   <div className="space-y-2">
                     <RequiredLabel required>École</RequiredLabel>
+                    {/* School is a managed list + "Autre..." free-text escape; on blur matchSchool snaps
+                        a typed name onto a canonical entry (accent/case-insensitive) to avoid duplicates. */}
                     {(() => {
                       const isOtherSchool = form.school ? !schools.includes(form.school) : false
                       return (

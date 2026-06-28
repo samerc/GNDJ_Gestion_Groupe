@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GNDJ.Infrastructure.Persistence.Configurations;
 
+// Isolated public-enrollment account (own JWT, never a User/Member) owning a household's demandes.
 public class ApplicantAccountConfiguration : IEntityTypeConfiguration<ApplicantAccount>
 {
     public void Configure(EntityTypeBuilder<ApplicantAccount> builder)
@@ -23,6 +24,7 @@ public class ApplicantAccountConfiguration : IEntityTypeConfiguration<ApplicantA
         builder.HasIndex(e => e.Email).IsUnique().HasFilter("is_deleted = false");
         builder.HasIndex(e => e.RefreshToken);
 
+        // Household sub-records (shared parents, scout relations, demandes) die with the account.
         builder.HasMany(e => e.Guardians).WithOne(g => g.ApplicantAccount)
             .HasForeignKey(g => g.ApplicantAccountId).OnDelete(DeleteBehavior.Cascade);
         builder.HasMany(e => e.ScoutRelations).WithOne(r => r.ApplicantAccount)
