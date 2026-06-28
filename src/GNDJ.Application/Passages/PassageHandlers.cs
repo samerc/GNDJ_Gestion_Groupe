@@ -445,16 +445,34 @@ public class BulkProposePassageCommandHandler(IApplicationDbContext context, ICu
         int count = 0;
         var errors = new List<string>();
 
-        foreach (var memberId in request.MemberIds)
-        {
-            var assignment = await context.MemberAssignments
-                .Where(a => a.MemberId == memberId && a.EndDate == null)
-                .FirstOrDefaultAsync(ct);
+        var memberIds = request.MemberIds.Distinct().ToList();
 
-            if (assignment is null)
+        // Batch-load the three things the loop needs (active assignment, any existing passage, member name
+        // for the error path) in three queries total instead of three PER member. Tracked (no AsNoTracking)
+        // because existing passages are mutated below and persisted on SaveChanges.
+        var assignmentByMember = (await context.MemberAssignments
+                .Where(a => a.EndDate == null && memberIds.Contains(a.MemberId))
+                .ToListAsync(ct))
+            .GroupBy(a => a.MemberId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var existingByMember = (await context.Passages
+                .Where(p => p.ScoutYear == request.ScoutYear && memberIds.Contains(p.MemberId))
+                .ToListAsync(ct))
+            .GroupBy(p => p.MemberId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var memberNames = await context.Members
+            .Where(m => memberIds.Contains(m.Id))
+            .Select(m => new { m.Id, m.FirstName, m.LastName })
+            .ToDictionaryAsync(m => m.Id, m => $"{m.FirstName} {m.LastName}", ct);
+
+        foreach (var memberId in memberIds)
+        {
+            if (!assignmentByMember.TryGetValue(memberId, out var assignment))
             {
-                var member = await context.Members.FindAsync([memberId], ct);
-                errors.Add($"{member?.FirstName} {member?.LastName}: pas d'affectation active.");
+                memberNames.TryGetValue(memberId, out var memberName);
+                errors.Add($"{memberName}: pas d'affectation active.");
                 continue;
             }
 
@@ -464,8 +482,7 @@ public class BulkProposePassageCommandHandler(IApplicationDbContext context, ICu
                 continue;
             }
 
-            var existing = await context.Passages
-                .FirstOrDefaultAsync(p => p.MemberId == memberId && p.ScoutYear == request.ScoutYear, ct);
+            var existing = existingByMember.GetValueOrDefault(memberId);
 
             var isNoChange = request.ProposedUnitId == assignment.UnitId
                 && request.ProposedTeamId == assignment.TeamId
@@ -709,16 +726,23 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
 
         var passages = await query.ToListAsync(ct);
 
+        // Batch-load every affected member's active assignment in ONE query instead of one per passage.
+        // This runs inside the advisory-lock transaction, so collapsing N round-trips to 1 directly shortens
+        // how long the lock is held (was the per-passage query at the top of the loop). Tracked (no
+        // AsNoTracking) so the EndDate mutation below persists on SaveChanges.
+        var memberIds = passages.Select(p => p.MemberId).ToList();
+        var activeByMember = (await context.MemberAssignments
+                .Where(a => a.EndDate == null && memberIds.Contains(a.MemberId))
+                .ToListAsync(ct))
+            .GroupBy(a => a.MemberId)
+            .ToDictionary(g => g.Key, g => g.First());
+
         int count = 0;
 
         foreach (var passage in passages)
         {
             // End the member's current active assignment
-            var activeAssignment = await context.MemberAssignments
-                .Where(a => a.MemberId == passage.MemberId && a.EndDate == null)
-                .FirstOrDefaultAsync(ct);
-
-            if (activeAssignment is not null)
+            if (activeByMember.TryGetValue(passage.MemberId, out var activeAssignment))
             {
                 activeAssignment.EndDate = passageDate;
             }

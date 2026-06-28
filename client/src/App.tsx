@@ -1,70 +1,78 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { AdminRoute } from '@/components/auth/admin-route'
 import { PermissionRoute } from '@/components/auth/permission-route'
 import { PERMISSIONS } from '@/lib/constants'
-import MaitrisesPage from '@/pages/maitrises'
-import GroupAccessPage from '@/pages/admin/group-access'
-import CitiesAdminPage from '@/pages/admin/cities'
-import CampPage from '@/pages/camp'
-import CampsAdminPage from '@/pages/admin/camps'
-import CampDetailPage from '@/pages/admin/camp-detail'
-import RentreePage from '@/pages/rentree'
-import RentreeTemplatePage from '@/pages/admin/rentree-template'
 import { AppLayout } from '@/components/layout/app-layout'
 import { PublicLayout } from '@/components/public/public-layout'
-import PublicHomePage from '@/pages/public/home'
-import PublicUnitsPage from '@/pages/public/units'
-import PublicUnitDetailPage from '@/pages/public/unit-detail'
-import PublicNewsPage from '@/pages/public/news'
-import PublicNewsArticlePage from '@/pages/public/news-article'
-import PublicStandalonePage from '@/pages/public/page'
-import PublicContactPage from '@/pages/public/contact'
-import LoginPage from '@/pages/login'
-import DashboardPage from '@/pages/dashboard'
-import MyProfilePage from '@/pages/my-profile'
-import AssociationsPage from '@/pages/admin/associations'
-import UnitTypesPage from '@/pages/admin/unit-types'
-import UnitTypeDetailPage from '@/pages/admin/unit-type-detail'
-import RolesPage from '@/pages/admin/roles'
-import SettingsPage from '@/pages/admin/settings'
-import DocumentTypesPage from '@/pages/admin/document-types'
-import AuditLogsPage from '@/pages/admin/audit-logs'
-import SecurityProfilesPage from '@/pages/admin/security-profiles'
-import ProgressionPage from '@/pages/admin/progression'
-import UnitsPage from '@/pages/units/index'
-import UnitDetailPage from '@/pages/units/detail'
-import MembersPage from '@/pages/members/index'
-import UnitDocumentsPage from '@/pages/unit-documents'
-import PassagePage from '@/pages/passage'
-import PhotoSessionPage from '@/pages/photo-session'
-import PassageValidationPage from '@/pages/admin/passage-validation'
-import ApiKeysPage from '@/pages/admin/api-keys'
-import CustomFieldsPage from '@/pages/admin/custom-fields'
-import CardDesignerPage from '@/pages/admin/card-designer'
-import EmailSettingsPage from '@/pages/admin/email-settings'
-import MyDocumentsPage from '@/pages/my-documents'
-import CotisationDashboardPage from '@/pages/admin/cotisation-dashboard'
-import ReportTemplatesPage from '@/pages/admin/report-templates'
-import ProgressionPathPage from '@/pages/admin/progression-path'
-import ForgotPasswordPage from '@/pages/forgot-password'
-import ResetPasswordPage from '@/pages/reset-password'
 import { ApplicantProtectedRoute } from '@/components/applicant/applicant-protected-route'
-import InscriptionLandingPage from '@/pages/inscription/index'
-import ApplicantLoginPage from '@/pages/inscription/login'
-import ApplicantRegisterPage from '@/pages/inscription/register'
-import ApplicantVerifyPage from '@/pages/inscription/verify'
-import ApplicantPortalPage from '@/pages/inscription/portail'
-import DemandeWizardPage from '@/pages/inscription/demande-wizard'
-import DemandeValidationPage from '@/pages/admin/demande-validation'
-import DemandeStatsPage from '@/pages/admin/demande-stats'
-import AdminNewsPage from '@/pages/admin/news'
-import AdminPagesPage from '@/pages/admin/pages'
-import AdminSiteTextsPage from '@/pages/admin/site-texts'
+import { LoadingSpinner } from '@/components/shared/loading-spinner'
+
+// Pages are lazy-loaded so each route is its own chunk. This keeps heavy, rarely-reached deps
+// (TipTap rich editor, @dnd-kit, dompurify, the camera/photo code) out of the initial bundle —
+// a read-only youth member downloads almost none of the admin code. Route guards + layouts stay
+// static (they're tiny and frame every route).
+const PublicHomePage = lazy(() => import('@/pages/public/home'))
+const PublicUnitsPage = lazy(() => import('@/pages/public/units'))
+const PublicUnitDetailPage = lazy(() => import('@/pages/public/unit-detail'))
+const PublicNewsPage = lazy(() => import('@/pages/public/news'))
+const PublicNewsArticlePage = lazy(() => import('@/pages/public/news-article'))
+const PublicStandalonePage = lazy(() => import('@/pages/public/page'))
+const PublicContactPage = lazy(() => import('@/pages/public/contact'))
+const LoginPage = lazy(() => import('@/pages/login'))
+const ForgotPasswordPage = lazy(() => import('@/pages/forgot-password'))
+const ResetPasswordPage = lazy(() => import('@/pages/reset-password'))
+const InscriptionLandingPage = lazy(() => import('@/pages/inscription/index'))
+const ApplicantLoginPage = lazy(() => import('@/pages/inscription/login'))
+const ApplicantRegisterPage = lazy(() => import('@/pages/inscription/register'))
+const ApplicantVerifyPage = lazy(() => import('@/pages/inscription/verify'))
+const ApplicantPortalPage = lazy(() => import('@/pages/inscription/portail'))
+const DemandeWizardPage = lazy(() => import('@/pages/inscription/demande-wizard'))
+const DashboardPage = lazy(() => import('@/pages/dashboard'))
+const MyProfilePage = lazy(() => import('@/pages/my-profile'))
+const MyDocumentsPage = lazy(() => import('@/pages/my-documents'))
+const UnitsPage = lazy(() => import('@/pages/units/index'))
+const UnitDetailPage = lazy(() => import('@/pages/units/detail'))
+const MembersPage = lazy(() => import('@/pages/members/index'))
+const UnitDocumentsPage = lazy(() => import('@/pages/unit-documents'))
+const PassagePage = lazy(() => import('@/pages/passage'))
+const PhotoSessionPage = lazy(() => import('@/pages/photo-session'))
+const RentreePage = lazy(() => import('@/pages/rentree'))
+const RentreeTemplatePage = lazy(() => import('@/pages/admin/rentree-template'))
+const MaitrisesPage = lazy(() => import('@/pages/maitrises'))
+const CitiesAdminPage = lazy(() => import('@/pages/admin/cities'))
+const CampPage = lazy(() => import('@/pages/camp'))
+const CampsAdminPage = lazy(() => import('@/pages/admin/camps'))
+const CampDetailPage = lazy(() => import('@/pages/admin/camp-detail'))
+const GroupAccessPage = lazy(() => import('@/pages/admin/group-access'))
+const SecurityProfilesPage = lazy(() => import('@/pages/admin/security-profiles'))
+const DemandeValidationPage = lazy(() => import('@/pages/admin/demande-validation'))
+const DemandeStatsPage = lazy(() => import('@/pages/admin/demande-stats'))
+const PassageValidationPage = lazy(() => import('@/pages/admin/passage-validation'))
+const CotisationDashboardPage = lazy(() => import('@/pages/admin/cotisation-dashboard'))
+const ProgressionPage = lazy(() => import('@/pages/admin/progression'))
+const DocumentTypesPage = lazy(() => import('@/pages/admin/document-types'))
+const AdminNewsPage = lazy(() => import('@/pages/admin/news'))
+const AdminPagesPage = lazy(() => import('@/pages/admin/pages'))
+const AdminSiteTextsPage = lazy(() => import('@/pages/admin/site-texts'))
+const AuditLogsPage = lazy(() => import('@/pages/admin/audit-logs'))
+const AssociationsPage = lazy(() => import('@/pages/admin/associations'))
+const UnitTypesPage = lazy(() => import('@/pages/admin/unit-types'))
+const UnitTypeDetailPage = lazy(() => import('@/pages/admin/unit-type-detail'))
+const RolesPage = lazy(() => import('@/pages/admin/roles'))
+const ApiKeysPage = lazy(() => import('@/pages/admin/api-keys'))
+const CustomFieldsPage = lazy(() => import('@/pages/admin/custom-fields'))
+const CardDesignerPage = lazy(() => import('@/pages/admin/card-designer'))
+const EmailSettingsPage = lazy(() => import('@/pages/admin/email-settings'))
+const SettingsPage = lazy(() => import('@/pages/admin/settings'))
+const ReportTemplatesPage = lazy(() => import('@/pages/admin/report-templates'))
+const ProgressionPathPage = lazy(() => import('@/pages/admin/progression-path'))
 
 export default function App() {
   return (
     <BrowserRouter>
+      <Suspense fallback={<div className="flex h-screen items-center justify-center"><LoadingSpinner /></div>}>
       <Routes>
         {/* Public group website (anonymous, modern marketing-style layout) */}
         <Route element={<PublicLayout />}>
@@ -175,6 +183,7 @@ export default function App() {
           </div>
         } />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }

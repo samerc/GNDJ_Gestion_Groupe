@@ -25,7 +25,9 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
   const h = height ?? size
   const [src, setSrc] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [inView, setInView] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const elRef = useRef<HTMLElement | null>(null)
   const uploadMutation = useUploadPhoto(memberId)
 
   const initials = name
@@ -35,8 +37,27 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
     .slice(0, 2)
     .toUpperCase()
 
+  // Lazy-load the photo: only fetch once the avatar scrolls near the viewport. Each photo is an
+  // authenticated blob XHR (so native loading="lazy" can't apply), and pages like photo-session render
+  // a whole unit at once — without this they'd fire a burst of full-res requests on mount. One-shot.
   useEffect(() => {
-    if (!photoPath) {
+    const el = elRef.current
+    if (!el || inView) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting) {
+          setInView(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '200px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [inView])
+
+  useEffect(() => {
+    if (!photoPath || !inView) {
       setSrc(null)
       return
     }
@@ -52,7 +73,7 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
     return () => {
       revoked = true
     }
-  }, [memberId, photoPath, refreshKey])
+  }, [memberId, photoPath, refreshKey, inView])
 
   // Clean up blob URL on unmount or change
   useEffect(() => {
@@ -78,6 +99,7 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
 
   const photoElement = src ? (
     <img
+      ref={el => { elRef.current = el }}
       src={src}
       alt={name}
       className={cn(rounded, 'object-cover', className)}
@@ -85,6 +107,7 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
     />
   ) : (
     <div
+      ref={el => { elRef.current = el }}
       className={cn(
         'flex items-center justify-center bg-primary/10 text-primary font-semibold',
         rounded,

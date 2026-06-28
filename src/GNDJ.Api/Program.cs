@@ -61,7 +61,9 @@ builder.Host.UseSerilog((context, services, configuration) =>
 
 // Infrastructure (EF Core, repositories, JWT auth, services)
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
+// Singleton (not scoped): consumed by the singleton EF interceptors used with the pooled DbContext.
+// It is stateless — it reads the current request's user lazily from the singleton IHttpContextAccessor.
+builder.Services.AddSingleton<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<GNDJ.Api.Services.EmailQueueBackgroundService>();
 
@@ -89,6 +91,11 @@ builder.Services.AddOutputCache(options =>
 
 // Performance: Memory cache for general use
 builder.Services.AddMemoryCache();
+
+// Liveness endpoint (anonymous) — used by the IIS Application Initialization warm-up probe so the app
+// is hot before the first real user, and by uptime monitoring. The EF model is already built during
+// startup (migrate + seed), so this stays a cheap liveness check.
+builder.Services.AddHealthChecks();
 
 // MediatR + FluentValidation
 builder.Services.AddMediator(options => options.ServiceLifetime = ServiceLifetime.Scoped);
@@ -300,7 +307,22 @@ if (!app.Environment.IsDevelopment())
 // Serve the React build (copied into wwwroot at publish time) so the API and SPA share one origin.
 // API routes are matched by controllers first; everything else falls back to the SPA shell below.
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    // Cache policy for the SPA build. Vite emits content-hashed filenames under /assets
+    // (app.<hash>.js, etc.) which can never change content, so cache them for a year and mark
+    // them immutable — this is what lets the browser AND Cloudflare's edge skip revalidation.
+    // Everything else (index.html, favicon, manifest) must be revalidated so a new deploy is
+    // picked up immediately rather than being served from a stale cache.
+    OnPrepareResponse = ctx =>
+    {
+        var path = ctx.Context.Request.Path.Value ?? string.Empty;
+        ctx.Context.Response.Headers.CacheControl =
+            path.StartsWith("/assets/", StringComparison.OrdinalIgnoreCase)
+                ? "public, max-age=31536000, immutable"
+                : "no-cache";
+    },
+});
 
 // ACME HTTP-01 challenge (Let's Encrypt / win-acme): serve the extensionless token files written to the
 // site root's .well-known/acme-challenge. Without this, the SPA fallback below returns index.html for the
@@ -348,6 +370,7 @@ app.UseSerilogRequestLogging(options =>
 app.UseOutputCache();
 app.UseRateLimiter();
 app.UseMiddleware<AbuseDetectionMiddleware>();
+app.MapHealthChecks("/health");
 app.MapControllers();
 
 // SPA client-side routing: any non-API, non-file request returns index.html.

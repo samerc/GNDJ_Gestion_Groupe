@@ -10,6 +10,10 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 5 * 60 * 1000,
       retry: 1,
+      // This is a CRUD admin app, not a live feed — data is refreshed explicitly via mutation
+      // invalidation. Refetching everything on every tab refocus (the library default) just adds
+      // load with no real freshness benefit.
+      refetchOnWindowFocus: false,
     },
   },
 })

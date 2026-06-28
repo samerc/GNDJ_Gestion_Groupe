@@ -62,9 +62,13 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(GndjDbContext).Assembly);
 
-        // Map the Postgres unaccent() function for accent-insensitive search (extension created by migration).
+        // Map the Postgres accent-insensitive search helper. We point at f_unaccent (an IMMUTABLE wrapper
+        // around unaccent(), created by the AddMemberSearchTrgmIndex migration) rather than unaccent() itself,
+        // because unaccent(text) is only STABLE and Postgres refuses to build an index on a non-IMMUTABLE
+        // expression. Mapping the query to f_unaccent makes it match the pg_trgm GIN indexes on
+        // f_unaccent(lower(first_name)) / (last_name), so member search uses the index instead of a seq scan.
         modelBuilder.HasDbFunction(typeof(GNDJ.Application.Common.DbFns).GetMethod(nameof(GNDJ.Application.Common.DbFns.Unaccent))!)
-            .HasName("unaccent");
+            .HasName("f_unaccent");
 
         // Global soft-delete query filters for all BaseEntity types
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())

@@ -3,6 +3,7 @@ using System;
 using GNDJ.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GNDJ.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GndjDbContext))]
-    partial class GndjDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260627225216_AddMemberSearchTrgmIndex")]
+    partial class AddMemberSearchTrgmIndex
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1715,9 +1718,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_guardian_emails");
 
-                    b.HasIndex("Address")
-                        .HasDatabaseName("ix_guardian_emails_address");
-
                     b.HasIndex("GuardianId")
                         .HasDatabaseName("ix_guardian_emails_guardian_id");
 
@@ -1864,9 +1864,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("GuardianId")
                         .HasDatabaseName("ix_guardian_phones_guardian_id");
-
-                    b.HasIndex("Number")
-                        .HasDatabaseName("ix_guardian_phones_number");
 
                     b.ToTable("guardian_phones", (string)null);
                 });

@@ -18,12 +18,17 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        // EF Core interceptors
-        services.AddScoped<AuditableEntityInterceptor>();
-        services.AddScoped<SoftDeleteInterceptor>();
+        // EF Core interceptors — SINGLETON so they can be shared by a POOLED DbContext.
+        // They hold no per-request state: the only dependency is ICurrentUserAccessor, which reads the
+        // current user lazily from IHttpContextAccessor (also singleton) at SaveChanges time. This is what
+        // makes DbContext pooling safe — a pooled context's options (incl. interceptors) are fixed for the
+        // app lifetime, so capturing scoped state here would leak across requests; reading it lazily does not.
+        services.AddSingleton<AuditableEntityInterceptor>();
+        services.AddSingleton<SoftDeleteInterceptor>();
 
-        // Database
-        services.AddDbContext<GndjDbContext>((sp, options) =>
+        // Database — POOLED. AddDbContextPool reuses context instances (skips the model-metadata/change-tracker
+        // wiring per request), a meaningful allocation/GC saving under the 100-150 concurrent-user target.
+        services.AddDbContextPool<GndjDbContext>((sp, options) =>
         {
             var auditInterceptor = sp.GetRequiredService<AuditableEntityInterceptor>();
             var softDeleteInterceptor = sp.GetRequiredService<SoftDeleteInterceptor>();

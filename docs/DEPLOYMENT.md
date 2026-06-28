@@ -314,13 +314,10 @@ deploy time is **static-asset cache headers**.
 - **Settings cache** (5-min refresh) and a general memory cache.
 
 **You should configure at deploy time:**
-1. **SPA static assets** — Vite emits content-hashed filenames (`index-AbC123.js`), so they're immutable
-   and can be cached **forever**, while `index.html` must be revalidated so new deploys are picked up.
-   Add to `client/dist`'s served folder (via a `web.config` in `wwwroot`, or static-file middleware):
-   - `/assets/*` (hashed) → `Cache-Control: public, max-age=31536000, immutable`
-   - `index.html` → `Cache-Control: no-cache` (must-revalidate)
-   This is the single most important caching setting — it makes the app fast **and** avoids users getting
-   a stale shell after an update.
+1. **SPA static assets** — ✅ **now handled in code** (`Program.cs` `UseStaticFiles` `OnPrepareResponse`):
+   `/assets/*` (Vite's content-hashed, immutable files) → `Cache-Control: public, max-age=31536000,
+   immutable`; everything else incl. `index.html` → `no-cache` so new deploys are picked up immediately.
+   No `web.config` static-cache block needed. (Was previously a manual TODO — implemented 2026-06-28.)
 2. **Avoid double compression** — since ASP.NET Core compresses API responses, **disable IIS *dynamic*
    compression** for the app (leave **static** compression on for the SPA's `.js/.css`). Otherwise IIS
    re-compresses already-compressed responses (wasted CPU).
@@ -334,6 +331,44 @@ deploy time is **static-asset cache headers**.
 
 **Net answer:** yes, but it's mostly already handled — just set the static-asset cache headers (immutable
 hashed assets + no-cache `index.html`) and turn off IIS dynamic compression. Everything else is in place.
+
+---
+
+## 9b. Performance tuning (run on the server) ⚡
+
+Three high-impact tuning steps that the app code can't set for you. Run each **once** on the server (the
+profile script is the exception — you re-run it seasonally). All are in `deploy/`.
+
+### 1. IIS app pool — stop cold starts (`deploy/tune-apppool.ps1`)
+IIS defaults kill the worker after **20 min idle** and recycle it every **29 h**; each shutdown forces a
+full cold start (process relaunch + JIT + EF model build + the startup `SeedData` passes), so the next
+visitor waits several seconds. Run as Administrator:
+```powershell
+./deploy/tune-apppool.ps1               # defaults: pool "gndj", site "GNDJ", 03:00 recycle
+```
+It disables the idle time-out, replaces the clock-based recycle with one 3 AM recycle, sets the pool to
+**AlwaysRunning**, and enables **site preload** so the app re-warms itself after a recycle/reboot. Idempotent.
+This is the single biggest user-perceived-latency fix. (Pairs with the `GET /health` warm-up probe.)
+
+### 2. PostgreSQL — seasonal High/Low profile (`deploy/pg-profile.ps1`)
+This box is **shared** with other sites and GNDJ's load is seasonal (Sept–Oct = passage/demandes/rentrée).
+Rather than claiming RAM year-round, toggle a profile:
+```powershell
+./deploy/pg-profile.ps1 -Profile High   # before September: GNDJ gets more cache (shared_buffers 4GB, eff_cache 12GB)
+./deploy/pg-profile.ps1 -Profile Low    # after the rush: conservative, frees RAM for the other sites (1GB / 4GB)
+```
+It writes settings via `ALTER SYSTEM` (your `postgresql.conf` stays untouched) and restarts PostgreSQL
+(asks first — a restart blips **every** DB on the instance). Stock PG18 ships with `shared_buffers=128MB`
+on a 24 GB box, so even the Low profile is a meaningful upgrade. Tune the numbers in the script to how much
+RAM the other sites need. Verify after: `psql -U postgres -c "SHOW shared_buffers;"`.
+
+### 3. Connection pool + IIS compression (manual, once)
+- **Npgsql pool** — the production connection string in `appsettings.Production.json` should pin the pool
+  so a stray tool can't exhaust PostgreSQL: append
+  `;Pooling=true;Minimum Pool Size=10;Maximum Pool Size=50;Connection Idle Lifetime=300`. App max 50 stays
+  well under PG `max_connections=100` (set by the profile script), leaving headroom for `pg_dump`/psql/win-acme.
+- **IIS dynamic compression OFF** for the site (the app already gzip/brotli's API responses); leave **static**
+  compression on. IIS Manager → site → *Compression* → uncheck *dynamic*, keep *static* checked.
 
 ---
 

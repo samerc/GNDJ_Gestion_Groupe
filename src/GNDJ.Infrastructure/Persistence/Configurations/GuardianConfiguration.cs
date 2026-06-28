@@ -49,6 +49,9 @@ public class GuardianPhoneConfiguration : IEntityTypeConfiguration<GuardianPhone
 
         builder.HasOne(e => e.Guardian).WithMany(g => g.Phones).HasForeignKey(e => e.GuardianId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(e => e.GuardianId);
+        // Demande "send responses" + guardian dedup look guardians up by phone number; without this it
+        // seq-scanned ~5k phones per lookup inside the send-batch loop.
+        builder.HasIndex(e => e.Number);
     }
 }
 
@@ -63,5 +66,7 @@ public class GuardianEmailConfiguration : IEntityTypeConfiguration<GuardianEmail
 
         builder.HasOne(e => e.Guardian).WithMany(g => g.Emails).HasForeignKey(e => e.GuardianId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(e => e.GuardianId);
+        // Same as phones: demande send + guardian dedup look guardians up by email address.
+        builder.HasIndex(e => e.Address);
     }
 }

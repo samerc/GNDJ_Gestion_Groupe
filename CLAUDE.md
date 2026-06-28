@@ -999,7 +999,49 @@ but **NOT `units.edit`** (it was dropped), so anything gated on `units.edit` was
   (2) Login/Refresh did 3–5 redundant DB round-trips → one shared `Auth/Common/AuthAccess.LoadAsync`
   (behaviour preserved). `GET /demandes` needs `?scoutYear=` (not a bug).
 
+### Performance optimization pass (2026-06-28)
+Full-stack audit (4 parallel agents: DB/EF, backend API, frontend, infra) + fixes. Core was already healthy
+(compression, per-IP rate limiting, bcrypt gate, prior over-fetch fixes hold). Shipped:
+- **Static-asset cache headers (code):** `Program.cs` `UseStaticFiles` `OnPrepareResponse` → `/assets/*`
+  (Vite content-hashed) `max-age=31536000, immutable`; everything else (incl. index.html) `no-cache`. Was a
+  documented manual TODO never implemented; lets browser + Cloudflare edge skip revalidation. (DEPLOYMENT §9.)
+- **DbContext pooling:** `AddDbContext` → `AddDbContextPool`. Required making the two EF interceptors
+  (Auditable/SoftDelete) + `ICurrentUserAccessor` **singletons** — they're stateless and read the current user
+  lazily from the singleton `IHttpContextAccessor` at SaveChanges time, so pooling is safe. Verified login/
+  refresh (SaveChanges through the audit interceptor) still persist on the pooled context.
+- **Member search index (B4):** search did `unaccent(lower(name)) LIKE '%term%'` = seq scan/keystroke. Added
+  migration `AddMemberSearchTrgmIndex`: `pg_trgm` + an IMMUTABLE `f_unaccent` wrapper (unaccent(text) is only
+  STABLE so can't be indexed) + two GIN trgm indexes on `f_unaccent(lower(first_name/last_name))`. EF DbFunction
+  `DbFns.Unaccent` repointed from `unaccent`→`f_unaccent` so the query matches the index. Verified live: EXPLAIN
+  uses `Bitmap Index Scan on ix_members_firstname_trgm`, accent search ("rhea"→Rhéa) still correct.
+- **N+1 in passage batch ops:** `FinalizePassages` (ran a per-passage assignment query INSIDE the advisory-lock
+  txn) + `BulkProposePassage` (3 queries/member) now batch-load assignments/existing-passages/member-names up
+  front into dicts. Shortens lock-hold time.
+- **Guardian dedup indexes:** migration `AddGuardianContactIndexes` adds btree on `guardian_emails.address` +
+  `guardian_phones.number` — speeds demande "send responses" `FindExistingGuardian` (was seq-scanning ~5k rows
+  per lookup in the send loop) + guardian dedup.
+- **Frontend route code-splitting:** `App.tsx` all ~60 pages `React.lazy` + `Suspense`; `vite.config.ts`
+  `manualChunks` (function form). Result: TipTap (**434 kB/135 kB gz**) is its own `editor-vendor` chunk loaded
+  only by the 3 CMS routes; `dnd-vendor` 58 kB separate; each page an 8–48 kB chunk. Regular users no longer
+  download the editor/admin code.
+- **MemberPhoto lazy-load:** `IntersectionObserver` (200px rootMargin, one-shot) gates the authenticated
+  blob-XHR fetch so only on-screen avatars load — kills the photo-session request storm (was up to ~150
+  full-res fetches on mount).
+- **Misc:** `refetchOnWindowFocus:false` (CRUD app, not a live feed); `GET /health` liveness (for IIS AppInit
+  warm-up + monitoring); email channel `Unbounded`→`Bounded(10_000)` (SMTP-outage memory safety).
+- **Ops scripts (run on server):** `deploy/tune-apppool.ps1` (idle-timeout 0 / no periodic recycle /
+  AlwaysRunning / preload — kills cold starts) and `deploy/pg-profile.ps1 -Profile High|Low` (seasonal PG memory
+  toggle for the **shared** box: High Sept–Oct, Low rest of year; ALTER SYSTEM + restart). DEPLOYMENT §9b.
+- **Evaluated + deliberately SKIPPED:** broad settings-cache refactor (hot paths read no settings; the one
+  frequent reader already batches; batch handlers must read fresh for txn correctness) and frontend bulk-settings
+  (the `GET /settings` list endpoint is admin-only by design — per-key reads stay open to all users). Async
+  Serilog sink deferred (needs a package; PG sink is already Warning+ only).
+- Builds clean (dotnet Release 0 warn, tsc+vite OK), 4 tests pass, live smoke-tested. NOTE: the trgm + guardian
+  migrations apply on next prod startup (idempotent SQL).
+
 ### Remaining / Next
 - [ ] Migration data cleanup: 181 orphans (kept — most are legit alumni), name spacing, GET /photo unit-scope;
       migration tool card-number split for re-import
 - [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies
+- [ ] Perf (optional later): async Serilog file sink (Serilog.Sinks.Async); DbContextCheck on /health; batch the
+      demande-send in-loop unit/role/email lookups (now indexed, so low priority)
