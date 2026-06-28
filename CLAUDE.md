@@ -1041,6 +1041,24 @@ Full-stack audit (4 parallel agents: DB/EF, backend API, frontend, infra) + fixe
 - Builds clean (dotnet Release 0 warn, tsc+vite OK), 4 tests pass, live smoke-tested. NOTE: the trgm + guardian
   migrations apply on next prod startup (idempotent SQL).
 
+### Post-publish polish (2026-06-28)
+- **Mobile UX:** unit-leader dashboard reworked to a true mobile master/detail (full-width list → tap → full
+  detail with a Retour button; single-scroll action bar; desktop split-pane unchanged) + member photos in the
+  roster list (PhotoPath added to the dashboard DTO). Passage page → card list on mobile (desktop table kept).
+  Trombinoscope photo fills a 3:4 box (was letterboxed smaller than the placeholder). Rentrée rollup progress
+  bar stacks under the text on mobile.
+- **Docs consolidation:** merged `INSTALL_GUIDE.md` into a single `docs/DEPLOYMENT.md` (Part I = copy-paste
+  first install, Part II = ops/reference incl. build-the-staging-package + ship paths). Updated all `§`-number
+  refs (CLAUDE.md/.gitignore/publish.ps1/memory) to the new Part numbers.
+- **Project-wide code commenting pass** (comments-only, verified no code removed): role summaries + non-obvious
+  logic notes across Domain/Application/Infrastructure/Api + the whole React frontend; matched existing density,
+  skipped shadcn ui primitives + auto-generated migrations.
+- **Swagger/OpenAPI now complete:** enabled the XML doc file (`GenerateDocumentationFile`, NoWarn 1591;1573 —
+  CS1570 kept on); a Program.cs **operation transformer** derives 400/401/403 from each endpoint's metadata
+  (no per-endpoint clutter); `///` summaries on all 34 controllers + every action (251/251 real endpoints) with
+  required-permission notes, plus `[ProducesResponseType]` for non-systematic 404/201/anonymous-401. Removed the
+  WeatherForecast template leftover. Verified live: spec lists summaries + response codes on every operation.
+
 ### Remaining / Next
 - [ ] Migration data cleanup: 181 orphans (kept — most are legit alumni), name spacing, GET /photo unit-scope;
       migration tool card-number split for re-import
