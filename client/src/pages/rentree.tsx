@@ -102,19 +102,22 @@ function RollupRow({ r, expanded, onExpand, canManage, onToggle, onEdit, onDelet
   const pct = total ? Math.round((r.done / total) * 100) : 0
   return (
     <div className="rounded-lg border">
-      <button type="button" onClick={onExpand} className="flex w-full items-center gap-3 p-3 text-left">
-        <ChevronRight className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-90')} />
-        <div className="min-w-0 flex-1">
-          <p className={cn('text-sm font-medium leading-snug', allDone && 'text-muted-foreground')}>{r.title}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{roleLabel(r.sample.assigneeRole)} · par unité</span>
-            <Deadline task={r.sample} />
-            {r.blocked > 0 && <span className="inline-flex items-center gap-1 text-amber-600"><Lock className="h-3 w-3" />{r.blocked} en attente</span>}
+      <button type="button" onClick={onExpand} className="flex w-full items-start gap-3 p-3 text-left">
+        <ChevronRight className={cn('mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-90')} />
+        {/* Stacks on mobile (progress bar under the text, full width); side-by-side on md+. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-2 md:flex-row md:items-center md:gap-3">
+          <div className="min-w-0 flex-1">
+            <p className={cn('text-sm font-medium leading-snug', allDone && 'text-muted-foreground')}>{r.title}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{roleLabel(r.sample.assigneeRole)} · par unité</span>
+              <Deadline task={r.sample} />
+              {r.blocked > 0 && <span className="inline-flex items-center gap-1 text-amber-600"><Lock className="h-3 w-3" />{r.blocked} en attente</span>}
+            </div>
           </div>
-        </div>
-        <div className="flex w-32 shrink-0 items-center gap-2">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"><div className={cn('h-full rounded-full transition-all', allDone ? 'bg-emerald-500' : 'bg-primary')} style={{ width: `${pct}%` }} /></div>
-          <span className={cn('w-12 text-right text-xs tabular-nums', allDone ? 'text-emerald-600' : 'text-muted-foreground')}>{r.done}/{total}</span>
+          <div className="flex w-full shrink-0 items-center gap-2 md:w-32">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"><div className={cn('h-full rounded-full transition-all', allDone ? 'bg-emerald-500' : 'bg-primary')} style={{ width: `${pct}%` }} /></div>
+            <span className={cn('w-12 text-right text-xs tabular-nums', allDone ? 'text-emerald-600' : 'text-muted-foreground')}>{r.done}/{total}</span>
+          </div>
         </div>
       </button>
       {expanded && (
