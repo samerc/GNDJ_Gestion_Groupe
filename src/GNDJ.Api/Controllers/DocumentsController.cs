@@ -219,7 +219,7 @@ public class DocumentsController : BaseApiController
 
         var files = result.Value!;
         if (files.Count == 0)
-            return BadRequest(new { error = "Aucun document à télécharger." });
+            return BadRequest(new { error = "Aucun document à télécharger dans cette unité pour le moment." });
 
         var uploadsRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "uploads"));
         using var memoryStream = new MemoryStream();

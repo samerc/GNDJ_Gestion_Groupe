@@ -28,3 +28,21 @@ export function parseApiError(err: unknown): string {
 
   return 'Une erreur inattendue est survenue. Veuillez réessayer.'
 }
+
+// Like parseApiError, but for failed BLOB downloads (requests with responseType: 'blob' — zip/PDF/Excel/
+// file downloads). When such a request errors, axios returns the JSON error body as a Blob, so parseApiError
+// can't see the message and falls back to the generic one. This reads the blob back to text, re-parses it as
+// the error payload, and runs it through the normal parser. Use it in the catch of any blob download.
+export async function parseBlobError(err: unknown): Promise<string> {
+  const axiosError = err as AxiosError
+  const data = axiosError.response?.data as unknown
+  if (data instanceof Blob) {
+    try {
+      const json = JSON.parse(await data.text())
+      return parseApiError({ ...axiosError, response: { ...axiosError.response, data: json } } as AxiosError)
+    } catch {
+      // not JSON (e.g. an HTML error page) → fall through to the generic parser
+    }
+  }
+  return parseApiError(err)
+}
