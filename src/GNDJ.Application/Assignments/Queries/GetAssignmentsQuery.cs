@@ -33,10 +33,24 @@ public class GetAssignmentsQueryHandler : IRequestHandler<GetAssignmentsQuery, P
             .Include(a => a.FunctionalRole)
             .AsQueryable();
 
+        // Unit-scoping for non-super-admins. EXCEPTION: when viewing ONE member you're already allowed to
+        // see (your own record, or a member currently active in one of your units — same rule as the member
+        // detail), return their FULL history across ALL units, so a CU sees the member's whole scouting path
+        // (Ronde → Compagnie → …), not just the rows in their own unit. This is not a new data leak: you can
+        // already open that member's profile. For list views (no MemberId), keep strict per-row unit-scoping.
         if (!_currentUser.IsSuperAdmin)
         {
             var authorizedUnitIds = _currentUser.AuthorizedUnitIds;
-            query = query.Where(a => authorizedUnitIds.Contains(a.UnitId));
+
+            var canSeeFullHistory = request.MemberId.HasValue
+                && (_currentUser.MemberId == request.MemberId.Value
+                    || await _context.MemberAssignments.AnyAsync(a =>
+                           a.MemberId == request.MemberId.Value
+                           && a.EndDate == null
+                           && authorizedUnitIds.Contains(a.UnitId), cancellationToken));
+
+            if (!canSeeFullHistory)
+                query = query.Where(a => authorizedUnitIds.Contains(a.UnitId));
         }
 
         if (request.MemberId.HasValue)
