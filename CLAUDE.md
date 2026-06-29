@@ -1151,6 +1151,22 @@ Full-stack audit (4 parallel agents: DB/EF, backend API, frontend, infra) + fixe
   **dev only** so far — prod got an EARLIER snapshot/build. A FINAL prod sync is pending: re-ship the code (for the
   excluded-classe feature) + a fresh `pg_dump`/restore (for the maîtrise + classe data). Held at the user's request.
 
+### Public site — news enrichment (2026-06-29, commit 6f16b49)
+- **Cover images for news** (the latent `NewsPost.CoverImagePath` was a dead stub — never uploaded/shown): now
+  wired end-to-end. Admin news CMS has a cover-image upload (reuses `/content/images`); the public home teaser,
+  `/actualites` cards, and the article header render the cover (branded gradient + Newspaper icon as fallback).
+- **Attachments on news articles:** `NewsPost.AttachmentsJson` (JSON array of `{name,url}`, migration
+  `AddNewsAttachments`) — no child table. New **`/content/files`** upload endpoint (PDF + images, 15 MB,
+  magic-byte validated, content.manage, anonymous serve) mirrors ContentImagesController. Admin CMS: add/remove
+  attachments with an editable label; public article shows a "Pièces jointes" download list. Create/Update commands
+  carry `Attachments` (validated: ≤20, name ≤200 NoHtml, url ≤500); read queries deserialize in memory (EF can't
+  run JsonSerializer in a projection).
+- **`/actualites` featured lead + tag filter:** page 1 shows the newest post as a wide featured card; a chip bar
+  filters **Tout / Le groupe / <each branch>**. `GetPublicNewsQuery` gained `GroupOnly` + `UnitTypeId` (a
+  Unit-tagged post rolls up to its unit's branch); `PublicUnitGroupDto` gained `UnitTypeId` so the page builds the
+  branch chips from `usePublicUnits()`. Builds clean (dotnet Release + tsc).
+- NOTE: the `AddNewsAttachments` migration is applied on dev; it reaches prod with the pending deploy / dump.
+
 ### Remaining / Next
 - [ ] **Final prod sync (after the above):** re-ship `main` (excluded-classe feature) + fresh `pg_dump` of dev →
       restore prod (carries the maîtrise-team + classe-promotion + section-clear data fixes). Dev dump so far:
