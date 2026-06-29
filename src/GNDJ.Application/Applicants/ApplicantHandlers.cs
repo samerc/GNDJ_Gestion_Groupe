@@ -402,14 +402,41 @@ public class SaveApplicantHouseholdCommandHandler(IApplicationDbContext context,
 
         var existingRelations = await context.ApplicantScoutRelations.Where(r => r.ApplicantAccountId == id).ToListAsync(ct);
         context.ApplicantScoutRelations.RemoveRange(existingRelations);
+
+        // Active members (by name + unit) — used to auto-link a "current member" relative to the real member
+        // record when there's a single confident match. Ambiguous/no match leaves RelatedMemberId null for
+        // the CG to resolve. No public member search is exposed; the applicant only typed a name + unit.
+        var activeMembers = await context.MemberAssignments
+            .Where(a => a.EndDate == null && !a.IsDeleted)
+            .Select(a => new { a.MemberId, a.Member.FirstName, a.Member.LastName, UnitName = a.Unit.Name })
+            .ToListAsync(ct);
+        static string NormName(string? s) => string.IsNullOrWhiteSpace(s) ? "" : new string(
+            s.Trim().ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD)
+             .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
+             .ToArray());
+
         foreach (var r in request.ScoutRelations.Where(r => !string.IsNullOrWhiteSpace(r.FirstName) || !string.IsNullOrWhiteSpace(r.LastName) || r.RelatedMemberId.HasValue))
         {
+            var relatedId = r.RelatedMemberId;
+            if (relatedId is null && r.Status == "CurrentInGroup" && !string.IsNullOrWhiteSpace(r.FirstName) && !string.IsNullOrWhiteSpace(r.LastName))
+            {
+                string nf = NormName(r.FirstName), nl = NormName(r.LastName);
+                var matches = activeMembers.Where(m => NormName(m.FirstName) == nf && NormName(m.LastName) == nl).ToList();
+                // Narrow by the chosen unit only when that disambiguates (keeps a single name-match otherwise).
+                if (matches.Count > 1 && !string.IsNullOrWhiteSpace(r.LastUnit))
+                {
+                    var byUnit = matches.Where(m => NormName(m.UnitName) == NormName(r.LastUnit)).ToList();
+                    if (byUnit.Count > 0) matches = byUnit;
+                }
+                if (matches.Count == 1) relatedId = matches[0].MemberId; // confident single match → link it
+            }
+
             context.ApplicantScoutRelations.Add(new ApplicantScoutRelation
             {
                 ApplicantAccountId = id.Value,
                 Status = r.Status,
                 Relationship = r.Relationship,
-                RelatedMemberId = r.RelatedMemberId,
+                RelatedMemberId = relatedId,
                 FirstName = r.FirstName,
                 LastName = r.LastName,
                 LastUnit = r.LastUnit,
