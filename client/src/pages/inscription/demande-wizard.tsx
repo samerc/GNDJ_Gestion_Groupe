@@ -260,10 +260,14 @@ export default function DemandeWizardPage() {
                   {(config?.classes?.length ?? 0) > 0 ? (
                     <Select value={child.classe ?? ''} onValueChange={(v) => setC({ classe: v })}>
                       <SelectTrigger className={errors.classe ? 'border-destructive' : ''}><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                      <SelectContent>{(config?.classes ?? []).map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                      {/* Exclude the non-eligible grade (default 6ème, from demande.excluded_classe) from the options. */}
+                      <SelectContent>{(config?.classes ?? []).filter((c) => c !== config?.excludedClasse).map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                     </Select>
                   ) : (
                     <Input value={child.classe ?? ''} onChange={(e) => setC({ classe: e.target.value })} className={errors.classe ? 'border-destructive' : ''} />
+                  )}
+                  {config?.excludedClasse && (
+                    <p className="mt-1 text-xs text-muted-foreground">Un enfant en {config.excludedClasse} ne peut pas s'inscrire.</p>
                   )}
                 </Field>
                 <Field label="Section"><Input value={child.section ?? ''} onChange={(e) => setC({ section: e.target.value })} maxLength={5} /></Field>

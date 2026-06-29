@@ -18,6 +18,7 @@ export interface ApplicantConfig {
   maxScoutRelations: number
   professionDomains: string[]
   terms: string | null  // terms & conditions the applicant must accept before submitting (empty = none)
+  excludedClasse: string | null  // a grade that cannot enroll (default 6ème): hidden from the classe dropdown + rejected at submit (empty = none)
 }
 
 export interface ApplicantGuardian {

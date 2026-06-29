@@ -26,7 +26,9 @@ public record ApplicantAuthDto(Guid AccountId, string Email, bool EmailVerified,
 
 public record ApplicantConfigDto(bool IsOpen, string ScoutYear, int MaxPerAccount, int NotesMaxLength, bool RequireEmailVerification, string? IntroText,
     IReadOnlyList<string> Schools, IReadOnlyList<string> Classes, IReadOnlyList<string> Cities, IReadOnlyList<string> Units, int MaxScoutRelations,
-    IReadOnlyList<string> ProfessionDomains, string? Terms);
+    // ExcludedClasse: a grade that cannot enroll (default 6ème) — hidden from the wizard's classe dropdown
+    // and rejected at submit. Empty/null = no restriction. Editable via the demande.excluded_classe setting.
+    IReadOnlyList<string> ProfessionDomains, string? Terms, string? ExcludedClasse = null);
 
 public record ApplicantGuardianDto(Guid? Id, string Relationship, string FirstName, string LastName, string? Profession, string? ProfessionDomain,
     string? PhoneCountryCode, string? PhoneNumber, string? Email, bool IsDeceased, bool IsPrimaryContact, bool IsEmergencyContact);
@@ -80,7 +82,7 @@ static class ApplicantHelpers
     [
         "demande.enabled", "demande.scout_year", "passage.scout_year", "demande.max_per_account",
         "demande.notes_max_length", "demande.require_email_verification", "demande.intro_text",
-        "demande.max_scout_relations", "demande.terms", "member.schools", "member.classes", "member.cities", "member.profession_domains"
+        "demande.max_scout_relations", "demande.terms", "demande.excluded_classe", "member.schools", "member.classes", "member.cities", "member.profession_domains"
     ];
 
     // Absolute safety cap enforced by SaveApplicantHouseholdCommandValidator regardless of the configurable
@@ -102,6 +104,7 @@ static class ApplicantHelpers
         var requireVerify = Get("demande.require_email_verification") != "false";
         var intro = Get("demande.intro_text");
         var terms = Get("demande.terms");
+        var excludedClasse = Get("demande.excluded_classe");
 
         static IReadOnlyList<string> ParseJsonArray(string? raw)
         {
@@ -118,7 +121,7 @@ static class ApplicantHelpers
         // indicate which unit a current-member relative belongs to, easing family matching for the CG.
         var units = await ctx.Units.Where(u => u.IsActive).OrderBy(u => u.Name).Select(u => u.Name).ToListAsync(ct);
 
-        return new ApplicantConfigDto(enabled, year, max, notesLen, requireVerify, intro, schools, classes, cities, units, maxRelations, professionDomains, terms);
+        return new ApplicantConfigDto(enabled, year, max, notesLen, requireVerify, intro, schools, classes, cities, units, maxRelations, professionDomains, terms, excludedClasse);
     }
 
     public static DemandeDto ToDto(Demande d) => new(
@@ -603,6 +606,12 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
         if (string.IsNullOrWhiteSpace(demande.Classe)) missing.Add("classe");
         if (missing.Count > 0)
             return Result<bool>.Failure($"Informations manquantes : {string.Join(", ", missing)}.");
+
+        // Enrolment cut-off: a configured grade (default 6ème) cannot submit. The wizard already hides it
+        // from the dropdown; this rejects a crafted submission too (defense-in-depth).
+        if (!string.IsNullOrWhiteSpace(config.ExcludedClasse) &&
+            string.Equals(demande.Classe?.Trim(), config.ExcludedClasse.Trim(), StringComparison.OrdinalIgnoreCase))
+            return Result<bool>.Failure($"Un enfant en {config.ExcludedClasse} ne peut pas s'inscrire.");
 
         var hasGuardian = await context.ApplicantGuardians.AnyAsync(g => g.ApplicantAccountId == id, ct);
         if (!hasGuardian)
