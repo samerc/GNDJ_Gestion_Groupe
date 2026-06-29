@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { CitySelect } from '@/components/shared/city-select'
 import { DateInput } from '@/components/shared/date-input'
-import { NATIONALITY_OPTIONS, PROFESSION_OPTIONS } from '@/lib/options'
+import { NATIONALITY_OPTIONS } from '@/lib/options'
 import { matchSchool } from '@/services/settings-service'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { cn } from '@/lib/utils'
@@ -317,7 +317,7 @@ export default function DemandeWizardPage() {
                       <SearchableSelect value={g.professionDomain ?? ''} onValueChange={(v) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, professionDomain: v } : x))} options={(config?.professionDomains ?? []).map((d) => ({ value: d, label: d }))} placeholder="Domaine d'activité..." searchPlaceholder="Rechercher un domaine..." />
                     </Field>
                     <Field label="Profession (texte libre)">
-                      <SearchableSelect value={g.profession ?? ''} onValueChange={(v) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, profession: v } : x))} options={PROFESSION_OPTIONS} searchPlaceholder="Rechercher une profession..." />
+                      <Input value={g.profession ?? ''} maxLength={150} placeholder="Profession (ex. Ingénieure)" onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, profession: e.target.value } : x))} />
                     </Field>
                     <Field label="Téléphone"><Input value={g.phoneNumber ?? ''} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, phoneNumber: e.target.value } : x))} /></Field>
                     <Field label="Email" error={errors[`g_${i}_email`]}>
