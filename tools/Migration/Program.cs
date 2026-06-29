@@ -196,9 +196,11 @@ if (!reuseOrg) for (int r = 2; r <= wsRoles.LastRowUsed()!.RowNumber(); r++)
         : isMaitrise ? leaderProfileId : memberProfileId;
     Guid? utId = unitTypeIdMap.GetValueOrDefault(utCode);
 
-    await Exec(conn, @"INSERT INTO functional_roles (id, name, code, description, security_profile_id, unit_type_id, created_at, updated_at, is_deleted)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $7, false) ON CONFLICT DO NOTHING",
-        id, name, code, (string?)null, profileId, utId == Guid.Empty ? null : utId, now);
+    // is_maitrise (from the source NOMFONCTION flag) marks leadership functions — used below to keep a
+    // leader off a youth sizaine, and at runtime for the Maîtrises page / public maîtrise display.
+    await Exec(conn, @"INSERT INTO functional_roles (id, name, code, description, security_profile_id, unit_type_id, is_maitrise, created_at, updated_at, is_deleted)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, false) ON CONFLICT DO NOTHING",
+        id, name, code, (string?)null, profileId, utId == Guid.Empty ? null : utId, isMaitrise, now);
     roleCount++;
 }
 Console.WriteLine($"OK ({roleCount})");
@@ -545,6 +547,18 @@ int autoTeamCount = 0;
 int skippedJunk = 0;
 var importToday = DateOnly.FromDateTime(DateTime.Today);
 
+// Maîtrise (leadership) roles must never sit on a youth sizaine/équipe. The WEBDEV TOTEM and the BP
+// roster carry the leader's former youth team, which made e.g. an "Assistante de Compagnie" appear
+// inside "Aquila". Load (a) which functional roles are maîtrise and (b) each unit's Maîtrise team, so a
+// leader's assignment is routed to the unit's Maîtrise team (or no team if it has none) instead of the
+// youth totem. (Live DB fixed 2026-06-29; this stops a re-import from reintroducing the inconsistency.)
+var maitriseRoleIds = new HashSet<Guid>();
+await using (var mcRoles = new NpgsqlCommand("SELECT id FROM functional_roles WHERE COALESCE(is_maitrise,false)=true AND is_deleted=false", conn))
+{ await using var rdRoles = await mcRoles.ExecuteReaderAsync(); while (await rdRoles.ReadAsync()) maitriseRoleIds.Add(rdRoles.GetGuid(0)); }
+var unitMaitriseTeam = new Dictionary<Guid, Guid>();
+await using (var mcTeams = new NpgsqlCommand("SELECT unit_id, id FROM teams WHERE COALESCE(is_maitrise,false)=true AND is_deleted=false", conn))
+{ await using var rdTeams = await mcTeams.ExecuteReaderAsync(); while (await rdTeams.ReadAsync()) unitMaitriseTeam[rdTeams.GetGuid(0)] = rdTeams.GetGuid(1); }
+
 // Read every UniteFonc row first, then process GROUPED BY MEMBER. Grouping lets us handle the common
 // WEBDEV quirk where a historical function (EnCours = 0) has a real DATEDEB but a BLANK DATEFIN: rather
 // than collapsing it to a zero-day record, we carry its end forward to the START of the member's NEXT
@@ -582,7 +596,12 @@ foreach (var grp in assignRows.GroupBy(x => x.OldMember))
         if (roleId == Guid.Empty) continue;
 
         Guid? teamId = null;
-        if (!string.IsNullOrWhiteSpace(row.Totem) && row.Totem != "--" && row.Totem != "-")
+        if (maitriseRoleIds.Contains(roleId))
+        {
+            // Leader → the unit's Maîtrise team (never a youth sizaine), or no team if the unit has none.
+            teamId = unitMaitriseTeam.TryGetValue(unitId, out var mtid) ? mtid : (Guid?)null;
+        }
+        else if (!string.IsNullOrWhiteSpace(row.Totem) && row.Totem != "--" && row.Totem != "-")
         {
             if (teamLookup.TryGetValue(TeamKey(row.Unit, row.Totem), out var tid))
             {
@@ -832,8 +851,14 @@ foreach (var bf in Directory.GetFiles(bpDir, "*.xlsx"))
             }
         }
 
-        // ── resolve team (fuzzy: roster variants → DB teams; creates genuinely-new sizaines) ──
-        Guid? teamId = string.IsNullOrWhiteSpace(teamName) ? null : await ResolveBpTeam(unitCode, unitId, teamName);
+        // ── resolve team ──
+        // Leaders never sit in a youth sizaine → route to the unit's Maîtrise team (or none). Others
+        // resolve the roster team name (fuzzy: variants → DB teams; may create a genuinely-new sizaine).
+        Guid? teamId;
+        if (maitriseRoleIds.Contains(roleId))
+            teamId = unitMaitriseTeam.TryGetValue(unitId, out var mtid) ? mtid : (Guid?)null;
+        else
+            teamId = string.IsNullOrWhiteSpace(teamName) ? null : await ResolveBpTeam(unitCode, unitId, teamName);
 
         bpMembers.Add(memId);
 
