@@ -1129,6 +1129,24 @@ Full-stack audit (4 parallel agents: DB/EF, backend API, frontend, infra) + fixe
   SeedMissingSettings). `ApplicantConfigDto.ExcludedClasse` exposes it; the wizard hides that grade from the Classe
   dropdown + shows "Un enfant en {classe} ne peut pas s'inscrire."; `SubmitDemande` rejects it (defense-in-depth).
 - **CG review surfaces the auto-linked relative** (commit daea8af) — see the auto-link entry above.
+- **Full data-integrity checkup + fixes (dev DB, all backed up `_bak_*_20260629`):**
+  - **#1 Schools dropdown rebuilt:** `member.schools` had only 2 entries while 33 were in use (Saint-Grégoire =
+    174 members, USJ, AUB, GLFL…). Set the setting to all 33 in-use schools (CNDJ first). Only the "Autre"
+    placeholder now sits outside the list. Seed `member.classes` default also realigned (commit 7124895).
+  - **#2 149 negative-duration assignments** (end < start): root cause = migration `start = row.Start ??
+    importToday` gave blank-start rows the import date (2026-06-24) while keeping an old end. Collapsed
+    `start = end` (valid historical marker). **Migration tool fixed** (commit 403ef06): `row.Start ?? row.End
+    ?? importToday`.
+  - **#3/#4 overlapping active assignments:** BP roster is authoritative → BP row (start 2026-06-24) wins; the
+    exact-dup older row (Angela KASSIS) soft-deleted, superseded older roles (Giorgio RIZK CG vs old Assistant,
+    Maria BOU FADEL) closed as of the BP date. Samer CHEAIB left multi-active (two group roles, no BP row — review).
+  - **#5 role↔unit-type typing (111→6):** migration kept the first unit_type per role code, so ACN/CN/CAR were
+    typed Feu and JEM mis-typed → they didn't appear in the role dropdown for their real units. Re-typed ACN/CN/CAR
+    → Noyau, JEM → Jeunes en Marche. Residual 6 = Caravelle/JEM on Feu units (left for manual review).
+  - **Confirmed OK / known (no action):** 50 zero-day markers, 177 alumni orphans, 2 null matricules, 1 empty
+    gender (Admin Système), 129 null DOB, Metn/Keserwan free-text regions, 1 US address, 45 disabled merge-loser
+    user rows (login already off). Code audit: member/demande forms read settings (no hardcoded classe/school
+    lists); `section` still shown in forms/exports though now cleared (optionally hide later).
 - NOTE: these data fixes (maîtrise team, classe promotion, section clear) + the demande code + setting live on
   **dev only** so far — prod got an EARLIER snapshot/build. A FINAL prod sync is pending: re-ship the code (for the
   excluded-classe feature) + a fresh `pg_dump`/restore (for the maîtrise + classe data). Held at the user's request.
