@@ -1104,13 +1104,42 @@ Full-stack audit (4 parallel agents: DB/EF, backend API, frontend, infra) + fixe
   (CG-only — left null in the applicant portal path for privacy); the review drawer "Proches scouts" cards show
   a green "Lié à un membre : Nom (Unité)" chip so the CG can see/confirm the link.
 
+### Production deploy + post-deploy data fixes (2026-06-29)
+- **DEPLOYED the current `main` to prod** (new.gndj.org). Prod has no .NET SDK/Node, so we built the package on
+  the dev box (`deploy/publish.ps1`) and shipped the ship-only half (`deploy/deploy.ps1`, run elevated — the IIS
+  folder needs admin). Restored the clean dev dataset via `deploy/reset-to-import.ps1` (members=2493), ran
+  `tune-apppool.ps1` + `pg-profile.ps1 -Profile Low`. NOTE: the prod clone is at
+  `C:\Users\samer\Desktop\Projects\GNDJ\GNDJ_Gestion_Groupe`; the SDK + Node were installed there so future
+  deploys CAN `update.ps1 -Pull` (but `npm ci` skipped devDeps under NODE_ENV=production — see deploy-script fix).
+- **Deploy-script fixes:** `publish.ps1` now `npm ci --include=dev` (devDeps — TypeScript/Vite — were skipped when
+  NODE_ENV=production, breaking `tsc`); `pg-profile.ps1` verify-hint quoting fixed (backtick, not backslash — it
+  printed a bogus `SHOW` CommandNotFound after applying settings).
+- **Maîtrise-on-youth-team fix:** a maîtrise (leadership) role must never sit on a youth sizaine. 18 active leaders
+  carried a youth équipe (e.g. an Assistante de Compagnie under "Aquila") — moved each to their unit's existing
+  **Maîtrise team** (every affected unit had one; 43 other leaders were already correct). Live dev DB fixed (backup
+  `_bak_maitrise_team_20260629`). **Migration tool patched** (`tools/Migration`): now populates `is_maitrise` on
+  roles (was never set) and routes a maîtrise role's assignment to the unit's Maîtrise team (or none) in BOTH the
+  main UniteFonc loop and the BP roster override — so a re-import won't reintroduce it.
+- **Classe overhaul:** the `member.classes` setting was still the EB-style seed while members used ordinal grades.
+  Canonical list set to `8ème,7ème,6ème,5ème,4ème,3ème,2nde,1ère,Term,Université`. **Promoted every member up one
+  grade** (atomic CASE: 8ème→7ème … 1ère→Term, Term→Université; junk U→Université, 4th→3ème, 5rd→4ème; 2293 rows)
+  and **cleared `section` for all** (1604 rows). Backup `_bak_classe_promote_20260629`. Run from a UTF-8 file via
+  `psql -f` (PowerShell here-string pipe mangles accents; and `settings` has no `updated_at` column).
+- **Demande 6ème restriction:** new `demande.excluded_classe` setting (default `6ème`, editable; auto-seeds via
+  SeedMissingSettings). `ApplicantConfigDto.ExcludedClasse` exposes it; the wizard hides that grade from the Classe
+  dropdown + shows "Un enfant en {classe} ne peut pas s'inscrire."; `SubmitDemande` rejects it (defense-in-depth).
+- **CG review surfaces the auto-linked relative** (commit daea8af) — see the auto-link entry above.
+- NOTE: these data fixes (maîtrise team, classe promotion, section clear) + the demande code + setting live on
+  **dev only** so far — prod got an EARLIER snapshot/build. A FINAL prod sync is pending: re-ship the code (for the
+  excluded-classe feature) + a fresh `pg_dump`/restore (for the maîtrise + classe data). Held at the user's request.
+
 ### Remaining / Next
-- [ ] **Deploy:** prod still runs the pre-2026-06-28 build; everything since (perf pass, Swagger, all of the
-      above) is on main and needs a full publish (build+ship) + the live-DB collapse fixes reach prod only via a
-      fresh pg_dump+restore. Run the ops scripts (tune-apppool.ps1, pg-profile.ps1) on the server.
+- [ ] **Final prod sync (after the above):** re-ship `main` (excluded-classe feature) + fresh `pg_dump` of dev →
+      restore prod (carries the maîtrise-team + classe-promotion + section-clear data fixes). Dev dump so far:
+      `C:\gndj-backups\gndj_data_20260629_1130.dump` is STALE (pre data-fixes) — take a new one at sync time.
 - [ ] Migration data cleanup: 181 orphans (kept — most are legit alumni), name spacing, GET /photo unit-scope;
       migration tool card-number split for re-import; 50 kept zero-day markers await member date corrections
-- [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies
-- [ ] Deployment: move secrets to env vars, CORS production policy, HTTPS/HSTS, httpOnly cookies
+- [ ] Deployment hardening (optional): secrets → env vars, httpOnly cookies. (HSTS done; prod CORS moot — SPA is
+      same-origin; secrets already gitignored server-side.)
 - [ ] Perf (optional later): async Serilog file sink (Serilog.Sinks.Async); DbContextCheck on /health; batch the
       demande-send in-loop unit/role/email lookups (now indexed, so low priority)
