@@ -45,6 +45,9 @@ export interface ApplicantScoutRelation {
   lastUnit?: string | null
   lastFunction?: string | null
   otherGroupName?: string | null
+  // CG review only: the real member the relation was auto-matched to (so the CG can confirm). Null elsewhere.
+  relatedMemberName?: string | null
+  relatedMemberUnit?: string | null
 }
 
 export interface Demande {

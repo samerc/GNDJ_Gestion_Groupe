@@ -32,7 +32,10 @@ public record ApplicantGuardianDto(Guid? Id, string Relationship, string FirstNa
     string? PhoneCountryCode, string? PhoneNumber, string? Email, bool IsDeceased, bool IsPrimaryContact, bool IsEmergencyContact);
 
 public record ApplicantScoutRelationDto(Guid? Id, string Status, string? Relationship, Guid? RelatedMemberId,
-    string? FirstName, string? LastName, string? LastUnit, string? LastFunction, string? OtherGroupName);
+    string? FirstName, string? LastName, string? LastUnit, string? LastFunction, string? OtherGroupName,
+    // CG-only: when RelatedMemberId was auto-matched to a real member, these surface who, so the CG can confirm.
+    // Left null in the applicant portal path (privacy — applicants must not learn who is in the group).
+    string? RelatedMemberName = null, string? RelatedMemberUnit = null);
 
 public record DemandeDto(Guid Id, string ScoutYear, string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender,
     string? Nationality, string? School, string? Classe, string? Section, string? BloodType, string? MedicalNotes, string? Allergies,

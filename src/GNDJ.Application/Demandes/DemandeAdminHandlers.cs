@@ -137,6 +137,22 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context) : I
 
         var unitNames = await context.Units.ToDictionaryAsync(u => u.Id, u => u.Name, ct);
 
+        // Resolve the auto-matched relatives so the CG can SEE/confirm the link (name + current active unit).
+        // Only CurrentInGroup relations ever get a RelatedMemberId set (see SaveApplicantHousehold auto-match).
+        var relatedMemberIds = relations.Values.SelectMany(rs => rs)
+            .Where(r => r.RelatedMemberId.HasValue).Select(r => r.RelatedMemberId!.Value).Distinct().ToList();
+        var relatedMembers = relatedMemberIds.Count == 0
+            ? new Dictionary<Guid, (string Name, string? Unit)>()
+            : await context.Members.Where(m => relatedMemberIds.Contains(m.Id))
+                .Select(m => new
+                {
+                    m.Id,
+                    Name = m.FirstName + " " + m.LastName,
+                    // Their current (open) assignment's unit, if any — gives the CG context for the match.
+                    Unit = m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault()
+                })
+                .ToDictionaryAsync(x => x.Id, x => (x.Name, x.Unit), ct);
+
         var result = demandes.Select(d =>
         {
             var acc = accounts.GetValueOrDefault(d.ApplicantAccountId);
@@ -153,7 +169,12 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context) : I
                 d.ApplicantAccountId, acc?.Email ?? "", acc?.ContactName,
                 acc?.AddressCountry, acc?.AddressCity, acc?.AddressDetails,
                 gs.Select(g => new ApplicantGuardianDto(g.Id, g.Relationship, g.FirstName, g.LastName, g.Profession, g.ProfessionDomain, g.PhoneCountryCode, g.PhoneNumber, g.Email, g.IsDeceased, g.IsPrimaryContact, g.IsEmergencyContact)).ToList(),
-                rs.Select(r => new ApplicantScoutRelationDto(r.Id, r.Status, r.Relationship, r.RelatedMemberId, r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName)).ToList(),
+                rs.Select(r =>
+                {
+                    var match = r.RelatedMemberId.HasValue ? relatedMembers.GetValueOrDefault(r.RelatedMemberId.Value) : default;
+                    return new ApplicantScoutRelationDto(r.Id, r.Status, r.Relationship, r.RelatedMemberId, r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName,
+                        match.Name, match.Unit);
+                }).ToList(),
                 sibs);
         });
 

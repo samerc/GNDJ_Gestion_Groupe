@@ -30,7 +30,7 @@ import { parseApiError } from '@/lib/error-utils'
 import {
   Inbox, Check, X, Send, Users2, ChevronDown, ChevronRight, ChevronLeft, CheckCircle2, XCircle, Clock,
   AlertTriangle, User, Phone, Mail, MapPin, HeartPulse, GraduationCap, MessageSquare, Tent, ArrowUpDown,
-  Search, Sparkles, Trash2,
+  Search, Sparkles, Trash2, Link2,
 } from 'lucide-react'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -703,6 +703,13 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, hasPrev,
                     {r.lastUnit && <span>Dernière unité : {r.lastUnit}. </span>}
                     {r.lastFunction && <span>Fonction : {r.lastFunction}.</span>}
                   </div>
+                  {/* Auto-matched to a real member (a "scout actuel" relation) — surfaced so the CG can confirm the link. */}
+                  {r.relatedMemberId && r.relatedMemberName && (
+                    <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
+                      <Link2 className="h-3.5 w-3.5" />
+                      Lié à un membre : {r.relatedMemberName}{r.relatedMemberUnit ? ` (${r.relatedMemberUnit})` : ''}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

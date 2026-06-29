@@ -1099,7 +1099,10 @@ Full-stack audit (4 parallel agents: DB/EF, backend API, frontend, infra) + fixe
 - **Demande: auto-link a "current member" relative:** `SaveApplicantHousehold` matches a `CurrentInGroup`
   scout relation (typed name, narrowed by chosen unit) against active members; a single confident match sets
   `ApplicantScoutRelation.RelatedMemberId` (field already existed). Ambiguous/none → null. No public member
-  search exposed. TODO: surface the link in the CG review so the CG can see/confirm matches.
+  search exposed. **CG review now surfaces the match (2026-06-29):** `GetDemandesForReview` batch-loads each
+  auto-matched member's name + current active unit into `ApplicantScoutRelationDto.RelatedMemberName/Unit`
+  (CG-only — left null in the applicant portal path for privacy); the review drawer "Proches scouts" cards show
+  a green "Lié à un membre : Nom (Unité)" chip so the CG can see/confirm the link.
 
 ### Remaining / Next
 - [ ] **Deploy:** prod still runs the pre-2026-06-28 build; everything since (perf pass, Swagger, all of the
