@@ -625,7 +625,10 @@ foreach (var grp in assignRows.GroupBy(x => x.OldMember))
             }
         }
 
-        var start = row.Start ?? importToday;
+        // A blank source DATEDEB must NOT default to the import date — combined with a real DATEFIN that
+        // produces an inverted (end < start) assignment. Fall back to the end date (a valid zero-day
+        // historical marker), then to today only when both are blank (an active row). Fixed 149 such rows.
+        var start = row.Start ?? row.End ?? importToday;
         DateOnly? closedEnd;
         if (row.EnCours)
         {
