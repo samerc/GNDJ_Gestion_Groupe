@@ -22,7 +22,10 @@ if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
 
 Write-Host "==> Building frontend..." -ForegroundColor Cyan
 Push-Location client
-npm ci
+# --include=dev forces devDependencies even when NODE_ENV=production (or an npm production=true
+# config) is set on the build/server box — TypeScript and Vite are devDeps and the build needs them,
+# otherwise `npm run build` fails with "'tsc' is not recognized".
+npm ci --include=dev
 if ($LASTEXITCODE -ne 0) { throw "npm ci failed" }
 npm run build
 if ($LASTEXITCODE -ne 0) { throw "npm run build failed" }
