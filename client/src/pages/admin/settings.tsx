@@ -124,6 +124,7 @@ function SettingEditor({ setting, onSave }: { setting: SettingDto; onSave: (key:
   const isNumber = setting.valueType === 'number'
   const isDate = setting.valueType === 'date'
   const isExchangeRates = setting.key === 'cotisation.exchange_rates'
+  const isLongText = setting.key === 'demande.terms' // multi-line free text → textarea
   const options = SETTING_OPTIONS[setting.key]
 
   useEffect(() => {
@@ -199,6 +200,9 @@ function SettingEditor({ setting, onSave }: { setting: SettingDto; onSave: (key:
               <Input type="date" value={value} onChange={(e) => setValue(e.target.value)} className="max-w-[12rem]" />
               {value && <button type="button" onClick={() => setValue('')} className="text-sm text-muted-foreground hover:text-destructive">Effacer</button>}
             </div>
+          ) : isLongText ? (
+            <textarea value={value} onChange={(e) => setValue(e.target.value)} rows={5}
+              className="flex min-h-[7rem] w-full max-w-2xl rounded-md border border-input bg-background px-3 py-2 text-sm" />
           ) : (
             <Input value={value} onChange={(e) => setValue(e.target.value)} className="max-w-sm" />
           )}

@@ -26,7 +26,7 @@ public record ApplicantAuthDto(Guid AccountId, string Email, bool EmailVerified,
 
 public record ApplicantConfigDto(bool IsOpen, string ScoutYear, int MaxPerAccount, int NotesMaxLength, bool RequireEmailVerification, string? IntroText,
     IReadOnlyList<string> Schools, IReadOnlyList<string> Classes, IReadOnlyList<string> Cities, IReadOnlyList<string> Units, int MaxScoutRelations,
-    IReadOnlyList<string> ProfessionDomains);
+    IReadOnlyList<string> ProfessionDomains, string? Terms);
 
 public record ApplicantGuardianDto(Guid? Id, string Relationship, string FirstName, string LastName, string? Profession, string? ProfessionDomain,
     string? PhoneCountryCode, string? PhoneNumber, string? Email, bool IsDeceased, bool IsPrimaryContact, bool IsEmergencyContact);
@@ -77,7 +77,7 @@ static class ApplicantHelpers
     [
         "demande.enabled", "demande.scout_year", "passage.scout_year", "demande.max_per_account",
         "demande.notes_max_length", "demande.require_email_verification", "demande.intro_text",
-        "demande.max_scout_relations", "member.schools", "member.classes", "member.cities", "member.profession_domains"
+        "demande.max_scout_relations", "demande.terms", "member.schools", "member.classes", "member.cities", "member.profession_domains"
     ];
 
     // Absolute safety cap enforced by SaveApplicantHouseholdCommandValidator regardless of the configurable
@@ -98,6 +98,7 @@ static class ApplicantHelpers
         var maxRelations = int.TryParse(Get("demande.max_scout_relations"), out var mr) && mr > 0 ? Math.Min(mr, MaxScoutRelationsHardCap) : 3;
         var requireVerify = Get("demande.require_email_verification") != "false";
         var intro = Get("demande.intro_text");
+        var terms = Get("demande.terms");
 
         static IReadOnlyList<string> ParseJsonArray(string? raw)
         {
@@ -114,7 +115,7 @@ static class ApplicantHelpers
         // indicate which unit a current-member relative belongs to, easing family matching for the CG.
         var units = await ctx.Units.Where(u => u.IsActive).OrderBy(u => u.Name).Select(u => u.Name).ToListAsync(ct);
 
-        return new ApplicantConfigDto(enabled, year, max, notesLen, requireVerify, intro, schools, classes, cities, units, maxRelations, professionDomains);
+        return new ApplicantConfigDto(enabled, year, max, notesLen, requireVerify, intro, schools, classes, cities, units, maxRelations, professionDomains, terms);
     }
 
     public static DemandeDto ToDto(Demande d) => new(
@@ -145,7 +146,7 @@ static class ApplicantHelpers
 // ============================================================
 // Auth
 // ============================================================
-public record RegisterApplicantCommand(string Email, string Password, string? ContactName) : IRequest<Result<ApplicantAuthDto>>;
+public record RegisterApplicantCommand(string Email, string Password, string? ContactName, bool AcceptedTerms = false) : IRequest<Result<ApplicantAuthDto>>;
 
 public class RegisterApplicantCommandValidator : AbstractValidator<RegisterApplicantCommand>
 {
@@ -166,6 +167,12 @@ public class RegisterApplicantCommandHandler(IApplicationDbContext context, IPas
         if (exists)
             return Result<ApplicantAuthDto>.Failure("Un compte existe déjà avec cette adresse email.");
 
+        // Terms & conditions: when the CG has configured a terms text, the applicant must accept it to
+        // create an account (one-time per account). Acceptance is recorded on the account.
+        var terms = await ApplicantHelpers.Setting(context, "demande.terms", ct);
+        if (!string.IsNullOrWhiteSpace(terms) && !request.AcceptedTerms)
+            return Result<ApplicantAuthDto>.Failure("Vous devez accepter les conditions d'inscription pour créer un compte.");
+
         var account = new ApplicantAccount
         {
             Email = addr,
@@ -174,6 +181,7 @@ public class RegisterApplicantCommandHandler(IApplicationDbContext context, IPas
             EmailVerified = false,
             EmailVerificationToken = Guid.NewGuid().ToString("N"),
             EmailVerificationTokenExpiry = DateTime.UtcNow.AddDays(7),
+            TermsAcceptedAt = request.AcceptedTerms ? DateTime.UtcNow : null,
         };
 
         var refresh = tokens.GenerateRefreshToken();

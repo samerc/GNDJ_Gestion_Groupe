@@ -17,6 +17,7 @@ export interface ApplicantConfig {
   units: string[]
   maxScoutRelations: number
   professionDomains: string[]
+  terms: string | null  // terms & conditions the applicant must accept before submitting (empty = none)
 }
 
 export interface ApplicantGuardian {

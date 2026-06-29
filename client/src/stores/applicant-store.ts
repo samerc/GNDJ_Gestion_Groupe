@@ -15,7 +15,7 @@ interface ApplicantState {
   email: string | null
   emailVerified: boolean
   login: (email: string, password: string, website?: string) => Promise<void>
-  register: (email: string, password: string, contactName?: string, website?: string) => Promise<void>
+  register: (email: string, password: string, contactName?: string, website?: string, acceptedTerms?: boolean) => Promise<void>
   logout: () => void
   setEmailVerified: (v: boolean) => void
 }
@@ -39,8 +39,8 @@ export const useApplicantStore = create<ApplicantState>((set) => ({
     set({ isAuthenticated: true, email: data.email, emailVerified: data.emailVerified })
   },
 
-  register: async (email, password, contactName, website) => {
-    const { data } = await applicantApi.post<ApplicantAuthResponse>('/applicant/register', { email, password, contactName, website })
+  register: async (email, password, contactName, website, acceptedTerms) => {
+    const { data } = await applicantApi.post<ApplicantAuthResponse>('/applicant/register', { email, password, contactName, website, acceptedTerms })
     persist(data)
     set({ isAuthenticated: true, email: data.email, emailVerified: data.emailVerified })
   },

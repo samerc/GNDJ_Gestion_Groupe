@@ -300,7 +300,8 @@ public static class SeedData
         var pasReview = Add("Réviser et approuver les propositions de passage", "Passage", CG, false, "2ᵉ sem. octobre", pasPropose);
         var pasFinalize = Add("Finaliser les passages (création des nouvelles affectations)", "Passage", CG, false, "2ᵉ sem. octobre", pasReview);
         // ③ Demandes
-        var demOpen = Add("Ouvrir les inscriptions", "Demandes", CG, false, "septembre", cfgYear, cfgQuotas);
+        var demTerms = Add("Mettre à jour les conditions d'inscription (texte d'acceptation des demandes)", "Demandes", CG, false, "septembre", cfgYear);
+        var demOpen = Add("Ouvrir les inscriptions", "Demandes", CG, false, "septembre", cfgYear, cfgQuotas, demTerms);
         var demReview = Add("Réviser les demandes d'inscription (accepter/refuser + unité)", "Demandes", CG, false, "octobre", demOpen);
         Add("Envoyer les réponses aux demandes (conversion en membres)", "Demandes", CG, false, "octobre", demReview);
         // ④ Dossiers membres
@@ -355,6 +356,7 @@ public static class SeedData
             new() { Key = "demande.require_email_verification", Value = "true", Category = "demande", Label = "Vérification email requise", Description = "Exige la vérification de l'email avant de soumettre une demande", ValueType = "boolean" },
             new() { Key = "demande.decide_siblings_together", Value = "true", Category = "demande", Label = "Décider les fratries ensemble", Description = "Affiche le statut des frères/sœurs lors de la revue", ValueType = "boolean" },
             new() { Key = "demande.intro_text", Value = "Bienvenue ! Créez un compte pour présenter une demande d'inscription au mouvement scout. Vous pourrez inscrire un ou plusieurs enfants.", Category = "demande", Label = "Texte d'accueil du portail", Description = "Message affiché sur la page d'accueil du portail d'inscription", ValueType = "string" },
+            new() { Key = "demande.terms", Value = "En soumettant cette demande, je certifie que les informations fournies sont exactes et j'autorise le Groupe à les utiliser dans le cadre de l'inscription scoute. (Texte à compléter par la Maîtrise de Groupe avant l'ouverture des inscriptions.)", Category = "demande", Label = "Conditions d'inscription (à accepter)", Description = "Conditions que le parent doit accepter avant de soumettre une demande. Laisser vide pour ne pas exiger d'acceptation.", ValueType = "string" },
             new() { Key = "contact.recipient_email", Value = "", Category = "contact", Label = "Email de contact", Description = "Adresse qui reçoit les messages du formulaire de contact public (si vide, les messages vont au super administrateur)", ValueType = "string" },
         };
 

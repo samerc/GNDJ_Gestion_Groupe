@@ -26,6 +26,10 @@ public class ApplicantAccount : BaseEntity
 
     public bool IsActive { get; set; } = true;
 
+    // When the account holder accepted the inscription terms & conditions (at registration). Null = not
+    // accepted (only possible for accounts created while no terms text was configured).
+    public DateTime? TermsAcceptedAt { get; set; }
+
     public ICollection<ApplicantGuardian> Guardians { get; set; } = [];
     public ICollection<ApplicantScoutRelation> ScoutRelations { get; set; } = [];
     public ICollection<Demande> Demandes { get; set; } = [];
