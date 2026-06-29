@@ -108,4 +108,7 @@ if ($NoRestart) {
 
 $env:PGPASSWORD = $null
 Write-Host ""
-Write-Host "Done. Verify with:  & '$psql' -U postgres -c \"SHOW shared_buffers; SHOW effective_cache_size; SHOW work_mem;\"" -ForegroundColor Green
+# Backtick-escape the inner double quotes — in PowerShell the escape char is the backtick, not the
+# backslash. The old \" terminated the string early so "SHOW ..." was parsed as a command (harmless,
+# but it printed a CommandNotFoundException after the settings had already applied).
+Write-Host "Done. Verify with:  & '$psql' -U postgres -c `"SHOW shared_buffers;`"" -ForegroundColor Green
