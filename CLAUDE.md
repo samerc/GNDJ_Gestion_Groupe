@@ -1088,6 +1088,18 @@ Full-stack audit (4 parallel agents: DB/EF, backend API, frontend, infra) + fixe
 - **Documents zip friendly error:** zip is a blob, so the backend's JSON 400 ("no documents") came back as an
   unreadable Blob → always generic error. New `parseBlobError` (client/src/lib/error-utils) reads the blob's
   JSON; the empty-unit case now shows a friendly info toast, real failures an error toast with the real message.
+- **Demande terms & conditions (configurable + accepted at registration):** new `demande.terms` setting
+  (textarea in admin settings; exposed via `ApplicantConfigDto.Terms`). When set, the applicant must tick
+  "J'accepte" on the REGISTER page to create an account (gated client + server in `RegisterApplicantCommand`);
+  acceptance recorded on `ApplicantAccount.TermsAcceptedAt` (migration `AddApplicantTermsAccepted`). New rentrée
+  template task "Mettre à jour les conditions d'inscription" blocks "Ouvrir les inscriptions". (Placement: at
+  account registration, not per-demande — user's choice.)
+- **Demande wizard: Profession (texte libre)** was wrongly a dropdown → now a free-text `<Input>` (the managed
+  list stays on the separate "Domaine" field).
+- **Demande: auto-link a "current member" relative:** `SaveApplicantHousehold` matches a `CurrentInGroup`
+  scout relation (typed name, narrowed by chosen unit) against active members; a single confident match sets
+  `ApplicantScoutRelation.RelatedMemberId` (field already existed). Ambiguous/none → null. No public member
+  search exposed. TODO: surface the link in the CG review so the CG can see/confirm matches.
 
 ### Remaining / Next
 - [ ] **Deploy:** prod still runs the pre-2026-06-28 build; everything since (perf pass, Swagger, all of the
