@@ -44,8 +44,9 @@ public class PublicController : BaseApiController
     /// <summary>Returns a paged list of published news posts (excerpt + tag).</summary>
     [HttpGet("news")]
     [OutputCache(PolicyName = "ShortCache")]
-    public async Task<IActionResult> News([FromQuery] int page = 1, [FromQuery] int pageSize = 12)
-        => Ok(await Mediator.Send(new GetPublicNewsQuery(page, pageSize)));
+    public async Task<IActionResult> News([FromQuery] int page = 1, [FromQuery] int pageSize = 12,
+        [FromQuery] bool groupOnly = false, [FromQuery] Guid? unitTypeId = null)
+        => Ok(await Mediator.Send(new GetPublicNewsQuery(page, pageSize, groupOnly, unitTypeId)));
 
     /// <summary>Returns one published news article by slug.</summary>
     /// <response code="404">No published article matches the slug.</response>

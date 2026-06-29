@@ -10,6 +10,8 @@ public class NewsPost : BaseEntity
     public string? Summary { get; set; }
     public string BodyHtml { get; set; } = string.Empty;
     public string? CoverImagePath { get; set; }
+    // Downloadable attachments (PDF/images) as a JSON array of { name, url }. Null/empty = none.
+    public string? AttachmentsJson { get; set; }
     public bool IsPublished { get; set; }
     public DateTime? PublishedAt { get; set; }
 

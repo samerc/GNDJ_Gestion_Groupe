@@ -47,3 +47,6 @@ tmp_*
 
 # Per-machine deploy target (remembered by deploy/update.ps1)
 deploy/target.txt
+
+# Local build-artifact package (created by deploy/publish.ps1)
+/publish/

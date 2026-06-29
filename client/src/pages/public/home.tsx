@@ -138,7 +138,9 @@ export default function PublicHomePage() {
             <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {latestNews.map((post) => (
                 <Link key={post.slug} to={`/actualites/${post.slug}`} className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5">
-                  <div className="flex h-36 items-center justify-center bg-gradient-to-br from-primary/15 to-accent/15"><Newspaper className="h-8 w-8 text-primary/40" /></div>
+                  {post.coverImagePath
+                    ? <img src={post.coverImagePath} alt="" loading="lazy" className="h-36 w-full object-cover" />
+                    : <div className="flex h-36 items-center justify-center bg-gradient-to-br from-primary/15 to-accent/15"><Newspaper className="h-8 w-8 text-primary/40" /></div>}
                   <div className="flex flex-1 flex-col p-5">
                     <span className="inline-flex items-center gap-2 text-xs">
                       {post.publishedAt && <span className="inline-flex items-center gap-1 text-muted-foreground"><Calendar className="h-3.5 w-3.5" /> {formatDate(post.publishedAt)}</span>}

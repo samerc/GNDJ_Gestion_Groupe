@@ -12,7 +12,7 @@ namespace GNDJ.Application.Public;
 public record PublicUnitListItemDto(string Slug, string Name, string UnitTypeName, string? Gender,
     int? AgeMin, int? AgeMax, int MemberCount);
 
-public record PublicUnitGroupDto(string UnitTypeName, string? Color, int? AgeMin, int? AgeMax,
+public record PublicUnitGroupDto(Guid UnitTypeId, string UnitTypeName, string? Color, int? AgeMin, int? AgeMax,
     string? Description, IReadOnlyList<PublicUnitListItemDto> Units);
 
 public record PublicLeaderDto(string Name, string RoleName);
@@ -37,6 +37,7 @@ public class GetPublicUnitsQueryHandler(IApplicationDbContext context)
             {
                 u.Slug,
                 u.Name,
+                u.UnitTypeId,
                 UnitTypeName = u.UnitType.Name,
                 u.UnitType.Gender,
                 u.UnitType.AgeMin,
@@ -48,10 +49,10 @@ public class GetPublicUnitsQueryHandler(IApplicationDbContext context)
             .ToListAsync(ct);
 
         return units
-            .GroupBy(u => new { u.UnitTypeName, u.Color, u.AgeMin, u.AgeMax, u.Description })
+            .GroupBy(u => new { u.UnitTypeId, u.UnitTypeName, u.Color, u.AgeMin, u.AgeMax, u.Description })
             .OrderBy(g => g.Key.AgeMin ?? 999).ThenBy(g => g.Key.UnitTypeName)
             .Select(g => new PublicUnitGroupDto(
-                g.Key.UnitTypeName, g.Key.Color, g.Key.AgeMin, g.Key.AgeMax, g.Key.Description,
+                g.Key.UnitTypeId, g.Key.UnitTypeName, g.Key.Color, g.Key.AgeMin, g.Key.AgeMax, g.Key.Description,
                 g.Select(u => new PublicUnitListItemDto(
                     u.Slug!, u.Name, u.UnitTypeName, u.Gender, u.AgeMin, u.AgeMax, u.MemberCount
                 )).ToList()))

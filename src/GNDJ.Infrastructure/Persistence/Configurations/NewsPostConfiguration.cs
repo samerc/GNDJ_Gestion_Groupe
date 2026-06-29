@@ -16,6 +16,7 @@ public class NewsPostConfiguration : IEntityTypeConfiguration<NewsPost>
         builder.Property(e => e.Summary).HasMaxLength(500);
         builder.Property(e => e.BodyHtml).HasColumnType("text");
         builder.Property(e => e.CoverImagePath).HasMaxLength(500);
+        builder.Property(e => e.AttachmentsJson).HasColumnType("text");
         // Slug is the public URL key, so it must be unique among live posts.
         builder.HasIndex(e => e.Slug).IsUnique().HasFilter("is_deleted = false");
         // Serves the public listing query (published, newest first).

@@ -14,6 +14,7 @@ export interface PublicUnitListItem {
 }
 
 export interface PublicUnitGroup {
+  unitTypeId: string
   unitTypeName: string
   color: string | null
   ageMin: number | null
