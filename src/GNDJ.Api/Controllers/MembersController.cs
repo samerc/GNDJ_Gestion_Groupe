@@ -310,14 +310,25 @@ public class MembersController : BaseApiController
     }
 
     /// <summary>
-    /// Serves a member's photo file. Auth-only (no members.view nor unit-scope check; TODO unit-scope this);
-    /// path-traversal guarded via GetFullPath + StartsWith(uploadsRoot).
+    /// Serves a member's photo file. Auth + unit-scoped: super admin, the member themselves, or a leader of
+    /// the member's active unit (same rule as viewing the member). An unauthorized caller gets 404 (not 403)
+    /// so the member's existence isn't leaked and the UI falls back to initials. Path-traversal guarded via
+    /// GetFullPath + StartsWith(uploadsRoot).
     /// </summary>
-    /// <response code="404">The member has no photo or the file is missing.</response>
+    /// <response code="404">No access, the member has no photo, or the file is missing.</response>
     [HttpGet("{memberId:guid}/photo")]
     [ProducesResponseType(404)]
-    public async Task<IActionResult> GetPhoto(Guid memberId)
+    public async Task<IActionResult> GetPhoto(Guid memberId, [FromServices] ICurrentUserService currentUser)
     {
+        // IDOR guard: a caller may only fetch a photo of themselves or a member in one of their units.
+        if (!currentUser.IsSuperAdmin && currentUser.MemberId != memberId)
+        {
+            var authorizedUnitIds = currentUser.AuthorizedUnitIds;
+            var hasAccess = await _context.MemberAssignments.AnyAsync(a =>
+                a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId));
+            if (!hasAccess) return NotFound();
+        }
+
         var member = await _context.Members.FindAsync(memberId);
         if (member is null || string.IsNullOrEmpty(member.PhotoPath))
             return NotFound();

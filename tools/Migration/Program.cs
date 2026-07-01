@@ -323,35 +323,35 @@ for (int r = 2; r <= wsMembers.LastRowUsed()!.RowNumber(); r++)
     var classe = NullIfEmpty(Cell(wsMembers, r, 21));
     var section = NullIfEmpty(Cell(wsMembers, r, 22));
 
-    // Card number
-    string? cardNumber;
-    if (cardRaw.StartsWith("[") && cardRaw.EndsWith("]"))
+    // Card-number split (mirrors the live-DB split): card_number = internal Matricule (always present),
+    // external_card_number = the official SDL/GDL number from the source (kept separately). A source value
+    // already in M-/F- form IS the matricule; any other real value is the SDL id → goes to external + we
+    // generate a fresh internal matricule; a temporary [..] or blank → generate a matricule, no external.
+    string cardNumber;
+    string? externalCard = null;
+    var isTemp = cardRaw.StartsWith("[") && cardRaw.EndsWith("]");
+    if (!isTemp && !string.IsNullOrWhiteSpace(cardRaw) && System.Text.RegularExpressions.Regex.IsMatch(cardRaw, @"^[MF]-\d+$"))
     {
-        // Temporary → generate
-        if (gender == "Masculin") { cardNumber = $"M-{nextMaleCard:D4}"; nextMaleCard++; }
-        else { cardNumber = $"F-{nextFemaleCard:D4}"; nextFemaleCard++; }
-    }
-    else if (string.IsNullOrWhiteSpace(cardRaw))
-    {
-        if (gender == "Masculin") { cardNumber = $"M-{nextMaleCard:D4}"; nextMaleCard++; }
-        else { cardNumber = $"F-{nextFemaleCard:D4}"; nextFemaleCard++; }
+        cardNumber = cardRaw; // source already holds an internal matricule
     }
     else
     {
-        cardNumber = cardRaw;
+        if (!isTemp && !string.IsNullOrWhiteSpace(cardRaw)) externalCard = cardRaw; // official SDL/GDL number
+        cardNumber = gender == "Masculin" ? $"M-{nextMaleCard++:D4}" : $"F-{nextFemaleCard++:D4}";
     }
 
     var id = NewId();
     memberIdMap[oldId] = id;
 
-    await Exec(conn, @"INSERT INTO members (id, first_name, last_name, date_of_birth, gender, card_number, blood_type, nationality, school, classe, section, photo_path, medical_notes, allergies, notes, created_at, updated_at, is_deleted)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16, false)",
+    await Exec(conn, @"INSERT INTO members (id, first_name, last_name, date_of_birth, gender, card_number, blood_type, nationality, school, classe, section, photo_path, medical_notes, allergies, notes, external_card_number, created_at, updated_at, is_deleted)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $17, $16, $16, false)",
         id, firstName, lastName, dob.HasValue ? dob.Value : DBNull.Value,
         gender ?? (object)DBNull.Value, cardNumber, bloodType ?? (object)DBNull.Value,
         NullIfEmpty(nationality) ?? (object)DBNull.Value, NullIfEmpty(school) ?? (object)DBNull.Value,
         classe ?? (object)DBNull.Value, section ?? (object)DBNull.Value,
         photo != null ? $"photos/{photo}" : (object)DBNull.Value,
-        (object)DBNull.Value, (object)DBNull.Value, (object)DBNull.Value, now);
+        (object)DBNull.Value, (object)DBNull.Value, (object)DBNull.Value, now,
+        externalCard ?? (object)DBNull.Value);
 
     var lk = Norm(lastName);
     if (!memberByLast.TryGetValue(lk, out var nmList)) { nmList = new(); memberByLast[lk] = nmList; }
