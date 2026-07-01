@@ -1167,12 +1167,26 @@ Full-stack audit (4 parallel agents: DB/EF, backend API, frontend, infra) + fixe
   branch chips from `usePublicUnits()`. Builds clean (dotnet Release + tsc).
 - NOTE: the `AddNewsAttachments` migration is applied on dev; it reaches prod with the pending deploy / dump.
 
+### Data / migration cleanups (2026-06-29, commit 835a803)
+- **`GET /members/{id}/photo` unit-scoped (IDOR fix):** was auth-only (any logged-in user could fetch any
+  member's photo by id). Now checks super-admin / own record / active-assignment-in-authorized-unit (same rule
+  as viewing the member); an unauthorized caller gets **404** (not 403) so existence isn't leaked and the UI
+  falls back to initials. PDF reports read files directly (unaffected).
+- **Migration tool card-number split:** `tools/Migration` now replicates the live-DB split — `card_number` =
+  internal Matricule (source M-/F- kept; otherwise a fresh one is generated), `external_card_number` = the
+  official SDL/GDL id (any non-M/F source value). So a re-import no longer undoes the split.
+- **Name-spacing: 0 anomalies** (double-space / trim / space-around-hyphen) — already clean from prior passes.
+- **Orphans (177, no assignment at all): KEPT** per decision — 91 have no login (pure alumni), 86 have a login
+  but no unit (FLAGGED: could disable those logins later; not done). 50 zero-day markers still await real member
+  date corrections (can't auto-fix).
+
 ### Remaining / Next
-- [ ] **Final prod sync (after the above):** re-ship `main` (excluded-classe feature) + fresh `pg_dump` of dev →
-      restore prod (carries the maîtrise-team + classe-promotion + section-clear data fixes). Dev dump so far:
-      `C:\gndj-backups\gndj_data_20260629_1130.dump` is STALE (pre data-fixes) — take a new one at sync time.
-- [ ] Migration data cleanup: 181 orphans (kept — most are legit alumni), name spacing, GET /photo unit-scope;
-      migration tool card-number split for re-import; 50 kept zero-day markers await member date corrections
+- [ ] **Final prod sync:** re-ship `main` (excluded-classe + news cover/attachments + photo-scope) + fresh
+      `pg_dump` of dev → restore prod (carries the maîtrise-team + classe-promotion + section-clear + checkup
+      fixes). Dev dump `C:\gndj-backups\gndj_data_20260629_1130.dump` is STALE — take a new one at sync time.
+      Migrations riding along: `AddApplicantTermsAccepted`, `AddNewsAttachments`.
+- [ ] Public site #3: knowledge / ressources section (lightweight CMS pages vs structured downloadable library).
+- [ ] Optional: disable logins for the 86 login-having orphans; correct the 50 zero-day marker dates in-app.
 - [ ] Deployment hardening (optional): secrets → env vars, httpOnly cookies. (HSTS done; prod CORS moot — SPA is
       same-origin; secrets already gitignored server-side.)
 - [ ] Perf (optional later): async Serilog file sink (Serilog.Sinks.Async); DbContextCheck on /health; batch the
