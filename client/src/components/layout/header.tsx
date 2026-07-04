@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, Menu, KeyRound } from 'lucide-react'
+import { LogOut, Menu, KeyRound, IdCard } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ROLE: top bar for the authenticated shell — mobile sidebar toggle (lg-hidden)
@@ -92,6 +92,14 @@ export function Header() {
               <p className="text-muted-foreground text-xs">{user?.email}</p>
             </div>
             <DropdownMenuSeparator />
+            {/* Every authenticated user can reach their own fiche from here — the sidebar only shows
+                "Ma fiche" in the leader/member nav, so managers (CG/super-admin) rely on this entry. */}
+            {user?.memberId && (
+              <DropdownMenuItem onClick={() => navigate('/my-profile')}>
+                <IdCard className="mr-2 h-4 w-4" />
+                Ma fiche
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => { setPasswordError(''); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); setChangePasswordOpen(true) }}>
               <KeyRound className="mr-2 h-4 w-4" />
               Modifier le mot de passe
