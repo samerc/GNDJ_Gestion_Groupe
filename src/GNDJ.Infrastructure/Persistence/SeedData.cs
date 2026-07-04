@@ -471,11 +471,139 @@ public static class SeedData
         await context.SaveChangesAsync();
     }
 
-    // One-time bootstrap of functional-role ranks (lowest rank = base youth role used on demande approval).
-    // Runs only while every role is still rank 0 (unconfigured); once a CG sets any rank, it never overrides.
+    // ─── Authoritative scout structure (unit types + fonctions) ──────────────────────────────────
+    // Single source of truth for the standard GNDJ branches and their functional roles, derived from the
+    // corrected live dev DB (2026-07-01). Ranks: higher = more senior (top of the ladder); one role per
+    // unit type is the default for new members (★); IsMaitrise marks leadership. Feu is intentionally left
+    // "tied" (all maîtrise = 100, youth = 10) per the group's request. Used by SeedScoutStructureAsync
+    // (fresh-DB bootstrap) and SeedFunctionalRoleRanksAsync (post-import rank back-fill).
+    public sealed record SeededRole(string Code, string Name, int Rank, bool IsMaitrise, bool IsDefault, string Profile);
+    public sealed record SeededUnitType(string Code, string Name, int Years, int? AgeMin, int? AgeMax, string? Color, SeededRole[] Roles);
+
+    private const string PfLeader = "chef-unite", PfYouth = "read-only", PfCG = "chef-de-groupe", PfAssistG = "assistant-de-groupe";
+
+    public static readonly SeededUnitType[] ScoutStructure =
+    [
+        new("MEU", "Meute", 3, null, null, "#edcf35",
+        [
+            new("CM",   "Cheftaine de Meute",            5, true,  false, PfLeader),
+            new("ACM",  "Assistante Cheftaine de Meute", 4, true,  false, PfLeader),
+            new("MSZ",  "Sizenier",                      3, false, false, PfYouth),
+            new("M2SZ", "Second de Sizaine",             2, false, false, PfYouth),
+            new("M3SZ", "Troisième de Sizaine",          1, false, false, PfYouth),
+            new("L",    "Louveteau",                     0, false, true,  PfYouth),
+        ]),
+        new("RON", "Ronde", 3, null, null, null,
+        [
+            new("CR",   "Cheftaine de Ronde",   5, true,  false, PfLeader),
+            new("ACR",  "Assistante de Ronde",  4, true,  false, PfLeader),
+            new("RSZ",  "Sizenière",            3, false, false, PfYouth),
+            new("R2SZ", "Seconde de Sizaine",   2, false, false, PfYouth),
+            new("R3SZ", "Troisième de Sizaine", 1, false, false, PfYouth),
+            new("J",    "Jeannette",            0, false, true,  PfYouth),
+        ]),
+        new("TRO", "Troupe", 5, null, null, null,
+        [
+            new("CT",  "Chef de Troupe",           4, true,  false, PfLeader),
+            new("ACT", "Assistant Chef de Troupe", 3, true,  false, PfLeader),
+            new("CP",  "Chef de Patrouille",       2, false, false, PfYouth),
+            new("SP",  "Second de Patrouille",     1, false, false, PfYouth),
+            new("E",   "Eclaireur",                0, false, true,  PfYouth),
+        ]),
+        new("COM", "Compagnie", 4, null, null, null,
+        [
+            new("CCO", "Cheftaine de Compagnie",  5, true,  false, PfLeader),
+            new("ACO", "Assistante de Compagnie", 4, true,  false, PfLeader),
+            new("CCE", "Cheftaine d'Equipe",      3, false, false, PfYouth),
+            new("CSE", "Seconde d'Equipe",        2, false, false, PfYouth),
+            new("CTE", "Troisième d'Equipe",      1, false, false, PfYouth),
+            new("G",   "Guide",                   0, false, true,  PfYouth),
+        ]),
+        new("NOY", "Noyau", 1, null, null, null,
+        [
+            new("CN",  "Cheftaine de Noyau",  2, true,  false, PfLeader),
+            new("ACN", "Assistante de Noyau", 1, true,  false, PfLeader),
+            new("CAR", "Caravelle",           0, false, true,  PfYouth),
+        ]),
+        new("JEM", "Jeunes en Marche", 3, null, null, null,
+        [
+            new("AJ",  "Animatrice JEM",                 2, true,  false, PfLeader),
+            new("CAJ", "Co-Animatrice Jeunes En Marche", 1, true,  false, PfLeader),
+            new("JEM", "Jeune En Marche",                0, false, true,  PfYouth),
+        ]),
+        new("CLAN", "Clan", 3, 17, 21, null,
+        [
+            new("CC",  "Chef de Clan",           4, true,  false, PfLeader),
+            new("ACC", "Assistant chef de clan", 3, true,  false, PfLeader),
+            new("CE",  "Chef d'Equipe",          2, false, false, PfYouth),
+            new("SE",  "Second d'Equipe",        1, false, false, PfYouth),
+            new("R",   "Routier",                0, false, true,  PfYouth),
+        ]),
+        // Feu — left "as is" (tied ranks): all maîtrise = 100, youth = 10.
+        new("FEU", "Feu", 3, null, null, null,
+        [
+            new("CF",   "Cheftaine du Feu",               100, true,  false, PfLeader),
+            new("ACF",  "Assistante Cheftaine du Feu",    100, true,  false, PfLeader),
+            new("CJ",   "Animatrice Jeunes En Marche",    100, true,  false, PfLeader),
+            new("ACJ",  "Co-Animatrice Jeunes En Marche", 100, true,  false, PfLeader),
+            new("FCAR", "Caravelle",                       10, false, true,  PfYouth),
+        ]),
+        // Caravelles — no per-role fonctions defined (units use the branch without functional roles).
+        new("CAR", "Caravelles", 4, null, null, "#5d9bfd", []),
+        // Groupe — only the head CG + a unified assistant (ACHG). No youth → no default role.
+        new("GRP", "Groupe", 1, null, null, null,
+        [
+            new("CG",   "Chef(taine) de Groupe",           2, true, false, PfCG),
+            new("ACHG", "Assistant Chef(taine) de Groupe", 1, true, false, PfAssistG),
+        ]),
+    ];
+
+    // Fresh-DB bootstrap of the standard branches + fonctions (see ScoutStructure). Guarded so it never
+    // touches a migrated/already-populated DB (whose unit types come from the migration tool, possibly
+    // under variant codes like CLA) — those get their ranks from SeedFunctionalRoleRanksAsync instead.
+    // Requires the security profiles to already exist (SeedAsync + the group-profile seeders run first).
+    public static async Task SeedScoutStructureAsync(GndjDbContext context)
+    {
+        if (await context.UnitTypes.IgnoreQueryFilters().AnyAsync()) return;
+
+        var profileIds = await context.SecurityProfiles
+            .Where(p => !p.IsDeleted)
+            .ToDictionaryAsync(p => p.Code, p => p.Id);
+
+        foreach (var ut in ScoutStructure)
+        {
+            var unitType = new UnitType
+            {
+                Name = ut.Name, Code = ut.Code, NumberOfYears = ut.Years,
+                AgeMin = ut.AgeMin, AgeMax = ut.AgeMax, Color = ut.Color
+            };
+            context.UnitTypes.Add(unitType);
+            foreach (var role in ut.Roles)
+            {
+                if (!profileIds.TryGetValue(role.Profile, out var profileId)) continue; // profile must exist
+                context.FunctionalRoles.Add(new FunctionalRole
+                {
+                    Name = role.Name, Code = role.Code, UnitTypeId = unitType.Id,
+                    Rank = role.Rank, IsMaitrise = role.IsMaitrise,
+                    IsDefaultForNewMembers = role.IsDefault, SecurityProfileId = profileId
+                });
+            }
+        }
+        await context.SaveChangesAsync();
+    }
+
+    // Back-fills functional-role ranks/defaults/maîtrise after a migration import (the tool creates roles at
+    // rank 0). Runs only while every role is still rank 0 (unconfigured); once a CG sets any rank, it never
+    // overrides. Known codes get their authoritative values from ScoutStructure; anything else falls back to
+    // a keyword heuristic (adult leaders high, youth sub-leaders mid, base youth low).
     public static async Task SeedFunctionalRoleRanksAsync(GndjDbContext context)
     {
         if (await context.FunctionalRoles.AnyAsync(r => r.Rank != 0)) return;
+
+        // Authoritative per-code lookup (codes are unique across the structure).
+        var byCode = ScoutStructure.SelectMany(ut => ut.Roles)
+            .GroupBy(r => r.Code)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         static string Norm(string s) => s.ToLowerInvariant()
             .Replace('é', 'e').Replace('è', 'e').Replace('ê', 'e').Replace('ë', 'e')
@@ -488,13 +616,21 @@ public static class SeedData
         // Youth sub-leaders within an équipe/sizaine (mid rank).
         var subLeaderKeywords = new[] { "sizenier", "sizeniere", "second", "troisi", "chef d'equipe", "meneur" };
 
-        var roles = await context.FunctionalRoles.ToListAsync();
+        // Only per-unit-type roles are ranked; the global admin roles keep rank 0.
+        var roles = await context.FunctionalRoles.Where(r => r.UnitTypeId != null).ToListAsync();
         foreach (var r in roles)
         {
+            if (!string.IsNullOrWhiteSpace(r.Code) && byCode.TryGetValue(r.Code, out var s))
+            {
+                r.Rank = s.Rank;
+                r.IsMaitrise = s.IsMaitrise;
+                r.IsDefaultForNewMembers = s.IsDefault;
+                continue;
+            }
             var n = Norm(r.Name);
             if (leaderKeywords.Any(k => n.Contains(k))) r.Rank = 100;
             else if (subLeaderKeywords.Any(k => n.Contains(k))) r.Rank = 50;
-            else r.Rank = 10; // base youth member (lowest = chosen on demande approval)
+            else r.Rank = 10; // base youth member
         }
         await context.SaveChangesAsync();
     }

@@ -140,26 +140,34 @@ Console.WriteLine("OK (2)");
 // STEP 2: Unit Types
 // ═══════════════════════════════════════════════════════════════
 Console.Write("2. Unit Types... ");
+// Pionnières (PIO) is intentionally NOT imported — it was removed from the structure (0 units).
 var unitTypes = new Dictionary<string, string>
 {
     ["MEU"] = "Meute", ["TRO"] = "Troupe", ["CLA"] = "Clan",
     ["RON"] = "Ronde", ["COM"] = "Compagnie", ["CAR"] = "Caravelles",
     ["JEM"] = "Jeunes en Marche", ["FEU"] = "Feu", ["GRP"] = "Groupe",
-    ["PIO"] = "Pionnières", ["NOY"] = "Noyau",
+    ["NOY"] = "Noyau",
 };
 // Number of years per branch — drives the Camp BP Note multiplier (Note = Force + years×Année + offset).
 var unitTypeYears = new Dictionary<string, int>
 {
     ["MEU"] = 3, ["RON"] = 3, ["COM"] = 4, ["TRO"] = 5,
-    ["CLA"] = 3, ["JEM"] = 3, ["FEU"] = 3, ["CAR"] = 4, ["PIO"] = 3, ["NOY"] = 1, ["GRP"] = 1,
+    ["CLA"] = 3, ["JEM"] = 3, ["FEU"] = 3, ["CAR"] = 4, ["NOY"] = 1, ["GRP"] = 1,
 };
+// Branch colours (hex) + age band — reproduces the live-DB structure so a re-import matches the app.
+var unitTypeColors = new Dictionary<string, string> { ["MEU"] = "#edcf35", ["CAR"] = "#5d9bfd" };
+var unitTypeAges = new Dictionary<string, (int min, int max)> { ["CLA"] = (17, 21) };
 if (!reuseOrg) foreach (var (code, name) in unitTypes)
 {
     var id = NewId();
     unitTypeIdMap[code] = id;
-    await Exec(conn, @"INSERT INTO unit_types (id, name, code, description, number_of_years, created_at, updated_at, is_deleted)
-        VALUES ($1, $2, $3, $4, $5, $6, $6, false) ON CONFLICT DO NOTHING",
-        id, name, code, (string?)null, unitTypeYears.GetValueOrDefault(code, 3), now);
+    var color = unitTypeColors.GetValueOrDefault(code);
+    var hasAge = unitTypeAges.TryGetValue(code, out var age);
+    await Exec(conn, @"INSERT INTO unit_types (id, name, code, description, number_of_years, color, age_min, age_max, created_at, updated_at, is_deleted)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, false) ON CONFLICT DO NOTHING",
+        id, name, code, (string?)null, unitTypeYears.GetValueOrDefault(code, 3),
+        (object?)color ?? DBNull.Value,
+        hasAge ? age.min : (object)DBNull.Value, hasAge ? age.max : (object)DBNull.Value, now);
 }
 Console.WriteLine($"OK ({unitTypes.Count})");
 
@@ -183,6 +191,9 @@ if (!reuseOrg) for (int r = 2; r <= wsRoles.LastRowUsed()!.RowNumber(); r++)
     var utCode = Cell(wsRoles, r, 9); // TYPEUNITE
 
     if (string.IsNullOrWhiteSpace(code)) continue;
+    // Clan "Pilote" (CEP/SEP) removed — it's a team like any other; its holders route to Chef/Second
+    // d'Equipe (CE/SE) via the alias added before STEP 11. Don't create the pilote roles.
+    if (code is "CEP" or "SEP") continue;
     if (roleIdMap.ContainsKey(code)) continue;
 
     var id = NewId();
@@ -541,6 +552,10 @@ Console.WriteLine($"OK ({addrCount})");
 // STEP 11: Assignments
 // ═══════════════════════════════════════════════════════════════
 Console.Write("11. Assignments... ");
+// Alias the removed Clan pilote codes onto Chef/Second d'Equipe so their historical assignments resolve.
+// Runs in both full-import and members-only modes (roleIdMap is populated by STEP 3 or LoadExistingOrg).
+if (roleIdMap.TryGetValue("CE", out var clanCeId)) roleIdMap.TryAdd("CEP", clanCeId);
+if (roleIdMap.TryGetValue("SE", out var clanSeId)) roleIdMap.TryAdd("SEP", clanSeId);
 var wsAssign = OpenSheet("UniteFonc.xlsx");
 int assignCount = 0;
 int autoTeamCount = 0;
@@ -1152,6 +1167,39 @@ for (int r = 2; r <= wsReinsc.LastRowUsed()!.RowNumber(); r++)
     }
 }
 Console.WriteLine($"OK (cotisations: {cotCount}, doc statuses: {docStatusCount})");
+
+// ═══════════════════════════════════════════════════════════════
+// STEP 15b: Groupe consolidation — unify the non-CG group functions into a single ACHG (Assistant
+// Chef(taine) de Groupe). WEBDEV carries several group-staff codes (ACG/AUG/TG/SG/INT/ANIM); the
+// structure keeps only CG + ACHG. Create ACHG, move active non-CG group members onto it, archive the
+// rest (kept for history). Reproduces the live-DB overhaul so a re-import matches the app.
+// ═══════════════════════════════════════════════════════════════
+Console.Write("15b. Groupe consolidation... ");
+var grpUtId = unitTypeIdMap.GetValueOrDefault("GRP");
+if (grpUtId != Guid.Empty)
+{
+    var assistProfId = await ScalarGuid(conn, "SELECT id FROM security_profiles WHERE code='assistant-de-groupe' AND is_deleted=false LIMIT 1");
+    var achgId = await ScalarGuid(conn, $"SELECT id FROM functional_roles WHERE code='ACHG' AND unit_type_id='{grpUtId}' AND is_deleted=false LIMIT 1");
+    if (achgId == Guid.Empty)
+    {
+        achgId = NewId();
+        // rank/is_default are set later by SeedFunctionalRoleRanksAsync (from ScoutStructure) on API startup.
+        await Exec(conn, @"INSERT INTO functional_roles (id, name, code, description, security_profile_id, unit_type_id, is_maitrise, created_at, updated_at, is_deleted)
+            VALUES ($1, $2, $3, $4, $5, $6, true, $7, $7, false)",
+            achgId, "Assistant Chef(taine) de Groupe", "ACHG",
+            (string?)null, assistProfId == Guid.Empty ? (object)DBNull.Value : assistProfId, grpUtId, now);
+        roleIdMap["ACHG"] = achgId;
+    }
+    // Move active assignments on non-CG / non-ACHG group roles onto ACHG.
+    await Exec(conn, @"UPDATE member_assignments SET functional_role_id=$1, updated_at=$2
+        WHERE end_date IS NULL AND is_deleted=false AND functional_role_id IN
+        (SELECT id FROM functional_roles WHERE unit_type_id=$3 AND code NOT IN ('CG','ACHG') AND is_deleted=false)",
+        achgId, now, grpUtId);
+    // Archive the now-emptied non-CG group roles (hidden from pickers, kept on any historical assignments).
+    await Exec(conn, @"UPDATE functional_roles SET is_archived=true, updated_at=$1
+        WHERE unit_type_id=$2 AND code NOT IN ('CG','ACHG') AND is_deleted=false", now, grpUtId);
+}
+Console.WriteLine("OK");
 
 // ═══════════════════════════════════════════════════════════════
 Console.WriteLine("\n✅ Migration complete!");

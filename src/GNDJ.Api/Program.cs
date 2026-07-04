@@ -302,6 +302,7 @@ using (var scope = app.Services.CreateScope())
     await SeedData.SeedMissingPermissionsAsync(context);
     await SeedData.SeedChefDeGroupeProfileAsync(context);
     await SeedData.SeedAssistantDeGroupeProfileAsync(context);
+    await SeedData.SeedScoutStructureAsync(context);
     await SeedData.SeedMissingSettingsAsync(context);
     await SeedData.SeedDefaultEmailTemplatesAsync(context);
     await SeedData.SeedDemandeEmailTemplatesAsync(context);
