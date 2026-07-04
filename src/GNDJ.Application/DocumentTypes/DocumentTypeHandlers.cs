@@ -154,6 +154,30 @@ public class UpdateDocumentTypeCommandHandler(IApplicationDbContext context, IAu
     }
 }
 
+// Reorder — sets DisplayOrder = position for the given ids (drag-and-drop on the admin list).
+public record ReorderDocumentTypesCommand(List<Guid> OrderedIds) : IRequest<Result<bool>>;
+
+public class ReorderDocumentTypesCommandValidator : AbstractValidator<ReorderDocumentTypesCommand>
+{
+    public ReorderDocumentTypesCommandValidator()
+        => RuleFor(x => x.OrderedIds).NotNull().Must(l => l.Count <= 1000).WithMessage("Trop d'éléments.");
+}
+
+public class ReorderDocumentTypesCommandHandler(IApplicationDbContext context) : IRequestHandler<ReorderDocumentTypesCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(ReorderDocumentTypesCommand request, CancellationToken ct)
+    {
+        var types = await context.DocumentTypes.Where(dt => request.OrderedIds.Contains(dt.Id)).ToListAsync(ct);
+        for (var i = 0; i < request.OrderedIds.Count; i++)
+        {
+            var type = types.FirstOrDefault(dt => dt.Id == request.OrderedIds[i]);
+            if (type is not null) type.DisplayOrder = i;
+        }
+        await context.SaveChangesAsync(ct);
+        return Result<bool>.Success(true);
+    }
+}
+
 // Delete
 public record DeleteDocumentTypeCommand(Guid Id) : IRequest<Result<bool>>;
 

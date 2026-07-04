@@ -72,6 +72,16 @@ public class DocumentTypesController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Reorders document types (drag-and-drop). Sets display order from the given id sequence. Requires document_types.manage.</summary>
+    [HttpPut("reorder")]
+    [HasPermission(Permissions.DocumentTypesManage)]
+    public async Task<IActionResult> Reorder([FromBody] ReorderDocumentTypesCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>Deletes a document type. Requires document_types.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.DocumentTypesManage)]

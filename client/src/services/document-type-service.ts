@@ -70,6 +70,15 @@ export function useUpdateDocumentType() {
   })
 }
 
+// PUT /document-types/reorder — persist a new drag order (list of ids). Invalidates the list.
+export function useReorderDocumentTypes() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (orderedIds: string[]) => apiClient.put('/document-types/reorder', { orderedIds }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-types'] }),
+  })
+}
+
 // DELETE /document-types/{id}. Invalidates the list.
 export function useDeleteDocumentType() {
   const qc = useQueryClient()

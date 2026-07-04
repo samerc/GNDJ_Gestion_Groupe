@@ -1,25 +1,29 @@
 // Admin CRUD screen for Document Types (super-admin) — defines the dynamic document slots members must
 // fill (these drive the Ma fiche checklist + the CU documents matrix). Per type: requiresExpiry (member
 // must supply an expiry date), requiresApproval (a leader must approve after upload), isActive ("actif
-// cette année" — toggles whether it's expected this scout year), and displayOrder. Standard list/dialog.
+// cette année" — toggles whether it's expected this scout year). The list order is set by drag-and-drop
+// (like Étapes/Badges/Pages) and drives the checklist/matrix ordering — no manual order field.
 import { parseApiError } from '@/lib/error-utils'
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useDocumentTypes, useCreateDocumentType, useUpdateDocumentType, useDeleteDocumentType, type DocumentTypeDto, type DocumentTypeFormData } from '@/services/document-type-service'
+import { useDocumentTypes, useCreateDocumentType, useUpdateDocumentType, useDeleteDocumentType, useReorderDocumentTypes, type DocumentTypeDto, type DocumentTypeFormData } from '@/services/document-type-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RequiredLabel } from '@/components/shared/required-label'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pencil, Trash2, Search, FileText } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, FileText, GripVertical } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 const defaultForm: DocumentTypeFormData = { name: '', code: '', description: '', requiresExpiry: false, requiresApproval: true, isActive: true, displayOrder: 0 }
 
@@ -27,7 +31,6 @@ export default function DocumentTypesPage() {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
   const hasLoadedOnce = useRef(false)
-  const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<DocumentTypeDto | null>(null)
   const [deleting, setDeleting] = useState<DocumentTypeDto | null>(null)
@@ -35,14 +38,25 @@ export default function DocumentTypesPage() {
   const [error, setError] = useState('')
   const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
 
-  const { data, isLoading } = useDocumentTypes({ search: debouncedSearch || undefined, page })
+  // Doc types are few — fetch them all (pageSize 100) so the whole set is a single drag-orderable list.
+  const { data, isLoading } = useDocumentTypes({ search: debouncedSearch || undefined, page: 1, pageSize: 100 })
   const createMutation = useCreateDocumentType()
   const updateMutation = useUpdateDocumentType()
   const deleteMutation = useDeleteDocumentType()
+  const reorderMutation = useReorderDocumentTypes()
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  // Local order copy for a smooth drag (arrayMove locally, then persist). Synced from the query.
+  const [items, setItems] = useState<DocumentTypeDto[]>([])
+  useEffect(() => { if (data?.items) setItems(data.items) }, [data?.items])
+
+  // Dragging only makes sense on the full unfiltered set (a search shows a subset).
+  const canReorder = !debouncedSearch
 
   const openCreate = () => {
     setEditing(null)
-    setForm(defaultForm)
+    // New types append to the end of the order.
+    setForm({ ...defaultForm, displayOrder: data?.totalCount ?? 0 })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -84,6 +98,17 @@ export default function DocumentTypesPage() {
     }
   }
 
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const oldIndex = items.findIndex(i => i.id === active.id)
+    const newIndex = items.findIndex(i => i.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+    const next = arrayMove(items, oldIndex, newIndex)
+    setItems(next) // optimistic
+    reorderMutation.mutate(next.map(i => i.id), { onError: (err) => toast.error(parseApiError(err)) })
+  }
+
   const isSaving = createMutation.isPending || updateMutation.isPending
   // Latch so the search box survives a 0-result filter (see associations.tsx).
   if (data && data.totalCount > 0) hasLoadedOnce.current = true
@@ -102,69 +127,37 @@ export default function DocumentTypesPage() {
       {showSearch && (
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Rechercher..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-9" />
+          <Input placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
       )}
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
-      ) : !data || data.items.length === 0 ? (
+      ) : items.length === 0 ? (
         <EmptyState
           icon={FileText}
           title="Aucun type de document"
-          description={search ? 'Aucun résultat pour cette recherche.' : 'Créez votre premier type de document.'}
-          action={!search && <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Créer</Button>}
+          description={debouncedSearch ? 'Aucun résultat pour cette recherche.' : 'Créez votre premier type de document.'}
+          action={!debouncedSearch && <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Créer</Button>}
         />
       ) : (
         <>
-          <div className="rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Options</TableHead>
-                  <TableHead className="text-center">Documents</TableHead>
-                  <TableHead className="text-center">Ordre</TableHead>
-                  <TableHead className="w-24" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.items.map((item) => (
-                  <TableRow key={item.id} className="even:bg-muted/30">
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.code}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        {item.isActive ? <Badge className="bg-green-600">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}
-                        {item.requiresExpiry && <Badge variant="outline">Expiration</Badge>}
-                        {item.requiresApproval && <Badge variant="outline">Approbation</Badge>}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">{item.documentCount}</TableCell>
-                    <TableCell className="text-center text-muted-foreground">{item.displayOrder}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button></Tip>
-                        <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(item)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+          {canReorder && <p className="text-xs text-muted-foreground">Glissez pour réordonner. Cet ordre s'applique à la checklist « Ma fiche » et au tableau des documents.</p>}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy} disabled={!canReorder}>
+              <ul className="space-y-2">
+                {items.map((item) => (
+                  <SortableTypeRow
+                    key={item.id}
+                    item={item}
+                    canReorder={canReorder}
+                    onEdit={() => openEdit(item)}
+                    onDelete={() => setDeleting(item)}
+                  />
                 ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {data.totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">{data.totalCount} résultat{data.totalCount > 1 ? 's' : ''}</p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={!data.hasPreviousPage} onClick={() => setPage(p => p - 1)}>Précédent</Button>
-                <span className="flex items-center text-sm text-muted-foreground">Page {data.page} / {data.totalPages}</span>
-                <Button variant="outline" size="sm" disabled={!data.hasNextPage} onClick={() => setPage(p => p + 1)}>Suivant</Button>
-              </div>
-            </div>
-          )}
+              </ul>
+            </SortableContext>
+          </DndContext>
         </>
       )}
 
@@ -187,10 +180,6 @@ export default function DocumentTypesPage() {
             <div className="space-y-2">
               <RequiredLabel htmlFor="description">Description</RequiredLabel>
               <Input id="description" value={form.description ?? ''} onChange={(e) => setForm(f => ({ ...f, description: e.target.value || null }))} />
-            </div>
-            <div className="space-y-2">
-              <RequiredLabel htmlFor="displayOrder">Ordre d'affichage</RequiredLabel>
-              <Input id="displayOrder" type="number" value={form.displayOrder} onChange={(e) => setForm(f => ({ ...f, displayOrder: parseInt(e.target.value) || 0 }))} />
             </div>
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm">
@@ -231,5 +220,36 @@ export default function DocumentTypesPage() {
         onConfirm={handleDelete}
       />
     </div>
+  )
+}
+
+// A single draggable document-type row (grip handle + name/code + option badges + doc count + actions).
+function SortableTypeRow({ item, canReorder, onEdit, onDelete }: { item: DocumentTypeDto; canReorder: boolean; onEdit: () => void; onDelete: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled: !canReorder })
+  return (
+    <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn('flex items-center gap-3 rounded-lg border bg-card p-3', isDragging && 'shadow-lg')}>
+      {canReorder ? (
+        <button {...attributes} {...listeners} className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing" aria-label="Déplacer">
+          <GripVertical className="h-4 w-4" />
+        </button>
+      ) : <span className="w-4" />}
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium">{item.name}</span>
+          <span className="font-mono text-xs text-muted-foreground">{item.code}</span>
+        </div>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {item.isActive ? <Badge className="bg-green-600">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}
+          {item.requiresExpiry && <Badge variant="outline">Expiration</Badge>}
+          {item.requiresApproval && <Badge variant="outline">Approbation</Badge>}
+        </div>
+      </div>
+      <span className="hidden whitespace-nowrap text-xs text-muted-foreground sm:inline">{item.documentCount} document{item.documentCount > 1 ? 's' : ''}</span>
+      <div className="flex gap-1">
+        <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={onEdit}><Pencil className="h-4 w-4" /></Button></Tip>
+        <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
+      </div>
+    </li>
   )
 }
