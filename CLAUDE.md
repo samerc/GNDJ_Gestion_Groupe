@@ -1203,17 +1203,37 @@ Full-stack audit (4 parallel agents: DB/EF, backend API, frontend, infra) + fixe
   - FLAGGED: stray duplicate profile `assistant-e-de-groupe` (ACG, now archived, points to it) vs canonical
     `assistant-de-groupe` — re-point ACG + delete the stray later.
 
+### Seed scout structure + doc-types drag + UI/UX pass (2026-07-04)
+Closed the three queued items (all on main, pushed; frontend + seed CODE — reaches prod on the next deploy;
+the one live-DB edit reaches prod on the next dump).
+- [x] **Role structure baked into SEED + migration tool.** New `SeedData.ScoutStructure` = the single source
+      of truth (10 unit types + their fonctions: codes/ranks/defaults/is_maitrise/profiles, derived from the
+      corrected live dev DB). `SeedScoutStructureAsync` (fresh-DB bootstrap, guarded by "any unit type exists"
+      so it never touches a migrated DB; wired into Program.cs after the profile seeders) creates them.
+      `SeedFunctionalRoleRanksAsync` **rewritten**: known codes get authoritative rank/maîtrise/default from
+      ScoutStructure (fixes the old keyword TIE at 100/50/10), unknown codes keep the keyword fallback; only
+      per-unit-type roles are ranked (globals stay 0). **Feu left tied** (100/10) per request; **Caravelles**
+      has no per-role fonctions. Migration tool (`tools/Migration`): drop **Pionnières** (PIO); set branch
+      **colours** (Meute #edcf35 / Caravelles #5d9bfd) + **Clan age** 17-21 on import; remove Clan **Pilote**
+      (CEP/SEP) roles + alias their assignments → CE/SE; **STEP 15b** consolidates non-CG group functions into a
+      single **ACHG** (create it, move active members, archive the rest). Both projects build clean.
+- [x] **Documents requis → drag-to-reorder.** Backend `ReorderDocumentTypesCommand` + `PUT /document-types/reorder`
+      (document_types.manage; DisplayOrder = position, mirrors stages/badges). Frontend: the admin list is now a
+      dnd-kit sortable list (grip handle) like Étapes/Badges/Pages; **dropped the "Ordre" column + the manual
+      displayOrder form field** (new types append to the end); fetches all types (pageSize 100) so the full set is
+      one orderable list; drag disabled while searching.
+- [x] **Stray `assistant-e-de-groupe` profile cleaned up** (LIVE DEV DB): re-pointed ACG → `assistant-de-groupe`,
+      removed the stray's permissions, soft-deleted it. Backups `_bak_stray_profile*_20260704`.
+- [x] **UI/UX consistency pass** (two-agent audit + fixes, frontend-only): fixed systematically **un-accented**
+      French toasts/dialogs/labels in api-keys.tsx, email-settings.tsx, passage-validation.tsx, passage.tsx
+      (Clé API créée, Serveur/Modèle créé/modifié/supprimé, Passage approuvé/rejeté, finalize dialog…); added a
+      **search clear (X)** button to associations / unit-types / document-types (matches cities & demande review);
+      camps.tsx ad-hoc empty `<p>` → shared `<EmptyState>`, bare spinner → `variant="table"`, h1 → text-2xl;
+      aria-label/title on the credential Copy buttons (members/detail.tsx). NOTE (deferred): a deeper accent sweep
+      of remaining static labels/headers in email-settings/passage-validation; broader striping/pagination
+      standardization across list pages (mix of striped-table vs card/dnd list is intentional per feature family).
+
 ### Remaining / Next
-- [ ] **Bake the role structure into SEED + migration tool ("both" — live done, code pending):** add a
-      `SeedScoutStructureAsync` to `SeedData.cs` that seeds unit types + fonctions with the correct
-      ranks/defaults/profiles/is_maitrise (DERIVE from the now-correct live dev DB — unit types: Meute(#edcf35,3y)/
-      Ronde(3)/Troupe(5)/Compagnie(4)/Noyau(1)/Feu(3)/JEM(3)/Clan(17-21,3)/Caravelles(#5d9bfd,4)/Groupe(1); 47
-      roles). Also fix the migration tool's `SeedFunctionalRoleRanksAsync` (keyword ranks TIE at 100/50/10) →
-      per-role distinct ranks + the Clan/Pionnières/Groupe structure, so a re-import reproduces it.
-- [ ] **Documents requis (document types):** remove the manual order field; make the list **draggable** (dnd-kit,
-      like StagesLadder/BadgesGrid/pages). Then a **UI/UX consistency pass** across the app (design/interaction
-      inconsistencies).
-- [ ] Cleanup the stray `assistant-e-de-groupe` profile (re-point ACG → `assistant-de-groupe`, delete stray).
 - [ ] Public site #3: knowledge / ressources section (lightweight CMS pages vs structured downloadable library).
 - [ ] Optional: disable logins for the 86 login-having orphans; correct the 50 zero-day marker dates in-app.
 - [ ] Deployment hardening (optional): secrets → env vars, httpOnly cookies. (HSTS done; prod CORS moot — SPA is
