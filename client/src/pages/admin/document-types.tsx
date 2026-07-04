@@ -17,7 +17,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pencil, Trash2, Search, FileText, GripVertical } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, FileText, GripVertical, X } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -127,7 +127,13 @@ export default function DocumentTypesPage() {
       {showSearch && (
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 pr-9" />
+          {search && (
+            <button type="button" onClick={() => setSearch('')} aria-label="Effacer la recherche"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       )}
 

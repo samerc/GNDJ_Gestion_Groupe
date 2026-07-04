@@ -125,7 +125,7 @@ export default function PassageValidationPage() {
         finalRoleId: null,
         cgNotes: null,
       })
-      toast.success('Passage approuve')
+      toast.success('Passage approuvé')
     } catch (err) {
       toast.error(parseApiError(err))
     }
@@ -138,7 +138,7 @@ export default function PassageValidationPage() {
         status: 'Rejected',
         cgNotes: null,
       })
-      toast.success('Passage rejete')
+      toast.success('Passage rejeté')
     } catch (err) {
       toast.error(parseApiError(err))
     }
@@ -166,7 +166,7 @@ export default function PassageValidationPage() {
         finalRoleId: editFinalRoleId || null,
         cgNotes: editCgNotes || null,
       })
-      toast.success('Passage modifie et approuve')
+      toast.success('Passage modifié et approuvé')
       setEditDialog(null)
     } catch (err) {
       setEditError(parseApiError(err))
@@ -563,7 +563,7 @@ export default function PassageValidationPage() {
         onOpenChange={setFinalizeDialog}
         title="Finaliser les passages"
         description={
-          `Ceci va finaliser ${approvedCount} passage(s) approuve(s) ${unitFilter === '_all' ? '(toutes unites)' : 'de cette unite'} : ` +
+          `Ceci va finaliser ${approvedCount} passage(s) approuvé(s) ${unitFilter === '_all' ? '(toutes unités)' : 'de cette unité'} : ` +
           `les affectations actuelles seront cloturees et les nouvelles creees. Cette action est definitive. Continuer ?`
         }
         confirmLabel="Finaliser"

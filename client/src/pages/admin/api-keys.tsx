@@ -81,7 +81,7 @@ export default function ApiKeysPage() {
         memberId: form.memberId || null,
         expiresAt: form.expiresAt || null,
       })
-      toast.success('Cle API creee')
+      toast.success('Clé API créée')
       setFormOpen(false)
       // Capture the one-time plaintext key from the response and surface the reveal dialog.
       setCreatedKey(result.key)
@@ -94,7 +94,7 @@ export default function ApiKeysPage() {
   const handleToggle = async (id: string) => {
     try {
       await toggleMutation.mutateAsync(id)
-      toast.success('Statut modifie')
+      toast.success('Statut modifié')
     } catch (err) {
       toast.error(parseApiError(err))
     }
@@ -104,7 +104,7 @@ export default function ApiKeysPage() {
     if (!deleting) return
     try {
       await deleteMutation.mutateAsync(deleting.id)
-      toast.success('Cle API supprimee')
+      toast.success('Clé API supprimée')
       setDeleting(null)
     } catch (err) {
       toast.error(parseApiError(err))
@@ -115,7 +115,7 @@ export default function ApiKeysPage() {
   const handleCopyKey = async () => {
     if (createdKey) {
       await navigator.clipboard.writeText(createdKey)
-      toast.success('Cle copiee dans le presse-papiers')
+      toast.success('Clé copiée dans le presse-papiers')
     }
   }
 
@@ -127,10 +127,10 @@ export default function ApiKeysPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Cles API</h1>
+        <h1 className="text-2xl font-bold">Clés API</h1>
         <Button onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" />
-          Nouvelle cle
+          Nouvelle clé
         </Button>
       </div>
 
@@ -139,9 +139,9 @@ export default function ApiKeysPage() {
       ) : !apiKeys || apiKeys.length === 0 ? (
         <EmptyState
           icon={Key}
-          title="Aucune cle API"
-          description="Creez votre premiere cle API."
-          action={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Creer</Button>}
+          title="Aucune clé API"
+          description="Créez votre première clé API."
+          action={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Créer</Button>}
         />
       ) : (
         <div className="rounded-lg border">
@@ -149,11 +149,11 @@ export default function ApiKeysPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nom</TableHead>
-                <TableHead>Prefixe</TableHead>
+                <TableHead>Préfixe</TableHead>
                 <TableHead>Scopes</TableHead>
-                <TableHead>Membre lie</TableHead>
+                <TableHead>Membre lié</TableHead>
                 <TableHead>Statut</TableHead>
-                <TableHead>Derniere utilisation</TableHead>
+                <TableHead>Dernière utilisation</TableHead>
                 <TableHead>Expiration</TableHead>
                 <TableHead className="w-24" />
               </TableRow>
@@ -209,7 +209,7 @@ export default function ApiKeysPage() {
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nouvelle cle API</DialogTitle>
+            <DialogTitle>Nouvelle clé API</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
@@ -235,7 +235,7 @@ export default function ApiKeysPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <RequiredLabel htmlFor="memberId">Membre lie (optionnel)</RequiredLabel>
+              <RequiredLabel htmlFor="memberId">Membre lié (optionnel)</RequiredLabel>
               <select
                 id="memberId"
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -254,7 +254,7 @@ export default function ApiKeysPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Creation...' : 'Creer'}</Button>
+              <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Création...' : 'Créer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -264,11 +264,11 @@ export default function ApiKeysPage() {
       <Dialog open={createdKeyDialogOpen} onOpenChange={(open) => { if (!open) { setCreatedKey(null); setCreatedKeyDialogOpen(false) } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cle API creee</DialogTitle>
+            <DialogTitle>Clé API créée</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-              Cette cle ne sera plus visible apres fermeture de cette fenetre.
+              Cette clé ne sera plus visible après fermeture de cette fenêtre.
             </div>
             <div className="flex items-center gap-2">
               <code className="flex-1 rounded-md bg-muted p-3 text-sm font-mono break-all select-all">{createdKey}</code>
@@ -289,8 +289,8 @@ export default function ApiKeysPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer la cle API"
-        description={`Etes-vous sur de vouloir supprimer la cle \u00ab ${deleting?.name} \u00bb ? Cette action est irreversible.`}
+        title="Supprimer la cl\u00e9 API"
+        description={`\u00cates-vous s\u00fbr de vouloir supprimer la cl\u00e9 \u00ab ${deleting?.name} \u00bb ? Cette action est irr\u00e9versible.`}
         confirmLabel="Supprimer"
         variant="destructive"
         loading={deleteMutation.isPending}

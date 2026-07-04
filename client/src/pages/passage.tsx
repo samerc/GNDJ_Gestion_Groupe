@@ -322,7 +322,7 @@ export default function PassagePage() {
         count++
       } catch { /* skip */ }
     }
-    if (count > 0) toast.success(`${count} proposition(s) supprimee(s)`)
+    if (count > 0) toast.success(`${count} proposition(s) supprimée(s)`)
     setSelected(new Set())
   }
 
@@ -330,7 +330,7 @@ export default function PassagePage() {
     if (!deletingPassage) return
     try {
       await deleteMutation.mutateAsync(deletingPassage.id)
-      toast.success('Proposition supprimee')
+      toast.success('Proposition supprimée')
       setDeletingPassage(null)
     } catch (err) {
       toast.error(parseApiError(err))

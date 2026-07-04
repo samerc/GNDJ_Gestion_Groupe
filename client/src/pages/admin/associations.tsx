@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { Plus, Pencil, Trash2, Search, Landmark } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Landmark, X } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
@@ -103,8 +103,14 @@ export default function AssociationsPage() {
             placeholder="Rechercher..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            className="pl-9"
+            className="pl-9 pr-9"
           />
+          {search && (
+            <button type="button" onClick={() => { setSearch(''); setPage(1) }} aria-label="Effacer la recherche"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       )}
 

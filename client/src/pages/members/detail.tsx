@@ -631,14 +631,14 @@ export default function MemberDetailPage() {
                 <span className="text-muted-foreground">Nom d'utilisateur :</span>
                 <div className="flex items-center gap-2 mt-1">
                   <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{resetCreds?.username}</code>
-                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resetCreds?.username ?? ''); toast.success('Copié !') }}><Copy className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="sm" aria-label="Copier le nom d'utilisateur" title="Copier" onClick={() => { navigator.clipboard.writeText(resetCreds?.username ?? ''); toast.success('Copié !') }}><Copy className="h-3.5 w-3.5" /></Button>
                 </div>
               </div>
               <div>
                 <span className="text-muted-foreground">Nouveau mot de passe :</span>
                 <div className="flex items-center gap-2 mt-1">
                   <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{resetCreds?.password}</code>
-                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resetCreds?.password ?? ''); toast.success('Copié !') }}><Copy className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="sm" aria-label="Copier le mot de passe" title="Copier" onClick={() => { navigator.clipboard.writeText(resetCreds?.password ?? ''); toast.success('Copié !') }}><Copy className="h-3.5 w-3.5" /></Button>
                 </div>
               </div>
             </div>

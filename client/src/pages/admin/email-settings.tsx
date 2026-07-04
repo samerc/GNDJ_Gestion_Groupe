@@ -164,10 +164,10 @@ function SmtpTab() {
           fromEmail: form.fromEmail, fromName: form.fromName,
           useSsl: form.useSsl, isActive: form.isActive,
         })
-        toast.success('Serveur SMTP modifie')
+        toast.success('Serveur SMTP modifié')
       } else {
         await createMutation.mutateAsync(form)
-        toast.success('Serveur SMTP cree')
+        toast.success('Serveur SMTP créé')
       }
       setFormOpen(false)
     } catch (err) {
@@ -179,7 +179,7 @@ function SmtpTab() {
     if (!deleting) return
     try {
       await deleteMutation.mutateAsync(deleting.id)
-      toast.success('Serveur SMTP supprime')
+      toast.success('Serveur SMTP supprimé')
       setDeleting(null)
     } catch (err) {
       toast.error(parseApiError(err))
@@ -191,7 +191,7 @@ function SmtpTab() {
     e.preventDefault()
     try {
       await testMutation.mutateAsync({ smtpServerId: testServerId, testEmail })
-      toast.success('Email de test envoye')
+      toast.success('Email de test envoyé')
       setTestDialogOpen(false)
     } catch (err) {
       toast.error(parseApiError(err))
@@ -292,7 +292,7 @@ function SmtpTab() {
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement...' : editing ? 'Enregistrer' : 'Creer'}
+                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement...' : editing ? 'Enregistrer' : 'Créer'}
               </Button>
             </DialogFooter>
           </form>
@@ -379,10 +379,10 @@ function TemplatesTab() {
       }
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, ...payload })
-        toast.success('Modele modifie')
+        toast.success('Modèle modifié')
       } else {
         await createMutation.mutateAsync(payload)
-        toast.success('Modele cree')
+        toast.success('Modèle créé')
       }
       setFormOpen(false)
     } catch (err) {
@@ -394,7 +394,7 @@ function TemplatesTab() {
     if (!deleting) return
     try {
       await deleteMutation.mutateAsync(deleting.id)
-      toast.success('Modele supprime')
+      toast.success('Modèle supprimé')
       setDeleting(null)
     } catch (err) {
       toast.error(parseApiError(err))
@@ -414,7 +414,7 @@ function TemplatesTab() {
       </div>
 
       {!templates || templates.length === 0 ? (
-        <EmptyState icon={FileText} title="Aucun modele d'email" description="Creez votre premier modele d'email." action={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Creer</Button>} />
+        <EmptyState icon={FileText} title="Aucun modèle d'email" description="Créez votre premier modèle d'email." action={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Créer</Button>} />
       ) : (
         <div className="rounded-lg border">
           <Table>
@@ -521,7 +521,7 @@ function TemplatesTab() {
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement...' : editing ? 'Enregistrer' : 'Creer'}
+                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement...' : editing ? 'Enregistrer' : 'Créer'}
               </Button>
             </DialogFooter>
           </form>
