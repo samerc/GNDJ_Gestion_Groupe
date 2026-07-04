@@ -1180,11 +1180,40 @@ Full-stack audit (4 parallel agents: DB/EF, backend API, frontend, infra) + fixe
   but no unit (FLAGGED: could disable those logins later; not done). 50 zero-day markers still await real member
   date corrections (can't auto-fix).
 
+### Prod sync DONE + Functional-role order overhaul (2026-07-01)
+- **PROD SYNCED (new.gndj.org is LIVE with all session work):** built on prod via `update.ps1 -Pull` (prod now
+  has SDK+Node + the clone; `publish.ps1` `npm ci --include=dev` fix let `tsc` run), then restored a fresh dev
+  dump (`C:\gndj-backups\gndj_data_20260701_1514.dump`, members=2493) via `reset-to-import.ps1`. **GOTCHA:** the
+  script's interactive secure password prompt choked on special chars → use `-PgPassword '...' -Yes` (it also
+  needs an ELEVATED shell). This carried live all the data fixes + code from this session (T&C/6ème, news
+  cover/attachments/filter, photo unit-scope, card-split, maîtrise-team, classe promotion, checkup fixes).
+- **Functional-role order overhaul — LIVE DEV DB ONLY** (backups `_bak_roles_20260701`, `_bak_roleassign_20260701`;
+  reaches prod on the NEXT dump/sync). Roles per unit type were rank-tied (all maîtrise=100 etc.) so order was
+  arbitrary (assistant showing above chief). Fixes applied on dev:
+  - **Distinct ranks per unit type** (top = highest, N-1…0) in proper seniority: chief → assistant(s) → team
+    leaders (1st/2nd/3rd) → base youth (★ default). Applied to Meute/Ronde/Troupe/Compagnie/Noyau/JEM/Clan/Groupe.
+    **Feu left tied on purpose** (user: "leave as is for now").
+  - **Clan:** "Pilote" is just another team → removed roles CEP/SEP, reassigned their (historical) assignments →
+    CE/SE. Clan now CC>ACC>CE>SE>Routier★.
+  - **Pionnières:** removed entirely (roles + the unit type; it had 0 units).
+  - **Groupe:** created **`ACHG` "Assistant Chef(taine) de Groupe"** (profile `assistant-de-groupe`, is_maitrise);
+    moved all 13 non-CG active group members into it; **archived** (kept, emptied) ACG/AUG/TG/SG/INT/ANIM. Groupe
+    now = CG + ACHG (active) only. No default (group has no youth).
+  - **JEM:** moved the ★ default from "Animatrice JEM" → "Jeune En Marche" (base youth).
+  - FLAGGED: stray duplicate profile `assistant-e-de-groupe` (ACG, now archived, points to it) vs canonical
+    `assistant-de-groupe` — re-point ACG + delete the stray later.
+
 ### Remaining / Next
-- [ ] **Final prod sync:** re-ship `main` (excluded-classe + news cover/attachments + photo-scope) + fresh
-      `pg_dump` of dev → restore prod (carries the maîtrise-team + classe-promotion + section-clear + checkup
-      fixes). Dev dump `C:\gndj-backups\gndj_data_20260629_1130.dump` is STALE — take a new one at sync time.
-      Migrations riding along: `AddApplicantTermsAccepted`, `AddNewsAttachments`.
+- [ ] **Bake the role structure into SEED + migration tool ("both" — live done, code pending):** add a
+      `SeedScoutStructureAsync` to `SeedData.cs` that seeds unit types + fonctions with the correct
+      ranks/defaults/profiles/is_maitrise (DERIVE from the now-correct live dev DB — unit types: Meute(#edcf35,3y)/
+      Ronde(3)/Troupe(5)/Compagnie(4)/Noyau(1)/Feu(3)/JEM(3)/Clan(17-21,3)/Caravelles(#5d9bfd,4)/Groupe(1); 47
+      roles). Also fix the migration tool's `SeedFunctionalRoleRanksAsync` (keyword ranks TIE at 100/50/10) →
+      per-role distinct ranks + the Clan/Pionnières/Groupe structure, so a re-import reproduces it.
+- [ ] **Documents requis (document types):** remove the manual order field; make the list **draggable** (dnd-kit,
+      like StagesLadder/BadgesGrid/pages). Then a **UI/UX consistency pass** across the app (design/interaction
+      inconsistencies).
+- [ ] Cleanup the stray `assistant-e-de-groupe` profile (re-point ACG → `assistant-de-groupe`, delete stray).
 - [ ] Public site #3: knowledge / ressources section (lightweight CMS pages vs structured downloadable library).
 - [ ] Optional: disable logins for the 86 login-having orphans; correct the 50 zero-day marker dates in-app.
 - [ ] Deployment hardening (optional): secrets → env vars, httpOnly cookies. (HSTS done; prod CORS moot — SPA is
