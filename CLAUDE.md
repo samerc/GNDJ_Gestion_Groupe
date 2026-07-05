@@ -1255,7 +1255,37 @@ permission (all on main, pushed; frontend + backend CODE — reaches prod on the
 - NOTE: an existing `assistant-de-groupe` profile is NOT auto-back-filled with the new perm (its seeder only
       creates-if-missing + strips CG-only powers) — a CG can grant it via Accès maîtrise. Not critical (CU covered).
 
+### Member-facing email delivery + test redirect (2026-07-05)
+The only member-facing email (password reset) went to the login `User.Email`, which for imported members is a
+synthetic `@scouts.gndj` address (undeliverable). Now member/guardian real emails drive delivery; demande
+responses fan out to the whole file; and a global override protects real families during testing.
+- [x] **`Member.PrimaryContactEmail`** (migration `AddMemberPrimaryContactEmail`): the designated recipient for
+      member-facing mail. `MemberDetailDto` gained `PrimaryContactEmail` + `GuardianEmails`; `PUT /members/{id}/
+      primary-email` (members.edit, unit-scoped) sets/clears it (must be one of the member's own or a guardian's
+      emails). Panel Coordonnées has a "Courriel de contact principal" picker (Auto | member/guardian emails).
+- [x] **Leader "Réinitialiser le mot de passe" now emails the temp password** to the resolved contact email
+      (`PrimaryContactEmail` → member's own primary/first → a guardian's) via new template `member_password_reset`
+      (seeded, module auth). `ResetMemberPasswordResult.SentToEmail` returned → panel shows "email envoyé à X"
+      (green) or a warning + on-screen creds if the file has NO email. Member changes it on first login (guidance
+      text, no forced-change mechanism built).
+- [x] **Demande responses → all emails on the file:** `SendDemandeResponses` now sends the accepted/refused email
+      to the applicant account (login) + every guardian email + the child's email, **deduped** (was account only).
+- [x] **SAFETY NET — `email.override_recipient` setting** (category `email`): when set, `EmailService.SendAsync`
+      (the single chokepoint for ALL templated mail) redirects EVERY email to that one address, with the intended
+      recipient shown in the subject `[TEST → real@addr] …`. Empty = real delivery (prod). The SMTP **Test** button
+      is unaffected (separate SmtpClient). **Set to `samer_cheaib@hotmail.com` in the dev DB** for now; SMTP2GO also
+      left **inactive** in dev (double safety). NOTE: EmailService picks the template's SMTP server else the **first
+      active** one (no OrderBy) — fragile; bind templates to a server or keep the real server inactive until go-live.
+- Verified against the running API WITHOUT delivering mail (resolver returned the right guardian address; a test
+      reset failed against the non-running local smtp4dev — nothing delivered). tsc + dotnet build clean.
+- **TODO (user: "we will also work on this"):** the go-live plan so real users can start — see the open discussion
+      (which SMTP server + binding, when to clear the override, the fake `@scouts.gndj` login vs real-email login,
+      forcing a password change on first login, prod deploy of all this session's work).
+
 ### Remaining / Next
+- [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
+      `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);
+      optional force-password-change-on-first-login; deploy this session's dev-only work to prod (code + dump).
 - [ ] Public site #3: knowledge / ressources section (lightweight CMS pages vs structured downloadable library).
 - [ ] Optional: disable logins for the 86 login-having orphans; correct the 50 zero-day marker dates in-app.
 - [ ] Deployment hardening (optional): secrets → env vars, httpOnly cookies. (HSTS done; prod CORS moot — SPA is
