@@ -1233,6 +1233,28 @@ the one live-DB edit reaches prod on the next dump).
       of remaining static labels/headers in email-settings/passage-validation; broader striping/pagination
       standardization across list pages (mix of striped-table vs card/dnd list is intentional per feature family).
 
+### Member panel rebuild + reset-password RBAC (2026-07-05)
+The Membres master/detail panel (`members/index.tsx`) was read-only except the SDL/GDL card number and
+had NO reset-password button — that action only lived on the unused standalone `members/detail.tsx`, so
+from where CUs actually work no one could reset a member's login. Rebuilt the panel + made reset an RBAC
+permission (all on main, pushed; frontend + backend CODE — reaches prod on the next deploy).
+- [x] **Header:** shows the login **username** under the name + a "Réinitialiser le mot de passe" button
+      (confirm → one-time credentials dialog), next to the card-PDF button, always visible. New backend field
+      `MemberDetailDto.Username` (correlated subquery on the linked user; null if no account).
+- [x] **Full inline edit** ("Modifier" in the header): Identité/Scolarité/Médical become a form, Coordonnées
+      (phones/emails/addresses) get add/edit/delete; the external-card-number editor folds into the form (no
+      longer the lone editable field). Panel `key={memberId}` so edit state resets on member switch.
+- [x] **Tabs 8 → 6:** merged **Documents+Cotisations** ("Documents & cotisations") and **Médical+Infos
+      complémentaires** ("Médical & infos").
+- [x] **New RBAC permission `members.reset_password`** (was piggybacking on members.edit). Endpoint re-gated
+      (`[HasPermission(MembersResetPassword)]`); handler keeps the super-admin-or-active-unit-leader IDOR check.
+      Seeded onto **chef-unite** (initial seed + SeedMissingPermissionsAsync back-fill) + super-admin/assoc-admin/
+      chef-de-groupe via their All-derived sets; added to the security-profiles permission editor (Membres group)
+      and the group-access **Membres/Complet** delegable set. Frontend reset button gated on the new permission.
+      **Verified live:** a real CU (lynn.cortas) holds it and reset a member (200 + temp password).
+- NOTE: an existing `assistant-de-groupe` profile is NOT auto-back-filled with the new perm (its seeder only
+      creates-if-missing + strips CG-only powers) — a CG can grant it via Accès maîtrise. Not critical (CU covered).
+
 ### Remaining / Next
 - [ ] Public site #3: knowledge / ressources section (lightweight CMS pages vs structured downloadable library).
 - [ ] Optional: disable logins for the 86 login-having orphans; correct the 50 zero-day marker dates in-app.
