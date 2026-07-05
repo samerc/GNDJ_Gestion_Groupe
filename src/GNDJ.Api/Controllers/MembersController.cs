@@ -109,12 +109,12 @@ public class MembersController : BaseApiController
     }
 
     /// <summary>
-    /// Leader/CG resets a member's password, generating a temp password (returned once in the body). Requires members.edit;
-    /// handler additionally requires super-admin OR an active-unit-leader of the member.
+    /// Leader/CG resets a member's password, generating a temp password (returned once in the body). Requires
+    /// members.reset_password; handler additionally requires super-admin OR an active-unit-leader of the member.
     /// </summary>
     /// <response code="404">The member has no user account.</response>
     [HttpPost("{id:guid}/reset-password")]
-    [HasPermission(Permissions.MembersEdit)]
+    [HasPermission(Permissions.MembersResetPassword)]
     [ProducesResponseType(404)]
     public async Task<IActionResult> ResetPassword(Guid id)
     {

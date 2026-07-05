@@ -8,6 +8,7 @@ export const PERMISSIONS = {
   MEMBERS_CREATE: 'members.create',
   MEMBERS_EDIT: 'members.edit',
   MEMBERS_DELETE: 'members.delete',
+  MEMBERS_RESET_PASSWORD: 'members.reset_password',
   UNITS_VIEW: 'units.view',
   UNITS_CREATE: 'units.create',
   UNITS_EDIT: 'units.edit',

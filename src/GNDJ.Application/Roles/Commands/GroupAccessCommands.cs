@@ -17,7 +17,7 @@ public static class GroupAccessAreas
 
     public static readonly Area[] All =
     [
-        new("membres", "Membres", [P.MembersView], [P.MembersCreate, P.MembersEdit, P.MembersDelete]),
+        new("membres", "Membres", [P.MembersView], [P.MembersCreate, P.MembersEdit, P.MembersDelete, P.MembersResetPassword]),
         new("affectations", "Affectations", [P.AssignmentsView], [P.AssignmentsCreate, P.AssignmentsEdit, P.AssignmentsDelete]),
         new("famille", "Famille", [P.RelationshipsView], [P.RelationshipsCreate, P.RelationshipsEdit, P.RelationshipsDelete]),
         new("documents", "Documents", [P.DocumentsView], [P.DocumentsCreate, P.DocumentsEdit, P.DocumentsDelete, P.DocumentsApprove]),

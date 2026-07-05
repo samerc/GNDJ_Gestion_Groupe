@@ -67,7 +67,7 @@ public static class SeedData
             Permissions.All.Where(p => p != Permissions.AdminHardDelete).ToArray());
         var chefUniteProfile = CreateProfile("Chef d'unité", "chef-unite", "Gestion d'une unité",
         [
-            Permissions.MembersView, Permissions.MembersCreate, Permissions.MembersEdit, Permissions.MembersDelete,
+            Permissions.MembersView, Permissions.MembersCreate, Permissions.MembersEdit, Permissions.MembersDelete, Permissions.MembersResetPassword,
             Permissions.UnitsView, Permissions.UnitsEdit,
             Permissions.TeamsView, Permissions.TeamsCreate, Permissions.TeamsEdit, Permissions.TeamsDelete,
             Permissions.AssignmentsView, Permissions.AssignmentsCreate, Permissions.AssignmentsEdit, Permissions.AssignmentsDelete,
@@ -170,6 +170,7 @@ public static class SeedData
             ["association-admin"] = Permissions.All.Where(p => p != Permissions.AdminHardDelete).ToArray(),
             ["chef-unite"] =
             [
+                Permissions.MembersResetPassword,
                 Permissions.DocumentsView, Permissions.DocumentsCreate, Permissions.DocumentsEdit, Permissions.DocumentsDelete, Permissions.DocumentsApprove,
                 Permissions.CotisationsView, Permissions.CotisationsCreate, Permissions.CotisationsEdit, Permissions.CotisationsDelete,
                 Permissions.DocumentTypesView,

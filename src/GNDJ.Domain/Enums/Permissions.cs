@@ -9,6 +9,7 @@ public static class Permissions
     public const string MembersCreate = "members.create";
     public const string MembersEdit = "members.edit";
     public const string MembersDelete = "members.delete";
+    public const string MembersResetPassword = "members.reset_password"; // leader/CG resets a member's login password
 
     public const string UnitsView = "units.view";
     public const string UnitsCreate = "units.create";
@@ -78,7 +79,7 @@ public static class Permissions
 
     public static readonly string[] All =
     [
-        MembersView, MembersCreate, MembersEdit, MembersDelete,
+        MembersView, MembersCreate, MembersEdit, MembersDelete, MembersResetPassword,
         UnitsView, UnitsCreate, UnitsEdit, UnitsDelete,
         TeamsView, TeamsCreate, TeamsEdit, TeamsDelete,
         AssignmentsView, AssignmentsCreate, AssignmentsEdit, AssignmentsDelete,

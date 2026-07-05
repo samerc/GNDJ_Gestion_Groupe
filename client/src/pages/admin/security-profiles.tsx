@@ -29,6 +29,7 @@ const PERMISSION_GROUPS: { label: string; permissions: { value: string; label: s
       { value: 'members.create', label: 'Créer' },
       { value: 'members.edit', label: 'Modifier' },
       { value: 'members.delete', label: 'Supprimer' },
+      { value: 'members.reset_password', label: 'Réinitialiser le mot de passe' },
     ],
   },
   {

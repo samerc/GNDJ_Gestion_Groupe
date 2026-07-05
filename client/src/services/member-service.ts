@@ -44,6 +44,7 @@ export interface MemberDetailDto {
   addresses: MemberAddressDto[]
   createdAt: string
   updatedAt: string
+  username: string | null // login of the linked user account (null if no account)
 }
 
 export interface MemberPhoneDto { id: string; countryCode: string; number: string; type: string; isPrimary: boolean; isEmergency: boolean }

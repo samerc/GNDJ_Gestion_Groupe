@@ -52,7 +52,7 @@ export default function MemberDetailPage() {
   const updateEmailMutation = useUpdateEmail(id!)
   const updateAddressMutation = useUpdateAddress(id!)
   const resetPasswordMutation = useResetMemberPassword()
-  const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
+  const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
 
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [resetCreds, setResetCreds] = useState<{ username: string; password: string } | null>(null)
@@ -216,7 +216,7 @@ export default function MemberDetailPage() {
         </div>
         {!editing ? (
           <div className="flex gap-2">
-            {canEdit && (
+            {canResetPassword && (
               <Button variant="outline" onClick={() => setResetConfirmOpen(true)}>
                 <KeyRound className="mr-2 h-4 w-4" />Réinitialiser le mot de passe
               </Button>

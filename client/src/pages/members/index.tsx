@@ -11,19 +11,27 @@ import { useParams } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useMembers, useMember, useCreateMember, useUpdateMember, type MemberFormData } from '@/services/member-service'
+import { useMembers, useMember, useCreateMember, useUpdateMember, useResetMemberPassword,
+  useAddPhone, useDeletePhone, useUpdatePhone, useAddEmail, useDeleteEmail, useUpdateEmail,
+  useAddAddress, useDeleteAddress, useUpdateAddress,
+  type MemberFormData, type MemberPhoneDto, type MemberEmailDto, type MemberAddressDto } from '@/services/member-service'
 import { MemberPhoto } from '@/components/shared/member-photo'
 import { useUnits } from '@/services/unit-service'
+import { useAuthStore } from '@/stores/auth-store'
+import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tooltip'
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { SearchableSelect } from '@/components/shared/searchable-select'
-import { useSettingArray, useSettingValue, matchSchool } from '@/services/settings-service'
+import { CitySelect } from '@/components/shared/city-select'
+import { useSettingArray, useSettingValue, matchSchool, useCities } from '@/services/settings-service'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberDocuments } from '@/components/members/member-documents'
@@ -32,9 +40,9 @@ import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
 import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
-import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS } from '@/lib/options'
+import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
 import { cn } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
@@ -80,44 +88,133 @@ function Chip({ icon: Icon, children }: { icon?: ComponentType<{ className?: str
 function MemberDetailPanel({ memberId }: { memberId: string }) {
   const { data: member, isLoading } = useMember(memberId)
   const updateMember = useUpdateMember()
-  const [cardEditOpen, setCardEditOpen] = useState(false)
-  const [cardDraft, setCardDraft] = useState('')
+  const resetPassword = useResetMemberPassword()
+  const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
+  const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
+
+  const pinnedNationalities = useSettingArray('pinned_nationalities')
+  const defaultCountryCode = useSettingValue('default_country_code')
+  const defaultCountry = useSettingValue('default_country')
+  const schools = useSettingArray('member.schools')
+  const classes = useSettingArray('member.classes')
+  const cities = useCities()
+
+  // Contact mutations (phones/emails/addresses save immediately via their own dialogs).
+  const addPhone = useAddPhone(memberId); const delPhone = useDeletePhone(memberId); const updPhone = useUpdatePhone(memberId)
+  const addEmail = useAddEmail(memberId); const delEmail = useDeleteEmail(memberId); const updEmail = useUpdateEmail(memberId)
+  const addAddress = useAddAddress(memberId); const delAddress = useDeleteAddress(memberId); const updAddress = useUpdateAddress(memberId)
+
+  // Profil + Scolarité + Médical share one inline edit form (the header "Modifier" button).
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState<MemberFormData>({ firstName: '', lastName: '' })
+  const [error, setError] = useState('')
+
+  // Reset password (one-time credentials).
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
+  const [resetCreds, setResetCreds] = useState<{ username: string; password: string } | null>(null)
+
+  // Contact add/edit/delete dialog state.
+  const [phoneDialogOpen, setPhoneDialogOpen] = useState(false)
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
+  const [addressDialogOpen, setAddressDialogOpen] = useState(false)
+  const [deletingContact, setDeletingContact] = useState<{ type: 'phone' | 'email' | 'address'; id: string; label: string } | null>(null)
+  const [phoneForm, setPhoneForm] = useState({ countryCode: '+961', number: '', type: 'Mobile', isPrimary: false, isEmergency: false })
+  const [emailForm, setEmailForm] = useState({ address: '', type: 'Personnel', isPrimary: false, isEmergency: false })
+  const [addressForm, setAddressForm] = useState({ type: 'Domicile', country: 'Liban', city: '', details: '', isPrimary: false })
+  const [editingPhone, setEditingPhone] = useState<MemberPhoneDto | null>(null)
+  const [editPhoneForm, setEditPhoneForm] = useState({ countryCode: '', number: '', type: '', isPrimary: false, isEmergency: false })
+  const [editingEmail, setEditingEmail] = useState<MemberEmailDto | null>(null)
+  const [editEmailForm, setEditEmailForm] = useState({ address: '', type: '', isPrimary: false, isEmergency: false })
+  const [editingAddress, setEditingAddress] = useState<MemberAddressDto | null>(null)
+  const [editAddressForm, setEditAddressForm] = useState({ type: '', country: '', city: '', details: '', isPrimary: false })
 
   if (isLoading) return <div className="flex items-center justify-center h-full"><LoadingSpinner /></div>
   if (!member) return null
 
   const age = computeAge(member.dateOfBirth)
 
-  // Save only the SDL/GDL external card number; resend the rest of the member unchanged
-  // (UpdateMember is a full replace, so omitting fields would null them — internal matricule untouched).
-  const saveExternalCard = async () => {
+  const startEdit = () => {
+    setForm({
+      firstName: member.firstName, lastName: member.lastName,
+      dateOfBirth: member.dateOfBirth ?? '', gender: member.gender ?? '',
+      cardNumber: member.cardNumber ?? '', externalCardNumber: member.externalCardNumber ?? '',
+      bloodType: member.bloodType ?? '', nationality: member.nationality ?? '',
+      school: member.school ?? '', classe: member.classe ?? '', section: member.section ?? '',
+      medicalNotes: member.medicalNotes ?? '', allergies: member.allergies ?? '', notes: member.notes ?? '',
+    })
+    setError(''); setEditing(true)
+  }
+
+  // UpdateMember is a full replace, so send every field (empty → null clears it).
+  const handleSave = async () => {
+    setError('')
+    const missing: string[] = []
+    if (!form.firstName?.trim()) missing.push('prénom')
+    if (!form.lastName?.trim()) missing.push('nom')
+    if (!form.dateOfBirth) missing.push('date de naissance')
+    if (!form.gender) missing.push('genre')
+    if (!form.nationality?.trim()) missing.push('nationalité')
+    if (!form.school?.trim()) missing.push('école')
+    if (!form.classe?.trim()) missing.push('classe')
+    if (missing.length) { setError(`Champs requis manquants : ${missing.join(', ')}.`); return }
     try {
       await updateMember.mutateAsync({
-        id: memberId,
-        firstName: member.firstName, lastName: member.lastName,
-        dateOfBirth: member.dateOfBirth, gender: member.gender,
-        cardNumber: member.cardNumber, externalCardNumber: cardDraft.trim() || null,
-        bloodType: member.bloodType, nationality: member.nationality,
-        school: member.school, classe: member.classe, section: member.section,
-        medicalNotes: member.medicalNotes, allergies: member.allergies, notes: member.notes,
+        id: memberId, ...form,
+        dateOfBirth: form.dateOfBirth || null, gender: form.gender || null,
+        cardNumber: form.cardNumber || null, externalCardNumber: form.externalCardNumber || null,
+        bloodType: form.bloodType || null, nationality: form.nationality || null,
+        school: form.school || null, classe: form.classe || null, section: form.section || null,
+        medicalNotes: form.medicalNotes || null, allergies: form.allergies || null, notes: form.notes || null,
       })
-      toast.success('Numéro de carte enregistré')
-      setCardEditOpen(false)
+      toast.success('Membre modifié')
+      setEditing(false)
+    } catch (err) { setError(parseApiError(err)) }
+  }
+
+  const handleResetPassword = async () => {
+    try {
+      const creds = await resetPassword.mutateAsync(memberId)
+      setResetCreds({ username: creds.username, password: creds.temporaryPassword })
+      toast.success('Mot de passe réinitialisé')
+    } catch (err) { toast.error(parseApiError(err)) }
+    finally { setResetConfirmOpen(false) }
+  }
+
+  // Contact handlers (immediate save).
+  const submitAddPhone = async (e: React.FormEvent) => { e.preventDefault(); await addPhone.mutateAsync(phoneForm); setPhoneDialogOpen(false); setPhoneForm({ countryCode: defaultCountryCode ?? '+961', number: '', type: 'Mobile', isPrimary: false, isEmergency: false }) }
+  const submitAddEmail = async (e: React.FormEvent) => { e.preventDefault(); await addEmail.mutateAsync(emailForm); setEmailDialogOpen(false); setEmailForm({ address: '', type: 'Personnel', isPrimary: false, isEmergency: false }) }
+  const submitAddAddress = async (e: React.FormEvent) => { e.preventDefault(); await addAddress.mutateAsync({ ...addressForm, details: addressForm.details || null }); setAddressDialogOpen(false); setAddressForm({ type: 'Domicile', country: defaultCountry ?? 'Liban', city: '', details: '', isPrimary: false }) }
+  const openEditPhone = (p: MemberPhoneDto) => { setEditPhoneForm({ countryCode: p.countryCode, number: p.number, type: p.type, isPrimary: p.isPrimary, isEmergency: p.isEmergency }); setEditingPhone(p) }
+  const submitEditPhone = async (e: React.FormEvent) => { e.preventDefault(); if (!editingPhone) return; try { await updPhone.mutateAsync({ id: editingPhone.id, ...editPhoneForm }); toast.success('Téléphone modifié'); setEditingPhone(null) } catch (err) { toast.error(parseApiError(err)) } }
+  const openEditEmail = (em: MemberEmailDto) => { setEditEmailForm({ address: em.address, type: em.type, isPrimary: em.isPrimary, isEmergency: em.isEmergency }); setEditingEmail(em) }
+  const submitEditEmail = async (e: React.FormEvent) => { e.preventDefault(); if (!editingEmail) return; try { await updEmail.mutateAsync({ id: editingEmail.id, ...editEmailForm }); toast.success('Courriel modifié'); setEditingEmail(null) } catch (err) { toast.error(parseApiError(err)) } }
+  const openEditAddress = (a: MemberAddressDto) => { setEditAddressForm({ type: a.type, country: a.country, city: a.city, details: a.details ?? '', isPrimary: a.isPrimary }); setEditingAddress(a) }
+  const submitEditAddress = async (e: React.FormEvent) => { e.preventDefault(); if (!editingAddress) return; try { await updAddress.mutateAsync({ id: editingAddress.id, ...editAddressForm, details: editAddressForm.details || null }); toast.success('Adresse modifiée'); setEditingAddress(null) } catch (err) { toast.error(parseApiError(err)) } }
+  const handleDeleteContact = async () => {
+    if (!deletingContact) return
+    if (deletingContact.type === 'phone') await delPhone.mutateAsync(deletingContact.id)
+    else if (deletingContact.type === 'email') await delEmail.mutateAsync(deletingContact.id)
+    else await delAddress.mutateAsync(deletingContact.id)
+    setDeletingContact(null)
+  }
+
+  const downloadCard = async () => {
+    try {
+      const response = await generateMemberCard(memberId)
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `Carte_${member.firstName}_${member.lastName}.pdf`; a.click()
+      URL.revokeObjectURL(url)
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
+      {/* Header — always visible: identity, login username + reset, card PDF, edit toggle */}
       <div className="shrink-0 border-b px-4 py-3">
-        <div className="flex items-center gap-3">
-          <MemberPhoto
-            memberId={memberId}
-            name={`${member.firstName} ${member.lastName}`}
-            photoPath={member.photoPath}
-            size={48}
-            editable
-          />
+        <div className="flex items-start gap-3">
+          <MemberPhoto memberId={memberId} name={`${member.firstName} ${member.lastName}`} photoPath={member.photoPath} size={48} editable />
           <div className="flex-1 min-w-0">
             <h2 className="font-bold">{member.firstName} {member.lastName}</h2>
             <p className="text-xs text-muted-foreground">
@@ -126,23 +223,34 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
               {member.gender}
               {member.dateOfBirth && ` — Né(e) le ${new Date(member.dateOfBirth).toLocaleDateString('fr-FR')}`}
             </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {member.username
+                ? <>Identifiant : <span className="font-medium text-foreground">{member.username}</span></>
+                : <span className="italic">Aucun compte utilisateur</span>}
+            </p>
           </div>
-          <Tip content="Télécharger la carte de membre">
-            <Button variant="outline" size="sm" onClick={async () => {
-              try {
-                const response = await generateMemberCard(memberId)
-                const blob = new Blob([response.data], { type: 'application/pdf' })
-                const url = URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = `Carte_${member.firstName}_${member.lastName}.pdf`
-                a.click()
-                URL.revokeObjectURL(url)
-              } catch (err) { toast.error(parseApiError(err)) }
-            }}>
-              <CreditCard className="h-4 w-4" />
-            </Button>
-          </Tip>
+          <div className="flex shrink-0 items-center gap-2">
+            {!editing && canResetPassword && member.username && (
+              <Tip content="Réinitialiser le mot de passe">
+                <Button variant="outline" size="sm" onClick={() => setResetConfirmOpen(true)}><KeyRound className="h-4 w-4" /></Button>
+              </Tip>
+            )}
+            {!editing && (
+              <Tip content="Télécharger la carte de membre">
+                <Button variant="outline" size="sm" onClick={downloadCard}><CreditCard className="h-4 w-4" /></Button>
+              </Tip>
+            )}
+            {canEdit && (editing ? (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Annuler</Button>
+                <Button size="sm" onClick={handleSave} disabled={updateMember.isPending}>
+                  <Save className="mr-1 h-4 w-4" />{updateMember.isPending ? '…' : 'Enregistrer'}
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" onClick={startEdit}><Pencil className="mr-1 h-4 w-4" />Modifier</Button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -151,27 +259,18 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
           <TabsTrigger value="info">Informations</TabsTrigger>
           <TabsTrigger value="famille">Famille</TabsTrigger>
           <TabsTrigger value="unites">Unités / Fonctions</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="cotisations">Cotisations</TabsTrigger>
+          <TabsTrigger value="dossier">Documents &amp; cotisations</TabsTrigger>
           <TabsTrigger value="progression">Progression</TabsTrigger>
-          <TabsTrigger value="custom">Infos complémentaires</TabsTrigger>
-          <TabsTrigger value="medical">Médical</TabsTrigger>
+          <TabsTrigger value="medical">Médical &amp; infos</TabsTrigger>
         </TabsList>
 
         <div className="flex-1 overflow-auto p-4">
           <TabsContent value="info" className="mt-0 space-y-6">
-            {/* Hero: portrait + quick facts */}
+            {error && editing && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+
+            {/* Hero: portrait + quick facts (summary; reflects saved values) */}
             <div className="flex flex-col gap-4 rounded-xl border bg-gradient-to-br from-muted/50 to-transparent p-4 sm:flex-row sm:items-center">
-              <MemberPhoto
-                memberId={memberId}
-                name={`${member.firstName} ${member.lastName}`}
-                photoPath={member.photoPath}
-                size={132}
-                height={176}
-                rounded="rounded-xl"
-                editable
-                className="shadow-sm ring-1 ring-border"
-              />
+              <MemberPhoto memberId={memberId} name={`${member.firstName} ${member.lastName}`} photoPath={member.photoPath} size={132} height={176} rounded="rounded-xl" editable className="shadow-sm ring-1 ring-border" />
               <div className="flex-1 space-y-3">
                 <div>
                   <h3 className="text-xl font-bold leading-tight">{member.firstName} {member.lastName}</h3>
@@ -190,59 +289,118 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
             </div>
 
             <Section icon={User} title="Identité">
-              <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
-                <Field label="Prénom" value={member.firstName} />
-                <Field label="Nom" value={member.lastName} />
-                <Field label="Date de naissance" value={member.dateOfBirth ? `${new Date(member.dateOfBirth).toLocaleDateString('fr-FR')}${age != null ? ` (${age} ans)` : ''}` : null} />
-                <Field label="Sexe" value={member.gender} />
-                <Field label="Nationalité" value={member.nationality} />
-                <Field label="Matricule" value={member.cardNumber} />
-                <div>
-                  <dt className="text-xs text-muted-foreground">Numéro de carte (SDL/GDL)</dt>
-                  <dd className="flex items-center gap-1.5 text-sm font-medium">
-                    {member.externalCardNumber || '—'}
-                    <Tip content="Modifier le numéro de carte">
-                      <button type="button" className="text-muted-foreground hover:text-foreground"
-                        onClick={() => { setCardDraft(member.externalCardNumber ?? ''); setCardEditOpen(true) }}>
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                    </Tip>
-                  </dd>
+              {editing ? (
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="space-y-1.5"><RequiredLabel required>Prénom</RequiredLabel><Input value={form.firstName} onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))} /></div>
+                  <div className="space-y-1.5"><RequiredLabel required>Nom</RequiredLabel><Input value={form.lastName} onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value.toUpperCase() }))} /></div>
+                  <div className="space-y-1.5"><RequiredLabel required>Date de naissance</RequiredLabel><Input type="date" value={form.dateOfBirth ?? ''} onChange={(e) => setForm(f => ({ ...f, dateOfBirth: e.target.value }))} /></div>
+                  <div className="space-y-1.5">
+                    <RequiredLabel required>Sexe</RequiredLabel>
+                    <Select value={form.gender ?? ''} onValueChange={(v) => setForm(f => ({ ...f, gender: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                      <SelectContent>{GENDER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <RequiredLabel required>Nationalité</RequiredLabel>
+                    <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher une nationalité..." />
+                  </div>
+                  <div className="space-y-1.5"><RequiredLabel>Matricule</RequiredLabel><Input value={form.cardNumber ?? ''} onChange={(e) => setForm(f => ({ ...f, cardNumber: e.target.value }))} /></div>
+                  <div className="space-y-1.5"><RequiredLabel>Numéro de carte (SDL/GDL)</RequiredLabel><Input value={form.externalCardNumber ?? ''} onChange={(e) => setForm(f => ({ ...f, externalCardNumber: e.target.value }))} placeholder="Optionnel" maxLength={50} /></div>
                 </div>
-              </div>
+              ) : (
+                <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+                  <Field label="Prénom" value={member.firstName} />
+                  <Field label="Nom" value={member.lastName} />
+                  <Field label="Date de naissance" value={member.dateOfBirth ? `${new Date(member.dateOfBirth).toLocaleDateString('fr-FR')}${age != null ? ` (${age} ans)` : ''}` : null} />
+                  <Field label="Sexe" value={member.gender} />
+                  <Field label="Nationalité" value={member.nationality} />
+                  <Field label="Matricule" value={member.cardNumber} />
+                  <Field label="Numéro de carte (SDL/GDL)" value={member.externalCardNumber} />
+                </div>
+              )}
             </Section>
 
             <Section icon={GraduationCap} title="Scolarité">
-              <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
-                <Field label="École" value={member.school} />
-                <Field label="Classe" value={member.classe} />
-                <Field label="Section" value={member.section} />
-              </div>
+              {editing ? (
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <RequiredLabel required>École</RequiredLabel>
+                    {(() => {
+                      const isOtherSchool = form.school ? !schools.includes(form.school) : false
+                      return (
+                        <>
+                          <Select value={isOtherSchool ? '__other__' : (form.school || '')} onValueChange={(v) => { if (v === '__other__') setForm(f => ({ ...f, school: '' })); else setForm(f => ({ ...f, school: v })) }}>
+                            <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                            <SelectContent>
+                              {schools.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                              <SelectItem value="__other__">Autre...</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {isOtherSchool && <Input value={form.school || ''} onChange={(e) => setForm(f => ({ ...f, school: e.target.value }))} onBlur={(e) => setForm(f => ({ ...f, school: matchSchool(e.target.value, schools) }))} placeholder="Nom de l'école..." />}
+                        </>
+                      )
+                    })()}
+                  </div>
+                  <div className="space-y-1.5">
+                    <RequiredLabel required>Classe</RequiredLabel>
+                    <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                      <SelectContent>{classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5"><RequiredLabel>Section</RequiredLabel><Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} /></div>
+                </div>
+              ) : (
+                <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+                  <Field label="École" value={member.school} />
+                  <Field label="Classe" value={member.classe} />
+                  <Field label="Section" value={member.section} />
+                </div>
+              )}
             </Section>
 
             <Section icon={Contact} title="Coordonnées">
               <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 <div>
-                  <h5 className="mb-2 flex items-center gap-1.5 text-sm font-medium"><Phone className="h-3.5 w-3.5 text-muted-foreground" />Téléphones</h5>
+                  <div className="mb-2 flex items-center justify-between">
+                    <h5 className="flex items-center gap-1.5 text-sm font-medium"><Phone className="h-3.5 w-3.5 text-muted-foreground" />Téléphones</h5>
+                    {editing && <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => { setPhoneForm(f => ({ ...f, countryCode: defaultCountryCode ?? '+961' })); setPhoneDialogOpen(true) }}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>}
+                  </div>
                   {member.phones.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
                     <div className="space-y-1.5">{member.phones.map(p => (
-                      <p key={p.id} className="text-sm">{p.countryCode} {p.number} <span className="text-muted-foreground">({p.type})</span></p>
+                      <div key={p.id} className="flex items-center gap-1.5 text-sm">
+                        <span className="flex-1">{p.countryCode} {p.number} <span className="text-muted-foreground">({p.type})</span>{p.isEmergency && <Badge variant="destructive" className="ml-1 text-[9px]">Urgence</Badge>}</span>
+                        {editing && <><button className="text-muted-foreground hover:text-foreground" onClick={() => openEditPhone(p)}><Pencil className="h-3 w-3" /></button><button className="text-destructive/80 hover:text-destructive" onClick={() => setDeletingContact({ type: 'phone', id: p.id, label: `${p.countryCode} ${p.number}` })}><Trash2 className="h-3 w-3" /></button></>}
+                      </div>
                     ))}</div>
                   )}
                 </div>
                 <div>
-                  <h5 className="mb-2 flex items-center gap-1.5 text-sm font-medium"><Mail className="h-3.5 w-3.5 text-muted-foreground" />Courriels</h5>
+                  <div className="mb-2 flex items-center justify-between">
+                    <h5 className="flex items-center gap-1.5 text-sm font-medium"><Mail className="h-3.5 w-3.5 text-muted-foreground" />Courriels</h5>
+                    {editing && <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setEmailDialogOpen(true)}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>}
+                  </div>
                   {member.emails.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
                     <div className="space-y-1.5">{member.emails.map(e => (
-                      <p key={e.id} className="text-sm break-all">{e.address} <span className="text-muted-foreground">({e.type})</span></p>
+                      <div key={e.id} className="flex items-center gap-1.5 text-sm">
+                        <span className="flex-1 break-all">{e.address} <span className="text-muted-foreground">({e.type})</span></span>
+                        {editing && <><button className="text-muted-foreground hover:text-foreground" onClick={() => openEditEmail(e)}><Pencil className="h-3 w-3" /></button><button className="text-destructive/80 hover:text-destructive" onClick={() => setDeletingContact({ type: 'email', id: e.id, label: e.address })}><Trash2 className="h-3 w-3" /></button></>}
+                      </div>
                     ))}</div>
                   )}
                 </div>
                 <div>
-                  <h5 className="mb-2 flex items-center gap-1.5 text-sm font-medium"><MapPin className="h-3.5 w-3.5 text-muted-foreground" />Adresses</h5>
+                  <div className="mb-2 flex items-center justify-between">
+                    <h5 className="flex items-center gap-1.5 text-sm font-medium"><MapPin className="h-3.5 w-3.5 text-muted-foreground" />Adresses</h5>
+                    {editing && <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => { setAddressForm(f => ({ ...f, country: defaultCountry ?? 'Liban' })); setAddressDialogOpen(true) }}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>}
+                  </div>
                   {member.addresses.length === 0 ? <p className="text-sm text-muted-foreground">Aucune</p> : (
                     <div className="space-y-1.5">{member.addresses.map(a => (
-                      <p key={a.id} className="text-sm">{a.city}, {a.country} <span className="text-muted-foreground">({a.type})</span></p>
+                      <div key={a.id} className="flex items-center gap-1.5 text-sm">
+                        <span className="flex-1">{a.city}, {a.country} <span className="text-muted-foreground">({a.type})</span>{a.details && <span className="block text-xs text-muted-foreground">{a.details}</span>}</span>
+                        {editing && <><button className="text-muted-foreground hover:text-foreground" onClick={() => openEditAddress(a)}><Pencil className="h-3 w-3" /></button><button className="text-destructive/80 hover:text-destructive" onClick={() => setDeletingContact({ type: 'address', id: a.id, label: `${a.city}, ${a.country}` })}><Trash2 className="h-3 w-3" /></button></>}
+                      </div>
                     ))}</div>
                   )}
                 </div>
@@ -258,46 +416,165 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
             <MemberAssignments memberId={memberId} memberName="" />
           </TabsContent>
 
-          <TabsContent value="documents" className="mt-0">
-            <MemberDocuments memberId={memberId} />
-          </TabsContent>
-
-          <TabsContent value="cotisations" className="mt-0">
-            <MemberCotisations memberId={memberId} />
+          {/* Documents + Cotisations merged */}
+          <TabsContent value="dossier" className="mt-0 space-y-8">
+            <div>
+              <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold"><FileSpreadsheet className="h-4 w-4 text-primary/70" />Documents</h4>
+              <MemberDocuments memberId={memberId} />
+            </div>
+            <div>
+              <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold"><CreditCard className="h-4 w-4 text-primary/70" />Cotisations</h4>
+              <MemberCotisations memberId={memberId} />
+            </div>
           </TabsContent>
 
           <TabsContent value="progression" className="mt-0">
             <MemberProgression memberId={memberId} />
           </TabsContent>
 
-          <TabsContent value="custom" className="mt-0">
-            <MemberCustomFields memberId={memberId} />
-          </TabsContent>
-
-          <TabsContent value="medical" className="mt-0">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Groupe sanguin" value={member.bloodType} />
-              <Field label="Allergies" value={member.allergies} />
-              <Field label="Notes médicales" value={member.medicalNotes} />
-              <Field label="Notes générales" value={member.notes} />
+          {/* Médical + Infos complémentaires merged */}
+          <TabsContent value="medical" className="mt-0 space-y-8">
+            {error && editing && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            <Section icon={Droplet} title="Médical">
+              {editing ? (
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <RequiredLabel>Groupe sanguin</RequiredLabel>
+                      <Select value={form.bloodType ?? ''} onValueChange={(v) => setForm(f => ({ ...f, bloodType: v }))}>
+                        <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                        <SelectContent>{BLOOD_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5"><RequiredLabel>Allergies</RequiredLabel><textarea className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.allergies ?? ''} onChange={(e) => setForm(f => ({ ...f, allergies: e.target.value }))} /></div>
+                  <div className="space-y-1.5"><RequiredLabel>Notes médicales</RequiredLabel><textarea className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.medicalNotes ?? ''} onChange={(e) => setForm(f => ({ ...f, medicalNotes: e.target.value }))} /></div>
+                  <div className="space-y-1.5"><RequiredLabel>Notes générales</RequiredLabel><textarea className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.notes ?? ''} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Groupe sanguin" value={member.bloodType} />
+                  <Field label="Allergies" value={member.allergies} />
+                  <Field label="Notes médicales" value={member.medicalNotes} />
+                  <Field label="Notes générales" value={member.notes} />
+                </div>
+              )}
+            </Section>
+            <div>
+              <h4 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Contact className="h-4 w-4 text-primary/70" />Infos complémentaires</h4>
+              <MemberCustomFields memberId={memberId} />
             </div>
           </TabsContent>
         </div>
       </Tabs>
 
-      {/* Edit external card number */}
-      <Dialog open={cardEditOpen} onOpenChange={setCardEditOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Numéro de carte (SDL/GDL)</DialogTitle></DialogHeader>
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Le numéro de carte officiel délivré par le SDL/GDL. Laisser vide si inconnu. (Le matricule interne {member.cardNumber} ne change pas.)</p>
-            <Input value={cardDraft} onChange={(e) => setCardDraft(e.target.value)} placeholder="Ex: 20184180" maxLength={50}
-              onKeyDown={(e) => { if (e.key === 'Enter') saveExternalCard() }} autoFocus />
+      {/* Add phone / email / address dialogs */}
+      <Dialog open={phoneDialogOpen} onOpenChange={setPhoneDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Ajouter un téléphone</DialogTitle></DialogHeader>
+          <form onSubmit={submitAddPhone} className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={phoneForm.countryCode} onValueChange={(v) => setPhoneForm(f => ({ ...f, countryCode: v }))} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher un indicatif..." /></div>
+              <div className="col-span-2 space-y-2"><RequiredLabel required>Numéro</RequiredLabel><Input value={phoneForm.number} onChange={(e) => setPhoneForm(f => ({ ...f, number: e.target.value }))} required /></div>
+            </div>
+            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={phoneForm.type} onValueChange={(v) => setPhoneForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PHONE_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={phoneForm.isPrimary} onChange={(e) => setPhoneForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={phoneForm.isEmergency} onChange={(e) => setPhoneForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setPhoneDialogOpen(false)}>Annuler</Button><Button type="submit" disabled={addPhone.isPending}>{addPhone.isPending ? 'Ajout...' : 'Ajouter'}</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Ajouter un courriel</DialogTitle></DialogHeader>
+          <form onSubmit={submitAddEmail} className="space-y-4">
+            <div className="space-y-2"><RequiredLabel required>Adresse courriel</RequiredLabel><Input type="email" value={emailForm.address} onChange={(e) => setEmailForm(f => ({ ...f, address: e.target.value }))} required /></div>
+            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={emailForm.type} onValueChange={(v) => setEmailForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{EMAIL_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={emailForm.isPrimary} onChange={(e) => setEmailForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={emailForm.isEmergency} onChange={(e) => setEmailForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setEmailDialogOpen(false)}>Annuler</Button><Button type="submit" disabled={addEmail.isPending}>{addEmail.isPending ? 'Ajout...' : 'Ajouter'}</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Ajouter une adresse</DialogTitle></DialogHeader>
+          <form onSubmit={submitAddAddress} className="space-y-4">
+            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={addressForm.type} onValueChange={(v) => setAddressForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ADDRESS_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={addressForm.country} onValueChange={(v) => setAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><CitySelect value={addressForm.city} onChange={(city) => setAddressForm(f => ({ ...f, city }))} cities={cities} /></div></div>
+            <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={addressForm.details} onChange={(e) => setAddressForm(f => ({ ...f, details: e.target.value }))} placeholder="Rue, immeuble, appartement..." /></div>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={addressForm.isPrimary} onChange={(e) => setAddressForm(f => ({ ...f, isPrimary: e.target.checked }))} />Adresse principale</label>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setAddressDialogOpen(false)}>Annuler</Button><Button type="submit" disabled={addAddress.isPending}>{addAddress.isPending ? 'Ajout...' : 'Ajouter'}</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit contact dialogs */}
+      <Dialog open={!!editingPhone} onOpenChange={() => setEditingPhone(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Modifier le téléphone</DialogTitle></DialogHeader>
+          <form onSubmit={submitEditPhone} className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={editPhoneForm.countryCode} onValueChange={(v) => setEditPhoneForm(f => ({ ...f, countryCode: v }))} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher un indicatif..." /></div>
+              <div className="col-span-2 space-y-2"><RequiredLabel required>Numéro</RequiredLabel><Input value={editPhoneForm.number} onChange={(e) => setEditPhoneForm(f => ({ ...f, number: e.target.value }))} required /></div>
+            </div>
+            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editPhoneForm.type} onValueChange={(v) => setEditPhoneForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PHONE_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editPhoneForm.isPrimary} onChange={(e) => setEditPhoneForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editPhoneForm.isEmergency} onChange={(e) => setEditPhoneForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingPhone(null)}>Annuler</Button><Button type="submit" disabled={updPhone.isPending}>Enregistrer</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!editingEmail} onOpenChange={() => setEditingEmail(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Modifier le courriel</DialogTitle></DialogHeader>
+          <form onSubmit={submitEditEmail} className="space-y-4">
+            <div className="space-y-2"><RequiredLabel required>Adresse</RequiredLabel><Input type="email" value={editEmailForm.address} onChange={(e) => setEditEmailForm(f => ({ ...f, address: e.target.value }))} required /></div>
+            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editEmailForm.type} onValueChange={(v) => setEditEmailForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{EMAIL_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editEmailForm.isPrimary} onChange={(e) => setEditEmailForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editEmailForm.isEmergency} onChange={(e) => setEditEmailForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingEmail(null)}>Annuler</Button><Button type="submit" disabled={updEmail.isPending}>Enregistrer</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!editingAddress} onOpenChange={() => setEditingAddress(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Modifier l'adresse</DialogTitle></DialogHeader>
+          <form onSubmit={submitEditAddress} className="space-y-4">
+            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editAddressForm.type} onValueChange={(v) => setEditAddressForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ADDRESS_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={editAddressForm.country} onValueChange={(v) => setEditAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><CitySelect value={editAddressForm.city} onChange={(city) => setEditAddressForm(f => ({ ...f, city }))} cities={cities} /></div></div>
+            <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={editAddressForm.details} onChange={(e) => setEditAddressForm(f => ({ ...f, details: e.target.value }))} placeholder="Rue, immeuble..." /></div>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editAddressForm.isPrimary} onChange={(e) => setEditAddressForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingAddress(null)}>Annuler</Button><Button type="submit" disabled={updAddress.isPending}>Enregistrer</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog open={!!deletingContact} onOpenChange={() => setDeletingContact(null)} title="Supprimer" description={`Êtes-vous sûr de vouloir supprimer « ${deletingContact?.label} » ?`} confirmLabel="Supprimer" variant="destructive" onConfirm={handleDeleteContact} />
+
+      {/* Reset password */}
+      <ConfirmDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen} title="Réinitialiser le mot de passe"
+        description={`Un nouveau mot de passe temporaire sera généré pour ${member.firstName} ${member.lastName}. Les sessions actives seront déconnectées. Continuer ?`}
+        confirmLabel="Réinitialiser" loading={resetPassword.isPending} onConfirm={handleResetPassword} />
+      <Dialog open={!!resetCreds} onOpenChange={() => setResetCreds(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Mot de passe réinitialisé</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Communiquez ces informations au membre. Le mot de passe ne sera plus affiché.</p>
+            <div className="rounded-md bg-muted p-4 space-y-3 text-sm">
+              <div>
+                <span className="text-muted-foreground">Nom d'utilisateur :</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{resetCreds?.username}</code>
+                  <Button variant="ghost" size="sm" aria-label="Copier le nom d'utilisateur" title="Copier" onClick={() => { navigator.clipboard.writeText(resetCreds?.username ?? ''); toast.success('Copié !') }}><Copy className="h-3.5 w-3.5" /></Button>
+                </div>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Nouveau mot de passe :</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{resetCreds?.password}</code>
+                  <Button variant="ghost" size="sm" aria-label="Copier le mot de passe" title="Copier" onClick={() => { navigator.clipboard.writeText(resetCreds?.password ?? ''); toast.success('Copié !') }}><Copy className="h-3.5 w-3.5" /></Button>
+                </div>
+              </div>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" type="button" onClick={() => setCardEditOpen(false)}>Annuler</Button>
-            <Button type="button" onClick={saveExternalCard} disabled={updateMember.isPending}>{updateMember.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
-          </DialogFooter>
+          <DialogFooter><Button onClick={() => setResetCreds(null)}>Fermer</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
@@ -546,7 +823,7 @@ export default function MembersPage() {
         {/* Right: member detail */}
         <div className="flex-1 min-w-0 overflow-hidden bg-background">
           {selectedMemberId ? (
-            <MemberDetailPanel memberId={selectedMemberId} />
+            <MemberDetailPanel key={selectedMemberId} memberId={selectedMemberId} />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               Sélectionnez un membre pour afficher sa fiche.

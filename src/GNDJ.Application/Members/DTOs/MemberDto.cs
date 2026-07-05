@@ -41,7 +41,8 @@ public record MemberDetailDto(
     IReadOnlyList<MemberEmailDto> Emails,
     IReadOnlyList<MemberAddressDto> Addresses,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    string? Username // login of the linked user account (null if the member has no account)
 );
 
 public record MemberPhoneDto(Guid Id, string CountryCode, string Number, string Type, bool IsPrimary, bool IsEmergency);
