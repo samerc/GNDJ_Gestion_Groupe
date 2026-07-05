@@ -11,7 +11,7 @@ import { useParams } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useMembers, useMember, useCreateMember, useUpdateMember, useResetMemberPassword,
+import { useMembers, useMember, useCreateMember, useUpdateMember, useResetMemberPassword, useSetPrimaryContactEmail,
   useAddPhone, useDeletePhone, useUpdatePhone, useAddEmail, useDeleteEmail, useUpdateEmail,
   useAddAddress, useDeleteAddress, useUpdateAddress,
   type MemberFormData, type MemberPhoneDto, type MemberEmailDto, type MemberAddressDto } from '@/services/member-service'
@@ -89,6 +89,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
   const { data: member, isLoading } = useMember(memberId)
   const updateMember = useUpdateMember()
   const resetPassword = useResetMemberPassword()
+  const setPrimary = useSetPrimaryContactEmail(memberId)
   const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
   const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
 
@@ -111,7 +112,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
 
   // Reset password (one-time credentials).
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
-  const [resetCreds, setResetCreds] = useState<{ username: string; password: string } | null>(null)
+  const [resetCreds, setResetCreds] = useState<{ username: string; password: string; sentToEmail: string | null } | null>(null)
 
   // Contact add/edit/delete dialog state.
   const [phoneDialogOpen, setPhoneDialogOpen] = useState(false)
@@ -174,11 +175,18 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
   const handleResetPassword = async () => {
     try {
       const creds = await resetPassword.mutateAsync(memberId)
-      setResetCreds({ username: creds.username, password: creds.temporaryPassword })
-      toast.success('Mot de passe réinitialisé')
+      setResetCreds({ username: creds.username, password: creds.temporaryPassword, sentToEmail: creds.sentToEmail })
+      toast.success(creds.sentToEmail ? `Mot de passe réinitialisé — email envoyé à ${creds.sentToEmail}` : 'Mot de passe réinitialisé')
     } catch (err) { toast.error(parseApiError(err)) }
     finally { setResetConfirmOpen(false) }
   }
+
+  const setPrimaryEmail = async (email: string | null) => {
+    try { await setPrimary.mutateAsync(email); toast.success('Courriel de contact principal mis à jour') }
+    catch (err) { toast.error(parseApiError(err)) }
+  }
+  // Emails offered as the primary contact: the member's own + any guardian's (deduplicated).
+  const contactEmailOptions = Array.from(new Set([...member.emails.map(e => e.address), ...member.guardianEmails]))
 
   // Contact handlers (immediate save).
   const submitAddPhone = async (e: React.FormEvent) => { e.preventDefault(); await addPhone.mutateAsync(phoneForm); setPhoneDialogOpen(false); setPhoneForm({ countryCode: defaultCountryCode ?? '+961', number: '', type: 'Mobile', isPrimary: false, isEmergency: false }) }
@@ -361,6 +369,27 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
             </Section>
 
             <Section icon={Contact} title="Coordonnées">
+              {/* Primary contact email — recipient for member-facing mail (password reset). */}
+              <div className="mb-4 rounded-lg border bg-muted/20 p-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-sm font-medium"><Mail className="h-3.5 w-3.5 text-muted-foreground" />Courriel de contact principal</p>
+                    <p className="text-xs text-muted-foreground">Adresse utilisée pour les emails au membre (réinitialisation du mot de passe…).</p>
+                  </div>
+                  {canEdit && (
+                    <Select value={member.primaryContactEmail ?? '__auto__'} onValueChange={(v) => setPrimaryEmail(v === '__auto__' ? null : v)} disabled={setPrimary.isPending}>
+                      <SelectTrigger className="w-full sm:w-72"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__auto__">Automatique (membre, sinon tuteur)</SelectItem>
+                        {contactEmailOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                {contactEmailOptions.length === 0 && (
+                  <p className="mt-1.5 text-xs text-amber-600">Aucune adresse email sur la fiche — ajoutez un courriel (membre ou tuteur) pour permettre l'envoi.</p>
+                )}
+              </div>
               <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 <div>
                   <div className="mb-2 flex items-center justify-between">
@@ -556,6 +585,9 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
         <DialogContent>
           <DialogHeader><DialogTitle>Mot de passe réinitialisé</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            {resetCreds?.sentToEmail
+              ? <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-800">Un email avec le mot de passe temporaire a été envoyé à <strong>{resetCreds.sentToEmail}</strong>. Le membre devra le changer à la première connexion.</div>
+              : <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">Aucune adresse email sur la fiche : communiquez ces informations manuellement au membre.</div>}
             <p className="text-sm text-muted-foreground">Communiquez ces informations au membre. Le mot de passe ne sera plus affiché.</p>
             <div className="rounded-md bg-muted p-4 space-y-3 text-sm">
               <div>

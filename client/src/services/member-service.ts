@@ -45,6 +45,8 @@ export interface MemberDetailDto {
   createdAt: string
   updatedAt: string
   username: string | null // login of the linked user account (null if no account)
+  primaryContactEmail: string | null // designated recipient for member-facing mail (null = auto)
+  guardianEmails: string[] // distinct guardian emails, available as contact-email options
 }
 
 export interface MemberPhoneDto { id: string; countryCode: string; number: string; type: string; isPrimary: boolean; isEmergency: boolean }
@@ -114,11 +116,21 @@ export function useDeleteMember() {
   })
 }
 
-// CG/leader resets a member's password → returns a fresh temp password (no cache to invalidate).
+// CG/leader resets a member's password → returns a fresh temp password + the address it was emailed to
+// (sentToEmail is null when the member has no email on file — creds are then shown on screen only).
 export function useResetMemberPassword() {
   return useMutation({
     mutationFn: (id: string) =>
-      apiClient.post<{ username: string; temporaryPassword: string }>(`/members/${id}/reset-password`).then(r => r.data),
+      apiClient.post<{ username: string; temporaryPassword: string; sentToEmail: string | null }>(`/members/${id}/reset-password`).then(r => r.data),
+  })
+}
+
+// Set (or clear with null) the member's primary contact email — the recipient for member-facing mail.
+export function useSetPrimaryContactEmail(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (email: string | null) => apiClient.put(`/members/${memberId}/primary-email`, { email }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', memberId] }),
   })
 }
 

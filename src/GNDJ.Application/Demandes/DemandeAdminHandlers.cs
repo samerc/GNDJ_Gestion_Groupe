@@ -542,6 +542,18 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         // Email jobs collected during the batch, sent only AFTER the transaction commits.
         var emailJobs = new List<(string Code, string To, Dictionary<string, string> Vars)>();
 
+        // Every response goes to all emails on the file: the applicant account (login), every guardian
+        // email, and the child's own email — deduplicated (case-insensitive), blanks skipped.
+        HashSet<string> Recipients(Demande d, ApplicantAccount? acc)
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            void Add(string? e) { if (!string.IsNullOrWhiteSpace(e)) set.Add(e!.Trim()); }
+            Add(acc?.Email);
+            foreach (var ag in acctGuardians.GetValueOrDefault(d.ApplicantAccountId) ?? []) Add(ag.Email);
+            Add(d.Email);
+            return set;
+        }
+
         foreach (var d in approved)
         {
             var unitId = d.DecidedUnitId!.Value;
@@ -619,29 +631,31 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             d.CreatedMemberId = member.Id;
             d.ResponseSentAt = DateTime.UtcNow;
 
-            if (acc is not null)
-                emailJobs.Add(("demande_approved", acc.Email, new Dictionary<string, string>
-                {
-                    ["contactName"] = acc.ContactName ?? "",
-                    ["childName"] = $"{d.FirstName} {d.LastName}",
-                    ["unitName"] = unitNames.GetValueOrDefault(unitId, ""),
-                    ["username"] = username,
-                    ["tempPassword"] = tempPassword,
-                    ["loginUrl"] = loginUrl,
-                }));
+            var approvedVars = new Dictionary<string, string>
+            {
+                ["contactName"] = acc?.ContactName ?? "",
+                ["childName"] = $"{d.FirstName} {d.LastName}",
+                ["unitName"] = unitNames.GetValueOrDefault(unitId, ""),
+                ["username"] = username,
+                ["tempPassword"] = tempPassword,
+                ["loginUrl"] = loginUrl,
+            };
+            foreach (var to in Recipients(d, acc))
+                emailJobs.Add(("demande_approved", to, approvedVars));
         }
 
         foreach (var d in declined)
         {
             d.ResponseSentAt = DateTime.UtcNow;
             var acc = accounts.GetValueOrDefault(d.ApplicantAccountId);
-            if (acc is not null)
-                emailJobs.Add(("demande_declined", acc.Email, new Dictionary<string, string>
-                {
-                    ["contactName"] = acc.ContactName ?? "",
-                    ["childName"] = $"{d.FirstName} {d.LastName}",
-                    ["reason"] = string.IsNullOrWhiteSpace(d.DecisionNotes) ? "" : d.DecisionNotes!,
-                }));
+            var declinedVars = new Dictionary<string, string>
+            {
+                ["contactName"] = acc?.ContactName ?? "",
+                ["childName"] = $"{d.FirstName} {d.LastName}",
+                ["reason"] = string.IsNullOrWhiteSpace(d.DecisionNotes) ? "" : d.DecisionNotes!,
+            };
+            foreach (var to in Recipients(d, acc))
+                emailJobs.Add(("demande_declined", to, declinedVars));
         }
 
         await context.SaveChangesAsync(ct);

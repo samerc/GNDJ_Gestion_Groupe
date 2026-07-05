@@ -5,18 +5,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members.Commands.ResetMemberPassword;
 
-// Returned once so the CG/leader can relay the new credentials to the member.
-public record ResetMemberPasswordResult(string Username, string TemporaryPassword);
+// Returned once so the CG/leader can relay the new credentials. SentToEmail = the address the temp
+// password was emailed to (null if the member has no email on file — creds are shown on screen only).
+public record ResetMemberPasswordResult(string Username, string TemporaryPassword, string? SentToEmail);
 
-// CG/leader resets a member's login: sets a fresh temp password and invalidates any active session +
-// pending reset link. Access = super-admin or active leader of the member's unit.
+// CG/leader resets a member's login: sets a fresh temp password, invalidates any active session +
+// pending reset link, and emails the temp password to the member's contact email (primary contact
+// email → own email → a guardian's). Access = super-admin or an active leader of the member's unit.
 public record ResetMemberPasswordCommand(Guid MemberId) : IRequest<Result<ResetMemberPasswordResult>>;
 
 public class ResetMemberPasswordCommandHandler(
     IApplicationDbContext context,
     ICurrentUserService currentUser,
     IPasswordHasher passwordHasher,
-    IAuditService auditService
+    IAuditService auditService,
+    IEmailQueue emailQueue
 ) : IRequestHandler<ResetMemberPasswordCommand, Result<ResetMemberPasswordResult>>
 {
     public async ValueTask<Result<ResetMemberPasswordResult>> Handle(ResetMemberPasswordCommand request, CancellationToken ct)
@@ -31,11 +34,15 @@ public class ResetMemberPasswordCommandHandler(
                 return Result<ResetMemberPasswordResult>.Failure("Accès non autorisé à ce membre.");
         }
 
+        var member = await context.Members.FirstOrDefaultAsync(m => m.Id == request.MemberId, ct);
+        if (member is null)
+            return Result<ResetMemberPasswordResult>.Failure("Membre introuvable.");
+
         var user = await context.Users.FirstOrDefaultAsync(u => u.MemberId == request.MemberId, ct);
         if (user is null)
             return Result<ResetMemberPasswordResult>.Failure("Ce membre n'a pas de compte utilisateur.");
 
-        // Same temporary-password shape as member creation.
+        // Same temporary-password shape as member creation. The member must change it after logging in.
         var tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}";
         user.PasswordHash = passwordHasher.Hash(tempPassword);
         // Invalidate any active session and pending reset link.
@@ -47,6 +54,42 @@ public class ResetMemberPasswordCommandHandler(
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("ResetPassword", "User", user.Id, newValues: new { user.Email }, cancellationToken: ct);
 
-        return Result<ResetMemberPasswordResult>.Success(new ResetMemberPasswordResult(user.Email, tempPassword));
+        // Resolve the contact email and queue the temp password there (best-effort, background-sent).
+        var sentTo = await ResolveContactEmailAsync(member, ct);
+        if (!string.IsNullOrWhiteSpace(sentTo))
+        {
+            var baseUrl = (await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct)
+                ?? "http://localhost:5173").TrimEnd('/');
+            emailQueue.Enqueue(new EmailJob("member_password_reset", sentTo!, new Dictionary<string, string>
+            {
+                ["memberName"] = $"{member.FirstName} {member.LastName}".Trim(),
+                ["username"] = user.Email,
+                ["tempPassword"] = tempPassword,
+                ["loginUrl"] = baseUrl,
+            }));
+        }
+
+        return Result<ResetMemberPasswordResult>.Success(new ResetMemberPasswordResult(user.Email, tempPassword, sentTo));
+    }
+
+    // Recipient for member-facing mail: the designated primary contact email, else the member's own
+    // (primary) email, else a linked guardian's email; null if the member has no email anywhere.
+    private async Task<string?> ResolveContactEmailAsync(Domain.Entities.Member member, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(member.PrimaryContactEmail))
+            return member.PrimaryContactEmail;
+
+        var ownEmail = await context.MemberEmails
+            .Where(e => e.MemberId == member.Id && !e.IsDeleted)
+            .OrderByDescending(e => e.IsPrimary)
+            .Select(e => e.Address)
+            .FirstOrDefaultAsync(ct);
+        if (!string.IsNullOrWhiteSpace(ownEmail)) return ownEmail;
+
+        return await context.GuardianEmails
+            .Where(e => !e.IsDeleted && e.Guardian.Links.Any(l => l.MemberId == member.Id && !l.IsDeleted))
+            .OrderByDescending(e => e.IsPrimary)
+            .Select(e => e.Address)
+            .FirstOrDefaultAsync(ct);
     }
 }

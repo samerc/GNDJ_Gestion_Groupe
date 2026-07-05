@@ -360,6 +360,7 @@ public static class SeedData
             new() { Key = "demande.terms", Value = "En soumettant cette demande, je certifie que les informations fournies sont exactes et j'autorise le Groupe à les utiliser dans le cadre de l'inscription scoute. (Texte à compléter par la Maîtrise de Groupe avant l'ouverture des inscriptions.)", Category = "demande", Label = "Conditions d'inscription (à accepter)", Description = "Conditions que le parent doit accepter avant de soumettre une demande. Laisser vide pour ne pas exiger d'acceptation.", ValueType = "string" },
             new() { Key = "demande.excluded_classe", Value = "6ème", Category = "demande", Label = "Classe non éligible (demande)", Description = "Classe exclue du formulaire de demande : un enfant dans cette classe ne peut pas s'inscrire (masquée du menu Classe + refusée à la soumission). Laisser vide pour ne pas exclure de classe.", ValueType = "string" },
             new() { Key = "contact.recipient_email", Value = "", Category = "contact", Label = "Email de contact", Description = "Adresse qui reçoit les messages du formulaire de contact public (si vide, les messages vont au super administrateur)", ValueType = "string" },
+            new() { Key = "email.override_recipient", Value = "", Category = "email", Label = "Redirection de tous les emails (test)", Description = "Si renseigné, TOUS les emails sortants sont envoyés à cette adresse au lieu du vrai destinataire (l'adresse prévue est indiquée dans l'objet). À utiliser pendant les tests ; laisser vide en production pour envoyer aux vrais destinataires.", ValueType = "string" },
         };
 
         var missing = allSettings.Where(s => !existingKeys.Contains(s.Key)).ToList();
@@ -590,6 +591,23 @@ public static class SeedData
                 });
             }
         }
+        await context.SaveChangesAsync();
+    }
+
+    // Template for a leader/CG resetting a member's password (temp password relayed by email). Idempotent per-code.
+    public static async Task SeedMemberEmailTemplatesAsync(GndjDbContext context)
+    {
+        if (await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "member_password_reset"))
+            return;
+
+        context.EmailTemplates.Add(new EmailTemplate
+        {
+            Name = "Mot de passe réinitialisé (membre)", Code = "member_password_reset", Module = "auth",
+            Subject = "Votre mot de passe GNDJ a été réinitialisé",
+            BodyHtml = "<h2>Bonjour {{memberName}},</h2><p>Le mot de passe de votre compte GNDJ a été réinitialisé par un responsable.</p><ul><li><strong>Identifiant :</strong> {{username}}</li><li><strong>Mot de passe temporaire :</strong> {{tempPassword}}</li></ul><p>Connectez-vous sur <a href=\"{{loginUrl}}\">{{loginUrl}}</a> et <strong>changez ce mot de passe dès votre première connexion</strong>.</p><p>Si vous n'êtes pas à l'origine de cette demande, contactez votre maîtrise.</p><p>— L'équipe GNDJ</p>",
+            Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"username\",\"label\":\"Identifiant\"},{\"key\":\"tempPassword\",\"label\":\"Mot de passe temporaire\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"}]",
+            IsActive = true
+        });
         await context.SaveChangesAsync();
     }
 

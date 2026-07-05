@@ -174,7 +174,12 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
                     .Select(a => new MemberAddressDto(a.Id, a.Type, a.Country, a.City, a.Details, a.IsPrimary)).ToList(),
                 m.CreatedAt, m.UpdatedAt,
                 // Login of the linked user account (correlated subquery); null if the member has no account.
-                _context.Users.Where(u => u.MemberId == m.Id && !u.IsDeleted).Select(u => u.Email).FirstOrDefault()
+                _context.Users.Where(u => u.MemberId == m.Id && !u.IsDeleted).Select(u => u.Email).FirstOrDefault(),
+                m.PrimaryContactEmail,
+                // Distinct guardian emails linked to this member (contact-email options for the picker).
+                m.GuardianLinks.Where(gl => !gl.IsDeleted)
+                    .SelectMany(gl => gl.Guardian.Emails.Where(e => !e.IsDeleted).Select(e => e.Address))
+                    .Distinct().ToList()
             ))
             .FirstOrDefaultAsync(cancellationToken);
     }

@@ -9,6 +9,7 @@ using GNDJ.Application.Members.Commands.DeleteEmail;
 using GNDJ.Application.Members.Commands.DeleteMember;
 using GNDJ.Application.Members.Commands.DeletePhone;
 using GNDJ.Application.Members.Commands.ResetMemberPassword;
+using GNDJ.Application.Members.Commands.SetPrimaryContactEmail;
 using GNDJ.Application.Members.Commands.UpdateAddress;
 using GNDJ.Application.Members.Commands.UpdateEmail;
 using GNDJ.Application.Members.Commands.UpdateMember;
@@ -127,6 +128,18 @@ public class MembersController : BaseApiController
         }
         return Ok(result.Value);
     }
+
+    /// <summary>Sets (or clears with an empty body) the member's primary contact email — the recipient for member-facing mail. Requires members.edit.</summary>
+    [HttpPut("{id:guid}/primary-email")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> SetPrimaryEmail(Guid id, [FromBody] SetPrimaryEmailRequest body)
+    {
+        var result = await Mediator.Send(new SetPrimaryContactEmailCommand(id, body?.Email));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    public record SetPrimaryEmailRequest(string? Email);
 
     // --- Contact endpoints ---
 

@@ -24,6 +24,9 @@ public class Member : BaseEntity
     public string? Allergies { get; set; }
     public string? Notes { get; set; }
     public string? PhotoPath { get; set; }
+    // Designated "primary contact email" for member-facing mail (password reset, etc.). Chosen from the
+    // member's own emails or a guardian's; null = auto-resolve (member's own email first, else a guardian's).
+    public string? PrimaryContactEmail { get; set; }
 
     public User? User { get; set; }
     public ICollection<MemberPhone> Phones { get; set; } = [];

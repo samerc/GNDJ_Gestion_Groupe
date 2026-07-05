@@ -42,7 +42,9 @@ public record MemberDetailDto(
     IReadOnlyList<MemberAddressDto> Addresses,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    string? Username // login of the linked user account (null if the member has no account)
+    string? Username, // login of the linked user account (null if the member has no account)
+    string? PrimaryContactEmail, // designated recipient for member-facing mail (null = auto)
+    IReadOnlyList<string> GuardianEmails // distinct guardian emails available as contact options
 );
 
 public record MemberPhoneDto(Guid Id, string CountryCode, string Number, string Type, bool IsPrimary, bool IsEmergency);

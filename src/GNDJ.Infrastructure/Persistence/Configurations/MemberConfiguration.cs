@@ -23,6 +23,7 @@ public class MemberConfiguration : IEntityTypeConfiguration<Member>
         builder.Property(e => e.Allergies).HasColumnType("text");
         builder.Property(e => e.Notes).HasColumnType("text");
         builder.Property(e => e.PhotoPath).HasMaxLength(500);
+        builder.Property(e => e.PrimaryContactEmail).HasMaxLength(254);
 
         builder.HasIndex(e => new { e.LastName, e.FirstName });
         // card_number is the internal matricule (M-/F-), distinct from the official ExternalCardNumber;

@@ -44,6 +44,20 @@ public class EmailService : IEmailService
         var subject = ReplaceVariables(template.Subject, variables, htmlEncode: false);
         var body = ReplaceVariables(template.BodyHtml, variables, htmlEncode: true);
 
+        // Safety redirect: while `email.override_recipient` is set, EVERY email is sent to that single
+        // address instead of the real recipient (the intended address is shown in the subject). Lets the
+        // group test end-to-end without any mail reaching real families. Leave the setting empty to go live.
+        var actualTo = toEmail;
+        var overrideTo = await _context.Settings
+            .Where(s => s.Key == "email.override_recipient")
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+        if (!string.IsNullOrWhiteSpace(overrideTo))
+        {
+            subject = $"[TEST → {toEmail}] {subject}";
+            actualTo = overrideTo.Trim();
+        }
+
         using var client = new SmtpClient(smtp.Host, smtp.Port)
         {
             Credentials = new NetworkCredential(smtp.Username, smtp.Password),
@@ -52,7 +66,7 @@ public class EmailService : IEmailService
 
         var message = new MailMessage(
             new MailAddress(smtp.FromEmail, smtp.FromName),
-            new MailAddress(toEmail))
+            new MailAddress(actualTo))
         {
             Subject = subject,
             Body = body,

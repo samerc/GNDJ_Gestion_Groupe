@@ -307,6 +307,7 @@ using (var scope = app.Services.CreateScope())
     await SeedData.SeedDefaultEmailTemplatesAsync(context);
     await SeedData.SeedDemandeEmailTemplatesAsync(context);
     await SeedData.SeedContactEmailTemplateAsync(context);
+    await SeedData.SeedMemberEmailTemplatesAsync(context);
     await SeedData.SeedFunctionalRoleRanksAsync(context);
     await SeedData.SeedRentreeTemplateAsync(context);
 }
