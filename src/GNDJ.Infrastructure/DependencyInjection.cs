@@ -1,10 +1,8 @@
 using System.Text;
 using GNDJ.Application.Common.Interfaces;
-using GNDJ.Domain.Interfaces;
 using GNDJ.Infrastructure.Identity;
 using GNDJ.Infrastructure.Persistence;
 using GNDJ.Infrastructure.Persistence.Interceptors;
-using GNDJ.Infrastructure.Persistence.Repositories;
 using GNDJ.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +13,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace GNDJ.Infrastructure;
 
 // Composition root for the Infrastructure layer: wires the pooled EF Core context + interceptors,
-// repositories/UoW, identity & email/PDF services, and JWT bearer authentication.
+// identity & email/PDF services, and JWT bearer authentication.
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
@@ -51,10 +49,6 @@ public static class DependencyInjection
 
         // DbContext interface for Application layer
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<GndjDbContext>());
-
-        // Repositories
-        services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Identity services
         services.AddScoped<IPasswordHasher, PasswordHasher>();

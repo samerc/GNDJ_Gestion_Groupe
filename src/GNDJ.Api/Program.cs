@@ -67,9 +67,6 @@ builder.Services.AddSingleton<ICurrentUserAccessor, HttpContextCurrentUserAccess
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<GNDJ.Api.Services.EmailQueueBackgroundService>();
 
-// Performance: Settings cache (singleton, auto-refreshes every 5 min)
-builder.Services.AddSingleton<ISettingsCacheService, SettingsCacheService>();
-
 // Performance: Response compression (gzip + brotli)
 builder.Services.AddResponseCompression(options =>
 {

@@ -2,11 +2,7 @@ import { Link } from 'react-router'
 import { ArrowRight, Compass, Tent, Heart, Users, Newspaper, Calendar } from 'lucide-react'
 import { usePublicUnits, usePublicSiteConfig } from '@/services/public-service'
 import { usePublicNews } from '@/services/news-service'
-
-function formatDate(d: string | null) {
-  if (!d) return ''
-  return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-}
+import { formatDateLong as formatDate } from '@/lib/utils'
 
 // Icons paired positionally with the CMS-defined home.values entries (1st value → Heart, etc.).
 const VALUE_ICONS = [Heart, Tent, Users]

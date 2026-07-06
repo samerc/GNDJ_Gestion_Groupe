@@ -47,12 +47,11 @@ public class SettingsController : BaseApiController
     [HttpPut("{key}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Update(string key, [FromBody] UpdateSettingCommand command,
-        [FromServices] ISettingsCacheService settingsCache, [FromServices] IOutputCacheStore outputCache)
+        [FromServices] IOutputCacheStore outputCache)
     {
         if (key != command.Key) return BadRequest(new { error = "La clé ne correspond pas." });
         var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        settingsCache.Invalidate();
         await outputCache.EvictByTagAsync("lookup", default);
         await outputCache.EvictByTagAsync("short", default);
         return NoContent();
@@ -65,11 +64,10 @@ public class SettingsController : BaseApiController
     [HttpPut("cities")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> UpdateCities([FromBody] UpdateCitiesCommand command,
-        [FromServices] ISettingsCacheService settingsCache, [FromServices] IOutputCacheStore outputCache)
+        [FromServices] IOutputCacheStore outputCache)
     {
         var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        settingsCache.Invalidate();
         await outputCache.EvictByTagAsync("lookup", default);
         await outputCache.EvictByTagAsync("short", default);
         return NoContent();

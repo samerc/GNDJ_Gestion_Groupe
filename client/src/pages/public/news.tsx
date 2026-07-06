@@ -1,15 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { ArrowRight, Newspaper, Calendar } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, formatDateLong as formatDate } from '@/lib/utils'
 import { PageHero } from '@/components/public/page-hero'
 import { usePublicNews, type NewsFilter, type PublicNewsItem } from '@/services/news-service'
 import { usePublicUnits } from '@/services/public-service'
-
-function formatDate(d: string | null) {
-  if (!d) return ''
-  return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-}
 
 // Cover area for a card: the post's image when set, else the branded gradient + icon placeholder.
 function Cover({ post, className }: { post: PublicNewsItem; className?: string }) {

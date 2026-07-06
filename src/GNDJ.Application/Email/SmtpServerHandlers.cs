@@ -12,7 +12,6 @@ namespace GNDJ.Application.Email;
 // CRUD + connectivity test for the SMTP servers that templates send through.
 // DTOs — Password is never returned
 public record SmtpServerDto(Guid Id, string Name, string Host, int Port, string Username, string FromEmail, string FromName, bool UseSsl, bool IsActive, DateTime CreatedAt);
-public record SmtpServerListDto(Guid Id, string Name, string Host, bool IsActive);
 
 // GetAll
 public record GetSmtpServersQuery() : IRequest<List<SmtpServerDto>>;

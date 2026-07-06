@@ -3,11 +3,7 @@ import { ArrowLeft, Calendar, Paperclip, FileText, Download } from 'lucide-react
 import { PageHero } from '@/components/public/page-hero'
 import { RichContent } from '@/components/public/rich-content'
 import { usePublicNewsArticle } from '@/services/news-service'
-
-function formatDate(d: string | null) {
-  if (!d) return ''
-  return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-}
+import { formatDateLong as formatDate } from '@/lib/utils'
 
 // Public single-article page at `/actualites/:slug` — anonymous. Fetches one published post by
 // slug; shows loading/not-found fallbacks, then header (date + tag) and the CMS body.

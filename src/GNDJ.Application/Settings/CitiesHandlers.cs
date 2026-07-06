@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
@@ -41,7 +42,7 @@ public class UpdateCitiesCommandHandler : IRequestHandler<UpdateCitiesCommand, R
         var deduped = new List<string>();
         foreach (var c in cities)
         {
-            var key = RemoveDiacritics(c).ToLowerInvariant();
+            var key = TextNormalization.RemoveDiacritics(c).ToLowerInvariant();
             if (seen.Add(key)) deduped.Add(c);
         }
         deduped.Sort(StringComparer.OrdinalIgnoreCase);
@@ -73,17 +74,5 @@ public class UpdateCitiesCommandHandler : IRequestHandler<UpdateCitiesCommand, R
             newValues: new { Key = "member.cities", Value = value }, cancellationToken: cancellationToken);
 
         return Result<bool>.Success(true);
-    }
-
-    private static string RemoveDiacritics(string text)
-    {
-        var normalized = text.Normalize(System.Text.NormalizationForm.FormD);
-        var sb = new System.Text.StringBuilder();
-        foreach (var ch in normalized)
-        {
-            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch) != System.Globalization.UnicodeCategory.NonSpacingMark)
-                sb.Append(ch);
-        }
-        return sb.ToString().Normalize(System.Text.NormalizationForm.FormC);
     }
 }

@@ -1282,6 +1282,31 @@ responses fan out to the whole file; and a global override protects real familie
       (which SMTP server + binding, when to clear the override, the fake `@scouts.gndj` login vs real-email login,
       forcing a password change on first login, prod deploy of all this session's work).
 
+### Dependency refresh + dead-code/dup cleanup (2026-07-06)
+- [x] **Dependency update (pre-launch, all incl. majors):** NuGet — Swashbuckle 10.2.1→10.2.3, AutoMapper
+      16.1.1→16.2.0, QuestPDF 2026.6.0→2026.7.0, Microsoft.NET.Test.Sdk 18.6.0→18.7.0. npm — ~25 in-range
+      bumps + 3 majors: react-router 7.18→**8.1.0** (zero code changes — only stable core APIs used),
+      @types/node 24→26, lucide-react 1.20→1.23. Fixed the one moderate advisory (dompurify ≤3.4.10
+      ALLOWED_ATTR pollution) via 3.4.11. Both stacks: 0 vulnerabilities, build clean, 4 tests pass.
+- [x] **Dead-code sweep (2 parallel audit agents, all findings verified before deletion; net −1,900 lines):**
+      - Deleted 8 dead frontend files (0 external refs each): `pages/landing.tsx` (superseded by public/home),
+        `pages/members/detail.tsx` (superseded by the rebuilt members/index panel), `pages/teams/index.tsx` +
+        `pages/assignments/index.tsx` (now inline), `pages/register.tsx` + `components/auth/register-form.tsx`
+        (public registration disabled), unused shadcn primitives `ui/resizable.tsx` + `ui/calendar.tsx`.
+      - Deleted the never-injected generic-repository/UoW scaffolding: `IRepository`/`GenericRepository`/
+        `IUnitOfWork`/`UnitOfWork` (4 files + 2 DI lines in `DependencyInjection.cs`; the whole app uses
+        `IApplicationDbContext` directly). Removed dead `SmtpServerListDto`.
+      - Removed `SettingsCacheService` **entirely** — it was a no-op (cache only `Invalidate()`d, never read;
+        handlers read settings straight from the DbContext). Dropped its DI reg + the two `Invalidate()` call
+        sites in `SettingsController` (the OutputCache eviction there stays).
+- [x] **De-duplication:** backend — the identical `RemoveDiacritics` copied 3× (DemandeAdminHandlers, SchoolCode,
+      CitiesHandlers) → one `Common/TextNormalization.cs` (`RemoveDiacritics` + `NormalizeKey`). Frontend —
+      `formatDate` copied 3× (public home/news/news-article) → `formatDateLong` in `lib/utils.ts`; `computeAge`/
+      `calculateAge` (members/index, passage) → shared `computeAge` in `lib/utils.ts`.
+- NOTE (not addressed, logged as backlog): ESLint reports ~80 errors that are **React Compiler / react-hooks
+      rules** (`refs-during-render`, `preserve-manual-memoization`) surfaced/tightened by the eslint+plugin bump —
+      a code-quality backlog, NOT dead code; `tsc`+`vite` build clean so nothing is broken.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

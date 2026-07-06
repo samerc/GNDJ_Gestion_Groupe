@@ -26,7 +26,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut, Search, ArrowUpDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, computeAge } from '@/lib/utils'
 import { toast } from 'sonner'
 
 // One allowed move target for a member, from the parcours scout: kind 'same' = stay in the branch
@@ -57,15 +57,6 @@ interface MemberRow {
   passage: PassageDto | null
 }
 
-function calculateAge(dob: string | null): number | null {
-  if (!dob) return null
-  const birth = new Date(dob)
-  const today = new Date()
-  let age = today.getFullYear() - birth.getFullYear()
-  const m = today.getMonth() - birth.getMonth()
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
-  return age
-}
 
 type SortCol = 'name' | 'age' | 'unit' | 'team' | 'role' | 'status'
 
@@ -143,7 +134,7 @@ export default function PassagePage() {
         memberName: `${m.firstName} ${m.lastName}`,
         cardNumber: m.cardNumber,
         dateOfBirth: m.dateOfBirth,
-        age: calculateAge(m.dateOfBirth),
+        age: computeAge(m.dateOfBirth),
         currentUnitId: cuId,
         currentUnitName: assignment?.unitName ?? unitName,
         currentUnitCode: unitCodeById.get(cuId) ?? assignment?.unitName ?? unitName,

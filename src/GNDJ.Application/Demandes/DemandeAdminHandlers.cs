@@ -1,7 +1,6 @@
-using System.Globalization;
-using System.Text;
 using FluentValidation;
 using GNDJ.Application.Applicants;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Validation;
 using GNDJ.Application.Common.Models;
@@ -89,16 +88,8 @@ static class DemandeAdminHelpers
                  .OrderByDescending(c => c.Count).ThenBy(c => c.Label)
                  .ToList();
 
-    static string NormalizeKey(string s) => RemoveDiacritics(s).ToLowerInvariant().Trim();
-    static bool HasDiacritics(string s) => s != RemoveDiacritics(s);
-    static string RemoveDiacritics(string text)
-    {
-        var decomposed = text.Normalize(NormalizationForm.FormD);
-        var sb = new StringBuilder(decomposed.Length);
-        foreach (var c in decomposed)
-            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark) sb.Append(c);
-        return sb.ToString().Normalize(NormalizationForm.FormC);
-    }
+    static string NormalizeKey(string s) => TextNormalization.NormalizeKey(s);
+    static bool HasDiacritics(string s) => s != TextNormalization.RemoveDiacritics(s);
 }
 
 // ============================================================
