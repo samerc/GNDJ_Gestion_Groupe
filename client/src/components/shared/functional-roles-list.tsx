@@ -71,7 +71,7 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
   const [error, setError] = useState('')
   const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
 
-  const toggleOne = (id: string) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleOne = (id: string) => setSelected(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const toggleAll = () => setSelected(s => s.size === (roles?.length ?? 0) ? new Set() : new Set(roles?.map(r => r.id)))
   const selectedCount = selected.size
 

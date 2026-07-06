@@ -3,7 +3,7 @@
 // scopes both. Delete = archive-if-used (a stage/badge held by members is deactivated, not removed);
 // the same StagesLadder/BadgesGrid are also embedded on the unit-type detail page.
 import { parseApiError } from '@/lib/error-utils'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   useScoutStages, useCreateScoutStage, useUpdateScoutStage, useDeleteScoutStage, useReorderScoutStages, type ScoutStageDto,
   useBadges, useCreateBadge, useUpdateBadge, useDeleteBadge, type BadgeDto,
@@ -31,8 +31,9 @@ export default function ProgressionPage() {
   const unitTypes = unitTypesData?.items.map(ut => ({ id: ut.id, name: ut.name })) ?? []
   const [selected, setSelected] = useState('')
 
-  // Default to the first unit type once loaded (unit-type-first UX — no all-types jumble).
-  useEffect(() => { if (!selected && unitTypes.length) setSelected(unitTypes[0].id) }, [unitTypes, selected])
+  // Default to the first unit type once loaded (unit-type-first UX — no all-types jumble). Render-phase
+  // init (React's alternative to a syncing effect): runs once, self-guarded by !selected.
+  if (!selected && unitTypes.length) setSelected(unitTypes[0].id)
 
   return (
     <div className="space-y-6">
@@ -89,7 +90,7 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const stages = data ?? []
-  const toggleOne = (id: string) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleOne = (id: string) => setSelected(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
   // Bulk delete runs the per-item delete (archive-if-used) for each selection and tallies the
   // outcomes (res.archived distinguishes archived-because-used from hard-deleted) into one toast.
@@ -215,9 +216,12 @@ function StageCard({ stage, index, busy, checked, onCheck, onEdit, onDelete, onT
 function StageEditDialog({ stage, onClose, onSave }: { stage: ScoutStageDto | null; onClose: () => void; onSave: ReturnType<typeof useUpdateScoutStage> }) {
   const [form, setForm] = useState({ name: '', code: '', description: '', isActive: true, isBadgeStage: false })
   const [error, setError] = useState('')
-  useEffect(() => {
+  // Hydrate the form when a stage is opened for editing (render-phase reset).
+  const [prevStage, setPrevStage] = useState(stage)
+  if (stage !== prevStage) {
+    setPrevStage(stage)
     if (stage) setForm({ name: stage.name, code: stage.code, description: stage.description ?? '', isActive: stage.isActive, isBadgeStage: stage.isBadgeStage })
-  }, [stage])
+  }
 
   const handleSave = async () => {
     if (!stage) return
@@ -267,7 +271,7 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
   const [bulkBusy, setBulkBusy] = useState(false)
 
   const badges = data ?? []
-  const toggleOne = (id: string) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleOne = (id: string) => setSelected(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
   const handleBulkDelete = async () => {
     setBulkBusy(true)
@@ -357,9 +361,12 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
 function BadgeEditDialog({ badge, onClose, onSave }: { badge: BadgeDto | null; onClose: () => void; onSave: ReturnType<typeof useUpdateBadge> }) {
   const [form, setForm] = useState({ name: '', code: '', description: '', isActive: true })
   const [error, setError] = useState('')
-  useEffect(() => {
+  // Hydrate the form when a badge is opened for editing (render-phase reset).
+  const [prevBadge, setPrevBadge] = useState(badge)
+  if (badge !== prevBadge) {
+    setPrevBadge(badge)
     if (badge) setForm({ name: badge.name, code: badge.code, description: badge.description ?? '', isActive: badge.isActive })
-  }, [badge])
+  }
 
   const handleSave = async () => {
     if (!badge) return

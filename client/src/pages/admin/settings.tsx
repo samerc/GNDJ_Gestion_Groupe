@@ -5,7 +5,7 @@
 // editors for exchange rates and for keys that have a fixed options list.
 // Each SettingEditor saves its own row; settings with dedicated pages are hidden.
 import { parseApiError } from '@/lib/error-utils'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useSettings, useUpdateSetting, type SettingDto } from '@/services/settings-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -61,13 +61,14 @@ function effectiveCategory(s: SettingDto) {
 
 // ---- Exchange-rate editor: edits a json object {currencyCode: rate} as add/remove rows ----
 function ExchangeRateEditor({ value, onChange }: { value: string; onChange: (json: string) => void }) {
-  const [rows, setRows] = useState<{ code: string; rate: string }[]>([])
-  useEffect(() => {
-    try {
-      const obj = JSON.parse(value || '{}') as Record<string, number>
-      setRows(Object.entries(obj).map(([code, rate]) => ({ code, rate: String(rate) })))
-    } catch { setRows([]) }
-  }, [value])
+  const parseRows = (v: string): { code: string; rate: string }[] => {
+    try { return Object.entries(JSON.parse(v || '{}') as Record<string, number>).map(([code, rate]) => ({ code, rate: String(rate) })) }
+    catch { return [] }
+  }
+  const [rows, setRows] = useState(() => parseRows(value))
+  // Re-sync when the parent value changes externally (render-phase reset; lazy init covers mount).
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) { setPrevValue(value); setRows(parseRows(value)) }
 
   // Update local rows + re-serialize to the parent: skip blank codes / non-numeric rates, uppercase codes.
   const commit = (next: { code: string; rate: string }[]) => {
@@ -114,8 +115,9 @@ function ArrayFreeTextInput({ onAdd }: { onAdd: (val: string) => void }) {
 // Single-row editor: picks the widget from valueType (+ special cases) and self-saves on change.
 // `value` holds scalar string values; `items` holds the parsed list for json_array settings.
 function SettingEditor({ setting, onSave }: { setting: SettingDto; onSave: (key: string, value: string) => Promise<void> }) {
+  const parseItems = (v: string): string[] => { try { return JSON.parse(v) as string[] } catch { return [] } }
   const [value, setValue] = useState(setting.value)
-  const [items, setItems] = useState<string[]>([])
+  const [items, setItems] = useState<string[]>(() => setting.valueType === 'json_array' ? parseItems(setting.value) : [])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false) // brief "Enregistré" badge after a save
 
@@ -127,10 +129,13 @@ function SettingEditor({ setting, onSave }: { setting: SettingDto; onSave: (key:
   const isLongText = setting.key === 'demande.terms' // multi-line free text → textarea
   const options = SETTING_OPTIONS[setting.key]
 
-  useEffect(() => {
+  // Re-sync when the persisted value changes externally (render-phase reset; lazy init covers mount).
+  const [prevValue, setPrevValue] = useState(setting.value)
+  if (setting.value !== prevValue) {
+    setPrevValue(setting.value)
     setValue(setting.value)
-    if (isArray) { try { setItems(JSON.parse(setting.value)) } catch { setItems([]) } }
-  }, [setting.value, isArray])
+    if (isArray) setItems(parseItems(setting.value))
+  }
 
   const persist = async (raw: string) => {
     setSaving(true)
@@ -241,7 +246,7 @@ export default function SettingsPage() {
 
   const categories = CATEGORY_ORDER.filter(c => grouped[c]?.length)
   const [tab, setTab] = useState<string>('')
-  useEffect(() => { if (categories.length && !tab) setTab(categories[0]) }, [categories, tab]) // default to first non-empty tab
+  if (categories.length && !tab) setTab(categories[0]) // default to first non-empty tab (render-phase, guarded)
 
   if (isLoading) return <LoadingSpinner variant="form" />
 

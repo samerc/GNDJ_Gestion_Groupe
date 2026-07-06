@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
@@ -146,7 +146,7 @@ export default function RentreePage() {
   const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set())
   const [expandedRollups, setExpandedRollups] = useState<Set<string>>(new Set())
 
-  useEffect(() => { if (!year && years && years.length > 0) setYear(years[0]) }, [years, year])
+  if (!year && years && years.length > 0) setYear(years[0]) // default to newest year (render-phase, guarded)
 
   const { data: tasks, isLoading } = useRentreeTasks(year || undefined, mineOnly)
   const complete = useCompleteRentreeTask()
@@ -239,8 +239,8 @@ export default function RentreePage() {
       toast.success(`${r.created} tâche(s) générée(s)`); setGenOpen(false); setYear(genYear.trim())
     } catch (err) { toast.error(parseApiError(err)) }
   }
-  const togglePhase = (p: string) => setCollapsedPhases(s => { const n = new Set(s); n.has(p) ? n.delete(p) : n.add(p); return n })
-  const toggleRollup = (k: string) => setExpandedRollups(s => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n })
+  const togglePhase = (p: string) => setCollapsedPhases(s => { const n = new Set(s); if (n.has(p)) n.delete(p); else n.add(p); return n })
+  const toggleRollup = (k: string) => setExpandedRollups(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n })
 
   if (yearsLoading) return <div className="flex h-64 items-center justify-center"><LoadingSpinner /></div>
   const noYears = !years || years.length === 0

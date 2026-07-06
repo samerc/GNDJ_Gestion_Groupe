@@ -49,6 +49,9 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   }, [])
 
   useEffect(() => {
+    // Genuine side-effect: opens the camera stream on mount (startCamera sets loading/error flags as
+    // part of an async operation) and stops the tracks on unmount — legitimately an effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     startCamera(facingMode)
     return () => {
       if (streamRef.current) {

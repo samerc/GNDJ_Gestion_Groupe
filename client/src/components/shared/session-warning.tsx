@@ -38,11 +38,12 @@ export function SessionWarning() {
   const [showWarning, setShowWarning] = useState(false)
   const [minutesLeft, setMinutesLeft] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
-  const lastActivityRef = useRef(Date.now())
+  const lastActivityRef = useRef(0)
 
   // Track user activity (throttled to once per 5s)
   useEffect(() => {
     if (!isAuthenticated) return
+    lastActivityRef.current = Date.now() // stamp initial activity on (re)authentication
     let throttle: ReturnType<typeof setTimeout> | null = null
     const update = () => {
       if (throttle) return

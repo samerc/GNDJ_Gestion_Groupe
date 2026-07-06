@@ -1,7 +1,7 @@
 // Admin screen (super-admin): member-card designer. Edits the single `card.config`
 // JSON setting (org name + per-field visibility toggles) that drives the printed
 // member-card PDF, with a live credit-card-sized preview using dummy data.
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useSetting, useUpdateSetting } from '@/services/settings-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -46,8 +46,10 @@ export default function CardDesignerPage() {
   const [loaded, setLoaded] = useState(false)
 
   // Hydrate config once from the persisted JSON (merging onto defaults so new fields default on).
-  useEffect(() => {
-    if (setting?.value && !loaded) {
+  // Render-phase one-time hydration, self-guarded by !loaded.
+  if (setting && !loaded) {
+    setLoaded(true)
+    if (setting.value) {
       try {
         const parsed = JSON.parse(setting.value) as CardConfig
         setConfig({
@@ -57,11 +59,8 @@ export default function CardDesignerPage() {
       } catch {
         // Use defaults
       }
-      setLoaded(true)
-    } else if (setting && !setting.value && !loaded) {
-      setLoaded(true)
     }
-  }, [setting, loaded])
+  }
 
   const toggleField = (key: FieldKey) => {
     const field = CARD_FIELDS.find(f => f.key === key)

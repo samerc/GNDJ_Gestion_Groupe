@@ -87,9 +87,11 @@ export default function DemandeWizardPage() {
   const notesMax = config?.notesMaxLength ?? 500
   const maxRelations = config?.maxScoutRelations ?? 50
 
-  // Hydrate from profile (shared data always; child only when editing existing)
+  // Hydrate from profile (shared data always; child only when editing existing). Multi-source hydration
+  // (profile + existing + config), so it stays an effect rather than a render-phase reset.
   useEffect(() => {
     if (!profile) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (profile.guardians.length) setGuardians(profile.guardians)
     if (profile.scoutRelations.length) setRelations(profile.scoutRelations)
     setAddress({ country: profile.addressCountry ?? 'Liban', city: profile.addressCity ?? '', details: profile.addressDetails ?? '' })

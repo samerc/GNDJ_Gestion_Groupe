@@ -5,7 +5,7 @@
 //  - GamesTab: define jeux/étapes and pick their étapiste sets (maîtrise members).
 //  - SettingsTab: edit camp metadata + the Note formula coefficients (the per-branch multiplier is read-only,
 //    sourced from each unit type's NumberOfYears).
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams, Link } from 'react-router'
 import {
   useCamp, useUpdateCamp, useArchiveCamp, useDeleteCamp,
@@ -68,10 +68,12 @@ function SettingsTab({ campId }: { campId: string }) {
   const [form, setForm] = useState({ name: '', scoutYear: '', famillesCount: 0, noteForceCoef: 1, noteOffset: -4 })
   const [deleting, setDeleting] = useState(false)
 
-  useEffect(() => {
-    if (!camp) return
+  // Hydrate the settings form when the camp (re)loads — render-phase reset.
+  const [prevCamp, setPrevCamp] = useState(camp)
+  if (camp && camp !== prevCamp) {
+    setPrevCamp(camp)
     setForm({ name: camp.name, scoutYear: camp.scoutYear, famillesCount: camp.famillesCount, noteForceCoef: camp.noteForceCoef, noteOffset: camp.noteOffset })
-  }, [camp])
+  }
 
   if (!camp) return null
   const save = async () => {
@@ -137,12 +139,15 @@ function FamillesTab({ campId }: { campId: string }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
   // Default the two compared slots to the first two familles (and re-seed if a selected one disappears).
-  useEffect(() => {
-    if (!familles || familles.length === 0) return
-    if (!slotA || !familles.some(f => f.id === slotA)) setSlotA(familles[0].id)
-    if ((!slotB || !familles.some(f => f.id === slotB)) && familles.length > 1) setSlotB(familles[1].id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [familles])
+  // Render-phase reset, keyed on the familles list.
+  const [prevFamilles, setPrevFamilles] = useState(familles)
+  if (familles !== prevFamilles) {
+    setPrevFamilles(familles)
+    if (familles && familles.length > 0) {
+      if (!slotA || !familles.some(f => f.id === slotA)) setSlotA(familles[0].id)
+      if ((!slotB || !familles.some(f => f.id === slotB)) && familles.length > 1) setSlotB(familles[1].id)
+    }
+  }
 
   if (isLoading) return <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div>
   if ((familles ?? []).length === 0) return (
@@ -391,7 +396,7 @@ function EtapisteDialog({ campId, game, onClose }: { campId: string; game: CampG
   const [search, setSearch] = useState('')
   const filtered = (candidates ?? []).filter(c => `${c.firstName} ${c.lastName}`.toLowerCase().includes(search.toLowerCase()))
 
-  const toggle = (id: string) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggle = (id: string) => setSelected(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const save = async () => {
     try { await setEtapistes.mutateAsync({ gameId: game.id, memberIds: [...selected] }); toast.success('Étapistes enregistrés'); onClose() }
     catch (e) { toast.error(parseApiError(e)) }

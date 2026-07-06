@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useMyOverdueRentree } from '@/services/rentree-service'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -11,13 +11,11 @@ const SEEN_KEY = 'rentree-overdue-seen'
 export function RentreeOverduePopup() {
   const { data } = useMyOverdueRentree()
   const navigate = useNavigate()
-  const [open, setOpen] = useState(false)
+  // Show once per session (until dismissed) when there are overdue tasks — derived, no effect needed.
+  const [dismissed, setDismissed] = useState(() => !!sessionStorage.getItem(SEEN_KEY))
+  const open = !!(data && data.length > 0) && !dismissed
 
-  useEffect(() => {
-    if (data && data.length > 0 && !sessionStorage.getItem(SEEN_KEY)) setOpen(true)
-  }, [data])
-
-  const dismiss = () => { sessionStorage.setItem(SEEN_KEY, '1'); setOpen(false) }
+  const dismiss = () => { sessionStorage.setItem(SEEN_KEY, '1'); setDismissed(true) }
 
   if (!data || data.length === 0) return null
 

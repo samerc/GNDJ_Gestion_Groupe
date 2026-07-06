@@ -3,7 +3,7 @@
 // ageMin/ageMax (passage age hints), a UNIQUE color (used in functions list + diagrams), and the public
 // site description. Rows navigate to the detail page (functions/stages/badges); edit/delete are inline.
 import { parseApiError } from '@/lib/error-utils'
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useFormValidation } from '@/hooks/use-form-validation'
@@ -24,7 +24,6 @@ export default function UnitTypesPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
-  const hasLoadedOnce = useRef(false)
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<UnitTypeDto | null>(null)
@@ -39,8 +38,7 @@ export default function UnitTypesPage() {
   const deleteMutation = useDeleteUnitType()
 
   // Latch so the search box survives a 0-result filter (see associations.tsx).
-  if (data && data.totalCount > 0) hasLoadedOnce.current = true
-  const showSearch = hasLoadedOnce.current || (data && data.totalCount > 0)
+  const showSearch = !!search || !!(data && data.totalCount > 0)
 
   const openCreate = () => {
     setEditing(null)

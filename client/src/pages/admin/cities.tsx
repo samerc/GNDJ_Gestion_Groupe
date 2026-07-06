@@ -2,7 +2,7 @@
 // cities (member.cities setting) offered in address pickers. Edits are local-only until "Enregistrer" persists
 // the whole array. Add/rename/remove are deduped accent- & case-insensitively (norm). Editing the list only
 // changes future suggestions — addresses already saved on members are untouched.
-import { useState, useEffect, useMemo, Fragment } from 'react'
+import { useState, useMemo, Fragment } from 'react'
 import { useCities, useUpdateCities } from '@/services/settings-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,11 +34,11 @@ export default function CitiesAdminPage() {
   const [editing, setEditing] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
 
-  // Sync from the fetched setting, but never clobber unsaved local edits (dirty guard).
-  useEffect(() => {
-    if (!dirty) setCities(stored)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stored.join('|')])
+  // Sync from the fetched setting, but never clobber unsaved local edits (dirty guard). Render-phase
+  // reset keyed on the stored list.
+  const storedKey = stored.join('|')
+  const [prevStoredKey, setPrevStoredKey] = useState(storedKey)
+  if (storedKey !== prevStoredKey) { setPrevStoredKey(storedKey); if (!dirty) setCities(stored) }
 
   const shown = useMemo(() => {
     const s = [...cities].sort((a, b) => a.localeCompare(b, 'fr'))

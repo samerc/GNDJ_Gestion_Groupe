@@ -25,6 +25,23 @@ interface Props {
   onImageUpload?: (file: File) => Promise<string> // when provided, enables the image-insert button; returns the served URL
 }
 
+// A single toolbar icon button (module-scope so its component identity is stable across renders).
+function ToolbarButton({ onClick, active, children, title }: { onClick: () => void; active?: boolean; children: React.ReactNode; title: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={cn(
+        'flex items-center justify-center h-8 w-8 rounded hover:bg-muted transition-colors',
+        active && 'bg-muted text-primary'
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
 // TipTap-based WYSIWYG editor used by the email-template editor and the public CMS (news/pages).
 // Toolbar = formatting + lists + link + optional image upload + undo/redo + a module-specific
 // variable-insertion dropdown. Emits HTML via onChange.
@@ -74,20 +91,6 @@ export function RichTextEditor({ content, onChange, variables, placeholder, clas
       setUploading(false)
     }
   }
-
-  const ToolbarButton = ({ onClick, active, children, title }: { onClick: () => void; active?: boolean; children: React.ReactNode; title: string }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className={cn(
-        'flex items-center justify-center h-8 w-8 rounded hover:bg-muted transition-colors',
-        active && 'bg-muted text-primary'
-      )}
-    >
-      {children}
-    </button>
-  )
 
   return (
     <div className={cn('rounded-md border', className)}>

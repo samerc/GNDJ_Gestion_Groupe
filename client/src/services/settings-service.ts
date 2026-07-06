@@ -109,7 +109,7 @@ export function useSchoolCode(): (name: string | null | undefined) => string {
       } catch { /* ignore malformed */ }
     }
     return m
-  }, [data?.value])
+  }, [data]) // depend on the whole query result (matches the compiler's inferred dependency)
   return (name) => {
     if (!name) return ''
     return map[normalizeSchool(name)] ?? schoolAcronym(name)

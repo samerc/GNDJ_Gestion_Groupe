@@ -65,22 +65,25 @@ function entitySummary(log: AuditLogDto): string {
 // for non-objects or unparseable strings.
 function JsonViewer({ json }: { json: string | null }) {
   if (!json) return <span className="text-muted-foreground">—</span>
+  // Only the parse can throw — keep it in the try and build all JSX outside it (constructing JSX inside
+  // try/catch is flagged because a render error there would be swallowed instead of hitting a boundary).
+  let obj: unknown
   try {
-    const obj = JSON.parse(json)
-    if (typeof obj !== 'object' || obj === null) return <span className="text-sm">{String(obj)}</span>
-    return (
-      <div className="rounded-md border bg-muted/30 text-sm divide-y">
-        {Object.entries(obj).map(([key, value]) => (
-          <div key={key} className="flex gap-3 px-3 py-1.5">
-            <span className="font-medium text-muted-foreground min-w-28 shrink-0">{key}</span>
-            <span className="break-all">{value === null ? '—' : String(value)}</span>
-          </div>
-        ))}
-      </div>
-    )
+    obj = JSON.parse(json)
   } catch {
     return <pre className="rounded-md bg-muted/30 p-3 text-xs overflow-auto whitespace-pre-wrap">{json}</pre>
   }
+  if (typeof obj !== 'object' || obj === null) return <span className="text-sm">{String(obj)}</span>
+  return (
+    <div className="rounded-md border bg-muted/30 text-sm divide-y">
+      {Object.entries(obj as Record<string, unknown>).map(([key, value]) => (
+        <div key={key} className="flex gap-3 px-3 py-1.5">
+          <span className="font-medium text-muted-foreground min-w-28 shrink-0">{key}</span>
+          <span className="break-all">{value === null ? '—' : String(value)}</span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 export default function AuditLogsPage() {

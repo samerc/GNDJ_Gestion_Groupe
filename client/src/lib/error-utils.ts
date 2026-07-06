@@ -10,7 +10,7 @@ export function parseApiError(err: unknown): string {
   // Validation errors (field-level)
   if (data?.errors) {
     const messages = Object.entries(data.errors)
-      .map(([_field, msgs]) => (msgs as string[]).join(' '))
+      .map(([, msgs]) => (msgs as string[]).join(' '))
       .filter(Boolean)
     if (messages.length > 0) return messages.join(' ')
   }

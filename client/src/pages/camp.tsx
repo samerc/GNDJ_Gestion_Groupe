@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useCamps, useCamp, useCampGrading, useSaveCampGrades } from '@/services/camp-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,21 @@ import { toast } from 'sonner'
 
 type Row = { attending: boolean; force: number | null; annee: number | null; isLeaderCandidate: boolean; notes: string }
 type SortKey = 'name' | 'team' | 'annee' | 'force' | 'note'
+
+// Sortable column header (module-scope so its component identity is stable across renders); the current
+// sort state + handler are passed in as props.
+function SortHead({ k, label, className, sort, onSort }: {
+  k: SortKey; label: string; className?: string; sort: { key: SortKey; dir: 1 | -1 }; onSort: (k: SortKey) => void
+}) {
+  return (
+    <th className={`p-2 font-medium ${className ?? 'text-left'}`}>
+      <button type="button" onClick={() => onSort(k)} className="inline-flex items-center gap-1 hover:text-foreground">
+        {label}
+        {sort.key === k && (sort.dir === 1 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+      </button>
+    </th>
+  )
+}
 
 // Camp BP — CU (chef d'unité) grading page. ONE searchable/sortable table over the CU's own eligible youth:
 // mark who is NOT coming, then grade each member (force + année + Père/Mère candidate + cas particulier).
@@ -30,12 +45,14 @@ export default function CampPage() {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'team', dir: 1 })
 
   // Seed the editable rows from the server whenever the grading payload (re)loads; clears the dirty flag.
-  useEffect(() => {
-    if (!grading) return
+  // Render-phase reset, keyed on the grading payload.
+  const [prevGrading, setPrevGrading] = useState(grading)
+  if (grading && grading !== prevGrading) {
+    setPrevGrading(grading)
     const m: Record<string, Row> = {}
     for (const g of grading) m[g.memberId] = { attending: g.isAttending, force: g.force, annee: g.annee, isLeaderCandidate: g.isLeaderCandidate, notes: g.notes ?? '' }
     setRows(m); setDirty(false)
-  }, [grading])
+  }
 
   // The camp's customizable note formula: Note = ForceCoef×Force + multiplier(branche)×Année + Offset.
   // The per-branch multiplier defaults to the unit type's NumberOfYears (Troupe 5 > Meute 3, etc.) so a
@@ -99,15 +116,6 @@ export default function CampPage() {
 
   const comingCount = (grading ?? []).filter(g => rows[g.memberId]?.attending ?? g.isAttending).length
 
-  const SortHead = ({ k, label, className }: { k: SortKey; label: string; className?: string }) => (
-    <th className={`p-2 font-medium ${className ?? 'text-left'}`}>
-      <button type="button" onClick={() => toggleSort(k)} className="inline-flex items-center gap-1 hover:text-foreground">
-        {label}
-        {sort.key === k && (sort.dir === 1 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
-      </button>
-    </th>
-  )
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -133,13 +141,13 @@ export default function CampPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-xs text-muted-foreground">
               <tr>
-                <SortHead k="name" label="Membre" />
-                <SortHead k="team" label="Équipe" />
-                <SortHead k="annee" label="Année" className="text-left" />
-                <SortHead k="force" label="Force /5" className="text-left" />
+                <SortHead k="name" label="Membre" sort={sort} onSort={toggleSort} />
+                <SortHead k="team" label="Équipe" sort={sort} onSort={toggleSort} />
+                <SortHead k="annee" label="Année" className="text-left" sort={sort} onSort={toggleSort} />
+                <SortHead k="force" label="Force /5" className="text-left" sort={sort} onSort={toggleSort} />
                 <th className="p-2 text-center font-medium w-24">Père/Mère</th>
                 <th className="p-2 text-center font-medium w-24">Ne vient pas</th>
-                <SortHead k="note" label="Note" className="text-right" />
+                <SortHead k="note" label="Note" className="text-right" sort={sort} onSort={toggleSort} />
                 <th className="p-2 text-left font-medium">Cas particulier</th>
               </tr>
             </thead>

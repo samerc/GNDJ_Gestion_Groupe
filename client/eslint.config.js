@@ -19,4 +19,12 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // shadcn/ui primitives intentionally co-locate their cva() variant definitions with the component
+    // (e.g. buttonVariants in button.tsx). cva() results aren't recognised as "constants" by the
+    // fast-refresh rule, so it complains — but these files barely change, so the fast-refresh trade-off
+    // is a non-issue. Turn the rule off for the ui/ folder rather than split every primitive.
+    files: ['**/components/ui/**'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 ])

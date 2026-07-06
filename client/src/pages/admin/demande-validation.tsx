@@ -133,8 +133,9 @@ export default function DemandeValidationPage() {
   const [bulkUnit, setBulkUnit] = useState('')
   const [bulkMotif, setBulkMotif] = useState('')
 
-  const all = demandes ?? []
-  const occList = occupancy ?? []
+  // Memoized so the fallback [] is a stable reference (keeps the downstream useMemos from recomputing every render).
+  const all = useMemo(() => demandes ?? [], [demandes])
+  const occList = useMemo(() => occupancy ?? [], [occupancy])
   // Lookup maps for O(1) access by unit id / demande id (used by suggest, quota hints, bulk).
   const occByUnit = useMemo(() => Object.fromEntries(occList.map((u) => [u.unitId, u])), [occList])
   const byId = useMemo(() => Object.fromEntries(all.map((d) => [d.id, d])), [all])
@@ -191,7 +192,7 @@ export default function DemandeValidationPage() {
     if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
     else { setSortKey(k); setSortDir('asc') }
   }
-  const toggleOne = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleOne = (id: string) => setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(selectableIds))
   const clearSelection = () => setSelected(new Set())
 
@@ -591,12 +592,16 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, hasPrev,
   const [note, setNote] = useState(d.status === 'Approved' ? (d.decisionNotes ?? '') : '')
   const [motif, setMotif] = useState(d.status === 'Declined' ? (d.decisionNotes ?? '') : '')
 
-  // Reset decision fields when navigating to another applicant.
-  useEffect(() => {
+  // Reset decision fields when navigating to another applicant or when this one's decision changes
+  // (render-phase reset, keyed on the applicant's identity + decision fields).
+  const resetKey = `${d.id}|${d.decidedUnitId ?? ''}|${d.status}|${d.decisionNotes ?? ''}`
+  const [prevResetKey, setPrevResetKey] = useState(resetKey)
+  if (resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey)
     setUnit(d.decidedUnitId ?? suggestUnit(d, occupancy)?.unitId ?? '')
     setNote(d.status === 'Approved' ? (d.decisionNotes ?? '') : '')
     setMotif(d.status === 'Declined' ? (d.decisionNotes ?? '') : '')
-  }, [d.id, d.decidedUnitId, d.status, d.decisionNotes, d, occupancy])
+  }
 
   // Keyboard triage: ←/→ navigate, A approve, R refuse. Ignored while typing or a dropdown is open.
   useEffect(() => {

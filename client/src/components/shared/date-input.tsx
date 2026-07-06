@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
@@ -25,8 +25,10 @@ interface DateInputProps {
 export function DateInput({ value, onChange, className, disabled }: DateInputProps) {
   const [text, setText] = useState(() => isoToDisplay(value))
 
-  // Re-sync when the value changes from outside (hydration, reset).
-  useEffect(() => { setText(isoToDisplay(value)) }, [value])
+  // Re-sync when the value changes from outside (hydration, reset) — render-phase reset (React's
+  // alternative to a syncing effect): updates before paint, no extra render pass.
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) { setPrevValue(value); setText(isoToDisplay(value)) }
 
   function handleChange(raw: string) {
     // Keep only digits (max 8 = ddmmyyyy) and re-insert slashes as they fill in.

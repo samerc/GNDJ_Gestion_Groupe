@@ -28,7 +28,7 @@ export default function MaitrisesPage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set()) // set of expanded unit ids; collapsed by default
   const toggle = (unitId: string) => setExpanded(prev => {
     const next = new Set(prev)
-    next.has(unitId) ? next.delete(unitId) : next.add(unitId)
+    if (next.has(unitId)) next.delete(unitId); else next.add(unitId)
     return next
   })
 

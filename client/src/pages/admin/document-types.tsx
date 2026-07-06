@@ -4,7 +4,7 @@
 // cette année" — toggles whether it's expected this scout year). The list order is set by drag-and-drop
 // (like Étapes/Badges/Pages) and drives the checklist/matrix ordering — no manual order field.
 import { parseApiError } from '@/lib/error-utils'
-import { useEffect, useState, useRef } from 'react'
+import { useState } from 'react'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
@@ -30,7 +30,6 @@ const defaultForm: DocumentTypeFormData = { name: '', code: '', description: '',
 export default function DocumentTypesPage() {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
-  const hasLoadedOnce = useRef(false)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<DocumentTypeDto | null>(null)
   const [deleting, setDeleting] = useState<DocumentTypeDto | null>(null)
@@ -48,7 +47,8 @@ export default function DocumentTypesPage() {
 
   // Local order copy for a smooth drag (arrayMove locally, then persist). Synced from the query.
   const [items, setItems] = useState<DocumentTypeDto[]>([])
-  useEffect(() => { if (data?.items) setItems(data.items) }, [data?.items])
+  const [prevItems, setPrevItems] = useState(data?.items)
+  if (data?.items && data.items !== prevItems) { setPrevItems(data.items); setItems(data.items) } // resync from query (render-phase)
 
   // Dragging only makes sense on the full unfiltered set (a search shows a subset).
   const canReorder = !debouncedSearch
@@ -111,8 +111,7 @@ export default function DocumentTypesPage() {
 
   const isSaving = createMutation.isPending || updateMutation.isPending
   // Latch so the search box survives a 0-result filter (see associations.tsx).
-  if (data && data.totalCount > 0) hasLoadedOnce.current = true
-  const showSearch = hasLoadedOnce.current || (data && data.totalCount > 0)
+  const showSearch = !!search || !!(data && data.totalCount > 0)
 
   return (
     <div className="space-y-6">

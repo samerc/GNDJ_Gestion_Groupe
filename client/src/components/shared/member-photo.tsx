@@ -58,6 +58,9 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
 
   useEffect(() => {
     if (!photoPath || !inView) {
+      // Reset while there's nothing to show; the real work below is an async blob fetch with object-URL
+      // cleanup, so this is legitimately an effect.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSrc(null)
       return
     }

@@ -2,7 +2,7 @@
 // List + create/edit/delete articles authored in a TipTap rich-text editor (with
 // inline image upload). Each post is tagged Group / a branch (UnitType) / a single
 // Unit, and a publish toggle controls visibility on the public site.
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { parseApiError } from '@/lib/error-utils'
 import {
   useNewsAdmin, useNewsPost, useCreateNews, useUpdateNews, useDeleteNews,
@@ -46,12 +46,14 @@ export default function AdminNewsPage() {
   const updateMutation = useUpdateNews()
   const deleteMutation = useDeleteNews()
 
-  // Populate the form once the edited post's full data arrives.
-  useEffect(() => {
+  // Populate the form once the edited post's full data arrives (render-phase reset).
+  const [prevEditData, setPrevEditData] = useState(editData)
+  if (editData !== prevEditData) {
+    setPrevEditData(editData)
     if (editingId && editData) {
       setForm({ title: editData.title, bodyHtml: editData.bodyHtml, isPublished: editData.isPublished, tagType: editData.tagType, tagUnitTypeId: editData.tagUnitTypeId, tagUnitId: editData.tagUnitId, coverImagePath: editData.coverImagePath, attachments: editData.attachments ?? [] })
     }
-  }, [editingId, editData])
+  }
 
   // Cover image: upload via the content-image endpoint, store the returned URL on the form.
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

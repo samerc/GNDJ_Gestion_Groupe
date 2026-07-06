@@ -1303,9 +1303,19 @@ responses fan out to the whole file; and a global override protects real familie
       CitiesHandlers) → one `Common/TextNormalization.cs` (`RemoveDiacritics` + `NormalizeKey`). Frontend —
       `formatDate` copied 3× (public home/news/news-article) → `formatDateLong` in `lib/utils.ts`; `computeAge`/
       `calculateAge` (members/index, passage) → shared `computeAge` in `lib/utils.ts`.
-- NOTE (not addressed, logged as backlog): ESLint reports ~80 errors that are **React Compiler / react-hooks
-      rules** (`refs-during-render`, `preserve-manual-memoization`) surfaced/tightened by the eslint+plugin bump —
-      a code-quality backlog, NOT dead code; `tsc`+`vite` build clean so nothing is broken.
+- **ESLint backlog CLEARED (2026-07-06):** the ~80 errors newly surfaced by `eslint-plugin-react-hooks@7`
+      (React Compiler rule set — never enforced before the bump) are all fixed → **0 errors, 0 warnings**.
+      Real fixes (no blanket rule-disabling): `no-unused-expressions` Set-toggle ternaries → `if/else`;
+      `refs`-in-render (`hasLoadedOnce` search-box latch, 4 list pages) → derived from the search term (ref
+      dropped); `purity` (`useRef(Date.now())`) → stamp in the mount effect; `error-boundaries` (JSX in
+      try/catch) → parse in try, build JSX outside; `static-components` (ToolbarButton, SortHead defined in
+      render) → hoisted to module scope (SortHead takes sort/onSort props); ~26 `set-state-in-effect` →
+      **render-phase reset** (React's prev-value-tracking / derive pattern) for the pure state-syncs, with a
+      justified inline disable kept ONLY on 4 genuine side-effecting effects (camera stream, member-photo blob
+      fetch, one-shot email-verify POST, multi-source demande-wizard hydration); `preserve-manual-memoization`
+      → memo dep `[data?.value]`→`[data]`; unstable `all`/`occList` `?? []` fallbacks wrapped in `useMemo`.
+      Config: `react-refresh/only-export-components` turned off for `components/ui/**` (shadcn co-locates cva()
+      variants). Verified: eslint clean, `tsc`+`vite` build clean.
 
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear

@@ -3,7 +3,7 @@
 // Pages render as a drag-to-reorder tree: each level is its own dnd-kit context
 // (siblings sharing a parentId), and a parent's children nest *inside* its sortable
 // row so a parent drags with its sub-pages. showInMenu controls top-nav visibility.
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { parseApiError } from '@/lib/error-utils'
 import {
   usePagesAdmin, usePage, useCreatePage, useUpdatePage, useDeletePage, useReorderPages,
@@ -59,7 +59,8 @@ function Level({ items, parentId, onEdit, onDelete }: {
 }) {
   const reorderMutation = useReorderPages()
   const [local, setLocal] = useState(items) // optimistic local order; resynced when the cache updates
-  useEffect(() => setLocal(items), [items])
+  const [prevItems, setPrevItems] = useState(items)
+  if (items !== prevItems) { setPrevItems(items); setLocal(items) } // resync on cache update (render-phase)
   // 5px activation distance so clicking the edit/delete buttons doesn't start a drag.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -111,9 +112,12 @@ export default function AdminPagesPage() {
   const updateMutation = useUpdatePage()
   const deleteMutation = useDeletePage()
 
-  useEffect(() => {
+  // Populate the form once the edited page's full data arrives (render-phase reset).
+  const [prevEditData, setPrevEditData] = useState(editData)
+  if (editData !== prevEditData) {
+    setPrevEditData(editData)
     if (editingId && editData) setForm({ title: editData.title, bodyHtml: editData.bodyHtml, isPublished: editData.isPublished, showInMenu: editData.showInMenu, parentId: editData.parentId })
-  }, [editingId, editData])
+  }
 
   // Root pages (no parent) drive the top-level sortable list; children are pulled per-parent in <Children>.
   const topLevel = useMemo(() => (pages ?? []).filter(p => !p.parentId).sort((a, b) => a.displayOrder - b.displayOrder), [pages])

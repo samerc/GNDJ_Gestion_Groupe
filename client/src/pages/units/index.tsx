@@ -3,7 +3,7 @@
 // section (publish toggle, slug, founded date — the public description lives on the unit TYPE, shared).
 // Delete is hard (ConfirmDialog). Association is optional (e.g. Maîtrise de Groupe → "Inter-associations").
 import { parseApiError } from '@/lib/error-utils'
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
@@ -29,7 +29,6 @@ export default function UnitsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
-  const hasLoadedOnce = useRef(false)
   const [page, setPage] = useState(1)
   const [assocFilter, setAssocFilter] = useState('')
   const [utFilter, setUtFilter] = useState('')
@@ -103,8 +102,6 @@ export default function UnitsPage() {
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending
-  // Remember that the list was non-empty at least once (distinguishes "no data yet" from "truly empty").
-  if (data && data.totalCount > 0) hasLoadedOnce.current = true
 
   return (
     <div className="space-y-6">

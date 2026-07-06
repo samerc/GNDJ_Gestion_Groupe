@@ -6,7 +6,7 @@
 // Approved lines become Finalized on finalize (old assignments closed, new ones created).
 // Summary cards show totals; the finalize button is gated by a COMPLETENESS check — every active
 // member in scope must have a passage line (missingInScope === 0) before finalize is allowed.
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useSettingValue } from '@/services/settings-service'
 import {
   useAllPassages,
@@ -52,8 +52,9 @@ export default function PassageValidationPage() {
   const [scoutYear, setScoutYear] = useState('2026-2027')
   const [statusFilter, setStatusFilter] = useState<string>('Pending')
 
-  // Sync the selected year to the configured passage year once the setting loads.
-  useEffect(() => { setScoutYear(passageScoutYear) }, [passageScoutYear])
+  // Sync the selected year to the configured passage year once the setting loads (render-phase reset).
+  const [prevPassageYear, setPrevPassageYear] = useState(passageScoutYear)
+  if (passageScoutYear !== prevPassageYear) { setPrevPassageYear(passageScoutYear); setScoutYear(passageScoutYear) }
   const [unitFilter, setUnitFilter] = useState<string>('_all')
 
   const { data: passageStatus, isLoading: statusLoading } = usePassageStatus(scoutYear)

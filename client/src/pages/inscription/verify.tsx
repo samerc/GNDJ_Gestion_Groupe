@@ -21,6 +21,8 @@ export default function ApplicantVerifyPage() {
   useEffect(() => {
     if (ran.current) return
     ran.current = true
+    // Genuine one-shot side-effect: POST the verification token exactly once and reflect the outcome.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!token) { setState('error'); return }
     verify.mutateAsync(token).then(() => { setEmailVerified(true); setState('ok') }).catch(() => setState('error'))
   }, [token, verify, setEmailVerified])

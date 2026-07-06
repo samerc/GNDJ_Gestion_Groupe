@@ -2,7 +2,7 @@
 // site's fixed sections (home hero/intro/values/stats/CTA, footer, contact) stored in the single site.content
 // JSON setting. Loads into a local `form` draft; the whole object is saved at once. The home CTA only renders
 // publicly when inscriptions are open (see public-layout); values/stats are capped at 6 entries each.
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { parseApiError } from '@/lib/error-utils'
 import { useSiteContent, useUpdateSiteContent, type SiteContent } from '@/services/site-content-service'
 import { Button } from '@/components/ui/button'
@@ -40,7 +40,9 @@ export default function AdminSiteTextsPage() {
   const [form, setForm] = useState<SiteContent | null>(null)
   const updateMutation = useUpdateSiteContent()
 
-  useEffect(() => { if (data) setForm(data) }, [data])
+  // Hydrate the form when the fetched content (re)loads — render-phase reset.
+  const [prevData, setPrevData] = useState(data)
+  if (data && data !== prevData) { setPrevData(data); setForm(data) }
 
   if (isLoading || !form) return <LoadingSpinner />
 

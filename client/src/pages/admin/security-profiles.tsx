@@ -222,7 +222,7 @@ function CreateProfileDialog({ open, onOpenChange, onCreated }: { open: boolean;
 
   const reset = () => { setName(''); setDescription(''); setPerms(new Set()); setError('') }
 
-  const togglePerm = (perm: string) => setPerms(prev => { const n = new Set(prev); n.has(perm) ? n.delete(perm) : n.add(perm); return n })
+  const togglePerm = (perm: string) => setPerms(prev => { const n = new Set(prev); if (n.has(perm)) n.delete(perm); else n.add(perm); return n })
   // Group checkbox: if every child is on, clear them all; otherwise turn them all on.
   const toggleGroup = (group: typeof PERMISSION_GROUPS[0]) => setPerms(prev => {
     const n = new Set(prev)

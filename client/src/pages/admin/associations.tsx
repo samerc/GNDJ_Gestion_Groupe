@@ -2,7 +2,7 @@
 // to one association or none). Standard paginated list + debounced search + create/edit dialog +
 // delete confirm. Same shape as the other org-config admin pages (unit-types, document-types).
 import { parseApiError } from '@/lib/error-utils'
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { useAssociations, useCreateAssociation, useUpdateAssociation, useDeleteAssociation, type AssociationDto, type AssociationFormData } from '@/services/association-service'
@@ -21,7 +21,6 @@ import { toast } from 'sonner'
 export default function AssociationsPage() {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
-  const hasLoadedOnce = useRef(false)
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<AssociationDto | null>(null)
@@ -80,10 +79,9 @@ export default function AssociationsPage() {
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending
-  // Latch once any data has loaded so the search box stays visible even after a search returns 0 rows
-  // (otherwise filtering to no results would hide the input the user is typing in).
-  if (data && data.totalCount > 0) hasLoadedOnce.current = true
-  const showSearch = hasLoadedOnce.current || (data && data.totalCount > 0)
+  // Keep the search box visible while a search term is present (so filtering to 0 rows doesn't hide the
+  // input the user is typing in) or whenever the list has rows.
+  const showSearch = !!search || !!(data && data.totalCount > 0)
 
   return (
     <div className="space-y-6">
