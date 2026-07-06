@@ -22,7 +22,7 @@
     <!-- Pin Relational to match EF Core 10.0.9 (the Npgsql provider 10.0.2 pulls 10.0.4 transitively;
          this unifies the graph on 10.0.9 and avoids the MSB3277 version-conflict warning). -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
-    <PackageReference Include="QuestPDF" Version="2026.6.0" />
+    <PackageReference Include="QuestPDF" Version="2026.7.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.1" />
   </ItemGroup>
 
