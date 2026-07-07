@@ -1342,6 +1342,16 @@ endpoints → admin CMS page → public list+detail → routes/sidebar/nav). Ful
       went through a `Func` indirection (`x => attachments(x)`). Fix: declare `RuleForEach(x => x.Attachments)`
       with a DIRECT member expression in each validator (News + Resources). Verified news-with-attachment → 201,
       validation still enforced (empty name → 400).
+- [x] **Menu cleanup (commit 3579e5a + dev-DB data):** the public nav was consolidated. **Code** (3579e5a):
+      Actualités + Agenda merged into ONE "Actualités" dropdown (children Actualités→/actualites, Agenda→
+      /agenda; FIXED_RIGHT entries can now be a link OR a group with children; mobile flattens them). Home:
+      the two teaser bands replaced by ONE "Actualités & agenda" section showing the most recent of BOTH side
+      by side (latest news | upcoming events). **Data** (dev DB, reaches prod via the next dump): reparented
+      "Notre histoire" + "Historique" under the "Le Groupe" page (so the nav shows a single "Le Groupe ▾"
+      dropdown = Notre methode + Notre histoire + Historique) and DELETED the "Test" page the user had made.
+- **DEV-DB sample content kept for review** (goes to prod with the next dump): 3 French events (Camp d'été
+      2026, Sortie nature d'automne, Réunion de rentrée scoute) + 3 resources (Chant "Kaïma", Nœud "Le nœud
+      plat", Biographie "Baden-Powell"). Delete/replace before or after go-live as desired.
 - DEFERRED (unchanged): native photo gallery → lean on Instagram (even the IG embed later); the heritage
       content itself (chants/nœuds/…) is entered by the chefs via the new CMS.
 
