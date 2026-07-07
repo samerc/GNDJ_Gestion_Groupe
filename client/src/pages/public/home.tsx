@@ -121,64 +121,64 @@ export default function PublicHomePage() {
         </section>
       )}
 
-      {/* ---------- Upcoming events (live) ---------- */}
-      {upcomingEvents.length > 0 && (
-        <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight">Prochains rendez-vous</h2>
-              <p className="mt-2 text-muted-foreground">Les événements à venir du groupe.</p>
-            </div>
-            <Link to="/agenda" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
-              Tout l'agenda <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
-            {upcomingEvents.map((ev) => (
-              <Link key={ev.slug} to={`/agenda/${ev.slug}`} className="group flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-elevated">
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-                  <CalendarDays className="h-3.5 w-3.5" /> {formatDate(ev.startDate)}{ev.endDate ? ` → ${formatDate(ev.endDate)}` : ''}
-                </span>
-                <h3 className="mt-1.5 font-semibold leading-snug line-clamp-2">{ev.title}</h3>
-                {(ev.timeLabel || ev.location) && (
-                  <p className="mt-1 text-sm text-muted-foreground">{[ev.timeLabel, ev.location].filter(Boolean).join(' · ')}</p>
-                )}
-                <span className="mt-3 inline-block rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">{ev.tagLabel}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ---------- Latest news (live) ---------- */}
-      {latestNews.length > 0 && (
+      {/* ---------- Actualités & agenda (live) — the most recent of both, side by side ---------- */}
+      {(latestNews.length > 0 || upcomingEvents.length > 0) && (
         <section className="border-t border-border bg-card">
           <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <h2 className="text-3xl font-bold tracking-tight">Dernières nouvelles</h2>
-                <p className="mt-2 text-muted-foreground">La vie du groupe et des unités.</p>
-              </div>
-              <Link to="/actualites" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
-                Toutes les actualités <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {latestNews.map((post) => (
-                <Link key={post.slug} to={`/actualites/${post.slug}`} className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5">
-                  {post.coverImagePath
-                    ? <img src={post.coverImagePath} alt="" loading="lazy" className="h-36 w-full object-cover" />
-                    : <div className="flex h-36 items-center justify-center bg-gradient-to-br from-primary/15 to-accent/15"><Newspaper className="h-8 w-8 text-primary/40" /></div>}
-                  <div className="flex flex-1 flex-col p-5">
-                    <span className="inline-flex items-center gap-2 text-xs">
-                      {post.publishedAt && <span className="inline-flex items-center gap-1 text-muted-foreground"><Calendar className="h-3.5 w-3.5" /> {formatDate(post.publishedAt)}</span>}
-                      <span className="rounded-full bg-accent/10 px-2 py-0.5 font-medium text-accent">{post.tagLabel}</span>
-                    </span>
-                    <h3 className="mt-1.5 font-semibold leading-snug">{post.title}</h3>
-                    {post.excerpt && <p className="mt-2 flex-1 text-sm text-muted-foreground line-clamp-2">{post.excerpt}</p>}
+            <h2 className="text-3xl font-bold tracking-tight">Actualités &amp; agenda</h2>
+            <p className="mt-2 text-muted-foreground">Les dernières nouvelles et les prochains rendez-vous du groupe.</p>
+            <div className="mt-10 grid gap-10 lg:grid-cols-2">
+
+              {/* Dernières nouvelles */}
+              {latestNews.length > 0 && (
+                <div>
+                  <div className="mb-5 flex items-center justify-between">
+                    <h3 className="flex items-center gap-2 text-lg font-semibold"><Newspaper className="h-5 w-5 text-primary/70" /> Dernières nouvelles</h3>
+                    <Link to="/actualites" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Toutes <ArrowRight className="h-4 w-4" /></Link>
                   </div>
-                </Link>
-              ))}
+                  <div className="space-y-3">
+                    {latestNews.map((post) => (
+                      <Link key={post.slug} to={`/actualites/${post.slug}`} className="group flex items-stretch gap-4 rounded-2xl border border-border bg-background p-3 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-elevated">
+                        {post.coverImagePath
+                          ? <img src={post.coverImagePath} alt="" loading="lazy" className="h-16 w-20 shrink-0 rounded-xl object-cover" />
+                          : <div className="flex h-16 w-20 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/15 to-accent/15"><Newspaper className="h-5 w-5 text-primary/40" /></div>}
+                        <div className="min-w-0 flex-1">
+                          <span className="inline-flex flex-wrap items-center gap-2 text-xs">
+                            {post.publishedAt && <span className="inline-flex items-center gap-1 text-muted-foreground"><Calendar className="h-3.5 w-3.5" /> {formatDate(post.publishedAt)}</span>}
+                            <span className="rounded-full bg-accent/10 px-2 py-0.5 font-medium text-accent">{post.tagLabel}</span>
+                          </span>
+                          <h4 className="mt-1 font-semibold leading-snug line-clamp-2">{post.title}</h4>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Prochains rendez-vous */}
+              {upcomingEvents.length > 0 && (
+                <div>
+                  <div className="mb-5 flex items-center justify-between">
+                    <h3 className="flex items-center gap-2 text-lg font-semibold"><CalendarDays className="h-5 w-5 text-primary/70" /> Prochains rendez-vous</h3>
+                    <Link to="/agenda" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Agenda <ArrowRight className="h-4 w-4" /></Link>
+                  </div>
+                  <div className="space-y-3">
+                    {upcomingEvents.map((ev) => (
+                      <Link key={ev.slug} to={`/agenda/${ev.slug}`} className="group flex flex-col rounded-2xl border border-border bg-background p-4 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-elevated">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+                          <CalendarDays className="h-3.5 w-3.5" /> {formatDate(ev.startDate)}{ev.endDate ? ` → ${formatDate(ev.endDate)}` : ''}
+                        </span>
+                        <h4 className="mt-1 font-semibold leading-snug line-clamp-2">{ev.title}</h4>
+                        {(ev.timeLabel || ev.location) && (
+                          <p className="mt-0.5 text-sm text-muted-foreground">{[ev.timeLabel, ev.location].filter(Boolean).join(' · ')}</p>
+                        )}
+                        <span className="mt-2 inline-block w-fit rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">{ev.tagLabel}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         </section>

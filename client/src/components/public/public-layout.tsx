@@ -25,10 +25,15 @@ import { usePublicPages } from '@/services/page-service'
 import { usePublicSiteConfig } from '@/services/public-service'
 
 const FIXED_LEFT = [{ to: '/', label: 'Accueil', end: true }]
-const FIXED_RIGHT = [
+// A fixed nav entry is either a direct link (to) or a group with a hover dropdown (children).
+// Actualités (news) + Agenda (events) are grouped under one "Actualités" entry.
+type FixedNav = { label: string; to?: string; children?: { to: string; label: string }[] }
+const FIXED_RIGHT: FixedNav[] = [
   { to: '/unites', label: 'Unités' },
-  { to: '/actualites', label: 'Actualités' },
-  { to: '/agenda', label: 'Agenda' },
+  { label: 'Actualités', children: [
+    { to: '/actualites', label: 'Actualités' },
+    { to: '/agenda', label: 'Agenda' },
+  ] },
   { to: '/ressources', label: 'Ressources' },
   { to: '/contact', label: 'Contact' },
 ]
@@ -131,9 +136,22 @@ export function PublicLayout() {
                 </div>
               </div>
             )}
-            {FIXED_RIGHT.map((item) => (
-              <NavLink key={item.to} to={item.to} className={navLinkClass}>{item.label}</NavLink>
-            ))}
+            {FIXED_RIGHT.map((item) =>
+              item.children ? (
+                <div key={item.label} className="group relative">
+                  <button className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground hover:bg-accent/10">
+                    {item.label} <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                  <div className="invisible absolute left-0 top-full z-50 min-w-44 rounded-xl border border-border bg-card p-1.5 opacity-0 shadow-elevated transition-all group-hover:visible group-hover:opacity-100">
+                    {item.children.map((c) => (
+                      <NavLink key={c.to} to={c.to} className={({ isActive }) => cn('block rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent/10', isActive ? 'text-primary' : 'text-foreground/80')}>{c.label}</NavLink>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <NavLink key={item.to} to={item.to!} className={navLinkClass}>{item.label}</NavLink>
+              )
+            )}
           </nav>
 
           <div className="hidden items-center gap-2 lg:flex">
@@ -166,7 +184,7 @@ export function PublicLayout() {
                   ))}
                 </div>
               ))}
-              {FIXED_RIGHT.map((item) => (
+              {FIXED_RIGHT.flatMap((item) => item.children ?? [{ to: item.to!, label: item.label }]).map((item) => (
                 <NavLink key={item.to} to={item.to} onClick={() => setMobileOpen(false)}
                   className={({ isActive }) => cn('rounded-lg px-3 py-2.5 text-base font-medium', isActive ? 'bg-accent/10 text-primary' : 'text-foreground/80 hover:bg-accent/10')}>{item.label}</NavLink>
               ))}
