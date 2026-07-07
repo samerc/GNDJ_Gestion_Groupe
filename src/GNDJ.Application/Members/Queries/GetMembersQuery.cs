@@ -128,7 +128,49 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
                     .Select(l => l.Guardian.FirstName + " " + l.Guardian.LastName).FirstOrDefault()
             ));
 
-        return await PaginatedList<MemberListDto>.CreateAsync(projected, request.Page, request.PageSize, cancellationToken);
+        var result = await PaginatedList<MemberListDto>.CreateAsync(projected, request.Page, request.PageSize, cancellationToken);
+
+        // Dossier-compliance flags for active members (skipped for the alumni view). Computed in batch for
+        // just this page — active doc types + approved-doc counts + current-year cotisation status — so it's
+        // 3 extra set-based queries, never N+1. "Complete docs" = an Approved document for EVERY active
+        // document type; "cotisation OK" = a current-year cotisation that's paid (has a payment) or exempt.
+        if (!isAlumni && result.Items.Count > 0)
+        {
+            var ids = result.Items.Select(i => i.Id).ToList();
+
+            var activeDocTypeIds = await _context.DocumentTypes
+                .Where(d => d.IsActive && !d.IsDeleted).Select(d => d.Id).ToListAsync(cancellationToken);
+            var requiredCount = activeDocTypeIds.Count;
+
+            var approvedTypeCount = requiredCount == 0
+                ? new Dictionary<Guid, int>()
+                : await _context.MemberDocuments
+                    .Where(d => ids.Contains(d.MemberId) && !d.IsDeleted
+                        && d.Status == Domain.Enums.DocumentStatus.Approved && activeDocTypeIds.Contains(d.DocumentTypeId))
+                    .GroupBy(d => d.MemberId)
+                    .Select(g => new { Id = g.Key, N = g.Select(x => x.DocumentTypeId).Distinct().Count() })
+                    .ToDictionaryAsync(x => x.Id, x => x.N, cancellationToken);
+
+            var scoutYear = await _context.Settings.Where(s => s.Key == "cotisation.current_scout_year")
+                .Select(s => s.Value).FirstOrDefaultAsync(cancellationToken);
+            var cotisTracked = !string.IsNullOrWhiteSpace(scoutYear);
+            var cotisOk = cotisTracked
+                ? (await _context.MemberCotisations
+                    .Where(c => ids.Contains(c.MemberId) && !c.IsDeleted && c.ScoutYear == scoutYear
+                        && (c.WillNotPay || c.Payments.Any(p => !p.IsDeleted)))
+                    .Select(c => c.MemberId).Distinct().ToListAsync(cancellationToken)).ToHashSet()
+                : new HashSet<Guid>();
+
+            var withCompliance = result.Items.Select(i => i with
+            {
+                DocsComplete = requiredCount == 0 || approvedTypeCount.GetValueOrDefault(i.Id) >= requiredCount,
+                CotisationOk = cotisTracked ? cotisOk.Contains(i.Id) : (bool?)null,
+            }).ToList();
+
+            return new PaginatedList<MemberListDto>(withCompliance, result.TotalCount, result.Page, result.PageSize);
+        }
+
+        return result;
     }
 }
 

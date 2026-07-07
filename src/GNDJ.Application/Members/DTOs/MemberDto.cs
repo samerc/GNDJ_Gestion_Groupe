@@ -16,7 +16,12 @@ public record MemberListDto(
     string? TeamName,
     string? RoleName,
     int? RoleRank,
-    string? FatherName
+    string? FatherName,
+    // Dossier compliance (active members only; null for the alumni view). DocsComplete = an Approved
+    // document exists for every active document type. CotisationOk = current-year cotisation paid or
+    // exempt; null when no current scout year is configured (cotisation not tracked). Computed per page.
+    bool? DocsComplete = null,
+    bool? CotisationOk = null
 );
 
 // Full member profile incl. contact collections (phones/emails/addresses), primary-first.

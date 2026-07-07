@@ -48,7 +48,7 @@ import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2 } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
@@ -78,6 +78,19 @@ function Chip({ icon: Icon, children }: { icon?: ComponentType<{ className?: str
       {Icon && <Icon className="h-3.5 w-3.5 text-primary/70" />}{children}
     </span>
   )
+}
+
+// Dossier-compliance indicator for a roster row: green check when documents are complete AND the
+// current-year cotisation is paid/exempt, else an amber warning whose tooltip says what's missing.
+// Renders nothing for the alumni view / when compliance wasn't computed (docsComplete null).
+function ComplianceDot({ docsComplete, cotisationOk }: { docsComplete?: boolean | null; cotisationOk?: boolean | null }) {
+  if (docsComplete === null || docsComplete === undefined) return null
+  const issues: string[] = []
+  if (docsComplete === false) issues.push('Documents incomplets')
+  if (cotisationOk === false) issues.push('Cotisation non payée') // null = not tracked → not an issue
+  if (issues.length === 0)
+    return <Tip content="Dossier complet"><CheckCircle2 className="h-4 w-4 text-emerald-500" /></Tip>
+  return <Tip content={issues.join(' · ')}><AlertTriangle className="h-4 w-4 text-amber-500" /></Tip>
 }
 
 // Subtle count badge shown after a tab label (hidden when zero). Module scope so its identity is stable.
@@ -858,6 +871,7 @@ export default function MembersPage() {
                       <p className="text-sm font-medium truncate">{m.lastName} {m.firstName}</p>
                       {m.dateOfBirth && <p className="text-[11px] text-muted-foreground">{new Date(m.dateOfBirth).toLocaleDateString('fr-FR')}</p>}
                     </div>
+                    <div className="shrink-0"><ComplianceDot docsComplete={m.docsComplete} cotisationOk={m.cotisationOk} /></div>
                     <div className="w-12 shrink-0 text-[11px] text-muted-foreground text-center">{m.unitName ?? '—'}</div>
                   </div>
                 ))}

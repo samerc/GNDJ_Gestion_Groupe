@@ -20,6 +20,8 @@ export interface MemberListDto {
   roleName: string | null
   roleRank: number | null
   fatherName: string | null
+  docsComplete?: boolean | null // dossier compliance (active members only; null in the alumni view)
+  cotisationOk?: boolean | null // current-year cotisation paid/exempt; null when not tracked
 }
 
 export interface MemberDetailDto {
