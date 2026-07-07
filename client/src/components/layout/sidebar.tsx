@@ -30,6 +30,7 @@ import {
   Inbox,
   Newspaper,
   CalendarDays,
+  Library,
   BarChart3,
   Crown,
   MapPin,
@@ -111,6 +112,7 @@ const adminGroups: AdminGroup[] = [
     items: [
       { path: '/admin/news', label: 'Actualités', icon: Newspaper, permission: PERMISSIONS.CONTENT_MANAGE },
       { path: '/admin/events', label: 'Agenda', icon: CalendarDays, permission: PERMISSIONS.CONTENT_MANAGE },
+      { path: '/admin/resources', label: 'Ressources', icon: Library, permission: PERMISSIONS.CONTENT_MANAGE },
       { path: '/admin/pages', label: 'Pages', icon: FileText, permission: PERMISSIONS.CONTENT_MANAGE },
       { path: '/admin/site-texts', label: 'Textes du site', icon: FileText, permission: PERMISSIONS.CONTENT_MANAGE },
     ],

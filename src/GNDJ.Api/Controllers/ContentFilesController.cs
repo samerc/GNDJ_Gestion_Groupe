@@ -15,7 +15,7 @@ namespace GNDJ.Api.Controllers;
 [Route("api/v1/content/files")]
 public class ContentFilesController : BaseApiController
 {
-    private static readonly string[] Allowed = { "pdf", "jpg", "jpeg", "png", "webp", "gif" };
+    private static readonly string[] Allowed = { "pdf", "jpg", "jpeg", "png", "webp", "gif", "mp3" };
 
     /// <summary>
     /// Uploads a content attachment (PDF or image, max 15 MB, magic-byte validated) and returns its public
@@ -32,7 +32,7 @@ public class ContentFilesController : BaseApiController
         if (file.Length > 15 * 1024 * 1024) return BadRequest(new { error = "Fichier trop volumineux (max 15 Mo)." });
 
         var ext = Path.GetExtension(file.FileName).TrimStart('.').ToLowerInvariant();
-        if (!Allowed.Contains(ext)) return BadRequest(new { error = "Format non autorisé (PDF, JPG, PNG, WEBP, GIF)." });
+        if (!Allowed.Contains(ext)) return BadRequest(new { error = "Format non autorisé (PDF, JPG, PNG, WEBP, GIF, MP3)." });
 
         var header = new byte[12];
         await using (var s = file.OpenReadStream())
@@ -46,6 +46,9 @@ public class ContentFilesController : BaseApiController
                 "gif" => read >= 3 && header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46,
                 "webp" => read >= 12 && header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46
                           && header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50,
+                // MP3: "ID3" tag OR an MPEG audio frame sync (0xFF followed by 0b111xxxxx).
+                "mp3" => read >= 3 && ((header[0] == 0x49 && header[1] == 0x44 && header[2] == 0x33)
+                          || (header[0] == 0xFF && (header[1] & 0xE0) == 0xE0)),
                 _ => false,
             };
             if (!ok) return BadRequest(new { error = "Le contenu du fichier ne correspond pas à son extension." });
@@ -81,6 +84,7 @@ public class ContentFilesController : BaseApiController
             "png" => "image/png",
             "gif" => "image/gif",
             "webp" => "image/webp",
+            "mp3" => "audio/mpeg",
             _ => "image/jpeg",
         };
         return PhysicalFile(full, contentType);

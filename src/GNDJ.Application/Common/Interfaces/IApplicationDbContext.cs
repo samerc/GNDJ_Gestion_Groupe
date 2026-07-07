@@ -51,6 +51,7 @@ public interface IApplicationDbContext
     DbSet<UnitIntakeQuota> UnitIntakeQuotas { get; }
     DbSet<NewsPost> NewsPosts { get; }
     DbSet<Event> Events { get; }
+    DbSet<Resource> Resources { get; }
     DbSet<Page> Pages { get; }
     DbSet<RentreeTaskTemplate> RentreeTaskTemplates { get; }
     DbSet<RentreeTask> RentreeTasks { get; }

@@ -29,6 +29,7 @@ const FIXED_RIGHT = [
   { to: '/unites', label: 'Unités' },
   { to: '/actualites', label: 'Actualités' },
   { to: '/agenda', label: 'Agenda' },
+  { to: '/ressources', label: 'Ressources' },
   { to: '/contact', label: 'Contact' },
 ]
 
@@ -223,6 +224,7 @@ function PublicFooter({ pages, tagline, instagram, facebook }: { pages: { slug: 
             <li><Link to="/unites" className="transition-colors hover:text-foreground">Unités</Link></li>
             <li><Link to="/actualites" className="transition-colors hover:text-foreground">Actualités</Link></li>
             <li><Link to="/agenda" className="transition-colors hover:text-foreground">Agenda</Link></li>
+            <li><Link to="/ressources" className="transition-colors hover:text-foreground">Ressources</Link></li>
             <li><Link to="/contact" className="transition-colors hover:text-foreground">Contact</Link></li>
             {pages.slice(0, 4).map((p) => (
               <li key={p.slug}><Link to={`/p/${p.slug}`} className="transition-colors hover:text-foreground">{p.title}</Link></li>

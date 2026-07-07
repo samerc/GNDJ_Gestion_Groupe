@@ -1,6 +1,7 @@
 using GNDJ.Application.Events;
 using GNDJ.Application.News;
 using GNDJ.Application.Pages;
+using GNDJ.Application.Resources;
 using GNDJ.Application.Public;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -77,6 +78,25 @@ public class PublicController : BaseApiController
     {
         var result = await Mediator.Send(new GetPublicEventBySlugQuery(slug));
         if (result is null) return NotFound(new { error = "Événement introuvable." });
+        return Ok(result);
+    }
+
+    /// <summary>Returns a paged list of published heritage resources (optional category + search).</summary>
+    [HttpGet("resources")]
+    [OutputCache(PolicyName = "ShortCache")]
+    public async Task<IActionResult> Resources([FromQuery] string? category = null, [FromQuery] string? search = null,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 24)
+        => Ok(await Mediator.Send(new GetPublicResourcesQuery(category, search, page, pageSize)));
+
+    /// <summary>Returns one published resource by slug.</summary>
+    /// <response code="404">No published resource matches the slug.</response>
+    [ProducesResponseType(404)]
+    [HttpGet("resources/{slug}")]
+    [OutputCache(PolicyName = "ShortCache")]
+    public async Task<IActionResult> Resource(string slug)
+    {
+        var result = await Mediator.Send(new GetPublicResourceBySlugQuery(slug));
+        if (result is null) return NotFound(new { error = "Ressource introuvable." });
         return Ok(result);
     }
 

@@ -38,16 +38,12 @@ internal static class NewsAttachments
 
 internal static class NewsAttachmentValidation
 {
-    // Cap the list and validate each entry (name shown to the public; url comes from the upload endpoint).
+    // Caps the list size (scalar rule — works through the Func). The per-item ChildRules must be declared
+    // in the concrete validator with a DIRECT member expression (RuleForEach(x => x.Attachments)): going
+    // through a Func makes FluentValidation unable to infer the property name for the child paths and it
+    // throws "Could not infer property name" at validation time. See each validator below.
     public static void Rules<T>(AbstractValidator<T> v, System.Func<T, IReadOnlyList<NewsAttachmentDto>?> attachments)
-    {
-        v.RuleFor(x => attachments(x)).Must(a => a == null || a.Count <= 20).WithMessage("Trop de pièces jointes (max 20).");
-        v.RuleForEach(x => attachments(x)).ChildRules(a =>
-        {
-            a.RuleFor(z => z.Name).NotEmpty().MaximumLength(200).NoHtml();
-            a.RuleFor(z => z.Url).NotEmpty().MaximumLength(500);
-        });
-    }
+        => v.RuleFor(x => attachments(x)).Must(a => a == null || a.Count <= 20).WithMessage("Trop de pièces jointes (max 20).");
 }
 
 internal static class NewsTagValidation
@@ -79,6 +75,12 @@ public class CreateNewsPostCommandValidator : AbstractValidator<CreateNewsPostCo
         RuleFor(x => x.BodyHtml).NotEmpty().WithMessage("Le contenu est requis.").MaximumLength(100000);
         RuleFor(x => x.CoverImagePath).MaximumLength(500); // a relative URL/path from the image upload endpoint
         NewsAttachmentValidation.Rules(this, x => x.Attachments);
+        // Direct member expression so FluentValidation can infer the property name for the child paths.
+        RuleForEach(x => x.Attachments).ChildRules(a =>
+        {
+            a.RuleFor(z => z.Name).NotEmpty().MaximumLength(200).NoHtml();
+            a.RuleFor(z => z.Url).NotEmpty().MaximumLength(500);
+        });
         NewsTagValidation.Rules(this, x => x.TagType, x => x.TagUnitTypeId, x => x.TagUnitId);
     }
 }
@@ -125,6 +127,12 @@ public class UpdateNewsPostCommandValidator : AbstractValidator<UpdateNewsPostCo
         RuleFor(x => x.BodyHtml).NotEmpty().WithMessage("Le contenu est requis.").MaximumLength(100000);
         RuleFor(x => x.CoverImagePath).MaximumLength(500);
         NewsAttachmentValidation.Rules(this, x => x.Attachments);
+        // Direct member expression so FluentValidation can infer the property name for the child paths.
+        RuleForEach(x => x.Attachments).ChildRules(a =>
+        {
+            a.RuleFor(z => z.Name).NotEmpty().MaximumLength(200).NoHtml();
+            a.RuleFor(z => z.Url).NotEmpty().MaximumLength(500);
+        });
         NewsTagValidation.Rules(this, x => x.TagType, x => x.TagUnitTypeId, x => x.TagUnitId);
     }
 }
