@@ -42,7 +42,7 @@ import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2 } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
@@ -743,8 +743,8 @@ export default function MembersPage() {
             <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />Nouveau membre</Button>
           </div>
         </div>
-        <div className="flex gap-2">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[10rem] max-w-sm">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Rechercher par nom, prénom ou carte..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-8 pr-8 h-8 text-sm" />
             {search && (
@@ -785,10 +785,17 @@ export default function MembersPage() {
         </div>
       </div>
 
-      {/* 2-column layout */}
+      {/* 2-column layout — desktop: side-by-side split; mobile: master/detail (list OR detail, one at a time) */}
       <div className="flex flex-col md:flex-row flex-1 min-h-0 rounded-lg border overflow-hidden">
-        {/* Left: member list */}
-        <div className="flex flex-col shrink-0 overflow-hidden max-h-72 md:max-h-full border-b md:border-b-0" style={{ width: leftWidth }}>
+        {/* Left: member list — full width/height on mobile, fixed-width pane on desktop.
+            max-md:!w-full overrides the inline pixel width below md; hidden on mobile once a member is picked. */}
+        <div
+          className={cn(
+            'flex flex-col flex-1 md:flex-none md:shrink-0 overflow-hidden border-b md:border-b-0 max-md:!w-full',
+            selectedMemberId && 'max-md:hidden'
+          )}
+          style={{ width: leftWidth }}
+        >
           {/* Sortable header */}
           <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/40 text-muted-foreground shrink-0">
             <div className="w-8" />
@@ -842,10 +849,22 @@ export default function MembersPage() {
           <DragHandle onDrag={handleDrag} />
         </div>
 
-        {/* Right: member detail */}
-        <div className="flex-1 min-w-0 overflow-hidden bg-background">
+        {/* Right: member detail — full screen on mobile (with a Retour button); hidden on mobile when nothing is selected. */}
+        <div className={cn('flex flex-1 min-w-0 flex-col overflow-hidden bg-background', !selectedMemberId && 'max-md:hidden')}>
           {selectedMemberId ? (
-            <MemberDetailPanel key={selectedMemberId} memberId={selectedMemberId} />
+            <>
+              {/* Mobile-only: back to the list */}
+              <button
+                type="button"
+                onClick={() => setSelectedMemberId(null)}
+                className="flex shrink-0 items-center gap-1 border-b px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground md:hidden"
+              >
+                <ArrowLeft className="h-4 w-4" /> Retour à la liste
+              </button>
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <MemberDetailPanel key={selectedMemberId} memberId={selectedMemberId} />
+              </div>
+            </>
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               Sélectionnez un membre pour afficher sa fiche.
