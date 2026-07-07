@@ -72,4 +72,63 @@ public class SettingsController : BaseApiController
         await outputCache.EvictByTagAsync("short", default);
         return NoContent();
     }
+
+    /// <summary>
+    /// Usage counts for a json_array list setting: active + archived values, each with how many member/parent
+    /// records currently hold it (managed keys only — schools/classes/cities/profession domains). Requires associations.manage.
+    /// </summary>
+    /// <param name="key">The list setting key (e.g. member.schools).</param>
+    [HttpGet("list-usage/{key}")]
+    [HasPermission(Permissions.AssociationsManage)]
+    public async Task<IActionResult> GetListUsage(string key)
+    {
+        var result = await Mediator.Send(new GetListValueUsageQuery(key));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Renames a value in a list setting, cascading the new spelling onto every member/parent record that holds it
+    /// (managed keys). Returns the number of records updated. Requires associations.manage.
+    /// </summary>
+    [HttpPost("list-value/rename")]
+    [HasPermission(Permissions.AssociationsManage)]
+    public async Task<IActionResult> RenameListValue([FromBody] RenameListValueCommand command,
+        [FromServices] IOutputCacheStore outputCache)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        await outputCache.EvictByTagAsync("lookup", default);
+        await outputCache.EvictByTagAsync("short", default);
+        return Ok(new { affected = result.Value });
+    }
+
+    /// <summary>
+    /// Deletes a value from a list setting. An in-use value (managed keys) is archived — hidden from pickers but kept
+    /// on the records that hold it; an unused value is hard-removed. Returns archived=true/false. Requires associations.manage.
+    /// </summary>
+    [HttpPost("list-value/archive")]
+    [HasPermission(Permissions.AssociationsManage)]
+    public async Task<IActionResult> ArchiveListValue([FromBody] DeleteListValueCommand command,
+        [FromServices] IOutputCacheStore outputCache)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        await outputCache.EvictByTagAsync("lookup", default);
+        await outputCache.EvictByTagAsync("short", default);
+        return Ok(new { archived = result.Value });
+    }
+
+    /// <summary>Restores an archived list value back into the active list. Requires associations.manage.</summary>
+    [HttpPost("list-value/unarchive")]
+    [HasPermission(Permissions.AssociationsManage)]
+    public async Task<IActionResult> UnarchiveListValue([FromBody] UnarchiveListValueCommand command,
+        [FromServices] IOutputCacheStore outputCache)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        await outputCache.EvictByTagAsync("lookup", default);
+        await outputCache.EvictByTagAsync("short", default);
+        return NoContent();
+    }
 }

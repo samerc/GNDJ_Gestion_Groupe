@@ -38,6 +38,47 @@ export function useUpdateSetting() {
   })
 }
 
+// ── Managed list values (schools/classes/cities/profession domains): rename cascade + archive ──
+// These json_array settings hold allowed strings that member/parent records store directly (no FK), so
+// editing a value needs a dedicated endpoint: rename cascades the new spelling onto every record; delete
+// archives an in-use value (kept on the records, hidden from pickers) or hard-removes an unused one.
+export interface ListValueItem { value: string; count: number }
+export interface ListValueUsage { managed: boolean; active: ListValueItem[]; archived: ListValueItem[] }
+
+export function useListValueUsage(key: string, enabled = true) {
+  return useQuery({
+    queryKey: ['list-usage', key],
+    queryFn: () => apiClient.get<ListValueUsage>(`/settings/list-usage/${key}`).then(r => r.data),
+    enabled,
+  })
+}
+
+export function useRenameListValue() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { key: string; oldValue: string; newValue: string }) =>
+      apiClient.post<{ affected: number }>('/settings/list-value/rename', body).then(r => r.data),
+    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ['list-usage', v.key] }); qc.invalidateQueries({ queryKey: ['settings'] }) },
+  })
+}
+
+export function useArchiveListValue() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { key: string; value: string }) =>
+      apiClient.post<{ archived: boolean }>('/settings/list-value/archive', body).then(r => r.data),
+    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ['list-usage', v.key] }); qc.invalidateQueries({ queryKey: ['settings'] }) },
+  })
+}
+
+export function useUnarchiveListValue() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { key: string; value: string }) => apiClient.post('/settings/list-value/unarchive', body),
+    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ['list-usage', v.key] }); qc.invalidateQueries({ queryKey: ['settings'] }) },
+  })
+}
+
 // Helper hook to get a setting value parsed
 export function useSettingValue(key: string): string | null {
   const { data } = useSetting(key)
