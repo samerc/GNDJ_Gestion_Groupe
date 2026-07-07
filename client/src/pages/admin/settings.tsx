@@ -112,6 +112,64 @@ function ArrayFreeTextInput({ onAdd }: { onAdd: (val: string) => void }) {
   )
 }
 
+// Table editor for json_array settings: one row per value with a per-row delete, a filter box for
+// long lists (schools/cities/profession domains), and an add-row at the bottom. Replaces the old
+// pill cloud, which was unusable once a list grew past a handful of values. Local state lives in the
+// parent SettingEditor (via items/onChange) so the existing "Enregistrer" save flow is unchanged.
+function ArrayTableEditor({ items, options, onChange }: {
+  items: string[]
+  options?: { value: string; label: string }[]
+  onChange: (next: string[]) => void
+}) {
+  const [filter, setFilter] = useState('')
+  const label = (item: string) => options ? (options.find(o => o.value === item)?.label ?? item) : item
+  const f = filter.trim().toLowerCase()
+  const shown = f ? items.filter(i => label(i).toLowerCase().includes(f)) : items
+  const remove = (item: string) => onChange(items.filter(i => i !== item))
+  const add = (val: string) => { if (val && !items.includes(val)) onChange([...items, val]) }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm text-muted-foreground">{items.length} valeur{items.length > 1 ? 's' : ''}</span>
+        {items.length > 8 && (
+          <div className="relative w-full max-w-[16rem]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Filtrer la liste..." value={filter} onChange={(e) => setFilter(e.target.value)} className="pl-9 pr-8" />
+            {filter && <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setFilter('')}><X className="h-3.5 w-3.5" /></button>}
+          </div>
+        )}
+      </div>
+
+      <div className="max-h-80 overflow-y-auto rounded-md border border-border">
+        <table className="w-full text-sm">
+          <tbody className="divide-y divide-border">
+            {shown.map((item) => (
+              <tr key={item} className="group hover:bg-muted/40">
+                <td className="px-3 py-2">{label(item)}</td>
+                <td className="w-12 px-2 py-1 text-right">
+                  <Tip content="Retirer"><Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove(item)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
+                </td>
+              </tr>
+            ))}
+            {shown.length === 0 && (
+              <tr><td className="px-3 py-6 text-center text-muted-foreground">{f ? 'Aucun résultat' : 'Aucune valeur'}</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {options ? (
+        <div className="max-w-xs">
+          <SearchableSelect value="" onValueChange={add}
+            options={options.filter(o => !items.includes(o.value))}
+            placeholder="Ajouter..." searchPlaceholder="Rechercher..." emptyMessage="Toutes les valeurs sont déjà ajoutées." />
+        </div>
+      ) : <ArrayFreeTextInput onAdd={add} />}
+    </div>
+  )
+}
+
 // Single-row editor: picks the widget from valueType (+ special cases) and self-saves on change.
 // `value` holds scalar string values; `items` holds the parsed list for json_array settings.
 function SettingEditor({ setting, onSave }: { setting: SettingDto; onSave: (key: string, value: string) => Promise<void> }) {
@@ -171,24 +229,7 @@ function SettingEditor({ setting, onSave }: { setting: SettingDto; onSave: (key:
       {!isBool && (
         <>
           {isArray ? (
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {items.map((item) => (
-                  <Badge key={item} variant="secondary" className="gap-1 px-3 py-1.5 text-sm">
-                    {options ? (options.find(o => o.value === item)?.label ?? item) : item}
-                    <Tip content="Retirer"><button type="button" onClick={() => setItems(items.filter(i => i !== item))} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button></Tip>
-                  </Badge>
-                ))}
-                {items.length === 0 && <span className="text-sm text-muted-foreground">Aucune valeur</span>}
-              </div>
-              {options ? (
-                <div className="max-w-xs">
-                  <SearchableSelect value="" onValueChange={(v) => { if (v && !items.includes(v)) setItems([...items, v]) }}
-                    options={options.filter(o => !items.includes(o.value))}
-                    placeholder="Ajouter..." searchPlaceholder="Rechercher..." emptyMessage="Toutes les valeurs sont déjà épinglées." />
-                </div>
-              ) : <ArrayFreeTextInput onAdd={(v) => { if (!items.includes(v)) setItems([...items, v]) }} />}
-            </div>
+            <ArrayTableEditor items={items} options={options} onChange={setItems} />
           ) : isExchangeRates ? (
             <ExchangeRateEditor value={value} onChange={setValue} />
           ) : isSelectSingle ? (
