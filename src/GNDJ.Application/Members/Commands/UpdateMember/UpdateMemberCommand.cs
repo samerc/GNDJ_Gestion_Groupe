@@ -78,6 +78,14 @@ public class UpdateMemberCommandHandler : IRequestHandler<UpdateMemberCommand, R
                 return Result<bool>.Failure("Accès non autorisé à ce membre.");
         }
 
+        // The official SDL/GDL card number must be unique across members (friendly 400 vs the DB index's 500).
+        if (!string.IsNullOrWhiteSpace(request.ExternalCardNumber))
+        {
+            var ext = request.ExternalCardNumber.Trim();
+            if (await _context.Members.AnyAsync(m => m.Id != request.Id && m.ExternalCardNumber == ext, cancellationToken))
+                return Result<bool>.Failure($"Le numéro de carte « {ext} » est déjà attribué à un autre membre.");
+        }
+
         var oldValues = new { entity.FirstName, entity.LastName, entity.CardNumber };
 
         entity.FirstName = request.FirstName;

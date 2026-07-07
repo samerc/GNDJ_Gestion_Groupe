@@ -68,6 +68,15 @@ public class CreateMemberCommandHandler : IRequestHandler<CreateMemberCommand, R
 
     public async ValueTask<Result<CreateMemberResult>> Handle(CreateMemberCommand request, CancellationToken cancellationToken)
     {
+        // The official SDL/GDL card number must be unique (DB index enforces it too — this returns a
+        // friendly 400 instead of a 500 on collision).
+        if (!string.IsNullOrWhiteSpace(request.ExternalCardNumber))
+        {
+            var ext = request.ExternalCardNumber.Trim();
+            if (await _context.Members.AnyAsync(m => m.ExternalCardNumber == ext, cancellationToken))
+                return Result<CreateMemberResult>.Failure($"Le numéro de carte « {ext} » est déjà attribué à un autre membre.");
+        }
+
         // Auto-generate internal matricule: M-0001 for boys, F-0001 for girls. IgnoreQueryFilters so
         // soft-deleted members still reserve their number (no reuse → no collisions on the next insert).
         var prefix = request.Gender == "Féminin" ? "F" : "M";

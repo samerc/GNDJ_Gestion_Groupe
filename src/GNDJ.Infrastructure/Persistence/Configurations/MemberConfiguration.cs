@@ -29,5 +29,7 @@ public class MemberConfiguration : IEntityTypeConfiguration<Member>
         // card_number is the internal matricule (M-/F-), distinct from the official ExternalCardNumber;
         // uniqueness skips nulls so a few legacy rows without a matricule don't collide.
         builder.HasIndex(e => e.CardNumber).IsUnique().HasFilter("is_deleted = false AND card_number IS NOT NULL");
+        // The official SDL/GDL card number must be unique too (skipping nulls — it's optional).
+        builder.HasIndex(e => e.ExternalCardNumber).IsUnique().HasFilter("is_deleted = false AND external_card_number IS NOT NULL");
     }
 }
