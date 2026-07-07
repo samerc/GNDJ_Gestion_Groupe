@@ -1317,6 +1317,34 @@ responses fan out to the whole file; and a global override protects real familie
       Config: `react-refresh/only-export-components` turned off for `components/ui/**` (shadcn co-locates cva()
       variants). Verified: eslint clean, `tsc`+`vite` build clean.
 
+### Public site — Phase B (2026-07-07): social links + Events + Ressources
+Three public-site features built on `main` (pushed; dev-only until next prod deploy). Each mirrors the
+existing News CMS end-to-end (entity → EF config → CQRS handlers → controller + PublicController public
+endpoints → admin CMS page → public list+detail → routes/sidebar/nav). Full plan in memory
+`project_public_website.md` (Phase B). Mobile-verified via 390px headless screenshots.
+- [x] **#1 Social links (commit 41322c5):** `SiteFooterContent` gained nullable Instagram/Facebook URLs
+      (edited on Admin → Textes du site → Pied de page); public footer renders social icon links (inline SVG —
+      lucide 1.23 dropped its brand icons) when set. (The "Notre groupe" page is authored via the Pages CMS.)
+- [x] **#2 Events / Agenda (commit 8491747):** `Event` entity (slug + rich body + cover + Group/branch/unit
+      tag) + scheduling — StartDate (req), optional EndDate/TimeLabel/Location, stored as **DateOnly** (no TZ).
+      Public `GET /public/events` = UPCOMING (last day ≥ today, soonest first) + branch filter; `/public/events/
+      {slug}`. Admin `/admin/events`; public `/agenda` (grouped by month, branch chips) + `/agenda/:slug`; home
+      "Prochains rendez-vous" teaser. Migration AddEvents. 3 French sample events kept in the dev DB.
+- [x] **#3 Heritage / Ressources (commit 52b2539):** STRUCTURED `Resource` entity (category Chant/Technique/
+      Noeud/Badge/Biographie/Document + free-text Tags + mp3/PDF/image attachments JSON). Public `GET /public/
+      resources` = category filter + title/summary/tags **search**; `/public/resources/{slug}`. Admin
+      `/admin/resources`; public `/ressources` (grid, category chips, search) + `/ressources/:slug` (audio players
+      for mp3, download list for files). **ContentFilesController now accepts MP3** (audio/mpeg; magic-byte = ID3
+      tag or MPEG frame sync). Migration AddResources. Content is HAND-CURATED (no import, per user). 3 French
+      sample resources kept in the dev DB.
+- [x] **Fixed a pre-existing latent News bug** found while building: creating a news post WITH an attachment
+      **500'd** — FluentValidation "Could not infer property name" because the attachment `RuleForEach` ChildRules
+      went through a `Func` indirection (`x => attachments(x)`). Fix: declare `RuleForEach(x => x.Attachments)`
+      with a DIRECT member expression in each validator (News + Resources). Verified news-with-attachment → 201,
+      validation still enforced (empty name → 400).
+- DEFERRED (unchanged): native photo gallery → lean on Instagram (even the IG embed later); the heritage
+      content itself (chants/nœuds/…) is entered by the chefs via the new CMS.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);
