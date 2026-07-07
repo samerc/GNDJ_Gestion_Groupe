@@ -16,8 +16,9 @@ export default function PublicHomePage() {
   const { data: groups } = usePublicUnits()
   const { data: news } = usePublicNews(1, 3)
   const { data: eventsData } = usePublicEvents(1, 3)
-  // Flatten all branch groups into a single list, take the first 4 for the "Nos unités" teaser.
-  const featuredUnits = (groups ?? []).flatMap((g) => g.units).slice(0, 4)
+  // "Nos unités" shows one card per BRANCH (unit type). /public/units is already grouped by type and only
+  // contains types that have at least one published unit, so we render every group (no slicing).
+  const unitTypes = groups ?? []
   const latestNews = news?.items ?? []
   const upcomingEvents = eventsData?.items ?? []
   const home = config?.content.home // CMS-authored home copy; undefined until config loads
@@ -94,33 +95,6 @@ export default function PublicHomePage() {
         </section>
       )}
 
-      {/* ---------- Units (live) ---------- */}
-      {featuredUnits.length > 0 && (
-        <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight">Nos unités</h2>
-              <p className="mt-2 text-muted-foreground">Une unité pour chaque âge, du louveteau au routier.</p>
-            </div>
-            <Link to="/unites" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
-              Toutes les unités <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {featuredUnits.map((u) => (
-              <Link key={u.slug} to={`/unites/${u.slug}`} className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5">
-                <div className="relative flex h-28 items-center justify-center bg-gradient-to-br from-primary/15 to-accent/15"><Compass className="h-8 w-8 text-primary/40" /></div>
-                <div className="flex flex-1 flex-col p-5">
-                  <span className="text-xs font-medium uppercase tracking-wider text-accent">{u.unitTypeName}</span>
-                  <h3 className="mt-1 font-semibold">{u.name}</h3>
-                  <span className="mt-3 inline-flex items-center text-sm font-medium text-primary">Découvrir <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" /></span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* ---------- Actualités & agenda (live) — the most recent of both, side by side ---------- */}
       {(latestNews.length > 0 || upcomingEvents.length > 0) && (
         <section className="border-t border-border bg-card">
@@ -180,6 +154,43 @@ export default function PublicHomePage() {
               )}
 
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* ---------- Units by branch (live) ---------- */}
+      {unitTypes.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">Nos unités</h2>
+              <p className="mt-2 text-muted-foreground">Une branche pour chaque âge, du louveteau au routier.</p>
+            </div>
+            <Link to="/unites" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+              Toutes les unités <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {unitTypes.map((g) => {
+              const color = g.color ?? undefined // unit-type accent colour (hex) used for the strip + name
+              const ages = g.ageMin != null && g.ageMax != null ? `${g.ageMin}–${g.ageMax} ans` : null
+              return (
+                <Link key={g.unitTypeId} to="/unites" className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5">
+                  <div className="relative flex h-24 items-center justify-center" style={{ background: color ? `linear-gradient(135deg, ${color}26, ${color}0d)` : undefined }}>
+                    <Compass className="h-8 w-8" style={{ color: color ?? undefined, opacity: 0.5 }} />
+                  </div>
+                  <div className="flex flex-1 flex-col p-5">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-lg font-semibold" style={{ color }}>{g.unitTypeName}</h3>
+                      {ages && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{ages}</span>}
+                    </div>
+                    {g.description && <p className="mt-2 text-sm leading-relaxed text-muted-foreground line-clamp-2">{g.description}</p>}
+                    <span className="mt-3 text-xs text-muted-foreground">{g.units.length} unité{g.units.length > 1 ? 's' : ''}</span>
+                    <span className="mt-3 inline-flex items-center text-sm font-medium text-primary">Découvrir <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" /></span>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         </section>
       )}
