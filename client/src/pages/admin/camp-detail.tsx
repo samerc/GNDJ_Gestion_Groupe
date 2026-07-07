@@ -292,7 +292,7 @@ function MemberCard({ m, familleId }: { m: CampFamilleDto['members'][number]; fa
   const { setNodeRef: dropRef, isOver } = useDroppable({ id: `drop-${m.participantId}`, data: { type: 'member', familleId, participantId: m.participantId } })
   return (
     <div ref={el => { dragRef(el); dropRef(el) }} {...listeners} {...attributes}
-      className={cn('flex cursor-grab items-center gap-2 rounded border px-2 py-1.5 text-sm active:cursor-grabbing',
+      className={cn('flex touch-none cursor-grab items-center gap-2 rounded border px-2 py-1.5 text-sm active:cursor-grabbing',
         isDragging && 'opacity-40', isOver && 'ring-2 ring-primary',
         m.gender === 'Féminin' ? 'border-l-2 border-l-pink-300' : 'border-l-2 border-l-blue-300')}>
       <div className="min-w-0 flex-1">

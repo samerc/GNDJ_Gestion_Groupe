@@ -341,7 +341,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
                   />
                 </div>
               </div>
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isDeceased} onChange={(e) => setForm(f => ({ ...f, isDeceased: e.target.checked }))} />Décédé(e)</label>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isPrimaryContact} onChange={(e) => setForm(f => ({ ...f, isPrimaryContact: e.target.checked }))} />Contact principal</label>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isEmergencyContact} onChange={(e) => setForm(f => ({ ...f, isEmergencyContact: e.target.checked }))} />Urgence</label>
@@ -462,7 +462,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
                 />
               </div>
             </div>
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editForm.isDeceased} onChange={(e) => setEditForm(f => ({ ...f, isDeceased: e.target.checked }))} />Décédé(e)</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editForm.isPrimaryContact} onChange={(e) => setEditForm(f => ({ ...f, isPrimaryContact: e.target.checked }))} />Contact principal</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editForm.isEmergencyContact} onChange={(e) => setEditForm(f => ({ ...f, isEmergencyContact: e.target.checked }))} />Urgence</label>

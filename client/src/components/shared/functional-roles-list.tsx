@@ -246,7 +246,7 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
           ) : (
             // ── Table view (all-types admin page) ──
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
                     <th className="w-10 px-3 py-2">

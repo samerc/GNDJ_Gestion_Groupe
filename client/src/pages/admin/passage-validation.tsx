@@ -318,14 +318,14 @@ export default function PassageValidationPage() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <Select value={unitFilter} onValueChange={setUnitFilter}>
-          <SelectTrigger className="w-56"><SelectValue placeholder="Toutes les unites" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-56"><SelectValue placeholder="Toutes les unites" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="_all">Toutes les unites</SelectItem>
             {units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="_all">Tous les statuts</SelectItem>
             <SelectItem value="Pending">En attente</SelectItem>

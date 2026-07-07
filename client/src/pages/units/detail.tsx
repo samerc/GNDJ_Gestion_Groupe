@@ -315,8 +315,8 @@ function TeamMembers({ unitId, teamId }: { unitId: string; teamId: string }) {
   if (members.length === 0) return <div className="px-4 pb-3 text-sm text-muted-foreground">Aucun membre dans cette équipe.</div>
 
   return (
-    <div className="border-t px-4 pb-3 pt-2">
-      <table className="w-full text-sm">
+    <div className="border-t px-4 pb-3 pt-2 overflow-x-auto">
+      <table className="w-full min-w-[420px] text-sm">
         <thead>
           <tr className="text-muted-foreground text-xs">
             <th className="text-left py-1 font-medium">Nom</th>

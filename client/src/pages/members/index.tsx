@@ -211,7 +211,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
     <div className="flex flex-col h-full">
       {/* Header — always visible: identity, login username + reset, card PDF, edit toggle */}
       <div className="shrink-0 border-b px-4 py-3">
-        <div className="flex items-start gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           <MemberPhoto memberId={memberId} name={`${member.firstName} ${member.lastName}`} photoPath={member.photoPath} size={48} editable />
           <div className="flex-1 min-w-0">
             <h2 className="font-bold">{member.firstName} {member.lastName}</h2>
@@ -227,7 +227,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
                 : <span className="italic">Aucun compte utilisateur</span>}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
             {!editing && canResetPassword && member.username && (
               <Tip content="Réinitialiser le mot de passe">
                 <Button variant="outline" size="sm" onClick={() => setResetConfirmOpen(true)}><KeyRound className="h-4 w-4" /></Button>
@@ -731,7 +731,7 @@ export default function MembersPage() {
     <div className="flex flex-col h-[calc(100vh-8rem)]">
       {/* Top bar */}
       <div className="shrink-0 space-y-3 pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-xl font-bold">Membres</h1>
           <div className="flex items-center gap-2">
             <Tip content="Exporter l'unité en Excel ou CSV">

@@ -138,7 +138,7 @@ export default function CampPage() {
        (grading ?? []).length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Aucun membre dans votre unité.</p> :
        (
         <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-muted/50 text-xs text-muted-foreground">
               <tr>
                 <SortHead k="name" label="Membre" sort={sort} onSort={toggleSort} />

@@ -140,7 +140,7 @@ export default function RentreeTemplatePage() {
             <div className="space-y-3">
               <div className="space-y-1"><RequiredLabel required>Titre</RequiredLabel><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
               <div className="space-y-1"><RequiredLabel>Description</RequiredLabel><Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1"><RequiredLabel required>Phase</RequiredLabel>
                   <Input list="phases" value={form.phase} onChange={e => setForm({ ...form, phase: e.target.value })} placeholder="Configuration…" />
                   <datalist id="phases">{phases.map(p => <option key={p} value={p} />)}</datalist>
@@ -156,7 +156,7 @@ export default function RentreeTemplatePage() {
               </div>
 
               {form.assigneeType === 'role' ? (
-                <div className="grid grid-cols-2 items-end gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 items-end gap-3">
                   <div className="space-y-1"><RequiredLabel>Rôle</RequiredLabel>
                     <Select value={form.assigneeRole} onValueChange={v => setForm({ ...form, assigneeRole: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>

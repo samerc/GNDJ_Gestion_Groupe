@@ -277,8 +277,8 @@ export function MemberCotisations({ memberId, memberName }: Props) {
               </div>
               <div className="space-y-2">
                 {payments.map((p, idx) => (
-                  <div key={idx} className="flex gap-2 items-end">
-                    <div className="flex-1 space-y-1">
+                  <div key={idx} className="flex flex-wrap gap-2 items-end">
+                    <div className="flex-1 min-w-[7rem] space-y-1">
                       <span className="text-xs text-muted-foreground">Montant</span>
                       <Input type="number" step="0.01" min="0" value={p.amount} onChange={(e) => updatePaymentLine(idx, 'amount', parseFloat(e.target.value) || 0)} required />
                     </div>
