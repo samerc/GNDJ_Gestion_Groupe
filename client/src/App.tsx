@@ -7,6 +7,7 @@ import { PERMISSIONS } from '@/lib/constants'
 import { AppLayout } from '@/components/layout/app-layout'
 import { PublicLayout } from '@/components/public/public-layout'
 import { ApplicantProtectedRoute } from '@/components/applicant/applicant-protected-route'
+import { ApplicantOpenRoute } from '@/components/applicant/applicant-open-route'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 
 // Pages are lazy-loaded so each route is its own chunk. This keeps heavy, rarely-reached deps
@@ -101,9 +102,12 @@ export default function App() {
 
         {/* Public membership-application portal (isolated applicant auth) */}
         <Route path="/inscription" element={<InscriptionLandingPage />} />
-        <Route path="/inscription/login" element={<ApplicantLoginPage />} />
-        <Route path="/inscription/register" element={<ApplicantRegisterPage />} />
-        <Route path="/inscription/verify" element={<ApplicantVerifyPage />} />
+        {/* Anonymous entry points — hidden (redirected to the landing's "fermées" notice) when inscriptions are closed. */}
+        <Route element={<ApplicantOpenRoute />}>
+          <Route path="/inscription/login" element={<ApplicantLoginPage />} />
+          <Route path="/inscription/register" element={<ApplicantRegisterPage />} />
+          <Route path="/inscription/verify" element={<ApplicantVerifyPage />} />
+        </Route>
         <Route element={<ApplicantProtectedRoute />}>
           <Route path="/inscription/portail" element={<ApplicantPortalPage />} />
           <Route path="/inscription/portail/demande/:id" element={<DemandeWizardPage />} />

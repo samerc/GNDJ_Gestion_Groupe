@@ -168,6 +168,11 @@ public class RegisterApplicantCommandHandler(IApplicationDbContext context, IPas
 {
     public async ValueTask<Result<ApplicantAuthDto>> Handle(RegisterApplicantCommand request, CancellationToken ct)
     {
+        // No new applicant accounts while inscriptions are closed (defense-in-depth: the UI already
+        // hides the register page, but block the endpoint too so a direct POST can't create an account).
+        var config = await ApplicantHelpers.BuildConfig(context, ct);
+        if (!config.IsOpen) return Result<ApplicantAuthDto>.Failure("Les inscriptions sont actuellement fermées.");
+
         var addr = request.Email.Trim().ToLowerInvariant();
         var exists = await context.ApplicantAccounts.AnyAsync(a => a.Email == addr, ct);
         if (exists)
