@@ -36,14 +36,14 @@ export default function ForgotPasswordPage() {
       </div>
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Mot de passe oublie</CardTitle>
-          <CardDescription>Entrez votre adresse email pour recevoir un lien de reinitialisation.</CardDescription>
+          <CardTitle className="text-2xl">Mot de passe oublié</CardTitle>
+          <CardDescription>Entrez votre nom d'utilisateur. Le lien de réinitialisation sera envoyé à l'adresse courriel enregistrée sur votre dossier.</CardDescription>
         </CardHeader>
         <CardContent>
           {sent ? (
             <div className="space-y-4">
               <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-800">
-                Si un compte existe avec cette adresse, un email de reinitialisation a ete envoye.
+                Si un compte existe, un lien de réinitialisation a été envoyé à l'adresse courriel enregistrée sur le dossier.
               </div>
               <Link to="/login" className="block text-center text-sm text-primary hover:underline">
                 Retour a la connexion
@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
                 <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="email">Adresse email</Label>
+                <Label htmlFor="email">Nom d'utilisateur</Label>
                 <Input
                   id="email"
                   type="email"
@@ -64,7 +64,8 @@ export default function ForgotPasswordPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoFocus
-                  autoComplete="email"
+                  autoComplete="username"
+                  placeholder="prenom.nom@scouts.gndj"
                 />
               </div>
               <Button type="submit" className="w-full" disabled={mutation.isPending}>

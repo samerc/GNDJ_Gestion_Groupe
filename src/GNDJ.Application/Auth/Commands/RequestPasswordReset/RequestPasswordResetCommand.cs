@@ -7,14 +7,16 @@ using System.Security.Cryptography;
 
 namespace GNDJ.Application.Auth.Commands.RequestPasswordReset;
 
-// Starts the "forgot password" flow: emails a one-time reset link for the given address.
+// Starts the "forgot password" flow. The submitted value is the account USERNAME (imported/converted
+// members log in with a synthetic firstname.lastname@scouts.gndj identifier — never a real inbox), so
+// the reset LINK is emailed to the member's real contact address(es), resolved below, NOT to the username.
 public record RequestPasswordResetCommand(string Email) : IRequest<Result<bool>>;
 
 public class RequestPasswordResetCommandValidator : AbstractValidator<RequestPasswordResetCommand>
 {
     public RequestPasswordResetCommandValidator()
-        => RuleFor(x => x.Email).NotEmpty().WithMessage("L'adresse courriel est requise.")
-            .EmailAddress().WithMessage("L'adresse courriel est invalide.").MaximumLength(254);
+        => RuleFor(x => x.Email).NotEmpty().WithMessage("Le nom d'utilisateur est requis.")
+            .EmailAddress().WithMessage("Le nom d'utilisateur est invalide.").MaximumLength(254);
 }
 
 public class RequestPasswordResetCommandHandler(
@@ -41,7 +43,12 @@ public class RequestPasswordResetCommandHandler(
 
         await context.SaveChangesAsync(ct);
 
-        // Send email
+        // Resolve where to actually deliver the link: the designated primary contact email if set,
+        // otherwise EVERY email on file (member's own + all linked guardians'). A parent's address can be
+        // shared across siblings, so we key the flow on the username and just fan the link out to the file.
+        var recipients = await ResolveRecipientsAsync(user.MemberId, user.Member?.PrimaryContactEmail, ct);
+
+        // Send the link (the reset URL still carries the USERNAME so ResetPassword matches on User.Email).
         try
         {
             var baseUrl = await context.Settings
@@ -49,12 +56,14 @@ public class RequestPasswordResetCommandHandler(
                 .Select(s => s.Value)
                 .FirstOrDefaultAsync(ct) ?? "http://localhost:5173";
             var resetLink = $"{baseUrl}/reset-password?token={token}&email={Uri.EscapeDataString(request.Email)}";
-            await emailService.SendAsync("password_reset", request.Email, new Dictionary<string, string>
+            var vars = new Dictionary<string, string>
             {
                 ["memberName"] = user.Member?.FirstName ?? "Utilisateur",
                 ["resetLink"] = resetLink,
                 ["expiryHours"] = "1"
-            }, ct);
+            };
+            foreach (var to in recipients)
+                await emailService.SendAsync("password_reset", to, vars, ct);
         }
         catch
         {
@@ -62,5 +71,27 @@ public class RequestPasswordResetCommandHandler(
         }
 
         return Result<bool>.Success(true);
+    }
+
+    // Delivery targets for the reset link: [PrimaryContactEmail] if set, else the distinct union of the
+    // member's own emails + all linked guardians' emails. Empty means the member has no email on file
+    // (they must ask a leader for an admin reset). Deduped accent/case-insensitively is overkill here —
+    // a plain case-insensitive distinct is enough since these are exact stored addresses.
+    private async Task<List<string>> ResolveRecipientsAsync(Guid memberId, string? primary, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(primary))
+            return [primary];
+
+        var own = await context.MemberEmails
+            .Where(e => e.MemberId == memberId && !e.IsDeleted)
+            .Select(e => e.Address).ToListAsync(ct);
+        var guardian = await context.GuardianEmails
+            .Where(e => !e.IsDeleted && e.Guardian.Links.Any(l => l.MemberId == memberId && !l.IsDeleted))
+            .Select(e => e.Address).ToListAsync(ct);
+
+        return own.Concat(guardian)
+            .Where(a => !string.IsNullOrWhiteSpace(a))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 }

@@ -25,12 +25,15 @@ public class EmailService : IEmailService
         if (template is null)
             throw new InvalidOperationException($"Email template '{templateCode}' not found or inactive.");
 
-        // Get SMTP server: template-specific or first active one
+        // Get SMTP server: the template's own, else the OLDEST active one. Ordering makes the fallback
+        // deterministic (previously "first active" with no order → arbitrary if several are active). Bind a
+        // server to each template, or keep exactly one active, to be sure which one is used.
         var smtp = template.SmtpServer;
         if (smtp is null || !smtp.IsActive)
         {
             smtp = await _context.SmtpServers
                 .Where(s => s.IsActive && !s.IsDeleted)
+                .OrderBy(s => s.CreatedAt)
                 .FirstOrDefaultAsync(ct);
         }
 
@@ -61,10 +64,11 @@ public class EmailService : IEmailService
         using var client = new SmtpClient(smtp.Host, smtp.Port)
         {
             Credentials = new NetworkCredential(smtp.Username, smtp.Password),
-            EnableSsl = smtp.UseSsl
+            EnableSsl = smtp.UseSsl,
+            Timeout = 30_000, // 30s backstop so a dead SMTP host can't hang the send (worker also has a CTS)
         };
 
-        var message = new MailMessage(
+        using var message = new MailMessage(
             new MailAddress(smtp.FromEmail, smtp.FromName),
             new MailAddress(actualTo))
         {
