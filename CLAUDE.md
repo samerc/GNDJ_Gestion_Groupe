@@ -1355,6 +1355,35 @@ endpoints → admin CMS page → public list+detail → routes/sidebar/nav). Ful
 - DEFERRED (unchanged): native photo gallery → lean on Instagram (even the IG embed later); the heritage
       content itself (chants/nœuds/…) is entered by the chefs via the new CMS.
 
+### Settings/footer polish + inscription gate + PROD DEPLOY (2026-07-07, prod @ d5b6cf8)
+- [x] **Inscription portal closed-gate:** the `/inscription` landing showed a "fermées" notice but the
+      login/register/verify sub-routes were directly reachable (rendered the form). New `ApplicantOpenRoute`
+      guard redirects those three to the landing when `demande.enabled=false`; `RegisterApplicantCommand` also
+      blocks server-side (defense-in-depth) so a direct POST can't create an account while closed.
+- [x] **Public home "Nos unités" → branches:** was listing individual units (flattened, first 4) so multiple
+      units of one branch showed separately. Now one card per BRANCH from the already-grouped `/public/units`
+      (only types with a published unit are returned → every public branch shown), using the unit-type colour/
+      age/description. Also **swapped section order** so "Actualités & agenda" comes before "Nos unités".
+- [x] **Settings list-value editor — rename-cascade + archive.** The managed list settings (schools/classes/
+      cities/profession domains) are json arrays of allowed strings stored DIRECTLY on member/parent/demande
+      records with NO FK, so editing was add/remove only. New `ManagedListEditor` (immediate mode): inline
+      **rename CASCADES** the new spelling onto every record holding the old value (members.school/classe,
+      member_addresses.city, guardians.profession_domain + demande/applicant copies) via ExecuteUpdate; **delete
+      ARCHIVES** an in-use value (companion `<key>.archived` list: hidden from pickers, kept on the records,
+      restorable via Réactiver) or hard-removes an unused one — mirroring functions/badges; each row shows its
+      live usage count. Backend `ListValueHandlers` (usage/rename/archive/unarchive) + SettingsController
+      endpoints (associations.manage). Options-backed arrays keep the pill table; `.archived` rows hidden from
+      the settings list. Also reworked ALL json_array editors from a pill cloud → a scrollable filterable table.
+- [x] **Public footer reworked:** dropped the redundant "Naviguer" column (dup of header nav); new **Contact**
+      column = address (existing) + optional public **email**/**phone** (mailto:/tel:, added to the editable
+      SiteFooterContent + validators + Textes du site editor + TS type, shown only when set); Rejoindre trimmed
+      to the two membership actions; bottom bar = copyright + "Retour en haut" (was the duplicated tagline).
+- [x] **DEPLOYED to prod** (new.gndj.org) via `update.ps1 -Pull` on the prod server — fresh `GNDJ API started`
+      2026-07-07 15:38, clean (no pk_settings recurrence), migrations **AddEvents + AddResources** applied
+      (verified `/public/events` 200). Email still locked OFF. Dev-DB sample content (events/resources/page tidy)
+      NOT shipped (data, not code) — prod Events/Ressources empty until real content added. See memory
+      [[project-production-deployment]].
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);
