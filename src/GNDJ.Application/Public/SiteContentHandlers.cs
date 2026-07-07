@@ -18,9 +18,10 @@ public record SiteHomeContent(
     string IntroTitle, string IntroText,
     List<SiteValueDto> Values, List<SiteStatDto> Stats,
     string CtaTitle, string CtaText);
-// Instagram/Facebook are optional profile URLs shown as social icons in the public footer. Nullable
-// defaults keep previously-stored site.content JSON (without these fields) deserializable.
-public record SiteFooterContent(string Tagline, string? Instagram = null, string? Facebook = null);
+// Instagram/Facebook are optional profile URLs shown as social icons in the public footer; Email/Phone
+// are optional public contact details shown (as mailto:/tel: links) in the footer's Contact column.
+// Nullable defaults keep previously-stored site.content JSON (without these fields) deserializable.
+public record SiteFooterContent(string Tagline, string? Instagram = null, string? Facebook = null, string? Email = null, string? Phone = null);
 public record SiteContactContent(string Intro, string Address);
 public record SiteContentDto(SiteHomeContent Home, SiteFooterContent Footer, SiteContactContent Contact);
 
@@ -128,6 +129,8 @@ public class UpdateSiteContentCommandValidator : AbstractValidator<UpdateSiteCon
             RuleFor(x => x.Content.Footer.Tagline).MaximumLength(600).NoHtml();
             RuleFor(x => x.Content.Footer.Instagram).MaximumLength(300).NoHtml().When(x => x.Content.Footer.Instagram is not null);
             RuleFor(x => x.Content.Footer.Facebook).MaximumLength(300).NoHtml().When(x => x.Content.Footer.Facebook is not null);
+            RuleFor(x => x.Content.Footer.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Content.Footer.Email));
+            RuleFor(x => x.Content.Footer.Phone).MaximumLength(40).NoHtml().When(x => x.Content.Footer.Phone is not null);
             RuleFor(x => x.Content.Contact.Intro).MaximumLength(600).NoHtml();
             RuleFor(x => x.Content.Contact.Address).MaximumLength(400).NoHtml();
         });

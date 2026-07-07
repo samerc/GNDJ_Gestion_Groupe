@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router'
 import { Toaster } from 'sonner'
-import { Compass, Menu, X, ArrowRight, ChevronDown } from 'lucide-react'
+import { Compass, Menu, X, ArrowRight, ChevronDown, MapPin, Mail, Phone, ArrowUp } from 'lucide-react'
 
 // Instagram/Facebook brand glyphs (lucide dropped its brand icons) — module-scope so their identity is stable.
 function InstagramIcon() {
@@ -203,65 +203,92 @@ export function PublicLayout() {
 
       <main className="flex-1"><Outlet /></main>
 
-      <PublicFooter pages={topPages} tagline={config?.content.footer.tagline}
-        instagram={config?.content.footer.instagram} facebook={config?.content.footer.facebook} />
+      <PublicFooter footer={config?.content.footer} address={config?.content.contact.address} inscriptionsOpen={inscriptionsOpen} />
     </div>
   )
 }
 
-function PublicFooter({ pages, tagline, instagram, facebook }: { pages: { slug: string; title: string }[]; tagline?: string; instagram?: string; facebook?: string }) {
+// Footer: identity + how to reach/join the group. The old "Naviguer" column just re-listed the header nav
+// (redundant) and has been dropped — the footer now focuses on the brand, real contact details, and the two
+// membership actions. Contact/email/phone come from the editable site.content (Textes du site).
+type FooterContent = { tagline?: string; instagram?: string; facebook?: string; email?: string; phone?: string }
+function PublicFooter({ footer, address, inscriptionsOpen }: { footer?: FooterContent; address?: string; inscriptionsOpen: boolean }) {
+  const tagline = footer?.tagline ?? "Le Groupe Notre-Dame Jamhour, au service de la jeunesse du Liban depuis 1935."
+  const { instagram, facebook, email, phone } = footer ?? {}
+  const hasContact = !!(address || email || phone)
+
   return (
     <footer className="border-t border-border bg-card">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-4">
-        <div className="md:col-span-2">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Brand + tagline + social */}
+        <div className="lg:col-span-2">
           <Brand />
-          <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-            {tagline ?? "Le Groupe Notre-Dame Jamhour, au service de la jeunesse du Liban depuis 1935."}
-          </p>
+          <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">{tagline}</p>
           {(instagram || facebook) && (
             <div className="mt-5 flex items-center gap-3">
               {instagram && (
                 <a href={instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary hover:-translate-y-0.5">
                   <InstagramIcon />
                 </a>
               )}
               {facebook && (
                 <a href={facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary hover:-translate-y-0.5">
                   <FacebookIcon />
                 </a>
               )}
             </div>
           )}
         </div>
+
+        {/* Contact — real coordinates (shown only when configured), plus the contact form */}
         <div>
-          <h3 className="text-sm font-semibold">Naviguer</h3>
-          <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
-            <li><Link to="/" className="transition-colors hover:text-foreground">Accueil</Link></li>
-            <li><Link to="/unites" className="transition-colors hover:text-foreground">Unités</Link></li>
-            <li><Link to="/actualites" className="transition-colors hover:text-foreground">Actualités</Link></li>
-            <li><Link to="/agenda" className="transition-colors hover:text-foreground">Agenda</Link></li>
-            <li><Link to="/ressources" className="transition-colors hover:text-foreground">Ressources</Link></li>
-            <li><Link to="/contact" className="transition-colors hover:text-foreground">Contact</Link></li>
-            {pages.slice(0, 4).map((p) => (
-              <li key={p.slug}><Link to={`/p/${p.slug}`} className="transition-colors hover:text-foreground">{p.title}</Link></li>
-            ))}
+          <h3 className="text-sm font-semibold">Contact</h3>
+          <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
+            {address && (
+              <li className="flex gap-2.5">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary/60" />
+                <span className="whitespace-pre-line leading-relaxed">{address}</span>
+              </li>
+            )}
+            {email && (
+              <li className="flex items-center gap-2.5">
+                <Mail className="h-4 w-4 shrink-0 text-primary/60" />
+                <a href={`mailto:${email}`} className="break-all transition-colors hover:text-foreground">{email}</a>
+              </li>
+            )}
+            {phone && (
+              <li className="flex items-center gap-2.5">
+                <Phone className="h-4 w-4 shrink-0 text-primary/60" />
+                <a href={`tel:${phone.replace(/\s+/g, '')}`} className="transition-colors hover:text-foreground">{phone}</a>
+              </li>
+            )}
+            <li className={hasContact ? 'pt-1' : ''}>
+              <Link to="/contact" className="font-medium text-primary transition-colors hover:text-primary/80">Formulaire de contact →</Link>
+            </li>
           </ul>
         </div>
+
+        {/* Rejoindre — the two membership actions */}
         <div>
           <h3 className="text-sm font-semibold">Rejoindre</h3>
           <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
-            <li><Link to="/inscription" className="transition-colors hover:text-foreground">Demande d'inscription</Link></li>
+            {inscriptionsOpen && (
+              <li><Link to="/inscription" className="transition-colors hover:text-foreground">Demande d'inscription</Link></li>
+            )}
             <li><Link to="/login" className="transition-colors hover:text-foreground">Espace membres</Link></li>
-            <li><Link to="/contact" className="transition-colors hover:text-foreground">Nous contacter</Link></li>
           </ul>
         </div>
       </div>
+
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:px-6">
           <p>© {new Date().getFullYear()} Groupe Notre-Dame Jamhour. Tous droits réservés.</p>
-          <p>Au service de la jeunesse du Liban depuis 1935.</p>
+          <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
+            Retour en haut <ArrowUp className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
     </footer>

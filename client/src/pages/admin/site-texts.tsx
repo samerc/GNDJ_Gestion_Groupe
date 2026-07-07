@@ -116,6 +116,8 @@ export default function AdminSiteTextsPage() {
         <Field label="Texte" value={form.footer.tagline} onChange={(v) => setForm({ ...form, footer: { ...form.footer, tagline: v } })} textarea max={600} />
         <Field label="Instagram (URL du profil)" value={form.footer.instagram ?? ''} onChange={(v) => setForm({ ...form, footer: { ...form.footer, instagram: v } })} max={300} />
         <Field label="Facebook (URL de la page)" value={form.footer.facebook ?? ''} onChange={(v) => setForm({ ...form, footer: { ...form.footer, facebook: v } })} max={300} />
+        <Field label="Email de contact (public, optionnel)" value={form.footer.email ?? ''} onChange={(v) => setForm({ ...form, footer: { ...form.footer, email: v } })} max={200} />
+        <Field label="Téléphone (public, optionnel)" value={form.footer.phone ?? ''} onChange={(v) => setForm({ ...form, footer: { ...form.footer, phone: v } })} max={40} />
       </Section>
 
       <Section title="Contact">
