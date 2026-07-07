@@ -32,7 +32,7 @@ Write-Host "==> Copying files (preserving uploads/, logs/, appsettings.Productio
 # (No /MIR — we never purge, so uploads/logs and prod config are safe even if added under Target.)
 robocopy $Source $Target /E /NFL /NDL /NP /R:2 /W:2 `
   /XF app_offline.htm appsettings.Production.json `
-  /XD (Join-Path $Target "uploads") (Join-Path $Target "logs") | Out-Null
+  /XD (Join-Path $Target "uploads") (Join-Path $Target "logs") (Join-Path $Target "dataprotection-keys") | Out-Null
 if ($LASTEXITCODE -ge 8) { Remove-Item $offline -Force -ErrorAction SilentlyContinue; throw "robocopy failed ($LASTEXITCODE)" }
 
 Write-Host "==> Bringing app online..." -ForegroundColor Cyan

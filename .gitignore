@@ -50,3 +50,7 @@ deploy/target.txt
 
 # Local build-artifact package (created by deploy/publish.ps1)
 /publish/
+
+# ASP.NET DataProtection keys (per-machine, never commit)
+dataprotection-keys/
+**/dataprotection-keys/

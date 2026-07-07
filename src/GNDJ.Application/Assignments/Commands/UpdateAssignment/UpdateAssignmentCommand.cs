@@ -49,6 +49,13 @@ public class UpdateAssignmentCommandHandler : IRequestHandler<UpdateAssignmentCo
         if (!_currentUser.IsSuperAdmin && !_currentUser.AuthorizedUnitIds.Contains(entity.UnitId))
             return Result<bool>.Failure("Accès non autorisé à cette unité.");
 
+        // Validate the target unit/role exist so a bad id returns a friendly 400 instead of a raw 500
+        // (FK violation) — matters for bulk reassignment where a stale/typo id is easy to hit.
+        if (!await _context.Units.AnyAsync(u => u.Id == request.UnitId, cancellationToken))
+            return Result<bool>.Failure("Unité introuvable.");
+        if (!await _context.FunctionalRoles.AnyAsync(r => r.Id == request.FunctionalRoleId, cancellationToken))
+            return Result<bool>.Failure("Fonction introuvable.");
+
         if (request.TeamId.HasValue)
         {
             var teamBelongs = await _context.Teams.AnyAsync(t => t.Id == request.TeamId.Value && t.UnitId == request.UnitId, cancellationToken);

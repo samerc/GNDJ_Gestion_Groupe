@@ -15,6 +15,7 @@ using GNDJ.Infrastructure.Persistence.Interceptors;
 using GNDJ.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.PostgreSQL;
@@ -53,11 +54,21 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
         .Enrich.FromLogContext()
         .Enrich.WithProperty("Application", "GNDJ")
-        .WriteTo.File("logs/gndj-.log", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30,
-            outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
-        .WriteTo.PostgreSQL(connStr!, "application_logs", columnWriters,
-            needAutoCreateTable: true, restrictedToMinimumLevel: LogEventLevel.Warning);
+        // Async sinks: logging is handed to a background thread via an in-memory buffer, so a slow/full
+        // disk or a momentarily unavailable Postgres can't block the request thread that emitted the log.
+        .WriteTo.Async(a => a.File("logs/gndj-.log", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30,
+            outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}"))
+        .WriteTo.Async(a => a.PostgreSQL(connStr!, "application_logs", columnWriters,
+            needAutoCreateTable: true, restrictedToMinimumLevel: LogEventLevel.Warning));
 });
+
+// Persist DataProtection keys to disk so they survive app restarts / pool recycles (default is an
+// ephemeral in-memory keyring — the "may be persisted unencrypted / ephemeral key repository" prod-log
+// warnings). Keys live under the content root; the deploy preserves this folder (robocopy has no /MIR and
+// excludes it via /XD), so they persist across deployments too.
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "dataprotection-keys")))
+    .SetApplicationName("GNDJ");
 
 // Infrastructure (EF Core, repositories, JWT auth, services)
 builder.Services.AddHttpContextAccessor();
