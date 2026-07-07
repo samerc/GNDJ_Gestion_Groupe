@@ -38,6 +38,12 @@ import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
+// Data hooks reused (React Query dedupes by key with the tab components) to show item counts on the tabs.
+import { useMemberGuardians } from '@/services/guardian-service'
+import { useAssignments } from '@/services/assignment-service'
+import { useMemberDocuments } from '@/services/document-service'
+import { useMemberCotisations } from '@/services/cotisation-service'
+import { useMemberProgressions } from '@/services/progression-service'
 import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
@@ -74,6 +80,12 @@ function Chip({ icon: Icon, children }: { icon?: ComponentType<{ className?: str
   )
 }
 
+// Subtle count badge shown after a tab label (hidden when zero). Module scope so its identity is stable.
+function TabCount({ n }: { n: number }) {
+  if (!n) return null
+  return <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">{n}</span>
+}
+
 // ─── Member detail panel ─────────────────
 function MemberDetailPanel({ memberId }: { memberId: string }) {
   const { data: member, isLoading } = useMember(memberId)
@@ -82,6 +94,18 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
   const setPrimary = useSetPrimaryContactEmail(memberId)
   const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
   const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
+
+  // Tab item counts (shared cache with the tab bodies — no extra network). Shown as subtle badges so a
+  // leader sees at a glance whether there's family / docs / progression data without opening each tab.
+  const { data: guardiansData } = useMemberGuardians(memberId)
+  const { data: assignmentsData } = useAssignments({ memberId, pageSize: 100 })
+  const { data: documentsData } = useMemberDocuments(memberId)
+  const { data: cotisationsData } = useMemberCotisations(memberId)
+  const { data: progressionsData } = useMemberProgressions(memberId)
+  const familleCount = guardiansData?.length ?? 0
+  const unitesCount = assignmentsData?.items.length ?? 0
+  const dossierCount = (documentsData?.length ?? 0) + (cotisationsData?.length ?? 0)
+  const progressionCount = progressionsData?.length ?? 0
 
   const pinnedNationalities = useSettingArray('pinned_nationalities')
   const defaultCountryCode = useSettingValue('default_country_code')
@@ -255,10 +279,10 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
       <Tabs defaultValue="info" className="flex-1 flex flex-col min-h-0">
         <TabsList className="mx-4 mt-3 shrink-0 justify-start overflow-x-auto flex-nowrap">
           <TabsTrigger value="info">Informations</TabsTrigger>
-          <TabsTrigger value="famille">Famille</TabsTrigger>
-          <TabsTrigger value="unites">Unités / Fonctions</TabsTrigger>
-          <TabsTrigger value="dossier">Documents &amp; cotisations</TabsTrigger>
-          <TabsTrigger value="progression">Progression</TabsTrigger>
+          <TabsTrigger value="famille">Famille<TabCount n={familleCount} /></TabsTrigger>
+          <TabsTrigger value="unites">Unités / Fonctions<TabCount n={unitesCount} /></TabsTrigger>
+          <TabsTrigger value="dossier">Documents &amp; cotisations<TabCount n={dossierCount} /></TabsTrigger>
+          <TabsTrigger value="progression">Progression<TabCount n={progressionCount} /></TabsTrigger>
           <TabsTrigger value="medical">Médical &amp; infos</TabsTrigger>
         </TabsList>
 
@@ -734,11 +758,14 @@ export default function MembersPage() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-xl font-bold">Membres</h1>
           <div className="flex items-center gap-2">
-            <Tip content="Exporter l'unité en Excel ou CSV">
-              <Button variant="outline" size="sm" onClick={() => setExportOpen(true)} disabled={!unitFilter || unitFilter === 'all' || unitFilter === 'none'}>
-                <FileSpreadsheet className="mr-1 h-4 w-4" />
-                Exporter
-              </Button>
+            {/* Span wrapper so the tooltip still fires when the button is disabled (Radix skips disabled triggers). */}
+            <Tip content={!unitFilter || unitFilter === 'all' || unitFilter === 'none' ? 'Sélectionnez une unité pour exporter' : "Exporter l'unité en Excel ou CSV"}>
+              <span className="inline-flex">
+                <Button variant="outline" size="sm" onClick={() => setExportOpen(true)} disabled={!unitFilter || unitFilter === 'all' || unitFilter === 'none'}>
+                  <FileSpreadsheet className="mr-1 h-4 w-4" />
+                  Exporter
+                </Button>
+              </span>
             </Tip>
             <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />Nouveau membre</Button>
           </div>
@@ -809,7 +836,10 @@ export default function MembersPage() {
           <div className="flex-1 overflow-y-auto bg-muted/20">
             {isLoading ? <div className="flex items-center justify-center h-full"><LoadingSpinner /></div> :
              !data || data.items.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-sm text-muted-foreground p-4">Aucun membre trouvé</div>
+              <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
+                {debouncedSearch ? <Search className="h-8 w-8 opacity-40" /> : <User className="h-8 w-8 opacity-40" />}
+                <p className="text-sm">{debouncedSearch ? `Aucun résultat pour « ${debouncedSearch} »` : 'Aucun membre trouvé'}</p>
+              </div>
             ) : (
               <>
                 {data.items.map(m => (
