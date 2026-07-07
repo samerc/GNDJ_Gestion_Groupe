@@ -18,7 +18,9 @@ public record SiteHomeContent(
     string IntroTitle, string IntroText,
     List<SiteValueDto> Values, List<SiteStatDto> Stats,
     string CtaTitle, string CtaText);
-public record SiteFooterContent(string Tagline);
+// Instagram/Facebook are optional profile URLs shown as social icons in the public footer. Nullable
+// defaults keep previously-stored site.content JSON (without these fields) deserializable.
+public record SiteFooterContent(string Tagline, string? Instagram = null, string? Facebook = null);
 public record SiteContactContent(string Intro, string Address);
 public record SiteContentDto(SiteHomeContent Home, SiteFooterContent Footer, SiteContactContent Contact);
 
@@ -124,6 +126,8 @@ public class UpdateSiteContentCommandValidator : AbstractValidator<UpdateSiteCon
                 s.RuleFor(i => i.Label).MaximumLength(100).NoHtml();
             });
             RuleFor(x => x.Content.Footer.Tagline).MaximumLength(600).NoHtml();
+            RuleFor(x => x.Content.Footer.Instagram).MaximumLength(300).NoHtml().When(x => x.Content.Footer.Instagram is not null);
+            RuleFor(x => x.Content.Footer.Facebook).MaximumLength(300).NoHtml().When(x => x.Content.Footer.Facebook is not null);
             RuleFor(x => x.Content.Contact.Intro).MaximumLength(600).NoHtml();
             RuleFor(x => x.Content.Contact.Address).MaximumLength(400).NoHtml();
         });

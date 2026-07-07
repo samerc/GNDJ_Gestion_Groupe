@@ -33,7 +33,7 @@ export interface SiteContent {
     values: SiteValue[]; stats: SiteStat[]
     ctaTitle: string; ctaText: string
   }
-  footer: { tagline: string }
+  footer: { tagline: string; instagram?: string; facebook?: string }
   contact: { intro: string; address: string }
 }
 export interface PublicSiteConfig { inscriptionsOpen: boolean; content: SiteContent }

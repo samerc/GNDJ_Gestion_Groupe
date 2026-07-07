@@ -2,6 +2,24 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router'
 import { Toaster } from 'sonner'
 import { Compass, Menu, X, ArrowRight, ChevronDown } from 'lucide-react'
+
+// Instagram/Facebook brand glyphs (lucide dropped its brand icons) — module-scope so their identity is stable.
+function InstagramIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
+  )
+}
+function FacebookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+    </svg>
+  )
+}
 import { cn } from '@/lib/utils'
 import { usePublicPages } from '@/services/page-service'
 import { usePublicSiteConfig } from '@/services/public-service'
@@ -165,12 +183,13 @@ export function PublicLayout() {
 
       <main className="flex-1"><Outlet /></main>
 
-      <PublicFooter pages={topPages} tagline={config?.content.footer.tagline} />
+      <PublicFooter pages={topPages} tagline={config?.content.footer.tagline}
+        instagram={config?.content.footer.instagram} facebook={config?.content.footer.facebook} />
     </div>
   )
 }
 
-function PublicFooter({ pages, tagline }: { pages: { slug: string; title: string }[]; tagline?: string }) {
+function PublicFooter({ pages, tagline, instagram, facebook }: { pages: { slug: string; title: string }[]; tagline?: string; instagram?: string; facebook?: string }) {
   return (
     <footer className="border-t border-border bg-card">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-4">
@@ -179,6 +198,22 @@ function PublicFooter({ pages, tagline }: { pages: { slug: string; title: string
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
             {tagline ?? "Le Groupe Notre-Dame Jamhour, au service de la jeunesse du Liban depuis 1935."}
           </p>
+          {(instagram || facebook) && (
+            <div className="mt-5 flex items-center gap-3">
+              {instagram && (
+                <a href={instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+                  <InstagramIcon />
+                </a>
+              )}
+              {facebook && (
+                <a href={facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+                  <FacebookIcon />
+                </a>
+              )}
+            </div>
+          )}
         </div>
         <div>
           <h3 className="text-sm font-semibold">Naviguer</h3>
