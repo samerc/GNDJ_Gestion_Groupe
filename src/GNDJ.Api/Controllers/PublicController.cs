@@ -1,3 +1,4 @@
+using GNDJ.Application.Events;
 using GNDJ.Application.News;
 using GNDJ.Application.Pages;
 using GNDJ.Application.Public;
@@ -57,6 +58,25 @@ public class PublicController : BaseApiController
     {
         var result = await Mediator.Send(new GetPublicNewsArticleQuery(slug));
         if (result is null) return NotFound(new { error = "Article introuvable." });
+        return Ok(result);
+    }
+
+    /// <summary>Returns a paged list of upcoming published events (soonest first).</summary>
+    [HttpGet("events")]
+    [OutputCache(PolicyName = "ShortCache")]
+    public async Task<IActionResult> Events([FromQuery] int page = 1, [FromQuery] int pageSize = 24,
+        [FromQuery] bool groupOnly = false, [FromQuery] Guid? unitTypeId = null)
+        => Ok(await Mediator.Send(new GetPublicEventsQuery(page, pageSize, groupOnly, unitTypeId)));
+
+    /// <summary>Returns one published event by slug.</summary>
+    /// <response code="404">No published event matches the slug.</response>
+    [ProducesResponseType(404)]
+    [HttpGet("events/{slug}")]
+    [OutputCache(PolicyName = "ShortCache")]
+    public async Task<IActionResult> Event(string slug)
+    {
+        var result = await Mediator.Send(new GetPublicEventBySlugQuery(slug));
+        if (result is null) return NotFound(new { error = "Événement introuvable." });
         return Ok(result);
     }
 

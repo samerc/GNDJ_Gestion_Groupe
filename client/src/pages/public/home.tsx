@@ -1,7 +1,8 @@
 import { Link } from 'react-router'
-import { ArrowRight, Compass, Tent, Heart, Users, Newspaper, Calendar } from 'lucide-react'
+import { ArrowRight, Compass, Tent, Heart, Users, Newspaper, Calendar, CalendarDays } from 'lucide-react'
 import { usePublicUnits, usePublicSiteConfig } from '@/services/public-service'
 import { usePublicNews } from '@/services/news-service'
+import { usePublicEvents } from '@/services/events-service'
 import { formatDateLong as formatDate } from '@/lib/utils'
 
 // Icons paired positionally with the CMS-defined home.values entries (1st value → Heart, etc.).
@@ -14,9 +15,11 @@ export default function PublicHomePage() {
   const { data: config } = usePublicSiteConfig()
   const { data: groups } = usePublicUnits()
   const { data: news } = usePublicNews(1, 3)
+  const { data: eventsData } = usePublicEvents(1, 3)
   // Flatten all branch groups into a single list, take the first 4 for the "Nos unités" teaser.
   const featuredUnits = (groups ?? []).flatMap((g) => g.units).slice(0, 4)
   const latestNews = news?.items ?? []
+  const upcomingEvents = eventsData?.items ?? []
   const home = config?.content.home // CMS-authored home copy; undefined until config loads
   const inscriptionsOpen = config?.inscriptionsOpen ?? false // gates all "Demande d'inscription" CTAs
 
@@ -112,6 +115,35 @@ export default function PublicHomePage() {
                   <h3 className="mt-1 font-semibold">{u.name}</h3>
                   <span className="mt-3 inline-flex items-center text-sm font-medium text-primary">Découvrir <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" /></span>
                 </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ---------- Upcoming events (live) ---------- */}
+      {upcomingEvents.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">Prochains rendez-vous</h2>
+              <p className="mt-2 text-muted-foreground">Les événements à venir du groupe.</p>
+            </div>
+            <Link to="/agenda" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+              Tout l'agenda <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+            {upcomingEvents.map((ev) => (
+              <Link key={ev.slug} to={`/agenda/${ev.slug}`} className="group flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-elevated">
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+                  <CalendarDays className="h-3.5 w-3.5" /> {formatDate(ev.startDate)}{ev.endDate ? ` → ${formatDate(ev.endDate)}` : ''}
+                </span>
+                <h3 className="mt-1.5 font-semibold leading-snug line-clamp-2">{ev.title}</h3>
+                {(ev.timeLabel || ev.location) && (
+                  <p className="mt-1 text-sm text-muted-foreground">{[ev.timeLabel, ev.location].filter(Boolean).join(' · ')}</p>
+                )}
+                <span className="mt-3 inline-block rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">{ev.tagLabel}</span>
               </Link>
             ))}
           </div>

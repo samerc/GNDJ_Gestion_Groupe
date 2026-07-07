@@ -50,6 +50,7 @@ public interface IApplicationDbContext
     DbSet<Demande> Demandes { get; }
     DbSet<UnitIntakeQuota> UnitIntakeQuotas { get; }
     DbSet<NewsPost> NewsPosts { get; }
+    DbSet<Event> Events { get; }
     DbSet<Page> Pages { get; }
     DbSet<RentreeTaskTemplate> RentreeTaskTemplates { get; }
     DbSet<RentreeTask> RentreeTasks { get; }

@@ -53,6 +53,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<Demande> Demandes => Set<Demande>();
     public DbSet<UnitIntakeQuota> UnitIntakeQuotas => Set<UnitIntakeQuota>();
     public DbSet<NewsPost> NewsPosts => Set<NewsPost>();
+    public DbSet<Event> Events => Set<Event>();
     public DbSet<Page> Pages => Set<Page>();
     public DbSet<RentreeTaskTemplate> RentreeTaskTemplates => Set<RentreeTaskTemplate>();
     public DbSet<RentreeTask> RentreeTasks => Set<RentreeTask>();

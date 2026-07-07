@@ -18,6 +18,8 @@ const PublicUnitsPage = lazy(() => import('@/pages/public/units'))
 const PublicUnitDetailPage = lazy(() => import('@/pages/public/unit-detail'))
 const PublicNewsPage = lazy(() => import('@/pages/public/news'))
 const PublicNewsArticlePage = lazy(() => import('@/pages/public/news-article'))
+const PublicAgendaPage = lazy(() => import('@/pages/public/agenda'))
+const PublicEventPage = lazy(() => import('@/pages/public/event'))
 const PublicStandalonePage = lazy(() => import('@/pages/public/page'))
 const PublicContactPage = lazy(() => import('@/pages/public/contact'))
 const LoginPage = lazy(() => import('@/pages/login'))
@@ -54,6 +56,7 @@ const CotisationDashboardPage = lazy(() => import('@/pages/admin/cotisation-dash
 const ProgressionPage = lazy(() => import('@/pages/admin/progression'))
 const DocumentTypesPage = lazy(() => import('@/pages/admin/document-types'))
 const AdminNewsPage = lazy(() => import('@/pages/admin/news'))
+const AdminEventsPage = lazy(() => import('@/pages/admin/events'))
 const AdminPagesPage = lazy(() => import('@/pages/admin/pages'))
 const AdminSiteTextsPage = lazy(() => import('@/pages/admin/site-texts'))
 const AuditLogsPage = lazy(() => import('@/pages/admin/audit-logs'))
@@ -81,6 +84,8 @@ export default function App() {
           <Route path="/unites/:slug" element={<PublicUnitDetailPage />} />
           <Route path="/actualites" element={<PublicNewsPage />} />
           <Route path="/actualites/:slug" element={<PublicNewsArticlePage />} />
+          <Route path="/agenda" element={<PublicAgendaPage />} />
+          <Route path="/agenda/:slug" element={<PublicEventPage />} />
           <Route path="/p/:slug" element={<PublicStandalonePage />} />
           <Route path="/contact" element={<PublicContactPage />} />
         </Route>
@@ -152,6 +157,7 @@ export default function App() {
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.CONTENT_MANAGE} />}>
               <Route path="/admin/news" element={<AdminNewsPage />} />
+              <Route path="/admin/events" element={<AdminEventsPage />} />
               <Route path="/admin/pages" element={<AdminPagesPage />} />
               <Route path="/admin/site-texts" element={<AdminSiteTextsPage />} />
             </Route>
