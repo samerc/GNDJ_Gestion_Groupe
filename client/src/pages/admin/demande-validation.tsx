@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSettingValue, useSchoolCode } from '@/services/settings-service'
 import {
-  useDemandesForReview, useUnitOccupancy, useDecideDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses,
+  useDemandesForReview, useUnitOccupancy, useDecideDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useCloseCampaign,
   type DemandeReview, type UnitOccupancy,
 } from '@/services/demande-admin-service'
 import { Button } from '@/components/ui/button'
@@ -120,12 +120,14 @@ export default function DemandeValidationPage() {
   const decideMutation = useDecideDemande()
   const bulkMutation = useBulkDecideDemande()
   const sendMutation = useSendResponses()
+  const closeMutation = useCloseCampaign()
 
   const [approveTarget, setApproveTarget] = useState<DemandeReview | null>(null)
   const [declineTarget, setDeclineTarget] = useState<DemandeReview | null>(null)
   const [pickUnit, setPickUnit] = useState('')
   const [decisionNote, setDecisionNote] = useState('')
   const [sendOpen, setSendOpen] = useState(false)
+  const [closeOpen, setCloseOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
 
   // Bulk selection
@@ -249,6 +251,18 @@ export default function DemandeValidationPage() {
     } catch (err) { toast.error(parseApiError(err)); setSendOpen(false) }
   }
 
+  // Close the campaign: archive everything, wipe applicant data, disable inscriptions. Irreversible.
+  const handleClose = async () => {
+    try {
+      const r = await closeMutation.mutateAsync(scoutYear)
+      toast.success(`Campagne clôturée : ${r.archived} demande(s) archivée(s), ${r.accountsDeleted} compte(s) supprimé(s), inscriptions fermées.`)
+      setCloseOpen(false)
+    } catch (err) { toast.error(parseApiError(err)); setCloseOpen(false) }
+  }
+
+  // Ready to close only once every demande is decided AND its response sent (nothing left to send/review).
+  const canClose = all.length > 0 && undecided === 0 && pendingSend === 0
+
   const busy = decideMutation.isPending || bulkMutation.isPending
 
   return (
@@ -258,9 +272,16 @@ export default function DemandeValidationPage() {
           <h1 className="text-2xl font-bold tracking-tight">Demandes d'inscription — {scoutYear}</h1>
           <p className="text-sm text-muted-foreground">{all.length} demande(s) · {pendingSend} décision(s) en attente d'envoi</p>
         </div>
-        <Button size="lg" disabled={!canSend || sendMutation.isPending} onClick={() => setSendOpen(true)}>
-          <Send className="mr-2 h-4 w-4" />Envoyer les réponses{pendingSend > 0 ? ` (${pendingSend})` : ''}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="lg" disabled={!canSend || sendMutation.isPending} onClick={() => setSendOpen(true)}>
+            <Send className="mr-2 h-4 w-4" />Envoyer les réponses{pendingSend > 0 ? ` (${pendingSend})` : ''}
+          </Button>
+          {canClose && (
+            <Button size="lg" variant="destructive" disabled={closeMutation.isPending} onClick={() => setCloseOpen(true)}>
+              Clôturer la campagne
+            </Button>
+          )}
+        </div>
       </div>
 
       {status === 'all' && undecided > 0 && (
@@ -502,6 +523,13 @@ export default function DemandeValidationPage() {
         title="Envoyer les réponses"
         description={`Ceci va convertir les demandes acceptées en membres (avec identifiants) et notifier toutes les familles concernées. ${pendingSend} décision(s) seront envoyées. Cette action est définitive. Continuer ?`}
         confirmLabel="Envoyer" loading={sendMutation.isPending} onConfirm={handleSend}
+      />
+
+      <ConfirmDialog
+        open={closeOpen} onOpenChange={setCloseOpen}
+        title="Clôturer la campagne d'inscription"
+        description={`Toutes les demandes (${all.length}) seront archivées, puis TOUTES les données des candidats (comptes, parents, demandes) seront DÉFINITIVEMENT supprimées et les inscriptions fermées. Les membres déjà créés ne sont pas touchés. Cette action est irréversible. Continuer ?`}
+        confirmLabel="Archiver et supprimer" variant="destructive" loading={closeMutation.isPending} onConfirm={handleClose}
       />
     </div>
   )

@@ -51,6 +51,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<ApplicantGuardian> ApplicantGuardians => Set<ApplicantGuardian>();
     public DbSet<ApplicantScoutRelation> ApplicantScoutRelations => Set<ApplicantScoutRelation>();
     public DbSet<Demande> Demandes => Set<Demande>();
+    public DbSet<DemandeArchive> DemandeArchives => Set<DemandeArchive>();
     public DbSet<UnitIntakeQuota> UnitIntakeQuotas => Set<UnitIntakeQuota>();
     public DbSet<NewsPost> NewsPosts => Set<NewsPost>();
     public DbSet<Event> Events => Set<Event>();

@@ -739,3 +739,78 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         .Replace('à', 'a').Replace('â', 'a').Replace('ä', 'a').Replace('ù', 'u').Replace('û', 'u').Replace('ü', 'u')
         .Replace('ô', 'o').Replace('ö', 'o').Replace('î', 'i').Replace('ï', 'i').Replace('ç', 'c').Replace("'", "");
 }
+
+// ============================================================
+// Close the campaign: archive every demande + its outcome, then HARD-delete all applicant-side data
+// (accounts, guardians, scout relations, demandes) and disable inscriptions. Converted members are untouched.
+// ============================================================
+public record CloseDemandeCampaignResult(int Archived, int AccountsDeleted);
+public record CloseDemandeCampaignCommand(string ScoutYear) : IRequest<Result<CloseDemandeCampaignResult>>;
+
+public class CloseDemandeCampaignCommandValidator : AbstractValidator<CloseDemandeCampaignCommand>
+{
+    public CloseDemandeCampaignCommandValidator()
+        => RuleFor(x => x.ScoutYear).NotEmpty().MaximumLength(20).Matches(@"^[0-9\- ]+$");
+}
+
+public class CloseDemandeCampaignCommandHandler(IApplicationDbContext context, IAuditService audit)
+    : IRequestHandler<CloseDemandeCampaignCommand, Result<CloseDemandeCampaignResult>>
+{
+    public async ValueTask<Result<CloseDemandeCampaignResult>> Handle(CloseDemandeCampaignCommand request, CancellationToken ct)
+    {
+        await using var tx = await context.BeginTransactionAsync(ct);
+        await context.AcquireAdvisoryLockAsync(917320251, ct); // shared with SendDemandeResponses — mutually exclusive
+
+        // Block if any submitted application is still awaiting a response — closing would discard it unreviewed.
+        var pendingResponse = await context.Demandes.CountAsync(d => d.Status == DemandeStatus.Submitted && d.ResponseSentAt == null, ct);
+        if (pendingResponse > 0)
+            return Result<CloseDemandeCampaignResult>.Failure($"{pendingResponse} demande(s) sans réponse. Envoyez toutes les réponses avant de clôturer.");
+
+        var demandes = await context.Demandes.ToListAsync(ct);
+        var accIds = demandes.Select(d => d.ApplicantAccountId).Distinct().ToList();
+        var accounts = await context.ApplicantAccounts.Where(a => accIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, ct);
+        var unitIds = demandes.Where(d => d.DecidedUnitId.HasValue).Select(d => d.DecidedUnitId!.Value).Distinct().ToList();
+        var unitNames = await context.Units.Where(u => unitIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Name, ct);
+        var memberIds = demandes.Where(d => d.CreatedMemberId.HasValue).Select(d => d.CreatedMemberId!.Value).Distinct().ToList();
+        var memberCards = await context.Members.IgnoreQueryFilters().Where(m => memberIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id, m => m.CardNumber, ct);
+
+        var now = DateTime.UtcNow;
+        foreach (var d in demandes)
+        {
+            var acc = accounts.GetValueOrDefault(d.ApplicantAccountId);
+            context.DemandeArchives.Add(new DemandeArchive
+            {
+                ScoutYear = d.ScoutYear,
+                FirstName = d.FirstName, LastName = d.LastName, DateOfBirth = d.DateOfBirth, Gender = d.Gender,
+                Nationality = d.Nationality, School = d.School, Classe = d.Classe, Section = d.Section, BloodType = d.BloodType,
+                MedicalNotes = d.MedicalNotes, Allergies = d.Allergies, PhoneNumber = d.PhoneNumber, Email = d.Email,
+                ParentNotes = d.ParentNotes, HasPreviousDemande = d.HasPreviousDemande, PreviousDemandeYear = d.PreviousDemandeYear,
+                AccountEmail = acc?.Email, ContactName = acc?.ContactName, AddressCity = acc?.AddressCity,
+                Status = d.Status,
+                DecidedUnitName = d.DecidedUnitId.HasValue ? unitNames.GetValueOrDefault(d.DecidedUnitId.Value) : null,
+                DecisionNotes = d.DecisionNotes, ResponseSentAt = d.ResponseSentAt, CreatedMemberId = d.CreatedMemberId,
+                CreatedMemberCardNumber = d.CreatedMemberId.HasValue ? memberCards.GetValueOrDefault(d.CreatedMemberId.Value) : null,
+                ArchivedAt = now,
+            });
+        }
+        await context.SaveChangesAsync(ct); // persist the snapshot first
+
+        // Hard-delete all applicant-side data (ExecuteDelete bypasses the soft-delete interceptor; IgnoreQueryFilters
+        // so even soft-deleted rows go). Order respects FKs: demandes → relations/guardians → accounts.
+        await context.Demandes.IgnoreQueryFilters().ExecuteDeleteAsync(ct);
+        await context.ApplicantScoutRelations.IgnoreQueryFilters().ExecuteDeleteAsync(ct);
+        await context.ApplicantGuardians.IgnoreQueryFilters().ExecuteDeleteAsync(ct);
+        var accountsDeleted = await context.ApplicantAccounts.IgnoreQueryFilters().ExecuteDeleteAsync(ct);
+
+        // Close inscriptions.
+        var enabled = await context.Settings.FirstOrDefaultAsync(s => s.Key == "demande.enabled", ct);
+        if (enabled is not null) enabled.Value = "false";
+        await context.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+
+        await audit.LogAsync("CloseCampaign", "Demande", null,
+            newValues: new { request.ScoutYear, Archived = demandes.Count, AccountsDeleted = accountsDeleted }, cancellationToken: ct);
+        return Result<CloseDemandeCampaignResult>.Success(new CloseDemandeCampaignResult(demandes.Count, accountsDeleted));
+    }
+}

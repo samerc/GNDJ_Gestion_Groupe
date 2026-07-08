@@ -48,6 +48,7 @@ public interface IApplicationDbContext
     DbSet<ApplicantGuardian> ApplicantGuardians { get; }
     DbSet<ApplicantScoutRelation> ApplicantScoutRelations { get; }
     DbSet<Demande> Demandes { get; }
+    DbSet<DemandeArchive> DemandeArchives { get; }
     DbSet<UnitIntakeQuota> UnitIntakeQuotas { get; }
     DbSet<NewsPost> NewsPosts { get; }
     DbSet<Event> Events { get; }

@@ -167,3 +167,13 @@ export function useSendResponses() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes'] }); qc.invalidateQueries({ queryKey: ['members'] }) },
   })
 }
+
+// POST /demandes/close-campaign → archives every demande + outcome, HARD-deletes all applicant data, and
+// disables inscriptions. Irreversible. Returns {archived, accountsDeleted}; invalidates demandes.
+export function useCloseCampaign() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (scoutYear: string) => apiClient.post<{ archived: number; accountsDeleted: number }>('/demandes/close-campaign', { scoutYear }).then((r) => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes'] }); qc.invalidateQueries({ queryKey: ['settings'] }) },
+  })
+}

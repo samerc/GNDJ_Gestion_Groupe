@@ -115,5 +115,19 @@ public class DemandesController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>
+    /// Closes the campaign: archives every demande + its outcome into the permanent archive, then HARD-deletes all
+    /// applicant-side data (accounts, guardians, relations, demandes) and disables inscriptions. Irreversible;
+    /// converted members are untouched. Blocked while any submitted demande has no response. Requires demande.manage.
+    /// </summary>
+    [HttpPost("close-campaign")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> CloseCampaign([FromBody] CloseDemandeCampaignCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     public record DecideBody(string Status, Guid? DecidedUnitId, string? DecisionNotes);
 }
