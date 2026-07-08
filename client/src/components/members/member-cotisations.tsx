@@ -43,9 +43,12 @@ function formatAmount(amount: number, currency: string): string {
 interface Props {
   memberId: string
   memberName?: string
+  // When true, render the list/controls WITHOUT the self-contained Card + "Cotisations" title, so a
+  // parent page can provide its own section header (e.g. the member "Mes documents" page). Default: card.
+  bare?: boolean
 }
 
-export function MemberCotisations({ memberId, memberName }: Props) {
+export function MemberCotisations({ memberId, memberName, bare }: Props) {
   const { hasPermission } = useAuthStore()
   const { data: cotisations, isLoading } = useMemberCotisations(memberId)
   const defaultAmount = useSettingValue('cotisation.default_amount')
@@ -171,20 +174,13 @@ export function MemberCotisations({ memberId, memberName }: Props) {
 
   if (isLoading) return <LoadingSpinner />
 
-  return (
-    <div className="space-y-4">
-      {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+  const createButton = hasPermission(PERMISSIONS.COTISATIONS_CREATE)
+    ? <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Nouvelle cotisation</Button>
+    : null
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2"><Receipt className="h-4 w-4" />Cotisations</CardTitle>
-            {hasPermission(PERMISSIONS.COTISATIONS_CREATE) && (
-              <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Nouvelle cotisation</Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
+  // Inner content shared by both the card and bare layouts: the exempt toggle + the cotisation list.
+  const content = (
+    <>
           {hasPermission(PERMISSIONS.COTISATIONS_EDIT) && (
             <div className="mb-3 flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
               <span className="flex items-center gap-2 text-sm">
@@ -244,8 +240,30 @@ export function MemberCotisations({ memberId, memberName }: Props) {
             </div>
           )
           })()}
-        </CardContent>
-      </Card>
+    </>
+  )
+
+  return (
+    <div className="space-y-4">
+      {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+
+      {bare ? (
+        // Bare: no self-card/title — the parent page supplies the section header.
+        <div className="space-y-3">
+          {createButton && <div className="flex justify-end">{createButton}</div>}
+          {content}
+        </div>
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2"><Receipt className="h-4 w-4" />Cotisations</CardTitle>
+              {createButton}
+            </div>
+          </CardHeader>
+          <CardContent>{content}</CardContent>
+        </Card>
+      )}
 
       {/* Create/Edit Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
