@@ -164,6 +164,29 @@ export function useDeleteDemande() {
   })
 }
 
+// ── "Retrouver mes informations" — prefill the household from an existing member, gated by an email code ──
+export interface HouseholdLookupMember { id: string; name: string; unit: string | null; gender: string | null }
+export interface HouseholdLookup {
+  guardians: ApplicantGuardian[]
+  addressCountry: string | null
+  addressCity: string | null
+  addressDetails: string | null
+  members: HouseholdLookupMember[]
+}
+
+// POST /applicant/household-lookup/request → emails a one-time code (generic success, no enumeration).
+export function useRequestHouseholdLookup() {
+  return useMutation({ mutationFn: (email: string) => applicantApi.post('/applicant/household-lookup/request', { email }) })
+}
+
+// POST /applicant/household-lookup/verify → returns the family's household to prefill the wizard.
+export function useVerifyHouseholdLookup() {
+  return useMutation({
+    mutationFn: (body: { email: string; code: string }) =>
+      applicantApi.post<HouseholdLookup>('/applicant/household-lookup/verify', body).then((r) => r.data),
+  })
+}
+
 // POST /applicant/accept-terms → record acceptance of the T&C; invalidates profile so the gate re-evaluates.
 export function useAcceptTerms() {
   const qc = useQueryClient()

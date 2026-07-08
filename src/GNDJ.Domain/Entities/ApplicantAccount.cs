@@ -19,6 +19,12 @@ public class ApplicantAccount : BaseEntity
     public string? PasswordResetToken { get; set; }
     public DateTime? PasswordResetTokenExpiry { get; set; }
 
+    // "Retrouver mes informations" — a one-time code emailed to an address the applicant claims, to prove
+    // ownership before we reveal + prefill that family's household data (parents/address/siblings).
+    public string? HouseholdLookupEmail { get; set; }
+    public string? HouseholdLookupCodeHash { get; set; }
+    public DateTime? HouseholdLookupExpiry { get; set; }
+
     // Shared household address (entered once, copied to each child on approval)
     public string? AddressCountry { get; set; }
     public string? AddressCity { get; set; }

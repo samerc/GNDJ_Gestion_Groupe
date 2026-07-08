@@ -107,6 +107,30 @@ public class ApplicantController : BaseApiController
         return Ok(new { success = true });
     }
 
+    /// <summary>Emails a one-time code to an address the applicant claims, to prove ownership before prefilling
+    /// that family's household. Generic success (no enumeration). Requires an applicant token.</summary>
+    [Authorize]
+    [HttpPost("household-lookup/request")]
+    [EnableRateLimiting("forms")]
+    public async Task<IActionResult> RequestHouseholdLookup([FromBody] RequestHouseholdLookupCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { success = true });
+    }
+
+    /// <summary>Verifies the emailed code and returns the family's household (parents + address + members as
+    /// sibling candidates) to prefill the wizard. Requires an applicant token.</summary>
+    [Authorize]
+    [HttpPost("household-lookup/verify")]
+    [EnableRateLimiting("forms")]
+    public async Task<IActionResult> VerifyHouseholdLookup([FromBody] VerifyHouseholdLookupCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     /// <summary>Saves the applicant's household (shared parents, address, scout relations).</summary>
     [Authorize]
     [HttpPut("household")]

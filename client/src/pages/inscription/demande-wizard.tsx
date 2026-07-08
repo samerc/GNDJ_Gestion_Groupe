@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import {
   useApplicantConfig, useApplicantProfile, useCreateDemande, useUpdateDemande,
-  useSubmitDemande, useSaveHousehold,
+  useSubmitDemande, useSaveHousehold, useRequestHouseholdLookup, useVerifyHouseholdLookup,
   type ApplicantGuardian, type ApplicantScoutRelation, type DemandeInput,
 } from '@/services/applicant-service'
 import { Button } from '@/components/ui/button'
@@ -69,6 +69,8 @@ export default function DemandeWizardPage() {
   const updateMutation = useUpdateDemande()
   const submitMutation = useSubmitDemande()
   const householdMutation = useSaveHousehold()
+  const requestLookup = useRequestHouseholdLookup()
+  const verifyLookup = useVerifyHouseholdLookup()
 
   const [demandeId, setDemandeId] = useState(id) // 'new' until first persist creates the record, then the real id
   const [step, setStep] = useState(0)
@@ -81,6 +83,10 @@ export default function DemandeWizardPage() {
   const [relations, setRelations] = useState<ApplicantScoutRelation[]>([]) // shared household
   const [address, setAddress] = useState({ country: 'Liban', city: '', details: '' }) // shared household
   const [primaryContactEmail, setPrimaryContactEmail] = useState('') // household primary contact email
+  // "Retrouver mes informations" — email-code-gated prefill from an existing member's household.
+  const [lookupEmail, setLookupEmail] = useState('')
+  const [lookupCodeSent, setLookupCodeSent] = useState(false)
+  const [lookupCode, setLookupCode] = useState('')
 
   const existing = useMemo(() => profile?.demandes.find((d) => d.id === id), [profile, id]) // the demande being edited, if any
   // Read-only once the CG has replied (responseSentAt) or the inscription period is closed.
@@ -116,6 +122,30 @@ export default function DemandeWizardPage() {
   const householdEmailOptions = Array.from(new Set(
     [primaryContactEmail, profile?.email, ...guardians.map((g) => g.email)].map((e) => e?.trim()).filter((e): e is string => !!e)
   ))
+
+  // Send a one-time code to a known family email, then verify it to prefill parents/address + add the
+  // family's members as proches scouts (siblings). Backend proves ownership of the address before revealing.
+  const sendLookupCode = async () => {
+    try { await requestLookup.mutateAsync(lookupEmail.trim()); setLookupCodeSent(true); toast.info('Si cet email est connu du groupe, un code vient d\'être envoyé.') }
+    catch (err) { toast.error(parseApiError(err)) }
+  }
+  const verifyLookupCode = async () => {
+    try {
+      const h = await verifyLookup.mutateAsync({ email: lookupEmail.trim(), code: lookupCode.trim() })
+      if (h.guardians.length) setGuardians(h.guardians)
+      setAddress({ country: h.addressCountry ?? 'Liban', city: h.addressCity ?? '', details: h.addressDetails ?? '' })
+      setRelations((prev) => {
+        const seen = new Set(prev.map((r) => r.relatedMemberId))
+        const added: ApplicantScoutRelation[] = h.members.filter((m) => !seen.has(m.id)).map((m) => ({
+          status: 'CurrentInGroup', relationship: m.gender === 'Féminin' ? 'Sœur' : 'Frère', relatedMemberId: m.id,
+          firstName: m.name.split(' ')[0] ?? '', lastName: m.name.split(' ').slice(1).join(' '), lastUnit: m.unit,
+        }))
+        return [...prev, ...added]
+      })
+      toast.success('Informations de la famille pré-remplies.')
+      setLookupCodeSent(false); setLookupCode('')
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
 
   // ── validation ──
   function validateStep(s: number): Errors {
@@ -320,6 +350,28 @@ export default function DemandeWizardPage() {
           {/* STEP 1 — parents */}
           {step === 1 && (
             <fieldset disabled={readonly} className="space-y-4">
+              {/* Prefill from an existing member's household (email-code gated). */}
+              <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                <div className="text-sm font-semibold">Vous avez déjà un enfant au groupe&nbsp;?</div>
+                <p className="text-xs text-muted-foreground">Recevez un code par email pour retrouver et pré-remplir les informations de votre famille (parents, adresse, frères et sœurs).</p>
+                {!lookupCodeSent ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input type="email" placeholder="Email connu du groupe" value={lookupEmail} onChange={(e) => setLookupEmail(e.target.value)} className="max-w-xs" />
+                    <Button type="button" variant="outline" size="sm" disabled={!lookupEmail.trim() || requestLookup.isPending} onClick={sendLookupCode}>
+                      {requestLookup.isPending ? 'Envoi...' : 'Envoyer le code'}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input placeholder="Code reçu par email" value={lookupCode} onChange={(e) => setLookupCode(e.target.value)} className="max-w-[12rem]" />
+                    <Button type="button" size="sm" disabled={!lookupCode.trim() || verifyLookup.isPending} onClick={verifyLookupCode}>
+                      {verifyLookup.isPending ? 'Vérification...' : 'Vérifier et pré-remplir'}
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { setLookupCodeSent(false); setLookupCode('') }}>Changer l'email</Button>
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Users className="h-4 w-4" />Parents / tuteurs <span className="font-normal">(communs à tous vos enfants)</span></div>
               </div>

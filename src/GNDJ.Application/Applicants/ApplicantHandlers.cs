@@ -387,6 +387,111 @@ public class AcceptTermsCommandHandler(IApplicationDbContext context, ICurrentAp
 }
 
 // ============================================================
+// "Retrouver mes informations" — prefill the household from an existing member, gated by an email code.
+// The applicant enters an email; if it's a guardian of an existing member we email a one-time code; on
+// verification we return that family's household (parents + address) + its members (as sibling candidates).
+// The code proves the applicant controls the address, so revealing the data is safe.
+// ============================================================
+public record HouseholdLookupMemberDto(Guid Id, string Name, string? Unit, string? Gender);
+public record HouseholdLookupDto(IReadOnlyList<ApplicantGuardianDto> Guardians,
+    string? AddressCountry, string? AddressCity, string? AddressDetails,
+    IReadOnlyList<HouseholdLookupMemberDto> Members);
+
+public record RequestHouseholdLookupCommand(string Email) : IRequest<Result<bool>>;
+
+public class RequestHouseholdLookupCommandValidator : AbstractValidator<RequestHouseholdLookupCommand>
+{
+    public RequestHouseholdLookupCommandValidator()
+        => RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(254);
+}
+
+public class RequestHouseholdLookupCommandHandler(IApplicationDbContext context, ICurrentApplicantService current, IPasswordHasher hasher, IEmailQueue emailQueue)
+    : IRequestHandler<RequestHouseholdLookupCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(RequestHouseholdLookupCommand request, CancellationToken ct)
+    {
+        var id = current.ApplicantAccountId;
+        if (id is null) return Result<bool>.Failure("Non autorisé.");
+        var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Id == id, ct);
+        if (account is null) return Result<bool>.Failure("Compte introuvable.");
+
+        var email = request.Email.Trim();
+        // Only email a code when the address is actually a member's guardian (don't spam arbitrary addresses).
+        // Return generic success regardless so we don't reveal which emails exist in the system.
+        var isGuardianEmail = await context.GuardianEmails.AnyAsync(e => e.Address == email && !e.IsDeleted && e.Guardian.Links.Any(l => !l.IsDeleted), ct);
+        if (isGuardianEmail)
+        {
+            var code = Random.Shared.Next(100000, 999999).ToString();
+            account.HouseholdLookupEmail = email;
+            account.HouseholdLookupCodeHash = hasher.HashToken(code);
+            account.HouseholdLookupExpiry = DateTime.UtcNow.AddMinutes(15);
+            await context.SaveChangesAsync(ct);
+            emailQueue.Enqueue(new EmailJob("household_lookup_code", email, new Dictionary<string, string> { ["code"] = code }));
+        }
+        return Result<bool>.Success(true);
+    }
+}
+
+public record VerifyHouseholdLookupCommand(string Email, string Code) : IRequest<Result<HouseholdLookupDto>>;
+
+public class VerifyHouseholdLookupCommandValidator : AbstractValidator<VerifyHouseholdLookupCommand>
+{
+    public VerifyHouseholdLookupCommandValidator()
+    {
+        RuleFor(x => x.Email).NotEmpty().MaximumLength(254);
+        RuleFor(x => x.Code).NotEmpty().MaximumLength(10);
+    }
+}
+
+public class VerifyHouseholdLookupCommandHandler(IApplicationDbContext context, ICurrentApplicantService current, IPasswordHasher hasher)
+    : IRequestHandler<VerifyHouseholdLookupCommand, Result<HouseholdLookupDto>>
+{
+    public async ValueTask<Result<HouseholdLookupDto>> Handle(VerifyHouseholdLookupCommand request, CancellationToken ct)
+    {
+        var id = current.ApplicantAccountId;
+        if (id is null) return Result<HouseholdLookupDto>.Failure("Non autorisé.");
+        var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Id == id, ct);
+        if (account is null) return Result<HouseholdLookupDto>.Failure("Compte introuvable.");
+
+        var email = request.Email.Trim();
+        if (account.HouseholdLookupEmail is null || account.HouseholdLookupExpiry is null || account.HouseholdLookupExpiry < DateTime.UtcNow
+            || !string.Equals(account.HouseholdLookupEmail, email, StringComparison.OrdinalIgnoreCase)
+            || account.HouseholdLookupCodeHash != hasher.HashToken(request.Code.Trim()))
+            return Result<HouseholdLookupDto>.Failure("Code invalide ou expiré.");
+
+        // One-time: clear the code now.
+        account.HouseholdLookupEmail = null; account.HouseholdLookupCodeHash = null; account.HouseholdLookupExpiry = null;
+
+        // The verified email → its guardian(s) → the members they parent → the FULL household + address.
+        var seedGuardianIds = await context.GuardianEmails.Where(e => e.Address == email && !e.IsDeleted).Select(e => e.GuardianId).Distinct().ToListAsync(ct);
+        var memberIds = await context.GuardianLinks.Where(l => seedGuardianIds.Contains(l.GuardianId) && !l.IsDeleted).Select(l => l.MemberId).Distinct().ToListAsync(ct);
+        var activeMemberIds = await context.MemberAssignments.Where(a => memberIds.Contains(a.MemberId) && a.EndDate == null && !a.IsDeleted).Select(a => a.MemberId).Distinct().ToListAsync(ct);
+        var relevant = activeMemberIds.Count > 0 ? activeMemberIds : memberIds;
+
+        var allGuardianIds = await context.GuardianLinks.Where(l => relevant.Contains(l.MemberId) && !l.IsDeleted).Select(l => l.GuardianId).Distinct().ToListAsync(ct);
+        var guardianEntities = await context.Guardians.Where(g => allGuardianIds.Contains(g.Id) && !g.IsDeleted)
+            .Include(g => g.Phones).Include(g => g.Emails).Include(g => g.Links).ToListAsync(ct);
+        var guardians = guardianEntities.Select(g =>
+        {
+            var link = g.Links.FirstOrDefault(l => relevant.Contains(l.MemberId) && !l.IsDeleted);
+            var phone = g.Phones.Where(p => !p.IsDeleted).OrderByDescending(p => p.IsPrimary).FirstOrDefault();
+            var mail = g.Emails.Where(e => !e.IsDeleted).OrderByDescending(e => e.IsPrimary).FirstOrDefault();
+            return new ApplicantGuardianDto(null, link?.RelationshipType ?? "Tuteur", g.FirstName, g.LastName, g.Profession, g.ProfessionDomain,
+                phone?.CountryCode, phone?.Number, mail?.Address, g.IsDeceased, link?.IsPrimaryContact ?? false, link?.IsEmergencyContact ?? false);
+        }).ToList();
+
+        var addr = await context.MemberAddresses.Where(a => relevant.Contains(a.MemberId) && !a.IsDeleted).OrderByDescending(a => a.IsPrimary).FirstOrDefaultAsync(ct);
+        var members = await context.Members.Where(m => relevant.Contains(m.Id))
+            .Select(m => new HouseholdLookupMemberDto(m.Id, m.FirstName + " " + m.LastName,
+                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(), m.Gender))
+            .ToListAsync(ct);
+
+        await context.SaveChangesAsync(ct);
+        return Result<HouseholdLookupDto>.Success(new HouseholdLookupDto(guardians, addr?.Country, addr?.City, addr?.Details, members));
+    }
+}
+
+// ============================================================
 // Save shared household data (address + guardians + scout relations)
 // ============================================================
 public record SaveApplicantHouseholdCommand(

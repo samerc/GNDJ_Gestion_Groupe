@@ -594,21 +594,32 @@ public static class SeedData
         await context.SaveChangesAsync();
     }
 
-    // Template for a leader/CG resetting a member's password (temp password relayed by email). Idempotent per-code.
+    // Idempotent-per-code email templates added after the initial seed (member password reset + household-lookup code).
     public static async Task SeedMemberEmailTemplatesAsync(GndjDbContext context)
     {
-        if (await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "member_password_reset"))
-            return;
+        var toAdd = new List<EmailTemplate>();
 
-        context.EmailTemplates.Add(new EmailTemplate
-        {
-            Name = "Mot de passe réinitialisé (membre)", Code = "member_password_reset", Module = "auth",
-            Subject = "Votre mot de passe GNDJ a été réinitialisé",
-            BodyHtml = "<h2>Bonjour {{memberName}},</h2><p>Le mot de passe de votre compte GNDJ a été réinitialisé par un responsable.</p><ul><li><strong>Identifiant :</strong> {{username}}</li><li><strong>Mot de passe temporaire :</strong> {{tempPassword}}</li></ul><p>Connectez-vous sur <a href=\"{{loginUrl}}\">{{loginUrl}}</a> et <strong>changez ce mot de passe dès votre première connexion</strong>.</p><p>Si vous n'êtes pas à l'origine de cette demande, contactez votre maîtrise.</p><p>— L'équipe GNDJ</p>",
-            Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"username\",\"label\":\"Identifiant\"},{\"key\":\"tempPassword\",\"label\":\"Mot de passe temporaire\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"}]",
-            IsActive = true
-        });
-        await context.SaveChangesAsync();
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "member_password_reset"))
+            toAdd.Add(new EmailTemplate
+            {
+                Name = "Mot de passe réinitialisé (membre)", Code = "member_password_reset", Module = "auth",
+                Subject = "Votre mot de passe GNDJ a été réinitialisé",
+                BodyHtml = "<h2>Bonjour {{memberName}},</h2><p>Le mot de passe de votre compte GNDJ a été réinitialisé par un responsable.</p><ul><li><strong>Identifiant :</strong> {{username}}</li><li><strong>Mot de passe temporaire :</strong> {{tempPassword}}</li></ul><p>Connectez-vous sur <a href=\"{{loginUrl}}\">{{loginUrl}}</a> et <strong>changez ce mot de passe dès votre première connexion</strong>.</p><p>Si vous n'êtes pas à l'origine de cette demande, contactez votre maîtrise.</p><p>— L'équipe GNDJ</p>",
+                Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"username\",\"label\":\"Identifiant\"},{\"key\":\"tempPassword\",\"label\":\"Mot de passe temporaire\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"}]",
+                IsActive = true
+            });
+
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "household_lookup_code"))
+            toAdd.Add(new EmailTemplate
+            {
+                Name = "Code de vérification (retrouver mes informations)", Code = "household_lookup_code", Module = "demande",
+                Subject = "Votre code de vérification — GNDJ Scout",
+                BodyHtml = "<h2>Bonjour,</h2><p>Voici votre code pour retrouver les informations de votre famille lors de votre demande d'inscription :</p><p style=\"font-size:28px;font-weight:bold;letter-spacing:3px;\">{{code}}</p><p>Ce code expire dans 15 minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p><p>— L'équipe GNDJ</p>",
+                Variables = "[{\"key\":\"code\",\"label\":\"Code de vérification\"}]",
+                IsActive = true
+            });
+
+        if (toAdd.Count > 0) { context.EmailTemplates.AddRange(toAdd); await context.SaveChangesAsync(); }
     }
 
     // Back-fills functional-role ranks/defaults/maîtrise after a migration import (the tool creates roles at
