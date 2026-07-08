@@ -495,7 +495,8 @@ same‑origin, so it sits cleanly in front of `new.gndj.org`.
 
 **Setup:** add the zone + switch nameservers; DNS `A new → <server IP>` **Proxied** (orange cloud); keep a
 valid origin cert on IIS (a free **Cloudflare Origin Certificate** is ideal) and set **SSL/TLS = Full
-(strict)**; turn on **Always Use HTTPS** + **HSTS** at the edge.
+(strict)**; turn on **Always Use HTTPS** + **HSTS** at the edge; set **SSL/TLS → Edge Certificates →
+Minimum TLS Version = 1.2** (removes the deprecated‑TLS / weak‑cipher scan findings — see §18.5).
 
 **Cache rules:** add a rule `URI path starts with /api/ → Bypass cache` (never cache dynamic/authenticated
 traffic). The origin's headers already make `/assets/*` edge‑cacheable and keep `index.html` uncached.
@@ -523,10 +524,57 @@ These are already in `src/GNDJ.Api/Program.cs` — listed so you know what makes
    issuance/renewal works on the single in‑process site.
 3. **1 MB body limit under IIS in‑process** — `Configure<IISServerOptions>` (Kestrel's is ignored
    in‑process); 20 MB upload endpoints override per‑action (allow it in IIS, Part 6.4).
-4. **HSTS in production** — `app.UseHsts()` when not Development.
+4. **Security response headers** — a middleware sets `X-Content-Type-Options`, `X-Frame-Options: DENY`,
+   `Referrer-Policy`, `X-Permitted-Cross-Domain-Policies`, `Permissions-Policy` (only `camera=(self)` for the
+   photo session; all other features denied), `Cross-Origin-Opener-Policy` + `Cross-Origin-Resource-Policy`
+   = `same-origin`, and — **in production only** — a `Content-Security-Policy` (dev is exempt because the
+   dev‑only Swagger UI needs inline scripts). `AddHsts` sets `max-age = 1 year`; `app.UseHsts()` runs when not
+   Development. **COEP is deliberately not set** (`require-corp` would block CMS‑embedded external images).
 
 The only deploy‑time config (not code): `"AllowedHosts"` and `"Cloudflare:Enabled"` in
 `appsettings.Production.json`.
+
+---
+
+## 18.5 Security‑scan remediation (external pen‑test / Nuclei findings)
+
+A periodic external scan hits `new.gndj.org` **through Cloudflare** (the origin IP is never exposed — good).
+Almost every finding is edge config or informational. The real, actionable ones:
+
+**A. TLS 1.0/1.1 + weak cipher suites (Cloudflare edge).** The weak `…AES_128_CBC_SHA` cipher only exists on
+TLS 1.0/1.1. Fix once in the dashboard: **SSL/TLS → Edge Certificates → Minimum TLS Version**.
+- **1.2** = the recommended baseline — clears all TLS/cipher findings and keeps broad device compatibility.
+- **1.3** = stricter (also clears them) but can reject older clients (older Android, Win7/8 browsers, some
+  corporate TLS proxies). If some users report they can't reach the site, dial back to 1.2.
+
+**B. Security response headers (origin).** Already in code (§18 item 4) — CSP, 1‑year HSTS, Permissions‑Policy,
+COOP, CORP. They reach the scanner through Cloudflare on port 443 after a deploy. (Cloudflare's own responses
+on ports 80/8443 will still show "missing headers" — those are edge redirect/error pages, not the app.)
+
+**C. IIS 8.3 short‑name (tilde `~`) enumeration (origin, Windows Server).** Low risk here (the SPA uses
+content‑hashed asset names and there are no secret files to disclose), but easy to remove. **Shared‑server
+note:** this box hosts other sites, so understand the two levels before running anything:
+
+- **Disabling *future* 8.3 creation is per‑volume** (affects every site on that drive, new files only). It is
+  Microsoft‑recommended and safe for modern web apps; only ancient 16‑bit apps/installers could care.
+- **Stripping *existing* short names is per‑path** — it only touches the folder you point it at, so it does
+  **not** affect the other sites unless you run it against their folders too.
+
+Run in an **elevated** PowerShell/cmd on the server:
+```powershell
+fsutil 8dot3name query C:                                  # see current state
+fsutil 8dot3name set C: 1                                  # disable FUTURE 8.3 creation on C: (this volume only)
+fsutil 8dot3name scan /s "C:\inetpub\www\gndj"             # dry-run report of what a strip would change
+fsutil 8dot3name strip /t /s /v "C:\inetpub\www\gndj"      # TEST strip (reports, changes nothing)
+fsutil 8dot3name strip /s /v "C:\inetpub\www\gndj"         # actually strip existing short names for THIS site
+```
+No reboot needed (strip is immediate; `set` affects newly created files). To remediate the other sites too,
+repeat the two `strip` lines against each of their content folders. If you'd rather not touch the filesystem,
+an alternative is an IIS **Request Filtering** rule that denies URLs containing `~` — but the `fsutil` strip is
+the cleaner fix. Re‑scan afterwards to confirm the finding is gone.
+
+**D. Informational / no action:** WAF Detection (that IS Cloudflare — expected), tech‑detect, OPTIONS
+`GET,HEAD`, AAAA/CAA/SSL‑issuer/DNS‑names/wildcard‑cert. All benign discovery output.
 
 ---
 
