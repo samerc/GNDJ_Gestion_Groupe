@@ -235,8 +235,10 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       <CheckCircle className="h-4 w-4 text-green-600" />
                     </Button></Tip>
                   )}
-                  {doc && doc.status !== 'Rejected' && hasPermission(PERMISSIONS.DOCUMENTS_APPROVE) && (
-                    <Tip content="Refuser"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setReviewOpen(doc); setReviewNotes('') }}>
+                  {/* Show for any status so an already-refused doc can be reopened to add/edit the reason;
+                      pre-fill the existing note so editing keeps it. */}
+                  {doc && hasPermission(PERMISSIONS.DOCUMENTS_APPROVE) && (
+                    <Tip content={doc.status === 'Rejected' ? 'Modifier le motif du refus' : 'Refuser'}><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setReviewOpen(doc); setReviewNotes(doc.reviewNotes ?? '') }}>
                       <XCircle className="h-4 w-4 text-red-500" />
                     </Button></Tip>
                   )}
@@ -340,11 +342,10 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setReviewOpen(null)}>Annuler</Button>
-              {reviewOpen?.status !== 'Rejected' && (
-                <Button variant="destructive" onClick={() => handleReview('Rejected')} disabled={reviewMutation.isPending}>
-                  <XCircle className="mr-1 h-4 w-4" />Refuser
-                </Button>
-              )}
+              {/* Always available: on an already-refused doc this re-saves the (edited) reason, keeping it refused. */}
+              <Button variant="destructive" onClick={() => handleReview('Rejected')} disabled={reviewMutation.isPending}>
+                <XCircle className="mr-1 h-4 w-4" />{reviewOpen?.status === 'Rejected' ? 'Enregistrer le motif' : 'Refuser'}
+              </Button>
               {reviewOpen?.status !== 'Approved' && (
                 <Button onClick={() => handleReview('Approved')} disabled={reviewMutation.isPending}>
                   <CheckCircle className="mr-1 h-4 w-4" />Approuver
