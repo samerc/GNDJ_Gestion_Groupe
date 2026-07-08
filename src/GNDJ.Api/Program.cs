@@ -70,6 +70,10 @@ builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "dataprotection-keys")))
     .SetApplicationName("GNDJ");
 
+// HSTS max-age = 1 year (ASP.NET Core's default UseHsts() is only 30 days, which scanners flag as weak).
+// IncludeSubDomains/preload left off deliberately — other *.gndj.org hosts may not all be HTTPS yet.
+builder.Services.AddHsts(options => options.MaxAge = TimeSpan.FromDays(365));
+
 // Infrastructure (EF Core, repositories, JWT auth, services)
 builder.Services.AddHttpContextAccessor();
 // Singleton (not scoped): consumed by the singleton EF interceptors used with the pooled DbContext.
@@ -359,6 +363,13 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     context.Response.Headers["X-Permitted-Cross-Domain-Policies"] = "none";
+    // Restrict powerful browser features to just what the app uses: camera=self for the photo-session
+    // capture (getUserMedia), everything else denied. COOP/CORP isolate our browsing context + resources
+    // (defense-in-depth; COEP is deliberately NOT set — 'require-corp' would block CMS-embedded external images).
+    context.Response.Headers["Permissions-Policy"] =
+        "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()";
+    context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
+    context.Response.Headers["Cross-Origin-Resource-Policy"] = "same-origin";
     if (applyCsp)
         context.Response.Headers["Content-Security-Policy"] = csp;
     await next();
