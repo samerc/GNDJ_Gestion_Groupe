@@ -42,14 +42,17 @@ public record ApplicantScoutRelationDto(Guid? Id, string Status, string? Relatio
 public record DemandeDto(Guid Id, string ScoutYear, string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender,
     string? Nationality, string? School, string? Classe, string? Section, string? BloodType, string? MedicalNotes, string? Allergies,
     string? PhoneCountryCode, string? PhoneNumber, string? Email, string? ParentNotes,
-    string Status, string? DecisionNotes, DateTime? SubmittedAt, DateTime? ResponseSentAt);
+    string Status, string? DecisionNotes, DateTime? SubmittedAt, DateTime? ResponseSentAt,
+    bool HasPreviousDemande = false, string? PreviousDemandeYear = null);
 
 public record ApplicantProfileDto(Guid AccountId, string Email, bool EmailVerified, string? ContactName,
     string? AddressCountry, string? AddressCity, string? AddressDetails,
     IReadOnlyList<ApplicantGuardianDto> Guardians, IReadOnlyList<ApplicantScoutRelationDto> ScoutRelations,
     IReadOnlyList<DemandeDto> Demandes,
     // True once the applicant has accepted the T&C (now a separate post-login step, not part of registration).
-    bool TermsAccepted = false);
+    bool TermsAccepted = false,
+    // Household primary contact email (one per family) — chosen in the wizard, copied to each member on conversion.
+    string? PrimaryContactEmail = null);
 
 // Shared child-field payload for create/update (the per-child part of a demande; the household part
 // lives on the account and is saved separately via SaveApplicantHousehold).
@@ -57,7 +60,8 @@ public record DemandeInput(
     string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender,
     string? Nationality, string? School, string? Classe, string? Section,
     string? BloodType, string? MedicalNotes, string? Allergies,
-    string? PhoneCountryCode, string? PhoneNumber, string? Email, string? ParentNotes);
+    string? PhoneCountryCode, string? PhoneNumber, string? Email, string? ParentNotes,
+    bool HasPreviousDemande = false, string? PreviousDemandeYear = null);
 
 // ============================================================
 // Shared helpers
@@ -129,7 +133,7 @@ static class ApplicantHelpers
     public static DemandeDto ToDto(Demande d) => new(
         d.Id, d.ScoutYear, d.FirstName, d.LastName, d.DateOfBirth, d.Gender, d.Nationality, d.School, d.Classe, d.Section,
         d.BloodType, d.MedicalNotes, d.Allergies, d.PhoneCountryCode, d.PhoneNumber, d.Email, d.ParentNotes,
-        d.Status, d.DecisionNotes, d.SubmittedAt, d.ResponseSentAt);
+        d.Status, d.DecisionNotes, d.SubmittedAt, d.ResponseSentAt, d.HasPreviousDemande, d.PreviousDemandeYear);
 
     public static void Apply(Demande d, DemandeInput i)
     {
@@ -148,6 +152,8 @@ static class ApplicantHelpers
         d.PhoneNumber = i.PhoneNumber;
         d.Email = i.Email;
         d.ParentNotes = i.ParentNotes;
+        d.HasPreviousDemande = i.HasPreviousDemande;
+        d.PreviousDemandeYear = i.HasPreviousDemande ? i.PreviousDemandeYear?.Trim() : null;
     }
 }
 
@@ -354,7 +360,7 @@ public class GetApplicantProfileQueryHandler(IApplicationDbContext context, ICur
         return Result<ApplicantProfileDto>.Success(new ApplicantProfileDto(
             account.Id, account.Email, account.EmailVerified, account.ContactName,
             account.AddressCountry, account.AddressCity, account.AddressDetails,
-            guardians, relations, demandes, account.TermsAcceptedAt != null));
+            guardians, relations, demandes, account.TermsAcceptedAt != null, account.PrimaryContactEmail));
     }
 }
 
@@ -385,7 +391,8 @@ public class AcceptTermsCommandHandler(IApplicationDbContext context, ICurrentAp
 // ============================================================
 public record SaveApplicantHouseholdCommand(
     string? ContactName, string? AddressCountry, string? AddressCity, string? AddressDetails,
-    List<ApplicantGuardianDto> Guardians, List<ApplicantScoutRelationDto> ScoutRelations) : IRequest<Result<bool>>;
+    List<ApplicantGuardianDto> Guardians, List<ApplicantScoutRelationDto> ScoutRelations,
+    string? PrimaryContactEmail = null) : IRequest<Result<bool>>;
 
 public class SaveApplicantHouseholdCommandHandler(IApplicationDbContext context, ICurrentApplicantService current) : IRequestHandler<SaveApplicantHouseholdCommand, Result<bool>>
 {
@@ -408,6 +415,7 @@ public class SaveApplicantHouseholdCommandHandler(IApplicationDbContext context,
         account.AddressCountry = request.AddressCountry;
         account.AddressCity = request.AddressCity;
         account.AddressDetails = request.AddressDetails;
+        account.PrimaryContactEmail = string.IsNullOrWhiteSpace(request.PrimaryContactEmail) ? null : request.PrimaryContactEmail.Trim();
 
         // Replace guardians + relations (small shared sets)
         var existingGuardians = await context.ApplicantGuardians.Where(g => g.ApplicantAccountId == id).ToListAsync(ct);
@@ -501,6 +509,7 @@ public class DemandeInputValidator : AbstractValidator<DemandeInput>
         RuleFor(x => x.MedicalNotes).MaximumLength(2000);
         RuleFor(x => x.Allergies).MaximumLength(2000);
         RuleFor(x => x.ParentNotes).MaximumLength(2000);
+        RuleFor(x => x.PreviousDemandeYear).MaximumLength(20).Must(NoHtml);
         RuleFor(x => x.DateOfBirth).Must(d => d == null || d.Value <= DateOnly.FromDateTime(DateTime.UtcNow))
             .WithMessage("La date de naissance ne peut pas être dans le futur.");
         RuleFor(x => x.Gender).Must(g => string.IsNullOrEmpty(g) || g == "Masculin" || g == "Féminin")
@@ -550,6 +559,8 @@ public class SaveApplicantHouseholdCommandValidator : AbstractValidator<SaveAppl
         RuleFor(x => x.AddressCity).MaximumLength(100);
         RuleFor(x => x.AddressCountry).MaximumLength(100);
         RuleFor(x => x.AddressDetails).MaximumLength(500).Must(NoHtml);
+        RuleFor(x => x.PrimaryContactEmail).MaximumLength(254).EmailAddress()
+            .When(x => !string.IsNullOrWhiteSpace(x.PrimaryContactEmail));
     }
 }
 

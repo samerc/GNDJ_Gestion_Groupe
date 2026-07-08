@@ -28,6 +28,10 @@ public class Demande : BaseEntity
 
     public string? ParentNotes { get; set; } // free text incl. unit requests (char-capped)
 
+    // Declared by the parent: has a demande already been presented for this child before, and which year.
+    public bool HasPreviousDemande { get; set; }
+    public string? PreviousDemandeYear { get; set; }
+
     public string Status { get; set; } = Enums.DemandeStatus.Draft;
     public DateTime? SubmittedAt { get; set; }
 

@@ -80,6 +80,7 @@ export default function DemandeWizardPage() {
   const [guardians, setGuardians] = useState<ApplicantGuardian[]>([blankGuardian('Père'), blankGuardian('Mère')]) // shared household
   const [relations, setRelations] = useState<ApplicantScoutRelation[]>([]) // shared household
   const [address, setAddress] = useState({ country: 'Liban', city: '', details: '' }) // shared household
+  const [primaryContactEmail, setPrimaryContactEmail] = useState('') // household primary contact email
 
   const existing = useMemo(() => profile?.demandes.find((d) => d.id === id), [profile, id]) // the demande being edited, if any
   // Read-only once the CG has replied (responseSentAt) or the inscription period is closed.
@@ -95,6 +96,7 @@ export default function DemandeWizardPage() {
     if (profile.guardians.length) setGuardians(profile.guardians)
     if (profile.scoutRelations.length) setRelations(profile.scoutRelations)
     setAddress({ country: profile.addressCountry ?? 'Liban', city: profile.addressCity ?? '', details: profile.addressDetails ?? '' })
+    setPrimaryContactEmail(profile.primaryContactEmail ?? '')
     if (existing) {
       // Strip server-managed/metadata fields off the demande so `rest` is exactly the editable
       // DemandeInput shape for the child form. (void = silence unused-var lint on the discards.)
@@ -108,6 +110,12 @@ export default function DemandeWizardPage() {
   if (isLoading) return <LoadingSpinner variant="page" />
 
   const setC = (patch: Partial<DemandeInput>) => setChild((c) => ({ ...c, ...patch }))
+
+  // Emails offered for the household primary-contact picker: the account login + each parent's email
+  // (+ the current value so it stays selected even if a parent's email later changes). Deduped, non-empty.
+  const householdEmailOptions = Array.from(new Set(
+    [primaryContactEmail, profile?.email, ...guardians.map((g) => g.email)].map((e) => e?.trim()).filter((e): e is string => !!e)
+  ))
 
   // ── validation ──
   function validateStep(s: number): Errors {
@@ -144,6 +152,7 @@ export default function DemandeWizardPage() {
     await householdMutation.mutateAsync({
       contactName: profile?.contactName ?? null,
       addressCountry: address.country, addressCity: address.city, addressDetails: address.details,
+      primaryContactEmail: primaryContactEmail || null,
       guardians: guardians.filter((g) => g.firstName.trim() || g.lastName.trim()),
       scoutRelations: relations.filter((r) => r.firstName?.trim() || r.lastName?.trim() || r.relatedMemberId),
     })
@@ -293,6 +302,18 @@ export default function DemandeWizardPage() {
                   className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-2xs focus-visible:outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                   placeholder="Ex. : préférence d'unité, informations utiles…" />
               </Field>
+              <div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3 sm:col-span-2">
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input type="checkbox" className="shrink-0" checked={!!child.hasPreviousDemande}
+                    onChange={(e) => setC({ hasPreviousDemande: e.target.checked, previousDemandeYear: e.target.checked ? child.previousDemandeYear ?? null : null })} />
+                  <span>Une demande a déjà été présentée pour cet enfant</span>
+                </label>
+                {child.hasPreviousDemande && (
+                  <Field label="Année de la demande précédente">
+                    <Input value={child.previousDemandeYear ?? ''} onChange={(e) => setC({ previousDemandeYear: e.target.value || null })} placeholder="Ex. : 2025-2026" className="max-w-xs" />
+                  </Field>
+                )}
+              </div>
             </fieldset>
           )}
 
@@ -346,6 +367,19 @@ export default function DemandeWizardPage() {
                   <Field label="Ville"><CitySelect value={address.city} onChange={(city) => setAddress((a) => ({ ...a, city }))} cities={config?.cities ?? []} /></Field>
                   <Field label="Adresse"><Input value={address.details} onChange={(e) => setAddress((a) => ({ ...a, details: e.target.value }))} /></Field>
                 </div>
+              </div>
+
+              <div className="pt-2">
+                <Field label="Courriel de contact principal">
+                  <Select value={primaryContactEmail || '__none'} onValueChange={(v) => setPrimaryContactEmail(v === '__none' ? '' : v)}>
+                    <SelectTrigger><SelectValue placeholder="Choisir une adresse..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">Aucun (par défaut)</SelectItem>
+                      {householdEmailOptions.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <p className="mt-1 text-xs text-muted-foreground">L'adresse qui recevra les communications du groupe (identifiants, informations). Une seule pour toute la famille.</p>
               </div>
             </fieldset>
           )}

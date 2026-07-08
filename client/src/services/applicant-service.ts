@@ -69,6 +69,8 @@ export interface Demande {
   phoneNumber?: string | null
   email?: string | null
   parentNotes?: string | null
+  hasPreviousDemande?: boolean
+  previousDemandeYear?: string | null
   status: string
   decisionNotes?: string | null
   submittedAt?: string | null
@@ -83,6 +85,7 @@ export interface ApplicantProfile {
   addressCountry?: string | null
   addressCity?: string | null
   addressDetails?: string | null
+  primaryContactEmail?: string | null // household primary contact (one per family), chosen in the wizard
   guardians: ApplicantGuardian[]
   scoutRelations: ApplicantScoutRelation[]
   demandes: Demande[]
@@ -117,6 +120,7 @@ export function useSaveHousehold() {
       addressCountry?: string | null
       addressCity?: string | null
       addressDetails?: string | null
+      primaryContactEmail?: string | null
       guardians: ApplicantGuardian[]
       scoutRelations: ApplicantScoutRelation[]
     }) => applicantApi.put('/applicant/household', data),

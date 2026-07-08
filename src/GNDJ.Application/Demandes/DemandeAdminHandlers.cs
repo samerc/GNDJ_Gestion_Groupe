@@ -524,6 +524,11 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         var accounts = await context.ApplicantAccounts.Where(a => accountIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, ct);
         var acctGuardians = (await context.ApplicantGuardians.Where(g => accountIds.Contains(g.ApplicantAccountId)).ToListAsync(ct))
             .GroupBy(g => g.ApplicantAccountId).ToDictionary(g => g.Key, g => g.ToList());
+        // Sibling proches already in the group (auto-matched to a member) — used below to link families.
+        var acctSiblingRelations = (await context.ApplicantScoutRelations
+                .Where(r => accountIds.Contains(r.ApplicantAccountId) && r.RelatedMemberId != null).ToListAsync(ct))
+            .Where(r => IsSiblingRelation(r.Relationship))
+            .GroupBy(r => r.ApplicantAccountId).ToDictionary(g => g.Key, g => g.ToList());
 
         var unitIds = approved.Where(d => d.DecidedUnitId.HasValue).Select(d => d.DecidedUnitId!.Value).Distinct().ToList();
         var unitNames = await context.Units.Where(u => unitIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Name, ct);
@@ -587,6 +592,10 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             if (acc is not null && (!string.IsNullOrWhiteSpace(acc.AddressCity) || !string.IsNullOrWhiteSpace(acc.AddressDetails)))
                 context.MemberAddresses.Add(new MemberAddress { MemberId = member.Id, Type = "Domicile", Country = acc.AddressCountry ?? "Liban", City = acc.AddressCity ?? "", Details = acc.AddressDetails, IsPrimary = true });
 
+            // household primary contact email (chosen in the wizard) → drives member-facing mail delivery
+            if (!string.IsNullOrWhiteSpace(acc?.PrimaryContactEmail))
+                member.PrimaryContactEmail = acc.PrimaryContactEmail.Trim();
+
             // guardians (dedup by email/phone, reuse across siblings)
             foreach (var ag in acctGuardians.GetValueOrDefault(d.ApplicantAccountId) ?? [])
             {
@@ -649,6 +658,30 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                 emailJobs.Add(("demande_declined", to, declinedVars));
         }
 
+        // Link families: for a household that named a sibling already in the group (a proche auto-matched to
+        // an existing member), share the household's guardians with that member — the app detects siblings via
+        // shared guardians, so this ties the newly-converted child(ren) to the existing member. Deduped against
+        // links already present (usually the guardian is reused via contact-match, so this rarely adds a row).
+        if (acctSiblingRelations.Count > 0)
+        {
+            var siblingMemberIds = acctSiblingRelations.Values.SelectMany(rs => rs).Select(r => r.RelatedMemberId!.Value).Distinct().ToList();
+            var links = (await context.GuardianLinks.Where(l => siblingMemberIds.Contains(l.MemberId) && !l.IsDeleted)
+                .Select(l => new { l.GuardianId, l.MemberId }).ToListAsync(ct))
+                .Select(x => (x.GuardianId, x.MemberId)).ToHashSet();
+
+            foreach (var (accId, rels) in acctSiblingRelations)
+                foreach (var ag in acctGuardians.GetValueOrDefault(accId) ?? [])
+                {
+                    if (!guardianCache.TryGetValue(ag.Id, out var guardian) || guardian is null) continue;
+                    foreach (var r in rels)
+                    {
+                        var mid = r.RelatedMemberId!.Value;
+                        if (links.Add((guardian.Id, mid)))
+                            context.GuardianLinks.Add(new GuardianLink { GuardianId = guardian.Id, MemberId = mid, RelationshipType = ag.Relationship, IsPrimaryContact = ag.IsPrimaryContact, IsEmergencyContact = ag.IsEmergencyContact });
+                    }
+                }
+        }
+
         await context.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
@@ -658,6 +691,16 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         await audit.LogAsync("SendResponses", "Demande", null, newValues: new { Approved = approved.Count, Declined = declined.Count, request.ScoutYear }, cancellationToken: ct);
 
         return Result<SendDemandeResponsesResult>.Success(new SendDemandeResponsesResult(approved.Count, declined.Count));
+    }
+
+    // A proche-scout relationship that means brother/sister (so the two children share parents → siblings).
+    // Cousins/other relatives are excluded (they don't share the household's guardians).
+    private static bool IsSiblingRelation(string? relationship)
+    {
+        if (string.IsNullOrWhiteSpace(relationship)) return false;
+        var r = TextNormalization.RemoveDiacritics(relationship).ToLowerInvariant();
+        return r.Contains("frere") || r.Contains("soeur") || r.Contains("broth") || r.Contains("sist")
+            || r.Contains("jumeau") || r.Contains("jumelle");
     }
 
     private async Task<Guardian?> FindExistingGuardian(ApplicantGuardian ag, CancellationToken ct)

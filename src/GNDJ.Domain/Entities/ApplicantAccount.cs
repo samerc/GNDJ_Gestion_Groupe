@@ -23,6 +23,9 @@ public class ApplicantAccount : BaseEntity
     public string? AddressCountry { get; set; }
     public string? AddressCity { get; set; }
     public string? AddressDetails { get; set; }
+    // Household primary contact email (one per family) — chosen in the wizard, copied to each converted
+    // member's PrimaryContactEmail so member-facing mail has a designated address.
+    public string? PrimaryContactEmail { get; set; }
 
     public bool IsActive { get; set; } = true;
 
