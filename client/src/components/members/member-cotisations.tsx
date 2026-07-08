@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Tip } from '@/components/ui/tooltip'
-import { Plus, Download, Pencil, Trash2, Receipt, Ban } from 'lucide-react'
+import { Plus, Download, Pencil, Trash2, Receipt, Ban, CheckCircle2 } from 'lucide-react'
 
 const CURRENCY_OPTIONS = [
   { value: 'USD', label: 'USD ($)' },
@@ -61,6 +61,9 @@ export function MemberCotisations({ memberId, memberName, bare }: Props) {
   // Exemption is per current scout year; detected from the marker row's willNotPay flag.
   const year = currentScoutYear ?? '2025-2026'
   const isExempt = !!cotisations?.some(c => c.scoutYear === year && c.willNotPay)
+  // Paid this year = a real cotisation (with payment lines) exists for the current year. When paid, the
+  // status reads "payée" and the exempt toggle is hidden — a payment supersedes the expected/exempt state.
+  const isPaidThisYear = !!cotisations?.some(c => c.scoutYear === year && c.payments.length > 0)
   const toggleExempt = async () => {
     try {
       await exemptMutation.mutateAsync({ memberId, scoutYear: year, willNotPay: !isExempt })
@@ -182,15 +185,25 @@ export function MemberCotisations({ memberId, memberName, bare }: Props) {
   const content = (
     <>
           {hasPermission(PERMISSIONS.COTISATIONS_EDIT) && (
-            <div className="mb-3 flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
-              <span className="flex items-center gap-2 text-sm">
-                <Ban className={`h-4 w-4 ${isExempt ? 'text-slate-600' : 'text-muted-foreground'}`} />
-                {isExempt ? <span className="text-slate-700">Ne paiera pas pour {year}</span> : <span className="text-muted-foreground">Cotisation attendue pour {year}</span>}
-              </span>
-              <Button variant="outline" size="sm" disabled={exemptMutation.isPending} onClick={toggleExempt}>
-                {isExempt ? "Retirer l'exemption" : 'Marquer « ne paiera pas »'}
-              </Button>
-            </div>
+            // Current-year status: paid (a payment exists) → exempt (marked ne paiera pas) → expected.
+            // A payment supersedes everything, so when paid we show "payée" and hide the exempt toggle.
+            isPaidThisYear ? (
+              <div className="mb-3 flex items-center justify-between rounded-md border border-green-200 bg-green-50/60 px-3 py-2">
+                <span className="flex items-center gap-2 text-sm text-green-700">
+                  <CheckCircle2 className="h-4 w-4" />Cotisation payée pour {year}
+                </span>
+              </div>
+            ) : (
+              <div className="mb-3 flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
+                <span className="flex items-center gap-2 text-sm">
+                  <Ban className={`h-4 w-4 ${isExempt ? 'text-slate-600' : 'text-muted-foreground'}`} />
+                  {isExempt ? <span className="text-slate-700">Ne paiera pas pour {year}</span> : <span className="text-muted-foreground">Cotisation attendue pour {year}</span>}
+                </span>
+                <Button variant="outline" size="sm" disabled={exemptMutation.isPending} onClick={toggleExempt}>
+                  {isExempt ? "Retirer l'exemption" : 'Marquer « ne paiera pas »'}
+                </Button>
+              </div>
+            )
           )}
           {(() => {
             // Drop exemption marker rows (no payments) — only show actual paid cotisations.
