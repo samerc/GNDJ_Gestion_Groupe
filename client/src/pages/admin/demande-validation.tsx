@@ -653,6 +653,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, hasPrev,
             <FieldRow label="Groupe sanguin" value={d.bloodType} />
             <FieldRow label="Classe" value={d.classe} />
             <FieldRow label="Section" value={d.section} />
+            <FieldRow label="Demande précédente" value={d.hasPreviousDemande ? `Oui${d.previousDemandeYear ? ` (${d.previousDemandeYear})` : ''}` : 'Non'} />
           </Grid>
         </Section>
 

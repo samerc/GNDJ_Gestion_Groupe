@@ -25,6 +25,8 @@ export interface DemandeReview {
   phoneNumber: string | null
   email: string | null
   parentNotes: string | null
+  hasPreviousDemande?: boolean
+  previousDemandeYear?: string | null
   status: string
   decidedUnitId: string | null
   decidedUnitName: string | null
