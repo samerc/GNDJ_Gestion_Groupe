@@ -27,6 +27,13 @@ const RELATIONSHIP_OPTIONS = [
   { value: 'Autre', label: 'Autre' },
 ]
 
+// Display label for a stored relationship type, matched accent/case-insensitively so imported values
+// without accents (e.g. "Pere"/"Mere") still render as "Père"/"Mère". Falls back to the raw value.
+const normRel = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+function relationshipLabel(value: string): string {
+  return RELATIONSHIP_OPTIONS.find(r => normRel(r.value) === normRel(value))?.label ?? value
+}
+
 // "Famille" tab of the member detail page: parents/tutors (guardians) linked to this member,
 // with their phones/emails. Guardians are SHARED entities — siblings reuse the same guardian
 // record — so "Ajouter" offers two modes: search an existing guardian and LINK it (re-uses the
@@ -169,7 +176,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
                 <div className="flex items-center gap-2">
                   <Users2 className="h-4 w-4" />
                   <CardTitle className="text-base">{gl.guardian.firstName} {gl.guardian.lastName}</CardTitle>
-                  <Badge variant="outline">{RELATIONSHIP_OPTIONS.find(r => r.value === gl.relationshipType)?.label ?? gl.relationshipType}</Badge>
+                  <Badge variant="outline">{relationshipLabel(gl.relationshipType)}</Badge>
                   {gl.guardian.isDeceased && <Badge variant="secondary">Décédé(e)</Badge>}
                   {gl.isPrimaryContact && <Badge>Contact principal</Badge>}
                   {gl.isEmergencyContact && <Badge variant="destructive">Urgence</Badge>}
