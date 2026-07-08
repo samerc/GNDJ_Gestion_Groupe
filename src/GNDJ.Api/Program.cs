@@ -328,6 +328,30 @@ if (cloudflareEnabled)
 app.UseResponseCompression();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+// Content-Security-Policy for the served SPA. Tuned to what the app actually loads (verified):
+//   script-src 'self'        — the Vite build emits only external hashed modules (no inline scripts)
+//   style-src 'unsafe-inline'— React inline style={{…}} attributes + Tailwind need it (no nonce with a static build)
+//   img-src blob: data: https: — member photos are blob: object URLs; CMS/News content can embed external images
+//   connect-src 'self'       — the whole API is same-origin; there are no external fetch/CDN origins
+//   frame-ancestors 'none'   — clickjacking guard (reinforces X-Frame-Options)
+// Applied to every response; harmless on API JSON (CSP governs document resource loading).
+const string csp =
+    "default-src 'self'; " +
+    "base-uri 'self'; " +
+    "object-src 'none'; " +
+    "frame-ancestors 'none'; " +
+    "form-action 'self'; " +
+    "script-src 'self'; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "img-src 'self' data: blob: https:; " +
+    "font-src 'self'; " +
+    "media-src 'self'; " +
+    "connect-src 'self'";
+
+// CSP is enforced outside Development only: the dev-only Swagger UI relies on inline scripts/styles that a
+// strict script-src/style-src would block. Production doesn't serve Swagger, so it gets the full policy.
+var applyCsp = !app.Environment.IsDevelopment();
+
 // Security headers + static asset caching
 app.Use(async (context, next) =>
 {
@@ -335,6 +359,8 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     context.Response.Headers["X-Permitted-Cross-Domain-Policies"] = "none";
+    if (applyCsp)
+        context.Response.Headers["Content-Security-Policy"] = csp;
     await next();
 });
 
