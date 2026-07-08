@@ -335,7 +335,16 @@ public class DecideDemandeCommandHandler(IApplicationDbContext context, ICurrent
 
         var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id, ct);
         if (demande is null) return Result<bool>.Failure("Demande introuvable.");
-        if (demande.ResponseSentAt is not null) return Result<bool>.Failure("La réponse a déjà été envoyée — décision verrouillée.");
+        // A response already went out. Re-deciding is allowed ONLY when no member was created (a declined
+        // applicant the CG now wants to reconsider): clearing ResponseSentAt re-enters it into the pending
+        // queue so the next "Envoyer les réponses" processes just this one (an individual re-send). A
+        // converted demande (member exists) stays locked — un-converting is out of scope.
+        if (demande.ResponseSentAt is not null)
+        {
+            if (demande.CreatedMemberId is not null)
+                return Result<bool>.Failure("Un membre a déjà été créé pour cette demande — décision verrouillée.");
+            demande.ResponseSentAt = null;
+        }
 
         if (request.Status == DemandeStatus.Approved)
         {

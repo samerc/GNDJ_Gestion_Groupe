@@ -184,8 +184,9 @@ export default function DemandeValidationPage() {
   const detailIndex = rows.findIndex((d) => d.id === detailId)
   const detail = detailIndex >= 0 ? rows[detailIndex] : null
 
-  // Selectable = visible & not locked (a sent response can no longer be re-decided).
-  const selectableIds = useMemo(() => rows.filter((d) => !d.responseSentAt).map((d) => d.id), [rows])
+  // Selectable = visible & not locked. Only a CONVERTED demande (member created) is locked; a sent
+  // *declined* one can be re-opened (re-deciding it clears the sent flag → re-enters the send queue).
+  const selectableIds = useMemo(() => rows.filter((d) => !d.createdMemberId).map((d) => d.id), [rows])
   const selectedCount = selected.size
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id))
   const someSelected = selectedCount > 0 && !allSelected
@@ -400,7 +401,7 @@ export default function DemandeValidationPage() {
             </TableHeader>
             <TableBody>
               {rows.map((d) => {
-                const locked = !!d.responseSentAt
+                const locked = !!d.createdMemberId // only a converted demande is locked (sent-declined can be re-opened)
                 const si = statusInfo(d)
                 const isSibling = (accountCounts[d.accountId] ?? 0) > 1 // amber-tinted row when same account has ≥2 demandes
                 const miss = missingInfo(d)
@@ -613,7 +614,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, hasPrev,
   onNext: () => void
   onDecide: (d: DemandeReview, status: 'Approved' | 'Declined', unitId: string | null, note: string | null) => Promise<boolean>
 }) {
-  const locked = !!d.responseSentAt
+  const locked = !!d.createdMemberId // only a converted demande is locked; a sent-declined one can be re-opened
   const suggested = useMemo(() => suggestUnit(d, occupancy), [d, occupancy])
   // Local decision draft: pre-fill unit with the already-decided unit, else the suggestion.
   const [unit, setUnit] = useState(d.decidedUnitId ?? suggested?.unitId ?? '')
