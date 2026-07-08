@@ -17,7 +17,8 @@ public class GenerateBulkCardsQueryHandler(
 {
     public async ValueTask<Result<byte[]>> Handle(GenerateBulkCardsQuery request, CancellationToken ct)
     {
-        if (!currentUser.IsSuperAdmin && !currentUser.AuthorizedUnitIds.Contains(request.UnitId))
+        // Leader-only report (multi-member PII): members.edit + unit scope, not bare co-unit membership.
+        if (!currentUser.IsSuperAdmin && !(currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit) && currentUser.AuthorizedUnitIds.Contains(request.UnitId)))
             return Result<byte[]>.Failure("Accès non autorisé.");
 
         var unit = await context.Units.Where(u => u.Id == request.UnitId).Select(u => u.Name).FirstOrDefaultAsync(ct);

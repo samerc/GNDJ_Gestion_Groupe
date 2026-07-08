@@ -30,6 +30,10 @@ static class GuardianAccessHelper
     public static async Task<bool> CanAccessMember(IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
     {
         if (currentUser.IsSuperAdmin) return true;
+        if (currentUser.MemberId == memberId) return true; // a member can see their own family
+        // Another member's guardians (parent phones/emails) is leader-only: require members.edit, not
+        // bare co-unit membership (a read-only youth carries their own unit in AuthorizedUnitIds).
+        if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit)) return false;
         var authorizedUnitIds = currentUser.AuthorizedUnitIds;
         return await context.MemberAssignments.AnyAsync(a =>
             a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId), ct);
@@ -38,6 +42,8 @@ static class GuardianAccessHelper
     public static async Task<bool> CanAccessGuardian(IApplicationDbContext context, ICurrentUserService currentUser, Guid guardianId, CancellationToken ct)
     {
         if (currentUser.IsSuperAdmin) return true;
+        // Guardian mutations are leader actions (controllers also gate on members.edit) — enforce it here too.
+        if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit)) return false;
         var authorizedUnitIds = currentUser.AuthorizedUnitIds;
         // Guardian is accessible if linked to at least one member the user can see
         return await context.GuardianLinks.AnyAsync(gl =>

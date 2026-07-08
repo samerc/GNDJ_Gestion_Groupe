@@ -52,8 +52,10 @@ public class GetUnitDashboardQueryHandler : IRequestHandler<GetUnitDashboardQuer
 
     public async ValueTask<UnitDashboardDto?> Handle(GetUnitDashboardQuery request, CancellationToken cancellationToken)
     {
-        // Access check
-        if (!_currentUser.IsSuperAdmin && !_currentUser.AuthorizedUnitIds.Contains(request.UnitId))
+        // Access check: the unit-leader dashboard is a leader roster (co-members' contacts/photos), so it
+        // requires members.edit + unit scope — not bare co-unit membership. A read-only youth carries their
+        // own unit in AuthorizedUnitIds and would otherwise see the whole unit roster.
+        if (!_currentUser.IsSuperAdmin && !(_currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit) && _currentUser.AuthorizedUnitIds.Contains(request.UnitId)))
             return null;
 
         var unit = await _context.Units

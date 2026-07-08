@@ -17,9 +17,11 @@ public class GenerateMemberCardQueryHandler(
 {
     public async ValueTask<Result<byte[]>> Handle(GenerateMemberCardQuery request, CancellationToken ct)
     {
-        // Access check
+        // Access check: own card always; another member's card is leader-only (members.edit) + unit-scoped.
         if (!currentUser.IsSuperAdmin && currentUser.MemberId != request.MemberId)
         {
+            if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit))
+                return Result<byte[]>.Failure("Accès non autorisé.");
             var canAccess = await context.MemberAssignments.AnyAsync(a =>
                 a.MemberId == request.MemberId && a.EndDate == null && currentUser.AuthorizedUnitIds.Contains(a.UnitId), ct);
             if (!canAccess) return Result<byte[]>.Failure("Accès non autorisé.");

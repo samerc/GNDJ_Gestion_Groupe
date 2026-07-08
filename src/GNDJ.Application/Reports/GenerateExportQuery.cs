@@ -39,7 +39,8 @@ public class GenerateExportQueryHandler(
 {
     public async ValueTask<Result<ExportResult>> Handle(GenerateExportQuery request, CancellationToken ct)
     {
-        if (!currentUser.IsSuperAdmin && !currentUser.AuthorizedUnitIds.Contains(request.UnitId))
+        // Leader-only export (multi-member PII): members.edit + unit scope, not bare co-unit membership.
+        if (!currentUser.IsSuperAdmin && !(currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit) && currentUser.AuthorizedUnitIds.Contains(request.UnitId)))
             return Result<ExportResult>.Failure("Accès non autorisé.");
 
         var unit = await context.Units

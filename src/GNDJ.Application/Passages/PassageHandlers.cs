@@ -47,6 +47,9 @@ static class PassageAccessHelper
     public static async Task<bool> CanAccessUnit(IApplicationDbContext context, ICurrentUserService currentUser, Guid unitId, CancellationToken ct)
     {
         if (currentUser.IsSuperAdmin) return true;
+        // Passage is a leader tool (co-members' proposed transitions). A read-only youth holds passage.view
+        // + their own unit in AuthorizedUnitIds, so require the members.edit leader signal, not bare membership.
+        if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit)) return false;
         return currentUser.AuthorizedUnitIds.Contains(unitId);
     }
 }

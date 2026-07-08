@@ -26,6 +26,10 @@ static class CotisationAccessHelper
     {
         if (currentUser.IsSuperAdmin) return true;
         if (currentUser.MemberId == memberId) return true;
+        // Cross-member access is a leader action — require members.edit, not bare co-unit membership.
+        // A read-only youth carries their own unit in AuthorizedUnitIds, so a unit-only check would leak
+        // co-members' cotisations/receipts.
+        if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit)) return false;
         var authorizedUnitIds = currentUser.AuthorizedUnitIds;
         return await context.MemberAssignments.AnyAsync(a =>
             a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId), ct);
@@ -432,6 +436,10 @@ public class GetUnpaidCotisationsQueryHandler(IApplicationDbContext context, ICu
 
         if (!currentUser.IsSuperAdmin)
         {
+            // Leader-only list (co-members' names + who hasn't paid). A read-only youth holds cotisations.view
+            // + their own unit, so require members.edit — otherwise return nothing.
+            if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit))
+                return [];
             var authorizedUnitIds = currentUser.AuthorizedUnitIds;
             query = query.Where(a => authorizedUnitIds.Contains(a.UnitId));
         }

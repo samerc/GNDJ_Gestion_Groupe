@@ -1411,6 +1411,35 @@ Reworked the enrollment→member flow end-to-end (all on main, pushed; dev-only 
   `ApplicantAccount.HouseholdLookup*` (migration `AddApplicantHouseholdLookup`); Request/VerifyHouseholdLookup +
   endpoints; seeded `household_lookup_code` template. **Entry B (from a member's profile) deferred.**
 
+### Member-data IDOR sweep — youth can't read other members (2026-07-09)
+Root cause: the **read-only youth** profile is `Permissions.All.Where(.view)` — so a youth holds EVERY `.view`
+perm (members/documents/cotisations/progression/passage.view) — AND `AuthAccess` puts their OWN unit in
+`AuthorizedUnitIds` (all active-assignment units, role-agnostic). So any access check gated purely on a
+`.view` perm or `AuthorizedUnitIds.Contains(unit)` let a plain youth read **co-unit members'** data via the
+API (the frontend hid it, but the endpoints were open). Fixed by requiring the **`members.edit` leader signal**
+(held by chef-unite/chef-de-groupe/assoc-admin/super-admin; NOT youth or chef-équipe) for every CROSS-member /
+unit-wide read — super-admin and own-record (`MemberId == memberId`) bypasses preserved:
+- **Documents** (commit fa85ec2): `CanAccessMember` non-own → members.edit; matrix/zip/expiring → new
+  `IsUnitLeaderFor` (members.edit + unit). Status edit was already `documents.approve` (youth lack it).
+- **Cotisations**: `CanAccessMember` non-own → members.edit (GetMemberCotisations + receipt PDF); `unpaid`
+  list (member names) → members.edit else empty. `summary` left (aggregate counts, no personal data).
+- **Guardians**: `CanAccessMember` gained an own bypass + members.edit; `CanAccessGuardian` → members.edit
+  (mutations were already members.edit-gated at the controller).
+- **Member detail** (`GetMemberByIdQuery`, full profile incl. medical/contacts) + **members LIST**
+  (`GetMembersQuery`) + **photo** (`MembersController.GetPhoto`) → members.edit for non-own / listing.
+- **Progression**, **CustomFields** (had NO check — added ICurrentUserService + own/leader gate),
+  **Assignments** (`GetAssignmentsQuery` — non-leader restricted to OWN rows; leader keeps full cross-unit
+  history), **Passages** (`CanAccessUnit` → members.edit).
+- **Reports** (trombinoscope/roster/export/bulk-cards → members.edit + unit; member-card keeps own-bypass) +
+  **unit dashboard** (`GetUnitDashboardQuery` → members.edit + unit). **Camp** already gated on
+  camp.grade/camp.manage (not `.view`, so youth never had it). Admin dashboard already on maitrise.manage.
+- Pattern used: `currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit)`. Non-leaders get
+  denied (400/403/404) or an EMPTY result (list/customfields/assignments/unpaid → 200 `[]`, no data).
+- **Verified live** with a real read-only youth (co-unit member → all denied/empty; own data → 200; status
+  edit → 403), a **pure chef-unite** (own unit → full access incl. list=73/detail/cotisations/guardians/
+  progression/customfields/dashboard/matrix/passages; ANOTHER unit → all denied), and super-admin (200). Build
+  clean. Backend-only, DEV until next deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

@@ -35,6 +35,12 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
         var isGroupLevel = _currentUser.IsSuperAdmin
             || _currentUser.Permissions.Contains(Domain.Enums.Permissions.MaitriseManage);
 
+        // Only member managers (super-admin / Chef de Groupe / Chef d'unité — i.e. members.edit) may list
+        // members. A read-only youth holds members.view + their own unit in AuthorizedUnitIds, so without
+        // this gate they could enumerate co-members' identities and contacts. Non-managers → empty list.
+        if (!_currentUser.IsSuperAdmin && !_currentUser.Permissions.Contains(Domain.Enums.Permissions.MembersEdit))
+            query = query.Where(_ => false);
+
         if (isAlumni)
         {
             // Alumni view: members who HAD an assignment in the unit that has ended and who
@@ -195,6 +201,10 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
         {
             if (_currentUser.MemberId != request.Id)
             {
+                // Viewing ANOTHER member's full profile (medical, allergies, contacts) is a leader action:
+                // require members.edit, not bare co-unit membership. A read-only youth carries their own
+                // unit in AuthorizedUnitIds, so a unit-only check would leak every co-member's dossier.
+                if (!_currentUser.Permissions.Contains(Domain.Enums.Permissions.MembersEdit)) return null;
                 var canAccess = await _context.MemberAssignments.AnyAsync(a =>
                     a.MemberId == request.Id && a.EndDate == null && _currentUser.AuthorizedUnitIds.Contains(a.UnitId), cancellationToken);
                 if (!canAccess) return null;

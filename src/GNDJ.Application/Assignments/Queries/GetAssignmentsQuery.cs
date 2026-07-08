@@ -41,16 +41,26 @@ public class GetAssignmentsQueryHandler : IRequestHandler<GetAssignmentsQuery, P
         if (!_currentUser.IsSuperAdmin)
         {
             var authorizedUnitIds = _currentUser.AuthorizedUnitIds;
+            // Only leaders (members.edit) may see OTHER members' assignments. A read-only youth holds
+            // assignments.view + their own unit in AuthorizedUnitIds, so a unit-only scope would show them
+            // every co-member's assignment rows — restrict non-leaders to their OWN assignments.
+            var isLeader = _currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit);
+            var myId = _currentUser.MemberId;
 
             var canSeeFullHistory = request.MemberId.HasValue
                 && (_currentUser.MemberId == request.MemberId.Value
-                    || await _context.MemberAssignments.AnyAsync(a =>
+                    || (isLeader && await _context.MemberAssignments.AnyAsync(a =>
                            a.MemberId == request.MemberId.Value
                            && a.EndDate == null
-                           && authorizedUnitIds.Contains(a.UnitId), cancellationToken));
+                           && authorizedUnitIds.Contains(a.UnitId), cancellationToken)));
 
             if (!canSeeFullHistory)
-                query = query.Where(a => authorizedUnitIds.Contains(a.UnitId));
+            {
+                if (isLeader)
+                    query = query.Where(a => authorizedUnitIds.Contains(a.UnitId));
+                else
+                    query = query.Where(a => a.MemberId == myId); // non-leader: own assignments only
+            }
         }
 
         if (request.MemberId.HasValue)

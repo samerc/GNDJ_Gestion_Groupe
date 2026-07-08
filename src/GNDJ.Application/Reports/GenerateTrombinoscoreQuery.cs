@@ -22,8 +22,9 @@ public class GenerateTrombinoscoreQueryHandler(
 {
     public async ValueTask<Result<byte[]>> Handle(GenerateTrombinoscoreQuery request, CancellationToken ct)
     {
-        // Access check
-        if (!currentUser.IsSuperAdmin && !currentUser.AuthorizedUnitIds.Contains(request.UnitId))
+        // Leader-only report (multi-member PII): members.edit + unit scope, not bare co-unit membership
+        // (a read-only youth carries their own unit in AuthorizedUnitIds).
+        if (!currentUser.IsSuperAdmin && !(currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit) && currentUser.AuthorizedUnitIds.Contains(request.UnitId)))
             return Result<byte[]>.Failure("Accès non autorisé à cette unité.");
 
         var unit = await context.Units
