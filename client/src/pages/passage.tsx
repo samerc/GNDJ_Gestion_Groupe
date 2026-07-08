@@ -12,7 +12,7 @@ import {
 import { useMembers } from '@/services/member-service'
 import { useAssignments } from '@/services/assignment-service'
 import { useUnits } from '@/services/unit-service'
-import { useTeams } from '@/services/team-service'
+import { useTeams, teamsForSelect } from '@/services/team-service'
 import { useFunctionalRoles } from '@/services/role-service'
 import apiClient from '@/lib/api-client'
 import { parseApiError } from '@/lib/error-utils'
@@ -116,7 +116,7 @@ export default function PassagePage() {
 
   // Teams of the destination unit currently chosen in the propose dialog (only relevant when staying in-unit).
   const { data: teamsData } = useTeams({ unitId: propUnitId || undefined, pageSize: 100 })
-  const teams = teamsData?.items ?? []
+  const teams = teamsForSelect(teamsData?.items) // Maîtrise first, then the rest
 
   // Join members with their active assignment (current unit/team/role) and any existing passage proposal.
   const memberRows: MemberRow[] = useMemo(() => {

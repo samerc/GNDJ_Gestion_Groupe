@@ -3,7 +3,7 @@ import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { useAssignments, useCreateAssignment, useUpdateAssignment, useEndAssignment, useDeleteAssignment, useFunctionalRoles, type AssignmentDto, type AssignmentFormData } from '@/services/assignment-service'
 import { useUnits } from '@/services/unit-service'
-import { useTeams } from '@/services/team-service'
+import { useTeams, teamsForSelect } from '@/services/team-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RequiredLabel } from '@/components/shared/required-label'
@@ -263,7 +263,7 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
                     <SelectTrigger><SelectValue placeholder="Aucune équipe" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Aucune équipe</SelectItem>
-                      {teams?.items.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                      {teamsForSelect(teams?.items).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>

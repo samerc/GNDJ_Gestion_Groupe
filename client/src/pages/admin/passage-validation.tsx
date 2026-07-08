@@ -19,7 +19,7 @@ import {
   type PassageDto,
 } from '@/services/passage-service'
 import { useUnits } from '@/services/unit-service'
-import { useTeams } from '@/services/team-service'
+import { useTeams, teamsForSelect } from '@/services/team-service'
 import { useFunctionalRoles } from '@/services/role-service'
 import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
@@ -86,7 +86,7 @@ export default function PassageValidationPage() {
   const { data: rolesData } = useFunctionalRoles()
   const roles = rolesData ?? []
   const { data: teamsData } = useTeams({ unitId: editFinalUnitId || undefined, pageSize: 100 })
-  const teams = teamsData?.items ?? []
+  const teams = teamsForSelect(teamsData?.items) // Maîtrise first, then the rest
 
   const isLoading = statusLoading || summaryLoading || passagesLoading
   const passageList = passages ?? []

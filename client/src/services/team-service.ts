@@ -30,6 +30,14 @@ export interface TeamFormData {
   isMaitrise?: boolean
 }
 
+// Order teams for a picker dropdown: the Maîtrise team(s) first, then the rest in their existing
+// order (Array.sort is stable, so non-maîtrise teams keep their server order). "Aucune équipe" is a
+// static option the dropdowns prepend themselves — this only orders the real teams after it.
+export function teamsForSelect(teams: TeamDto[] | undefined): TeamDto[] {
+  if (!teams) return []
+  return [...teams].sort((a, b) => Number(b.isMaitrise) - Number(a.isMaitrise))
+}
+
 // Paginated teams list (GET /teams); filter by unitId + search. Keyed ['teams', params].
 export function useTeams(params: { unitId?: string; search?: string; page?: number; pageSize?: number }) {
   return useQuery({
