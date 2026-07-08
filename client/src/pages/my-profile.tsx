@@ -16,8 +16,6 @@ import { SearchableSelect } from '@/components/shared/searchable-select'
 import { CitySelect } from '@/components/shared/city-select'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
-import { MemberDocuments } from '@/components/members/member-documents'
-import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
 import { useSettingArray, useSettingValue, useCities } from '@/services/settings-service'
@@ -201,11 +199,8 @@ export default function MyProfilePage() {
           <TabsTrigger value="contact">Contact ({member.phones.length + member.emails.length + member.addresses.length})</TabsTrigger>
           <TabsTrigger value="assignments">Unités / Fonctions</TabsTrigger>
           <TabsTrigger value="famille">Famille</TabsTrigger>
-          <TabsTrigger value="medical">Médical</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="cotisations">Cotisations</TabsTrigger>
+          <TabsTrigger value="medical">Médical &amp; infos</TabsTrigger>
           <TabsTrigger value="progression">Progression</TabsTrigger>
-          <TabsTrigger value="custom">Infos complémentaires</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-4">
@@ -315,22 +310,12 @@ export default function MyProfilePage() {
         <TabsContent value="assignments"><MemberAssignments memberId={memberId} memberName={`${member.firstName} ${member.lastName}`} readOnly={!canManageOwnAssignments} /></TabsContent>
         <TabsContent value="famille"><MemberGuardians memberId={memberId} /></TabsContent>
 
-        <TabsContent value="documents">
-          <MemberDocuments memberId={memberId} isOwnProfile />
-        </TabsContent>
-
-        <TabsContent value="cotisations">
-          <MemberCotisations memberId={memberId} />
-        </TabsContent>
-
         <TabsContent value="progression">
           <MemberProgression memberId={memberId} />
         </TabsContent>
 
-        <TabsContent value="custom">
-          <MemberCustomFields memberId={memberId} />
-        </TabsContent>
-
+        {/* Médical + Infos complémentaires merged into one tab. The medical notes use the shared
+            Modifier form (activeTab === 'medical'); the custom fields have their own inline editing. */}
         <TabsContent value="medical" className="space-y-4">
           <Card>
             <CardHeader><CardTitle>Informations médicales</CardTitle></CardHeader>
@@ -348,6 +333,7 @@ export default function MyProfilePage() {
               )}
             </CardContent>
           </Card>
+          <MemberCustomFields memberId={memberId} />
         </TabsContent>
       </Tabs>
 

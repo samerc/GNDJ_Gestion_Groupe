@@ -70,7 +70,9 @@ const leaderNavItems = [
   { path: '/passage', label: 'Passage des membres', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_PROPOSE },
   { path: '/photo-session', label: 'Session photo', icon: Camera, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/camp', label: 'Camp BP', icon: Tent, permission: PERMISSIONS.CAMP_GRADE },
-  { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: null },
+  // Rentrée = a leader checklist; regular youth members have no tasks, so gate it on members.edit
+  // (leaders) like "Mon unité" rather than showing it to everyone.
+  { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: PERMISSIONS.MEMBERS_EDIT },
 ]
 
 type AdminGroup = {
