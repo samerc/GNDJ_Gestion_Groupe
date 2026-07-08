@@ -10,7 +10,12 @@ namespace GNDJ.Application.Auth.Commands.RequestPasswordReset;
 // Starts the "forgot password" flow. The submitted value is the account USERNAME (imported/converted
 // members log in with a synthetic firstname.lastname@scouts.gndj identifier — never a real inbox), so
 // the reset LINK is emailed to the member's real contact address(es), resolved below, NOT to the username.
-public record RequestPasswordResetCommand(string Email) : IRequest<Result<bool>>;
+public record RequestPasswordResetCommand(string Email) : IRequest<Result<ForgotPasswordResult>>;
+
+// Outcome shown to the user: whether the account was found, and the masked address(es) the link was sent to.
+// (Deliberately NOT anti-enumeration — this is an internal group tool where confirming the account/target
+// is more useful than hiding existence; the product owner asked for an explicit found / not-found message.)
+public record ForgotPasswordResult(bool Found, List<string> SentTo);
 
 public class RequestPasswordResetCommandValidator : AbstractValidator<RequestPasswordResetCommand>
 {
@@ -22,17 +27,17 @@ public class RequestPasswordResetCommandValidator : AbstractValidator<RequestPas
 public class RequestPasswordResetCommandHandler(
     IApplicationDbContext context,
     IEmailService emailService
-) : IRequestHandler<RequestPasswordResetCommand, Result<bool>>
+) : IRequestHandler<RequestPasswordResetCommand, Result<ForgotPasswordResult>>
 {
-    public async ValueTask<Result<bool>> Handle(RequestPasswordResetCommand request, CancellationToken ct)
+    public async ValueTask<Result<ForgotPasswordResult>> Handle(RequestPasswordResetCommand request, CancellationToken ct)
     {
         var user = await context.Users
             .Include(u => u.Member)
             .FirstOrDefaultAsync(u => u.Email == request.Email && u.IsActive, ct);
 
-        // Always return success to prevent user enumeration
+        // Account not found (or inactive) — tell the caller plainly.
         if (user is null)
-            return Result<bool>.Success(true);
+            return Result<ForgotPasswordResult>.Success(new ForgotPasswordResult(false, []));
 
         // Generate a secure token
         var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
@@ -70,7 +75,21 @@ public class RequestPasswordResetCommandHandler(
             // Don't fail the request if email fails — token is still saved
         }
 
-        return Result<bool>.Success(true);
+        // Account found — report the masked address(es) the link was sent to (empty if none on file).
+        return Result<ForgotPasswordResult>.Success(
+            new ForgotPasswordResult(true, recipients.Select(MaskEmail).ToList()));
+    }
+
+    // Masks an email for display: keeps the first local char + the full domain, e.g.
+    // "samer@fancyshark.com" → "s***@fancyshark.com". Confirms delivery target without fully exposing it.
+    private static string MaskEmail(string email)
+    {
+        var at = email.IndexOf('@');
+        if (at <= 0) return "***";
+        var local = email[..at];
+        var domain = email[at..];
+        var head = local.Length <= 1 ? local : local[0].ToString();
+        return $"{head}***{domain}";
     }
 
     // Delivery targets for the reset link: [PrimaryContactEmail] if set, else the distinct union of the

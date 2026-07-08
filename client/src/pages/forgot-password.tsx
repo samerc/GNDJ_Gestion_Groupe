@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { useForgotPassword } from '@/services/email-service'
+import { useForgotPassword, type ForgotPasswordResult } from '@/services/email-service'
 import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,12 +8,13 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { HoneypotField } from '@/components/shared/honeypot-field'
 
-// "Mot de passe oublié" — anonymous step 1 of password reset: enter email → backend
-// emails a reset link (token). Reached from the login page.
+// "Mot de passe oublié" — anonymous step 1 of password reset: enter username → backend resolves the
+// member's real contact email and sends a reset link there. Reports whether the account was found +
+// the masked address the link went to (not anti-enumeration — an internal group tool, product owner's choice).
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [website, setWebsite] = useState('') // honeypot — must stay empty; bots filling it are rejected server-side
-  const [sent, setSent] = useState(false) // once true, show the generic confirmation (no user-enumeration)
+  const [result, setResult] = useState<ForgotPasswordResult | null>(null) // set once the request succeeds
   const [error, setError] = useState('')
   const mutation = useForgotPassword()
 
@@ -21,12 +22,15 @@ export default function ForgotPasswordPage() {
     e.preventDefault()
     setError('')
     try {
-      await mutation.mutateAsync({ email, website })
-      setSent(true)
+      const res = await mutation.mutateAsync({ email, website })
+      setResult(res)
     } catch (err) {
       setError(parseApiError(err))
     }
   }
+
+  // Account found + a link was sent to at least one address.
+  const sentToSomewhere = result?.found && result.sentTo.length > 0
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted p-4">
@@ -40,10 +44,21 @@ export default function ForgotPasswordPage() {
           <CardDescription>Entrez votre nom d'utilisateur. Le lien de réinitialisation sera envoyé à l'adresse courriel enregistrée sur votre dossier.</CardDescription>
         </CardHeader>
         <CardContent>
-          {sent ? (
+          {sentToSomewhere ? (
             <div className="space-y-4">
               <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-800">
-                Si un compte existe, un lien de réinitialisation a été envoyé à l'adresse courriel enregistrée sur le dossier.
+                Compte trouvé. Un lien de réinitialisation a été envoyé à&nbsp;
+                <span className="font-medium">{result!.sentTo.join(', ')}</span>.
+              </div>
+              <Link to="/login" className="block text-center text-sm text-primary hover:underline">
+                Retour a la connexion
+              </Link>
+            </div>
+          ) : result?.found ? (
+            // Account exists but has no email on file — can't deliver the link.
+            <div className="space-y-4">
+              <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+                Compte trouvé, mais aucune adresse courriel n'est enregistrée sur le dossier. Contactez un responsable pour réinitialiser votre mot de passe.
               </div>
               <Link to="/login" className="block text-center text-sm text-primary hover:underline">
                 Retour a la connexion
@@ -52,6 +67,11 @@ export default function ForgotPasswordPage() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <HoneypotField value={website} onChange={setWebsite} />
+              {result && !result.found && (
+                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                  Compte introuvable. Vérifiez votre nom d'utilisateur.
+                </div>
+              )}
               {error && (
                 <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
               )}

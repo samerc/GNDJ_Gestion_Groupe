@@ -92,9 +92,14 @@ export function useDeleteEmailTemplate() {
 }
 
 // Auth
-// POST /auth/forgot-password → emails a reset token (website = honeypot field).
+// Result of a forgot-password request: whether the account was found + the masked address(es) the link went to.
+export interface ForgotPasswordResult { found: boolean; sentTo: string[] }
+// POST /auth/forgot-password → emails a reset token (website = honeypot field). Returns { found, sentTo }.
 export function useForgotPassword() {
-  return useMutation({ mutationFn: (data: { email: string; website?: string }) => apiClient.post('/auth/forgot-password', data) })
+  return useMutation({
+    mutationFn: (data: { email: string; website?: string }) =>
+      apiClient.post<ForgotPasswordResult>('/auth/forgot-password', data).then(r => r.data),
+  })
 }
 
 // POST /auth/reset-password → set new password via emailed token (website = honeypot field).

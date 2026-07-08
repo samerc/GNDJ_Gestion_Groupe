@@ -87,15 +87,15 @@ public class AuthController : BaseApiController
     }
 
     /// <summary>Request a password-reset email.</summary>
-    /// <response code="200">Generic confirmation — always returned, never revealing whether the account exists (anti-enumeration).</response>
+    /// <response code="200">Reports whether the account was found and the masked address(es) the link was sent to.</response>
     [HttpPost("forgot-password")]
     [AllowAnonymous]
     [EnableRateLimiting("forms")]
     public async Task<IActionResult> ForgotPassword([FromBody] RequestPasswordResetCommand command)
     {
-        // Always 200 with a generic message (never reveals whether the account exists) — anti-enumeration.
-        await Mediator.Send(command);
-        return Ok(new { message = "Si un compte existe avec cette adresse, un email de réinitialisation a été envoyé." });
+        // Returns { found, sentTo[] } so the UI can confirm the account + masked target (or say "not found").
+        var result = await Mediator.Send(command);
+        return Ok(result.Value);
     }
 
     /// <summary>Set a new password using the reset token from the email link.</summary>
