@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Tip } from '@/components/ui/tooltip'
-import { Plus, Download, Pencil, Trash2, Receipt, Ban, CheckCircle2 } from 'lucide-react'
+import { Plus, Download, Pencil, Trash2, Receipt, Ban, CheckCircle2, AlertTriangle } from 'lucide-react'
 
 const CURRENCY_OPTIONS = [
   { value: 'USD', label: 'USD ($)' },
@@ -53,6 +53,8 @@ export function MemberCotisations({ memberId, memberName, bare }: Props) {
   const { data: cotisations, isLoading } = useMemberCotisations(memberId)
   const defaultAmount = useSettingValue('cotisation.default_amount')
   const currentScoutYear = useSettingValue('cotisation.current_scout_year')
+  const defaultCurrency = useSettingValue('cotisation.default_currency') ?? 'USD'
+  const exchangeRatesRaw = useSettingValue('cotisation.exchange_rates')
   const createMutation = useCreateCotisation(memberId)
   const updateMutation = useUpdateCotisation(memberId)
   const deleteMutation = useDeleteCotisation(memberId)
@@ -61,9 +63,28 @@ export function MemberCotisations({ memberId, memberName, bare }: Props) {
   // Exemption is per current scout year; detected from the marker row's willNotPay flag.
   const year = currentScoutYear ?? '2025-2026'
   const isExempt = !!cotisations?.some(c => c.scoutYear === year && c.willNotPay)
-  // Paid this year = a real cotisation (with payment lines) exists for the current year. When paid, the
-  // status reads "payée" and the exempt toggle is hidden — a payment supersedes the expected/exempt state.
-  const isPaidThisYear = !!cotisations?.some(c => c.scoutYear === year && c.payments.length > 0)
+
+  // Convert a payment amount into the org's default currency, mirroring the receipt total logic:
+  // rate = how many units of that currency per 1 default currency, so amount / rate = default. Same
+  // currency (or missing rate) → as-is. Used to tell "paid in full" from "partiel" against the expected amount.
+  const rates: Record<string, number> = (() => {
+    try { return exchangeRatesRaw ? JSON.parse(exchangeRatesRaw) : {} } catch { return {} }
+  })()
+  const toDefault = (amount: number, currency: string) => {
+    if (currency === defaultCurrency) return amount
+    const rate = Number(rates[currency])
+    return rate > 0 ? amount / rate : amount
+  }
+  // Paid this year = a real cotisation (with payment lines) exists for the current year. Total the
+  // payments in the default currency and compare to the expected amount to flag a PARTIAL payment.
+  const paidCotisationsThisYear = (cotisations ?? []).filter(c => c.scoutYear === year && c.payments.length > 0)
+  const isPaidThisYear = paidCotisationsThisYear.length > 0
+  const totalPaidDefault = paidCotisationsThisYear.reduce(
+    (sum, c) => sum + c.payments.reduce((s, p) => s + toDefault(p.amount, p.currency), 0), 0)
+  const expectedAmount = parseFloat(defaultAmount ?? '') || 0
+  // Partial = paid something, an expected amount is configured, and the total falls short (small epsilon
+  // to absorb float/rounding noise).
+  const isPartialThisYear = isPaidThisYear && expectedAmount > 0 && totalPaidDefault < expectedAmount - 0.01
   const toggleExempt = async () => {
     try {
       await exemptMutation.mutateAsync({ memberId, scoutYear: year, willNotPay: !isExempt })
@@ -185,9 +206,16 @@ export function MemberCotisations({ memberId, memberName, bare }: Props) {
   const content = (
     <>
           {hasPermission(PERMISSIONS.COTISATIONS_EDIT) && (
-            // Current-year status: paid (a payment exists) → exempt (marked ne paiera pas) → expected.
-            // A payment supersedes everything, so when paid we show "payée" and hide the exempt toggle.
-            isPaidThisYear ? (
+            // Current-year status: paid-in-full → partial → exempt (ne paiera pas) → expected.
+            // A payment supersedes the exempt/expected states, so when paid we hide the exempt toggle.
+            isPartialThisYear ? (
+              <div className="mb-3 flex items-center justify-between rounded-md border border-amber-300 bg-amber-50/70 px-3 py-2">
+                <span className="flex items-center gap-2 text-sm text-amber-800">
+                  <AlertTriangle className="h-4 w-4" />
+                  Cotisation partielle pour {year} — {formatAmount(totalPaidDefault, defaultCurrency)} / {formatAmount(expectedAmount, defaultCurrency)}
+                </span>
+              </div>
+            ) : isPaidThisYear ? (
               <div className="mb-3 flex items-center justify-between rounded-md border border-green-200 bg-green-50/60 px-3 py-2">
                 <span className="flex items-center gap-2 text-sm text-green-700">
                   <CheckCircle2 className="h-4 w-4" />Cotisation payée pour {year}
