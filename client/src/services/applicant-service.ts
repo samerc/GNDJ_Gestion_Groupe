@@ -86,6 +86,7 @@ export interface ApplicantProfile {
   guardians: ApplicantGuardian[]
   scoutRelations: ApplicantScoutRelation[]
   demandes: Demande[]
+  termsAccepted: boolean // accepted on a separate post-login screen; the portal is gated until true
 }
 
 export type DemandeInput = Omit<Demande, 'id' | 'scoutYear' | 'status' | 'decisionNotes' | 'submittedAt' | 'responseSentAt'>
@@ -155,6 +156,15 @@ export function useDeleteDemande() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => applicantApi.delete(`/applicant/demandes/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['applicant', 'profile'] }),
+  })
+}
+
+// POST /applicant/accept-terms → record acceptance of the T&C; invalidates profile so the gate re-evaluates.
+export function useAcceptTerms() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => applicantApi.post('/applicant/accept-terms'),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['applicant', 'profile'] }),
   })
 }

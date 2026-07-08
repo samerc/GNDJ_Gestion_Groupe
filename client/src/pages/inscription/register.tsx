@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { HoneypotField } from '@/components/shared/honeypot-field'
-import { useApplicantConfig } from '@/services/applicant-service'
 import { parseApiError } from '@/lib/error-utils'
 
 // Account-creation screen for the applicant portal (parent or future member).
@@ -16,19 +15,13 @@ import { parseApiError } from '@/lib/error-utils'
 export default function ApplicantRegisterPage() {
   const navigate = useNavigate()
   const register = useApplicantStore((s) => s.register)
-  const { data: config } = useApplicantConfig()
   const [contactName, setContactName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [website, setWebsite] = useState('') // honeypot — bots fill it, real users never see it
-  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
-  // Terms & conditions to accept at registration — only required when the CG has configured a text.
-  const termsText = config?.terms?.trim() ?? ''
-  const mustAcceptTerms = termsText.length > 0
 
   // Live field checks drive the inline red borders below; re-checked on submit before the API call.
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -41,10 +34,9 @@ export default function ApplicantRegisterPage() {
     if (!emailValid) return setError('Adresse email invalide.')
     if (!pwdValid) return setError('Le mot de passe doit contenir au moins 8 caractères.')
     if (!match) return setError('Les mots de passe ne correspondent pas.')
-    if (mustAcceptTerms && !acceptedTerms) return setError('Veuillez accepter les conditions d\'inscription.')
     setLoading(true)
     try {
-      await register(email, password, contactName || undefined, website, acceptedTerms)
+      await register(email, password, contactName || undefined, website)
       navigate('/inscription/portail')
     } catch (err) {
       setError(parseApiError(err))
@@ -86,18 +78,10 @@ export default function ApplicantRegisterPage() {
                 className={confirm && !match ? 'border-destructive' : ''} />
               {confirm && !match && <p className="text-xs text-destructive">Les mots de passe ne correspondent pas.</p>}
             </div>
-            {/* Terms & conditions: shown + required only when the CG has configured a terms text. */}
-            {mustAcceptTerms && (
-              <div className="space-y-2">
-                <Label>Conditions d'inscription</Label>
-                <div className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">{termsText}</div>
-                <label className="flex cursor-pointer items-start gap-2 text-sm">
-                  <input type="checkbox" className="mt-0.5 shrink-0" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} />
-                  <span>J'ai lu et j'accepte les conditions d'inscription.</span>
-                </label>
-              </div>
-            )}
-            <Button type="submit" className="w-full" disabled={loading || (mustAcceptTerms && !acceptedTerms)}>
+            <p className="text-xs text-muted-foreground">
+              Après la création du compte, vous devrez lire et accepter les conditions d'inscription avant de continuer.
+            </p>
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Création...' : 'Créer mon compte'}
             </Button>
             <p className="text-center text-sm text-muted-foreground">

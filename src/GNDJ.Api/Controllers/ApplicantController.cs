@@ -95,6 +95,18 @@ public class ApplicantController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>Records the applicant's acceptance of the terms &amp; conditions (separate post-login step).</summary>
+    /// <response code="401">Applicant token missing or invalid.</response>
+    [ProducesResponseType(401)]
+    [Authorize]
+    [HttpPost("accept-terms")]
+    public async Task<IActionResult> AcceptTerms()
+    {
+        var result = await Mediator.Send(new AcceptTermsCommand());
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { success = true });
+    }
+
     /// <summary>Saves the applicant's household (shared parents, address, scout relations).</summary>
     [Authorize]
     [HttpPut("household")]

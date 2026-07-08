@@ -47,7 +47,9 @@ public record DemandeDto(Guid Id, string ScoutYear, string FirstName, string Las
 public record ApplicantProfileDto(Guid AccountId, string Email, bool EmailVerified, string? ContactName,
     string? AddressCountry, string? AddressCity, string? AddressDetails,
     IReadOnlyList<ApplicantGuardianDto> Guardians, IReadOnlyList<ApplicantScoutRelationDto> ScoutRelations,
-    IReadOnlyList<DemandeDto> Demandes);
+    IReadOnlyList<DemandeDto> Demandes,
+    // True once the applicant has accepted the T&C (now a separate post-login step, not part of registration).
+    bool TermsAccepted = false);
 
 // Shared child-field payload for create/update (the per-child part of a demande; the household part
 // lives on the account and is saved separately via SaveApplicantHousehold).
@@ -178,12 +180,8 @@ public class RegisterApplicantCommandHandler(IApplicationDbContext context, IPas
         if (exists)
             return Result<ApplicantAuthDto>.Failure("Un compte existe déjà avec cette adresse email.");
 
-        // Terms & conditions: when the CG has configured a terms text, the applicant must accept it to
-        // create an account (one-time per account). Acceptance is recorded on the account.
-        var terms = await ApplicantHelpers.Setting(context, "demande.terms", ct);
-        if (!string.IsNullOrWhiteSpace(terms) && !request.AcceptedTerms)
-            return Result<ApplicantAuthDto>.Failure("Vous devez accepter les conditions d'inscription pour créer un compte.");
-
+        // Terms & conditions are accepted AFTER account creation, on a separate screen (AcceptTermsCommand) —
+        // NOT here. New accounts start with TermsAcceptedAt = null; the portal gates on it until accepted.
         var account = new ApplicantAccount
         {
             Email = addr,
@@ -192,7 +190,7 @@ public class RegisterApplicantCommandHandler(IApplicationDbContext context, IPas
             EmailVerified = false,
             EmailVerificationToken = Guid.NewGuid().ToString("N"),
             EmailVerificationTokenExpiry = DateTime.UtcNow.AddDays(7),
-            TermsAcceptedAt = request.AcceptedTerms ? DateTime.UtcNow : null,
+            TermsAcceptedAt = null,
         };
 
         var refresh = tokens.GenerateRefreshToken();
@@ -356,7 +354,29 @@ public class GetApplicantProfileQueryHandler(IApplicationDbContext context, ICur
         return Result<ApplicantProfileDto>.Success(new ApplicantProfileDto(
             account.Id, account.Email, account.EmailVerified, account.ContactName,
             account.AddressCountry, account.AddressCity, account.AddressDetails,
-            guardians, relations, demandes));
+            guardians, relations, demandes, account.TermsAcceptedAt != null));
+    }
+}
+
+// ============================================================
+// Accept the terms & conditions (separate post-login step)
+// ============================================================
+public record AcceptTermsCommand() : IRequest<Result<bool>>;
+
+public class AcceptTermsCommandHandler(IApplicationDbContext context, ICurrentApplicantService current) : IRequestHandler<AcceptTermsCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(AcceptTermsCommand request, CancellationToken ct)
+    {
+        var id = current.ApplicantAccountId;
+        if (id is null) return Result<bool>.Failure("Non autorisé.");
+
+        var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Id == id, ct);
+        if (account is null) return Result<bool>.Failure("Compte introuvable.");
+
+        // Idempotent: record the first acceptance timestamp; re-accepting keeps the original.
+        account.TermsAcceptedAt ??= DateTime.UtcNow;
+        await context.SaveChangesAsync(ct);
+        return Result<bool>.Success(true);
     }
 }
 

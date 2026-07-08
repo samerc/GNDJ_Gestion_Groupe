@@ -8,6 +8,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { PublicLayout } from '@/components/public/public-layout'
 import { ApplicantProtectedRoute } from '@/components/applicant/applicant-protected-route'
 import { ApplicantOpenRoute } from '@/components/applicant/applicant-open-route'
+import { ApplicantTermsGate } from '@/components/applicant/applicant-terms-gate'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 
 // Pages are lazy-loaded so each route is its own chunk. This keeps heavy, rarely-reached deps
@@ -32,6 +33,7 @@ const InscriptionLandingPage = lazy(() => import('@/pages/inscription/index'))
 const ApplicantLoginPage = lazy(() => import('@/pages/inscription/login'))
 const ApplicantRegisterPage = lazy(() => import('@/pages/inscription/register'))
 const ApplicantVerifyPage = lazy(() => import('@/pages/inscription/verify'))
+const ApplicantConditionsPage = lazy(() => import('@/pages/inscription/conditions'))
 const ApplicantPortalPage = lazy(() => import('@/pages/inscription/portail'))
 const DemandeWizardPage = lazy(() => import('@/pages/inscription/demande-wizard'))
 const DashboardPage = lazy(() => import('@/pages/dashboard'))
@@ -109,8 +111,12 @@ export default function App() {
           <Route path="/inscription/verify" element={<ApplicantVerifyPage />} />
         </Route>
         <Route element={<ApplicantProtectedRoute />}>
-          <Route path="/inscription/portail" element={<ApplicantPortalPage />} />
-          <Route path="/inscription/portail/demande/:id" element={<DemandeWizardPage />} />
+          {/* T&C acceptance lives OUTSIDE the terms gate (no redirect loop); the portal routes are gated. */}
+          <Route path="/inscription/conditions" element={<ApplicantConditionsPage />} />
+          <Route element={<ApplicantTermsGate />}>
+            <Route path="/inscription/portail" element={<ApplicantPortalPage />} />
+            <Route path="/inscription/portail/demande/:id" element={<DemandeWizardPage />} />
+          </Route>
         </Route>
 
         <Route element={<ProtectedRoute />}>
