@@ -1384,6 +1384,33 @@ endpoints → admin CMS page → public list+detail → routes/sidebar/nav). Ful
       NOT shipped (data, not code) — prod Events/Ressources empty until real content added. See memory
       [[project-production-deployment]].
 
+### Demande → member transition + T&C + campaign lifecycle (2026-07-08)
+Reworked the enrollment→member flow end-to-end (all on main, pushed; dev-only until next deploy).
+- **T&C moved OFF registration → a separate post-login accept screen** (`/inscription/conditions` +
+  `ApplicantTermsGate` on the portal routes). `AcceptTermsCommand` + `POST /applicant/accept-terms`;
+  `ApplicantProfile.TermsAccepted` gates the portal. **Refuse** = sign out (account kept, can accept later).
+- **Conversion (SendDemandeResponses) improvements:** copies medical/allergies (already did) — NOT parentNotes
+  (per user); sets `Member.PrimaryContactEmail` from a new household picker; **links siblings already in the
+  group** — a proche auto-matched to an existing member + a brother/sister relation shares the household's
+  guardians with that member (the app detects siblings via shared guardians). Team stays null (CU assigns).
+- **Wizard:** household **primary-contact email** picker (`ApplicantAccount.PrimaryContactEmail`); **"demande
+  précédente ?"** checkbox + year (`Demande.HasPreviousDemande`/`PreviousDemandeYear`, shown to the CG in the
+  review drawer). Migrations `AddDemandePrimaryContactAndPreviousInfo`.
+- **"Clôturer la campagne"** (CG button on Validation, shown once every demande is decided+sent): archives every
+  demande+outcome into a new **`demande_archives`** table (lean denormalized snapshot; migration
+  `AddDemandeArchive`), then **HARD-deletes ALL applicant data** (accounts/guardians/relations/demandes via
+  ExecuteDelete) and sets `demande.enabled=false`. Converted members untouched. Advisory-locked (shared w/
+  Send), transactional, blocked while any submitted demande has no response, destructive confirm.
+- **Individual re-decision after the batch:** DecideDemande now clears `ResponseSentAt` on a sent-but-UNCONVERTED
+  demande (a refused applicant the CG reconsiders) so it re-enters the send queue → next "Envoyer les réponses"
+  processes just it. A converted demande stays locked (400). Review row/drawer lock keyed on `createdMemberId`.
+- **"Retrouver mes informations" (prefill A2):** wizard (Parents step) — enter a known email → a one-time 6-digit
+  code is emailed → verify → the family's **parents + address prefill** and the family's **members are added as
+  proches** (relationship inferred from gender). Code proves email ownership before revealing anything (no member
+  search, no enumeration; only sends when the email is a member's guardian; 15-min, SHA-256, forms-rate-limited).
+  `ApplicantAccount.HouseholdLookup*` (migration `AddApplicantHouseholdLookup`); Request/VerifyHouseholdLookup +
+  endpoints; seeded `household_lookup_code` template. **Entry B (from a member's profile) deferred.**
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);
