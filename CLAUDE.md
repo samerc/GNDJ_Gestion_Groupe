@@ -1551,6 +1551,18 @@ d'inscription") were near-identical (same navy Compass branding) → parents con
   (`/(applicant/)?(login|register|refresh)`) and just reject, so the page shows its inline error. Expired-session
   redirects on real authenticated calls are unchanged.
 
+### "Retrouver mes informations" now matches a member's own email too (2026-07-09)
+The demande prefill ("Retrouver mes informations") emailed a code + resolved the household ONLY when the entered
+email was a member's **guardian** email. Now it also matches a **member's OWN email** (member_emails) — so an
+older youth, or a parent who is themselves a member, can retrieve their household with their own address. New
+shared `HouseholdLookup.SeedMemberIdsAsync(email)` = members via a matching guardian email ∪ members whose own
+email matches (non-deleted); used by BOTH `RequestHouseholdLookupCommand` (send a code if ANY member matches) and
+`VerifyHouseholdLookupCommand` (expand seed members → their guardians → siblings → full household + address).
+Behaviour for guardian-email matches is unchanged; privacy unchanged (still code-gated, generic success, no
+enumeration). Wizard wording updated ("Vous ou un enfant êtes déjà au groupe ?" · "Votre email ou celui d'un
+parent"). Verified live: samer@fancyshark.com (a member's own email) → code sent → verify returned Samer CHEAIB's
+parents + Kahale address + himself. Build/tsc/eslint clean. DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

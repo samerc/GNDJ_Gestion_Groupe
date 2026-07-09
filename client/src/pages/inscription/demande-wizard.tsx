@@ -352,11 +352,11 @@ export default function DemandeWizardPage() {
             <fieldset disabled={readonly} className="space-y-4">
               {/* Prefill from an existing member's household (email-code gated). */}
               <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
-                <div className="text-sm font-semibold">Vous avez déjà un enfant au groupe&nbsp;?</div>
-                <p className="text-xs text-muted-foreground">Recevez un code par email pour retrouver et pré-remplir les informations de votre famille (parents, adresse, frères et sœurs).</p>
+                <div className="text-sm font-semibold">Vous ou un enfant êtes déjà au groupe&nbsp;?</div>
+                <p className="text-xs text-muted-foreground">Recevez un code par email pour retrouver et pré-remplir les informations de votre famille (parents, adresse, frères et sœurs). Utilisez votre email ou celui d'un parent déjà connu du groupe.</p>
                 {!lookupCodeSent ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <Input type="email" placeholder="Email connu du groupe" value={lookupEmail} onChange={(e) => setLookupEmail(e.target.value)} className="max-w-xs" />
+                    <Input type="email" placeholder="Votre email ou celui d'un parent" value={lookupEmail} onChange={(e) => setLookupEmail(e.target.value)} className="max-w-xs" />
                     <Button type="button" variant="outline" size="sm" disabled={!lookupEmail.trim() || requestLookup.isPending} onClick={sendLookupCode}>
                       {requestLookup.isPending ? 'Envoi...' : 'Envoyer le code'}
                     </Button>

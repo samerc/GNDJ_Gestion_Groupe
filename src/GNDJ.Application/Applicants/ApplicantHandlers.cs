@@ -397,6 +397,28 @@ public record HouseholdLookupDto(IReadOnlyList<ApplicantGuardianDto> Guardians,
     string? AddressCountry, string? AddressCity, string? AddressDetails,
     IReadOnlyList<HouseholdLookupMemberDto> Members);
 
+// Resolves the member ids an email belongs to — matching a member's OWN email OR a member's guardian's
+// email. Shared by the request (decide whether to send a code) and verify (build the household) handlers.
+// Member-email support lets someone who is themselves a member (an older youth, or a parent who is also a
+// member) retrieve their household using their own address, not only a parent/guardian email.
+internal static class HouseholdLookup
+{
+    public static async Task<List<Guid>> SeedMemberIdsAsync(IApplicationDbContext context, string email, CancellationToken ct)
+    {
+        // Members reached through a matching guardian email (guardian must be linked to a member).
+        var viaGuardian = await context.GuardianEmails
+            .Where(e => e.Address == email && !e.IsDeleted)
+            .SelectMany(e => e.Guardian.Links.Where(l => !l.IsDeleted).Select(l => l.MemberId))
+            .Distinct().ToListAsync(ct);
+        // Members whose OWN email matches (not soft-deleted).
+        var viaMember = await context.MemberEmails
+            .Where(e => e.Address == email && !e.IsDeleted && !e.Member.IsDeleted)
+            .Select(e => e.MemberId)
+            .Distinct().ToListAsync(ct);
+        return viaGuardian.Concat(viaMember).Distinct().ToList();
+    }
+}
+
 public record RequestHouseholdLookupCommand(string Email) : IRequest<Result<bool>>;
 
 public class RequestHouseholdLookupCommandValidator : AbstractValidator<RequestHouseholdLookupCommand>
@@ -416,10 +438,11 @@ public class RequestHouseholdLookupCommandHandler(IApplicationDbContext context,
         if (account is null) return Result<bool>.Failure("Compte introuvable.");
 
         var email = request.Email.Trim();
-        // Only email a code when the address is actually a member's guardian (don't spam arbitrary addresses).
-        // Return generic success regardless so we don't reveal which emails exist in the system.
-        var isGuardianEmail = await context.GuardianEmails.AnyAsync(e => e.Address == email && !e.IsDeleted && e.Guardian.Links.Any(l => !l.IsDeleted), ct);
-        if (isGuardianEmail)
+        // Only email a code when the address belongs to a member (their own email) or a member's guardian
+        // (don't spam arbitrary addresses). Return generic success regardless so we don't reveal which
+        // emails exist in the system.
+        var seedMemberIds = await HouseholdLookup.SeedMemberIdsAsync(context, email, ct);
+        if (seedMemberIds.Count > 0)
         {
             var code = Random.Shared.Next(100000, 999999).ToString();
             account.HouseholdLookupEmail = email;
@@ -462,9 +485,12 @@ public class VerifyHouseholdLookupCommandHandler(IApplicationDbContext context, 
         // One-time: clear the code now.
         account.HouseholdLookupEmail = null; account.HouseholdLookupCodeHash = null; account.HouseholdLookupExpiry = null;
 
-        // The verified email → its guardian(s) → the members they parent → the FULL household + address.
-        var seedGuardianIds = await context.GuardianEmails.Where(e => e.Address == email && !e.IsDeleted).Select(e => e.GuardianId).Distinct().ToListAsync(ct);
-        var memberIds = await context.GuardianLinks.Where(l => seedGuardianIds.Contains(l.GuardianId) && !l.IsDeleted).Select(l => l.MemberId).Distinct().ToListAsync(ct);
+        // The verified email → its member(s) (own email) and/or its guardian's children → then expand to the
+        // FULL household: the guardians of those seed members, and every member those guardians parent (siblings).
+        var seedMemberIds = await HouseholdLookup.SeedMemberIdsAsync(context, email, ct);
+        var seedGuardianIds = await context.GuardianLinks.Where(l => seedMemberIds.Contains(l.MemberId) && !l.IsDeleted).Select(l => l.GuardianId).Distinct().ToListAsync(ct);
+        var siblingIds = await context.GuardianLinks.Where(l => seedGuardianIds.Contains(l.GuardianId) && !l.IsDeleted).Select(l => l.MemberId).Distinct().ToListAsync(ct);
+        var memberIds = seedMemberIds.Concat(siblingIds).Distinct().ToList();
         var activeMemberIds = await context.MemberAssignments.Where(a => memberIds.Contains(a.MemberId) && a.EndDate == null && !a.IsDeleted).Select(a => a.MemberId).Distinct().ToListAsync(ct);
         var relevant = activeMemberIds.Count > 0 ? activeMemberIds : memberIds;
 
