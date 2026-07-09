@@ -112,3 +112,68 @@ export function useDeleteGuardianEmail(memberId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
   })
 }
+
+// ── SELF-SERVICE variants (Ma fiche → Famille) ────────────────────────────────
+// Same call signatures as the leader hooks above, but hit /my-profile/* (auth-only, own-scoped server-side,
+// no members.edit). No search / no link-existing (a member must not enumerate other families' guardians).
+export function useCreateMyGuardian(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { firstName: string; lastName: string; profession?: string | null; professionDomain?: string | null; isDeceased: boolean; relationshipType: string; isPrimaryContact: boolean; isEmergencyContact: boolean; notes?: string | null }) =>
+      apiClient.post('/my-profile/guardians', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+  })
+}
+export function useUpdateMyGuardian(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; firstName: string; lastName: string; profession?: string | null; professionDomain?: string | null; isDeceased: boolean; notes?: string | null }) =>
+      apiClient.put(`/my-profile/guardians/${id}`, { id, ...data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+  })
+}
+export function useUpdateMyGuardianLink(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ linkId, ...data }: { linkId: string; relationshipType: string; isPrimaryContact: boolean; isEmergencyContact: boolean }) =>
+      apiClient.put(`/my-profile/guardian-links/${linkId}`, { linkId, ...data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+  })
+}
+export function useUnlinkMyGuardian(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (linkId: string) => apiClient.delete(`/my-profile/guardian-links/${linkId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+  })
+}
+export function useAddMyGuardianPhone(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ guardianId, ...data }: { guardianId: string; countryCode: string; number: string; type: string; isPrimary: boolean }) =>
+      apiClient.post(`/my-profile/guardians/${guardianId}/phones`, { guardianId, ...data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+  })
+}
+export function useAddMyGuardianEmail(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ guardianId, ...data }: { guardianId: string; address: string; type: string; isPrimary: boolean }) =>
+      apiClient.post(`/my-profile/guardians/${guardianId}/emails`, { guardianId, ...data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+  })
+}
+export function useDeleteMyGuardianPhone(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (phoneId: string) => apiClient.delete(`/my-profile/guardian-phones/${phoneId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+  })
+}
+export function useDeleteMyGuardianEmail(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (emailId: string) => apiClient.delete(`/my-profile/guardian-emails/${emailId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+  })
+}

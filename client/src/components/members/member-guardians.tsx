@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useDebounce } from '@/hooks/use-debounce'
-import { useMemberGuardians, useSearchGuardians, useCreateGuardian, useUpdateGuardian, useUpdateGuardianLink, useLinkGuardian, useUnlinkGuardian, useAddGuardianPhone, useAddGuardianEmail, useDeleteGuardianPhone, useDeleteGuardianEmail, type GuardianLinkDto, type GuardianSearchDto } from '@/services/guardian-service'
+import { useMemberGuardians, useSearchGuardians, useCreateGuardian, useUpdateGuardian, useUpdateGuardianLink, useLinkGuardian, useUnlinkGuardian, useAddGuardianPhone, useAddGuardianEmail, useDeleteGuardianPhone, useDeleteGuardianEmail, useCreateMyGuardian, useUpdateMyGuardian, useUpdateMyGuardianLink, useUnlinkMyGuardian, useAddMyGuardianPhone, useAddMyGuardianEmail, useDeleteMyGuardianPhone, useDeleteMyGuardianEmail, type GuardianLinkDto, type GuardianSearchDto } from '@/services/guardian-service'
 import { useSettingValue, useSettingArray } from '@/services/settings-service'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, PROFESSION_OPTIONS } from '@/lib/options'
@@ -41,26 +41,40 @@ function relationshipLabel(value: string): string {
 // Profession; each link carries the relationship type + primary/emergency-contact flags. Editing
 // updates BOTH the shared guardian and this member's link (two mutations). Removing only unlinks
 // (the guardian record survives for other members).
-interface MemberGuardiansProps { memberId: string }
+// selfService = the member editing their OWN famille from Ma fiche (own-scoped endpoints, no members.edit,
+// and NO "search existing guardian" mode — a member must not enumerate other families). Leaders (member
+// detail) get the full component incl. search/link.
+interface MemberGuardiansProps { memberId: string; selfService?: boolean }
 
-export function MemberGuardians({ memberId }: MemberGuardiansProps) {
+export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps) {
   const { data: guardians } = useMemberGuardians(memberId)
-  const createMutation = useCreateGuardian(memberId)
-  const updateMutation = useUpdateGuardian(memberId)
-  const updateLinkMutation = useUpdateGuardianLink(memberId)
-  const linkMutation = useLinkGuardian(memberId)
-  const unlinkMutation = useUnlinkGuardian(memberId)
-  const addPhoneMutation = useAddGuardianPhone(memberId)
-  const addEmailMutation = useAddGuardianEmail(memberId)
-  const deletePhoneMutation = useDeleteGuardianPhone(memberId)
-  const deleteEmailMutation = useDeleteGuardianEmail(memberId)
+  // Call BOTH hook sets unconditionally (rules of hooks), then pick per `selfService`. Mutations don't
+  // fetch, so instantiating the unused set is free.
+  const createL = useCreateGuardian(memberId), createS = useCreateMyGuardian(memberId)
+  const updateL = useUpdateGuardian(memberId), updateS = useUpdateMyGuardian(memberId)
+  const updateLinkL = useUpdateGuardianLink(memberId), updateLinkS = useUpdateMyGuardianLink(memberId)
+  const unlinkL = useUnlinkGuardian(memberId), unlinkS = useUnlinkMyGuardian(memberId)
+  const addPhoneL = useAddGuardianPhone(memberId), addPhoneS = useAddMyGuardianPhone(memberId)
+  const addEmailL = useAddGuardianEmail(memberId), addEmailS = useAddMyGuardianEmail(memberId)
+  const deletePhoneL = useDeleteGuardianPhone(memberId), deletePhoneS = useDeleteMyGuardianPhone(memberId)
+  const deleteEmailL = useDeleteGuardianEmail(memberId), deleteEmailS = useDeleteMyGuardianEmail(memberId)
+  const createMutation = selfService ? createS : createL
+  const updateMutation = selfService ? updateS : updateL
+  const updateLinkMutation = selfService ? updateLinkS : updateLinkL
+  const linkMutation = useLinkGuardian(memberId) // leader-only (search/link); unused in selfService
+  const unlinkMutation = selfService ? unlinkS : unlinkL
+  const addPhoneMutation = selfService ? addPhoneS : addPhoneL
+  const addEmailMutation = selfService ? addEmailS : addEmailL
+  const deletePhoneMutation = selfService ? deletePhoneS : deletePhoneL
+  const deleteEmailMutation = selfService ? deleteEmailS : deleteEmailL
   const defaultCountryCode = useSettingValue('default_country_code')
   const pinnedProfessions = useSettingArray('pinned_professions')
   const professionDomains = useSettingArray('member.profession_domains')
   const domainOptions = professionDomains.map(d => ({ value: d, label: d }))
 
   const [addDialogOpen, setAddDialogOpen] = useState(false)
-  const [mode, setMode] = useState<'search' | 'create'>('search')
+  // A member (selfService) can only CREATE a new guardian — never search/link an existing one.
+  const [mode, setMode] = useState<'search' | 'create'>(selfService ? 'create' : 'search')
   const [searchText, setSearchText] = useState('')
   const debouncedSearch = useDebounce(searchText)
   const { data: searchResults } = useSearchGuardians(debouncedSearch)
@@ -102,7 +116,7 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
   }
 
   const openAdd = () => {
-    setMode('search')
+    setMode(selfService ? 'create' : 'search')
     setSearchText('')
     setForm({ firstName: '', lastName: '', profession: '', professionDomain: '', relationshipType: 'Père', isPrimaryContact: false, isEmergencyContact: false, isDeceased: false })
     setError(''); clearAll()
@@ -258,16 +272,19 @@ export function MemberGuardians({ memberId }: MemberGuardiansProps) {
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Ajouter un parent ou tuteur</DialogTitle></DialogHeader>
-          <div className="flex gap-2 mb-4">
-            <Button variant={mode === 'search' ? 'default' : 'outline'} size="sm" onClick={() => setMode('search')}>
-              <Search className="mr-1 h-3 w-3" />Rechercher
-            </Button>
-            <Button variant={mode === 'create' ? 'default' : 'outline'} size="sm" onClick={() => setMode('create')}>
-              <UserPlus className="mr-1 h-3 w-3" />Nouveau
-            </Button>
-          </div>
+          {/* The search/link-existing mode is leader-only; a member (selfService) only creates new. */}
+          {!selfService && (
+            <div className="flex gap-2 mb-4">
+              <Button variant={mode === 'search' ? 'default' : 'outline'} size="sm" onClick={() => setMode('search')}>
+                <Search className="mr-1 h-3 w-3" />Rechercher
+              </Button>
+              <Button variant={mode === 'create' ? 'default' : 'outline'} size="sm" onClick={() => setMode('create')}>
+                <UserPlus className="mr-1 h-3 w-3" />Nouveau
+              </Button>
+            </div>
+          )}
 
-          {mode === 'search' ? (
+          {mode === 'search' && !selfService ? (
             <div className="space-y-4">
               <div className="space-y-2">
                 <RequiredLabel>Rechercher un parent existant</RequiredLabel>

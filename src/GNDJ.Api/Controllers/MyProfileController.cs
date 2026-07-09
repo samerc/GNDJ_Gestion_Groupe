@@ -1,3 +1,4 @@
+using GNDJ.Application.Guardians;
 using GNDJ.Application.Members.Commands.MyContacts;
 using GNDJ.Application.Members.Commands.UpdateMyProfile;
 using Microsoft.AspNetCore.Authorization;
@@ -67,6 +68,48 @@ public class MyProfileController : BaseApiController
     /// <summary>Removes one of the caller's own addresses.</summary>
     [HttpDelete("addresses/{id:guid}")]
     public async Task<IActionResult> DeleteAddress(Guid id) => Wrap(await Mediator.Send(new DeleteMyAddressCommand(id)));
+
+    // ── Famille: own guardians (create-new only — no search/link of arbitrary existing guardians) ──────
+
+    /// <summary>Creates a new guardian linked to the caller's own record.</summary>
+    [HttpPost("guardians")]
+    public async Task<IActionResult> CreateGuardian([FromBody] CreateMyGuardianCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return result.IsSuccess ? Ok(new { id = result.Value }) : BadRequest(new { error = result.Error });
+    }
+
+    /// <summary>Edits one of the caller's own linked guardians.</summary>
+    [HttpPut("guardians/{id:guid}")]
+    public async Task<IActionResult> UpdateGuardian(Guid id, [FromBody] UpdateMyGuardianCommand command)
+        => id != command.Id ? BadRequest(new { error = "L'identifiant ne correspond pas." }) : Wrap(await Mediator.Send(command));
+
+    /// <summary>Edits the relationship/flags of one of the caller's own guardian links.</summary>
+    [HttpPut("guardian-links/{linkId:guid}")]
+    public async Task<IActionResult> UpdateGuardianLink(Guid linkId, [FromBody] UpdateMyGuardianLinkCommand command)
+        => linkId != command.LinkId ? BadRequest(new { error = "L'identifiant ne correspond pas." }) : Wrap(await Mediator.Send(command));
+
+    /// <summary>Unlinks a guardian from the caller (the shared guardian record survives).</summary>
+    [HttpDelete("guardian-links/{linkId:guid}")]
+    public async Task<IActionResult> UnlinkGuardian(Guid linkId) => Wrap(await Mediator.Send(new UnlinkMyGuardianCommand(linkId)));
+
+    /// <summary>Adds a phone to one of the caller's own linked guardians.</summary>
+    [HttpPost("guardians/{guardianId:guid}/phones")]
+    public async Task<IActionResult> AddGuardianPhone(Guid guardianId, [FromBody] AddMyGuardianPhoneCommand command)
+        => guardianId != command.GuardianId ? BadRequest(new { error = "L'identifiant ne correspond pas." }) : Wrap(await Mediator.Send(command));
+
+    /// <summary>Removes a phone from one of the caller's own linked guardians.</summary>
+    [HttpDelete("guardian-phones/{id:guid}")]
+    public async Task<IActionResult> DeleteGuardianPhone(Guid id) => Wrap(await Mediator.Send(new DeleteMyGuardianPhoneCommand(id)));
+
+    /// <summary>Adds an email to one of the caller's own linked guardians.</summary>
+    [HttpPost("guardians/{guardianId:guid}/emails")]
+    public async Task<IActionResult> AddGuardianEmail(Guid guardianId, [FromBody] AddMyGuardianEmailCommand command)
+        => guardianId != command.GuardianId ? BadRequest(new { error = "L'identifiant ne correspond pas." }) : Wrap(await Mediator.Send(command));
+
+    /// <summary>Removes an email from one of the caller's own linked guardians.</summary>
+    [HttpDelete("guardian-emails/{id:guid}")]
+    public async Task<IActionResult> DeleteGuardianEmail(Guid id) => Wrap(await Mediator.Send(new DeleteMyGuardianEmailCommand(id)));
 
     // Maps a Result to 204 (success) or 400 (with the error message).
     private IActionResult Wrap<T>(GNDJ.Application.Common.Models.Result<T> result)

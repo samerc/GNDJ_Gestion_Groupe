@@ -310,7 +310,7 @@ export default function MyProfilePage() {
         {/* A regular member can't edit their own assignments (leaders assign them); a leader
             (assignments.create) can manage them from here too. */}
         <TabsContent value="assignments"><MemberAssignments memberId={memberId} memberName={`${member.firstName} ${member.lastName}`} readOnly={!canManageOwnAssignments} /></TabsContent>
-        <TabsContent value="famille"><MemberGuardians memberId={memberId} /></TabsContent>
+        <TabsContent value="famille"><MemberGuardians memberId={memberId} selfService /></TabsContent>
 
         <TabsContent value="progression">
           <MemberProgression memberId={memberId} />
