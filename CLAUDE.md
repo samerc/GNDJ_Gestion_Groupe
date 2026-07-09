@@ -1562,6 +1562,11 @@ Behaviour for guardian-email matches is unchanged; privacy unchanged (still code
 enumeration). Wizard wording updated ("Vous ou un enfant êtes déjà au groupe ?" · "Votre email ou celui d'un
 parent"). Verified live: samer@fancyshark.com (a member's own email) → code sent → verify returned Samer CHEAIB's
 parents + Kahale address + himself. Build/tsc/eslint clean. DEV until deploy.
+- **Dedupe duplicate guardians in the prefill (2026-07-09):** the household result could list the SAME parent twice
+  (duplicate guardian records from the import) → wizard pre-filled the parent twice. Verify now collapses guardians
+  by **accent/case-insensitive full name** (`TextNormalization.NormalizeKey`), keeping the **richest** record
+  (has email, then phone, then profession). Verified: Samer's household went 4 → 2 guardians (kept the one with
+  email+phone). Data-quality fix in the projection only (underlying dup guardian rows untouched).
 
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear

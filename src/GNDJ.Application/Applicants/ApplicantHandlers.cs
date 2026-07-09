@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentValidation;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Common.Validation;
@@ -505,6 +506,18 @@ public class VerifyHouseholdLookupCommandHandler(IApplicationDbContext context, 
             return new ApplicantGuardianDto(null, link?.RelationshipType ?? "Tuteur", g.FirstName, g.LastName, g.Profession, g.ProfessionDomain,
                 phone?.CountryCode, phone?.Number, mail?.Address, g.IsDeceased, link?.IsPrimaryContact ?? false, link?.IsEmergencyContact ?? false);
         }).ToList();
+
+        // Collapse duplicate guardian records (the same parent imported twice → same name) so the wizard
+        // doesn't pre-fill the same person more than once. Group by accent/case-insensitive full name and keep
+        // the richest entry (has email, then phone, then profession).
+        guardians = guardians
+            .GroupBy(g => TextNormalization.NormalizeKey($"{g.FirstName} {g.LastName}"))
+            .Select(grp => grp
+                .OrderByDescending(x => !string.IsNullOrWhiteSpace(x.Email))
+                .ThenByDescending(x => !string.IsNullOrWhiteSpace(x.PhoneNumber))
+                .ThenByDescending(x => !string.IsNullOrWhiteSpace(x.Profession))
+                .First())
+            .ToList();
 
         var addr = await context.MemberAddresses.Where(a => relevant.Contains(a.MemberId) && !a.IsDeleted).OrderByDescending(a => a.IsPrimary).FirstOrDefaultAsync(ct);
         var members = await context.Members.Where(m => relevant.Contains(m.Id))
