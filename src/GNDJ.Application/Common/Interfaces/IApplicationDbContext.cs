@@ -36,6 +36,7 @@ public interface IApplicationDbContext
     DbSet<ScoutStage> ScoutStages { get; }
     DbSet<Badge> Badges { get; }
     DbSet<MemberProgression> MemberProgressions { get; }
+    DbSet<MemberChangeRequest> MemberChangeRequests { get; }
     DbSet<Passage> Passages { get; }
     DbSet<ApiKey> ApiKeys { get; }
     DbSet<CustomField> CustomFields { get; }

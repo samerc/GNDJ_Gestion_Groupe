@@ -309,11 +309,11 @@ export default function MyProfilePage() {
 
         {/* A regular member can't edit their own assignments (leaders assign them); a leader
             (assignments.create) can manage them from here too. */}
-        <TabsContent value="assignments"><MemberAssignments memberId={memberId} memberName={`${member.firstName} ${member.lastName}`} readOnly={!canManageOwnAssignments} /></TabsContent>
+        <TabsContent value="assignments"><MemberAssignments memberId={memberId} memberName={`${member.firstName} ${member.lastName}`} readOnly={!canManageOwnAssignments} selfPropose /></TabsContent>
         <TabsContent value="famille"><MemberGuardians memberId={memberId} selfService /></TabsContent>
 
         <TabsContent value="progression">
-          <MemberProgression memberId={memberId} />
+          <MemberProgression memberId={memberId} selfPropose />
         </TabsContent>
 
         {/* Médical + Infos complémentaires merged into one tab. The medical notes use the shared

@@ -1440,6 +1440,31 @@ unit-wide read — super-admin and own-record (`MemberId == memberId`) bypasses 
   progression/customfields/dashboard/matrix/passages; ANOTHER unit → all denied), and super-admin (200). Build
   clean. Backend-only, DEV until next deploy.
 
+### Member self-edit + approval flow (2026-07-09)
+A member can now maintain their OWN fiche. Two mechanisms:
+- **Direct self-edit (no approval, own record):** new **auth-only** endpoints under `/my-profile/*` that always
+  resolve the caller's own member id server-side (never a client id), so no `members.edit` needed and no co-unit
+  IDOR path (unlike the leader-facing member commands). Covers: **profile** (`UpdateMyProfileCommand` — editable
+  fields only: nationalité/école/classe/section/groupe sanguin + médical; LOCKED: nom/prénom/DOB/sexe/matricule/
+  n° carte, which render read-only and are never sent), **coordonnées** (`MyContactHandlers`: phones/emails/
+  addresses add/edit/delete, each own-scoped), and **famille** (`MyGuardianHandlers`: create-new + edit own linked
+  guardians + contacts + unlink — **no search/link-existing**, so a member can't enumerate other families).
+  Ma fiche (`my-profile.tsx`) uses self-service hooks (`my-profile-service.ts`); `MemberGuardians` gained a
+  `selfService` prop that swaps to the self-service hooks and hides the search mode.
+- **Propose + approval (progression + fonctions):** new unified `MemberChangeRequest` entity (Kind
+  Progression|Assignment, PayloadJson, Summary, Status Pending→Approved|Rejected, ReviewedBy/At, DecisionNotes;
+  migration `AddMemberChangeRequests`). A member **proposes** (`/change-requests/progression|assignment`, auth-only,
+  own member) → **Pending**; their **CU or CG reviews** (`/change-requests/pending` + `/{id}/review`, gated on
+  `members.edit` + member active in the caller's unit / super-admin) → **approve creates the real MemberProgression/
+  MemberAssignment** from the payload, **reject** discards with a reason. `ChangeRequestHandlers`. Frontend:
+  `MemberProgression` + `MemberAssignments` gained a `selfPropose` prop (member sees "Proposer" + their pending
+  proposals in an amber banner); new CU/CG review page `/change-requests` ("Demandes de modification", sidebar
+  nav + pending-count badge, perm `members.edit`).
+- **Verified live:** youth self-edits classe/blood/allergies (204) with identity locked; youth proposes a
+  progression + a fonction → CU sees both, approves the progression (real record created) + rejects the fonction
+  (none created), statuses Approved/Rejected, badge count → 0; youth CANNOT review (403) and their pending list is
+  empty. Builds clean (dotnet + tsc + eslint). Backend-only migration applies on prod startup; DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

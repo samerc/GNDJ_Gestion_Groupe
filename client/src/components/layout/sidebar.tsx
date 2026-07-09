@@ -36,9 +36,11 @@ import {
   MapPin,
   ListChecks,
   Tent,
+  ClipboardList,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePendingDemandeCount } from '@/services/demande-admin-service'
+import { usePendingChangeRequestsCount } from '@/services/change-request-service'
 
 function BrandMark({ className }: { className?: string }) {
   return (
@@ -66,6 +68,7 @@ const leaderNavItems = [
   { path: '/my-profile', label: 'Ma fiche', icon: Users, permission: null },
   { path: '/my-documents', label: 'Mes documents', icon: FileText, permission: null },
   { path: '/dashboard', label: 'Mon unité', icon: Building2, permission: PERMISSIONS.MEMBERS_EDIT },
+  { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/unit-documents', label: 'Documents', icon: FileText, permission: PERMISSIONS.DOCUMENTS_APPROVE },
   { path: '/passage', label: 'Passage des membres', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_PROPOSE },
   { path: '/photo-session', label: 'Session photo', icon: Camera, permission: PERMISSIONS.MEMBERS_EDIT },
@@ -96,6 +99,7 @@ const adminGroups: AdminGroup[] = [
   {
     label: 'Gestion',
     items: [
+      { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
       { path: '/maitrises', label: 'Maîtrises', icon: Crown, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/group-access', label: 'Accès maîtrise', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE_GROUP },
       { path: '/admin/cities', label: 'Villes', icon: MapPin, permission: PERMISSIONS.MAITRISE_MANAGE },
@@ -138,6 +142,8 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   const { hasPermission, user } = useAuthStore()
   // Pending-demande badge count — only fetched when the user can see demandes.
   const { data: pendingDemandes } = usePendingDemandeCount(hasPermission(PERMISSIONS.DEMANDE_VIEW))
+  // Pending member-change-request badge — only fetched when the user can review them (members.edit).
+  const { data: pendingChanges } = usePendingChangeRequestsCount(hasPermission(PERMISSIONS.MEMBERS_EDIT))
 
   // Super admin sees admin nav, others see leader nav
   // Managers = super-admins and Chefs de Groupe (group-level). They get the admin nav + groups,
@@ -173,6 +179,9 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
         {!collapsed && <span>{item.label}</span>}
         {!collapsed && item.path === '/admin/demandes' && (pendingDemandes ?? 0) > 0 && (
           <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white">{pendingDemandes}</span>
+        )}
+        {!collapsed && item.path === '/change-requests' && (pendingChanges ?? 0) > 0 && (
+          <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white">{pendingChanges}</span>
         )}
         {collapsed && (
           <span className="pointer-events-none absolute left-full ml-2 rounded-md bg-foreground px-2 py-1 text-xs text-background opacity-0 shadow-md transition-opacity group-hover/nav:opacity-100 whitespace-nowrap z-50">

@@ -2,6 +2,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { useState, useMemo } from 'react'
 import { useMemberProgressions, useCreateProgression, useDeleteProgression, useScoutStageList, useBadgeList, type MemberProgressionDto } from '@/services/progression-service'
+import { useProposeProgression, useMyChangeRequests } from '@/services/change-request-service'
 import { useAssignments } from '@/services/assignment-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
@@ -26,11 +27,18 @@ interface Props {
   memberId: string
   unitId?: string      // current unit for default
   unitTypeId?: string  // to load stages/badges for the right unit type
+  // selfPropose = the member on Ma fiche without progression.manage: they PROPOSE a progression (pending
+  // CU/CG approval) instead of adding it directly. Managers always add directly.
+  selfPropose?: boolean
 }
 
-export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: propUnitTypeId }: Props) {
+export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: propUnitTypeId, selfPropose }: Props) {
   const { hasPermission } = useAuthStore()
   const { data: progressions, isLoading } = useMemberProgressions(memberId)
+  const proposeMutation = useProposeProgression()
+  const { data: myRequests } = useMyChangeRequests(selfPropose)
+  // My pending progression proposals (shown to the member while they await approval).
+  const pendingProgressions = (myRequests ?? []).filter(r => r.kind === 'Progression' && r.status === 'Pending')
 
   // Fetch the member's FULL assignment history so a progression can be recorded against a PREVIOUS unit
   // (e.g. a Meute badge earned before the member moved to Compagnie), not just their current unit.
@@ -85,17 +93,24 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
     if (selectedStage?.isBadgeStage && !form.badgeId) { setError("Veuillez sélectionner un badge."); return }
     if (!form.date) { setError("La date est requise."); return }
 
+    const payload = {
+      unitId: form.unitId,
+      scoutStageId: form.scoutStageId,
+      badgeId: selectedStage?.isBadgeStage ? form.badgeId : null,
+      date: form.date,
+      location: form.location || null,
+      notes: form.notes || null,
+    }
     try {
-      await createMutation.mutateAsync({
-        memberId,
-        unitId: form.unitId,
-        scoutStageId: form.scoutStageId,
-        badgeId: selectedStage?.isBadgeStage ? form.badgeId : null,
-        date: form.date,
-        location: form.location || null,
-        notes: form.notes || null,
-      })
-      toast.success('Progression ajoutée')
+      if (hasPermission(PERMISSIONS.PROGRESSION_MANAGE)) {
+        // Manager: record it directly.
+        await createMutation.mutateAsync({ memberId, ...payload })
+        toast.success('Progression ajoutée')
+      } else {
+        // Member: submit a proposal for CU/CG approval.
+        await proposeMutation.mutateAsync(payload)
+        toast.success('Proposition envoyée — en attente d\'approbation')
+      }
       setFormOpen(false)
     } catch (err) {
       setError(parseApiError(err))
@@ -111,17 +126,29 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
   if (isLoading) return <LoadingSpinner />
 
   const canManage = hasPermission(PERMISSIONS.PROGRESSION_MANAGE)
+  // Show the add/propose button to a manager, or to a member proposing on their own fiche.
+  const canAddOrPropose = (canManage || selfPropose) && memberUnits.length > 0
 
   return (
     <div className="space-y-4">
       {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
+      {/* A member's pending progression proposals (awaiting CU/CG approval). */}
+      {selfPropose && pendingProgressions.length > 0 && (
+        <div className="rounded-md border border-amber-300 bg-amber-50/70 p-3 text-sm">
+          <p className="font-medium text-amber-800">En attente d'approbation</p>
+          <ul className="mt-1 space-y-0.5 text-amber-800">
+            {pendingProgressions.map(r => <li key={r.id}>• {r.summary}</li>)}
+          </ul>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2"><Star className="h-4 w-4" />Progression scoute</CardTitle>
-            {canManage && memberUnits.length > 0 && (
-              <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>
+            {canAddOrPropose && (
+              <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />{canManage ? 'Ajouter' : 'Proposer'}</Button>
             )}
           </div>
         </CardHeader>
@@ -164,7 +191,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
       {/* Create Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Nouvelle progression</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{canManage ? 'Nouvelle progression' : 'Proposer une progression'}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
@@ -222,7 +249,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
 
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={createMutation.isPending || proposeMutation.isPending}>{canManage ? 'Enregistrer' : 'Proposer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

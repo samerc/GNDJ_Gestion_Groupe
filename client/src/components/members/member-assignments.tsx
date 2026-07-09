@@ -4,6 +4,7 @@ import { useFormValidation } from '@/hooks/use-form-validation'
 import { useAssignments, useCreateAssignment, useUpdateAssignment, useEndAssignment, useDeleteAssignment, useFunctionalRoles, type AssignmentDto, type AssignmentFormData } from '@/services/assignment-service'
 import { useUnits } from '@/services/unit-service'
 import { useTeams, teamsForSelect } from '@/services/team-service'
+import { useProposeAssignment, useMyChangeRequests } from '@/services/change-request-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RequiredLabel } from '@/components/shared/required-label'
@@ -22,10 +23,13 @@ import { toast } from 'sonner'
 // timeline. Create assigns a new post; edit keeps unit/team/function fixed and only adjusts
 // dates; "Terminer aujourd'hui" closes a post by stamping endDate = today (active → history).
 // readOnly hides all mutation controls (used when the viewer can't manage assignments).
+// selfPropose = the member on Ma fiche: instead of editing directly they PROPOSE a new fonction
+// (unit + team + role) that their CU/CG approves. Only meaningful alongside readOnly.
 interface MemberAssignmentsProps {
   memberId: string
   memberName: string
   readOnly?: boolean
+  selfPropose?: boolean
 }
 
 function formatDate(d: string) {
@@ -49,13 +53,19 @@ function durationLabel(start: string, end: string | null) {
   return `${years} an${years > 1 ? 's' : ''} et ${rem} mois`
 }
 
-export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssignmentsProps) {
+export function MemberAssignments({ memberId, memberName, readOnly, selfPropose }: MemberAssignmentsProps) {
   const { data } = useAssignments({ memberId, pageSize: 100 })
   const { data: units } = useUnits({ pageSize: 100 })
   const createMutation = useCreateAssignment()
   const updateMutation = useUpdateAssignment()
   const endMutation = useEndAssignment()
   const deleteMutation = useDeleteAssignment()
+  // Member self-propose (Ma fiche): propose a fonction for CU/CG approval. Enabled only when the viewer
+  // can't manage assignments directly (readOnly).
+  const canPropose = !!(readOnly && selfPropose)
+  const proposeMutation = useProposeAssignment()
+  const { data: myRequests } = useMyChangeRequests(canPropose)
+  const pendingAssignments = (myRequests ?? []).filter(r => r.kind === 'Assignment' && r.status === 'Pending')
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<AssignmentDto | null>(null)
@@ -91,6 +101,13 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
     setError('')
     if (!validate({ unitId: !form.unitId, functionalRoleId: !form.functionalRoleId, startDate: !form.startDate })) return
     try {
+      if (canPropose) {
+        // Member: submit a proposal (unit + team + role) for CU/CG approval.
+        await proposeMutation.mutateAsync({ unitId: form.unitId, teamId: form.teamId || null, functionalRoleId: form.functionalRoleId, startDate: form.startDate })
+        toast.success('Proposition envoyée — en attente d\'approbation')
+        setFormOpen(false)
+        return
+      }
       // Empty optional fields normalize to null so the API stores absence, not "".
       const payload = { ...form, teamId: form.teamId || null, endDate: form.endDate || null, notes: form.notes || null }
       if (editing) {
@@ -129,6 +146,16 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
       {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
             <FormFieldErrors show={hasErrors} />
 
+      {/* A member's pending fonction proposals (awaiting CU/CG approval). */}
+      {canPropose && pendingAssignments.length > 0 && (
+        <div className="rounded-md border border-amber-300 bg-amber-50/70 p-3 text-sm">
+          <p className="font-medium text-amber-800">En attente d'approbation</p>
+          <ul className="mt-1 space-y-0.5 text-amber-800">
+            {pendingAssignments.map(r => <li key={r.id}>• {r.summary}</li>)}
+          </ul>
+        </div>
+      )}
+
       {/* Active */}
       <Card>
         <CardHeader>
@@ -138,6 +165,7 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
               Postes actuels
             </CardTitle>
             {!readOnly && <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>}
+            {canPropose && <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Proposer une fonction</Button>}
           </div>
         </CardHeader>
         <CardContent>
@@ -234,7 +262,7 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
       {/* Create Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{editing ? 'Modifier le poste' : `Ajouter un poste pour ${memberName}`}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? 'Modifier le poste' : canPropose ? 'Proposer une fonction' : `Ajouter un poste pour ${memberName}`}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
             <FormFieldErrors show={hasErrors} />
@@ -317,8 +345,8 @@ export function MemberAssignments({ memberId, memberName, readOnly }: MemberAssi
             {/* Notes field removed for now — functions don't carry notes (user request 2026-06-26). */}
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement...' : editing ? 'Enregistrer' : 'Ajouter'}
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending || proposeMutation.isPending}>
+                {canPropose ? 'Proposer' : editing ? 'Enregistrer' : 'Ajouter'}
               </Button>
             </DialogFooter>
           </form>

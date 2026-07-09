@@ -39,6 +39,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<ScoutStage> ScoutStages => Set<ScoutStage>();
     public DbSet<Badge> Badges => Set<Badge>();
     public DbSet<MemberProgression> MemberProgressions => Set<MemberProgression>();
+    public DbSet<MemberChangeRequest> MemberChangeRequests => Set<MemberChangeRequest>();
     public DbSet<Passage> Passages => Set<Passage>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<CustomField> CustomFields => Set<CustomField>();

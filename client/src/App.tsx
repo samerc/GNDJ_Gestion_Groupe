@@ -55,6 +55,7 @@ const CampDetailPage = lazy(() => import('@/pages/admin/camp-detail'))
 const GroupAccessPage = lazy(() => import('@/pages/admin/group-access'))
 const SecurityProfilesPage = lazy(() => import('@/pages/admin/security-profiles'))
 const DemandeValidationPage = lazy(() => import('@/pages/admin/demande-validation'))
+const ChangeRequestsPage = lazy(() => import('@/pages/admin/change-requests'))
 const DemandeStatsPage = lazy(() => import('@/pages/admin/demande-stats'))
 const PassageValidationPage = lazy(() => import('@/pages/admin/passage-validation'))
 const CotisationDashboardPage = lazy(() => import('@/pages/admin/cotisation-dashboard'))
@@ -132,6 +133,9 @@ export default function App() {
             <Route path="/passage" element={<PassagePage />} />
             <Route path="/photo-session" element={<PhotoSessionPage />} />
             <Route path="/rentree" element={<RentreePage />} />
+            <Route element={<PermissionRoute permission={PERMISSIONS.MEMBERS_EDIT} />}>
+              <Route path="/change-requests" element={<ChangeRequestsPage />} />
+            </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.RENTREE_MANAGE} />}>
               <Route path="/admin/rentree-template" element={<RentreeTemplatePage />} />
             </Route>
