@@ -41,8 +41,13 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
+    // A 401 from the auth endpoints THEMSELVES (login/register/refresh) is bad credentials / not-yet-
+    // authenticated, not an expired session — surface it to the page instead of hard-redirecting (which
+    // reloads the page and wipes the inline error before it can be read).
+    const isAuthEndpoint = /\/auth\/(login|register|refresh)/.test(originalRequest?.url ?? '')
+
     // Only intercept 401s, and never retry a request we already retried (avoids refresh loops).
-    if (error.response?.status !== 401 || originalRequest._retry) {
+    if (error.response?.status !== 401 || originalRequest._retry || isAuthEndpoint) {
       return Promise.reject(error)
     }
 

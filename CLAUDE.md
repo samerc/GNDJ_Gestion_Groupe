@@ -1544,6 +1544,12 @@ d'inscription") were near-identical (same navy Compass branding) → parents con
   box "Vous souhaitez inscrire un enfant ? Demande d'inscription →" (echoes the teal demande theme).
 - Removed the old tiny duplicate "Espace membres" link from the applicant login (now centralized in the shell).
   Frontend-only; build + eslint clean. DEV until deploy.
+- **FIXED a "login error flashes then disappears" bug (both logins):** both login endpoints return **401** on
+  bad credentials, and the axios 401 interceptors treated ANY 401 as an expired session → `window.location.href`
+  hard-redirect to the login page → full reload wiped the inline error before it could be read. Both clients
+  (`api-client` + `applicant-api-client`) now **skip the refresh/redirect for the auth endpoints themselves**
+  (`/(applicant/)?(login|register|refresh)`) and just reject, so the page shows its inline error. Expired-session
+  redirects on real authenticated calls are unchanged.
 
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear

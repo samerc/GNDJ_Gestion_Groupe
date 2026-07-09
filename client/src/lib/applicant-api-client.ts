@@ -31,7 +31,11 @@ applicantApi.interceptors.response.use(
   (r) => r,
   async (error) => {
     const original = error.config
-    if (error.response?.status !== 401 || original._retry) return Promise.reject(error)
+    // A 401 from the auth endpoints THEMSELVES (login/register/refresh) means bad credentials or a
+    // not-yet-authenticated user — surface it to the page (inline error) instead of treating it as an
+    // expired session and hard-redirecting, which reloads the page and wipes the error before it's read.
+    const isAuthEndpoint = /\/applicant\/(login|register|refresh)/.test(original?.url ?? '')
+    if (error.response?.status !== 401 || original._retry || isAuthEndpoint) return Promise.reject(error)
 
     const refreshToken = localStorage.getItem(APPLICANT_REFRESH_KEY)
     if (!refreshToken) {
