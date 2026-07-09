@@ -439,14 +439,20 @@ public class CreateMemberProgressionCommandHandler(IApplicationDbContext context
 {
     public async ValueTask<Result<Guid>> Handle(CreateMemberProgressionCommand request, CancellationToken ct)
     {
-        // Unit-scoped access
-        if (!currentUser.IsSuperAdmin && !currentUser.AuthorizedUnitIds.Contains(request.UnitId))
-            return Result<Guid>.Failure("Accès non autorisé à cette unité.");
-
-        // Verify the member actually belongs to the target unit (prevents writing
-        // progression onto a member from another unit by passing an authorized UnitId).
+        // Access model: the caller must be able to MANAGE this member — a leader of the member's CURRENT
+        // unit (an active assignment in one of the caller's authorized units). They may then record a
+        // progression against ANY unit the member has belonged to (current OR past), so a stage/badge earned
+        // in a PREVIOUS unit can be added retroactively even though the caller doesn't lead that past unit.
+        // (The controller already requires progression.manage.)
         if (!currentUser.IsSuperAdmin)
         {
+            var canManageMember = await context.MemberAssignments.AnyAsync(a =>
+                a.MemberId == request.MemberId && a.EndDate == null && !a.IsDeleted && currentUser.AuthorizedUnitIds.Contains(a.UnitId), ct);
+            if (!canManageMember)
+                return Result<Guid>.Failure("Accès non autorisé à ce membre.");
+
+            // The target unit must be one the member actually belonged to (prevents writing against an
+            // arbitrary unit the member was never in).
             var memberInUnit = await context.MemberAssignments.AnyAsync(a =>
                 a.MemberId == request.MemberId && a.UnitId == request.UnitId && !a.IsDeleted, ct);
             if (!memberInUnit)
@@ -488,8 +494,15 @@ public class DeleteMemberProgressionCommandHandler(IApplicationDbContext context
         var entity = await context.MemberProgressions.FindAsync([request.Id], ct);
         if (entity is null) return Result<bool>.Failure("Progression introuvable.");
 
-        if (!currentUser.IsSuperAdmin && !currentUser.AuthorizedUnitIds.Contains(entity.UnitId))
-            return Result<bool>.Failure("Accès non autorisé.");
+        // Same model as create: a leader who MANAGES the member (member active in one of the caller's units)
+        // may delete any of that member's progressions, including ones recorded against a PAST unit.
+        if (!currentUser.IsSuperAdmin)
+        {
+            var canManageMember = await context.MemberAssignments.AnyAsync(a =>
+                a.MemberId == entity.MemberId && a.EndDate == null && !a.IsDeleted && currentUser.AuthorizedUnitIds.Contains(a.UnitId), ct);
+            if (!canManageMember)
+                return Result<bool>.Failure("Accès non autorisé.");
+        }
 
         context.MemberProgressions.Remove(entity);
         await context.SaveChangesAsync(ct);

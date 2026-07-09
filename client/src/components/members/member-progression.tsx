@@ -1,6 +1,6 @@
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useMemberProgressions, useCreateProgression, useDeleteProgression, useScoutStageList, useBadgeList, type MemberProgressionDto } from '@/services/progression-service'
 import { useAssignments } from '@/services/assignment-service'
 import { useAuthStore } from '@/stores/auth-store'
@@ -32,13 +32,24 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
   const { hasPermission } = useAuthStore()
   const { data: progressions, isLoading } = useMemberProgressions(memberId)
 
-  // Auto-resolve unitId/unitTypeId from active assignment if not provided
-  const { data: assignmentsData } = useAssignments({ memberId, isActive: true, pageSize: 1 })
-  const activeAssignment = assignmentsData?.items[0]
-  const unitId = propUnitId ?? activeAssignment?.unitId
-  const unitTypeId = propUnitTypeId ?? activeAssignment?.unitTypeId
+  // Fetch the member's FULL assignment history so a progression can be recorded against a PREVIOUS unit
+  // (e.g. a Meute badge earned before the member moved to Compagnie), not just their current unit.
+  const { data: assignmentsData } = useAssignments({ memberId, pageSize: 100 })
+  const activeAssignment = assignmentsData?.items.find(a => !a.endDate)
 
-  const { data: stages } = useScoutStageList(unitTypeId ?? '')
+  // Distinct units the member has belonged to (current + past), current unit(s) listed first. Each carries
+  // its unitTypeId so selecting a unit loads that unit type's stages/badges.
+  const memberUnits = useMemo(() => {
+    const seen = new Map<string, { unitId: string; unitName: string; unitTypeId: string; isActive: boolean }>()
+    for (const a of assignmentsData?.items ?? []) {
+      const existing = seen.get(a.unitId)
+      const isActive = !a.endDate
+      if (!existing) seen.set(a.unitId, { unitId: a.unitId, unitName: a.unitName, unitTypeId: a.unitTypeId, isActive })
+      else if (isActive) existing.isActive = true // a unit is "current" if ANY of its assignments is active
+    }
+    return [...seen.values()].sort((x, y) => (Number(y.isActive) - Number(x.isActive)) || x.unitName.localeCompare(y.unitName))
+  }, [assignmentsData])
+
   const createMutation = useCreateProgression(memberId)
   const deleteMutation = useDeleteProgression(memberId)
 
@@ -46,14 +57,22 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
   const [deleting, setDeleting] = useState<MemberProgressionDto | null>(null)
   const [error, setError] = useState('')
 
-  const [form, setForm] = useState({ scoutStageId: '', badgeId: '', date: '', location: '', notes: '' })
+  // form.unitId picks WHICH of the member's units the progression belongs to; it drives the stage/badge lists.
+  const [form, setForm] = useState({ unitId: '', scoutStageId: '', badgeId: '', date: '', location: '', notes: '' })
+
+  // Stages/badges load for the SELECTED unit's type (fall back to props / active assignment).
+  const selectedUnit = memberUnits.find(u => u.unitId === form.unitId)
+  const selectedUnitTypeId = selectedUnit?.unitTypeId ?? propUnitTypeId ?? activeAssignment?.unitTypeId
+  const { data: stages } = useScoutStageList(selectedUnitTypeId ?? '')
 
   // Badges only load (and the badge field only shows) when the chosen stage is a badge-stage.
   const selectedStage = stages?.find(s => s.id === form.scoutStageId)
-  const { data: badges } = useBadgeList(selectedStage?.isBadgeStage ? (unitTypeId ?? '') : '')
+  const { data: badges } = useBadgeList(selectedStage?.isBadgeStage ? (selectedUnitTypeId ?? '') : '')
 
   const openCreate = () => {
-    setForm({ scoutStageId: '', badgeId: '', date: new Date().toISOString().split('T')[0], location: '', notes: '' })
+    // Default to the member's current unit (else the first/most-recent unit in their history).
+    const defaultUnitId = propUnitId ?? activeAssignment?.unitId ?? memberUnits[0]?.unitId ?? ''
+    setForm({ unitId: defaultUnitId, scoutStageId: '', badgeId: '', date: new Date().toISOString().split('T')[0], location: '', notes: '' })
     setError('')
     setFormOpen(true)
   }
@@ -61,6 +80,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    if (!form.unitId) { setError("Veuillez sélectionner une unité."); return }
     if (!form.scoutStageId) { setError("Veuillez sélectionner une étape."); return }
     if (selectedStage?.isBadgeStage && !form.badgeId) { setError("Veuillez sélectionner un badge."); return }
     if (!form.date) { setError("La date est requise."); return }
@@ -68,7 +88,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
     try {
       await createMutation.mutateAsync({
         memberId,
-        unitId: unitId ?? '',
+        unitId: form.unitId,
         scoutStageId: form.scoutStageId,
         badgeId: selectedStage?.isBadgeStage ? form.badgeId : null,
         date: form.date,
@@ -100,7 +120,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2"><Star className="h-4 w-4" />Progression scoute</CardTitle>
-            {canManage && unitTypeId && (
+            {canManage && memberUnits.length > 0 && (
               <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>
             )}
           </div>
@@ -147,6 +167,20 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
           <DialogHeader><DialogTitle>Nouvelle progression</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+
+            {/* Unit picker — record against the member's current unit OR a previous one (a stage/badge earned
+                before the member moved units). Changing the unit reloads that unit type's stages/badges. */}
+            <div className="space-y-2">
+              <RequiredLabel required>Unité</RequiredLabel>
+              <Select value={form.unitId} onValueChange={(v) => setForm(f => ({ ...f, unitId: v, scoutStageId: '', badgeId: '' }))}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner une unité..." /></SelectTrigger>
+                <SelectContent>
+                  {memberUnits.map(u => (
+                    <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}{u.isActive ? ' (actuelle)' : ' (ancienne)'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-2">
               <RequiredLabel required>Étape scoute</RequiredLabel>
