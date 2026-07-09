@@ -2,23 +2,23 @@ import { useNavigate } from 'react-router'
 import { useApplicantConfig, useApplicantProfile, useDeleteDemande, useResendVerification, type Demande } from '@/services/applicant-service'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
 import { UserPlus, Pencil, Trash2, Users, MailWarning, CheckCircle2, XCircle, Clock, FileEdit } from 'lucide-react'
 
-// Maps a demande to its status badge. Status precedence mirrors the applicant's view of the
-// workflow (Brouillon → Soumise → Acceptée/Refusée once the CG's batch reply is out).
-function statusBadge(d: Demande) {
-  // The CG's decision is only revealed once the response batch has been sent.
-  if (d.responseSentAt) {
-    if (d.status === 'Approved') return <Badge className="bg-green-600"><CheckCircle2 className="mr-1 h-3 w-3" />Acceptée</Badge>
-    if (d.status === 'Declined') return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />Refusée</Badge>
-  }
-  if (d.status === 'Draft') return <Badge variant="secondary"><FileEdit className="mr-1 h-3 w-3" />Brouillon</Badge>
-  return <Badge className="bg-blue-600"><Clock className="mr-1 h-3 w-3" />Soumise</Badge>
+// Maps a demande to its status: a coloured row bar (green accepted / amber pending / red refused /
+// grey draft) + a matching badge. The CG's decision is only revealed once the response batch has
+// been sent (Brouillon → Soumise → Acceptée/Refusée).
+function statusMeta(d: Demande): { border: string; badge: React.ReactNode } {
+  if (d.responseSentAt && d.status === 'Approved')
+    return { border: 'border-l-green-500', badge: <Badge className="bg-green-600"><CheckCircle2 className="mr-1 h-3 w-3" />Acceptée</Badge> }
+  if (d.responseSentAt && d.status === 'Declined')
+    return { border: 'border-l-red-500', badge: <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />Refusée</Badge> }
+  if (d.status === 'Draft')
+    return { border: 'border-l-slate-300', badge: <Badge variant="secondary"><FileEdit className="mr-1 h-3 w-3" />Brouillon</Badge> }
+  return { border: 'border-l-amber-500', badge: <Badge className="bg-amber-500"><Clock className="mr-1 h-3 w-3" />Soumise</Badge> }
 }
 
 // Applicant home after login: lists the account's demandes (one per child) as cards, with the
@@ -86,40 +86,62 @@ export default function ApplicantPortalPage() {
       {demandes.length === 0 ? (
         <EmptyState icon={Users} title="Aucune demande" description="Cliquez sur « Ajouter un enfant » pour présenter une demande d'inscription." />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {demandes.map((d) => {
-            // locked = no longer deletable (replied-to, or already submitted past Draft);
-            // editable = wizard can still be opened to change it (period open + not yet replied to).
-            const locked = !!d.responseSentAt || !!d.submittedAt && d.status !== 'Draft'
-            const editable = open && !d.responseSentAt
-            return (
-              <Card key={d.id}>
-                <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
-                  <CardTitle className="text-base">{d.firstName} {d.lastName}</CardTitle>
-                  {statusBadge(d)}
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="text-sm text-muted-foreground">
-                    {d.dateOfBirth ? new Date(d.dateOfBirth).toLocaleDateString('fr-FR') : 'Date de naissance non renseignée'}
-                    {d.school ? ` · ${d.school}` : ''}
-                  </div>
-                  {d.responseSentAt && d.status === 'Declined' && d.decisionNotes && (
-                    <p className="rounded-md bg-muted/40 p-2 text-xs text-muted-foreground">{d.decisionNotes}</p>
-                  )}
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => navigate(`/inscription/portail/demande/${d.id}`)}>
-                      <Pencil className="mr-1 h-3.5 w-3.5" />{editable && d.status === 'Draft' ? 'Continuer' : 'Voir'}
-                    </Button>
-                    {editable && !locked && (
-                      <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(d)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+        // Table (with a coloured status bar per row) so several children are easy to scan at a glance.
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full min-w-[34rem] text-sm">
+            <thead className="border-b bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th className="px-4 py-2.5 text-left font-medium">Enfant</th>
+                <th className="hidden px-4 py-2.5 text-left font-medium sm:table-cell">Date de naissance</th>
+                <th className="hidden px-4 py-2.5 text-left font-medium md:table-cell">Soumise le</th>
+                <th className="px-4 py-2.5 text-left font-medium">Statut</th>
+                <th className="px-4 py-2.5 text-right font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {demandes.map((d) => {
+                // locked = no longer deletable (replied-to, or already submitted past Draft);
+                // editable = wizard can still be opened to change it (period open + not yet replied to).
+                const locked = !!d.responseSentAt || !!d.submittedAt && d.status !== 'Draft'
+                const editable = open && !d.responseSentAt
+                const { border, badge } = statusMeta(d)
+                return (
+                  <tr key={d.id} className="hover:bg-muted/30">
+                    {/* Coloured left bar = status at a glance */}
+                    <td className={`border-l-4 ${border} px-4 py-3`}>
+                      <div className="font-medium">{d.firstName} {d.lastName}</div>
+                      {/* On small screens DOB/école are hidden as columns — show DOB inline here */}
+                      <div className="text-xs text-muted-foreground sm:hidden">
+                        {d.dateOfBirth ? new Date(d.dateOfBirth).toLocaleDateString('fr-FR') : 'Naissance non renseignée'}
+                      </div>
+                      {d.responseSentAt && d.status === 'Declined' && d.decisionNotes && (
+                        <div className="mt-1 max-w-xs text-xs text-muted-foreground">{d.decisionNotes}</div>
+                      )}
+                    </td>
+                    <td className="hidden whitespace-nowrap px-4 py-3 text-muted-foreground sm:table-cell">
+                      {d.dateOfBirth ? new Date(d.dateOfBirth).toLocaleDateString('fr-FR') : '—'}
+                    </td>
+                    <td className="hidden whitespace-nowrap px-4 py-3 text-muted-foreground md:table-cell">
+                      {d.submittedAt ? new Date(d.submittedAt).toLocaleDateString('fr-FR') : '—'}
+                    </td>
+                    <td className="px-4 py-3">{badge}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/inscription/portail/demande/${d.id}`)}>
+                          <Pencil className="mr-1 h-3.5 w-3.5" />{editable && d.status === 'Draft' ? 'Continuer' : 'Voir'}
+                        </Button>
+                        {editable && !locked && (
+                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(d)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
