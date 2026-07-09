@@ -1519,9 +1519,11 @@ of their Meute, gets a valid PDF, and is denied a unit they were never in. Share
         `{exists, fileName, savedAt, memberCount}`), `GET /reports/trombinoscope/archive` (status), `GET
         /reports/trombinoscope/archive/download` (re-download the saved PDF). `POST /reports/trombinoscope` stays the
         live **preview** (unsaved).
-      - **CU dialog** reworked: **Enregistrer/Réenregistrer** (primary — freezes it, "visible par les membres") +
-        **Aperçu** (live preview) + a saved-version status banner (green "Version enregistrée le … · N membres" with
-        a re-download link, or amber "Aucune version enregistrée — les membres ne verront pas encore leur trombinoscope").
+      - **CU dialog:** **generating IS saving** — one "Générer / Générer à nouveau" button freezes the current-roster
+        PDF (upsert → replaces the old one for everyone) AND downloads it (no separate unsaved preview; the app no
+        longer calls the raw `POST /reports/trombinoscope`, kept only for API integrations). A green status banner
+        shows the saved version ("Version enregistrée le … · N membres · visible par les membres. Générer à nouveau
+        la remplacera.") with a re-download link.
       - **Member page** now serves the **archived** PDF only (never live-regenerates with today's photos):
         `GetMyTrombinoscoreYearsQuery` marks each (year, unit) `Available` (= an archive exists); the page shows
         "Voir" when available else "Pas encore disponible"; `GenerateMyTrombinoscoreQuery` returns the frozen bytes if

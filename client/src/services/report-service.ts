@@ -2,10 +2,9 @@ import apiClient from '@/lib/api-client'
 
 // Reports resource: PDF/spreadsheet generators. All return a raw blob response (caller saves to file); no caching.
 
-// POST /reports/trombinoscope → photo-grid PDF blob for a unit (optionally a team subset). Live preview.
-export function generateTrombinoscope(data: { unitId: string; scoutYear: string; includePhotos: boolean; teamIds?: string[] | null }) {
-  return apiClient.post('/reports/trombinoscope', data, { responseType: 'blob' })
-}
+// NB: generating a trombinoscope now always SAVES it (see archiveTrombinoscope below) — the CU dialog no
+// longer uses a separate unsaved "preview". The raw POST /reports/trombinoscope endpoint still exists
+// server-side for API integrations, but the app doesn't call it.
 
 // Status of a SAVED (frozen) trombinoscope for a unit + year.
 export interface TrombinoscopeArchiveInfo { exists: boolean; fileName: string | null; savedAt: string | null; memberCount: number }

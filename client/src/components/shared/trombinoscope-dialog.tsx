@@ -1,14 +1,13 @@
 // Dialog that produces the unit "trombinoscope" (photo grid) PDF. Opened from the CU dashboard.
-// Two actions:
-//  - "Aperçu" downloads a live PDF of the CURRENT roster/photos (to check before saving) — not stored.
-//  - "Enregistrer" FREEZES that PDF for the (unit, scout year): it becomes the file the CU re-downloads AND
-//    the file every member sees on their Trombinoscope page. Photos are frozen at save time, so replacing a
-//    member's photo later never rewrites a past year, and it isn't regenerated on every view.
-// The leader picks which teams to include and whether to print photos. Year = cotisation.current_scout_year.
+// Generating is the SAVE: every "Générer" freezes the current-roster PDF for the (unit, scout year) —
+// overwriting any previous version for everyone — AND downloads it. That saved file is what the CU
+// re-downloads and what every member sees on their Trombinoscope page, with the photos as they were at
+// generation time (so replacing a member's photo later never rewrites a past year, and it's never
+// regenerated on view). The leader picks which teams to include and whether to print photos.
+// Year = cotisation.current_scout_year.
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  generateTrombinoscope,
   archiveTrombinoscope,
   getTrombinoscopeArchiveInfo,
   downloadTrombinoscopeArchive,
@@ -19,7 +18,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { FileDown, Save, Download, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { FileDown, Download, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Props {
@@ -36,10 +35,10 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
 
   const [selectedTeams, setSelectedTeams] = useState<Set<string>>(new Set())
   const [includePhotos, setIncludePhotos] = useState(true)
-  const [busy, setBusy] = useState<'' | 'preview' | 'save' | 'download'>('')
+  const [busy, setBusy] = useState<'' | 'generate' | 'download'>('')
   const [error, setError] = useState('')
 
-  // Status of the already-saved version for this unit + year (drives the hint + re-download button).
+  // Status of the currently-saved version (drives the "last saved" hint + a re-download link).
   const { data: archiveInfo, refetch: refetchInfo } = useQuery({
     queryKey: ['trombi-archive', unitId, scoutYear],
     queryFn: () => getTrombinoscopeArchiveInfo(unitId, scoutYear),
@@ -72,31 +71,23 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
 
   const defaultName = `Trombinoscope ${unitName} ${scoutYear}.pdf`
 
-  // Live preview of the current roster/photos — not stored.
-  const handlePreview = async () => {
-    setBusy('preview'); setError('')
-    try {
-      const response = await generateTrombinoscope({ unitId, scoutYear, includePhotos, teamIds: teamIds() })
-      saveBlob(response.data, defaultName)
-      toast.success('Aperçu généré')
-    } catch (err) {
-      setError(parseApiError(err))
-    } finally { setBusy('') }
-  }
-
-  // Freeze (save) the trombinoscope so members can see it.
-  const handleSave = async () => {
-    setBusy('save'); setError('')
+  // Generate = save (freeze/overwrite) the current-roster trombinoscope, then download it.
+  const handleGenerate = async () => {
+    setBusy('generate'); setError('')
     try {
       const info = await archiveTrombinoscope({ unitId, scoutYear, includePhotos, teamIds: teamIds() })
-      toast.success(`Trombinoscope enregistré (${info.memberCount} membres) — visible par les membres`)
+      // Re-read the freshly saved bytes to download them (same file the members now see).
+      const response = await downloadTrombinoscopeArchive(unitId, scoutYear)
+      saveBlob(response.data, info.fileName ?? defaultName)
+      toast.success(`Trombinoscope généré et enregistré (${info.memberCount} membres)`)
       refetchInfo()
+      onOpenChange(false)
     } catch (err) {
       setError(parseApiError(err))
     } finally { setBusy('') }
   }
 
-  // Re-download the saved version.
+  // Re-download the already-saved version without regenerating.
   const handleDownloadSaved = async () => {
     setBusy('download'); setError('')
     try {
@@ -116,24 +107,19 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
         <div className="space-y-4">
           {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
-          {/* Saved-version status: once saved, THIS file is what members see + what re-downloads. */}
-          {archiveInfo && (archiveInfo.exists ? (
+          {/* Saved-version status: generating overwrites this for everyone (CU re-download + members). */}
+          {archiveInfo?.exists && (
             <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
               <div className="flex-1">
                 <p className="font-medium">Version enregistrée{archiveInfo.savedAt ? ` le ${new Date(archiveInfo.savedAt).toLocaleDateString('fr-FR')}` : ''}</p>
-                <p className="text-xs text-emerald-700">{archiveInfo.memberCount} membres · visible par les membres. Réenregistrez pour la mettre à jour.</p>
+                <p className="text-xs text-emerald-700">{archiveInfo.memberCount} membres · visible par les membres. Générer à nouveau la remplacera.</p>
                 <Button variant="link" size="sm" className="h-auto p-0 text-emerald-800" onClick={handleDownloadSaved} disabled={busy !== ''}>
                   <Download className="mr-1 h-3.5 w-3.5" />Télécharger la version enregistrée
                 </Button>
               </div>
             </div>
-          ) : (
-            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <p>Aucune version enregistrée pour {scoutYear}. Les membres ne verront leur trombinoscope qu'après l'enregistrement.</p>
-            </div>
-          ))}
+          )}
 
           <div>
             <p className="text-sm font-medium mb-2">Équipes à inclure</p>
@@ -163,17 +149,15 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
             Imprimer les photos
           </label>
 
-          <p className="text-xs text-muted-foreground">Année scoute : {scoutYear}</p>
+          <p className="text-xs text-muted-foreground">
+            Année scoute : {scoutYear} — la génération enregistre le trombinoscope (visible par les membres) et le télécharge.
+          </p>
         </div>
-        <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+        <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fermer</Button>
-          <Button variant="outline" onClick={handlePreview} disabled={busy !== ''}>
-            {busy === 'preview' ? <LoadingSpinner className="py-0 mr-2 h-4 w-4" /> : <FileDown className="mr-1 h-4 w-4" />}
-            Aperçu
-          </Button>
-          <Button onClick={handleSave} disabled={busy !== ''}>
-            {busy === 'save' ? <LoadingSpinner className="py-0 mr-2 h-4 w-4" /> : <Save className="mr-1 h-4 w-4" />}
-            {archiveInfo?.exists ? 'Réenregistrer' : 'Enregistrer'}
+          <Button onClick={handleGenerate} disabled={busy !== ''}>
+            {busy === 'generate' ? <LoadingSpinner className="py-0 mr-2 h-4 w-4" /> : <FileDown className="mr-1 h-4 w-4" />}
+            {busy === 'generate' ? 'Génération...' : (archiveInfo?.exists ? 'Générer à nouveau' : 'Générer')}
           </Button>
         </DialogFooter>
       </DialogContent>
