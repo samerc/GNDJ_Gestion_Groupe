@@ -23,7 +23,7 @@ public class ReportsController : BaseApiController
         var result = await Mediator.Send(query);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
 
-        return File(result.Value!, "application/pdf", $"Trombinoscope_{DateTime.Now:yyyyMMdd}.pdf");
+        return File(result.Value!.Data, "application/pdf", result.Value.FileName);
     }
 
     /// <summary>Generates a single member's credit-card-sized card PDF. Requires members.view.</summary>

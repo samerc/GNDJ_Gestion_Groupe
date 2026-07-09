@@ -39,15 +39,15 @@ public class GetMyTrombinoscoreYearsHandler(IApplicationDbContext context, ICurr
 }
 
 // ── The trombinoscope PDF for one (unit, year) the caller was in ─────────────
-public record GenerateMyTrombinoscoreQuery(Guid UnitId, string ScoutYear) : IRequest<Result<byte[]>>;
+public record GenerateMyTrombinoscoreQuery(Guid UnitId, string ScoutYear) : IRequest<Result<TrombinoscorePdf>>;
 
 public class GenerateMyTrombinoscoreHandler(IApplicationDbContext context, ICurrentUserService currentUser, ITrombinoscoreService trombinoscoreService)
-    : IRequestHandler<GenerateMyTrombinoscoreQuery, Result<byte[]>>
+    : IRequestHandler<GenerateMyTrombinoscoreQuery, Result<TrombinoscorePdf>>
 {
-    public async ValueTask<Result<byte[]>> Handle(GenerateMyTrombinoscoreQuery request, CancellationToken ct)
+    public async ValueTask<Result<TrombinoscorePdf>> Handle(GenerateMyTrombinoscoreQuery request, CancellationToken ct)
     {
         var memberId = currentUser.MemberId;
-        if (memberId is null) return Result<byte[]>.Failure("Aucun membre associé à ce compte.");
+        if (memberId is null) return Result<TrombinoscorePdf>.Failure("Aucun membre associé à ce compte.");
 
         var (windowStart, windowEnd) = ScoutYearHelper.Window(request.ScoutYear);
 
@@ -56,10 +56,10 @@ public class GenerateMyTrombinoscoreHandler(IApplicationDbContext context, ICurr
             a.MemberId == memberId && a.UnitId == request.UnitId && !a.IsDeleted
             && a.StartDate < windowEnd && (a.EndDate == null || a.EndDate > windowStart), ct);
         if (!wasInUnit)
-            return Result<byte[]>.Failure("Vous n'avez pas fait partie de cette unité cette année-là.");
+            return Result<TrombinoscorePdf>.Failure("Vous n'avez pas fait partie de cette unité cette année-là.");
 
         var unit = await context.Units.Where(u => u.Id == request.UnitId).Select(u => new { u.Name }).FirstOrDefaultAsync(ct);
-        if (unit is null) return Result<byte[]>.Failure("Unité introuvable.");
+        if (unit is null) return Result<TrombinoscorePdf>.Failure("Unité introuvable.");
 
         // Roster = everyone active in the unit DURING that scout year (overlap), grouped by team, Maîtrise first.
         var assignments = await context.MemberAssignments
@@ -89,6 +89,6 @@ public class GenerateMyTrombinoscoreHandler(IApplicationDbContext context, ICurr
             .ToList();
 
         var pdf = trombinoscoreService.Generate(new TrombinoscoreData(unit.Name, request.ScoutYear, true, teams));
-        return Result<byte[]>.Success(pdf);
+        return Result<TrombinoscorePdf>.Success(new TrombinoscorePdf(pdf, TrombinoscoreFile.Name(unit.Name, request.ScoutYear)));
     }
 }

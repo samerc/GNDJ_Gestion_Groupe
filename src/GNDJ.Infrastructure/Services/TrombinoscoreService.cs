@@ -28,7 +28,7 @@ public class TrombinoscoreService : ITrombinoscoreService
         // photo cells until the whole grid fits the single page's usable height. We start from the ideal
         // cell size and step down; the first size whose estimated layout height fits wins (= biggest legible
         // cell that still fits). If even the smallest doesn't fit (very large unit), we keep the smallest.
-        const float teamHeaderH = 14.4f; // team header row (~font 7 + paddings)
+        const float teamHeaderH = 16f;   // team header row (~font 7 + paddings), rounded up for safety
         const float rowSpacing = 4f;     // col.Spacing(4) between items
         // Vertical budget: page height minus top (page margin + header block) and bottom (footer + margin).
         var reservedTop = useA3 ? 74f : 62f;
@@ -36,16 +36,17 @@ public class TrombinoscoreService : ITrombinoscoreService
         var availHeight = pageSize.Height - reservedTop - reservedBottom;
 
         var maxCell = useA3 ? 70f : 56f;
-        const float minCell = 26f;
+        const float minCell = 24f;
 
         // Estimate total content height for a given cell width (drives columns, photo size, name font).
+        // Deliberately a touch pessimistic (long scout names wrap to 2 lines) so we never spill to a 2nd page.
         float EstimateHeight(float cw)
         {
             var cols = Math.Max(1, (int)(usableWidth / cw));
             var photoS = cw * 0.786f;
             var photoH = photoS * 4f / 3f;
             var nameF = Math.Clamp(cw * 5f / 56f, 4f, 7f);
-            var cellH = photoH + (nameF * 2.3f) + 4f; // photo + up to 2 name lines + paddings
+            var cellH = photoH + (nameF * 2.6f) + 5f; // photo + up to ~2 name lines + paddings
             var total = 5f;                            // content PaddingTop(5)
             foreach (var team in data.Teams)
             {
@@ -59,7 +60,7 @@ public class TrombinoscoreService : ITrombinoscoreService
         for (var cw = maxCell; cw >= minCell; cw -= 1f)
         {
             cellWidth = cw;
-            if (EstimateHeight(cw) <= availHeight * 0.98f) break; // 2% safety margin
+            if (EstimateHeight(cw) <= availHeight * 0.93f) break; // ~7% safety margin (estimate is approximate)
         }
 
         var photoSize = cellWidth * 0.786f;

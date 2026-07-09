@@ -124,7 +124,7 @@ public class MyProfileController : BaseApiController
     {
         var result = await Mediator.Send(new GenerateMyTrombinoscoreQuery(unitId, scoutYear ?? ""));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return File(result.Value!, "application/pdf", $"Trombinoscope_{scoutYear}.pdf");
+        return File(result.Value!.Data, "application/pdf", result.Value.FileName);
     }
 
     // Maps a Result to 204 (success) or 400 (with the error message).
