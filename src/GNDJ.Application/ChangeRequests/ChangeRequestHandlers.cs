@@ -59,9 +59,10 @@ public class ProposeProgressionHandler(IApplicationDbContext context, ICurrentUs
         var memberId = currentUser.MemberId;
         if (memberId is null) return Result<Guid>.Failure("Aucun membre associé à ce compte.");
 
-        // The target unit must be one the member has belonged to (current or past).
-        if (!await context.MemberAssignments.AnyAsync(a => a.MemberId == memberId && a.UnitId == request.UnitId && !a.IsDeleted, ct))
-            return Result<Guid>.Failure("Vous n'appartenez pas (ou n'avez pas appartenu) à cette unité.");
+        // The target unit must exist and be active. A member may propose progression for ANY unit (the CU/CG
+        // reviews it) — not just units they've belonged to.
+        if (!await context.Units.AnyAsync(u => u.Id == request.UnitId && u.IsActive, ct))
+            return Result<Guid>.Failure("Unité introuvable.");
 
         var stage = await context.ScoutStages.FindAsync([request.ScoutStageId], ct);
         if (stage is null) return Result<Guid>.Failure("Étape introuvable.");
@@ -77,6 +78,19 @@ public class ProposeProgressionHandler(IApplicationDbContext context, ICurrentUs
         await context.SaveChangesAsync(ct);
         return Result<Guid>.Success(entity.Id);
     }
+}
+
+// ── Units a member may target when proposing a fonction ──────────────────────
+// ALL active units (not unit-scoped like GetUnitsQuery) so a member can propose moving to ANY unit — the
+// CU/CG reviews the proposal anyway. Minimal fields for the picker (id + name + unit type for role scoping).
+public record ProposableUnitDto(Guid Id, string Name, Guid UnitTypeId);
+public record GetProposableUnitsQuery : IRequest<IReadOnlyList<ProposableUnitDto>>;
+
+public class GetProposableUnitsHandler(IApplicationDbContext context) : IRequestHandler<GetProposableUnitsQuery, IReadOnlyList<ProposableUnitDto>>
+{
+    public async ValueTask<IReadOnlyList<ProposableUnitDto>> Handle(GetProposableUnitsQuery request, CancellationToken ct)
+        => await context.Units.Where(u => u.IsActive).OrderBy(u => u.Name)
+            .Select(u => new ProposableUnitDto(u.Id, u.Name, u.UnitTypeId)).ToListAsync(ct);
 }
 
 // ── Propose: Assignment / fonction (member) ──────────────────────────────────

@@ -34,6 +34,16 @@ export function useProposeAssignment() {
   })
 }
 
+export interface ProposableUnit { id: string; name: string; unitTypeId: string }
+// All active units a member may target when proposing a fonction (not unit-scoped, unlike useUnits).
+export function useProposableUnits(enabled = true) {
+  return useQuery({
+    queryKey: ['change-requests', 'units'],
+    queryFn: () => apiClient.get<ProposableUnit[]>('/change-requests/units').then(r => r.data),
+    enabled,
+  })
+}
+
 // The caller's own change requests (all statuses).
 export function useMyChangeRequests(enabled = true) {
   return useQuery({

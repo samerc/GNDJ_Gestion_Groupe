@@ -36,6 +36,10 @@ public class ChangeRequestsController : BaseApiController
     [HttpGet("mine")]
     public async Task<IActionResult> Mine() => Ok(await Mediator.Send(new GetMyChangeRequestsQuery()));
 
+    /// <summary>All active units a member may target when proposing a fonction (not unit-scoped).</summary>
+    [HttpGet("units")]
+    public async Task<IActionResult> ProposableUnits() => Ok(await Mediator.Send(new GetProposableUnitsQuery()));
+
     /// <summary>Pending change requests for members the caller manages (CU/CG). Empty for non-leaders.</summary>
     [HttpGet("pending")]
     public async Task<IActionResult> Pending() => Ok(await Mediator.Send(new GetPendingChangeRequestsQuery()));

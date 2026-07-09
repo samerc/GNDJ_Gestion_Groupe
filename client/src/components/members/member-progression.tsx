@@ -2,7 +2,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { useState, useMemo } from 'react'
 import { useMemberProgressions, useCreateProgression, useDeleteProgression, useScoutStageList, useBadgeList, type MemberProgressionDto } from '@/services/progression-service'
-import { useProposeProgression, useMyChangeRequests } from '@/services/change-request-service'
+import { useProposeProgression, useMyChangeRequests, useProposableUnits } from '@/services/change-request-service'
 import { useAssignments } from '@/services/assignment-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
@@ -34,9 +34,14 @@ interface Props {
 
 export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: propUnitTypeId, selfPropose }: Props) {
   const { hasPermission } = useAuthStore()
+  const canManage = hasPermission(PERMISSIONS.PROGRESSION_MANAGE)
+  // A member proposing (no manage permission) may target ANY active unit; a manager records against the
+  // member's own units (current + past).
+  const proposing = !!(selfPropose && !canManage)
   const { data: progressions, isLoading } = useMemberProgressions(memberId)
   const proposeMutation = useProposeProgression()
   const { data: myRequests } = useMyChangeRequests(selfPropose)
+  const { data: proposableUnits } = useProposableUnits(proposing)
   // My pending progression proposals (shown to the member while they await approval).
   const pendingProgressions = (myRequests ?? []).filter(r => r.kind === 'Progression' && r.status === 'Pending')
 
@@ -68,8 +73,13 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
   // form.unitId picks WHICH of the member's units the progression belongs to; it drives the stage/badge lists.
   const [form, setForm] = useState({ unitId: '', scoutStageId: '', badgeId: '', date: '', location: '', notes: '' })
 
+  // Unit picker options: a member proposing sees ALL active units; a manager sees the member's own units.
+  const unitPickerOptions = proposing
+    ? (proposableUnits ?? []).map(u => ({ unitId: u.id, unitName: u.name, unitTypeId: u.unitTypeId, isActive: false }))
+    : memberUnits
+
   // Stages/badges load for the SELECTED unit's type (fall back to props / active assignment).
-  const selectedUnit = memberUnits.find(u => u.unitId === form.unitId)
+  const selectedUnit = unitPickerOptions.find(u => u.unitId === form.unitId)
   const selectedUnitTypeId = selectedUnit?.unitTypeId ?? propUnitTypeId ?? activeAssignment?.unitTypeId
   const { data: stages } = useScoutStageList(selectedUnitTypeId ?? '')
 
@@ -79,7 +89,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
 
   const openCreate = () => {
     // Default to the member's current unit (else the first/most-recent unit in their history).
-    const defaultUnitId = propUnitId ?? activeAssignment?.unitId ?? memberUnits[0]?.unitId ?? ''
+    const defaultUnitId = propUnitId ?? activeAssignment?.unitId ?? unitPickerOptions[0]?.unitId ?? ''
     setForm({ unitId: defaultUnitId, scoutStageId: '', badgeId: '', date: new Date().toISOString().split('T')[0], location: '', notes: '' })
     setError('')
     setFormOpen(true)
@@ -125,9 +135,8 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
 
   if (isLoading) return <LoadingSpinner />
 
-  const canManage = hasPermission(PERMISSIONS.PROGRESSION_MANAGE)
-  // Show the add/propose button to a manager, or to a member proposing on their own fiche.
-  const canAddOrPropose = (canManage || selfPropose) && memberUnits.length > 0
+  // Show the add/propose button to a manager (with a target unit) or to a member proposing on their own fiche.
+  const canAddOrPropose = (canManage && memberUnits.length > 0) || proposing
 
   return (
     <div className="space-y-4">
@@ -202,8 +211,8 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
               <Select value={form.unitId} onValueChange={(v) => setForm(f => ({ ...f, unitId: v, scoutStageId: '', badgeId: '' }))}>
                 <SelectTrigger><SelectValue placeholder="Sélectionner une unité..." /></SelectTrigger>
                 <SelectContent>
-                  {memberUnits.map(u => (
-                    <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}{u.isActive ? ' (actuelle)' : ' (ancienne)'}</SelectItem>
+                  {unitPickerOptions.map(u => (
+                    <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}{proposing ? '' : (u.isActive ? ' (actuelle)' : ' (ancienne)')}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -4,7 +4,7 @@ import { useFormValidation } from '@/hooks/use-form-validation'
 import { useAssignments, useCreateAssignment, useUpdateAssignment, useEndAssignment, useDeleteAssignment, useFunctionalRoles, type AssignmentDto, type AssignmentFormData } from '@/services/assignment-service'
 import { useUnits } from '@/services/unit-service'
 import { useTeams, teamsForSelect } from '@/services/team-service'
-import { useProposeAssignment, useMyChangeRequests } from '@/services/change-request-service'
+import { useProposeAssignment, useMyChangeRequests, useProposableUnits } from '@/services/change-request-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RequiredLabel } from '@/components/shared/required-label'
@@ -66,6 +66,8 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
   const proposeMutation = useProposeAssignment()
   const { data: myRequests } = useMyChangeRequests(canPropose)
   const pendingAssignments = (myRequests ?? []).filter(r => r.kind === 'Assignment' && r.status === 'Pending')
+  // When proposing, a member may target ANY active unit (not just their own scoped ones).
+  const { data: proposableUnits } = useProposableUnits(canPropose)
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<AssignmentDto | null>(null)
@@ -76,7 +78,9 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
 
   const { data: teams } = useTeams({ unitId: form.unitId || undefined, pageSize: 100 })
   // Functions are scoped to the chosen unit's type (the endpoint also includes global roles).
-  const selectedUnitTypeId = units?.items.find(u => u.id === form.unitId)?.unitTypeId
+  // Unit options: a member proposing sees ALL active units; a leader sees their scoped units.
+  const unitOptions = canPropose ? (proposableUnits ?? []) : (units?.items ?? [])
+  const selectedUnitTypeId = unitOptions.find(u => u.id === form.unitId)?.unitTypeId
   const { data: roles } = useFunctionalRoles(selectedUnitTypeId)
 
   const openCreate = () => {
@@ -282,7 +286,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
                   <RequiredLabel required>Unité</RequiredLabel>
                   <Select value={form.unitId} onValueChange={(v) => { setForm(f => ({ ...f, unitId: v, teamId: '', functionalRoleId: '' })); clearField('unitId') }}>
                     <SelectTrigger className={fieldClass('unitId')}><SelectValue placeholder="Sélectionner une unité..." /></SelectTrigger>
-                    <SelectContent>{units?.items.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{unitOptions.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
