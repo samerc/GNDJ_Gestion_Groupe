@@ -54,3 +54,4 @@ deploy/target.txt
 # ASP.NET DataProtection keys (per-machine, never commit)
 dataprotection-keys/
 **/dataprotection-keys/
+temp/
