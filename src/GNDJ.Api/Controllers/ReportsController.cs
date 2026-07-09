@@ -26,6 +26,36 @@ public class ReportsController : BaseApiController
         return File(result.Value!.Data, "application/pdf", result.Value.FileName);
     }
 
+    /// <summary>Saves (freezes) the trombinoscope for a unit + scout year so members see it with that year's photos. Requires members.edit.</summary>
+    [HttpPost("trombinoscope/archive")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> ArchiveTrombinoscope([FromBody] ArchiveTrombinoscoreCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>Whether a saved trombinoscope exists for a unit + scout year (and when it was saved). Requires members.edit.</summary>
+    [HttpGet("trombinoscope/archive")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> TrombinoscopeArchiveInfo([FromQuery] Guid unitId, [FromQuery] string scoutYear)
+    {
+        var result = await Mediator.Send(new GetTrombinoscoreArchiveInfoQuery(unitId, scoutYear ?? ""));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>Re-downloads the saved trombinoscope PDF for a unit + scout year. Requires members.edit.</summary>
+    [HttpGet("trombinoscope/archive/download")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> DownloadTrombinoscopeArchive([FromQuery] Guid unitId, [FromQuery] string scoutYear)
+    {
+        var result = await Mediator.Send(new DownloadTrombinoscoreArchiveQuery(unitId, scoutYear ?? ""));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return File(result.Value!.Data, "application/pdf", result.Value.FileName);
+    }
+
     /// <summary>Generates a single member's credit-card-sized card PDF. Requires members.view.</summary>
     [HttpGet("member-card/{memberId:guid}")]
     [HasPermission(Permissions.MembersView)]

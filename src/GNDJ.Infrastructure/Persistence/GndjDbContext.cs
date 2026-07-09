@@ -65,6 +65,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<CampParticipant> CampParticipants => Set<CampParticipant>();
     public DbSet<CampGame> CampGames => Set<CampGame>();
     public DbSet<CampGameEtapiste> CampGameEtapistes => Set<CampGameEtapiste>();
+    public DbSet<TrombinoscopeArchive> TrombinoscopeArchives => Set<TrombinoscopeArchive>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

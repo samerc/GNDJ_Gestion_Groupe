@@ -1,16 +1,25 @@
-// Dialog that generates the unit "trombinoscope" (photo grid) PDF. Opened from the CU dashboard.
-// Lets the leader pick which teams to include (all-by-default) and whether to print photos, then calls
-// the report API and triggers a client-side blob download. The server picks A4/A3 paper based on member
-// count. School year comes from the cotisation.current_scout_year setting.
+// Dialog that produces the unit "trombinoscope" (photo grid) PDF. Opened from the CU dashboard.
+// Two actions:
+//  - "Aperçu" downloads a live PDF of the CURRENT roster/photos (to check before saving) — not stored.
+//  - "Enregistrer" FREEZES that PDF for the (unit, scout year): it becomes the file the CU re-downloads AND
+//    the file every member sees on their Trombinoscope page. Photos are frozen at save time, so replacing a
+//    member's photo later never rewrites a past year, and it isn't regenerated on every view.
+// The leader picks which teams to include and whether to print photos. Year = cotisation.current_scout_year.
 import { useState } from 'react'
-import { generateTrombinoscope } from '@/services/report-service'
+import { useQuery } from '@tanstack/react-query'
+import {
+  generateTrombinoscope,
+  archiveTrombinoscope,
+  getTrombinoscopeArchiveInfo,
+  downloadTrombinoscopeArchive,
+} from '@/services/report-service'
 import { useTeams } from '@/services/team-service'
 import { useSettingValue } from '@/services/settings-service'
 import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { FileDown } from 'lucide-react'
+import { FileDown, Save, Download, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Props {
@@ -27,8 +36,15 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
 
   const [selectedTeams, setSelectedTeams] = useState<Set<string>>(new Set())
   const [includePhotos, setIncludePhotos] = useState(true)
-  const [generating, setGenerating] = useState(false)
+  const [busy, setBusy] = useState<'' | 'preview' | 'save' | 'download'>('')
   const [error, setError] = useState('')
+
+  // Status of the already-saved version for this unit + year (drives the hint + re-download button).
+  const { data: archiveInfo, refetch: refetchInfo } = useQuery({
+    queryKey: ['trombi-archive', unitId, scoutYear],
+    queryFn: () => getTrombinoscopeArchiveInfo(unitId, scoutYear),
+    enabled: open && !!unitId && !!scoutYear,
+  })
 
   // Default: all teams selected when none are individually selected
   const allSelected = selectedTeams.size === 0 || selectedTeams.size === teams.length
@@ -42,28 +58,53 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
     })
   }
 
-  const handleGenerate = async () => {
-    setGenerating(true)
-    setError('')
+  const teamIds = () => (allSelected ? null : Array.from(selectedTeams))
+
+  // Downloads a blob to the browser as a named file.
+  const saveBlob = (data: BlobPart, fileName: string) => {
+    const url = URL.createObjectURL(new Blob([data], { type: 'application/pdf' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const defaultName = `Trombinoscope ${unitName} ${scoutYear}.pdf`
+
+  // Live preview of the current roster/photos — not stored.
+  const handlePreview = async () => {
+    setBusy('preview'); setError('')
     try {
-      // null teamIds = server includes every team (the "all selected" default).
-      const teamIds = allSelected ? null : Array.from(selectedTeams)
-      const response = await generateTrombinoscope({ unitId, scoutYear, includePhotos, teamIds })
-      // Wrap the raw PDF bytes in a blob and click a temporary anchor to download it.
-      const blob = new Blob([response.data], { type: 'application/pdf' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `Trombinoscope_${unitName.replace(/\s+/g, '_')}_${scoutYear}.pdf`
-      a.click()
-      URL.revokeObjectURL(url)
-      toast.success('Trombinoscope généré')
-      onOpenChange(false)
+      const response = await generateTrombinoscope({ unitId, scoutYear, includePhotos, teamIds: teamIds() })
+      saveBlob(response.data, defaultName)
+      toast.success('Aperçu généré')
     } catch (err) {
       setError(parseApiError(err))
-    } finally {
-      setGenerating(false)
-    }
+    } finally { setBusy('') }
+  }
+
+  // Freeze (save) the trombinoscope so members can see it.
+  const handleSave = async () => {
+    setBusy('save'); setError('')
+    try {
+      const info = await archiveTrombinoscope({ unitId, scoutYear, includePhotos, teamIds: teamIds() })
+      toast.success(`Trombinoscope enregistré (${info.memberCount} membres) — visible par les membres`)
+      refetchInfo()
+    } catch (err) {
+      setError(parseApiError(err))
+    } finally { setBusy('') }
+  }
+
+  // Re-download the saved version.
+  const handleDownloadSaved = async () => {
+    setBusy('download'); setError('')
+    try {
+      const response = await downloadTrombinoscopeArchive(unitId, scoutYear)
+      saveBlob(response.data, archiveInfo?.fileName ?? defaultName)
+    } catch (err) {
+      setError(parseApiError(err))
+    } finally { setBusy('') }
   }
 
   return (
@@ -74,6 +115,25 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
         </DialogHeader>
         <div className="space-y-4">
           {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+
+          {/* Saved-version status: once saved, THIS file is what members see + what re-downloads. */}
+          {archiveInfo && (archiveInfo.exists ? (
+            <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium">Version enregistrée{archiveInfo.savedAt ? ` le ${new Date(archiveInfo.savedAt).toLocaleDateString('fr-FR')}` : ''}</p>
+                <p className="text-xs text-emerald-700">{archiveInfo.memberCount} membres · visible par les membres. Réenregistrez pour la mettre à jour.</p>
+                <Button variant="link" size="sm" className="h-auto p-0 text-emerald-800" onClick={handleDownloadSaved} disabled={busy !== ''}>
+                  <Download className="mr-1 h-3.5 w-3.5" />Télécharger la version enregistrée
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>Aucune version enregistrée pour {scoutYear}. Les membres ne verront leur trombinoscope qu'après l'enregistrement.</p>
+            </div>
+          ))}
 
           <div>
             <p className="text-sm font-medium mb-2">Équipes à inclure</p>
@@ -105,11 +165,15 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
 
           <p className="text-xs text-muted-foreground">Année scoute : {scoutYear}</p>
         </div>
-        <DialogFooter>
+        <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fermer</Button>
-          <Button onClick={handleGenerate} disabled={generating}>
-            {generating ? <LoadingSpinner className="py-0 mr-2 h-4 w-4" /> : <FileDown className="mr-1 h-4 w-4" />}
-            {generating ? 'Génération...' : 'Générer'}
+          <Button variant="outline" onClick={handlePreview} disabled={busy !== ''}>
+            {busy === 'preview' ? <LoadingSpinner className="py-0 mr-2 h-4 w-4" /> : <FileDown className="mr-1 h-4 w-4" />}
+            Aperçu
+          </Button>
+          <Button onClick={handleSave} disabled={busy !== ''}>
+            {busy === 'save' ? <LoadingSpinner className="py-0 mr-2 h-4 w-4" /> : <Save className="mr-1 h-4 w-4" />}
+            {archiveInfo?.exists ? 'Réenregistrer' : 'Enregistrer'}
           </Button>
         </DialogFooter>
       </DialogContent>

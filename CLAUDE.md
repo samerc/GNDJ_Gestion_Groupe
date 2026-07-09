@@ -1497,11 +1497,38 @@ of their Meute, gets a valid PDF, and is denied a unit they were never in. Share
 (Window + Of). DEV until deploy.
 - **Single-page fit (2026-07-09):** the trombinoscope PDF used to paginate (big units spilled onto a 2nd/3rd
       sheet). `TrombinoscoreService.Generate` now **shrinks the photo cells to fit ONE page** — an
-      `EstimateHeight(cellWidth)` steps the cell size down from the ideal (A4 56 / A3 70) to a floor (26pt) and
+      `EstimateHeight(cellWidth)` steps the cell size down from the ideal (A4 56 / A3 70) to a floor (24pt) and
       picks the largest cell whose estimated grid height (teams + rows + headers) fits the page's usable height
-      (with a 2% safety margin); photo/name-font/columns all derive from the chosen cell width. A3 is still
-      auto-selected for >60 members (more room before shrinking). Applies to BOTH the member trombinoscope and the
-      CU report (shared service). Build clean.
+      (7% safety margin + pessimistic 2-line name height so long scout names never spill). Photo/name-font/columns
+      all derive from the chosen cell width; A3 still auto-selected for >60 members. Applies to BOTH the member
+      trombinoscope and the CU report (shared service). Verified: 87-member Compagnie 1 → `/Count 1` (one page).
+- **Friendly filename (2026-07-09):** the server now names the PDF `Trombinoscope <unité> <année>.pdf`
+      (`TrombinoscoreFile.Name`, strips invalid chars) so the member page (opens the blob in a new tab → uses the
+      server's Content-Disposition name) and the CU report both get a meaningful name. Both trombinoscope queries
+      now return a `TrombinoscorePdf(Data, FileName)` instead of bare `byte[]`.
+- **Photo history — SAVE (freeze) the trombinoscope (2026-07-09):** the trombinoscope always embedded each
+      member's CURRENT photo, so regenerating a past year showed today's faces (roster/names were correct — assignments
+      are date-scoped — but photos weren't historical; replacing a photo silently rewrote every past trombinoscope).
+      FIX = **archive the generated PDF per (unit, scout year)** and serve THAT frozen file everywhere:
+      - New entity **`TrombinoscopeArchive`** (UnitId, ScoutYear, FileName, `PdfData` bytea, MemberCount; one live
+        row per unit+year, migration `AddTrombinoscopeArchive`). PDF bytes stored in the DB so snapshots travel with
+        the pg dump.
+      - Shared `TrombinoscoreRoster.BuildAsync` (current active roster grouped by team, Maîtrise first) +
+        `CanManageUnit` (members.edit + unit) reused by the live CU query AND the archive save (identical PDF).
+      - Endpoints (members.edit): `POST /reports/trombinoscope/archive` (freeze/overwrite for a unit+year, returns
+        `{exists, fileName, savedAt, memberCount}`), `GET /reports/trombinoscope/archive` (status), `GET
+        /reports/trombinoscope/archive/download` (re-download the saved PDF). `POST /reports/trombinoscope` stays the
+        live **preview** (unsaved).
+      - **CU dialog** reworked: **Enregistrer/Réenregistrer** (primary — freezes it, "visible par les membres") +
+        **Aperçu** (live preview) + a saved-version status banner (green "Version enregistrée le … · N membres" with
+        a re-download link, or amber "Aucune version enregistrée — les membres ne verront pas encore leur trombinoscope").
+      - **Member page** now serves the **archived** PDF only (never live-regenerates with today's photos):
+        `GetMyTrombinoscoreYearsQuery` marks each (year, unit) `Available` (= an archive exists); the page shows
+        "Voir" when available else "Pas encore disponible"; `GenerateMyTrombinoscoreQuery` returns the frozen bytes if
+        the caller was active in that unit that year (else "pas encore disponible" / access error).
+      - Verified live end-to-end: super-admin archives Compagnie 1 (87 members, one page) → member sees available=true
+        + downloads the same 57 KB PDF; a year she was in but unarchived → "pas encore disponible"; a unit/year she
+        was never in → access denied. Build + tsc + eslint clean. DEV until deploy (migration applies on prod startup).
 
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear

@@ -77,7 +77,9 @@ export function useDeleteMyAddress(memberId: string) {
 }
 
 // ── Trombinoscope (member views their unit's photo grid per year) ──
-export interface MyTrombinoscopeYear { scoutYear: string; unitId: string; unitName: string }
+// `available` = a leader has SAVED (frozen) the trombinoscope for that unit+year. Only saved ones can be
+// viewed (we never regenerate with today's photos), so a year with available=false is shown disabled.
+export interface MyTrombinoscopeYear { scoutYear: string; unitId: string; unitName: string; available: boolean }
 
 // GET /my-profile/trombinoscopes → the (year, unit) pairs the member can view.
 export function useMyTrombinoscopes() {

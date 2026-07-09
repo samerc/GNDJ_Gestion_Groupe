@@ -12,7 +12,10 @@ namespace GNDJ.Application.Reports;
 // per-photo endpoint is opened up. Access is limited to units the caller was actually active in that year.
 
 // ── The (year, unit) pairs the caller can view ───────────────────────────────
-public record MyTrombinoscoreYearDto(string ScoutYear, Guid UnitId, string UnitName);
+// Available = a SAVED (archived) trombinoscope exists for that unit+year. We only serve the frozen file a
+// leader has published (so photos stay as they were that year), so a year with no archive is shown but
+// disabled ("pas encore disponible") rather than live-generated with today's photos.
+public record MyTrombinoscoreYearDto(string ScoutYear, Guid UnitId, string UnitName, bool Available);
 public record GetMyTrombinoscoreYearsQuery : IRequest<IReadOnlyList<MyTrombinoscoreYearDto>>;
 
 public class GetMyTrombinoscoreYearsHandler(IApplicationDbContext context, ICurrentUserService currentUser)
@@ -30,18 +33,32 @@ public class GetMyTrombinoscoreYearsHandler(IApplicationDbContext context, ICurr
             .Select(a => new { a.UnitId, UnitName = a.Unit.Name, a.StartDate })
             .ToListAsync(ct);
 
-        return rows
-            .Select(r => new MyTrombinoscoreYearDto(ScoutYearHelper.Of(r.StartDate), r.UnitId, r.UnitName))
+        var pairs = rows
+            .Select(r => new { ScoutYear = ScoutYearHelper.Of(r.StartDate), r.UnitId, r.UnitName })
             .DistinctBy(r => new { r.ScoutYear, r.UnitId })
+            .ToList();
+
+        // Which of the member's (unit, year) pairs have a saved trombinoscope.
+        var unitIds = pairs.Select(p => p.UnitId).Distinct().ToList();
+        var archived = await context.TrombinoscopeArchives
+            .Where(t => unitIds.Contains(t.UnitId))
+            .Select(t => new { t.UnitId, t.ScoutYear })
+            .ToListAsync(ct);
+        var archivedSet = archived.Select(a => $"{a.UnitId}|{a.ScoutYear}").ToHashSet();
+
+        return pairs
+            .Select(p => new MyTrombinoscoreYearDto(p.ScoutYear, p.UnitId, p.UnitName, archivedSet.Contains($"{p.UnitId}|{p.ScoutYear}")))
             .OrderByDescending(r => r.ScoutYear).ThenBy(r => r.UnitName)
             .ToList();
     }
 }
 
 // ── The trombinoscope PDF for one (unit, year) the caller was in ─────────────
+// Serves the SAVED (frozen) trombinoscope, not a live regeneration — so the member sees the photos as they
+// were that year. Access: the caller must have been active in that unit during that scout year.
 public record GenerateMyTrombinoscoreQuery(Guid UnitId, string ScoutYear) : IRequest<Result<TrombinoscorePdf>>;
 
-public class GenerateMyTrombinoscoreHandler(IApplicationDbContext context, ICurrentUserService currentUser, ITrombinoscoreService trombinoscoreService)
+public class GenerateMyTrombinoscoreHandler(IApplicationDbContext context, ICurrentUserService currentUser)
     : IRequestHandler<GenerateMyTrombinoscoreQuery, Result<TrombinoscorePdf>>
 {
     public async ValueTask<Result<TrombinoscorePdf>> Handle(GenerateMyTrombinoscoreQuery request, CancellationToken ct)
@@ -58,37 +75,14 @@ public class GenerateMyTrombinoscoreHandler(IApplicationDbContext context, ICurr
         if (!wasInUnit)
             return Result<TrombinoscorePdf>.Failure("Vous n'avez pas fait partie de cette unité cette année-là.");
 
-        var unit = await context.Units.Where(u => u.Id == request.UnitId).Select(u => new { u.Name }).FirstOrDefaultAsync(ct);
-        if (unit is null) return Result<TrombinoscorePdf>.Failure("Unité introuvable.");
+        // Serve the frozen file the leader published for that year (photos as they were).
+        var archive = await context.TrombinoscopeArchives
+            .Where(t => t.UnitId == request.UnitId && t.ScoutYear == request.ScoutYear)
+            .Select(t => new { t.PdfData, t.FileName })
+            .FirstOrDefaultAsync(ct);
+        if (archive is null)
+            return Result<TrombinoscorePdf>.Failure("Le trombinoscope de cette année n'est pas encore disponible.");
 
-        // Roster = everyone active in the unit DURING that scout year (overlap), grouped by team, Maîtrise first.
-        var assignments = await context.MemberAssignments
-            .Where(a => a.UnitId == request.UnitId && !a.IsDeleted
-                && a.StartDate < windowEnd && (a.EndDate == null || a.EndDate > windowStart))
-            .OrderBy(a => a.Team != null ? a.Team.DisplayOrder : 999)
-            .ThenByDescending(a => a.FunctionalRole.Rank)
-            .ThenBy(a => a.Member.LastName).ThenBy(a => a.Member.FirstName)
-            .Select(a => new
-            {
-                a.Member.FirstName, a.Member.LastName, a.Member.CardNumber, a.Member.PhotoPath,
-                a.TeamId,
-                TeamName = a.Team != null ? a.Team.Name : null,
-                TeamOrder = a.Team != null ? a.Team.DisplayOrder : 999,
-                IsMaitrise = a.Team != null && a.Team.IsMaitrise,
-            })
-            .ToListAsync(ct);
-
-        // A member can appear once per unit even across split assignments — dedupe by name+card.
-        var teams = assignments
-            .DistinctBy(a => new { a.FirstName, a.LastName, a.CardNumber })
-            .GroupBy(a => new { a.TeamId, a.TeamName, a.TeamOrder, a.IsMaitrise })
-            .OrderByDescending(g => g.Key.IsMaitrise).ThenBy(g => g.Key.TeamOrder)
-            .Select(g => new TrombinoscoreTeam(
-                g.Key.TeamName ?? "Sans équipe",
-                g.Select(a => new TrombinoscoreMember($"{a.FirstName} {a.LastName}", a.CardNumber, a.PhotoPath)).ToList()))
-            .ToList();
-
-        var pdf = trombinoscoreService.Generate(new TrombinoscoreData(unit.Name, request.ScoutYear, true, teams));
-        return Result<TrombinoscorePdf>.Success(new TrombinoscorePdf(pdf, TrombinoscoreFile.Name(unit.Name, request.ScoutYear)));
+        return Result<TrombinoscorePdf>.Success(new TrombinoscorePdf(archive.PdfData, archive.FileName));
     }
 }

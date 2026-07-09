@@ -51,9 +51,14 @@ export default function MyTrombinoscopePage() {
                     <p className="font-semibold">{t.scoutYear}</p>
                     <p className="text-sm text-muted-foreground">{t.unitName}</p>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => view(t)} disabled={busy === key}>
-                    <FileText className="mr-1.5 h-4 w-4" />{busy === key ? 'Ouverture…' : 'Voir'}
-                  </Button>
+                  {t.available ? (
+                    <Button size="sm" variant="outline" onClick={() => view(t)} disabled={busy === key}>
+                      <FileText className="mr-1.5 h-4 w-4" />{busy === key ? 'Ouverture…' : 'Voir'}
+                    </Button>
+                  ) : (
+                    // No saved trombinoscope yet — a leader hasn't published this year's photo grid.
+                    <span className="text-xs text-muted-foreground italic">Pas encore disponible</span>
+                  )}
                 </CardContent>
               </Card>
             )
