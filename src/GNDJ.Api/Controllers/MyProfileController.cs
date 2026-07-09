@@ -1,6 +1,7 @@
 using GNDJ.Application.Guardians;
 using GNDJ.Application.Members.Commands.MyContacts;
 using GNDJ.Application.Members.Commands.UpdateMyProfile;
+using GNDJ.Application.Reports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -110,6 +111,21 @@ public class MyProfileController : BaseApiController
     /// <summary>Removes an email from one of the caller's own linked guardians.</summary>
     [HttpDelete("guardian-emails/{id:guid}")]
     public async Task<IActionResult> DeleteGuardianEmail(Guid id) => Wrap(await Mediator.Send(new DeleteMyGuardianEmailCommand(id)));
+
+    // ── Trombinoscope: the member views the photo grid of the unit(s) they belong(ed) to, per year ──────
+
+    /// <summary>The (scout year, unit) pairs the caller can view a trombinoscope for.</summary>
+    [HttpGet("trombinoscopes")]
+    public async Task<IActionResult> TrombinoscopeYears() => Ok(await Mediator.Send(new GetMyTrombinoscoreYearsQuery()));
+
+    /// <summary>The trombinoscope PDF for a unit + scout year the caller was active in.</summary>
+    [HttpGet("trombinoscope")]
+    public async Task<IActionResult> Trombinoscope([FromQuery] Guid unitId, [FromQuery] string scoutYear)
+    {
+        var result = await Mediator.Send(new GenerateMyTrombinoscoreQuery(unitId, scoutYear ?? ""));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return File(result.Value!, "application/pdf", $"Trombinoscope_{scoutYear}.pdf");
+    }
 
     // Maps a Result to 204 (success) or 400 (with the error message).
     private IActionResult Wrap<T>(GNDJ.Application.Common.Models.Result<T> result)

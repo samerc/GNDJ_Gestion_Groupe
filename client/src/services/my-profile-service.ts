@@ -2,7 +2,7 @@
 // and NO approval. Backed by /my-profile/* (auth-only; the server resolves the caller's own member id and
 // only lets a member change permitted fields). Keep in sync with the approval-gated flows (progression /
 // fonctions) which live elsewhere.
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
 // The member-editable profile + medical fields (locked identity fields are intentionally absent).
@@ -74,4 +74,23 @@ export function useUpdateMyAddress(memberId: string) {
 export function useDeleteMyAddress(memberId: string) {
   const qc = useQueryClient()
   return useMutation({ mutationFn: (id: string) => apiClient.delete(`/my-profile/addresses/${id}`), onSuccess: () => invalidateMe(qc, memberId) })
+}
+
+// ── Trombinoscope (member views their unit's photo grid per year) ──
+export interface MyTrombinoscopeYear { scoutYear: string; unitId: string; unitName: string }
+
+// GET /my-profile/trombinoscopes → the (year, unit) pairs the member can view.
+export function useMyTrombinoscopes() {
+  return useQuery({
+    queryKey: ['my-trombinoscopes'],
+    queryFn: () => apiClient.get<MyTrombinoscopeYear[]>('/my-profile/trombinoscopes').then(r => r.data),
+  })
+}
+
+// GET /my-profile/trombinoscope?unitId&scoutYear → open the generated PDF in a new tab.
+export async function viewMyTrombinoscope(unitId: string, scoutYear: string) {
+  const res = await apiClient.get('/my-profile/trombinoscope', { params: { unitId, scoutYear }, responseType: 'blob' })
+  const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+  window.open(url, '_blank')
+  setTimeout(() => window.URL.revokeObjectURL(url), 60_000)
 }

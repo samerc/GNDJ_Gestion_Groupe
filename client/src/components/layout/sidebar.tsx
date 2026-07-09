@@ -37,6 +37,7 @@ import {
   ListChecks,
   Tent,
   ClipboardList,
+  Image as ImageIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePendingDemandeCount } from '@/services/demande-admin-service'
@@ -67,6 +68,7 @@ const adminNavItems = [
 const leaderNavItems = [
   { path: '/my-profile', label: 'Ma fiche', icon: Users, permission: null },
   { path: '/my-documents', label: 'Mes documents', icon: FileText, permission: null },
+  { path: '/my-trombinoscope', label: 'Trombinoscope', icon: ImageIcon, permission: null },
   { path: '/dashboard', label: 'Mon unité', icon: Building2, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/unit-documents', label: 'Documents', icon: FileText, permission: PERMISSIONS.DOCUMENTS_APPROVE },

@@ -1483,6 +1483,19 @@ A member can now maintain their OWN fiche. Two mechanisms:
   (200, was denied); an ACG+CU sees both dashboards and "Mon unité" = only their Compagnie. Backend-only DTO
   change, DEV until deploy.
 
+### Member trombinoscope page (2026-07-09)
+New member-facing page **Trombinoscope** (sidebar, under Ma fiche / Mes documents; `/my-trombinoscope`, all
+members). Lists each **(scout year, unit)** the member was active in (current + past — derived from their
+assignments via `ScoutYearHelper.Of(startDate)`, Oct-1 boundary); "Voir" opens the trombinoscope **PDF** for
+that unit+year in a new tab. Backend `MyTrombinoscoreHandlers` (auth-only, `/my-profile/trombinoscopes` +
+`/my-profile/trombinoscope?unitId&scoutYear`): the PDF roster = everyone active in that unit **during that
+scout year** (date-range overlap on the `ScoutYearHelper.Window`), reusing `ITrombinoscoreService`. **Access
+is limited to units the member was actually active in that year** (else 400). This is a DELIBERATE exception to
+the member-data IDOR lock — a member sees co-members' photos/names for their own unit — but safe: the PDF is
+generated server-side with photos embedded, so no per-photo endpoint is opened. Verified: a youth sees 3 years
+of their Meute, gets a valid PDF, and is denied a unit they were never in. Shared `Common/ScoutYearHelper`
+(Window + Of). DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

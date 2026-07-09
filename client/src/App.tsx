@@ -39,6 +39,7 @@ const DemandeWizardPage = lazy(() => import('@/pages/inscription/demande-wizard'
 const DashboardPage = lazy(() => import('@/pages/dashboard'))
 const MyProfilePage = lazy(() => import('@/pages/my-profile'))
 const MyDocumentsPage = lazy(() => import('@/pages/my-documents'))
+const MyTrombinoscopePage = lazy(() => import('@/pages/my-trombinoscope'))
 const UnitsPage = lazy(() => import('@/pages/units/index'))
 const UnitDetailPage = lazy(() => import('@/pages/units/detail'))
 const MembersPage = lazy(() => import('@/pages/members/index'))
@@ -125,6 +126,7 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/my-profile" element={<MyProfilePage />} />
             <Route path="/my-documents" element={<MyDocumentsPage />} />
+            <Route path="/my-trombinoscope" element={<MyTrombinoscopePage />} />
             <Route path="/units" element={<UnitsPage />} />
             <Route path="/units/:id" element={<UnitDetailPage />} />
             <Route path="/members" element={<MembersPage />} />
