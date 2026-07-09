@@ -25,6 +25,8 @@ export interface UnitAccess {
   unitId: string
   unitName: string
   roleName: string
+  // True when the member LEADS this unit (role grants members.edit) vs. just belonging to it as a youth.
+  isLeader: boolean
 }
 
 export interface LoginRequest {

@@ -37,7 +37,9 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
         // (ICurrentUserService) rather than being re-derived here.
         var unitAccess = await _context.MemberAssignments
             .Where(a => a.MemberId == user.MemberId && a.EndDate == null)
-            .Select(a => new UnitAccessDto(a.UnitId, a.Unit.Name, a.FunctionalRole.Name))
+            .Select(a => new UnitAccessDto(a.UnitId, a.Unit.Name, a.FunctionalRole.Name,
+                // Leadership role = its security profile grants members.edit (chef d'unité / ACU / CG …).
+                a.FunctionalRole.SecurityProfile.Permissions.Any(p => p.Permission == GNDJ.Domain.Enums.Permissions.MembersEdit)))
             .ToListAsync(cancellationToken);
 
         return Result<MeResponse>.Success(new MeResponse(

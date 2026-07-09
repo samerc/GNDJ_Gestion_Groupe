@@ -186,15 +186,21 @@ export default function DashboardPage() {
   // Regular members go straight to profile
   if (!isUnitLeader) return <Navigate to="/my-profile" replace />
 
-  // Multi-unit leader: show a unit picker above the roster (defaults to the first unit).
-  if (isUnitLeader && user.unitAccess.length > 1) {
-    const unitId = selectedUnit || user.unitAccess[0]?.unitId
+  // Manage the unit(s) the member actually LEADS (chef/ACU roles), not units they merely belong to as a
+  // youth — a member who is a Louveteau in C1 and an ACU in M10 lands on M10, not C1. Fall back to all
+  // their units if no role is flagged as leadership (edge case).
+  const leaderUnits = user.unitAccess.filter(u => u.isLeader)
+  const manageUnits = leaderUnits.length > 0 ? leaderUnits : user.unitAccess
+
+  // Multi-unit leader: show a unit picker above the roster (defaults to the first led unit).
+  if (manageUnits.length > 1) {
+    const unitId = selectedUnit || manageUnits[0]?.unitId
     return (
       <div className="space-y-4">
         <Select value={unitId} onValueChange={setSelectedUnit}>
           <SelectTrigger className="w-64"><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
           <SelectContent>
-            {user.unitAccess.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName} — {u.roleName}</SelectItem>)}
+            {manageUnits.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName} — {u.roleName}</SelectItem>)}
           </SelectContent>
         </Select>
         <UnitLeaderDashboard unitId={unitId} />
@@ -202,8 +208,8 @@ export default function DashboardPage() {
     )
   }
 
-  if (isUnitLeader && user.unitAccess.length === 1) {
-    return <UnitLeaderDashboard unitId={user.unitAccess[0].unitId} />
+  if (manageUnits.length === 1) {
+    return <UnitLeaderDashboard unitId={manageUnits[0].unitId} />
   }
 
   return <Navigate to="/my-profile" replace />

@@ -26,5 +26,9 @@ public record MeResponse(
 public record UnitAccessDto(
     Guid UnitId,
     string UnitName,
-    string RoleName
+    string RoleName,
+    // True when this assignment's role is a LEADERSHIP role (its profile grants members.edit) — i.e. the
+    // member manages this unit, vs. just belonging to it as a youth. Drives which unit the leader dashboard
+    // defaults to (a member who is a youth in one unit and a chef in another lands on the unit they lead).
+    bool IsLeader
 );
