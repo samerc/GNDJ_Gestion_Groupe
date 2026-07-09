@@ -3,7 +3,6 @@ import { Compass, UserPlus } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePublicSiteConfig } from '@/services/public-service'
 import { LoginForm } from '@/components/auth/login-form'
-import { Button } from '@/components/ui/button'
 
 // "Espace membres" — login screen for existing members/chefs (JWT auth).
 // Anonymous-only: an already-authenticated user is bounced to /dashboard.
@@ -30,21 +29,23 @@ export default function LoginPage() {
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-white shadow-elevated ring-1 ring-white/10">
             <Compass className="h-7 w-7" strokeWidth={2.2} />
           </div>
+          <span className="mb-1 rounded-full bg-primary/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
+            Membres &amp; chefs
+          </span>
           <h1 className="text-3xl font-bold tracking-tight">Espace membres</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Connexion réservée aux membres du groupe — GNDJ Scout</p>
+          <p className="mt-1 text-sm text-muted-foreground">Réservé aux membres et chefs déjà inscrits — GNDJ Scout</p>
         </div>
         <LoginForm />
+        {/* Cross-link for parents who want to enroll a child (only while enrollment is open). Accent-tinted
+            to echo the distinct teal theme of the "Demande d'inscription" space. */}
         {inscriptionsOpen && (
-          <>
-            <div className="mt-4 flex items-center gap-3">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs text-muted-foreground">ou</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-            <Button asChild variant="outline" className="mt-4 w-full">
-              <Link to="/inscription"><UserPlus className="mr-2 h-4 w-4" />Demande d'inscription (nouveau membre)</Link>
-            </Button>
-          </>
+          <Link
+            to="/inscription"
+            className="mt-6 flex items-center justify-center gap-2 rounded-lg border border-accent/40 bg-accent/10 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent/15 hover:text-foreground"
+          >
+            <UserPlus className="h-4 w-4 text-accent" />
+            Vous souhaitez inscrire un enfant ? <span className="font-medium text-foreground">Demande d'inscription →</span>
+          </Link>
         )}
         <p className="mt-6 text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()} GNDJ Scout — Tous droits réservés

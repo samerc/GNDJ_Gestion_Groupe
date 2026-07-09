@@ -1532,6 +1532,19 @@ of their Meute, gets a valid PDF, and is denied a unit they were never in. Share
         + downloads the same 57 KB PDF; a year she was in but unarchived → "pas encore disponible"; a unit/year she
         was never in → access denied. Build + tsc + eslint clean. DEV until deploy (migration applies on prod startup).
 
+### Login pages differentiated — member vs demande (2026-07-09)
+The two separate login screens (member `/login` "Espace membres" + applicant `/inscription/login` "Demande
+d'inscription") were near-identical (same navy Compass branding) → parents confused them. Now visually
+**distinct by audience + colour + icon**, with mutual cross-links:
+- **Applicant space** (`ApplicantAuthShell`, shared by register/login/verify): switched to the **accent/teal**
+  theme + **UserPlus** icon + title **"Demande d'inscription"** + a "Nouveau membre" pill; a persistent
+  bottom cross-link "Vous êtes déjà membre ou chef ? Espace membres →" (to `/login`) on every applicant auth page.
+- **Member `/login`**: kept navy/Compass, added a "Membres & chefs" pill + sharpened copy ("Réservé aux membres
+  et chefs déjà inscrits"); the enrollment CTA (shown only while `demande.enabled`) reworded to an **accent-tinted**
+  box "Vous souhaitez inscrire un enfant ? Demande d'inscription →" (echoes the teal demande theme).
+- Removed the old tiny duplicate "Espace membres" link from the applicant login (now centralized in the shell).
+  Frontend-only; build + eslint clean. DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

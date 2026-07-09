@@ -35,11 +35,11 @@ export default function ApplicantLoginPage() {
   }
 
   return (
-    <ApplicantAuthShell subtitle="Espace demande d'inscription">
+    <ApplicantAuthShell subtitle="Suivre votre demande d'inscription — GNDJ Scout">
       <Card className="shadow-elevated">
         <CardHeader>
-          <CardTitle className="text-2xl">Connexion — Demande d'inscription</CardTitle>
-          <CardDescription>Espace réservé aux familles souhaitant inscrire un enfant. Les chefs et membres se connectent sur l'espace membres.</CardDescription>
+          <CardTitle className="text-2xl">Se connecter à votre demande</CardTitle>
+          <CardDescription>Espace réservé aux familles inscrivant un enfant, pour suivre votre demande.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -59,9 +59,6 @@ export default function ApplicantLoginPage() {
             <p className="text-center text-sm text-muted-foreground">
               Pas encore de compte ?{' '}
               <Link to="/inscription/register" className="text-primary hover:underline font-medium">Créer un compte</Link>
-            </p>
-            <p className="text-center text-xs text-muted-foreground">
-              <Link to="/login" className="hover:underline">Espace membres</Link>
             </p>
           </form>
         </CardContent>
