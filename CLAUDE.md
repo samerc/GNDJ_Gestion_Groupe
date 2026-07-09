@@ -1495,6 +1495,13 @@ the member-data IDOR lock — a member sees co-members' photos/names for their o
 generated server-side with photos embedded, so no per-photo endpoint is opened. Verified: a youth sees 3 years
 of their Meute, gets a valid PDF, and is denied a unit they were never in. Shared `Common/ScoutYearHelper`
 (Window + Of). DEV until deploy.
+- **Single-page fit (2026-07-09):** the trombinoscope PDF used to paginate (big units spilled onto a 2nd/3rd
+      sheet). `TrombinoscoreService.Generate` now **shrinks the photo cells to fit ONE page** — an
+      `EstimateHeight(cellWidth)` steps the cell size down from the ideal (A4 56 / A3 70) to a floor (26pt) and
+      picks the largest cell whose estimated grid height (teams + rows + headers) fits the page's usable height
+      (with a 2% safety margin); photo/name-font/columns all derive from the chosen cell width. A3 is still
+      auto-selected for >60 members (more room before shrinking). Applies to BOTH the member trombinoscope and the
+      CU report (shared service). Build clean.
 
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear

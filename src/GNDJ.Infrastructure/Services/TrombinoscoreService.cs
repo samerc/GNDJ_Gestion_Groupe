@@ -19,17 +19,56 @@ public class TrombinoscoreService : ITrombinoscoreService
 
         var pageSize = useA3 ? new PageSize(842, 1191) : PageSizes.A4; // A3 portrait
         var margin = useA3 ? 20f : 15f;
-        var cellWidth = useA3 ? 70f : 56f;
-        var photoSize = useA3 ? 55f : 44f;
+        var headerFontSize = useA3 ? 11f : 10f;
+
+        var usableWidth = pageSize.Width - (margin * 2);
+
+        // ── Fit everything on ONE page ──────────────────────────────────────────────
+        // Rather than let QuestPDF paginate (which spilled big units onto a 2nd/3rd sheet), we shrink the
+        // photo cells until the whole grid fits the single page's usable height. We start from the ideal
+        // cell size and step down; the first size whose estimated layout height fits wins (= biggest legible
+        // cell that still fits). If even the smallest doesn't fit (very large unit), we keep the smallest.
+        const float teamHeaderH = 14.4f; // team header row (~font 7 + paddings)
+        const float rowSpacing = 4f;     // col.Spacing(4) between items
+        // Vertical budget: page height minus top (page margin + header block) and bottom (footer + margin).
+        var reservedTop = useA3 ? 74f : 62f;
+        var reservedBottom = 26f;
+        var availHeight = pageSize.Height - reservedTop - reservedBottom;
+
+        var maxCell = useA3 ? 70f : 56f;
+        const float minCell = 26f;
+
+        // Estimate total content height for a given cell width (drives columns, photo size, name font).
+        float EstimateHeight(float cw)
+        {
+            var cols = Math.Max(1, (int)(usableWidth / cw));
+            var photoS = cw * 0.786f;
+            var photoH = photoS * 4f / 3f;
+            var nameF = Math.Clamp(cw * 5f / 56f, 4f, 7f);
+            var cellH = photoH + (nameF * 2.3f) + 4f; // photo + up to 2 name lines + paddings
+            var total = 5f;                            // content PaddingTop(5)
+            foreach (var team in data.Teams)
+            {
+                var rows = (int)Math.Ceiling(team.Members.Count / (double)cols);
+                total += teamHeaderH + rowSpacing + (rows * (cellH + rowSpacing));
+            }
+            return total;
+        }
+
+        var cellWidth = minCell;
+        for (var cw = maxCell; cw >= minCell; cw -= 1f)
+        {
+            cellWidth = cw;
+            if (EstimateHeight(cw) <= availHeight * 0.98f) break; // 2% safety margin
+        }
+
+        var photoSize = cellWidth * 0.786f;
         // Member photos are 3:4 portrait (camera capture is 600×800). Use a matching portrait box so the
         // photo FILLS it instead of being letterboxed inside a square (which made photos look smaller than
         // the grey placeholder). The placeholder uses the same box, so both render identically sized.
         var photoHeight = photoSize * 4f / 3f;
-        var nameFontSize = useA3 ? 6f : 5f;
-        var headerFontSize = useA3 ? 11f : 10f;
-
-        var usableWidth = pageSize.Width - (margin * 2);
-        var perRow = (int)(usableWidth / cellWidth); // how many photo cells fit across one row
+        var nameFontSize = Math.Clamp(cellWidth * 5f / 56f, 4f, 7f);
+        var perRow = Math.Max(1, (int)(usableWidth / cellWidth)); // how many photo cells fit across one row
 
         var document = Document.Create(container =>
         {
