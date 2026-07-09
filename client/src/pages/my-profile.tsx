@@ -1,6 +1,6 @@
 import { useAuthStore } from '@/stores/auth-store'
-import { useMember, useAddPhone, useDeletePhone, useAddEmail, useDeleteEmail, useAddAddress, useDeleteAddress, useUpdatePhone, useUpdateEmail, useUpdateAddress, type MemberFormData, type MemberPhoneDto, type MemberEmailDto, type MemberAddressDto } from '@/services/member-service'
-import { useUpdateMyProfile } from '@/services/my-profile-service'
+import { useMember, type MemberFormData, type MemberPhoneDto, type MemberEmailDto, type MemberAddressDto } from '@/services/member-service'
+import { useUpdateMyProfile, useAddMyPhone, useUpdateMyPhone, useDeleteMyPhone, useAddMyEmail, useUpdateMyEmail, useDeleteMyEmail, useAddMyAddress, useUpdateMyAddress, useDeleteMyAddress } from '@/services/my-profile-service'
 import { MemberPhoto } from '@/components/shared/member-photo'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -46,15 +46,16 @@ export default function MyProfilePage() {
   const classes = useSettingArray('member.classes')
   const cities = useCities()
 
-  const addPhoneMutation = useAddPhone(memberId)
-  const deletePhoneMutation = useDeletePhone(memberId)
-  const addEmailMutation = useAddEmail(memberId)
-  const deleteEmailMutation = useDeleteEmail(memberId)
-  const addAddressMutation = useAddAddress(memberId)
-  const deleteAddressMutation = useDeleteAddress(memberId)
-  const updatePhoneMutation = useUpdatePhone(memberId)
-  const updateEmailMutation = useUpdateEmail(memberId)
-  const updateAddressMutation = useUpdateAddress(memberId)
+  // Coordonnées use the SELF-SERVICE hooks (own record, no members.edit needed).
+  const addPhoneMutation = useAddMyPhone(memberId)
+  const deletePhoneMutation = useDeleteMyPhone(memberId)
+  const addEmailMutation = useAddMyEmail(memberId)
+  const deleteEmailMutation = useDeleteMyEmail(memberId)
+  const addAddressMutation = useAddMyAddress(memberId)
+  const deleteAddressMutation = useDeleteMyAddress(memberId)
+  const updatePhoneMutation = useUpdateMyPhone(memberId)
+  const updateEmailMutation = useUpdateMyEmail(memberId)
+  const updateAddressMutation = useUpdateMyAddress(memberId)
 
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<MemberFormData>({ firstName: '', lastName: '' })

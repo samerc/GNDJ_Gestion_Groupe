@@ -27,3 +27,51 @@ export function useUpdateMyProfile(memberId: string) {
     },
   })
 }
+
+// ── Coordonnées: own phones / emails / addresses (self-service, no approval) ──
+// Call signatures mirror the leader-facing member-service hooks so "Ma fiche" can swap to them directly.
+const invalidateMe = (qc: ReturnType<typeof useQueryClient>, memberId: string) =>
+  qc.invalidateQueries({ queryKey: ['members', memberId] })
+
+interface MyPhoneInput { countryCode: string; number: string; type: string; isPrimary: boolean; isEmergency: boolean }
+interface MyEmailInput { address: string; type: string; isPrimary: boolean; isEmergency: boolean }
+interface MyAddressInput { type: string; country: string; city: string; details?: string | null; isPrimary: boolean }
+
+export function useAddMyPhone(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: (data: MyPhoneInput) => apiClient.post('/my-profile/phones', data), onSuccess: () => invalidateMe(qc, memberId) })
+}
+export function useUpdateMyPhone(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: ({ id, ...data }: MyPhoneInput & { id: string }) => apiClient.put(`/my-profile/phones/${id}`, { id, ...data }), onSuccess: () => invalidateMe(qc, memberId) })
+}
+export function useDeleteMyPhone(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: (id: string) => apiClient.delete(`/my-profile/phones/${id}`), onSuccess: () => invalidateMe(qc, memberId) })
+}
+
+export function useAddMyEmail(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: (data: MyEmailInput) => apiClient.post('/my-profile/emails', data), onSuccess: () => invalidateMe(qc, memberId) })
+}
+export function useUpdateMyEmail(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: ({ id, ...data }: MyEmailInput & { id: string }) => apiClient.put(`/my-profile/emails/${id}`, { id, ...data }), onSuccess: () => invalidateMe(qc, memberId) })
+}
+export function useDeleteMyEmail(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: (id: string) => apiClient.delete(`/my-profile/emails/${id}`), onSuccess: () => invalidateMe(qc, memberId) })
+}
+
+export function useAddMyAddress(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: (data: MyAddressInput) => apiClient.post('/my-profile/addresses', data), onSuccess: () => invalidateMe(qc, memberId) })
+}
+export function useUpdateMyAddress(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: ({ id, ...data }: MyAddressInput & { id: string }) => apiClient.put(`/my-profile/addresses/${id}`, { id, ...data }), onSuccess: () => invalidateMe(qc, memberId) })
+}
+export function useDeleteMyAddress(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: (id: string) => apiClient.delete(`/my-profile/addresses/${id}`), onSuccess: () => invalidateMe(qc, memberId) })
+}
