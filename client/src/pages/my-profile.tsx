@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/stores/auth-store'
-import { useMember, useUpdateMember, useAddPhone, useDeletePhone, useAddEmail, useDeleteEmail, useAddAddress, useDeleteAddress, useUpdatePhone, useUpdateEmail, useUpdateAddress, type MemberFormData, type MemberPhoneDto, type MemberEmailDto, type MemberAddressDto } from '@/services/member-service'
+import { useMember, useAddPhone, useDeletePhone, useAddEmail, useDeleteEmail, useAddAddress, useDeleteAddress, useUpdatePhone, useUpdateEmail, useUpdateAddress, type MemberFormData, type MemberPhoneDto, type MemberEmailDto, type MemberAddressDto } from '@/services/member-service'
+import { useUpdateMyProfile } from '@/services/my-profile-service'
 import { MemberPhoto } from '@/components/shared/member-photo'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -20,7 +21,7 @@ import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
 import { useSettingArray, useSettingValue, useCities } from '@/services/settings-service'
 import { parseApiError } from '@/lib/error-utils'
-import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
+import { BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
 import { PERMISSIONS } from '@/lib/constants'
 import { Tip } from '@/components/ui/tooltip'
@@ -34,7 +35,10 @@ export default function MyProfilePage() {
   const canManageOwnAssignments = hasPermission(PERMISSIONS.ASSIGNMENTS_CREATE)
   const memberId = user?.memberId ?? ''
   const { data: member, isLoading } = useMember(memberId)
-  const updateMutation = useUpdateMember()
+  // Ma fiche is always the caller's OWN record, so it uses the self-service endpoint (no members.edit
+  // needed, and locked identity fields are never sent). Editable: nationalité/école/classe/section/
+  // groupe sanguin + médical — no approval.
+  const updateMutation = useUpdateMyProfile(memberId)
   const pinnedNationalities = useSettingArray('pinned_nationalities')
   const defaultCountryCode = useSettingValue('default_country_code')
   const defaultCountry = useSettingValue('default_country')
@@ -136,16 +140,18 @@ export default function MyProfilePage() {
   const handleSave = async () => {
     setError('')
     try {
+      // Only the member-editable fields are sent; locked identity fields (name/DOB/gender/card numbers)
+      // are never part of the self-service update.
       await updateMutation.mutateAsync({
-        id: memberId, ...form,
-        dateOfBirth: form.dateOfBirth || null, gender: form.gender || null,
-        cardNumber: form.cardNumber || null, externalCardNumber: form.externalCardNumber || null,
+        nationality: form.nationality || null,
+        school: form.school || null,
+        classe: form.classe || null,
+        section: form.section || null,
         bloodType: form.bloodType || null,
-        nationality: form.nationality || null, school: form.school || null,
-        classe: form.classe || null, section: form.section || null,
-        medicalNotes: form.medicalNotes || null, allergies: form.allergies || null,
-        notes: form.notes || null,
+        allergies: form.allergies || null,
+        medicalNotes: form.medicalNotes || null,
       })
+      toast.success('Fiche mise à jour')
       setEditing(false)
     } catch (err) { setError(parseApiError(err)) }
   }
@@ -209,17 +215,12 @@ export default function MyProfilePage() {
             <CardContent>
               {editing ? (
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2"><RequiredLabel required>Prénom</RequiredLabel><Input value={form.firstName} onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))} /></div>
-                  <div className="space-y-2"><RequiredLabel required>Nom</RequiredLabel><Input value={form.lastName} onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value.toUpperCase() }))} /></div>
-                  <div className="space-y-2"><RequiredLabel>Date de naissance</RequiredLabel><Input type="date" value={form.dateOfBirth ?? ''} onChange={(e) => setForm(f => ({ ...f, dateOfBirth: e.target.value }))} /></div>
-                  <div className="space-y-2">
-                    <RequiredLabel>Sexe</RequiredLabel>
-                    <Select value={form.gender ?? ''} onValueChange={(v) => setForm(f => ({ ...f, gender: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                      <SelectContent>{GENDER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2"><RequiredLabel>Matricule</RequiredLabel><Input value={form.cardNumber ?? ''} onChange={(e) => setForm(f => ({ ...f, cardNumber: e.target.value }))} /></div>
+                  {/* Locked identity fields — admin-controlled; a member can view but not change them. */}
+                  <div className="space-y-2"><RequiredLabel>Prénom</RequiredLabel><Input value={member.firstName} disabled /></div>
+                  <div className="space-y-2"><RequiredLabel>Nom</RequiredLabel><Input value={member.lastName} disabled /></div>
+                  <div className="space-y-2"><RequiredLabel>Date de naissance</RequiredLabel><Input value={member.dateOfBirth ? new Date(member.dateOfBirth).toLocaleDateString('fr-FR') : ''} disabled /></div>
+                  <div className="space-y-2"><RequiredLabel>Sexe</RequiredLabel><Input value={member.gender ?? ''} disabled /></div>
+                  <div className="space-y-2"><RequiredLabel>Matricule</RequiredLabel><Input value={member.cardNumber ?? ''} disabled /></div>
                   <div className="space-y-2">
                     <RequiredLabel>Nationalité</RequiredLabel>
                     <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher..." />
