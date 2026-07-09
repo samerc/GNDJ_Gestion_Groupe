@@ -153,10 +153,15 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
 
     public async ValueTask<AdminDashboardDto> Handle(GetAdminDashboardQuery request, CancellationToken cancellationToken)
     {
-        // Super-admins and group-level managers (Chef de Groupe — identified by maitrise.manage) get the
-        // group-wide overview; everyone else is denied.
+        // The group-wide overview is for super-admins and group-level users — the Chef de Groupe (has
+        // maitrise.manage) AND the Assistant Chef de Groupe (group-level role but no maitrise.manage). An
+        // ACG holds a group-level profile, so allow anyone with an active group-level assignment.
         if (!_currentUser.IsSuperAdmin && !_currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MaitriseManage))
-            throw new UnauthorizedAccessException();
+        {
+            var isGroupLevel = _currentUser.MemberId is Guid mid && await _context.MemberAssignments.AnyAsync(a =>
+                a.MemberId == mid && a.EndDate == null && !a.IsDeleted && a.FunctionalRole.SecurityProfile.IsGroupLevel, cancellationToken);
+            if (!isGroupLevel) throw new UnauthorizedAccessException();
+        }
 
         var ct = cancellationToken;
 

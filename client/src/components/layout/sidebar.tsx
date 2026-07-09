@@ -148,7 +148,9 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   // Super admin sees admin nav, others see leader nav
   // Managers = super-admins and Chefs de Groupe (group-level). They get the admin nav + groups,
   // each filtered to the permissions they actually hold, so a CG sees only the pages they can reach.
-  const isManager = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.MAITRISE_MANAGE)
+  // Managers (super-admin / Chef de Groupe / Assistant Chef de Groupe — any group-level role) get the admin
+  // nav; individual items still filter by the user's own permissions, so an ACG only sees what they can reach.
+  const isManager = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.MAITRISE_MANAGE) || !!user?.unitAccess.some(u => u.isGroupLevel)
   const navItems = isManager ? adminNavItems : leaderNavItems
   const visibleNav = navItems.filter((item) => !item.permission || hasPermission(item.permission))
   const visibleAdminGroups = isManager

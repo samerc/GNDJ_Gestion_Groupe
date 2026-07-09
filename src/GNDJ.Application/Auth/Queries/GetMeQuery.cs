@@ -39,7 +39,10 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
             .Where(a => a.MemberId == user.MemberId && a.EndDate == null)
             .Select(a => new UnitAccessDto(a.UnitId, a.Unit.Name, a.FunctionalRole.Name,
                 // Leadership role = its security profile grants members.edit (chef d'unité / ACU / CG …).
-                a.FunctionalRole.SecurityProfile.Permissions.Any(p => p.Permission == GNDJ.Domain.Enums.Permissions.MembersEdit)))
+                a.FunctionalRole.SecurityProfile.Permissions.Any(p => p.Permission == GNDJ.Domain.Enums.Permissions.MembersEdit),
+                // Group-level role (CG/ACG) — grants all-units access; distinguishes the Maîtrise de Groupe
+                // assignment from a real CU/ACU unit-leadership role.
+                a.FunctionalRole.SecurityProfile.IsGroupLevel))
             .ToListAsync(cancellationToken);
 
         return Result<MeResponse>.Success(new MeResponse(

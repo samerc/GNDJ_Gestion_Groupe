@@ -27,6 +27,8 @@ export interface UnitAccess {
   roleName: string
   // True when the member LEADS this unit (role grants members.edit) vs. just belonging to it as a youth.
   isLeader: boolean
+  // True when this is a GROUP-LEVEL role (CG/ACG) — the Maîtrise de Groupe assignment, not a real CU/ACU unit.
+  isGroupLevel: boolean
 }
 
 export interface LoginRequest {

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate } from 'react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
+import type { UnitAccess } from '@/types/auth'
 import { useAdminDashboard } from '@/services/dashboard-service'
 import { useSettingValue } from '@/services/settings-service'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -167,50 +168,68 @@ function AdminDashboard() {
   )
 }
 
+// Distinct units (by id) — a member can hold several roles in the same unit.
+function dedupeByUnit(units: UnitAccess[]): UnitAccess[] {
+  const seen = new Set<string>()
+  const out: UnitAccess[] = []
+  for (const u of units) if (!seen.has(u.unitId)) { seen.add(u.unitId); out.push(u) }
+  return out
+}
+
+// Renders a unit leader's roster: a picker above it when they lead more than one unit.
+function UnitRoster({ units, selectedUnit, setSelectedUnit }: { units: UnitAccess[]; selectedUnit: string; setSelectedUnit: (v: string) => void }) {
+  const unitId = selectedUnit || units[0]?.unitId
+  if (!unitId) return <Navigate to="/my-profile" replace />
+  if (units.length === 1) return <UnitLeaderDashboard unitId={units[0].unitId} />
+  return (
+    <div className="space-y-4">
+      <Select value={unitId} onValueChange={setSelectedUnit}>
+        <SelectTrigger className="w-64"><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
+        <SelectContent>
+          {units.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName} — {u.roleName}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <UnitLeaderDashboard unitId={unitId} />
+    </div>
+  )
+}
+
 // Landing page after login. Routes each user to the right dashboard by role:
-// super-admin/CG → group overview, unit leader → their unit roster, everyone else → Ma fiche.
+// super-admin/CG/ACG → group overview, unit leader → their unit roster, everyone else → Ma fiche. Someone
+// who is BOTH a group leader (CG/ACG) AND a unit leader (CU/ACU) gets a Groupe | Mon unité toggle.
 export default function DashboardPage() {
   const { user, hasPermission } = useAuthStore()
-  // Active unit when a leader runs more than one unit (see the multi-unit branch below).
   const [selectedUnit, setSelectedUnit] = useState<string>('')
+  const [view, setView] = useState<'groupe' | 'unite'>('groupe')
 
   if (!user) return <LoadingSpinner />
 
-  // Super-admins and Chefs de Groupe (group-level managers) see the group-wide dashboard.
-  if (user.isSuperAdmin || hasPermission(PERMISSIONS.MAITRISE_MANAGE)) return <AdminDashboard />
-
-  // A unit leader (Chef d'unité) manages members in their unit. We key off members.edit because
-  // chef-unite holds it while read-only youth and chef-équipe do not (chef-unite lost units.edit).
+  // Group-level = super-admin, Chef de Groupe (maitrise.manage), or Assistant Chef de Groupe (a group-level role).
+  const isGroupLevel = user.isSuperAdmin || hasPermission(PERMISSIONS.MAITRISE_MANAGE) || user.unitAccess.some(u => u.isGroupLevel)
+  // Units the member personally LEADS as a CU/ACU — real unit-leadership only, EXCLUDING the group Maîtrise
+  // assignment (a group-level role grants all-units access but isn't a "unit I run").
+  const myLeaderUnits = dedupeByUnit(user.unitAccess.filter(u => u.isLeader && !u.isGroupLevel))
   const isUnitLeader = hasPermission(PERMISSIONS.MEMBERS_EDIT)
 
-  // Regular members go straight to profile
-  if (!isUnitLeader) return <Navigate to="/my-profile" replace />
-
-  // Manage the unit(s) the member actually LEADS (chef/ACU roles), not units they merely belong to as a
-  // youth — a member who is a Louveteau in C1 and an ACU in M10 lands on M10, not C1. Fall back to all
-  // their units if no role is flagged as leadership (edge case).
-  const leaderUnits = user.unitAccess.filter(u => u.isLeader)
-  const manageUnits = leaderUnits.length > 0 ? leaderUnits : user.unitAccess
-
-  // Multi-unit leader: show a unit picker above the roster (defaults to the first led unit).
-  if (manageUnits.length > 1) {
-    const unitId = selectedUnit || manageUnits[0]?.unitId
+  // Both a group leader AND a unit leader → toggle between the group overview and their own unit(s).
+  if (isGroupLevel && myLeaderUnits.length > 0) {
     return (
       <div className="space-y-4">
-        <Select value={unitId} onValueChange={setSelectedUnit}>
-          <SelectTrigger className="w-64"><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
-          <SelectContent>
-            {manageUnits.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName} — {u.roleName}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <UnitLeaderDashboard unitId={unitId} />
+        <div className="inline-flex rounded-lg border bg-muted/40 p-0.5 text-sm">
+          <button onClick={() => setView('groupe')} className={`rounded-md px-3 py-1.5 font-medium transition-colors ${view === 'groupe' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Groupe</button>
+          <button onClick={() => setView('unite')} className={`rounded-md px-3 py-1.5 font-medium transition-colors ${view === 'unite' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Mon unité</button>
+        </div>
+        {view === 'groupe' ? <AdminDashboard /> : <UnitRoster units={myLeaderUnits} selectedUnit={selectedUnit} setSelectedUnit={setSelectedUnit} />}
       </div>
     )
   }
 
-  if (manageUnits.length === 1) {
-    return <UnitLeaderDashboard unitId={manageUnits[0].unitId} />
-  }
+  // Group leader only (CG/ACG/super-admin without a unit role) → group overview.
+  if (isGroupLevel) return <AdminDashboard />
 
-  return <Navigate to="/my-profile" replace />
+  // Regular members go straight to profile.
+  if (!isUnitLeader) return <Navigate to="/my-profile" replace />
+
+  // Unit leader only (e.g. a CU who is a youth elsewhere) → the unit(s) they lead (fallback: all their units).
+  return <UnitRoster units={myLeaderUnits.length > 0 ? myLeaderUnits : dedupeByUnit(user.unitAccess)} selectedUnit={selectedUnit} setSelectedUnit={setSelectedUnit} />
 }

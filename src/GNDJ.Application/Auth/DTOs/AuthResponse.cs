@@ -30,5 +30,9 @@ public record UnitAccessDto(
     // True when this assignment's role is a LEADERSHIP role (its profile grants members.edit) — i.e. the
     // member manages this unit, vs. just belonging to it as a youth. Drives which unit the leader dashboard
     // defaults to (a member who is a youth in one unit and a chef in another lands on the unit they lead).
-    bool IsLeader
+    bool IsLeader,
+    // True when this assignment's role is a GROUP-LEVEL role (CG/ACG — profile IsGroupLevel), which grants
+    // all-units access. Lets the UI separate "group leader" assignments (the Maîtrise de Groupe unit) from
+    // real CU/ACU unit-leadership when someone holds both.
+    bool IsGroupLevel
 );

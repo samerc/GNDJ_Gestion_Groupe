@@ -1465,6 +1465,24 @@ A member can now maintain their OWN fiche. Two mechanisms:
   (none created), statuses Approved/Rejected, badge count → 0; youth CANNOT review (403) and their pending list is
   empty. Builds clean (dotnet + tsc + eslint). Backend-only migration applies on prod startup; DEV until deploy.
 
+### Dashboard: leader lands on the right unit + CG/ACG↔CU toggle (2026-07-09)
+- **Land on the unit you LEAD, not one you belong to as a youth:** a member who is a youth in one unit and a
+  chef/ACU in another used to land on `unitAccess[0]` (their youth unit). `UnitAccessDto` gained **`IsLeader`**
+  (the assignment's role profile grants members.edit) — set in `GetMeQuery` — and the dashboard now defaults to
+  the units they actually lead.
+- **CG/ACG + CU/ACU mixed roles:** `UnitAccessDto` also gained **`IsGroupLevel`** (the role's profile
+  `IsGroupLevel`). The dashboard now:
+  - **Group-level** = super-admin / Chef de Groupe (maitrise.manage) / **Assistant Chef de Groupe** (a
+    group-level role — no maitrise.manage). The group overview (`GetAdminDashboardQuery`) was relaxed to allow
+    any active **group-level assignment**, so an ACG can now see it (was maitrise.manage-only). Sidebar
+    `isManager` likewise includes group-level (an ACG gets the admin nav, still filtered by their own perms).
+  - Someone who is **both** group-level AND a real unit leader gets a **Groupe | Mon unité toggle** — Groupe =
+    the group overview, Mon unité = a picker of only the units where they hold a **CU/ACU** role (excludes the
+    group Maîtrise assignment and all-units noise; their group-level access already reaches any unit via the nav).
+- Verified live: Clara (youth in C1 + ACU in a Meute) lands on the Meute; a real ACG loads the group dashboard
+  (200, was denied); an ACG+CU sees both dashboards and "Mon unité" = only their Compagnie. Backend-only DTO
+  change, DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);
