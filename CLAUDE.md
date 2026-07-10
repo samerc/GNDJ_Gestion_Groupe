@@ -1588,7 +1588,10 @@ There was only ONE flag (`demande.enabled`) gating everything. Added an INNER wi
 - Frontend: `ApplicantConfig.submissionsOpen`; portail gates Add/edit/delete on it + a blue "période de soumission
   terminée / en cours d'étude" banner; wizard is read-only in the review phase; register route guarded
   (`ApplicantOpenRoute submissionsRequired`). CG review page: a **Clôturer / Rouvrir les soumissions** toggle (with
-  confirm) + a status pill ("Soumissions ouvertes" / "Phase de revue"). Settings page also shows the boolean.
+  confirm) + a status pill ("Soumissions ouvertes" / "Phase de revue"). Settings page: both switches
+  (`demande.enabled` + `demande.submissions_open`) are **pinned to the top** of the "Inscriptions" tab
+  (`PINNED_TOP`); the submissions switch is **disabled + shown off** while the portal is closed
+  (`demande.enabled=false`) with a hint "Ouvrez d'abord les inscriptions" (SettingEditor gained `disabled`/`disabledHint`).
 - Verified live end-to-end: config flips, create/submit/register blocked (400 with the review message) when closed,
   reopen restores. Build + tsc + eslint clean. DEV until deploy.
 

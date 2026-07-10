@@ -55,6 +55,10 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 const CATEGORY_ORDER = ['members', 'famille', 'documents', 'cotisations', 'passage', 'demande', 'contact', 'general', 'reports', 'site', 'advanced']
 
+// Keys pinned to the top of their category tab (rest keep their natural order). The two inscription
+// period switches (portal open + submission window) lead the "Inscriptions" tab so the CG sees them first.
+const PINNED_TOP: Record<string, number> = { 'demande.enabled': 0, 'demande.submissions_open': 1 }
+
 // Tab a setting belongs to: ADVANCED_KEYS are pulled out of their natural category into "Avancé".
 function effectiveCategory(s: SettingDto) {
   return ADVANCED_KEYS.has(s.key) ? 'advanced' : s.category
@@ -324,7 +328,7 @@ function ManagedListEditor({ settingKey }: { settingKey: string }) {
 
 // Single-row editor: picks the widget from valueType (+ special cases) and self-saves on change.
 // `value` holds scalar string values; `items` holds the parsed list for json_array settings.
-function SettingEditor({ setting, onSave }: { setting: SettingDto; onSave: (key: string, value: string) => Promise<void> }) {
+function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { setting: SettingDto; onSave: (key: string, value: string) => Promise<void>; disabled?: boolean; disabledHint?: string }) {
   const parseItems = (v: string): string[] => { try { return JSON.parse(v) as string[] } catch { return [] } }
   const [value, setValue] = useState(setting.value)
   const [items, setItems] = useState<string[]>(() => setting.valueType === 'json_array' ? parseItems(setting.value) : [])
@@ -375,10 +379,14 @@ function SettingEditor({ setting, onSave }: { setting: SettingDto; onSave: (key:
           {setting.description && <p className="mt-0.5 text-sm text-muted-foreground">{setting.description}</p>}
         </div>
         {isBool && (
-          <Switch checked={value === 'true'} disabled={saving}
+          // When disabled (e.g. submissions while the portal is closed), show it OFF — it's effectively closed.
+          <Switch checked={value === 'true' && !disabled} disabled={saving || disabled}
             onCheckedChange={(c) => { const v = c ? 'true' : 'false'; setValue(v); persist(v) }} />
         )}
       </div>
+      {isBool && disabled && disabledHint && (
+        <p className="text-xs text-amber-600">{disabledHint}</p>
+      )}
 
       {!isBool && (
         <>
@@ -435,12 +443,21 @@ export default function SettingsPage() {
   // Hide dedicated-page keys + the companion "<key>.archived" lists (surfaced inside their parent editor).
   const visible = useMemo(() => (settings ?? []).filter(s => !HIDDEN_KEYS.has(s.key) && !s.key.endsWith('.archived')), [settings])
 
-  // visible settings bucketed by effective category for the tab layout.
+  // visible settings bucketed by effective category for the tab layout; pinned keys sorted to the top.
   const grouped = useMemo(() => {
     const g: Record<string, SettingDto[]> = {}
     for (const s of visible) { const c = effectiveCategory(s); (g[c] ??= []).push(s) }
+    for (const c in g) g[c].sort((a, b) => (PINNED_TOP[a.key] ?? 100) - (PINNED_TOP[b.key] ?? 100))
     return g
   }, [visible])
+
+  // The submission window only makes sense while the portal is open, so its switch is disabled (and shown
+  // off) when demande.enabled is false — you can't open submissions on a closed portal.
+  const demandeEnabled = (settings ?? []).find(s => s.key === 'demande.enabled')?.value === 'true'
+  const extraProps = (s: SettingDto): { disabled?: boolean; disabledHint?: string } =>
+    s.key === 'demande.submissions_open' && !demandeEnabled
+      ? { disabled: true, disabledHint: "Ouvrez d'abord les inscriptions pour gérer la période de soumission." }
+      : {}
 
   const categories = CATEGORY_ORDER.filter(c => grouped[c]?.length)
   const [tab, setTab] = useState<string>('')
@@ -476,7 +493,7 @@ export default function SettingsPage() {
             <p className="text-sm text-muted-foreground">Aucun paramètre ne correspond à « {query} ».</p>
           ) : (
             <div className="divide-y">
-              {searchResults.map(s => <SettingEditor key={s.key} setting={s} onSave={handleSave} />)}
+              {searchResults.map(s => <SettingEditor key={s.key} setting={s} onSave={handleSave} {...extraProps(s)} />)}
             </div>
           )}
         </div>
@@ -489,7 +506,7 @@ export default function SettingsPage() {
             <TabsContent key={c} value={c}>
               <div className="rounded-xl border border-border bg-card p-5 shadow-card">
                 <div className="divide-y">
-                  {grouped[c].map(s => <SettingEditor key={s.key} setting={s} onSave={handleSave} />)}
+                  {grouped[c].map(s => <SettingEditor key={s.key} setting={s} onSave={handleSave} {...extraProps(s)} />)}
                 </div>
               </div>
             </TabsContent>
