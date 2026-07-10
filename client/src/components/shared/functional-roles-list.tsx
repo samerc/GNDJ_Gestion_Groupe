@@ -85,13 +85,17 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
     catch (err) { toast.error(parseApiError(err)) }
   }
 
-  const handleDragEnd = (e: DragEndEvent) => {
+  const handleDragEnd = async (e: DragEndEvent) => {
+    if (reorderMutation.isPending) return // ignore a second drag while a reorder is in flight
     const { active, over } = e
     if (!over || active.id === over.id) return
     const oldIndex = typeActive.findIndex(r => r.id === active.id)
     const newIndex = typeActive.findIndex(r => r.id === over.id)
     if (oldIndex === -1 || newIndex === -1) return
-    reorderMutation.mutate(arrayMove(typeActive, oldIndex, newIndex).map(r => r.id))
+    // The list is derived from the (non-optimistic) query, so on error nothing is invalidated and the
+    // order visually reverts on its own; we just surface the failure.
+    try { await reorderMutation.mutateAsync(arrayMove(typeActive, oldIndex, newIndex).map(r => r.id)) }
+    catch (err) { toast.error(parseApiError(err)) }
   }
 
   const handleBulkDelete = async () => {
@@ -162,7 +166,7 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
         </Button>
       ) : sortable && (
         <Button variant="ghost" size="icon" className="h-7 w-7" title={role.isDefaultForNewMembers ? 'Fonction par défaut des nouveaux membres' : 'Définir comme fonction par défaut des nouveaux membres'}
-          onClick={() => handleSetDefault(role)} disabled={setDefaultMutation.isPending || role.isDefaultForNewMembers}>
+          onClick={() => handleSetDefault(role)} disabled={setDefaultMutation.isPending}>
           <Star className={cn('h-3.5 w-3.5', role.isDefaultForNewMembers ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground')} />
         </Button>
       )}
@@ -202,6 +206,11 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
               <p className="text-xs text-muted-foreground">
                 Glissez pour classer (haut = fonction la plus élevée). L'étoile <Star className="inline h-3 w-3 fill-amber-400 text-amber-400" /> marque la fonction attribuée automatiquement aux nouveaux membres admis.
               </p>
+              {typeActive.length > 0 && !typeActive.some(r => r.isDefaultForNewMembers) && (
+                <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  Aucune fonction par défaut — les nouveaux membres n'auront pas de fonction attribuée. Cliquez sur l'étoile <Star className="inline h-3 w-3" /> d'une fonction pour la définir.
+                </p>
+              )}
               {typeActive.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Aucune fonction pour ce type d'unité.</p>
               ) : (

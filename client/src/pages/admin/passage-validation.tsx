@@ -74,6 +74,9 @@ export default function PassageValidationPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [editDialog, setEditDialog] = useState<PassageDto | null>(null)
   const [finalizeDialog, setFinalizeDialog] = useState(false)
+  // Passage id currently being quick-approved/rejected — so ONLY that row's buttons disable
+  // (a shared reviewMutation.isPending would grey every row while one request is in flight).
+  const [pendingId, setPendingId] = useState<string | null>(null)
 
   // Edit form state
   const [editFinalUnitId, setEditFinalUnitId] = useState('')
@@ -95,7 +98,7 @@ export default function PassageValidationPage() {
     try {
       const newEnabled = !passageStatus?.isOpen
       await toggleMutation.mutateAsync({ enabled: newEnabled, scoutYear })
-      toast.success(newEnabled ? 'Passage ouvert' : 'Passage ferme')
+      toast.success(newEnabled ? 'Passage ouvert' : 'Passage fermé')
     } catch (err) {
       toast.error(parseApiError(err))
     }
@@ -117,6 +120,7 @@ export default function PassageValidationPage() {
 
   // Approve as-is: accept the CU's proposed unit/team unchanged (role left to the new CU to assign).
   const quickApprove = async (passage: PassageDto) => {
+    setPendingId(passage.id)
     try {
       await reviewMutation.mutateAsync({
         id: passage.id,
@@ -129,10 +133,13 @@ export default function PassageValidationPage() {
       toast.success('Passage approuvé')
     } catch (err) {
       toast.error(parseApiError(err))
+    } finally {
+      setPendingId(null)
     }
   }
 
   const quickReject = async (passage: PassageDto) => {
+    setPendingId(passage.id)
     try {
       await reviewMutation.mutateAsync({
         id: passage.id,
@@ -142,6 +149,8 @@ export default function PassageValidationPage() {
       toast.success('Passage rejeté')
     } catch (err) {
       toast.error(parseApiError(err))
+    } finally {
+      setPendingId(null)
     }
   }
 
@@ -180,7 +189,7 @@ export default function PassageValidationPage() {
         passageIds: Array.from(selected),
         status: 'Approved',
       })
-      toast.success(`${result.count} passage(s) approuve(s)`)
+      toast.success(`${result.count} passage(s) approuvé(s)`)
       setSelected(new Set())
     } catch (err) {
       toast.error(parseApiError(err))
@@ -193,7 +202,7 @@ export default function PassageValidationPage() {
         passageIds: Array.from(selected),
         status: 'Rejected',
       })
-      toast.success(`${result.count} passage(s) rejete(s)`)
+      toast.success(`${result.count} passage(s) rejeté(s)`)
       setSelected(new Set())
     } catch (err) {
       toast.error(parseApiError(err))
@@ -208,8 +217,8 @@ export default function PassageValidationPage() {
         scoutYear,
         unitId: unitFilter === '_all' ? null : unitFilter,
       })
-      if (result.count > 0) toast.success(`${result.count} passage(s) finalise(s)`)
-      else toast.info('Aucun passage approuve a finaliser (deja finalise ?)')
+      if (result.count > 0) toast.success(`${result.count} passage(s) finalisé(s)`)
+      else toast.info('Aucun passage approuvé à finaliser (déjà finalisé ?)')
       setFinalizeDialog(false)
     } catch (err) {
       toast.error(parseApiError(err))
@@ -298,7 +307,7 @@ export default function PassageValidationPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{summary?.approved ?? 0}</p>
-              <p className="text-xs text-muted-foreground">Approuves</p>
+              <p className="text-xs text-muted-foreground">Approuvés</p>
             </div>
           </CardContent>
         </Card>
@@ -309,7 +318,7 @@ export default function PassageValidationPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{summary?.rejected ?? 0}</p>
-              <p className="text-xs text-muted-foreground">Rejetes</p>
+              <p className="text-xs text-muted-foreground">Rejetés</p>
             </div>
           </CardContent>
         </Card>
@@ -318,9 +327,9 @@ export default function PassageValidationPage() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <Select value={unitFilter} onValueChange={setUnitFilter}>
-          <SelectTrigger className="w-full sm:w-56"><SelectValue placeholder="Toutes les unites" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-56"><SelectValue placeholder="Toutes les unités" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="_all">Toutes les unites</SelectItem>
+            <SelectItem value="_all">Toutes les unités</SelectItem>
             {units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -340,13 +349,13 @@ export default function PassageValidationPage() {
       {selected.size > 0 && (
         <Card>
           <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 py-3">
-            <span className="text-sm font-medium">{selected.size} passage(s) selectionne(s)</span>
+            <span className="text-sm font-medium">{selected.size} passage(s) sélectionné(s)</span>
             <div className="flex flex-wrap gap-2 sm:ml-auto">
               <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleBulkApprove} disabled={bulkReviewMutation.isPending}>
-                <Check className="mr-1 h-4 w-4" />Approuver la selection
+                <Check className="mr-1 h-4 w-4" />Approuver la sélection
               </Button>
               <Button size="sm" variant="destructive" onClick={handleBulkReject} disabled={bulkReviewMutation.isPending}>
-                <X className="mr-1 h-4 w-4" />Rejeter la selection
+                <X className="mr-1 h-4 w-4" />Rejeter la sélection
               </Button>
             </div>
           </CardContent>
@@ -355,7 +364,7 @@ export default function PassageValidationPage() {
 
       {/* Table */}
       {passageList.length === 0 ? (
-        <EmptyState icon={ArrowRightLeft} title="Aucun passage" description="Aucune proposition de passage pour cette annee scolaire." />
+        <EmptyState icon={ArrowRightLeft} title="Aucun passage" description="Aucune proposition de passage pour cette année scolaire." />
       ) : (
         <div className="rounded-lg border overflow-x-auto">
           <table className="w-full text-sm min-w-[800px]">
@@ -369,12 +378,12 @@ export default function PassageValidationPage() {
                   />
                 </th>
                 <th className="px-3 py-2 text-left font-medium">Membre</th>
-                <th className="px-3 py-2 text-left font-medium">Unite actuelle</th>
+                <th className="px-3 py-2 text-left font-medium">Unité actuelle</th>
                 <th className="px-3 py-2 text-left font-medium">Proposition</th>
-                <th className="px-3 py-2 text-left font-medium">Equipe</th>
+                <th className="px-3 py-2 text-left font-medium">Équipe</th>
                 <th className="px-3 py-2 text-left font-medium">Fonction</th>
                 <th className="px-3 py-2 text-left font-medium">Notes CU</th>
-                <th className="px-3 py-2 text-left font-medium">Decision CG</th>
+                <th className="px-3 py-2 text-left font-medium">Décision CG</th>
                 <th className="px-3 py-2 text-left font-medium">Statut</th>
                 <th className="w-28" />
               </tr>
@@ -430,7 +439,7 @@ export default function PassageValidationPage() {
                           size="icon"
                           className="h-7 w-7"
                           onClick={() => quickApprove(p)}
-                          disabled={reviewMutation.isPending}
+                          disabled={pendingId === p.id}
                         >
                           <Check className="h-3.5 w-3.5 text-green-600" />
                         </Button>
@@ -441,7 +450,7 @@ export default function PassageValidationPage() {
                           size="icon"
                           className="h-7 w-7"
                           onClick={() => quickReject(p)}
-                          disabled={reviewMutation.isPending}
+                          disabled={pendingId === p.id}
                         >
                           <X className="h-3.5 w-3.5 text-destructive" />
                         </Button>
@@ -504,15 +513,15 @@ export default function PassageValidationPage() {
 
             <div className="rounded-md bg-muted/40 p-3 text-sm">
               <p><strong>Proposition CU :</strong> {editDialog?.proposedUnitCode} — {editDialog?.proposedUnitName}</p>
-              {editDialog?.proposedTeamName && <p>Equipe : {editDialog.proposedTeamName}</p>}
+              {editDialog?.proposedTeamName && <p>Équipe : {editDialog.proposedTeamName}</p>}
               <p>Fonction : {editDialog?.proposedRoleName}</p>
               {editDialog?.cuNotes && <p className="text-muted-foreground mt-1">Notes : {editDialog.cuNotes}</p>}
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Unite finale</label>
+              <label className="text-sm font-medium">Unité finale</label>
               <Select value={editFinalUnitId} onValueChange={(v) => { setEditFinalUnitId(v); setEditFinalTeamId('') }}>
-                <SelectTrigger><SelectValue placeholder="Selectionner une unite" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
                 <SelectContent>
                   {units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
                 </SelectContent>
@@ -520,11 +529,11 @@ export default function PassageValidationPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Equipe finale</label>
+              <label className="text-sm font-medium">Équipe finale</label>
               <Select value={editFinalTeamId || '_none'} onValueChange={(v) => setEditFinalTeamId(v === '_none' ? '' : v)}>
-                <SelectTrigger><SelectValue placeholder="Aucune equipe" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Aucune équipe" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_none">Aucune equipe</SelectItem>
+                  <SelectItem value="_none">Aucune équipe</SelectItem>
                   {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -533,7 +542,7 @@ export default function PassageValidationPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Fonction finale</label>
               <Select value={editFinalRoleId} onValueChange={setEditFinalRoleId}>
-                <SelectTrigger><SelectValue placeholder="Selectionner une fonction" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Sélectionner une fonction" /></SelectTrigger>
                 <SelectContent>
                   {roles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
                 </SelectContent>
@@ -565,7 +574,7 @@ export default function PassageValidationPage() {
         title="Finaliser les passages"
         description={
           `Ceci va finaliser ${approvedCount} passage(s) approuvé(s) ${unitFilter === '_all' ? '(toutes unités)' : 'de cette unité'} : ` +
-          `les affectations actuelles seront cloturees et les nouvelles creees. Cette action est definitive. Continuer ?`
+          `les affectations actuelles seront clôturées et les nouvelles créées. Cette action est définitive. Continuer ?`
         }
         confirmLabel="Finaliser"
         loading={finalizeMutation.isPending}

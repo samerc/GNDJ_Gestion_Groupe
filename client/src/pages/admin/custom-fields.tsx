@@ -114,7 +114,7 @@ export default function CustomFieldsPage() {
       toast.success('Champ personnalisé supprimé')
       setDeleting(null)
     } catch (err) {
-      setError(parseApiError(err))
+      toast.error(parseApiError(err))
       setDeleting(null)
     }
   }
@@ -251,11 +251,13 @@ export default function CustomFieldsPage() {
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
         title="Supprimer le champ personnalisé"
-        description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ? Cette action est irréversible.`}
-        confirmLabel="Supprimer"
+        description={(deleting?.valueCount ?? 0) > 0
+          ? `« ${deleting?.name} » est renseigné pour ${deleting?.valueCount} membre(s). Vous ne pouvez pas le supprimer — désactivez-le plutôt (décochez « Actif »).`
+          : `Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ? Cette action est irréversible.`}
+        confirmLabel={(deleting?.valueCount ?? 0) > 0 ? 'Désactiver…' : 'Supprimer'}
         variant="destructive"
         loading={deleteMutation.isPending}
-        onConfirm={handleDelete}
+        onConfirm={(deleting?.valueCount ?? 0) > 0 ? () => { const d = deleting; setDeleting(null); if (d) openEdit(d) } : handleDelete}
       />
     </div>
   )

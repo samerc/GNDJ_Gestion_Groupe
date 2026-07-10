@@ -1677,6 +1677,36 @@ From the CU shakedown. Three fixes:
   Proposer / Quitte actions (+ Annuler). Verified: no-change → re-propose "quitte" updates the SAME line
   (1 row, now Pending). DEV until deploy.
 
+### CG + Super-admin shakedown + admin-screen UX hardening (2026-07-10)
+Ran the CG + Super-admin journeys live (access control CLEAN — CG group-wide read+write, correctly 403 on org
+structure [units/unit-types/roles/settings/api-keys/security-profile create]; super-admin all 53 perms; the one
+real leak this whole pass found was the CU cotisation one, already fixed). Then 2 review agents swept the CG +
+super-admin screens and I fixed the findings across ~20 admin files (all frontend; build + tsc + eslint clean):
+- **Silent delete failures → toasts (the #1 fix, 9 screens):** associations / unit-types / units / units-detail
+  (teams) / document-types / custom-fields / news / events / resources deleted via `setError()` which renders in a
+  now-CLOSED dialog → an FK-blocked delete showed NOTHING. Now `toast.error(parseApiError)`. (pages/cities already
+  toasted.)
+- **In-use delete → "Désactiver" (document-types, custom-fields):** when `documentCount`/`valueCount` > 0 the confirm
+  warns it's in use + shows the count and the button becomes "Désactiver…" (opens the edit dialog's isActive toggle)
+  instead of a hard-blocked delete. Mirrors the functions/stages archive pattern.
+- **Cascade counts** added to org-delete confirms (association→units, unit-type→units, unit→teams+members, team→members).
+- **Double-submit guards:** demande drawer keyboard triage (A/R) now checks `busy`; progression/stages quick-add
+  Enter checks `isPending`; camp Archive + delete-game get loading guards.
+- **Passage triage per-row disable:** quick approve/reject used one shared mutation → greyed ALL rows; now a
+  `pendingId` disables only the acting row. Plus **fixed pervasive missing accents** on passage-validation
+  (approuvé(s)/rejeté(s)/clôturées/créées/définitive/Unité/Équipe/…).
+- **Under-warned destructive actions → real confirms:** rentrée "Régénérer" (wipes group progress) now a destructive
+  ConfirmDialog; parent-page delete warns about sub-pages; camp delete-game confirms.
+- **CMS TipTap dialogs (news/pages/events/resources):** unsaved-changes guard (`window.confirm` on dirty close) +
+  Save disabled while a cover/attachment upload is in flight (was saving without it). rich-text-editor link inserter
+  now normalizes bare domains to `https://`. site-texts no longer spins forever on empty/error (renders empty form).
+- **functional-roles-list:** reorder gets in-flight guard + error toast; the ★ default is clearable; an amber "Aucune
+  fonction par défaut" warning shows when a unit type has roles but no default (silent demande→member base-role break).
+- **api-keys:** the one-time key reveal now requires a "J'ai copié la clé" checkbox before Fermer + can't be dismissed
+  by Esc/outside-click (was losing the only copy). **group-access:** beforeunload guard for unsaved per-card edits.
+  **demande send** button now has a tooltip explaining it needs the "Toutes" filter.
+- DEV until deploy. (Access-control verification found no CG/super-admin leaks; these are UX/robustness fixes.)
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

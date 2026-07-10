@@ -37,6 +37,7 @@ export default function AdminNewsPage() {
   const [deleting, setDeleting] = useState<NewsPostAdmin | null>(null)
   const [form, setForm] = useState<NewsFormData>(emptyForm)
   const [error, setError] = useState('')
+  const [dirty, setDirty] = useState(false) // unsaved-changes guard for the create/edit dialog
   const [coverUploading, setCoverUploading] = useState(false)
   const [attachUploading, setAttachUploading] = useState(false)
 
@@ -52,6 +53,7 @@ export default function AdminNewsPage() {
     setPrevEditData(editData)
     if (editingId && editData) {
       setForm({ title: editData.title, bodyHtml: editData.bodyHtml, isPublished: editData.isPublished, tagType: editData.tagType, tagUnitTypeId: editData.tagUnitTypeId, tagUnitId: editData.tagUnitId, coverImagePath: editData.coverImagePath, attachments: editData.attachments ?? [] })
+      setDirty(false) // freshly-loaded edit data is not a user change
     }
   }
 
@@ -59,7 +61,7 @@ export default function AdminNewsPage() {
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return
     setCoverUploading(true)
-    try { const url = await uploadContentImage(file); setForm(f => ({ ...f, coverImagePath: url })) }
+    try { const url = await uploadContentImage(file); setForm(f => ({ ...f, coverImagePath: url })); setDirty(true) }
     catch (err) { toast.error(parseApiError(err)) }
     finally { setCoverUploading(false); e.target.value = '' }
   }
@@ -68,13 +70,19 @@ export default function AdminNewsPage() {
   const handleAttachUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return
     setAttachUploading(true)
-    try { const { url, name } = await uploadContentFile(file); setForm(f => ({ ...f, attachments: [...f.attachments, { name, url }] })) }
+    try { const { url, name } = await uploadContentFile(file); setForm(f => ({ ...f, attachments: [...f.attachments, { name, url }] })); setDirty(true) }
     catch (err) { toast.error(parseApiError(err)) }
     finally { setAttachUploading(false); e.target.value = '' }
   }
 
-  const openCreate = () => { setEditingId(null); setForm(emptyForm); setError(''); setFormOpen(true) }
-  const openEdit = (p: NewsPostAdmin) => { setEditingId(p.id); setForm(emptyForm); setError(''); setFormOpen(true) }
+  const openCreate = () => { setEditingId(null); setForm(emptyForm); setError(''); setDirty(false); setFormOpen(true) }
+  const openEdit = (p: NewsPostAdmin) => { setEditingId(p.id); setForm(emptyForm); setError(''); setDirty(false); setFormOpen(true) }
+
+  // Guarded close: warn if there are unsaved edits before discarding the dialog.
+  const requestClose = () => {
+    if (dirty && !window.confirm('Des modifications non enregistrées seront perdues. Continuer ?')) return
+    setFormOpen(false)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -87,14 +95,14 @@ export default function AdminNewsPage() {
     try {
       if (editingId) { await updateMutation.mutateAsync({ id: editingId, ...form }); toast.success('Article modifié') }
       else { await createMutation.mutateAsync(form); toast.success('Article créé') }
-      setFormOpen(false)
+      setDirty(false); setFormOpen(false)
     } catch (err) { setError(parseApiError(err)) }
   }
 
   const handleDelete = async () => {
     if (!deleting) return
     try { await deleteMutation.mutateAsync(deleting.id); toast.success('Article supprimé'); setDeleting(null) }
-    catch (err) { setError(parseApiError(err)); setDeleting(null) }
+    catch (err) { toast.error(parseApiError(err)); setDeleting(null) }
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending
@@ -143,10 +151,11 @@ export default function AdminNewsPage() {
         </div>
       )}
 
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+      <Dialog open={formOpen} onOpenChange={(open) => { if (!open) requestClose(); else setFormOpen(true) }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editingId ? "Modifier l'article" : 'Nouvel article'}</DialogTitle></DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* onChange on the form marks the draft dirty for native inputs (title/checkbox/attachment names). */}
+          <form onSubmit={handleSubmit} onChange={() => setDirty(true)} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
             <div className="space-y-2">
               <RequiredLabel required>Titre</RequiredLabel>
@@ -157,7 +166,7 @@ export default function AdminNewsPage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Concerne</label>
                 {/* Switching tag type clears both id fields; the matching id picker below is shown conditionally */}
-                <Select value={form.tagType} onValueChange={(v) => setForm(f => ({ ...f, tagType: v, tagUnitTypeId: null, tagUnitId: null }))}>
+                <Select value={form.tagType} onValueChange={(v) => { setForm(f => ({ ...f, tagType: v, tagUnitTypeId: null, tagUnitId: null })); setDirty(true) }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Group">Tout le groupe</SelectItem>
@@ -204,7 +213,7 @@ export default function AdminNewsPage() {
 
             <div className="space-y-2">
               <RequiredLabel required>Contenu</RequiredLabel>
-              <RichTextEditor content={form.bodyHtml} onChange={(html) => setForm(f => ({ ...f, bodyHtml: html }))} placeholder="Rédigez l'article…"
+              <RichTextEditor content={form.bodyHtml} onChange={(html) => { setForm(f => ({ ...f, bodyHtml: html })); setDirty(true) }} placeholder="Rédigez l'article…"
                 onImageUpload={(file) => uploadContentImage(file).catch((e) => { toast.error(parseApiError(e)); throw e })} />
             </div>
 
@@ -234,8 +243,8 @@ export default function AdminNewsPage() {
               <label htmlFor="isPublished" className="text-sm font-medium">Publier (visible sur le site public)</label>
             </div>
             <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              <Button variant="outline" type="button" onClick={requestClose}>Annuler</Button>
+              <Button type="submit" disabled={isSaving || coverUploading || attachUploading}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

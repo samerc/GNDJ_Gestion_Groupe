@@ -106,6 +106,7 @@ export default function AdminPagesPage() {
   const [deleting, setDeleting] = useState<PageAdmin | null>(null)
   const [form, setForm] = useState<PageFormData>(emptyForm)
   const [error, setError] = useState('')
+  const [dirty, setDirty] = useState(false) // unsaved-changes guard for the create/edit dialog
 
   const { data: editData } = usePage(editingId)
   const createMutation = useCreatePage()
@@ -116,7 +117,7 @@ export default function AdminPagesPage() {
   const [prevEditData, setPrevEditData] = useState(editData)
   if (editData !== prevEditData) {
     setPrevEditData(editData)
-    if (editingId && editData) setForm({ title: editData.title, bodyHtml: editData.bodyHtml, isPublished: editData.isPublished, showInMenu: editData.showInMenu, parentId: editData.parentId })
+    if (editingId && editData) { setForm({ title: editData.title, bodyHtml: editData.bodyHtml, isPublished: editData.isPublished, showInMenu: editData.showInMenu, parentId: editData.parentId }); setDirty(false) }
   }
 
   // Root pages (no parent) drive the top-level sortable list; children are pulled per-parent in <Children>.
@@ -124,8 +125,14 @@ export default function AdminPagesPage() {
   // Parent options = top-level pages (one level of nesting), excluding the page being edited.
   const parentOptions = topLevel.filter(p => p.id !== editingId)
 
-  const openCreate = () => { setEditingId(null); setForm(emptyForm); setError(''); setFormOpen(true) }
-  const openEdit = (p: PageAdmin) => { setEditingId(p.id); setForm(emptyForm); setError(''); setFormOpen(true) }
+  const openCreate = () => { setEditingId(null); setForm(emptyForm); setError(''); setDirty(false); setFormOpen(true) }
+  const openEdit = (p: PageAdmin) => { setEditingId(p.id); setForm(emptyForm); setError(''); setDirty(false); setFormOpen(true) }
+
+  // Guarded close: warn if there are unsaved edits before discarding the dialog.
+  const requestClose = () => {
+    if (dirty && !window.confirm('Des modifications non enregistrées seront perdues. Continuer ?')) return
+    setFormOpen(false)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -136,7 +143,7 @@ export default function AdminPagesPage() {
     try {
       if (editingId) { await updateMutation.mutateAsync({ id: editingId, ...form }); toast.success('Page modifiée') }
       else { await createMutation.mutateAsync(form); toast.success('Page créée') }
-      setFormOpen(false)
+      setDirty(false); setFormOpen(false)
     } catch (err) { setError(parseApiError(err)) }
   }
 
@@ -167,10 +174,11 @@ export default function AdminPagesPage() {
         <Level items={topLevel} parentId={null} onEdit={openEdit} onDelete={setDeleting} />
       )}
 
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+      <Dialog open={formOpen} onOpenChange={(open) => { if (!open) requestClose(); else setFormOpen(true) }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editingId ? 'Modifier la page' : 'Nouvelle page'}</DialogTitle></DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* onChange on the form marks the draft dirty for native inputs (title/checkboxes). */}
+          <form onSubmit={handleSubmit} onChange={() => setDirty(true)} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -179,7 +187,7 @@ export default function AdminPagesPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Page parente</label>
-                <Select value={form.parentId ?? '_none'} onValueChange={(v) => setForm(f => ({ ...f, parentId: v === '_none' ? null : v }))}>
+                <Select value={form.parentId ?? '_none'} onValueChange={(v) => { setForm(f => ({ ...f, parentId: v === '_none' ? null : v })); setDirty(true) }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">— Aucune (page principale)</SelectItem>
@@ -190,7 +198,7 @@ export default function AdminPagesPage() {
             </div>
             <div className="space-y-2">
               <RequiredLabel required>Contenu</RequiredLabel>
-              <RichTextEditor content={form.bodyHtml} onChange={(html) => setForm(f => ({ ...f, bodyHtml: html }))} placeholder="Rédigez la page…"
+              <RichTextEditor content={form.bodyHtml} onChange={(html) => { setForm(f => ({ ...f, bodyHtml: html })); setDirty(true) }} placeholder="Rédigez la page…"
                 onImageUpload={(file) => uploadContentImage(file).catch((e) => { toast.error(parseApiError(e)); throw e })} />
             </div>
             <div className="flex items-center gap-2">
@@ -207,7 +215,7 @@ export default function AdminPagesPage() {
               <p className="text-xs text-muted-foreground">Page accessible par son lien (/p/…) mais absente de la barre de menu.</p>
             )}
             <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
+              <Button variant="outline" type="button" onClick={requestClose}>Annuler</Button>
               <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
@@ -218,7 +226,14 @@ export default function AdminPagesPage() {
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
         title="Supprimer la page"
-        description={`Supprimer « ${deleting?.title} » ? Cette action est irréversible.`}
+        description={(() => {
+          const base = `Supprimer « ${deleting?.title} » ? Cette action est irréversible.`
+          // Warn if this page has sub-pages that would be affected by the deletion.
+          const childCount = deleting ? (pages ?? []).filter(p => p.parentId === deleting.id).length : 0
+          return childCount > 0
+            ? `${base} Cette page a ${childCount} sous-page${childCount > 1 ? 's' : ''} qui ser${childCount > 1 ? 'ont' : 'a'} affectée${childCount > 1 ? 's' : ''}.`
+            : base
+        })()}
         confirmLabel="Supprimer"
         variant="destructive"
         loading={deleteMutation.isPending}

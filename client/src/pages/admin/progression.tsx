@@ -115,7 +115,11 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
     const oldIndex = stages.findIndex(s => s.id === active.id)
     const newIndex = stages.findIndex(s => s.id === over.id)
     if (oldIndex === -1 || newIndex === -1) return
-    reorderMutation.mutate(arrayMove(stages, oldIndex, newIndex).map(s => s.id))
+    // No local optimistic state here — the list renders from the query cache (untouched until the
+    // reorder succeeds + invalidates), so on failure the order self-corrects; just surface the error.
+    reorderMutation.mutate(arrayMove(stages, oldIndex, newIndex).map(s => s.id), {
+      onError: (err) => toast.error(parseApiError(err)),
+    })
   }
 
   const toggleActive = async (s: ScoutStageDto) => {
@@ -127,7 +131,9 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
   // Inline quick-add: name only — blank code lets the backend auto-slug a unique code per unit type.
   const quickAdd = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newName.trim()) return
+    // Guard on isPending too: the button is disabled while pending but Enter isn't, so a fast
+    // double-Enter would otherwise fire the create twice.
+    if (!newName.trim() || createMutation.isPending) return
     try {
       await createMutation.mutateAsync({ unitTypeId, code: '', name: newName.trim(), description: null, displayOrder: stages.length, isActive: true, isBadgeStage: false })
       setNewName('')
@@ -295,7 +301,9 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
   // Inline quick-add: name only — blank code lets the backend auto-slug a unique code per unit type.
   const quickAdd = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newName.trim()) return
+    // Guard on isPending too: the button is disabled while pending but Enter isn't, so a fast
+    // double-Enter would otherwise fire the create twice.
+    if (!newName.trim() || createMutation.isPending) return
     try {
       await createMutation.mutateAsync({ unitTypeId, code: '', name: newName.trim(), description: null, displayOrder: badges.length, isActive: true })
       setNewName('')

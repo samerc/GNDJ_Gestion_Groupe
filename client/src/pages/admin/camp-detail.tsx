@@ -112,7 +112,7 @@ function SettingsTab({ campId }: { campId: string }) {
 
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={save} disabled={update.isPending}><Save className="mr-1 h-4 w-4" />Enregistrer</Button>
-        <Button variant="outline" onClick={() => archive.mutate({ id: campId, archive: !camp.isArchived })}>{camp.isArchived ? 'Désarchiver' : 'Archiver'}</Button>
+        <Button variant="outline" disabled={archive.isPending} onClick={() => archive.mutateAsync({ id: campId, archive: !camp.isArchived }).then(() => toast.success(camp.isArchived ? 'Camp désarchivé' : 'Camp archivé')).catch(e => toast.error(parseApiError(e)))}>{camp.isArchived ? 'Désarchiver' : 'Archiver'}</Button>
         <Button variant="ghost" className="text-destructive" onClick={() => setDeleting(true)}><Trash2 className="mr-1 h-4 w-4" />Supprimer</Button>
       </div>
 
@@ -357,6 +357,7 @@ function GamesTab({ campId }: { campId: string }) {
   const del = useDeleteGame(campId)
   const [name, setName] = useState('')
   const [etapisteFor, setEtapisteFor] = useState<CampGameDto | null>(null)
+  const [deletingGame, setDeletingGame] = useState<CampGameDto | null>(null)
 
   const add = async () => {
     if (!name.trim()) return
@@ -378,13 +379,17 @@ function GamesTab({ campId }: { campId: string }) {
               <p className="font-medium">{g.name}</p>
               <div className="flex gap-1">
                 <Button variant="outline" size="sm" onClick={() => setEtapisteFor(g)}><Users className="mr-1 h-3.5 w-3.5" />Étapistes ({g.etapistes.length})</Button>
-                <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => del.mutate(g.id)}><Trash2 className="h-4 w-4" /></Button></Tip>
+                <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingGame(g)}><Trash2 className="h-4 w-4" /></Button></Tip>
               </div>
             </div>
             {g.etapistes.length > 0 && <p className="mt-1 text-xs text-muted-foreground">{g.etapistes.map(e => `${e.firstName} ${e.lastName}`).join(', ')}</p>}
           </div>
         ))}</div>}
       {etapisteFor && <EtapisteDialog campId={campId} game={etapisteFor} onClose={() => setEtapisteFor(null)} />}
+
+      <ConfirmDialog open={!!deletingGame} onOpenChange={() => setDeletingGame(null)} title="Supprimer le jeu" variant="destructive"
+        description={`Supprimer « ${deletingGame?.name} » et ses étapistes ?`} confirmLabel="Supprimer" loading={del.isPending}
+        onConfirm={async () => { if (!deletingGame) return; try { await del.mutateAsync(deletingGame.id); toast.success('Jeu supprimé'); setDeletingGame(null) } catch (e) { toast.error(parseApiError(e)) } }} />
     </div>
   )
 }

@@ -96,7 +96,8 @@ export default function UnitsPage() {
       toast.success('Unité supprimée')
       setDeleting(null)
     } catch (err) {
-      setError(parseApiError(err))
+      // The dialog closes on error, so surface it via a toast (a banner inside the dialog wouldn't be seen).
+      toast.error(parseApiError(err))
       setDeleting(null)
     }
   }
@@ -292,7 +293,7 @@ export default function UnitsPage() {
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
         title="Supprimer l'unité"
-        description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ? Cette action est irréversible.`}
+        description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ?${(deleting?.teamCount || deleting?.memberCount) ? ` ${deleting?.teamCount ?? 0} équipe${(deleting?.teamCount ?? 0) > 1 ? 's' : ''} et ${deleting?.memberCount ?? 0} membre${(deleting?.memberCount ?? 0) > 1 ? 's' : ''} seront affectés.` : ''} Cette action est irréversible.`}
         confirmLabel="Supprimer"
         variant="destructive"
         loading={deleteMutation.isPending}

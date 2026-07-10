@@ -47,6 +47,8 @@ export default function ApiKeysPage() {
   const [error, setError] = useState('')
   const [createdKey, setCreatedKey] = useState<string | null>(null)
   const [createdKeyDialogOpen, setCreatedKeyDialogOpen] = useState(false)
+  // Must confirm they copied the key before the one-time reveal dialog can be dismissed.
+  const [keyAcknowledged, setKeyAcknowledged] = useState(false)
   const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
 
   const { data: apiKeys, isLoading } = useApiKeys()
@@ -85,6 +87,7 @@ export default function ApiKeysPage() {
       setFormOpen(false)
       // Capture the one-time plaintext key from the response and surface the reveal dialog.
       setCreatedKey(result.key)
+      setKeyAcknowledged(false)
       setCreatedKeyDialogOpen(true)
     } catch (err) {
       setError(parseApiError(err))
@@ -260,15 +263,16 @@ export default function ApiKeysPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Key display dialog (shown once after creation) — the plaintext secret is never retrievable again */}
-      <Dialog open={createdKeyDialogOpen} onOpenChange={(open) => { if (!open) { setCreatedKey(null); setCreatedKeyDialogOpen(false) } }}>
-        <DialogContent>
+      {/* Key display dialog (shown once after creation) — the plaintext secret is never retrievable again.
+          Closing (overlay-click / Esc / Fermer) is blocked until the user confirms they copied the key. */}
+      <Dialog open={createdKeyDialogOpen} onOpenChange={(open) => { if (!open && keyAcknowledged) { setCreatedKey(null); setCreatedKeyDialogOpen(false) } }}>
+        <DialogContent onInteractOutside={(e) => { if (!keyAcknowledged) e.preventDefault() }} onEscapeKeyDown={(e) => { if (!keyAcknowledged) e.preventDefault() }}>
           <DialogHeader>
             <DialogTitle>Clé API créée</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-              Cette clé ne sera plus visible après fermeture de cette fenêtre.
+              Cette clé ne sera plus visible après fermeture de cette fenêtre. Copiez-la maintenant.
             </div>
             <div className="flex items-center gap-2">
               <code className="flex-1 rounded-md bg-muted p-3 text-sm font-mono break-all select-all">{createdKey}</code>
@@ -278,9 +282,13 @@ export default function ApiKeysPage() {
                 </Button>
               </Tip>
             </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={keyAcknowledged} onChange={(e) => setKeyAcknowledged(e.target.checked)} />
+              J'ai copié la clé en lieu sûr.
+            </label>
           </div>
           <DialogFooter>
-            <Button onClick={() => { setCreatedKey(null); setCreatedKeyDialogOpen(false) }}>Fermer</Button>
+            <Button disabled={!keyAcknowledged} onClick={() => { setCreatedKey(null); setCreatedKeyDialogOpen(false) }}>Fermer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

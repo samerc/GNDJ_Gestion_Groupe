@@ -133,8 +133,11 @@ export function RichTextEditor({ content, onChange, variables, placeholder, clas
         <div className="w-px h-5 bg-border mx-1" />
 
         <ToolbarButton onClick={() => {
-          const url = window.prompt('URL du lien :')
-          if (url) editor.chain().focus().setLink({ href: url }).run()
+          let url = window.prompt('URL du lien :')?.trim()
+          if (!url) return
+          // Normalize bare domains (e.g. "www.foo.com") so they aren't treated as relative dead links.
+          if (!/^(https?:\/\/|mailto:|\/)/i.test(url)) url = `https://${url}`
+          editor.chain().focus().setLink({ href: url }).run()
         }} active={editor.isActive('link')} title="Lien">
           <LinkIcon className="h-4 w-4" />
         </ToolbarButton>

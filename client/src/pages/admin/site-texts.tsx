@@ -35,6 +35,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
+// Empty defaults so a fresh DB (no site.content yet) or a load error still renders an editable form
+// instead of spinning forever.
+const emptyContent: SiteContent = {
+  home: { heroBadge: '', heroTitle: '', heroSubtitle: '', introTitle: '', introText: '', values: [], stats: [], ctaTitle: '', ctaText: '' },
+  footer: { tagline: '', instagram: '', facebook: '', email: '', phone: '' },
+  contact: { intro: '', address: '' },
+}
+
 export default function AdminSiteTextsPage() {
   const { data, isLoading } = useSiteContent()
   const [form, setForm] = useState<SiteContent | null>(null)
@@ -44,13 +52,16 @@ export default function AdminSiteTextsPage() {
   const [prevData, setPrevData] = useState(data)
   if (data && data !== prevData) { setPrevData(data); setForm(data) }
 
-  if (isLoading || !form) return <LoadingSpinner />
+  // Only spin while the initial fetch is in flight. Once it resolves (data OR error/empty),
+  // fall back to empty defaults so the form always renders (fresh DB / error path).
+  if (isLoading && !form) return <LoadingSpinner />
+  const effectiveForm = form ?? emptyContent
 
-  const home = form.home
-  const setHome = (patch: Partial<SiteContent['home']>) => setForm({ ...form, home: { ...home, ...patch } })
+  const home = effectiveForm.home
+  const setHome = (patch: Partial<SiteContent['home']>) => setForm({ ...effectiveForm, home: { ...home, ...patch } })
 
   const handleSave = async () => {
-    try { await updateMutation.mutateAsync(form); toast.success('Textes du site enregistrés') }
+    try { await updateMutation.mutateAsync(effectiveForm); toast.success('Textes du site enregistrés') }
     catch (err) { toast.error(parseApiError(err)) }
   }
 
@@ -113,16 +124,16 @@ export default function AdminSiteTextsPage() {
       </Section>
 
       <Section title="Pied de page">
-        <Field label="Texte" value={form.footer.tagline} onChange={(v) => setForm({ ...form, footer: { ...form.footer, tagline: v } })} textarea max={600} />
-        <Field label="Instagram (URL du profil)" value={form.footer.instagram ?? ''} onChange={(v) => setForm({ ...form, footer: { ...form.footer, instagram: v } })} max={300} />
-        <Field label="Facebook (URL de la page)" value={form.footer.facebook ?? ''} onChange={(v) => setForm({ ...form, footer: { ...form.footer, facebook: v } })} max={300} />
-        <Field label="Email de contact (public, optionnel)" value={form.footer.email ?? ''} onChange={(v) => setForm({ ...form, footer: { ...form.footer, email: v } })} max={200} />
-        <Field label="Téléphone (public, optionnel)" value={form.footer.phone ?? ''} onChange={(v) => setForm({ ...form, footer: { ...form.footer, phone: v } })} max={40} />
+        <Field label="Texte" value={effectiveForm.footer.tagline} onChange={(v) => setForm({ ...effectiveForm, footer: { ...effectiveForm.footer, tagline: v } })} textarea max={600} />
+        <Field label="Instagram (URL du profil)" value={effectiveForm.footer.instagram ?? ''} onChange={(v) => setForm({ ...effectiveForm, footer: { ...effectiveForm.footer, instagram: v } })} max={300} />
+        <Field label="Facebook (URL de la page)" value={effectiveForm.footer.facebook ?? ''} onChange={(v) => setForm({ ...effectiveForm, footer: { ...effectiveForm.footer, facebook: v } })} max={300} />
+        <Field label="Email de contact (public, optionnel)" value={effectiveForm.footer.email ?? ''} onChange={(v) => setForm({ ...effectiveForm, footer: { ...effectiveForm.footer, email: v } })} max={200} />
+        <Field label="Téléphone (public, optionnel)" value={effectiveForm.footer.phone ?? ''} onChange={(v) => setForm({ ...effectiveForm, footer: { ...effectiveForm.footer, phone: v } })} max={40} />
       </Section>
 
       <Section title="Contact">
-        <Field label="Introduction" value={form.contact.intro} onChange={(v) => setForm({ ...form, contact: { ...form.contact, intro: v } })} textarea max={600} />
-        <Field label="Adresse" value={form.contact.address} onChange={(v) => setForm({ ...form, contact: { ...form.contact, address: v } })} textarea max={400} />
+        <Field label="Introduction" value={effectiveForm.contact.intro} onChange={(v) => setForm({ ...effectiveForm, contact: { ...effectiveForm.contact, intro: v } })} textarea max={600} />
+        <Field label="Adresse" value={effectiveForm.contact.address} onChange={(v) => setForm({ ...effectiveForm, contact: { ...effectiveForm.contact, address: v } })} textarea max={400} />
       </Section>
 
       <div className="flex justify-end">

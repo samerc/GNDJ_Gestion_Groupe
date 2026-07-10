@@ -39,6 +39,7 @@ export default function AdminEventsPage() {
   const [deleting, setDeleting] = useState<EventAdmin | null>(null)
   const [form, setForm] = useState<EventFormData>(emptyForm)
   const [error, setError] = useState('')
+  const [dirty, setDirty] = useState(false) // unsaved-changes guard for the create/edit dialog
   const [coverUploading, setCoverUploading] = useState(false)
 
   // Full event body is fetched lazily only when editing (the list DTO omits bodyHtml).
@@ -53,19 +54,26 @@ export default function AdminEventsPage() {
     setPrevEditData(editData)
     if (editingId && editData) {
       setForm({ title: editData.title, bodyHtml: editData.bodyHtml, startDate: editData.startDate, endDate: editData.endDate, timeLabel: editData.timeLabel, location: editData.location, isPublished: editData.isPublished, tagType: editData.tagType, tagUnitTypeId: editData.tagUnitTypeId, tagUnitId: editData.tagUnitId, coverImagePath: editData.coverImagePath })
+      setDirty(false) // freshly-loaded edit data is not a user change
     }
   }
 
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return
     setCoverUploading(true)
-    try { const url = await uploadContentImage(file); setForm(f => ({ ...f, coverImagePath: url })) }
+    try { const url = await uploadContentImage(file); setForm(f => ({ ...f, coverImagePath: url })); setDirty(true) }
     catch (err) { toast.error(parseApiError(err)) }
     finally { setCoverUploading(false); e.target.value = '' }
   }
 
-  const openCreate = () => { setEditingId(null); setForm(emptyForm); setError(''); setFormOpen(true) }
-  const openEdit = (ev: EventAdmin) => { setEditingId(ev.id); setForm(emptyForm); setError(''); setFormOpen(true) }
+  const openCreate = () => { setEditingId(null); setForm(emptyForm); setError(''); setDirty(false); setFormOpen(true) }
+  const openEdit = (ev: EventAdmin) => { setEditingId(ev.id); setForm(emptyForm); setError(''); setDirty(false); setFormOpen(true) }
+
+  // Guarded close: warn if there are unsaved edits before discarding the dialog.
+  const requestClose = () => {
+    if (dirty && !window.confirm('Des modifications non enregistrées seront perdues. Continuer ?')) return
+    setFormOpen(false)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -79,14 +87,14 @@ export default function AdminEventsPage() {
     try {
       if (editingId) { await updateMutation.mutateAsync({ id: editingId, ...form }); toast.success('Événement modifié') }
       else { await createMutation.mutateAsync(form); toast.success('Événement créé') }
-      setFormOpen(false)
+      setDirty(false); setFormOpen(false)
     } catch (err) { setError(parseApiError(err)) }
   }
 
   const handleDelete = async () => {
     if (!deleting) return
     try { await deleteMutation.mutateAsync(deleting.id); toast.success('Événement supprimé'); setDeleting(null) }
-    catch (err) { setError(parseApiError(err)); setDeleting(null) }
+    catch (err) { toast.error(parseApiError(err)); setDeleting(null) }
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending
@@ -137,10 +145,11 @@ export default function AdminEventsPage() {
         </div>
       )}
 
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+      <Dialog open={formOpen} onOpenChange={(open) => { if (!open) requestClose(); else setFormOpen(true) }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>{editingId ? "Modifier l'événement" : 'Nouvel événement'}</DialogTitle></DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* onChange on the form marks the draft dirty for native inputs (title/dates/time/location/checkbox). */}
+          <form onSubmit={handleSubmit} onChange={() => setDirty(true)} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
             <div className="space-y-2">
               <RequiredLabel required>Titre</RequiredLabel>
@@ -150,11 +159,11 @@ export default function AdminEventsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel required>Date de début</RequiredLabel>
-                <DateInput value={form.startDate || null} onChange={(iso) => setForm(f => ({ ...f, startDate: iso ?? '' }))} />
+                <DateInput value={form.startDate || null} onChange={(iso) => { setForm(f => ({ ...f, startDate: iso ?? '' })); setDirty(true) }} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Date de fin (optionnel)</label>
-                <DateInput value={form.endDate} onChange={(iso) => setForm(f => ({ ...f, endDate: iso }))} />
+                <DateInput value={form.endDate} onChange={(iso) => { setForm(f => ({ ...f, endDate: iso })); setDirty(true) }} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Horaire (optionnel)</label>
@@ -169,7 +178,7 @@ export default function AdminEventsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Concerne</label>
-                <Select value={form.tagType} onValueChange={(v) => setForm(f => ({ ...f, tagType: v, tagUnitTypeId: null, tagUnitId: null }))}>
+                <Select value={form.tagType} onValueChange={(v) => { setForm(f => ({ ...f, tagType: v, tagUnitTypeId: null, tagUnitId: null })); setDirty(true) }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Group">Tout le groupe</SelectItem>
@@ -215,7 +224,7 @@ export default function AdminEventsPage() {
 
             <div className="space-y-2">
               <RequiredLabel required>Description</RequiredLabel>
-              <RichTextEditor content={form.bodyHtml} onChange={(html) => setForm(f => ({ ...f, bodyHtml: html }))} placeholder="Décrivez l'événement…"
+              <RichTextEditor content={form.bodyHtml} onChange={(html) => { setForm(f => ({ ...f, bodyHtml: html })); setDirty(true) }} placeholder="Décrivez l'événement…"
                 onImageUpload={(file) => uploadContentImage(file).catch((e) => { toast.error(parseApiError(e)); throw e })} />
             </div>
 
@@ -224,8 +233,8 @@ export default function AdminEventsPage() {
               <label htmlFor="isPublished" className="text-sm font-medium">Publier (visible sur le site public)</label>
             </div>
             <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              <Button variant="outline" type="button" onClick={requestClose}>Annuler</Button>
+              <Button type="submit" disabled={isSaving || coverUploading}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

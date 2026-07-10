@@ -97,7 +97,8 @@ export default function UnitDetailPage() {
 
   const handleDelete = async () => {
     if (!deleting) return
-    try { await deleteMutation.mutateAsync(deleting.id); toast.success('Équipe supprimée'); setDeleting(null) } catch (err) { setError(parseApiError(err)); setDeleting(null) }
+    // The dialog closes on error, so surface it via a toast (a banner inside the dialog wouldn't be seen).
+    try { await deleteMutation.mutateAsync(deleting.id); toast.success('Équipe supprimée'); setDeleting(null) } catch (err) { toast.error(parseApiError(err)); setDeleting(null) }
   }
 
   // Reorder a non-Maîtrise team by ±1: swap displayOrder with the adjacent team (two updates).
@@ -115,7 +116,7 @@ export default function UnitDetailPage() {
         updateMutation.mutateAsync({ id: sorted[idx].id, name: sorted[idx].name, unitId: id!, displayOrder: sorted[swapIdx].displayOrder }),
         updateMutation.mutateAsync({ id: sorted[swapIdx].id, name: sorted[swapIdx].name, unitId: id!, displayOrder: sorted[idx].displayOrder }),
       ])
-    } catch { /* refresh will show correct order */ }
+    } catch { toast.error('Impossible de réordonner les équipes') /* refresh will show correct order */ }
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending
@@ -294,7 +295,7 @@ export default function UnitDetailPage() {
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
         title="Supprimer l'équipe"
-        description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ?`}
+        description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ?${deleting?.memberCount ? ` L'affectation de ${deleting.memberCount} membre${deleting.memberCount > 1 ? 's' : ''} sera concernée.` : ''}`}
         confirmLabel="Supprimer"
         variant="destructive"
         loading={deleteMutation.isPending}

@@ -155,6 +155,7 @@ export default function RentreePage() {
   const deleteTask = useDeleteRentreeTask()
 
   const [genOpen, setGenOpen] = useState(false)
+  const [confirmRegen, setConfirmRegen] = useState(false)
   const [genYear, setGenYear] = useState('2026-2027')
   const [editing, setEditing] = useState<RentreeTask | null>(null)
   const [editForm, setEditForm] = useState({ title: '', description: '', deadlineLabel: '', dueDate: '' })
@@ -337,12 +338,19 @@ export default function RentreePage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setGenOpen(false)}>Annuler</Button>
-            <Button onClick={() => doGenerate(years?.includes(genYear.trim()) ?? false)} disabled={generate.isPending}>
+            {/* A year that already exists = destructive re-generate (wipes progress) → go through a confirm. */}
+            <Button onClick={() => { if (years?.includes(genYear.trim())) setConfirmRegen(true); else doGenerate(false) }} disabled={generate.isPending}>
               {generate.isPending ? 'Génération…' : years?.includes(genYear.trim()) ? 'Régénérer' : 'Générer'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Re-generate confirmation — overwriting an existing year erases all completed tasks / progress */}
+      <ConfirmDialog open={confirmRegen} onOpenChange={() => setConfirmRegen(false)} title="Régénérer la liste de rentrée" variant="destructive"
+        description={`Une liste existe déjà pour ${genYear.trim()}. La régénérer effacera TOUTE la progression actuelle (tâches terminées, échéances modifiées) pour cette année et la recréera à partir du modèle. Cette action est irréversible.`}
+        confirmLabel="Régénérer" loading={generate.isPending}
+        onConfirm={async () => { await doGenerate(true); setConfirmRegen(false) }} />
 
       {/* Edit task dialog */}
       <Dialog open={!!editing} onOpenChange={() => setEditing(null)}>

@@ -73,7 +73,8 @@ export default function AssociationsPage() {
       toast.success('Association supprimée')
       setDeleting(null)
     } catch (err) {
-      setError(parseApiError(err))
+      // The dialog closes on error, so surface it via a toast (a banner inside the dialog wouldn't be seen).
+      toast.error(parseApiError(err))
       setDeleting(null)
     }
   }
@@ -219,7 +220,7 @@ export default function AssociationsPage() {
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
         title="Supprimer l'association"
-        description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ? Cette action est irréversible.`}
+        description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ?${deleting?.unitCount ? ` ${deleting.unitCount} unité${deleting.unitCount > 1 ? 's' : ''} y ${deleting.unitCount > 1 ? 'sont rattachées' : 'est rattachée'}.` : ''} Cette action est irréversible.`}
         confirmLabel="Supprimer"
         variant="destructive"
         loading={deleteMutation.isPending}

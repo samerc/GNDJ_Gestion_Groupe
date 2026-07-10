@@ -306,9 +306,14 @@ export default function DemandeValidationPage() {
                 : <><LockOpen className="mr-2 h-4 w-4" />Rouvrir les soumissions</>}
             </Button>
           )}
-          <Button size="lg" disabled={!canSend || sendMutation.isPending} onClick={() => setSendOpen(true)}>
-            <Send className="mr-2 h-4 w-4" />Envoyer les réponses{pendingSend > 0 ? ` (${pendingSend})` : ''}
-          </Button>
+          {/* Explain the disabled state when it's only the status filter blocking the send. */}
+          <Tip content={!canSend && status !== 'all' && pendingSend > 0 && undecided === 0 ? 'Affichez « Toutes » les demandes pour envoyer.' : ''}>
+            <span>
+              <Button size="lg" disabled={!canSend || sendMutation.isPending} onClick={() => setSendOpen(true)}>
+                <Send className="mr-2 h-4 w-4" />Envoyer les réponses{pendingSend > 0 ? ` (${pendingSend})` : ''}
+              </Button>
+            </span>
+          </Tip>
           {canClose && (
             <Button size="lg" variant="destructive" disabled={closeMutation.isPending} onClick={() => setCloseOpen(true)}>
               Clôturer la campagne
@@ -683,12 +688,13 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, hasPrev,
       if (document.querySelector('[role="listbox"]')) return // a Select is open
       if (e.key === 'ArrowLeft' && hasPrev) { e.preventDefault(); onPrev() }
       else if (e.key === 'ArrowRight' && hasNext) { e.preventDefault(); onNext() }
-      else if (!locked && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); onDecide(d, 'Approved', unit, note) }
-      else if (!locked && (e.key === 'r' || e.key === 'R')) { e.preventDefault(); onDecide(d, 'Declined', null, motif) }
+      // Guard A/R against a busy mutation so a held/repeated key can't fire multiple decisions for the same demande.
+      else if (!locked && !busy && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); onDecide(d, 'Approved', unit, note) }
+      else if (!locked && !busy && (e.key === 'r' || e.key === 'R')) { e.preventDefault(); onDecide(d, 'Declined', null, motif) }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [d, unit, note, motif, locked, hasPrev, hasNext, onPrev, onNext, onDecide])
+  }, [d, unit, note, motif, locked, busy, hasPrev, hasNext, onPrev, onNext, onDecide])
 
   const addr = [d.addressDetails, d.addressCity, d.addressCountry].filter(Boolean).join(', ')
   const miss = missingInfo(d)

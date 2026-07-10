@@ -93,7 +93,7 @@ export default function DocumentTypesPage() {
       toast.success('Type de document supprimé')
       setDeleting(null)
     } catch (err) {
-      setError(parseApiError(err))
+      toast.error(parseApiError(err))
       setDeleting(null)
     }
   }
@@ -218,11 +218,13 @@ export default function DocumentTypesPage() {
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
         title="Supprimer le type de document"
-        description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ? Cette action est irréversible.`}
-        confirmLabel="Supprimer"
+        description={(deleting?.documentCount ?? 0) > 0
+          ? `« ${deleting?.name} » est utilisé par ${deleting?.documentCount} document(s). Vous ne pouvez pas le supprimer — désactivez-le plutôt (décochez « Actif cette année »).`
+          : `Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ? Cette action est irréversible.`}
+        confirmLabel={(deleting?.documentCount ?? 0) > 0 ? 'Désactiver…' : 'Supprimer'}
         variant="destructive"
         loading={deleteMutation.isPending}
-        onConfirm={handleDelete}
+        onConfirm={(deleting?.documentCount ?? 0) > 0 ? () => { const d = deleting; setDeleting(null); if (d) openEdit(d) } : handleDelete}
       />
     </div>
   )
