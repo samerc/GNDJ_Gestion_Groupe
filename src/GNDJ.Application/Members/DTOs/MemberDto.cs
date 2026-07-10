@@ -49,8 +49,13 @@ public record MemberDetailDto(
     DateTime UpdatedAt,
     string? Username, // login of the linked user account (null if the member has no account)
     string? PrimaryContactEmail, // designated recipient for member-facing mail (null = auto)
-    IReadOnlyList<string> GuardianEmails // distinct guardian emails available as contact options
+    IReadOnlyList<string> GuardianEmails, // distinct guardian emails available as contact options
+    MemberTabCountsDto Counts // per-tab badge counts, so the detail panel needs no extra count queries
 );
+
+// Counts shown as tab badges on the member detail panel — folded into the detail query so opening a member
+// is ONE request instead of six (previously five secondary list queries fired just for these numbers).
+public record MemberTabCountsDto(int Famille, int Unites, int Documents, int Cotisations, int Progression);
 
 public record MemberPhoneDto(Guid Id, string CountryCode, string Number, string Type, bool IsPrimary, bool IsEmergency);
 public record MemberEmailDto(Guid Id, string Address, string Type, bool IsPrimary, bool IsEmergency);

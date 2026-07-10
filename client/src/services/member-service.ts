@@ -49,6 +49,16 @@ export interface MemberDetailDto {
   username: string | null // login of the linked user account (null if no account)
   primaryContactEmail: string | null // designated recipient for member-facing mail (null = auto)
   guardianEmails: string[] // distinct guardian emails, available as contact-email options
+  counts: MemberTabCounts // per-tab badge counts (folded in so the panel needs no extra count queries)
+}
+
+// Tab badge counts returned with the member detail (famille / unités / documents / cotisations / progression).
+export interface MemberTabCounts {
+  famille: number
+  unites: number
+  documents: number
+  cotisations: number
+  progression: number
 }
 
 export interface MemberPhoneDto { id: string; countryCode: string; number: string; type: string; isPrimary: boolean; isEmergency: boolean }

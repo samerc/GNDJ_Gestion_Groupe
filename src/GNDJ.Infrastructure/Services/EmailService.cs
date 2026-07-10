@@ -3,6 +3,7 @@ using System.Net.Mail;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace GNDJ.Infrastructure.Services;
 
@@ -10,18 +11,82 @@ namespace GNDJ.Infrastructure.Services;
 // (the template's own, else the first active one), substitutes {{variables}}, and sends via
 // System.Net.Mail. Variable substitution HTML-encodes user-supplied values for the HTML body as an
 // XSS defense at the sink (see ReplaceVariables / SendAsync).
+//
+// PERF: the template + SMTP config and the override-recipient setting are effectively constant across a
+// bulk send (e.g. "Envoyer les réponses" fans out hundreds of emails). They were previously re-read from
+// the DB on EVERY send (3 queries each). We now cache the resolved values in the shared singleton
+// IMemoryCache with a short TTL so a burst reads them once, not N times. Values are cached as plain
+// immutable records (never EF entities) so they're safe to share across the per-send DI scopes/contexts.
 public class EmailService : IEmailService
 {
     private readonly GndjDbContext _context;
+    private readonly IMemoryCache _cache;
 
-    public EmailService(GndjDbContext context) => _context = context;
+    public EmailService(GndjDbContext context, IMemoryCache cache)
+    {
+        _context = context;
+        _cache = cache;
+    }
+
+    // Resolved, connection-ready template — no EF entities, safe to cache/share across scopes.
+    private sealed record ResolvedTemplate(
+        string Subject, string BodyHtml,
+        string Host, int Port, string? Username, string? Password, bool UseSsl, string FromEmail, string? FromName);
+
+    private static readonly TimeSpan TemplateTtl = TimeSpan.FromSeconds(60); // template/SMTP change rarely
+    private static readonly TimeSpan OverrideTtl = TimeSpan.FromSeconds(15); // safety toggle — refresh quickly
 
     public async Task SendAsync(string templateCode, string toEmail, Dictionary<string, string> variables, CancellationToken ct = default)
     {
+        var resolved = await ResolveTemplateAsync(templateCode, ct);
+
+        // Replace variables in subject and body. The body is HTML, so user-supplied values are
+        // HTML-encoded before substitution (the admin-authored template markup is left intact) to
+        // prevent any injected markup/script from landing raw in the recipient's inbox. The subject
+        // is plain text, so it's substituted verbatim (encoding it would show literal &amp; etc.).
+        var subject = ReplaceVariables(resolved.Subject, variables, htmlEncode: false);
+        var body = ReplaceVariables(resolved.BodyHtml, variables, htmlEncode: true);
+
+        // Safety redirect: while `email.override_recipient` is set, EVERY email is sent to that single
+        // address instead of the real recipient (the intended address is shown in the subject). Lets the
+        // group test end-to-end without any mail reaching real families. Leave the setting empty to go live.
+        var actualTo = toEmail;
+        var overrideTo = await ResolveOverrideAsync(ct);
+        if (!string.IsNullOrWhiteSpace(overrideTo))
+        {
+            subject = $"[TEST → {toEmail}] {subject}";
+            actualTo = overrideTo.Trim();
+        }
+
+        using var client = new SmtpClient(resolved.Host, resolved.Port)
+        {
+            Credentials = new NetworkCredential(resolved.Username, resolved.Password),
+            EnableSsl = resolved.UseSsl,
+            Timeout = 30_000, // 30s backstop so a dead SMTP host can't hang the send (worker also has a CTS)
+        };
+
+        using var message = new MailMessage(
+            new MailAddress(resolved.FromEmail, resolved.FromName),
+            new MailAddress(actualTo))
+        {
+            Subject = subject,
+            Body = body,
+            IsBodyHtml = true
+        };
+
+        await client.SendMailAsync(message, ct);
+    }
+
+    // Template + SMTP config, cached briefly (missing/inactive templates throw and are NOT cached, so a
+    // freshly activated template is picked up on the next send).
+    private async Task<ResolvedTemplate> ResolveTemplateAsync(string templateCode, CancellationToken ct)
+    {
+        if (_cache.TryGetValue<ResolvedTemplate>($"emailtpl:{templateCode}", out var cached) && cached is not null)
+            return cached;
+
         var template = await _context.EmailTemplates
             .Include(t => t.SmtpServer)
             .FirstOrDefaultAsync(t => t.Code == templateCode && t.IsActive, ct);
-
         if (template is null)
             throw new InvalidOperationException($"Email template '{templateCode}' not found or inactive.");
 
@@ -36,48 +101,27 @@ public class EmailService : IEmailService
                 .OrderBy(s => s.CreatedAt)
                 .FirstOrDefaultAsync(ct);
         }
-
         if (smtp is null)
             throw new InvalidOperationException("No active SMTP server configured.");
 
-        // Replace variables in subject and body. The body is HTML, so user-supplied values are
-        // HTML-encoded before substitution (the admin-authored template markup is left intact) to
-        // prevent any injected markup/script from landing raw in the recipient's inbox. The subject
-        // is plain text, so it's substituted verbatim (encoding it would show literal &amp; etc.).
-        var subject = ReplaceVariables(template.Subject, variables, htmlEncode: false);
-        var body = ReplaceVariables(template.BodyHtml, variables, htmlEncode: true);
+        var resolved = new ResolvedTemplate(template.Subject, template.BodyHtml,
+            smtp.Host, smtp.Port, smtp.Username, smtp.Password, smtp.UseSsl, smtp.FromEmail, smtp.FromName);
+        _cache.Set($"emailtpl:{templateCode}", resolved, TemplateTtl);
+        return resolved;
+    }
 
-        // Safety redirect: while `email.override_recipient` is set, EVERY email is sent to that single
-        // address instead of the real recipient (the intended address is shown in the subject). Lets the
-        // group test end-to-end without any mail reaching real families. Leave the setting empty to go live.
-        var actualTo = toEmail;
+    // The override-recipient setting, cached briefly. Empty string = no override (cached as "" so the miss
+    // isn't retried every send). Short TTL so clearing it to go live takes effect quickly.
+    private async Task<string> ResolveOverrideAsync(CancellationToken ct)
+    {
+        if (_cache.TryGetValue<string>("email:override", out var cached) && cached is not null)
+            return cached;
         var overrideTo = await _context.Settings
             .Where(s => s.Key == "email.override_recipient")
             .Select(s => s.Value)
-            .FirstOrDefaultAsync(ct);
-        if (!string.IsNullOrWhiteSpace(overrideTo))
-        {
-            subject = $"[TEST → {toEmail}] {subject}";
-            actualTo = overrideTo.Trim();
-        }
-
-        using var client = new SmtpClient(smtp.Host, smtp.Port)
-        {
-            Credentials = new NetworkCredential(smtp.Username, smtp.Password),
-            EnableSsl = smtp.UseSsl,
-            Timeout = 30_000, // 30s backstop so a dead SMTP host can't hang the send (worker also has a CTS)
-        };
-
-        using var message = new MailMessage(
-            new MailAddress(smtp.FromEmail, smtp.FromName),
-            new MailAddress(actualTo))
-        {
-            Subject = subject,
-            Body = body,
-            IsBodyHtml = true
-        };
-
-        await client.SendMailAsync(message, ct);
+            .FirstOrDefaultAsync(ct) ?? "";
+        _cache.Set("email:override", overrideTo, OverrideTtl);
+        return overrideTo;
     }
 
     private static string ReplaceVariables(string template, Dictionary<string, string> variables, bool htmlEncode)

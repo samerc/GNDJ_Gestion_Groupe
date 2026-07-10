@@ -231,7 +231,15 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
                 // Distinct guardian emails linked to this member (contact-email options for the picker).
                 m.GuardianLinks.Where(gl => !gl.IsDeleted)
                     .SelectMany(gl => gl.Guardian.Emails.Where(e => !e.IsDeleted).Select(e => e.Address))
-                    .Distinct().ToList()
+                    .Distinct().ToList(),
+                // Tab badge counts (correlated subqueries — no extra round-trips; the panel no longer fetches
+                // guardians/assignments/documents/cotisations/progressions just to show the numbers).
+                new MemberTabCountsDto(
+                    m.GuardianLinks.Count(gl => !gl.IsDeleted),
+                    m.Assignments.Count(a => !a.IsDeleted),
+                    m.Documents.Count(d => !d.IsDeleted),
+                    m.Cotisations.Count(c => !c.IsDeleted),
+                    m.Progressions.Count(p => !p.IsDeleted))
             ))
             .FirstOrDefaultAsync(cancellationToken);
     }

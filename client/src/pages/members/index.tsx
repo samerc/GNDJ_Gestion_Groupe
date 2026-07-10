@@ -39,11 +39,6 @@ import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
 // Data hooks reused (React Query dedupes by key with the tab components) to show item counts on the tabs.
-import { useMemberGuardians } from '@/services/guardian-service'
-import { useAssignments } from '@/services/assignment-service'
-import { useMemberDocuments } from '@/services/document-service'
-import { useMemberCotisations } from '@/services/cotisation-service'
-import { useMemberProgressions } from '@/services/progression-service'
 import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
@@ -108,17 +103,13 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
   const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
   const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
 
-  // Tab item counts (shared cache with the tab bodies — no extra network). Shown as subtle badges so a
-  // leader sees at a glance whether there's family / docs / progression data without opening each tab.
-  const { data: guardiansData } = useMemberGuardians(memberId)
-  const { data: assignmentsData } = useAssignments({ memberId, pageSize: 100 })
-  const { data: documentsData } = useMemberDocuments(memberId)
-  const { data: cotisationsData } = useMemberCotisations(memberId)
-  const { data: progressionsData } = useMemberProgressions(memberId)
-  const familleCount = guardiansData?.length ?? 0
-  const unitesCount = assignmentsData?.items.length ?? 0
-  const dossierCount = (documentsData?.length ?? 0) + (cotisationsData?.length ?? 0)
-  const progressionCount = progressionsData?.length ?? 0
+  // Tab item counts come from the member detail payload itself (folded into GET /members/{id}), so opening
+  // a member is ONE request — no more firing five secondary list queries just to render these badges.
+  const counts = member?.counts
+  const familleCount = counts?.famille ?? 0
+  const unitesCount = counts?.unites ?? 0
+  const dossierCount = (counts?.documents ?? 0) + (counts?.cotisations ?? 0)
+  const progressionCount = counts?.progression ?? 0
 
   const pinnedNationalities = useSettingArray('pinned_nationalities')
   const defaultCountryCode = useSettingValue('default_country_code')

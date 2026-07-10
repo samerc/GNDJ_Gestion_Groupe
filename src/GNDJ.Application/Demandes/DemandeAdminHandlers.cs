@@ -545,6 +545,38 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct)) ?? "http://localhost:5173").TrimEnd('/');
         var loginUrl = $"{baseUrl}/login";
 
+        // PERF: pre-resolve everything the per-member loop used to query one-by-one INSIDE the advisory lock —
+        // base role per unit, existing guardians by contact, and taken usernames — into a few batched reads,
+        // so a large batch issues a handful of queries instead of O(members + guardians) round-trips (which
+        // stretched the lock hold time).
+        // (A) Base role per decided unit = the unit type's default function, else its lowest-rank non-archived one.
+        var unitTypeByUnit = await context.Units.Where(u => unitIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.UnitTypeId }).ToDictionaryAsync(u => u.Id, u => u.UnitTypeId, ct);
+        var typeIds = unitTypeByUnit.Values.Distinct().ToList();
+        var baseRoleByType = (await context.FunctionalRoles.Where(r => r.UnitTypeId != null && typeIds.Contains(r.UnitTypeId.Value) && !r.IsArchived)
+                .Select(r => new { r.Id, UnitTypeId = r.UnitTypeId!.Value, r.Rank, r.Name, r.IsDefaultForNewMembers }).ToListAsync(ct))
+            .GroupBy(r => r.UnitTypeId)
+            .ToDictionary(g => g.Key, g => (g.FirstOrDefault(r => r.IsDefaultForNewMembers)
+                ?? g.OrderBy(r => r.Rank).ThenBy(r => r.Name).FirstOrDefault())?.Id);
+        foreach (var (uId, typeId) in unitTypeByUnit)
+            baseRoleCache[uId] = baseRoleByType.GetValueOrDefault(typeId);
+
+        // (B) Existing guardians matched by email (case-sensitive, as before) then phone — loaded once.
+        var agAll = acctGuardians.Values.SelectMany(g => g).ToList();
+        var agEmails = agAll.Where(a => !string.IsNullOrWhiteSpace(a.Email)).Select(a => a.Email!).Distinct().ToList();
+        var agPhones = agAll.Where(a => !string.IsNullOrWhiteSpace(a.PhoneNumber)).Select(a => a.PhoneNumber!).Distinct().ToList();
+        var guardianByEmail = (await context.GuardianEmails.Where(e => agEmails.Contains(e.Address))
+                .Select(e => new { e.Address, e.Guardian }).ToListAsync(ct))
+            .GroupBy(x => x.Address, StringComparer.Ordinal)
+            .ToDictionary(x => x.Key, x => x.First().Guardian, StringComparer.Ordinal);
+        var guardianByPhone = (await context.GuardianPhones.Where(p => agPhones.Contains(p.Number))
+                .Select(p => new { p.Number, p.Guardian }).ToListAsync(ct))
+            .GroupBy(x => x.Number, StringComparer.Ordinal)
+            .ToDictionary(x => x.Key, x => x.First().Guardian, StringComparer.Ordinal);
+
+        // (C) Usernames already taken — one read instead of an AnyAsync per member.
+        var takenEmails = new HashSet<string>(await context.Users.Select(u => u.Email).ToListAsync(ct), StringComparer.OrdinalIgnoreCase);
+
         // Email jobs collected during the batch, sent only AFTER the transaction commits.
         var emailJobs = new List<(string Code, string To, Dictionary<string, string> Vars)>();
 
@@ -564,19 +596,9 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         {
             var unitId = d.DecidedUnitId!.Value;
 
-            // base role for the unit (lowest rank for its unit type)
+            // base role for the unit (pre-resolved into baseRoleCache above)
             if (!baseRoleCache.TryGetValue(unitId, out var roleId))
-            {
-                var unit = await context.Units.FirstOrDefaultAsync(u => u.Id == unitId, ct);
-                if (unit is null) { return Result<SendDemandeResponsesResult>.Failure($"Unité introuvable pour {d.FirstName} {d.LastName}."); }
-                // Prefer the explicitly-marked default function for the unit type; fall back to the
-                // most-junior (lowest rank) non-archived one for unit types without a default set.
-                roleId = await context.FunctionalRoles.Where(r => r.UnitTypeId == unit.UnitTypeId && !r.IsArchived && r.IsDefaultForNewMembers)
-                    .Select(r => (Guid?)r.Id).FirstOrDefaultAsync(ct);
-                roleId ??= await context.FunctionalRoles.Where(r => r.UnitTypeId == unit.UnitTypeId && !r.IsArchived)
-                    .OrderBy(r => r.Rank).ThenBy(r => r.Name).Select(r => (Guid?)r.Id).FirstOrDefaultAsync(ct);
-                baseRoleCache[unitId] = roleId;
-            }
+                return Result<SendDemandeResponsesResult>.Failure($"Unité introuvable pour {d.FirstName} {d.LastName}.");
             if (roleId is null)
                 return Result<SendDemandeResponsesResult>.Failure($"Aucune fonction de base définie pour l'unité de {d.FirstName} {d.LastName}. Définissez un rang dans les Fonctions.");
 
@@ -611,7 +633,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             {
                 if (!guardianCache.TryGetValue(ag.Id, out var guardian))
                 {
-                    guardian = await FindExistingGuardian(ag, ct);
+                    guardian = FindExistingGuardian(ag, guardianByEmail, guardianByPhone);
                     if (guardian is null)
                     {
                         guardian = new Guardian { FirstName = ag.FirstName, LastName = ag.LastName, Profession = ag.Profession, ProfessionDomain = ag.ProfessionDomain, IsDeceased = ag.IsDeceased };
@@ -631,7 +653,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
 
             // login — reuse the pre-computed password hash (fallback: hash inline if a demande was
             // approved between the pre-hash read and acquiring the lock)
-            var username = await UniqueEmail(d.FirstName, d.LastName, domain, usedEmails, ct);
+            var username = UniqueEmail(d.FirstName, d.LastName, domain, usedEmails, takenEmails);
             usedEmails.Add(username);
             string tempPassword, passwordHash;
             if (creds.TryGetValue(d.Id, out var c)) { tempPassword = c.Pwd; passwordHash = c.Hash; }
@@ -713,29 +735,23 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             || r.Contains("jumeau") || r.Contains("jumelle");
     }
 
-    private async Task<Guardian?> FindExistingGuardian(ApplicantGuardian ag, CancellationToken ct)
+    // In-memory guardian match against the batch-loaded contact dictionaries (email then phone), matching the
+    // original per-item query semantics (exact/case-sensitive) without a DB round-trip per applicant guardian.
+    private static Guardian? FindExistingGuardian(ApplicantGuardian ag, Dictionary<string, Guardian> byEmail, Dictionary<string, Guardian> byPhone)
     {
-        if (!string.IsNullOrWhiteSpace(ag.Email))
-        {
-            var byEmail = await context.GuardianEmails.Where(e => e.Address == ag.Email)
-                .Select(e => e.Guardian).FirstOrDefaultAsync(ct);
-            if (byEmail is not null) return byEmail;
-        }
-        if (!string.IsNullOrWhiteSpace(ag.PhoneNumber))
-        {
-            var byPhone = await context.GuardianPhones.Where(p => p.Number == ag.PhoneNumber)
-                .Select(p => p.Guardian).FirstOrDefaultAsync(ct);
-            if (byPhone is not null) return byPhone;
-        }
+        if (!string.IsNullOrWhiteSpace(ag.Email) && byEmail.TryGetValue(ag.Email, out var g1)) return g1;
+        if (!string.IsNullOrWhiteSpace(ag.PhoneNumber) && byPhone.TryGetValue(ag.PhoneNumber, out var g2)) return g2;
         return null;
     }
 
-    private async Task<string> UniqueEmail(string first, string last, string domain, HashSet<string> used, CancellationToken ct)
+    // Unique login local-part, checked against usernames taken in this batch (`used`) and already-existing
+    // ones (`taken`, pre-loaded) — no per-member DB round-trip.
+    private static string UniqueEmail(string first, string last, string domain, HashSet<string> used, HashSet<string> taken)
     {
         var baseName = $"{Normalize(first)}.{Normalize(last)}";
         var email = $"{baseName}@{domain}";
         var suffix = 2;
-        while (used.Contains(email) || await context.Users.AnyAsync(u => u.Email == email, ct))
+        while (used.Contains(email) || taken.Contains(email))
         {
             email = $"{baseName}{suffix}@{domain}";
             suffix++;

@@ -110,8 +110,11 @@ export default function UnitDetailPage() {
     const swapIdx = idx + direction
     if (swapIdx < 0 || swapIdx >= sorted.length) return
     try {
-      await updateMutation.mutateAsync({ id: sorted[idx].id, name: sorted[idx].name, unitId: id!, displayOrder: sorted[swapIdx].displayOrder })
-      await updateMutation.mutateAsync({ id: sorted[swapIdx].id, name: sorted[swapIdx].name, unitId: id!, displayOrder: sorted[idx].displayOrder })
+      // The two display-order swaps are independent — run them together instead of one-then-the-other.
+      await Promise.all([
+        updateMutation.mutateAsync({ id: sorted[idx].id, name: sorted[idx].name, unitId: id!, displayOrder: sorted[swapIdx].displayOrder }),
+        updateMutation.mutateAsync({ id: sorted[swapIdx].id, name: sorted[swapIdx].name, unitId: id!, displayOrder: sorted[idx].displayOrder }),
+      ])
     } catch { /* refresh will show correct order */ }
   }
 

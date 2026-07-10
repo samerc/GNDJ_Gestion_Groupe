@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { useMembers, useUploadPhoto, type MemberListDto } from '@/services/member-service'
@@ -56,7 +56,7 @@ export default function PhotoSessionPage() {
   const unitName = user?.unitAccess[0]?.unitName ?? ''
 
   const { data: membersData, isLoading } = useMembers({ unitId, pageSize: 500 })
-  const members = membersData?.items ?? []
+  const members = useMemo(() => membersData?.items ?? [], [membersData])
 
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   // Members photographed this session — drives the green check + progress before the list refetches.
@@ -66,9 +66,9 @@ export default function PhotoSessionPage() {
 
   const totalMembers = members.length
   // "Has a photo" = either already stored (photoPath) or captured during this session.
-  const withPhotos = members.filter(m => m.photoPath || capturedPhotos.has(m.id)).length
+  const withPhotos = useMemo(() => members.filter(m => m.photoPath || capturedPhotos.has(m.id)).length, [members, capturedPhotos])
 
-  const selectedMember = members.find(m => m.id === selectedMemberId)
+  const selectedMember = useMemo(() => members.find(m => m.id === selectedMemberId), [members, selectedMemberId])
 
   // After an upload: mark the member done and bump its refresh key so the thumbnail reloads.
   const handleDone = () => {

@@ -200,21 +200,25 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
             .ToListAsync(ct)).ToHashSet();
         var unpaidCotisations = activeMemberIds.Count(id => !paidMemberIds.Contains(id));
 
-        // Missing documents: active members who are missing at least one active doc type
+        // Doc compliance: how many active doc types each active member has. Computed ONCE over the full
+        // active-member set and reused for BOTH the "missing documents" tile and the per-unit breakdown
+        // (unit members are a subset of the active members), rather than scanning member_documents twice.
         var activeDocTypeCount = await _context.DocumentTypes.CountAsync(dt => dt.IsActive, ct);
-        var membersWithAllDocs = 0;
-        if (activeDocTypeCount > 0)
-        {
-            var memberDocCounts = await _context.MemberDocuments
+        var docCountsByMember = activeDocTypeCount > 0
+            ? await _context.MemberDocuments
                 .Where(d => activeMemberIds.Contains(d.MemberId) && d.DocumentType.IsActive)
                 .GroupBy(d => d.MemberId)
-                .Select(g => new { MemberId = g.Key, Count = g.Select(d => d.DocumentTypeId).Distinct().Count() })
-                .ToListAsync(ct);
-            membersWithAllDocs = memberDocCounts.Count(m => m.Count >= activeDocTypeCount);
-        }
+                .Select(g => new { MemberId = g.Key, TypeCount = g.Select(d => d.DocumentTypeId).Distinct().Count() })
+                .ToDictionaryAsync(g => g.MemberId, g => g.TypeCount, ct)
+            : new Dictionary<Guid, int>();
+
+        // Missing documents: active members who are missing at least one active doc type.
+        var membersWithAllDocs = activeDocTypeCount > 0
+            ? activeMemberIds.Count(id => docCountsByMember.GetValueOrDefault(id, 0) >= activeDocTypeCount)
+            : 0;
         var missingDocuments = activeMemberIds.Count - membersWithAllDocs;
 
-        // Unit breakdown with doc compliance
+        // Unit breakdown with doc compliance (reuses docCountsByMember above)
         var units = await _context.Units
             .Where(u => u.IsActive)
             .OrderBy(u => u.Name)
@@ -225,13 +229,6 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
                 MemberIds = u.Assignments.Where(a => a.StartDate < windowEnd && (a.EndDate == null || a.EndDate > windowStart)).Select(a => a.MemberId).ToList()
             })
             .ToListAsync(ct);
-
-        var allUnitMemberIds = units.SelectMany(u => u.MemberIds).Distinct().ToList();
-        var docCountsByMember = await _context.MemberDocuments
-            .Where(d => allUnitMemberIds.Contains(d.MemberId) && d.DocumentType.IsActive)
-            .GroupBy(d => d.MemberId)
-            .Select(g => new { MemberId = g.Key, TypeCount = g.Select(d => d.DocumentTypeId).Distinct().Count() })
-            .ToDictionaryAsync(g => g.MemberId, g => g.TypeCount, ct);
 
         var unitBreakdown = units.Select(u =>
         {

@@ -1595,6 +1595,38 @@ There was only ONE flag (`demande.enabled`) gating everything. Added an INNER wi
 - Verified live end-to-end: config flips, create/submit/register blocked (400 with the review message) when closed,
   reopen restores. Build + tsc + eslint clean. DEV until deploy.
 
+### Performance audit + optimizations (2026-07-10)
+Component-wide audit (2 parallel agents: backend handlers/services + frontend queries/render). Codebase was
+already healthy (prior perf passes hold; NO remaining sequential per-item network loops — bulk ops already use
+Promise.all/Task.WhenAll). Fixes shipped (all verified live):
+- **Email batch sends (High):** `EmailService.SendAsync` re-read the template + SMTP server + `override_recipient`
+  from the DB on EVERY email; a bulk send (demande "Envoyer les réponses" fans out account+guardians+child per
+  demande) = hundreds × 3 identical reads, sent one-at-a-time. Now the resolved template/SMTP/override are cached
+  as plain records in the shared singleton `IMemoryCache` (60s template TTL, 15s override TTL — missing templates
+  throw and aren't cached), and `EmailQueueBackgroundService` drains with **bounded concurrency** (SemaphoreSlim=5,
+  each send its own scope+DbContext+SmtpClient) instead of strictly serial — SMTP latency dominates, so a batch
+  now drains in ~1/N wall-clock. Verified: a 3-recipient forgot-password burst → all delivered via smtp4dev.
+- **SendDemandeResponses (Med):** the approved-member conversion loop did per-item queries INSIDE the advisory
+  lock (base role per unit ×2-3 queries, `FindExistingGuardian` ×1-2 per applicant guardian, `UniqueEmail`'s
+  `AnyAsync` per member). All three are now **batch-loaded up front** into dicts (base role per unit type;
+  existing guardians by email/phone; all taken usernames) — the locked transaction issues a handful of queries
+  instead of O(members+guardians). Verified live end-to-end (isolated throwaway year): demande → member M-1327 +
+  login + Meute assignment w/ base role L + linked guardian, then fully cleaned up.
+- **Admin dashboard (Med):** scanned `member_documents` twice (GroupBy for the "missing docs" tile + again for the
+  per-unit breakdown). Now computes the per-member doc-count dict ONCE over the active-member set (unit members
+  are a subset) and reuses it. Verified: totals unchanged.
+- **#2 Member detail panel (Med):** opening a member fired 5 secondary list queries (guardians/assignments/
+  documents/cotisations/progressions) just to render tab-count badges. Counts are now **folded into
+  `GET /members/{id}`** (`MemberTabCountsDto`, correlated subqueries — no extra round-trips), so the panel is ONE
+  request instead of six on the app's busiest screen. Verified: counts `{famille,unites,documents,cotisations,progression}` returned.
+- **Low:** passage `enabled`+`scout_year` read in one query (`PassageConfig.LoadAsync`, ×3 handlers); forgot-password
+  emails now **queued** (off the request path) instead of inline blocking SMTP; photo-session `filter/find`
+  memoized (up to 500 members); units/detail team-reorder swap → `Promise.all`.
+- **Deliberately SKIPPED (net-negative / auditor-flagged):** roster/export parallelization (pooled DbContext isn't
+  concurrent-safe — needs a 2nd scope, not worth it for an admin PDF); `AuditService`'s post-save write (deliberate
+  audit-after-commit); bulk-cards' unit query (a legit 404 guard, not real redundancy); ≤100-item list sorts
+  (auditor said "none required"). Builds clean (dotnet + tsc + eslint), key flows verified live. DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

@@ -26,7 +26,7 @@ public class RequestPasswordResetCommandValidator : AbstractValidator<RequestPas
 
 public class RequestPasswordResetCommandHandler(
     IApplicationDbContext context,
-    IEmailService emailService
+    IEmailQueue emailQueue
 ) : IRequestHandler<RequestPasswordResetCommand, Result<ForgotPasswordResult>>
 {
     public async ValueTask<Result<ForgotPasswordResult>> Handle(RequestPasswordResetCommand request, CancellationToken ct)
@@ -53,27 +53,21 @@ public class RequestPasswordResetCommandHandler(
         // shared across siblings, so we key the flow on the username and just fan the link out to the file.
         var recipients = await ResolveRecipientsAsync(user.MemberId, user.Member?.PrimaryContactEmail, ct);
 
-        // Send the link (the reset URL still carries the USERNAME so ResetPassword matches on User.Email).
-        try
+        // Queue the link email(s) (sent in the background — the reset URL still carries the USERNAME so
+        // ResetPassword matches on User.Email). Queuing keeps the SMTP round-trip(s) off the request path.
+        var baseUrl = await context.Settings
+            .Where(s => s.Key == "app.base_url")
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct) ?? "http://localhost:5173";
+        var resetLink = $"{baseUrl}/reset-password?token={token}&email={Uri.EscapeDataString(request.Email)}";
+        var vars = new Dictionary<string, string>
         {
-            var baseUrl = await context.Settings
-                .Where(s => s.Key == "app.base_url")
-                .Select(s => s.Value)
-                .FirstOrDefaultAsync(ct) ?? "http://localhost:5173";
-            var resetLink = $"{baseUrl}/reset-password?token={token}&email={Uri.EscapeDataString(request.Email)}";
-            var vars = new Dictionary<string, string>
-            {
-                ["memberName"] = user.Member?.FirstName ?? "Utilisateur",
-                ["resetLink"] = resetLink,
-                ["expiryHours"] = "1"
-            };
-            foreach (var to in recipients)
-                await emailService.SendAsync("password_reset", to, vars, ct);
-        }
-        catch
-        {
-            // Don't fail the request if email fails — token is still saved
-        }
+            ["memberName"] = user.Member?.FirstName ?? "Utilisateur",
+            ["resetLink"] = resetLink,
+            ["expiryHours"] = "1"
+        };
+        foreach (var to in recipients)
+            emailQueue.Enqueue(new EmailJob("password_reset", to, vars));
 
         // Account found — report the masked address(es) the link was sent to (empty if none on file).
         return Result<ForgotPasswordResult>.Success(

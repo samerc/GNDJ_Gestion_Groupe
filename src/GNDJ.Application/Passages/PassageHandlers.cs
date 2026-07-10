@@ -8,6 +8,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Passages;
 
+// passage.enabled + passage.scout_year are always read together — this reads both in ONE query instead of
+// two sequential round-trips (they gate every open/propose/bulk-propose path).
+internal static class PassageConfig
+{
+    public static async Task<(bool Enabled, string Year)> LoadAsync(IApplicationDbContext context, CancellationToken ct)
+    {
+        var map = await context.Settings
+            .Where(s => s.Key == "passage.enabled" || s.Key == "passage.scout_year")
+            .Select(s => new { s.Key, s.Value })
+            .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
+        return (map.GetValueOrDefault("passage.enabled") == "true", map.GetValueOrDefault("passage.scout_year") ?? "");
+    }
+}
+
 // Annual passage workflow: each scout year the CU proposes where every member goes next
 // (Pending), the CG reviews/modifies/approves or rejects them (Approved/Rejected), then the CG
 // finalizes the whole year — ending current assignments and creating the new ones. A "no change"
@@ -233,18 +247,7 @@ public class IsPassageOpenQueryHandler(IApplicationDbContext context) : IRequest
 {
     public async ValueTask<Result<PassageStatusDto>> Handle(IsPassageOpenQuery request, CancellationToken ct)
     {
-        var enabledSetting = await context.Settings
-            .Where(s => s.Key == "passage.enabled")
-            .Select(s => s.Value)
-            .FirstOrDefaultAsync(ct);
-
-        var yearSetting = await context.Settings
-            .Where(s => s.Key == "passage.scout_year")
-            .Select(s => s.Value)
-            .FirstOrDefaultAsync(ct);
-
-        var isEnabled = enabledSetting == "true";
-        var configuredYear = yearSetting ?? string.Empty;
+        var (isEnabled, configuredYear) = await PassageConfig.LoadAsync(context, ct);
 
         // Passage is open if enabled AND the requested year matches the configured year
         var isOpen = isEnabled && (string.IsNullOrEmpty(request.ScoutYear) || configuredYear == request.ScoutYear);
@@ -281,18 +284,10 @@ public class ProposePassageCommandHandler(IApplicationDbContext context, ICurren
     public async ValueTask<Result<Guid>> Handle(ProposePassageCommand request, CancellationToken ct)
     {
         // Check passage is open
-        var enabledSetting = await context.Settings
-            .Where(s => s.Key == "passage.enabled")
-            .Select(s => s.Value)
-            .FirstOrDefaultAsync(ct);
-        if (enabledSetting != "true")
+        var (isEnabled, configuredYear) = await PassageConfig.LoadAsync(context, ct);
+        if (!isEnabled)
             return Result<Guid>.Failure("Le processus de passage n'est pas actif.");
-
-        var yearSetting = await context.Settings
-            .Where(s => s.Key == "passage.scout_year")
-            .Select(s => s.Value)
-            .FirstOrDefaultAsync(ct);
-        if (yearSetting != request.ScoutYear)
+        if (configuredYear != request.ScoutYear)
             return Result<Guid>.Failure("L'année scoute du passage ne correspond pas à l'année configurée.");
 
         // Get member's active assignment
@@ -424,18 +419,10 @@ public class BulkProposePassageCommandHandler(IApplicationDbContext context, ICu
     public async ValueTask<Result<int>> Handle(BulkProposePassageCommand request, CancellationToken ct)
     {
         // Check passage is open
-        var enabledSetting = await context.Settings
-            .Where(s => s.Key == "passage.enabled")
-            .Select(s => s.Value)
-            .FirstOrDefaultAsync(ct);
-        if (enabledSetting != "true")
+        var (isEnabled, configuredYear) = await PassageConfig.LoadAsync(context, ct);
+        if (!isEnabled)
             return Result<int>.Failure("Le processus de passage n'est pas actif.");
-
-        var yearSetting = await context.Settings
-            .Where(s => s.Key == "passage.scout_year")
-            .Select(s => s.Value)
-            .FirstOrDefaultAsync(ct);
-        if (yearSetting != request.ScoutYear)
+        if (configuredYear != request.ScoutYear)
             return Result<int>.Failure("L'année scoute du passage ne correspond pas à l'année configurée.");
 
         // Validate proposed unit and role exist
