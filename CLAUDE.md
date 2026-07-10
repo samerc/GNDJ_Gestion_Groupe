@@ -1707,6 +1707,32 @@ super-admin screens and I fixed the findings across ~20 admin files (all fronten
   **demande send** button now has a tooltip explaining it needs the "Toutes" filter.
 - DEV until deploy. (Access-control verification found no CG/super-admin leaks; these are UX/robustness fixes.)
 
+### Public site content — old-GNDJ import + /unites ordering (2026-07-10)
+Filled the empty public-site content from the group's OWN old FrontPage site (`C:\Users\Administrator\Documents\old`,
+a static `.htm` archive — the authentic source, NOT SDL/GDL). All content lands in EDITABLE fields (unit-type
+`public_description`, Pages CMS, `site.content` "Textes du site") — nothing hardcoded. Content is DEV-DB data
+(reaches prod on the next dump); only the /unites ordering is code.
+- **8 branch descriptions** (Meute/Ronde/Troupe/Compagnie/Clan/Noyau/JEM/Feu) written into `unit_types.public_description`
+  from the old branch pages — parent-facing (âge, méthode, devise). Feu is a generic "aînés" placeholder (it sits
+  outside the parcours — user to confirm what Feu is).
+- **CMS pages** (Pages, TipTap-editable): filled the empty **Le Groupe** (intro: 1935, Collège ND Jamhour, Scouts+
+  Guides du Liban, double héritage Baden-Powell + P. Jacques Sevin s.j., ~700 membres) and **Notre méthode** (les 5
+  buts + système des équipes); NEW **Nos valeurs** (Loi scoute 10 + 3 principes + Promesse + côté Guides) and
+  **Spiritualité** (identité ignatienne, Jacques Sevin, aumôniers, Prière scoute). **Merged history**: moved the real
+  1935→2010 "Historique" content into "Notre histoire" (stripped stale `localhost/old/*` `<a>` links, h1→h2) and
+  soft-deleted the redundant "Historique" stub. Nav: **Le Groupe ▾** = Notre méthode · Notre histoire · Nos valeurs · Spiritualité.
+- **Published** Troupe 2/3/10ème + Noyau (were unpublished → the Éclaireurs branch was invisible while Meute/Ronde/
+  Compagnie showed); **unpublished** the 4 internal "(Non affectés)" placeholder units so /unites is clean.
+- **`/unites` ordering (CODE — `PublicUnitQueries.cs`):** branches now ordered by an explicit parcours sequence
+  (`BranchOrder` by unit-type code: MEU,RON,TRO,COM,CLAN,NOY,JEM,FEU,CAR,GRP) instead of alphabetical; units within
+  a branch **natural-sorted** by the first number in the name (`UnitNumber` regex → 2,3,10 not 10,2,3). Set unit-type
+  **ages** (Meute/Ronde 8-11, Troupe 11-16, Compagnie 11-15, Noyau 15-17, Clan/JEM 17-21) so the cards show age labels.
+- **Home "Textes du site":** gender-inclusive intro ("chaque jeune, garçons et filles, des plus jeunes aux aînés" —
+  was "du louveteau au routier", which excluded girls); **stats** corrected 13→**15 Unités**, 4→**7 Branches**; the
+  **Foi** value card now names the BP + Jacques Sevin heritage.
+- Verified live (`GET /api/v1/public/units`): Meute→Ronde→Troupe→Compagnie→Clan→Noyau→JEM, units 2/3/10 in order,
+  ages shown. Build clean; API rebuilt+restarted on :5000.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

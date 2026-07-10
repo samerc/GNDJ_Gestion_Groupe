@@ -28,17 +28,36 @@ public record GetPublicUnitsQuery() : IRequest<IReadOnlyList<PublicUnitGroupDto>
 public class GetPublicUnitsQueryHandler(IApplicationDbContext context)
     : IRequestHandler<GetPublicUnitsQuery, IReadOnlyList<PublicUnitGroupDto>>
 {
+    // Explicit parcours order of the branches (by unit-type code): youngest first, boys/girls paired.
+    // Drives the public /unites ordering so it doesn't depend on the (often-null) AgeMin fields.
+    private static readonly string[] BranchOrder =
+        { "MEU", "RON", "TRO", "COM", "CLAN", "NOY", "JEM", "FEU", "CAR", "GRP" };
+
+    private static int BranchRank(string? code)
+    {
+        var i = Array.IndexOf(BranchOrder, code);
+        return i < 0 ? 999 : i; // unknown codes sort last
+    }
+
+    // Natural sort key: the first number in a unit name ("Meute 10ème Beyrouth" -> 10) so units
+    // list 2, 3, 10 instead of the string order 10, 2, 3. No number -> 0 (sorts first).
+    private static int UnitNumber(string name)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(name, @"\d+");
+        return m.Success && int.TryParse(m.Value, out var n) ? n : 0;
+    }
+
     public async ValueTask<IReadOnlyList<PublicUnitGroupDto>> Handle(GetPublicUnitsQuery request, CancellationToken ct)
     {
         var units = await context.Units
             .Where(u => u.IsPublished && u.Slug != null)
-            .OrderBy(u => u.UnitType.AgeMin).ThenBy(u => u.Name)
             .Select(u => new
             {
                 u.Slug,
                 u.Name,
                 u.UnitTypeId,
                 UnitTypeName = u.UnitType.Name,
+                Code = u.UnitType.Code,
                 u.UnitType.Gender,
                 u.UnitType.AgeMin,
                 u.UnitType.AgeMax,
@@ -49,11 +68,14 @@ public class GetPublicUnitsQueryHandler(IApplicationDbContext context)
             .ToListAsync(ct);
 
         return units
-            .GroupBy(u => new { u.UnitTypeId, u.UnitTypeName, u.Color, u.AgeMin, u.AgeMax, u.Description })
-            .OrderBy(g => g.Key.AgeMin ?? 999).ThenBy(g => g.Key.UnitTypeName)
+            .GroupBy(u => new { u.UnitTypeId, u.UnitTypeName, u.Code, u.Color, u.AgeMin, u.AgeMax, u.Description })
+            // Branches in parcours order (then age, then name as a stable fallback)
+            .OrderBy(g => BranchRank(g.Key.Code)).ThenBy(g => g.Key.AgeMin ?? 999).ThenBy(g => g.Key.UnitTypeName)
             .Select(g => new PublicUnitGroupDto(
                 g.Key.UnitTypeId, g.Key.UnitTypeName, g.Key.Color, g.Key.AgeMin, g.Key.AgeMax, g.Key.Description,
-                g.Select(u => new PublicUnitListItemDto(
+                // Units within a branch in natural numeric order (2, 3, 10)
+                g.OrderBy(u => UnitNumber(u.Name)).ThenBy(u => u.Name)
+                 .Select(u => new PublicUnitListItemDto(
                     u.Slug!, u.Name, u.UnitTypeName, u.Gender, u.AgeMin, u.AgeMax, u.MemberCount
                 )).ToList()))
             .ToList();
