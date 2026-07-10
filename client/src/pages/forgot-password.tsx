@@ -51,7 +51,7 @@ export default function ForgotPasswordPage() {
                 <span className="font-medium">{result!.sentTo.join(', ')}</span>.
               </div>
               <Link to="/login" className="block text-center text-sm text-primary hover:underline">
-                Retour a la connexion
+                Retour à la connexion
               </Link>
             </div>
           ) : result?.found ? (
@@ -61,7 +61,7 @@ export default function ForgotPasswordPage() {
                 Compte trouvé, mais aucune adresse courriel n'est enregistrée sur le dossier. Contactez un responsable pour réinitialiser votre mot de passe.
               </div>
               <Link to="/login" className="block text-center text-sm text-primary hover:underline">
-                Retour a la connexion
+                Retour à la connexion
               </Link>
             </div>
           ) : (
@@ -92,7 +92,7 @@ export default function ForgotPasswordPage() {
                 {mutation.isPending ? 'Envoi...' : 'Envoyer le lien'}
               </Button>
               <Link to="/login" className="block text-center text-sm text-primary hover:underline">
-                Retour a la connexion
+                Retour à la connexion
               </Link>
             </form>
           )}

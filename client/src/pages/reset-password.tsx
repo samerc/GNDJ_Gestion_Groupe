@@ -52,10 +52,10 @@ export default function ResetPasswordPage() {
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              Lien de reinitialisation invalide ou expire.
+              Lien de réinitialisation invalide ou expiré.
             </div>
             <Link to="/login" className="mt-4 block text-center text-sm text-primary hover:underline">
-              Retour a la connexion
+              Retour à la connexion
             </Link>
           </CardContent>
         </Card>
@@ -78,7 +78,7 @@ export default function ResetPasswordPage() {
           {success ? (
             <div className="space-y-4">
               <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-800">
-                Votre mot de passe a ete reinitialise avec succes.
+                Votre mot de passe a été réinitialisé avec succès.
               </div>
               <Link to="/login" className="block text-center text-sm text-primary hover:underline">
                 Se connecter
@@ -114,10 +114,10 @@ export default function ResetPasswordPage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={mutation.isPending}>
-                {mutation.isPending ? 'Reinitialisation...' : 'Reinitialiser le mot de passe'}
+                {mutation.isPending ? 'Réinitialisation...' : 'Réinitialiser le mot de passe'}
               </Button>
               <Link to="/login" className="block text-center text-sm text-primary hover:underline">
-                Retour a la connexion
+                Retour à la connexion
               </Link>
             </form>
           )}

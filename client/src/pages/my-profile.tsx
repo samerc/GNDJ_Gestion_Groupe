@@ -157,12 +157,33 @@ export default function MyProfilePage() {
     } catch (err) { setError(parseApiError(err)) }
   }
 
+  // Add-contact submits: surface failures (toast over the modal) and keep the dialog open with the typed
+  // data so nothing is lost; the mutation's isPending gates the button against a double-tap.
+  const handleAddPhone = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try { await addPhoneMutation.mutateAsync(phoneForm); toast.success('Téléphone ajouté'); setPhoneDialogOpen(false) }
+    catch (err) { toast.error(parseApiError(err)) }
+  }
+  const handleAddEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try { await addEmailMutation.mutateAsync(emailForm); toast.success('Courriel ajouté'); setEmailDialogOpen(false) }
+    catch (err) { toast.error(parseApiError(err)) }
+  }
+  const handleAddAddress = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try { await addAddressMutation.mutateAsync({ ...addressForm, details: addressForm.details || null }); toast.success('Adresse ajoutée'); setAddressDialogOpen(false) }
+    catch (err) { toast.error(parseApiError(err)) }
+  }
+
   const handleDeleteContact = async () => {
     if (!deletingContact) return
-    if (deletingContact.type === 'phone') await deletePhoneMutation.mutateAsync(deletingContact.id)
-    else if (deletingContact.type === 'email') await deleteEmailMutation.mutateAsync(deletingContact.id)
-    else await deleteAddressMutation.mutateAsync(deletingContact.id)
-    setDeletingContact(null)
+    try {
+      if (deletingContact.type === 'phone') await deletePhoneMutation.mutateAsync(deletingContact.id)
+      else if (deletingContact.type === 'email') await deleteEmailMutation.mutateAsync(deletingContact.id)
+      else await deleteAddressMutation.mutateAsync(deletingContact.id)
+      toast.success('Supprimé')
+      setDeletingContact(null)
+    } catch (err) { toast.error(parseApiError(err)) }
   }
 
   if (isLoading || !member) return <LoadingSpinner variant="profile" />
@@ -343,35 +364,35 @@ export default function MyProfilePage() {
       <Dialog open={phoneDialogOpen} onOpenChange={setPhoneDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Ajouter un téléphone</DialogTitle></DialogHeader>
-          <form onSubmit={async (e) => { e.preventDefault(); await addPhoneMutation.mutateAsync(phoneForm); setPhoneDialogOpen(false) }} className="space-y-4">
+          <form onSubmit={handleAddPhone} className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={phoneForm.countryCode} onValueChange={(v) => setPhoneForm(f => ({ ...f, countryCode: v }))} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher un indicatif..." /></div>
               <div className="col-span-2 space-y-2"><RequiredLabel required>Numéro</RequiredLabel><Input value={phoneForm.number} onChange={(e) => setPhoneForm(f => ({ ...f, number: e.target.value }))} required /></div>
             </div>
             <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={phoneForm.type} onValueChange={(v) => setPhoneForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PHONE_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
             <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={phoneForm.isPrimary} onChange={(e) => setPhoneForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={phoneForm.isEmergency} onChange={(e) => setPhoneForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setPhoneDialogOpen(false)}>Annuler</Button><Button type="submit">Ajouter</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setPhoneDialogOpen(false)}>Annuler</Button><Button type="submit" disabled={addPhoneMutation.isPending}>{addPhoneMutation.isPending ? 'Ajout...' : 'Ajouter'}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
       <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Ajouter un courriel</DialogTitle></DialogHeader>
-          <form onSubmit={async (e) => { e.preventDefault(); await addEmailMutation.mutateAsync(emailForm); setEmailDialogOpen(false) }} className="space-y-4">
+          <form onSubmit={handleAddEmail} className="space-y-4">
             <div className="space-y-2"><RequiredLabel required>Adresse</RequiredLabel><Input type="email" value={emailForm.address} onChange={(e) => setEmailForm(f => ({ ...f, address: e.target.value }))} required /></div>
             <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={emailForm.type} onValueChange={(v) => setEmailForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{EMAIL_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setEmailDialogOpen(false)}>Annuler</Button><Button type="submit">Ajouter</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setEmailDialogOpen(false)}>Annuler</Button><Button type="submit" disabled={addEmailMutation.isPending}>{addEmailMutation.isPending ? 'Ajout...' : 'Ajouter'}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
       <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Ajouter une adresse</DialogTitle></DialogHeader>
-          <form onSubmit={async (e) => { e.preventDefault(); await addAddressMutation.mutateAsync({ ...addressForm, details: addressForm.details || null }); setAddressDialogOpen(false) }} className="space-y-4">
+          <form onSubmit={handleAddAddress} className="space-y-4">
             <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={addressForm.type} onValueChange={(v) => setAddressForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ADDRESS_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
             <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={addressForm.country} onValueChange={(v) => setAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><CitySelect value={addressForm.city} onChange={(city) => setAddressForm(f => ({ ...f, city }))} cities={cities} /></div></div>
             <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={addressForm.details} onChange={(e) => setAddressForm(f => ({ ...f, details: e.target.value }))} placeholder="Rue, immeuble..." /></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setAddressDialogOpen(false)}>Annuler</Button><Button type="submit">Ajouter</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setAddressDialogOpen(false)}>Annuler</Button><Button type="submit" disabled={addAddressMutation.isPending}>{addAddressMutation.isPending ? 'Ajout...' : 'Ajouter'}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -418,7 +439,7 @@ export default function MyProfilePage() {
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog open={!!deletingContact} onOpenChange={() => setDeletingContact(null)} title="Supprimer" description={`Supprimer « ${deletingContact?.label} » ?`} confirmLabel="Supprimer" variant="destructive" onConfirm={handleDeleteContact} />
+      <ConfirmDialog open={!!deletingContact} onOpenChange={() => setDeletingContact(null)} title="Supprimer" description={`Supprimer « ${deletingContact?.label} » ?`} confirmLabel="Supprimer" variant="destructive" loading={deletePhoneMutation.isPending || deleteEmailMutation.isPending || deleteAddressMutation.isPending} onConfirm={handleDeleteContact} />
 
     </div>
   )

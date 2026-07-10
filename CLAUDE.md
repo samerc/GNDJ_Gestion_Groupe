@@ -1627,6 +1627,37 @@ Promise.all/Task.WhenAll). Fixes shipped (all verified live):
   audit-after-commit); bulk-cards' unit query (a legit 404 guard, not real redundancy); ≤100-item list sorts
   (auditor said "none required"). Builds clean (dotnet + tsc + eslint), key flows verified live. DEV until deploy.
 
+### Pre-launch shakedown — member/CU journeys + UX fixes (2026-07-10)
+Ran the full member + CU flows live (real accounts) + 2 parallel screen-review agents. **Everything worked
+end-to-end** (member self-edit profil/médical; document upload → CU approve + reject-with-reason → member sees
+status+reason; trombinoscope this-year available; reset-password full loop; IDOR held — a youth got 403 approving
+her own doc + 404 reading a co-unit member). Fixed the UX gaps most likely to generate support calls:
+- **Ma fiche add phone/email/address (my-profile.tsx):** the ADD dialogs swallowed errors and had no double-submit
+  guard — a failed add showed nothing (dialog stuck with the typed data) and a double-tap made duplicates. Now
+  toast on failure (visible over the modal), keep the dialog open with the data, disable the submit while pending.
+  Delete-contact got try/catch + a `loading` gate on the confirm dialog.
+- **member-guardians self-service:** add phone/email now try/catch+toast; phone/email delete surfaces errors +
+  disables while pending; the create button reads "Ajouter" in self-service (was the jargon "Créer et lier").
+- **Members panel Modifier-on-every-tab (members/index.tsx):** tabs made **controlled**; the Modifier/Save controls
+  now render ONLY on the Informations + Médical tabs (form tabs) — before, a CU on Documents/Progression saw Save
+  with no form and could persist stale data (the exact bug fixed earlier in Ma fiche had regressed here).
+- **Document matrix quick approve/reject (unit-documents.tsx):** errors → toast (were a hidden top banner) +
+  double-submit guard (`reviewMutation.isPending`). Exempt-toggle error → toast too. (Mobile already works via the
+  cell-tap → review dialog; the quick buttons are a desktop hover convenience.)
+- **CU reports empty-unit (dashboard-unit-leader.tsx):** roster/export/cards are blob responses, so a backend JSON
+  error was unreadable → now `parseBlobError` shows the real "aucun membre" message (matches the zip fix).
+- **French accents** on the password pages + login ("Réinitialiser", "expiré", "réinitialisé avec succès",
+  "Retour à la connexion", "Mot de passe oublié ?").
+- **Youth self-propose now parcours-filtered (ChangeRequestHandlers `GetProposableUnitsQuery`):** the propose-fonction
+  unit dropdown showed ALL active units → now only units of the member's **current branch** (their active
+  assignments' unit types), so a youth proposes within their branch (a Compagnie guide sees the 4 Compagnie units,
+  NOT the Noyau or other branches). Falls back to all active units only if the member has no active assignment.
+  Verified live: Naï (Compagnie youth) → exactly the 4 Compagnie units. Builds clean (dotnet+tsc+eslint), DEV until deploy.
+- **FLAGGED (not fixed) for the user:** the synthetic `@scouts.gndj` login means parents typing their real email get
+  "Compte introuvable" (known go-live decision); "Test Doc Type" (TDT) is a leftover junk document type to remove;
+  Clara ABBOUD has a duplicate active Compagnie-1 assignment (test artifact). Deferred: shared-mutation "greys all
+  rows" on change-requests/doc-matrix; a member has no self-withdraw for a mistaken proposal.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

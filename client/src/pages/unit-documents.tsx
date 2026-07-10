@@ -96,7 +96,7 @@ export default function UnitDocumentsPage() {
       await setExempt.mutateAsync({ memberId: member.memberId, scoutYear: currentScoutYear, willNotPay })
       toast.success(willNotPay ? 'Membre marqué « ne paiera pas »' : 'Exemption retirée')
       setCotisationMember(null)
-    } catch (err) { setError(parseApiError(err)) }
+    } catch (err) { toast.error(parseApiError(err)) }
   }
 
   const [error, setError] = useState('')
@@ -141,23 +141,23 @@ export default function UnitDocumentsPage() {
 
   const handleQuickApprove = async (e: React.MouseEvent, cell: MemberDocCellDto) => {
     e.stopPropagation()
-    if (!cell.documentId || cell.status === 'Approved') return
+    if (!cell.documentId || cell.status === 'Approved' || reviewMutation.isPending) return
     try {
       await reviewMutation.mutateAsync({ id: cell.documentId, status: 'Approved' })
-      toast.success('Statut modifié')
+      toast.success('Document approuvé')
     } catch (err) {
-      setError(parseApiError(err))
+      toast.error(parseApiError(err)) // toast (not the top banner) so it's visible where the CU is looking
     }
   }
 
   const handleQuickReject = async (e: React.MouseEvent, cell: MemberDocCellDto) => {
     e.stopPropagation()
-    if (!cell.documentId || cell.status === 'Rejected') return
+    if (!cell.documentId || cell.status === 'Rejected' || reviewMutation.isPending) return
     try {
       await reviewMutation.mutateAsync({ id: cell.documentId, status: 'Rejected' })
-      toast.success('Statut modifié')
+      toast.success('Document refusé')
     } catch (err) {
-      setError(parseApiError(err))
+      toast.error(parseApiError(err))
     }
   }
 

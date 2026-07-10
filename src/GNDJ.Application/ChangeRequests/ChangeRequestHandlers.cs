@@ -81,16 +81,30 @@ public class ProposeProgressionHandler(IApplicationDbContext context, ICurrentUs
 }
 
 // ── Units a member may target when proposing a fonction ──────────────────────
-// ALL active units (not unit-scoped like GetUnitsQuery) so a member can propose moving to ANY unit — the
-// CU/CG reviews the proposal anyway. Minimal fields for the picker (id + name + unit type for role scoping).
+// Parcours-relevant units for the caller's OWN self-propose picker: only units of their CURRENT branch
+// (their active assignments' unit types), so a youth proposes within the branch they're actually in — e.g.
+// a guide in the Compagnie sees Compagnie units, NOT the Noyau or other branches she hasn't reached. Falls
+// back to all active units only when the member has no active assignment (edge case). The CU/CG reviews anyway.
 public record ProposableUnitDto(Guid Id, string Name, Guid UnitTypeId);
 public record GetProposableUnitsQuery : IRequest<IReadOnlyList<ProposableUnitDto>>;
 
-public class GetProposableUnitsHandler(IApplicationDbContext context) : IRequestHandler<GetProposableUnitsQuery, IReadOnlyList<ProposableUnitDto>>
+public class GetProposableUnitsHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetProposableUnitsQuery, IReadOnlyList<ProposableUnitDto>>
 {
     public async ValueTask<IReadOnlyList<ProposableUnitDto>> Handle(GetProposableUnitsQuery request, CancellationToken ct)
-        => await context.Units.Where(u => u.IsActive).OrderBy(u => u.Name)
+    {
+        var memberId = currentUser.MemberId;
+        // The unit type(s) of the caller's current active assignments = their branch(es).
+        var currentTypeIds = memberId is null ? new List<Guid>() : await context.MemberAssignments
+            .Where(a => a.MemberId == memberId && a.EndDate == null && !a.IsDeleted)
+            .Select(a => a.Unit.UnitTypeId).Distinct().ToListAsync(ct);
+
+        var query = context.Units.Where(u => u.IsActive);
+        if (currentTypeIds.Count > 0) // else fall back to all active units (member with no current unit)
+            query = query.Where(u => currentTypeIds.Contains(u.UnitTypeId));
+
+        return await query.OrderBy(u => u.Name)
             .Select(u => new ProposableUnitDto(u.Id, u.Name, u.UnitTypeId)).ToListAsync(ct);
+    }
 }
 
 // ── Propose: Assignment / fonction (member) ──────────────────────────────────

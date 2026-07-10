@@ -22,7 +22,7 @@ import { RosterDialog } from '@/components/shared/roster-dialog'
 import { ExportDialog } from '@/components/shared/export-dialog'
 import { cn } from '@/lib/utils'
 import { generateBulkCards } from '@/services/report-service'
-import { parseApiError } from '@/lib/error-utils'
+import { parseBlobError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { useReportTemplates } from '@/services/report-template-service'
 import { generateRoster, generateExport } from '@/services/report-service'
@@ -268,7 +268,8 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
       URL.revokeObjectURL(url)
       toast.success('Rapport généré')
     } catch (err) {
-      toast.error(parseApiError(err))
+      // Responses are blobs, so a backend JSON error (e.g. "aucun membre") is unreadable via parseApiError.
+      toast.error(await parseBlobError(err))
     } finally {
       setGeneratingReport(null)
     }
@@ -287,7 +288,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
       URL.revokeObjectURL(url)
       toast.success('Cartes générées')
     } catch (err) {
-      toast.error(parseApiError(err))
+      toast.error(await parseBlobError(err))
     } finally {
       setBulkCardsLoading(false)
     }

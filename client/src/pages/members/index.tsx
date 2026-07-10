@@ -125,6 +125,10 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
 
   // Profil + Scolarité + Médical share one inline edit form (the header "Modifier" button).
   const [editing, setEditing] = useState(false)
+  // Controlled tabs: the edit form only lives on Informations + Médical, so the "Modifier"/Save controls are
+  // shown ONLY on those tabs (else a CU on Documents/Progression sees Save with no form and persists stale data).
+  const [activeTab, setActiveTab] = useState('info')
+  const isFormTab = activeTab === 'info' || activeTab === 'medical'
   const [form, setForm] = useState<MemberFormData>({ firstName: '', lastName: '' })
   const [error, setError] = useState('')
 
@@ -266,7 +270,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
                 <Button variant="outline" size="sm" onClick={downloadCard}><CreditCard className="h-4 w-4" /></Button>
               </Tip>
             )}
-            {canEdit && (editing ? (
+            {canEdit && isFormTab && (editing ? (
               <>
                 <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Annuler</Button>
                 <Button size="sm" onClick={handleSave} disabled={updateMember.isPending}>
@@ -280,7 +284,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
         </div>
       </div>
 
-      <Tabs defaultValue="info" className="flex-1 flex flex-col min-h-0">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         <TabsList className="mx-4 mt-3 shrink-0 justify-start overflow-x-auto flex-nowrap">
           <TabsTrigger value="info">Informations</TabsTrigger>
           <TabsTrigger value="famille">Famille<TabCount n={familleCount} /></TabsTrigger>

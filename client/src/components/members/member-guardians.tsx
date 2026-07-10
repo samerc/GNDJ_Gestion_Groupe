@@ -157,19 +157,23 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
   const handleAddPhone = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!phoneDialog) return
-    await addPhoneMutation.mutateAsync({ guardianId: phoneDialog, ...phoneForm })
-    toast.success('Téléphone ajouté')
-    setPhoneDialog(null)
-    setPhoneForm({ countryCode: defaultCountryCode ?? '+961', number: '', type: 'Mobile', isPrimary: false })
+    try {
+      await addPhoneMutation.mutateAsync({ guardianId: phoneDialog, ...phoneForm })
+      toast.success('Téléphone ajouté')
+      setPhoneDialog(null)
+      setPhoneForm({ countryCode: defaultCountryCode ?? '+961', number: '', type: 'Mobile', isPrimary: false })
+    } catch (err) { toast.error(parseApiError(err)) }
   }
 
   const handleAddEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!emailDialog) return
-    await addEmailMutation.mutateAsync({ guardianId: emailDialog, ...emailForm })
-    toast.success('Email ajouté')
-    setEmailDialog(null)
-    setEmailForm({ address: '', type: 'Personnel', isPrimary: false })
+    try {
+      await addEmailMutation.mutateAsync({ guardianId: emailDialog, ...emailForm })
+      toast.success('Email ajouté')
+      setEmailDialog(null)
+      setEmailForm({ address: '', type: 'Personnel', isPrimary: false })
+    } catch (err) { toast.error(parseApiError(err)) }
   }
 
   return (
@@ -230,7 +234,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                         <span>{p.countryCode} {p.number}</span>
                         <span className="text-muted-foreground text-xs">{p.type}</span>
                         {p.isPrimary && <Badge variant="outline" className="text-xs h-5">Principal</Badge>}
-                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => deletePhoneMutation.mutate(p.id)}>
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" disabled={deletePhoneMutation.isPending} onClick={() => deletePhoneMutation.mutateAsync(p.id).then(() => toast.success('Téléphone supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button></Tip>
                       </div>
@@ -255,7 +259,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                         <span>{em.address}</span>
                         <span className="text-muted-foreground text-xs">{em.type}</span>
                         {em.isPrimary && <Badge variant="outline" className="text-xs h-5">Principal</Badge>}
-                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => deleteEmailMutation.mutate(em.id)}>
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" disabled={deleteEmailMutation.isPending} onClick={() => deleteEmailMutation.mutateAsync(em.id).then(() => toast.success('Courriel supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button></Tip>
                       </div>
@@ -372,7 +376,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
               </div>
               <DialogFooter>
                 <Button variant="outline" type="button" onClick={() => setAddDialogOpen(false)}>Annuler</Button>
-                <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Création...' : 'Créer et lier'}</Button>
+                <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Enregistrement...' : (selfService ? 'Ajouter' : 'Créer et lier')}</Button>
               </DialogFooter>
             </form>
           )}
