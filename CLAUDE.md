@@ -1568,6 +1568,24 @@ parents + Kahale address + himself. Build/tsc/eslint clean. DEV until deploy.
   (has email, then phone, then profession). Verified: Samer's household went 4 → 2 guardians (kept the one with
   email+phone). Data-quality fix in the projection only (underlying dup guardian rows untouched).
 
+### Demande: two-phase period — submission window inside the open portal (2026-07-09)
+There was only ONE flag (`demande.enabled`) gating everything. Added an INNER window `demande.submissions_open`
+(default true, seeded + SeedMissingSettings) that lives inside the open portal:
+- **Submissions open** (`enabled=true, submissions_open=true`): parents register / create / edit / submit / delete.
+- **Review phase** (`enabled=true, submissions_open=false`): the portal stays open for **viewing status only** —
+  create/edit/submit/delete + **register** are all blocked (CG is reviewing).
+- **Closed**: unchanged (`demande.enabled=false` / "Clôturer la campagne" archive+wipe).
+- Backend: `ApplicantConfigDto.SubmissionsOpen`; shared `ApplicantHelpers.SubmissionsClosedError(config)` gates
+  Register/Create/Update/Submit/SaveHousehold/Delete (returns "La période de soumission … est terminée. Vous pouvez
+  consulter vos demandes…"). New CG `SetDemandeSubmissionsCommand(open)` + `GetDemandeCampaignStatusQuery`
+  (`POST /demandes/submissions`, `GET /demandes/campaign-status`, both demande.manage/view), audited (Open/CloseSubmissions).
+- Frontend: `ApplicantConfig.submissionsOpen`; portail gates Add/edit/delete on it + a blue "période de soumission
+  terminée / en cours d'étude" banner; wizard is read-only in the review phase; register route guarded
+  (`ApplicantOpenRoute submissionsRequired`). CG review page: a **Clôturer / Rouvrir les soumissions** toggle (with
+  confirm) + a status pill ("Soumissions ouvertes" / "Phase de revue"). Settings page also shows the boolean.
+- Verified live end-to-end: config flips, create/submit/register blocked (400 with the review message) when closed,
+  reopen restores. Build + tsc + eslint clean. DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

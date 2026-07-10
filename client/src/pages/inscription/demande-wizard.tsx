@@ -89,8 +89,10 @@ export default function DemandeWizardPage() {
   const [lookupCode, setLookupCode] = useState('')
 
   const existing = useMemo(() => profile?.demandes.find((d) => d.id === id), [profile, id]) // the demande being edited, if any
-  // Read-only once the CG has replied (responseSentAt) or the inscription period is closed.
-  const readonly = !!existing && (!!existing.responseSentAt || !(config?.isOpen ?? false))
+  // Can create/edit/submit only while the portal is open AND the submission window is open (not the CG
+  // review phase). Read-only otherwise, or once this demande has already been answered.
+  const canSubmit = (config?.isOpen ?? false) && (config?.submissionsOpen ?? false)
+  const readonly = !canSubmit || (!!existing && !!existing.responseSentAt)
   const notesMax = config?.notesMaxLength ?? 500
   const maxRelations = config?.maxScoutRelations ?? 50
 

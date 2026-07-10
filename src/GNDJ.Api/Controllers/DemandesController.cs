@@ -129,5 +129,26 @@ public class DemandesController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>Campaign status for the CG: portal open? submission window open? scout year. Requires demande.view.</summary>
+    [HttpGet("campaign-status")]
+    [HasPermission(Permissions.DemandeView)]
+    public async Task<IActionResult> CampaignStatus()
+    {
+        var result = await Mediator.Send(new GetDemandeCampaignStatusQuery());
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>Opens/closes the submission window (inner period). Closing starts the review phase — parents keep
+    /// read-only access but can no longer create/edit/submit. Requires demande.manage.</summary>
+    [HttpPost("submissions")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> SetSubmissions([FromBody] SetDemandeSubmissionsCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { success = true });
+    }
+
     public record DecideBody(string Status, Guid? DecidedUnitId, string? DecisionNotes);
 }

@@ -177,3 +177,22 @@ export function useCloseCampaign() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes'] }); qc.invalidateQueries({ queryKey: ['settings'] }) },
   })
 }
+
+export interface DemandeCampaignStatus { enabled: boolean; submissionsOpen: boolean; scoutYear: string }
+
+// GET /demandes/campaign-status → portal open? submission window open? scout year (drives the CG toggle).
+export function useCampaignStatus() {
+  return useQuery({
+    queryKey: ['demandes', 'campaign-status'],
+    queryFn: () => apiClient.get<DemandeCampaignStatus>('/demandes/campaign-status').then((r) => r.data),
+  })
+}
+
+// POST /demandes/submissions → open/close the submission window (inner period). Closing starts the review phase.
+export function useSetSubmissions() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (open: boolean) => apiClient.post('/demandes/submissions', { open }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes', 'campaign-status'] }); qc.invalidateQueries({ queryKey: ['settings'] }) },
+  })
+}

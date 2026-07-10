@@ -35,7 +35,11 @@ export default function ApplicantPortalPage() {
 
   const demandes = profile.demandes
   const max = config?.maxPerAccount ?? 5 // server-configured cap on children per account
-  const open = config?.isOpen ?? false // inscription period open? gates add/edit
+  const open = config?.isOpen ?? false // portal accessible (login + view)
+  // Submission window (inside the open period): can create/edit/submit/delete. Once the CG closes it, the
+  // portal stays open for viewing but everything becomes read-only (review phase).
+  const canSubmit = open && (config?.submissionsOpen ?? false)
+  const reviewPhase = open && !(config?.submissionsOpen ?? false)
   const reachedMax = demandes.length >= max
   const needsVerify = config?.requireEmailVerification && !profile.emailVerified
 
@@ -52,7 +56,7 @@ export default function ApplicantPortalPage() {
           <h1 className="text-2xl font-bold tracking-tight">Mes demandes d'inscription</h1>
           <p className="text-sm text-muted-foreground">{profile.email} · Année {config?.scoutYear}</p>
         </div>
-        <Button onClick={() => navigate('/inscription/portail/demande/new')} disabled={!open || reachedMax}>
+        <Button onClick={() => navigate('/inscription/portail/demande/new')} disabled={!canSubmit || reachedMax}>
           <UserPlus className="mr-2 h-4 w-4" />Ajouter un enfant
         </Button>
       </div>
@@ -74,6 +78,16 @@ export default function ApplicantPortalPage() {
       {!open && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
           Les inscriptions sont actuellement fermées. Vous pouvez consulter vos demandes mais pas les modifier.
+        </div>
+      )}
+
+      {reviewPhase && (
+        <div className="flex items-start gap-3 rounded-lg border border-blue-300 bg-blue-50 p-4 text-sm text-blue-800">
+          <Clock className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-medium">La période de soumission est terminée</p>
+            <p>Vos demandes sont en cours d'étude par la Maîtrise de Groupe. Vous pouvez suivre leur statut ici ; les résultats vous seront communiqués prochainement. Aucune modification n'est possible pour le moment.</p>
+          </div>
         </div>
       )}
 
@@ -103,7 +117,7 @@ export default function ApplicantPortalPage() {
                 // locked = no longer deletable (replied-to, or already submitted past Draft);
                 // editable = wizard can still be opened to change it (period open + not yet replied to).
                 const locked = !!d.responseSentAt || !!d.submittedAt && d.status !== 'Draft'
-                const editable = open && !d.responseSentAt
+                const editable = canSubmit && !d.responseSentAt
                 const { border, badge } = statusMeta(d)
                 return (
                   <tr key={d.id} className="hover:bg-muted/30">

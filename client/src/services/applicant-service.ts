@@ -5,7 +5,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import applicantApi from '@/lib/applicant-api-client'
 
 export interface ApplicantConfig {
-  isOpen: boolean
+  isOpen: boolean            // demande.enabled — portal accessible at all (login + view)
+  submissionsOpen: boolean   // demande.submissions_open — inner window: can create/edit/submit (else view-only review phase)
   scoutYear: string
   maxPerAccount: number
   notesMaxLength: number

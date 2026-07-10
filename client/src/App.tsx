@@ -109,8 +109,11 @@ export default function App() {
         {/* Anonymous entry points — hidden (redirected to the landing's "fermées" notice) when inscriptions are closed. */}
         <Route element={<ApplicantOpenRoute />}>
           <Route path="/inscription/login" element={<ApplicantLoginPage />} />
-          <Route path="/inscription/register" element={<ApplicantRegisterPage />} />
           <Route path="/inscription/verify" element={<ApplicantVerifyPage />} />
+        </Route>
+        {/* Register also needs the submission window open (blocked during the CG review phase). */}
+        <Route element={<ApplicantOpenRoute submissionsRequired />}>
+          <Route path="/inscription/register" element={<ApplicantRegisterPage />} />
         </Route>
         <Route element={<ApplicantProtectedRoute />}>
           {/* T&C acceptance lives OUTSIDE the terms gate (no redirect loop); the portal routes are gated. */}

@@ -25,7 +25,10 @@ public record ApplicantAuthDto(Guid AccountId, string Email, bool EmailVerified,
 // Public config the wizard reads on load: whether enrolment is open + the managed pick-lists
 // (schools/classes/cities/units/profession domains) and caps, so the portal stays a thin client.
 
-public record ApplicantConfigDto(bool IsOpen, string ScoutYear, int MaxPerAccount, int NotesMaxLength, bool RequireEmailVerification, string? IntroText,
+// IsOpen (demande.enabled) = the portal is accessible at all (login + view). SubmissionsOpen
+// (demande.submissions_open) is the INNER window inside it: while true, parents can create/edit/submit/delete;
+// once the CG closes it (review phase), the portal stays open for viewing but all writes are blocked.
+public record ApplicantConfigDto(bool IsOpen, bool SubmissionsOpen, string ScoutYear, int MaxPerAccount, int NotesMaxLength, bool RequireEmailVerification, string? IntroText,
     IReadOnlyList<string> Schools, IReadOnlyList<string> Classes, IReadOnlyList<string> Cities, IReadOnlyList<string> Units, int MaxScoutRelations,
     // ExcludedClasse: a grade that cannot enroll (default 6ème) — hidden from the wizard's classe dropdown
     // and rejected at submit. Empty/null = no restriction. Editable via the demande.excluded_classe setting.
@@ -87,7 +90,7 @@ static class ApplicantHelpers
 
     static readonly string[] ConfigKeys =
     [
-        "demande.enabled", "demande.scout_year", "passage.scout_year", "demande.max_per_account",
+        "demande.enabled", "demande.submissions_open", "demande.scout_year", "passage.scout_year", "demande.max_per_account",
         "demande.notes_max_length", "demande.require_email_verification", "demande.intro_text",
         "demande.max_scout_relations", "demande.terms", "demande.excluded_classe", "member.schools", "member.classes", "member.cities", "member.profession_domains"
     ];
@@ -104,6 +107,9 @@ static class ApplicantHelpers
         string? Get(string k) => map.TryGetValue(k, out var v) ? v : null;
 
         var enabled = Get("demande.enabled") == "true";
+        // The submission window defaults OPEN (only "false" closes it) so existing/new campaigns behave as
+        // before until the CG explicitly closes submissions to start the review phase.
+        var submissionsOpen = Get("demande.submissions_open") != "false";
         var year = Get("demande.scout_year") ?? Get("passage.scout_year") ?? "2026-2027";
         var max = int.TryParse(Get("demande.max_per_account"), out var m) && m > 0 ? m : 3;
         var notesLen = int.TryParse(Get("demande.notes_max_length"), out var n) ? n : 500;
@@ -128,7 +134,16 @@ static class ApplicantHelpers
         // indicate which unit a current-member relative belongs to, easing family matching for the CG.
         var units = await ctx.Units.Where(u => u.IsActive).OrderBy(u => u.Name).Select(u => u.Name).ToListAsync(ct);
 
-        return new ApplicantConfigDto(enabled, year, max, notesLen, requireVerify, intro, schools, classes, cities, units, maxRelations, professionDomains, terms, excludedClasse);
+        return new ApplicantConfigDto(enabled, submissionsOpen, year, max, notesLen, requireVerify, intro, schools, classes, cities, units, maxRelations, professionDomains, terms, excludedClasse);
+    }
+
+    // Returns an error message if the applicant may NOT submit/edit right now (portal closed, or the submission
+    // window is closed = CG review phase), else null. Centralizes the two-phase gate for all write handlers.
+    public static string? SubmissionsClosedError(ApplicantConfigDto config)
+    {
+        if (!config.IsOpen) return "Les inscriptions sont actuellement fermées.";
+        if (!config.SubmissionsOpen) return "La période de soumission des demandes est terminée. Vous pouvez consulter vos demandes ; les résultats vous seront communiqués prochainement.";
+        return null;
     }
 
     public static DemandeDto ToDto(Demande d) => new(
@@ -177,10 +192,11 @@ public class RegisterApplicantCommandHandler(IApplicationDbContext context, IPas
 {
     public async ValueTask<Result<ApplicantAuthDto>> Handle(RegisterApplicantCommand request, CancellationToken ct)
     {
-        // No new applicant accounts while inscriptions are closed (defense-in-depth: the UI already
-        // hides the register page, but block the endpoint too so a direct POST can't create an account).
+        // No new applicant accounts while inscriptions are closed OR the submission window is closed
+        // (review phase). Defense-in-depth: the UI already hides the register page, but block the endpoint too.
         var config = await ApplicantHelpers.BuildConfig(context, ct);
-        if (!config.IsOpen) return Result<ApplicantAuthDto>.Failure("Les inscriptions sont actuellement fermées.");
+        var regClosed = ApplicantHelpers.SubmissionsClosedError(config);
+        if (regClosed is not null) return Result<ApplicantAuthDto>.Failure(regClosed);
 
         var addr = request.Email.Trim().ToLowerInvariant();
         var exists = await context.ApplicantAccounts.AnyAsync(a => a.Email == addr, ct);
@@ -545,6 +561,10 @@ public class SaveApplicantHouseholdCommandHandler(IApplicationDbContext context,
         var id = current.ApplicantAccountId;
         if (id is null) return Result<bool>.Failure("Non autorisé.");
 
+        // Household edits are part of filling a demande — blocked once the submission window closes.
+        var closed = ApplicantHelpers.SubmissionsClosedError(await ApplicantHelpers.BuildConfig(context, ct));
+        if (closed is not null) return Result<bool>.Failure(closed);
+
         var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Id == id, ct);
         if (account is null) return Result<bool>.Failure("Compte introuvable.");
 
@@ -718,7 +738,8 @@ public class CreateDemandeCommandHandler(IApplicationDbContext context, ICurrent
         if (id is null) return Result<Guid>.Failure("Non autorisé.");
 
         var config = await ApplicantHelpers.BuildConfig(context, ct);
-        if (!config.IsOpen) return Result<Guid>.Failure("Les inscriptions sont actuellement fermées.");
+        var closed = ApplicantHelpers.SubmissionsClosedError(config);
+        if (closed is not null) return Result<Guid>.Failure(closed);
 
         var count = await context.Demandes.CountAsync(d => d.ApplicantAccountId == id && d.ScoutYear == config.ScoutYear, ct);
         if (count >= config.MaxPerAccount)
@@ -742,7 +763,8 @@ public class UpdateDemandeCommandHandler(IApplicationDbContext context, ICurrent
         if (id is null) return Result<bool>.Failure("Non autorisé.");
 
         var config = await ApplicantHelpers.BuildConfig(context, ct);
-        if (!config.IsOpen) return Result<bool>.Failure("Les inscriptions sont fermées — modification impossible.");
+        var closed = ApplicantHelpers.SubmissionsClosedError(config);
+        if (closed is not null) return Result<bool>.Failure(closed);
 
         var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id && d.ApplicantAccountId == id, ct);
         if (demande is null) return Result<bool>.Failure("Demande introuvable.");
@@ -765,7 +787,8 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
         if (id is null) return Result<bool>.Failure("Non autorisé.");
 
         var config = await ApplicantHelpers.BuildConfig(context, ct);
-        if (!config.IsOpen) return Result<bool>.Failure("Les inscriptions sont fermées.");
+        var closed = ApplicantHelpers.SubmissionsClosedError(config);
+        if (closed is not null) return Result<bool>.Failure(closed);
 
         var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Id == id, ct);
         if (account is null) return Result<bool>.Failure("Compte introuvable.");
@@ -812,6 +835,10 @@ public class DeleteDemandeCommandHandler(IApplicationDbContext context, ICurrent
     {
         var id = current.ApplicantAccountId;
         if (id is null) return Result<bool>.Failure("Non autorisé.");
+
+        // No deleting once the submission window closes (the CG is reviewing).
+        var closed = ApplicantHelpers.SubmissionsClosedError(await ApplicantHelpers.BuildConfig(context, ct));
+        if (closed is not null) return Result<bool>.Failure(closed);
 
         var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id && d.ApplicantAccountId == id, ct);
         if (demande is null) return Result<bool>.Failure("Demande introuvable.");

@@ -823,3 +823,45 @@ public class CloseDemandeCampaignCommandHandler(IApplicationDbContext context, I
         return Result<CloseDemandeCampaignResult>.Success(new CloseDemandeCampaignResult(demandes.Count, accountsDeleted));
     }
 }
+
+// ── Submission window toggle (CG) ─────────────────────────────────────────────────────────────────────
+// Opens/closes the INNER submission period (demande.submissions_open) that sits inside the open portal.
+// Closing it begins the review phase: parents keep read-only access to their demandes but can no longer
+// create/edit/submit/delete. Distinct from CloseCampaign (which archives + wipes everything at the very end).
+public record SetDemandeSubmissionsCommand(bool Open) : IRequest<Result<bool>>;
+
+public class SetDemandeSubmissionsCommandHandler(IApplicationDbContext context, IAuditService audit)
+    : IRequestHandler<SetDemandeSubmissionsCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(SetDemandeSubmissionsCommand request, CancellationToken ct)
+    {
+        var value = request.Open ? "true" : "false";
+        var setting = await context.Settings.FirstOrDefaultAsync(s => s.Key == "demande.submissions_open", ct);
+        if (setting is null)
+            context.Settings.Add(new Setting { Key = "demande.submissions_open", Value = value, Category = "demande", Label = "Soumissions ouvertes", ValueType = "boolean" });
+        else
+            setting.Value = value;
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync(request.Open ? "OpenSubmissions" : "CloseSubmissions", "Demande", null, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
+// Campaign status for the CG review page: is the portal open, is the submission window open, and the year.
+public record DemandeCampaignStatusDto(bool Enabled, bool SubmissionsOpen, string ScoutYear);
+public record GetDemandeCampaignStatusQuery : IRequest<Result<DemandeCampaignStatusDto>>;
+
+public class GetDemandeCampaignStatusQueryHandler(IApplicationDbContext context)
+    : IRequestHandler<GetDemandeCampaignStatusQuery, Result<DemandeCampaignStatusDto>>
+{
+    public async ValueTask<Result<DemandeCampaignStatusDto>> Handle(GetDemandeCampaignStatusQuery request, CancellationToken ct)
+    {
+        var map = await context.Settings
+            .Where(s => s.Key == "demande.enabled" || s.Key == "demande.submissions_open" || s.Key == "demande.scout_year")
+            .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
+        var enabled = map.GetValueOrDefault("demande.enabled") == "true";
+        var submissionsOpen = map.GetValueOrDefault("demande.submissions_open") != "false";
+        var year = map.GetValueOrDefault("demande.scout_year") ?? "";
+        return Result<DemandeCampaignStatusDto>.Success(new DemandeCampaignStatusDto(enabled, submissionsOpen, year));
+    }
+}

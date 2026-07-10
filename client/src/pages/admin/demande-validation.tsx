@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSettingValue, useSchoolCode } from '@/services/settings-service'
 import {
   useDemandesForReview, useUnitOccupancy, useDecideDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useCloseCampaign,
+  useCampaignStatus, useSetSubmissions,
   type DemandeReview, type UnitOccupancy,
 } from '@/services/demande-admin-service'
 import { Button } from '@/components/ui/button'
@@ -30,7 +31,7 @@ import { parseApiError } from '@/lib/error-utils'
 import {
   Inbox, Check, X, Send, Users2, ChevronDown, ChevronRight, ChevronLeft, CheckCircle2, XCircle, Clock,
   AlertTriangle, User, Phone, Mail, MapPin, HeartPulse, GraduationCap, MessageSquare, Tent, ArrowUpDown,
-  Search, Sparkles, Trash2, Link2,
+  Search, Sparkles, Trash2, Link2, Lock, LockOpen,
 } from 'lucide-react'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -121,6 +122,9 @@ export default function DemandeValidationPage() {
   const bulkMutation = useBulkDecideDemande()
   const sendMutation = useSendResponses()
   const closeMutation = useCloseCampaign()
+  const { data: campaign } = useCampaignStatus()
+  const submissionsMutation = useSetSubmissions()
+  const [submissionsConfirm, setSubmissionsConfirm] = useState<null | boolean>(null) // target open-state to confirm
 
   const [approveTarget, setApproveTarget] = useState<DemandeReview | null>(null)
   const [declineTarget, setDeclineTarget] = useState<DemandeReview | null>(null)
@@ -252,6 +256,18 @@ export default function DemandeValidationPage() {
     } catch (err) { toast.error(parseApiError(err)); setSendOpen(false) }
   }
 
+  // Open/close the submission window (inner period). Closing starts the review phase: parents keep
+  // read-only access but can no longer create/edit/submit.
+  const handleToggleSubmissions = async (open: boolean) => {
+    try {
+      await submissionsMutation.mutateAsync(open)
+      toast.success(open
+        ? 'Soumissions rouvertes — les parents peuvent à nouveau créer et modifier leurs demandes.'
+        : 'Soumissions clôturées — les parents ne peuvent plus que consulter leurs demandes (phase de revue).')
+      setSubmissionsConfirm(null)
+    } catch (err) { toast.error(parseApiError(err)); setSubmissionsConfirm(null) }
+  }
+
   // Close the campaign: archive everything, wipe applicant data, disable inscriptions. Irreversible.
   const handleClose = async () => {
     try {
@@ -271,9 +287,25 @@ export default function DemandeValidationPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Demandes d'inscription — {scoutYear}</h1>
-          <p className="text-sm text-muted-foreground">{all.length} demande(s) · {pendingSend} décision(s) en attente d'envoi</p>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span>{all.length} demande(s) · {pendingSend} décision(s) en attente d'envoi</span>
+            {campaign?.enabled && (
+              <Badge variant="outline" className={campaign.submissionsOpen ? 'border-green-300 text-green-700' : 'border-blue-300 text-blue-700'}>
+                {campaign.submissionsOpen ? 'Soumissions ouvertes' : 'Phase de revue (soumissions fermées)'}
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* Toggle the submission window: close it to start the review phase, reopen to let parents edit again. */}
+          {campaign?.enabled && (
+            <Button size="lg" variant="outline" disabled={submissionsMutation.isPending}
+              onClick={() => setSubmissionsConfirm(!campaign.submissionsOpen)}>
+              {campaign.submissionsOpen
+                ? <><Lock className="mr-2 h-4 w-4" />Clôturer les soumissions</>
+                : <><LockOpen className="mr-2 h-4 w-4" />Rouvrir les soumissions</>}
+            </Button>
+          )}
           <Button size="lg" disabled={!canSend || sendMutation.isPending} onClick={() => setSendOpen(true)}>
             <Send className="mr-2 h-4 w-4" />Envoyer les réponses{pendingSend > 0 ? ` (${pendingSend})` : ''}
           </Button>
@@ -531,6 +563,17 @@ export default function DemandeValidationPage() {
         title="Clôturer la campagne d'inscription"
         description={`Toutes les demandes (${all.length}) seront archivées, puis TOUTES les données des candidats (comptes, parents, demandes) seront DÉFINITIVEMENT supprimées et les inscriptions fermées. Les membres déjà créés ne sont pas touchés. Cette action est irréversible. Continuer ?`}
         confirmLabel="Archiver et supprimer" variant="destructive" loading={closeMutation.isPending} onConfirm={handleClose}
+      />
+
+      <ConfirmDialog
+        open={submissionsConfirm !== null} onOpenChange={(o) => { if (!o) setSubmissionsConfirm(null) }}
+        title={submissionsConfirm ? 'Rouvrir les soumissions' : 'Clôturer les soumissions'}
+        description={submissionsConfirm
+          ? 'Les parents pourront à nouveau créer et modifier leurs demandes. Le portail reste ouvert. Continuer ?'
+          : 'Les parents ne pourront plus créer, modifier ni soumettre de demande — seulement consulter leur statut. Le portail reste ouvert pour la consultation. C\'est la phase de revue par la Maîtrise de Groupe. Vous pourrez rouvrir les soumissions à tout moment. Continuer ?'}
+        confirmLabel={submissionsConfirm ? 'Rouvrir' : 'Clôturer les soumissions'}
+        loading={submissionsMutation.isPending}
+        onConfirm={() => handleToggleSubmissions(submissionsConfirm!)}
       />
     </div>
   )
