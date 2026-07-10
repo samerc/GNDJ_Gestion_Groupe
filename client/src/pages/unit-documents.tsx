@@ -1,6 +1,6 @@
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { toast } from 'sonner'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingValue } from '@/services/settings-service'
 import {
@@ -74,6 +74,20 @@ export default function UnitDocumentsPage() {
   const unitId = selectedUnit || user?.unitAccess[0]?.unitId || ''
   const { data: matrix, isLoading } = useUnitDocumentsMatrix(unitId, currentScoutYear)
   const reviewMutation = useReviewDocumentMatrix(unitId)
+
+  // Cotisation stats for THIS unit (computed from the matrix — already scoped to the CU's unit, no extra call).
+  // paid = has a payment line · exempt = "ne paiera pas" with no payment · en attente = the rest.
+  const cotisationStats = useMemo(() => {
+    const members = matrix?.members ?? []
+    let paid = 0, exempt = 0
+    const totals: Record<string, number> = {}
+    for (const m of members) {
+      const c = m.cotisation
+      if (c.payments.length > 0) { paid++; for (const p of c.payments) totals[p.currency] = (totals[p.currency] ?? 0) + p.amount }
+      else if (c.willNotPay) exempt++
+    }
+    return { total: members.length, paid, exempt, pending: members.length - paid - exempt, totals }
+  }, [matrix])
 
   // Preview state
   const [previewCell, setPreviewCell] = useState<{ cell: MemberDocCellDto; member: MemberDocRowDto; docType: DocTypeColumnDto } | null>(null)
@@ -287,6 +301,23 @@ export default function UnitDocumentsPage() {
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-green-50 text-green-700"><DollarSign className="h-4 w-4" /></span> Cotisation payée</span>
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 text-red-500"><Receipt className="h-4 w-4" /></span> Non payée</span>
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-slate-100 text-slate-500"><Ban className="h-4 w-4" /></span> Ne paiera pas</span>
+          </div>
+
+          {/* Cotisation stats for THIS unit (this year) — the CU's own numbers only, no group data. */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+            <span className="flex items-center gap-1.5 font-medium"><Receipt className="h-4 w-4 text-muted-foreground" />Cotisations {currentScoutYear}</span>
+            <span className="text-green-700">{cotisationStats.paid} payée{cotisationStats.paid > 1 ? 's' : ''}</span>
+            <span className="text-red-600">{cotisationStats.pending} en attente</span>
+            <span className="text-slate-500">{cotisationStats.exempt} exemptée{cotisationStats.exempt > 1 ? 's' : ''}</span>
+            <span className="text-muted-foreground">sur {cotisationStats.total}</span>
+            {Object.entries(cotisationStats.totals).length > 0 && (
+              <span className="ml-auto flex flex-wrap items-center gap-x-3 font-medium">
+                Total encaissé :
+                {Object.entries(cotisationStats.totals).map(([cur, amt]) => (
+                  <span key={cur} className="text-foreground">{amt.toLocaleString('fr-FR')} {cur}</span>
+                ))}
+              </span>
+            )}
           </div>
 
           <div className="rounded-lg border shadow-sm overflow-auto">

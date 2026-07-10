@@ -362,12 +362,20 @@ public record CotisationSummaryDto(
 public record CurrencyTotalDto(string Currency, decimal Total, int Count);
 public record UnitCotisationSummaryDto(string UnitName, int TotalMembers, int PaidMembers, int ExemptMembers, List<CurrencyTotalDto> Totals);
 
-public class GetCotisationSummaryQueryHandler(IApplicationDbContext context) : IRequestHandler<GetCotisationSummaryQuery, CotisationSummaryDto>
+public class GetCotisationSummaryQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetCotisationSummaryQuery, CotisationSummaryDto>
 {
     public async ValueTask<CotisationSummaryDto> Handle(GetCotisationSummaryQuery request, CancellationToken ct)
     {
-        var activeAssignments = await context.MemberAssignments
-            .Where(a => a.EndDate == null)
+        // Scope to the caller's units so a CU sees ONLY their own unit(s), not the whole group. A group-level
+        // holder (Chef de Groupe) is granted ALL units in AuthorizedUnitIds at login, so they still get every
+        // unit; a super-admin bypasses entirely.
+        var query = context.MemberAssignments.Where(a => a.EndDate == null);
+        if (!currentUser.IsSuperAdmin)
+        {
+            var authorized = currentUser.AuthorizedUnitIds;
+            query = query.Where(a => authorized.Contains(a.UnitId));
+        }
+        var activeAssignments = await query
             .Select(a => new { a.MemberId, UnitName = a.Unit.Name })
             .Distinct()
             .ToListAsync(ct);

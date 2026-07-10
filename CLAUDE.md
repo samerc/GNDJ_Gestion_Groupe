@@ -1658,6 +1658,25 @@ her own doc + 404 reading a co-unit member). Fixed the UX gaps most likely to ge
   Clara ABBOUD has a duplicate active Compagnie-1 assignment (test artifact). Deferred: shared-mutation "greys all
   rows" on change-requests/doc-matrix; a member has no self-withdraw for a mistaken proposal.
 
+### CU test follow-ups: cotisation scoping + unit stats + passage re-edit (2026-07-10)
+From the CU shakedown. Three fixes:
+- **Cotisation summary scoped to the caller's units.** `GetCotisationSummaryQuery` was group-wide (any
+  `cotisations.view` holder — i.e. every CU — got the whole group's totals + per-unit breakdown). Now it filters
+  active assignments to `currentUser.AuthorizedUnitIds` for non-super-admins: a **CU sees only their unit(s)**
+  (verified: 86 members / just "Compagnie 1" vs super-admin's 1077 / 18 units); a **Chef de Groupe** still sees
+  everything (login grants all units to a group-level holder); super-admin bypasses. The `/admin/cotisations`
+  route (CG group dashboard) was also re-gated from `COTISATIONS_VIEW` → **`MAITRISE_MANAGE`** (CG-only), so a CU
+  can't reach the group page at all.
+- **CU per-unit cotisation stats** added to the unit-documents page (`unit-documents.tsx`): a compact bar computed
+  CLIENT-SIDE from the already-loaded matrix (no extra call) — "N payées · M en attente · K exemptées · sur T ·
+  Total encaissé …". Gives the CU their own numbers without any group data.
+- **CU can change a passage line until the CG FINALIZES it.** The backend already re-proposed Pending/Approved
+  lines (updates in place), but the passage page only showed a status badge once a line existed — no way to change
+  an auto-approved "Pas de changement". Added a **"Modifier"** toggle (`passage.tsx`): an editable line
+  (Pending/Approved, i.e. not Finalized/Rejected) shows badge + Modifier → re-reveals the Pas de changement /
+  Proposer / Quitte actions (+ Annuler). Verified: no-change → re-propose "quitte" updates the SAME line
+  (1 row, now Pending). DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

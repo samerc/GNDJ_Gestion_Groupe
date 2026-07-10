@@ -25,7 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut, Search, ArrowUpDown } from 'lucide-react'
+import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut, Search, ArrowUpDown, Pencil } from 'lucide-react'
 import { cn, computeAge } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -95,6 +95,11 @@ export default function PassagePage() {
   const [bulkMode, setBulkMode] = useState<'same' | 'move'>('same')
   const [editingMember, setEditingMember] = useState<MemberRow | null>(null)
   const [deletingPassage, setDeletingPassage] = useState<PassageDto | null>(null)
+
+  // Rows the CU has re-opened to change a proposal that's not yet finalized (see renderProposition).
+  const [editingRows, setEditingRows] = useState<Set<string>>(new Set())
+  const startEditRow = (id: string) => setEditingRows(s => new Set(s).add(id))
+  const stopEditRow = (id: string) => setEditingRows(s => { const n = new Set(s); n.delete(id); return n })
 
   // Search / filter / sort for the member table
   const [search, setSearch] = useState('')
@@ -255,7 +260,8 @@ export default function PassagePage() {
         proposedRoleId: propRoleId,
         cuNotes: propNotes || null,
       })
-      toast.success('Proposition enregistree')
+      toast.success('Proposition enregistrée')
+      stopEditRow(editingMember.memberId)
       setProposeDialogOpen(false)
     } catch (err) {
       setFormError(parseApiError(err))
@@ -350,6 +356,7 @@ export default function PassagePage() {
         proposedRoleId: row.currentRoleId, cuNotes: null,
       })
       toast.success('Pas de changement enregistré')
+      stopEditRow(row.memberId)
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
@@ -362,26 +369,43 @@ export default function PassagePage() {
         proposedRoleId: row.currentRoleId, cuNotes: null, isLeaving: true,
       })
       toast.success('Départ enregistré (en attente de validation)')
+      stopEditRow(row.memberId)
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
   // Proposition cell/section — shared by the desktop table and the mobile cards.
-  const renderProposition = (row: MemberRow) => (
-    row.passage ? (
-      <div className="space-y-1">
-        <div className="flex items-center gap-1">
-          <ArrowRight className="h-3 w-3 text-muted-foreground" />
-          <span className="text-xs">{row.passage.proposedUnitName}</span>
-          {row.passage.proposedTeamName && (
-            <span className="text-xs text-muted-foreground">/ {row.passage.proposedTeamName}</span>
+  const renderProposition = (row: MemberRow) => {
+    // A line can still be changed by the CU until the CG FINALIZES the passage. Approved (incl. auto-approved
+    // "no change") + Pending lines are re-openable; Finalized/Rejected are locked.
+    const editable = !!row.passage && (row.passage.status === 'Pending' || row.passage.status === 'Approved')
+    const showActions = !row.passage || editingRows.has(row.memberId)
+
+    if (!showActions) {
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1">
+            <ArrowRight className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs">{row.passage!.proposedUnitName}</span>
+            {row.passage!.proposedTeamName && (
+              <span className="text-xs text-muted-foreground">/ {row.passage!.proposedTeamName}</span>
+            )}
+          </div>
+          {row.passage!.proposedRoleName !== row.currentRoleName && (
+            <div className="text-xs text-blue-600">Fonction : {row.passage!.proposedRoleName}</div>
           )}
+          <div className="flex items-center gap-2">
+            {statusBadge(row.passage!)}
+            {editable && (
+              <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => startEditRow(row.memberId)}>
+                <Pencil className="mr-1 h-3 w-3" />Modifier
+              </Button>
+            )}
+          </div>
         </div>
-        {row.passage.proposedRoleName !== row.currentRoleName && (
-          <div className="text-xs text-blue-600">Fonction : {row.passage.proposedRoleName}</div>
-        )}
-        {statusBadge(row.passage)}
-      </div>
-    ) : (
+      )
+    }
+
+    return (
       <div className="flex flex-wrap gap-1.5">
         <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50 hover:text-green-800" onClick={() => handleNoChange(row)} disabled={proposeMutation.isPending}>
           <Check className="mr-1 h-3 w-3" />Pas de changement
@@ -392,9 +416,12 @@ export default function PassagePage() {
         <Button size="sm" variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-800" title="Quitte le groupe" onClick={() => handleLeaving(row)} disabled={proposeMutation.isPending}>
           <LogOut className="mr-1 h-3 w-3" />Quitte le groupe
         </Button>
+        {row.passage && (
+          <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => stopEditRow(row.memberId)}>Annuler</Button>
+        )}
       </div>
     )
-  )
+  }
 
   return (
     <div className="space-y-6">

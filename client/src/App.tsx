@@ -170,7 +170,9 @@ export default function App() {
             <Route element={<PermissionRoute permission={PERMISSIONS.PASSAGE_MANAGE} />}>
               <Route path="/admin/passage-validation" element={<PassageValidationPage />} />
             </Route>
-            <Route element={<PermissionRoute permission={PERMISSIONS.COTISATIONS_VIEW} />}>
+            {/* Group-wide cotisation dashboard = CG only (every CU has cotisations.view for their own unit
+                cells, so gating on that leaked the whole group's totals to a CU). CU stats live on their unit page. */}
+            <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
               <Route path="/admin/cotisations" element={<CotisationDashboardPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.PROGRESSION_MANAGE} />}>
