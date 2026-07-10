@@ -38,7 +38,7 @@ export function ApplicantAuthShell({ children, subtitle }: { children: React.Rea
           className="mt-6 flex items-center justify-center gap-2 rounded-lg border bg-card/60 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
         >
           <Compass className="h-4 w-4 text-primary" />
-          Vous êtes déjà membre ou chef ? <span className="font-medium text-foreground">Espace membres →</span>
+          Vous êtes déjà membre ? <span className="font-medium text-foreground">Espace membres →</span>
         </Link>
       </div>
     </div>

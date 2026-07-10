@@ -30,10 +30,10 @@ export default function LoginPage() {
             <Compass className="h-7 w-7" strokeWidth={2.2} />
           </div>
           <span className="mb-1 rounded-full bg-primary/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
-            Membres &amp; chefs
+            Membres
           </span>
           <h1 className="text-3xl font-bold tracking-tight">Espace membres</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Réservé aux membres et chefs déjà inscrits — GNDJ Scout</p>
+          <p className="mt-1 text-sm text-muted-foreground">Réservé aux membres déjà inscrits</p>
         </div>
         <LoginForm />
         {/* Cross-link for parents who want to enroll a child (only while enrollment is open). Accent-tinted
@@ -41,14 +41,19 @@ export default function LoginPage() {
         {inscriptionsOpen && (
           <Link
             to="/inscription"
-            className="mt-6 flex items-center justify-center gap-2 rounded-lg border border-accent/40 bg-accent/10 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent/15 hover:text-foreground"
+            className="mt-6 flex items-center gap-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm transition-colors hover:bg-accent/15"
           >
-            <UserPlus className="h-4 w-4 text-accent" />
-            Vous souhaitez inscrire un enfant ? <span className="font-medium text-foreground">Demande d'inscription →</span>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
+              <UserPlus className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block text-muted-foreground">Vous souhaitez inscrire un enfant&nbsp;?</span>
+              <span className="block font-medium text-accent">Demande d'inscription →</span>
+            </span>
           </Link>
         )}
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} GNDJ Scout — Tous droits réservés
+          © {new Date().getFullYear()} Groupe Notre Dame - Jamhour — Tous droits réservés
         </p>
       </div>
     </div>

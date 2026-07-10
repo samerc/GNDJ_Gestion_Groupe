@@ -1550,6 +1550,12 @@ d'inscription") were near-identical (same navy Compass branding) → parents con
   (`api-client` + `applicant-api-client`) now **skip the refresh/redirect for the auth endpoints themselves**
   (`/(applicant/)?(login|register|refresh)`) and just reject, so the page shows its inline error. Expired-session
   redirects on real authenticated calls are unchanged.
+- **Login copy tweaks (2026-07-10):** dropped "chefs" everywhere on the member login (chefs are members) — pill
+  "Membres", subtitle "Réservé aux membres déjà inscrits" (removed "— GNDJ Scout"); username field placeholder
+  `prenom.nom@scouts.gndj`; the enrollment cross-link box restructured (icon chip + stacked question/CTA) so it no
+  longer wraps mid-phrase, still shown only while `demande.enabled`. Copyright standardized site-wide to
+  "© {year} Groupe Notre Dame - Jamhour — Tous droits réservés" (login + public footer). Applicant shell
+  cross-link → "Vous êtes déjà membre ?".
 
 ### "Retrouver mes informations" now matches a member's own email too (2026-07-09)
 The demande prefill ("Retrouver mes informations") emailed a code + resolved the household ONLY when the entered

@@ -284,7 +284,7 @@ function PublicFooter({ footer, address, inscriptionsOpen }: { footer?: FooterCo
 
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:px-6">
-          <p>© {new Date().getFullYear()} Groupe Notre-Dame Jamhour. Tous droits réservés.</p>
+          <p>© {new Date().getFullYear()} Groupe Notre Dame - Jamhour — Tous droits réservés</p>
           <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
             Retour en haut <ArrowUp className="h-3.5 w-3.5" />
