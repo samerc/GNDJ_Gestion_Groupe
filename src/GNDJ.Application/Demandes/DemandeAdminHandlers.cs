@@ -840,6 +840,28 @@ public class CloseDemandeCampaignCommandHandler(IApplicationDbContext context, I
     }
 }
 
+// ── Inscription portal toggle (CG) ────────────────────────────────────────────────────────────────────
+// Opens/closes the public inscription portal (demande.enabled). Gated on demande.manage so a Chef de Groupe
+// can open the inscriptions themselves (the Settings page needs associations.manage = super-admin only).
+public record SetDemandeEnabledCommand(bool Enabled) : IRequest<Result<bool>>;
+
+public class SetDemandeEnabledCommandHandler(IApplicationDbContext context, IAuditService audit)
+    : IRequestHandler<SetDemandeEnabledCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(SetDemandeEnabledCommand request, CancellationToken ct)
+    {
+        var value = request.Enabled ? "true" : "false";
+        var setting = await context.Settings.FirstOrDefaultAsync(s => s.Key == "demande.enabled", ct);
+        if (setting is null)
+            context.Settings.Add(new Setting { Key = "demande.enabled", Value = value, Category = "demande", Label = "Inscriptions ouvertes", ValueType = "boolean" });
+        else
+            setting.Value = value;
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync(request.Enabled ? "OpenInscriptions" : "CloseInscriptions", "Demande", null, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
 // ── Submission window toggle (CG) ─────────────────────────────────────────────────────────────────────
 // Opens/closes the INNER submission period (demande.submissions_open) that sits inside the open portal.
 // Closing it begins the review phase: parents keep read-only access to their demandes but can no longer

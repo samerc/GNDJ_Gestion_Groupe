@@ -17,7 +17,7 @@ namespace GNDJ.Application.Rentree;
 public record SaveRentreeTemplateCommand(
     Guid? Id, string Title, string? Description, string Phase,
     string AssigneeType, string? AssigneeRole, bool FanOutPerUnit, List<Guid> AssigneeMemberIds,
-    string? DefaultDeadlineLabel, List<Guid> DependsOnTemplateIds) : IRequest<Result<Guid>>;
+    string? DefaultDeadlineLabel, List<Guid> DependsOnTemplateIds, string? ActionKey = null) : IRequest<Result<Guid>>;
 
 public class SaveRentreeTemplateCommandHandler(IApplicationDbContext context) : IRequestHandler<SaveRentreeTemplateCommand, Result<Guid>>
 {
@@ -26,6 +26,7 @@ public class SaveRentreeTemplateCommandHandler(IApplicationDbContext context) : 
         if (string.IsNullOrWhiteSpace(request.Title)) return Result<Guid>.Failure("Le titre est requis.");
         if (string.IsNullOrWhiteSpace(request.Phase)) return Result<Guid>.Failure("La phase est requise.");
         if (request.AssigneeType is not ("role" or "members")) return Result<Guid>.Failure("Type d'assignation invalide.");
+        if (!RentreeActions.IsValid(request.ActionKey)) return Result<Guid>.Failure("Action inconnue.");
 
         RentreeTaskTemplate entity;
         if (request.Id.HasValue)
@@ -48,6 +49,7 @@ public class SaveRentreeTemplateCommandHandler(IApplicationDbContext context) : 
         entity.FanOutPerUnit = request.AssigneeType == "role" && request.FanOutPerUnit;
         entity.AssigneeMemberIds = request.AssigneeType == "members" ? request.AssigneeMemberIds.Distinct().ToArray() : [];
         entity.DefaultDeadlineLabel = request.DefaultDeadlineLabel?.Trim();
+        entity.ActionKey = string.IsNullOrWhiteSpace(request.ActionKey) ? null : request.ActionKey.Trim();
         entity.DependsOnTemplateIds = (request.DependsOnTemplateIds ?? []).Where(d => d != request.Id).Distinct().ToArray();
 
         await context.SaveChangesAsync(ct);
@@ -91,7 +93,13 @@ public class ReorderRentreeTemplatesCommandHandler(IApplicationDbContext context
 }
 
 // ── Generate the per-year checklist from the template ────────────────────────
-public record GenerateRentreeChecklistCommand(string ScoutYear, bool Overwrite) : IRequest<Result<int>>;
+// Three modes for an existing year:
+//   Overwrite=false, AddOnly=false → fail (a list already exists).
+//   Overwrite=true                 → wipe + fully regenerate (destructive, loses progress).
+//   AddOnly=true                   → non-destructive: keep existing tasks + progress, only add
+//                                     instances for templates not yet present this year (e.g. a task
+//                                     the CG just added to the model). Returns how many were added.
+public record GenerateRentreeChecklistCommand(string ScoutYear, bool Overwrite, bool AddOnly = false) : IRequest<Result<int>>;
 
 public class GenerateRentreeChecklistCommandHandler(IApplicationDbContext context) : IRequestHandler<GenerateRentreeChecklistCommand, Result<int>>
 {
@@ -101,11 +109,9 @@ public class GenerateRentreeChecklistCommandHandler(IApplicationDbContext contex
         if (string.IsNullOrWhiteSpace(year)) return Result<int>.Failure("L'année scoute est requise.");
 
         var existing = await context.RentreeTasks.Where(t => t.ScoutYear == year).ToListAsync(ct);
-        if (existing.Count > 0)
-        {
-            if (!request.Overwrite) return Result<int>.Failure("Une liste existe déjà pour cette année.");
-            context.RentreeTasks.RemoveRange(existing);
-        }
+        var addOnly = request.AddOnly && existing.Count > 0; // add-only only makes sense against an existing list
+        if (existing.Count > 0 && !request.Overwrite && !addOnly)
+            return Result<int>.Failure("Une liste existe déjà pour cette année.");
 
         var templates = await context.RentreeTaskTemplates.OrderBy(t => t.DisplayOrder).ThenBy(t => t.Title).ToListAsync(ct);
         if (templates.Count == 0) return Result<int>.Failure("Le modèle est vide — ajoutez des tâches au modèle d'abord.");
@@ -125,40 +131,70 @@ public class GenerateRentreeChecklistCommandHandler(IApplicationDbContext contex
         Guid[] ResolveUnit(string? role, Guid unitId) =>
             role is null ? [] : holders.Where(h => h.Code == role && h.UnitId == unitId).Select(h => h.MemberId).Distinct().ToArray();
 
-        // Pass 1: create tasks, remember which task(s) each template produced.
-        var created = new List<RentreeTask>();
-        var byTemplate = new Dictionary<Guid, List<RentreeTask>>();
-        foreach (var t in templates)
+        // Build the instance(s) for one template: fan out per active unit, or a single group task.
+        List<RentreeTask> Make(RentreeTaskTemplate t)
         {
             var list = new List<RentreeTask>();
             if (t.AssigneeType == "role" && t.FanOutPerUnit)
-            {
                 foreach (var unitId in units)
                     list.Add(new RentreeTask
                     {
                         ScoutYear = year, TemplateId = t.Id, Title = t.Title, Description = t.Description,
                         Phase = t.Phase, DisplayOrder = t.DisplayOrder, AssigneeType = "role", AssigneeRole = t.AssigneeRole,
                         UnitId = unitId, AssigneeMemberIds = ResolveUnit(t.AssigneeRole, unitId), DeadlineLabel = t.DefaultDeadlineLabel,
+                        ActionKey = t.ActionKey,
                     });
-            }
             else
-            {
                 list.Add(new RentreeTask
                 {
                     ScoutYear = year, TemplateId = t.Id, Title = t.Title, Description = t.Description,
                     Phase = t.Phase, DisplayOrder = t.DisplayOrder, AssigneeType = t.AssigneeType, AssigneeRole = t.AssigneeRole,
                     AssigneeMemberIds = t.AssigneeType == "members" ? t.AssigneeMemberIds : ResolveGroup(t.AssigneeRole),
-                    DeadlineLabel = t.DefaultDeadlineLabel,
+                    DeadlineLabel = t.DefaultDeadlineLabel, ActionKey = t.ActionKey,
                 });
-            }
-            byTemplate[t.Id] = list;
-            created.AddRange(list);
+            return list;
         }
 
-        // Pass 2: wire dependencies. Per-unit→per-unit matches the same unit; otherwise link all.
+        // Map every template → its instance(s) for this year (existing kept ones + newly created).
+        var byTemplate = new Dictionary<Guid, List<RentreeTask>>();
+        int addedCount;
+
+        if (addOnly)
+        {
+            // Keep existing tasks (progress preserved); index them so deps can point at them.
+            foreach (var t in existing)
+                if (t.TemplateId.HasValue)
+                {
+                    if (!byTemplate.TryGetValue(t.TemplateId.Value, out var l)) { l = []; byTemplate[t.TemplateId.Value] = l; }
+                    l.Add(t);
+                }
+            var present = byTemplate.Keys.ToHashSet();
+            var added = new List<RentreeTask>();
+            foreach (var t in templates.Where(tt => !present.Contains(tt.Id)))
+            {
+                var list = Make(t);
+                byTemplate[t.Id] = list;
+                added.AddRange(list);
+            }
+            context.RentreeTasks.AddRange(added);
+            addedCount = added.Count;
+        }
+        else
+        {
+            if (existing.Count > 0) context.RentreeTasks.RemoveRange(existing); // overwrite / regenerate
+            var created = new List<RentreeTask>();
+            foreach (var t in templates) { var list = Make(t); byTemplate[t.Id] = list; created.AddRange(list); }
+            context.RentreeTasks.AddRange(created);
+            addedCount = created.Count;
+        }
+
+        // (Re)wire dependencies across every task in the year from the current template graph
+        // (so a newly added task links to existing prerequisites, and vice-versa). Per-unit→per-unit
+        // matches the same unit; otherwise link all. Existing tasks' deps recompute to the same ids.
         foreach (var t in templates)
         {
-            foreach (var task in byTemplate[t.Id])
+            if (!byTemplate.TryGetValue(t.Id, out var tasksForTemplate)) continue;
+            foreach (var task in tasksForTemplate)
             {
                 var deps = new List<Guid>();
                 foreach (var depTemplateId in t.DependsOnTemplateIds)
@@ -175,9 +211,8 @@ public class GenerateRentreeChecklistCommandHandler(IApplicationDbContext contex
             }
         }
 
-        context.RentreeTasks.AddRange(created);
         await context.SaveChangesAsync(ct);
-        return Result<int>.Success(created.Count);
+        return Result<int>.Success(addedCount);
     }
 }
 
@@ -216,6 +251,133 @@ public class CompleteRentreeTaskCommandHandler(IApplicationDbContext context, IC
         }
         await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);
+    }
+}
+
+// ── Run a task's built-in "do" action from the checklist (CG) ────────────────
+// Executes the operation the task represents (e.g. open the inscriptions / the passage) directly from
+// the list, then marks the task done. Only "do" actions run here; "goto-*" actions are frontend-only.
+public record RunRentreeTaskActionCommand(Guid Id) : IRequest<Result<string>>;
+
+public class RunRentreeTaskActionCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<RunRentreeTaskActionCommand, Result<string>>
+{
+    public async ValueTask<Result<string>> Handle(RunRentreeTaskActionCommand request, CancellationToken ct)
+    {
+        var task = await context.RentreeTasks.FirstOrDefaultAsync(t => t.Id == request.Id, ct);
+        if (task is null) return Result<string>.Failure("Tâche introuvable.");
+        if (string.IsNullOrEmpty(task.ActionKey) || !RentreeActions.DoActions.Contains(task.ActionKey))
+            return Result<string>.Failure("Cette tâche n'a pas d'action exécutable.");
+
+        // Same gate as completing: refuse while a prerequisite is still open.
+        var blocking = await context.RentreeTasks
+            .Where(t => task.DependsOnTaskIds.Contains(t.Id) && t.Status != "done").CountAsync(ct);
+        if (blocking > 0) return Result<string>.Failure("Des tâches préalables ne sont pas encore terminées.");
+
+        async Task SetSetting(string key, string value, string category, string label)
+        {
+            var s = await context.Settings.FirstOrDefaultAsync(x => x.Key == key, ct);
+            if (s is null) context.Settings.Add(new Setting { Key = key, Value = value, Category = category, Label = label, ValueType = "boolean" });
+            else s.Value = value;
+        }
+
+        string message;
+        switch (task.ActionKey)
+        {
+            case RentreeActions.OpenDemandes:
+                await SetSetting("demande.enabled", "true", "demande", "Inscriptions ouvertes");
+                await audit.LogAsync("OpenInscriptions", "Demande", null, cancellationToken: ct);
+                message = "Les inscriptions sont ouvertes.";
+                break;
+            case RentreeActions.OpenPassage:
+                await SetSetting("passage.enabled", "true", "passage", "Passage annuel actif");
+                await audit.LogAsync("OpenPassage", "Passage", null, cancellationToken: ct);
+                message = "Le passage est ouvert.";
+                break;
+            default:
+                return Result<string>.Failure("Action non prise en charge.");
+        }
+
+        // Auto-complete the task now that its action ran.
+        task.Status = "done";
+        task.CompletedByUserId = currentUser.UserId;
+        task.CompletedByName = currentUser.MemberId.HasValue
+            ? await context.Members.Where(m => m.Id == currentUser.MemberId).Select(m => m.FirstName + " " + m.LastName).FirstOrDefaultAsync(ct)
+            : "Admin";
+        task.CompletedAt = DateTime.UtcNow;
+
+        await context.SaveChangesAsync(ct);
+        return Result<string>.Success(message);
+    }
+}
+
+// ── CG adds a one-off task directly to a year (not in the template) ──────────
+// Year-specific: creates the instance(s) immediately (fan-out per active unit for a role task) and
+// resolves assignees now. TemplateId stays null so regenerate/add-new never touch it. No prerequisites.
+public record CreateRentreeTaskCommand(
+    string ScoutYear, string Title, string? Description, string Phase,
+    string AssigneeType, string? AssigneeRole, bool FanOutPerUnit, List<Guid> AssigneeMemberIds,
+    string? DeadlineLabel, DateOnly? DueDate, string? ActionKey) : IRequest<Result<int>>;
+
+public class CreateRentreeTaskCommandHandler(IApplicationDbContext context) : IRequestHandler<CreateRentreeTaskCommand, Result<int>>
+{
+    public async ValueTask<Result<int>> Handle(CreateRentreeTaskCommand request, CancellationToken ct)
+    {
+        var year = (request.ScoutYear ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(year)) return Result<int>.Failure("L'année scoute est requise.");
+        if (string.IsNullOrWhiteSpace(request.Title)) return Result<int>.Failure("Le titre est requis.");
+        if (string.IsNullOrWhiteSpace(request.Phase)) return Result<int>.Failure("La phase est requise.");
+        if (request.AssigneeType is not ("role" or "members")) return Result<int>.Failure("Type d'assignation invalide.");
+        if (!RentreeActions.IsValid(request.ActionKey)) return Result<int>.Failure("Action inconnue.");
+
+        // Append after the year's existing tasks so it lands at the end of its phase.
+        var maxOrder = await context.RentreeTasks.Where(t => t.ScoutYear == year).Select(t => (int?)t.DisplayOrder).MaxAsync(ct) ?? 0;
+        var order = maxOrder + 1;
+        var title = request.Title.Trim();
+        var phase = request.Phase.Trim();
+        var desc = request.Description?.Trim();
+        var deadline = request.DeadlineLabel?.Trim();
+        var actionKey = string.IsNullOrWhiteSpace(request.ActionKey) ? null : request.ActionKey.Trim();
+        var role = request.AssigneeType == "role" ? request.AssigneeRole : null;
+        var fanOut = request.AssigneeType == "role" && request.FanOutPerUnit;
+
+        var created = new List<RentreeTask>();
+        if (fanOut)
+        {
+            var units = await context.Units.Where(u => u.IsActive).OrderBy(u => u.Name).Select(u => u.Id).ToListAsync(ct);
+            var holders = await context.MemberAssignments
+                .Where(a => a.EndDate == null && a.FunctionalRole.SecurityProfile.Code == role)
+                .Select(a => new { a.UnitId, a.MemberId }).ToListAsync(ct);
+            foreach (var unitId in units)
+                created.Add(new RentreeTask
+                {
+                    ScoutYear = year, TemplateId = null, Title = title, Description = desc, Phase = phase, DisplayOrder = order,
+                    AssigneeType = "role", AssigneeRole = role, UnitId = unitId,
+                    AssigneeMemberIds = holders.Where(h => h.UnitId == unitId).Select(h => h.MemberId).Distinct().ToArray(),
+                    DeadlineLabel = deadline, DueDate = request.DueDate, ActionKey = actionKey,
+                });
+        }
+        else
+        {
+            Guid[] assignees;
+            if (request.AssigneeType == "members")
+                assignees = (request.AssigneeMemberIds ?? []).Distinct().ToArray();
+            else if (role != null)
+                assignees = await context.MemberAssignments
+                    .Where(a => a.EndDate == null && a.FunctionalRole.SecurityProfile.Code == role)
+                    .Select(a => a.MemberId).Distinct().ToArrayAsync(ct);
+            else assignees = [];
+            created.Add(new RentreeTask
+            {
+                ScoutYear = year, TemplateId = null, Title = title, Description = desc, Phase = phase, DisplayOrder = order,
+                AssigneeType = request.AssigneeType, AssigneeRole = role,
+                AssigneeMemberIds = assignees, DeadlineLabel = deadline, DueDate = request.DueDate, ActionKey = actionKey,
+            });
+        }
+
+        context.RentreeTasks.AddRange(created);
+        await context.SaveChangesAsync(ct);
+        return Result<int>.Success(created.Count);
     }
 }
 

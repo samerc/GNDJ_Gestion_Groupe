@@ -21,8 +21,9 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { cn } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ArrowLeft, X, Users } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ArrowLeft, X, Users, Zap } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
+import { RENTREE_ACTION_OPTIONS, getRentreeAction } from '@/lib/rentree-actions'
 import { toast } from 'sonner'
 
 const ROLES = [
@@ -37,11 +38,11 @@ type Form = {
   id: string | null; title: string; description: string; phase: string
   assigneeType: string; assigneeRole: string; fanOutPerUnit: boolean
   assigneeMemberIds: string[]; assigneeMemberNames: string[]
-  defaultDeadlineLabel: string; dependsOnTemplateIds: string[]
+  defaultDeadlineLabel: string; dependsOnTemplateIds: string[]; actionKey: string
 }
 const blank: Form = {
   id: null, title: '', description: '', phase: '', assigneeType: 'role', assigneeRole: 'chef-unite',
-  fanOutPerUnit: true, assigneeMemberIds: [], assigneeMemberNames: [], defaultDeadlineLabel: '', dependsOnTemplateIds: [],
+  fanOutPerUnit: true, assigneeMemberIds: [], assigneeMemberNames: [], defaultDeadlineLabel: '', dependsOnTemplateIds: [], actionKey: '',
 }
 
 export default function RentreeTemplatePage() {
@@ -64,6 +65,7 @@ export default function RentreeTemplatePage() {
     assigneeType: t.assigneeType, assigneeRole: t.assigneeRole ?? 'chef-unite', fanOutPerUnit: t.fanOutPerUnit,
     assigneeMemberIds: t.assigneeMemberIds, assigneeMemberNames: t.assigneeMemberNames,
     defaultDeadlineLabel: t.defaultDeadlineLabel ?? '', dependsOnTemplateIds: t.dependsOnTemplateIds,
+    actionKey: t.actionKey ?? '',
   })
 
   const submit = async () => {
@@ -77,6 +79,7 @@ export default function RentreeTemplatePage() {
         fanOutPerUnit: form.assigneeType === 'role' && form.fanOutPerUnit,
         assigneeMemberIds: form.assigneeType === 'members' ? form.assigneeMemberIds : [],
         defaultDeadlineLabel: form.defaultDeadlineLabel || null, dependsOnTemplateIds: form.dependsOnTemplateIds,
+        actionKey: form.actionKey || null,
       })
       toast.success('Modèle enregistré'); setForm(null)
     } catch (err) { toast.error(parseApiError(err)) }
@@ -91,6 +94,8 @@ export default function RentreeTemplatePage() {
     ;[arr[idx], arr[j]] = [arr[j], arr[idx]]
     try { await reorder.mutateAsync(arr.map(t => t.id)) } catch (err) { toast.error(parseApiError(err)) }
   }
+
+  const selectedAction = getRentreeAction(form?.actionKey) // for the dynamic "what this action does" hint
 
   if (isLoading) return <div className="flex h-64 items-center justify-center"><LoadingSpinner /></div>
 
@@ -123,6 +128,7 @@ export default function RentreeTemplatePage() {
                 <span>{t.assigneeType === 'members' ? (t.assigneeMemberNames.join(', ') || 'Membres') : ROLE_LABEL(t.assigneeRole)}{t.fanOutPerUnit && ' · par unité'}</span>
                 {t.defaultDeadlineLabel && <span>· {t.defaultDeadlineLabel}</span>}
                 {t.dependsOnTemplateIds.length > 0 && <span>· {t.dependsOnTemplateIds.length} dépendance(s)</span>}
+                {getRentreeAction(t.actionKey) && <span className="inline-flex items-center gap-0.5 text-primary">· <Zap className="h-3 w-3" />{getRentreeAction(t.actionKey)!.label}</span>}
               </div>
             </div>
             <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
@@ -137,7 +143,7 @@ export default function RentreeTemplatePage() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{form?.id ? 'Modifier la tâche' : 'Nouvelle tâche'}</DialogTitle></DialogHeader>
           {form && (
-            <div className="space-y-3">
+            <div className="min-w-0 space-y-3">
               <div className="space-y-1"><RequiredLabel required>Titre</RequiredLabel><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
               <div className="space-y-1"><RequiredLabel>Description</RequiredLabel><Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -146,6 +152,22 @@ export default function RentreeTemplatePage() {
                   <datalist id="phases">{phases.map(p => <option key={p} value={p} />)}</datalist>
                 </div>
                 <div className="space-y-1"><RequiredLabel>Échéance (texte)</RequiredLabel><Input value={form.defaultDeadlineLabel} onChange={e => setForm({ ...form, defaultDeadlineLabel: e.target.value })} placeholder="1ʳᵉ sem. octobre" /></div>
+              </div>
+
+              {/* Optional built-in action: adds a one-click button/shortcut on the checklist. Most tasks
+                  stay "Aucune action" (a physical/manual task = just a checkbox). */}
+              <div className="space-y-1"><RequiredLabel>Action</RequiredLabel>
+                <Select value={form.actionKey || 'none'} onValueChange={v => setForm({ ...form, actionKey: v === 'none' ? '' : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{RENTREE_ACTION_OPTIONS.map(o => <SelectItem key={o.value || 'none'} value={o.value || 'none'}>{o.label}</SelectItem>)}</SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {!selectedAction
+                    ? 'Aucune action : la tâche se coche simplement à la main.'
+                    : selectedAction.kind === 'do'
+                      ? `Un bouton « ${selectedAction.label} » apparaîtra sur la tâche : un clic exécute l'action et coche la tâche. Rien d'autre à configurer.`
+                      : `Un raccourci « ${selectedAction.label} » vers la page apparaîtra sur la tâche. Rien d'autre à configurer.`}
+                </p>
               </div>
 
               <div className="space-y-1"><RequiredLabel required>Responsable</RequiredLabel>
@@ -195,10 +217,10 @@ export default function RentreeTemplatePage() {
                 <RequiredLabel>Dépend de (tâches préalables)</RequiredLabel>
                 <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-2">
                   {(templates ?? []).filter(t => t.id !== form.id).map(t => (
-                    <label key={t.id} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" checked={form.dependsOnTemplateIds.includes(t.id)}
+                    <label key={t.id} className="flex min-w-0 items-center gap-2 text-sm">
+                      <input type="checkbox" className="shrink-0" checked={form.dependsOnTemplateIds.includes(t.id)}
                         onChange={e => setForm({ ...form, dependsOnTemplateIds: e.target.checked ? [...form.dependsOnTemplateIds, t.id] : form.dependsOnTemplateIds.filter(x => x !== t.id) })} />
-                      <span className={cn('truncate', form.dependsOnTemplateIds.includes(t.id) && 'font-medium')}>{t.title}</span>
+                      <span className={cn('min-w-0 truncate', form.dependsOnTemplateIds.includes(t.id) && 'font-medium')}>{t.title}</span>
                     </label>
                   ))}
                   {(templates ?? []).filter(t => t.id !== form.id).length === 0 && <p className="text-xs text-muted-foreground">Aucune autre tâche.</p>}

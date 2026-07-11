@@ -10,7 +10,7 @@ public record RentreeTemplateDto(
     Guid Id, string Title, string? Description, string Phase, int DisplayOrder,
     string AssigneeType, string? AssigneeRole, bool FanOutPerUnit,
     IReadOnlyList<Guid> AssigneeMemberIds, IReadOnlyList<string> AssigneeMemberNames,
-    string? DefaultDeadlineLabel, IReadOnlyList<Guid> DependsOnTemplateIds);
+    string? DefaultDeadlineLabel, IReadOnlyList<Guid> DependsOnTemplateIds, string? ActionKey);
 
 // One task instance. The frontend rolls up per-unit instances sharing a TemplateId into one row.
 // Computed fields: IsBlocked (a dependency isn't done yet, with BlockedByTitles), IsMine (caller is an
@@ -22,7 +22,7 @@ public record RentreeTaskDto(
     string? DeadlineLabel, DateOnly? DueDate,
     string Status, string? CompletedByName, DateTime? CompletedAt,
     IReadOnlyList<Guid> DependsOnTaskIds, bool IsBlocked, IReadOnlyList<string> BlockedByTitles,
-    bool IsMine, bool IsOverdue);
+    bool IsMine, bool IsOverdue, string? ActionKey);
 
 // ── Templates ────────────────────────────────────────────────────────────────
 public record GetRentreeTemplatesQuery : IRequest<IReadOnlyList<RentreeTemplateDto>>;
@@ -40,7 +40,7 @@ public class GetRentreeTemplatesQueryHandler(IApplicationDbContext context)
         return templates.Select(t => new RentreeTemplateDto(
             t.Id, t.Title, t.Description, t.Phase, t.DisplayOrder, t.AssigneeType, t.AssigneeRole, t.FanOutPerUnit,
             t.AssigneeMemberIds, t.AssigneeMemberIds.Select(id => names.GetValueOrDefault(id, "?")).ToList(),
-            t.DefaultDeadlineLabel, t.DependsOnTemplateIds)).ToList();
+            t.DefaultDeadlineLabel, t.DependsOnTemplateIds, t.ActionKey)).ToList();
     }
 }
 
@@ -90,7 +90,7 @@ public class GetRentreeTasksQueryHandler(IApplicationDbContext context, ICurrent
                 t.AssigneeMemberIds, t.AssigneeMemberIds.Select(id => memberNames.GetValueOrDefault(id, "?")).ToList(),
                 t.DeadlineLabel, t.DueDate, t.Status, t.CompletedByName, t.CompletedAt,
                 t.DependsOnTaskIds, blockedBy.Count > 0, blockedBy.Select(d => titleById.GetValueOrDefault(d, "?")).ToList(),
-                isMine, t.Status != "done" && t.DueDate.HasValue && t.DueDate.Value < today);
+                isMine, t.Status != "done" && t.DueDate.HasValue && t.DueDate.Value < today, t.ActionKey);
         });
 
         // Managers (super-admin / rentree.manage = CG) can see everyone's tasks; everyone else
@@ -123,6 +123,6 @@ public class GetMyOverdueRentreeTasksQueryHandler(IApplicationDbContext context,
         return tasks.Select(t => new RentreeTaskDto(
             t.Id, t.TemplateId, t.ScoutYear, t.Title, t.Description, t.Phase, t.DisplayOrder, t.AssigneeType, t.AssigneeRole,
             t.UnitId, null, t.AssigneeMemberIds, [], t.DeadlineLabel, t.DueDate, t.Status, null, null,
-            t.DependsOnTaskIds, false, [], true, true)).ToList();
+            t.DependsOnTaskIds, false, [], true, true, t.ActionKey)).ToList();
     }
 }

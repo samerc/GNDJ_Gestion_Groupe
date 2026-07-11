@@ -27,6 +27,7 @@ export interface RentreeTask {
   blockedByTitles: string[]
   isMine: boolean
   isOverdue: boolean
+  actionKey: string | null
 }
 
 export interface RentreeTemplate {
@@ -42,6 +43,7 @@ export interface RentreeTemplate {
   assigneeMemberNames: string[]
   defaultDeadlineLabel: string | null
   dependsOnTemplateIds: string[]
+  actionKey: string | null
 }
 
 // GET /rentree/years → scout years that have generated tasks.
@@ -72,12 +74,34 @@ export function useCompleteRentreeTask() {
   })
 }
 
+// POST /rentree/tasks/{id}/run-action → run a task's built-in "do" action (open inscriptions/passage) + mark it done.
+export function useRunRentreeTaskAction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.post<{ message: string }>(`/rentree/tasks/${id}/run-action`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rentree'] }),
+  })
+}
+
 // POST /rentree/generate → build a year's tasks from the template (fans out per-unit, wires deps); overwrite replaces. Invalidates ['rentree'].
 export function useGenerateRentree() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ scoutYear, overwrite }: { scoutYear: string; overwrite: boolean }) =>
-      apiClient.post<{ created: number }>('/rentree/generate', { scoutYear, overwrite }).then(r => r.data),
+    mutationFn: ({ scoutYear, overwrite, addOnly }: { scoutYear: string; overwrite: boolean; addOnly?: boolean }) =>
+      apiClient.post<{ created: number }>('/rentree/generate', { scoutYear, overwrite, addOnly: !!addOnly }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rentree'] }),
+  })
+}
+
+// POST /rentree/tasks → CG adds a one-off task directly to a year (not in the template); invalidates ['rentree'].
+export function useCreateRentreeTask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: {
+      scoutYear: string; title: string; description: string | null; phase: string
+      assigneeType: string; assigneeRole: string | null; fanOutPerUnit: boolean
+      assigneeMemberIds: string[]; deadlineLabel: string | null; dueDate: string | null; actionKey: string | null
+    }) => apiClient.post<{ created: number }>('/rentree/tasks', data).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rentree'] }),
   })
 }
@@ -115,6 +139,7 @@ export function useSaveRentreeTemplate() {
       id: string | null; title: string; description: string | null; phase: string
       assigneeType: string; assigneeRole: string | null; fanOutPerUnit: boolean
       assigneeMemberIds: string[]; defaultDeadlineLabel: string | null; dependsOnTemplateIds: string[]
+      actionKey: string | null
     }) => apiClient.post('/rentree/templates', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rentree'] }),
   })

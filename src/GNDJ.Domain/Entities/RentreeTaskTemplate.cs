@@ -19,5 +19,10 @@ public class RentreeTaskTemplate : BaseEntity
 
     public string? DefaultDeadlineLabel { get; set; }     // fuzzy deadline, e.g. "1ère sem. octobre"
 
+    // Optional built-in action attached to the task (from a fixed catalog): "do" actions run an
+    // operation from the checklist (e.g. "open-demandes" opens the inscriptions), "goto-*" actions are
+    // a one-click shortcut to the relevant page. Chosen in the template editor; copied to each RentreeTask.
+    public string? ActionKey { get; set; }
+
     public Guid[] DependsOnTemplateIds { get; set; } = []; // prerequisite templates
 }

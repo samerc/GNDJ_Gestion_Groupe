@@ -278,12 +278,14 @@ public static class SeedData
         const string CG = "chef-de-groupe", CU = "chef-unite";
         int order = 0;
         var tasks = new List<RentreeTaskTemplate>();
-        RentreeTaskTemplate Add(string title, string phase, string role, bool fanOut, string? deadline, params RentreeTaskTemplate[] deps)
+        // actionKey attaches a built-in action from the catalog (RentreeActions): "open-*" run from the list,
+        // "goto-*" are page shortcuts, null = no action (a physical/manual task, just a checkbox).
+        RentreeTaskTemplate Add(string title, string phase, string role, bool fanOut, string? deadline, string? actionKey, params RentreeTaskTemplate[] deps)
         {
             var t = new RentreeTaskTemplate
             {
                 Title = title, Phase = phase, DisplayOrder = order++, AssigneeType = "role", AssigneeRole = role,
-                FanOutPerUnit = fanOut, DefaultDeadlineLabel = deadline,
+                FanOutPerUnit = fanOut, DefaultDeadlineLabel = deadline, ActionKey = actionKey,
                 DependsOnTemplateIds = deps.Select(d => d.Id).ToArray()
             };
             tasks.Add(t);
@@ -291,32 +293,74 @@ public static class SeedData
         }
 
         // ① Configuration
-        var cfgYear = Add("Définir la nouvelle année scoute et les dates", "Configuration", CG, false, "4ᵉ sem. septembre");
-        var cfgUnits = Add("Vérifier les unités, types et équipes (créer les nouvelles sizaines)", "Configuration", CG, false, "4ᵉ sem. septembre");
-        Add("Confirmer les maîtrises (CU/ACU de chaque unité)", "Configuration", CG, false, "4ᵉ sem. septembre");
-        var cfgQuotas = Add("Définir les quotas d'accueil par unité", "Configuration", CG, false, "4ᵉ sem. septembre", cfgUnits);
+        var cfgYear = Add("Définir la nouvelle année scoute et les dates", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-settings");
+        var cfgUnits = Add("Vérifier les unités, types et équipes (créer les nouvelles sizaines)", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-units");
+        Add("Confirmer les maîtrises (CU/ACU de chaque unité)", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-maitrises");
+        var cfgQuotas = Add("Définir les quotas d'accueil par unité", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-demandes", cfgUnits);
         // ② Passage
-        var pasOpen = Add("Ouvrir le passage", "Passage", CG, false, "1ʳᵉ sem. octobre", cfgYear);
-        var pasPropose = Add("Proposer les passages de chaque membre (ou « Pas de changement »)", "Passage", CU, true, "1ʳᵉ sem. octobre", pasOpen);
-        var pasReview = Add("Réviser et approuver les propositions de passage", "Passage", CG, false, "2ᵉ sem. octobre", pasPropose);
-        var pasFinalize = Add("Finaliser les passages (création des nouvelles affectations)", "Passage", CG, false, "2ᵉ sem. octobre", pasReview);
+        var pasOpen = Add("Ouvrir le passage", "Passage", CG, false, "1ʳᵉ sem. octobre", "open-passage", cfgYear);
+        var pasPropose = Add("Proposer les passages de chaque membre (ou « Pas de changement »)", "Passage", CU, true, "1ʳᵉ sem. octobre", "goto-passage", pasOpen);
+        var pasReview = Add("Réviser et approuver les propositions de passage", "Passage", CG, false, "2ᵉ sem. octobre", "goto-passage-review", pasPropose);
+        var pasFinalize = Add("Finaliser les passages (création des nouvelles affectations)", "Passage", CG, false, "2ᵉ sem. octobre", "goto-passage-review", pasReview);
         // ③ Demandes
-        var demTerms = Add("Mettre à jour les conditions d'inscription (texte d'acceptation des demandes)", "Demandes", CG, false, "septembre", cfgYear);
-        var demOpen = Add("Ouvrir les inscriptions", "Demandes", CG, false, "septembre", cfgYear, cfgQuotas, demTerms);
-        var demReview = Add("Réviser les demandes d'inscription (accepter/refuser + unité)", "Demandes", CG, false, "octobre", demOpen);
-        Add("Envoyer les réponses aux demandes (conversion en membres)", "Demandes", CG, false, "octobre", demReview);
+        var demTerms = Add("Mettre à jour les conditions d'inscription (texte d'acceptation des demandes)", "Demandes", CG, false, "septembre", "goto-settings", cfgYear);
+        var demOpen = Add("Ouvrir les inscriptions", "Demandes", CG, false, "septembre", "open-demandes", cfgYear, cfgQuotas, demTerms);
+        var demReview = Add("Réviser les demandes d'inscription (accepter/refuser + unité)", "Demandes", CG, false, "octobre", "goto-demandes", demOpen);
+        Add("Envoyer les réponses aux demandes (conversion en membres)", "Demandes", CG, false, "octobre", "goto-demandes", demReview);
         // ④ Dossiers membres
-        Add("Vérifier et approuver les documents des membres", "Dossiers membres", CU, true, "octobre – novembre", pasFinalize);
-        Add("Suivre et enregistrer les cotisations", "Dossiers membres", CU, true, "octobre – novembre", pasFinalize);
-        var photo = Add("Organiser la séance photo", "Dossiers membres", CU, true, "octobre", pasFinalize);
+        Add("Vérifier et approuver les documents des membres", "Dossiers membres", CU, true, "octobre – novembre", "goto-documents", pasFinalize);
+        Add("Suivre et enregistrer les cotisations", "Dossiers membres", CU, true, "octobre – novembre", "goto-documents", pasFinalize);
+        var photo = Add("Organiser la séance photo", "Dossiers membres", CU, true, "octobre", "goto-photo", pasFinalize);
         // ⑤ Organisation
-        var orgTeams = Add("Répartir les membres en sizaines / équipes", "Organisation", CU, true, "octobre", pasFinalize);
-        Add("Vérifier le trombinoscope / la liste", "Organisation", CU, true, "octobre", orgTeams);
-        Add("Imprimer les cartes membres", "Organisation", CU, true, "octobre", photo, orgTeams);
-        Add("Confirmer les étapes et badges de l'année", "Progression", CG, false, "octobre");
+        var orgTeams = Add("Répartir les membres en sizaines / équipes", "Organisation", CU, true, "octobre", "goto-my-unit", pasFinalize);
+        Add("Vérifier le trombinoscope / la liste", "Organisation", CU, true, "octobre", "goto-my-unit", orgTeams);
+        Add("Imprimer les cartes membres", "Organisation", CU, true, "octobre", "goto-my-unit", photo, orgTeams);
+        Add("Confirmer les étapes et badges de l'année", "Progression", CG, false, "octobre", "goto-progression");
 
         context.RentreeTaskTemplates.AddRange(tasks);
         await context.SaveChangesAsync();
+    }
+
+    // Backfill ActionKey on the default templates for DBs seeded before the action feature existed.
+    // Matches by exact title and only fills templates that have no action yet (idempotent; never overwrites
+    // a CG's choice). Wired in Program.cs after SeedRentreeTemplateAsync.
+    public static async Task SeedRentreeActionKeysAsync(GndjDbContext context)
+    {
+        var byTitle = new Dictionary<string, string>
+        {
+            ["Définir la nouvelle année scoute et les dates"] = "goto-settings",
+            ["Vérifier les unités, types et équipes (créer les nouvelles sizaines)"] = "goto-units",
+            ["Confirmer les maîtrises (CU/ACU de chaque unité)"] = "goto-maitrises",
+            ["Définir les quotas d'accueil par unité"] = "goto-demandes",
+            ["Ouvrir le passage"] = "open-passage",
+            ["Proposer les passages de chaque membre (ou « Pas de changement »)"] = "goto-passage",
+            ["Réviser et approuver les propositions de passage"] = "goto-passage-review",
+            ["Finaliser les passages (création des nouvelles affectations)"] = "goto-passage-review",
+            ["Mettre à jour les conditions d'inscription (texte d'acceptation des demandes)"] = "goto-settings",
+            ["Ouvrir les inscriptions"] = "open-demandes",
+            ["Réviser les demandes d'inscription (accepter/refuser + unité)"] = "goto-demandes",
+            ["Envoyer les réponses aux demandes (conversion en membres)"] = "goto-demandes",
+            ["Vérifier et approuver les documents des membres"] = "goto-documents",
+            ["Suivre et enregistrer les cotisations"] = "goto-documents",
+            ["Organiser la séance photo"] = "goto-photo",
+            ["Répartir les membres en sizaines / équipes"] = "goto-my-unit",
+            ["Vérifier le trombinoscope / la liste"] = "goto-my-unit",
+            ["Imprimer les cartes membres"] = "goto-my-unit",
+            ["Confirmer les étapes et badges de l'année"] = "goto-progression",
+        };
+
+        var changed = false;
+        var templates = await context.RentreeTaskTemplates.Where(t => t.ActionKey == null).ToListAsync();
+        foreach (var t in templates)
+            if (byTitle.TryGetValue(t.Title, out var key)) { t.ActionKey = key; changed = true; }
+
+        // Also backfill already-generated task instances (by title) so existing year checklists get their
+        // actions without a full regenerate (which would wipe progress). Only fills null (never overwrites).
+        var tasks = await context.RentreeTasks.Where(t => t.ActionKey == null).ToListAsync();
+        foreach (var t in tasks)
+            if (byTitle.TryGetValue(t.Title, out var key)) { t.ActionKey = key; changed = true; }
+
+        if (changed) await context.SaveChangesAsync();
     }
 
     public static async Task SeedMissingSettingsAsync(GndjDbContext context)

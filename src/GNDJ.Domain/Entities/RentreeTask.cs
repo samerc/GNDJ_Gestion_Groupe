@@ -23,6 +23,8 @@ public class RentreeTask : BaseEntity
     public string? DeadlineLabel { get; set; }           // fuzzy deadline text
     public DateOnly? DueDate { get; set; }               // fixed deadline (drives the overdue login popup)
 
+    public string? ActionKey { get; set; }               // built-in action from the catalog (copied from the template)
+
     public string Status { get; set; } = "pending";      // "pending" | "done"
     public Guid? CompletedByUserId { get; set; }
     public string? CompletedByName { get; set; }

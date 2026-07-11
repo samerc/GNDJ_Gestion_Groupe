@@ -1733,6 +1733,30 @@ a static `.htm` archive — the authentic source, NOT SDL/GDL). All content land
 - Verified live (`GET /api/v1/public/units`): Meute→Ronde→Troupe→Compagnie→Clan→Noyau→JEM, units 2/3/10 in order,
   ages shown. Build clean; API rebuilt+restarted on :5000.
 
+### Rentrée: actionable checklist (2026-07-11)
+Made the Rentrée startup checklist *do things*, not just track them. A task can carry a built-in **action** from a
+fixed catalog (chosen in the template editor OR when adding a task) — kept in sync between backend
+`Application/Rentree/RentreeActions.cs` and frontend `client/src/lib/rentree-actions.ts`. Two kinds:
+- **"do" actions** run a real operation from the list + auto-complete the task: **`open-demandes`** (opens the
+  inscriptions) and **`open-passage`** (opens the passage). `POST /rentree/tasks/{id}/run-action`
+  (`RunRentreeTaskActionCommand`, rentree.manage) executes it; blocked while a prerequisite is unfinished.
+- **"goto-*" actions** are one-click page shortcuts (settings/units/maitrises/demandes/passage/passage-review/
+  documents/photo/my-unit/progression). Pure frontend nav; no server work.
+- **Filled a real gap:** a CG could NOT open the inscriptions (only the Settings page could, super-admin-only).
+  New **`SetDemandeEnabledCommand`** (demande.manage) opens/closes `demande.enabled`; `open-demandes` uses it.
+- `ActionKey` added to `RentreeTaskTemplate` + `RentreeTask` (migration `AddRentreeActionKey`); copied on generate.
+  Seeded on the 18 default templates; **`SeedRentreeActionKeysAsync`** backfills existing templates AND already-
+  generated tasks by title (idempotent) so current years light up without a regenerate.
+- **Checklist is now fully customizable per year** (managers): **"Ajouter une tâche"** (`CreateRentreeTaskCommand`,
+  `POST /rentree/tasks`) adds a **one-off task straight into a year** (TemplateId=null — regenerate/add-new never
+  touch it; fan-out per unit supported); **"Ajouter les nouvelles tâches"** (`GenerateRentreeChecklistCommand`
+  `AddOnly=true`) non-destructively inserts template tasks missing from a year (keeps progress); edit/delete per
+  task already existed. Generate dialog: add-new (safe) vs Tout régénérer (destructive confirm).
+- Fixed a dialog **clip bug** (template editor): long dependency titles in `truncate` (nowrap) spans without
+  `min-w-0` forced the dialog wider than its max width. Action dropdown hint is now dynamic ("Rien d'autre à configurer").
+- Verified live: open-demandes flips `demande.enabled` false→true + marks the task done (blocked path refused);
+  one-off create (group=1 / fan-out=18, TemplateId null); add-new added a missing template's instances only. DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

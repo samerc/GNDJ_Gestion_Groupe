@@ -4,8 +4,11 @@ import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import {
   useRentreeYears, useRentreeTasks, useCompleteRentreeTask, useGenerateRentree,
-  useUpdateRentreeTask, useDeleteRentreeTask, type RentreeTask,
+  useUpdateRentreeTask, useDeleteRentreeTask, useRunRentreeTaskAction, useCreateRentreeTask, type RentreeTask,
 } from '@/services/rentree-service'
+import { getRentreeAction, RENTREE_ACTION_OPTIONS } from '@/lib/rentree-actions'
+import { useMembers } from '@/services/member-service'
+import { useDebounce } from '@/hooks/use-debounce'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -15,7 +18,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { cn } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
-import { Check, Lock, CalendarClock, Users, Settings2, Sparkles, Pencil, Trash2, ListChecks, ChevronRight } from 'lucide-react'
+import { Check, Lock, CalendarClock, Users, Settings2, Sparkles, Pencil, Trash2, ListChecks, ChevronRight, Play, ArrowRight, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 const ROLE_LABELS: Record<string, string> = {
@@ -23,6 +26,24 @@ const ROLE_LABELS: Record<string, string> = {
   'chef-equipe': "Chef d'équipe", 'read-only': 'Membre',
 }
 const roleLabel = (r: string | null) => ROLE_LABELS[r ?? ''] ?? r ?? '—'
+// Roles offered when adding a task (assignee = a security-profile code).
+const ROLES = [
+  { value: 'chef-de-groupe', label: 'Chef de Groupe' },
+  { value: 'chef-unite', label: "Chef d'unité" },
+  { value: 'assistant-de-groupe', label: 'Assistant de Groupe' },
+  { value: 'read-only', label: 'Membre' },
+]
+// Blank form for a one-off year task.
+type AddForm = {
+  title: string; description: string; phase: string
+  assigneeType: string; assigneeRole: string; fanOutPerUnit: boolean
+  assigneeMemberIds: string[]; assigneeMemberNames: string[]
+  deadlineLabel: string; dueDate: string; actionKey: string
+}
+const blankAdd: AddForm = {
+  title: '', description: '', phase: '', assigneeType: 'role', assigneeRole: 'chef-unite', fanOutPerUnit: true,
+  assigneeMemberIds: [], assigneeMemberNames: [], deadlineLabel: '', dueDate: '', actionKey: '',
+}
 
 // Round check / lock indicator shared by single and per-unit rows.
 function CheckDot({ task, canManage, onToggle }: { task: RentreeTask; canManage: boolean; onToggle: (t: RentreeTask) => void }) {
@@ -52,10 +73,32 @@ function Deadline({ task }: { task: RentreeTask }) {
   )
 }
 
+// The built-in action attached to a task, if any: a "do" action (run it here, CG only) or a "goto" shortcut.
+// Shown only while the task is pending — once done, the row is muted and needs no action.
+function TaskAction({ task, canManage, running, onRun }: {
+  task: RentreeTask; canManage: boolean; running: boolean; onRun: (t: RentreeTask) => void
+}) {
+  const action = getRentreeAction(task.actionKey)
+  if (!action || task.status === 'done') return null
+  if (action.kind === 'do') {
+    if (!canManage) return null // running a "do" action needs rentree.manage
+    return (
+      <Button size="sm" className="mt-2 h-7" disabled={task.isBlocked || running} onClick={() => onRun(task)}>
+        <Play className="mr-1 h-3.5 w-3.5" />{running ? '…' : action.label}
+      </Button>
+    )
+  }
+  return action.route ? (
+    <Button asChild variant="outline" size="sm" className="mt-2 h-7">
+      <Link to={action.route}>{action.label}<ArrowRight className="ml-1 h-3.5 w-3.5" /></Link>
+    </Button>
+  ) : null
+}
+
 // A single (group-level) task, or one per-unit row inside a rollup (compact).
-function TaskRow({ task, canManage, compact, onToggle, onEdit, onDelete }: {
-  task: RentreeTask; canManage: boolean; compact?: boolean
-  onToggle: (t: RentreeTask) => void; onEdit: (t: RentreeTask) => void; onDelete: (t: RentreeTask) => void
+function TaskRow({ task, canManage, compact, running, onToggle, onEdit, onDelete, onRun }: {
+  task: RentreeTask; canManage: boolean; compact?: boolean; running: boolean
+  onToggle: (t: RentreeTask) => void; onEdit: (t: RentreeTask) => void; onDelete: (t: RentreeTask) => void; onRun: (t: RentreeTask) => void
 }) {
   const done = task.status === 'done'
   const assignee = compact
@@ -79,6 +122,7 @@ function TaskRow({ task, canManage, compact, onToggle, onEdit, onDelete }: {
           {task.isBlocked && <span className="inline-flex items-center gap-1 text-amber-600"><Lock className="h-3 w-3" />En attente : {task.blockedByTitles.join(', ')}</span>}
           {done && task.completedByName && <span className="text-emerald-600">✓ {task.completedByName}</span>}
         </div>
+        <TaskAction task={task} canManage={canManage} running={running} onRun={onRun} />
       </div>
       {canManage && (
         <div className="flex shrink-0 gap-1">
@@ -94,9 +138,9 @@ type Rollup = { kind: 'rollup'; key: string; title: string; description: string 
 type Item = { kind: 'single'; task: RentreeTask } | Rollup
 
 // One collapsed row standing in for a per-unit task across all units.
-function RollupRow({ r, expanded, onExpand, canManage, onToggle, onEdit, onDelete }: {
-  r: Rollup; expanded: boolean; onExpand: () => void; canManage: boolean
-  onToggle: (t: RentreeTask) => void; onEdit: (t: RentreeTask) => void; onDelete: (t: RentreeTask) => void
+function RollupRow({ r, expanded, onExpand, canManage, runningId, onToggle, onEdit, onDelete, onRun }: {
+  r: Rollup; expanded: boolean; onExpand: () => void; canManage: boolean; runningId: string | null
+  onToggle: (t: RentreeTask) => void; onEdit: (t: RentreeTask) => void; onDelete: (t: RentreeTask) => void; onRun: (t: RentreeTask) => void
 }) {
   const total = r.units.length
   const allDone = r.done === total
@@ -123,7 +167,7 @@ function RollupRow({ r, expanded, onExpand, canManage, onToggle, onEdit, onDelet
       </button>
       {expanded && (
         <div className="border-t bg-muted/20 px-2 pb-1">
-          {r.units.map(u => <TaskRow key={u.id} task={u} canManage={canManage} compact onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />)}
+          {r.units.map(u => <TaskRow key={u.id} task={u} canManage={canManage} compact running={runningId === u.id} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} onRun={onRun} />)}
         </div>
       )}
     </div>
@@ -150,9 +194,11 @@ export default function RentreePage() {
 
   const { data: tasks, isLoading } = useRentreeTasks(year || undefined, mineOnly)
   const complete = useCompleteRentreeTask()
+  const runAction = useRunRentreeTaskAction()
   const generate = useGenerateRentree()
   const updateTask = useUpdateRentreeTask()
   const deleteTask = useDeleteRentreeTask()
+  const createTask = useCreateRentreeTask()
 
   const [genOpen, setGenOpen] = useState(false)
   const [confirmRegen, setConfirmRegen] = useState(false)
@@ -160,6 +206,13 @@ export default function RentreePage() {
   const [editing, setEditing] = useState<RentreeTask | null>(null)
   const [editForm, setEditForm] = useState({ title: '', description: '', deadlineLabel: '', dueDate: '' })
   const [deleting, setDeleting] = useState<RentreeTask | null>(null)
+  // One-off "add a task to this year" dialog + member picker (for assigneeType === 'members').
+  const [addOpen, setAddOpen] = useState(false)
+  const [addForm, setAddForm] = useState<AddForm>(blankAdd)
+  const [memberSearch, setMemberSearch] = useState('')
+  const debouncedMember = useDebounce(memberSearch)
+  const { data: memberResults } = useMembers({ search: debouncedMember || undefined, pageSize: 8 })
+  const yearPhases = useMemo(() => [...new Set((tasks ?? []).map(t => t.phase))], [tasks])
 
   // Units present in this year's per-unit tasks (for the filter).
   const units = useMemo(() => {
@@ -219,6 +272,12 @@ export default function RentreePage() {
     try { await complete.mutateAsync({ id: t.id, done: t.status !== 'done' }) }
     catch (err) { toast.error(parseApiError(err)) }
   }
+  // Run a task's built-in "do" action (open inscriptions / passage) directly from the list.
+  const runningId = runAction.isPending ? (runAction.variables as string) : null
+  const doRunAction = async (t: RentreeTask) => {
+    try { const r = await runAction.mutateAsync(t.id); toast.success(r.message) }
+    catch (err) { toast.error(parseApiError(err)) }
+  }
   const openEdit = (t: RentreeTask) => {
     setEditing(t)
     setEditForm({ title: t.title, description: t.description ?? '', deadlineLabel: t.deadlineLabel ?? '', dueDate: t.dueDate ?? '' })
@@ -238,6 +297,28 @@ export default function RentreePage() {
     try {
       const r = await generate.mutateAsync({ scoutYear: genYear.trim(), overwrite })
       toast.success(`${r.created} tâche(s) générée(s)`); setGenOpen(false); setYear(genYear.trim())
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
+  // Non-destructive: add template tasks missing from an existing year (keeps progress).
+  const doAddNew = async () => {
+    try {
+      const r = await generate.mutateAsync({ scoutYear: genYear.trim(), overwrite: false, addOnly: true })
+      toast.success(r.created > 0 ? `${r.created} nouvelle(s) tâche(s) ajoutée(s)` : 'Le modèle est déjà à jour dans cette liste.')
+      setGenOpen(false); setYear(genYear.trim())
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
+  const openAdd = () => { setAddForm({ ...blankAdd, phase: yearPhases[0] ?? 'Configuration' }); setMemberSearch(''); setAddOpen(true) }
+  const submitAdd = async () => {
+    if (!addForm.title.trim()) { toast.error('Le titre est requis.'); return }
+    try {
+      const r = await createTask.mutateAsync({
+        scoutYear: year, title: addForm.title, description: addForm.description || null, phase: addForm.phase,
+        assigneeType: addForm.assigneeType, assigneeRole: addForm.assigneeType === 'role' ? addForm.assigneeRole : null,
+        fanOutPerUnit: addForm.assigneeType === 'role' && addForm.fanOutPerUnit,
+        assigneeMemberIds: addForm.assigneeType === 'members' ? addForm.assigneeMemberIds : [],
+        deadlineLabel: addForm.deadlineLabel || null, dueDate: addForm.dueDate || null, actionKey: addForm.actionKey || null,
+      })
+      toast.success(`${r.created} tâche(s) ajoutée(s)`); setAddOpen(false)
     } catch (err) { toast.error(parseApiError(err)) }
   }
   const togglePhase = (p: string) => setCollapsedPhases(s => { const n = new Set(s); if (n.has(p)) n.delete(p); else n.add(p); return n })
@@ -279,6 +360,7 @@ export default function RentreePage() {
           )}
           {canManage && (
             <>
+              {!noYears && <Button variant="outline" size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" />Ajouter une tâche</Button>}
               <Button variant="outline" size="sm" asChild><Link to="/admin/rentree-template"><Settings2 className="mr-1 h-4 w-4" />Modèle</Link></Button>
               <Button size="sm" onClick={() => setGenOpen(true)}><Sparkles className="mr-1 h-4 w-4" />Générer</Button>
             </>
@@ -315,8 +397,8 @@ export default function RentreePage() {
                 {!collapsed && (
                   <div className="space-y-2">
                     {items.map(it => it.kind === 'single'
-                      ? <TaskRow key={it.task.id} task={it.task} canManage={canManage} onToggle={toggle} onEdit={openEdit} onDelete={setDeleting} />
-                      : <RollupRow key={it.key} r={it} expanded={expandedRollups.has(it.key)} onExpand={() => toggleRollup(it.key)} canManage={canManage} onToggle={toggle} onEdit={openEdit} onDelete={setDeleting} />
+                      ? <TaskRow key={it.task.id} task={it.task} canManage={canManage} running={runningId === it.task.id} onToggle={toggle} onEdit={openEdit} onDelete={setDeleting} onRun={doRunAction} />
+                      : <RollupRow key={it.key} r={it} expanded={expandedRollups.has(it.key)} onExpand={() => toggleRollup(it.key)} canManage={canManage} runningId={runningId} onToggle={toggle} onEdit={openEdit} onDelete={setDeleting} onRun={doRunAction} />
                     )}
                   </div>
                 )}
@@ -334,14 +416,21 @@ export default function RentreePage() {
             <RequiredLabel required>Année scoute</RequiredLabel>
             <Input value={genYear} onChange={e => setGenYear(e.target.value)} placeholder="2026-2027" />
             <p className="text-xs text-muted-foreground">Crée une tâche par élément du modèle. Les tâches « par unité » sont dupliquées pour chaque unité active.</p>
-            {years?.includes(genYear.trim()) && <p className="text-xs text-amber-600">Une liste existe déjà pour {genYear.trim()} — la régénérer effacera la progression actuelle.</p>}
+            {years?.includes(genYear.trim()) && (
+              <p className="text-xs text-muted-foreground">Une liste existe déjà pour {genYear.trim()}. <b>Ajouter les nouvelles tâches</b> insère uniquement les tâches du modèle absentes de cette liste (progression conservée) ; <b className="text-amber-600">Tout régénérer</b> efface la progression et recrée tout.</p>
+            )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
             <Button variant="outline" onClick={() => setGenOpen(false)}>Annuler</Button>
-            {/* A year that already exists = destructive re-generate (wipes progress) → go through a confirm. */}
-            <Button onClick={() => { if (years?.includes(genYear.trim())) setConfirmRegen(true); else doGenerate(false) }} disabled={generate.isPending}>
-              {generate.isPending ? 'Génération…' : years?.includes(genYear.trim()) ? 'Régénérer' : 'Générer'}
-            </Button>
+            {years?.includes(genYear.trim()) ? (
+              <>
+                {/* Destructive full regenerate goes through a confirm; add-new is the safe default. */}
+                <Button variant="outline" className="border-destructive/40 text-destructive hover:bg-destructive/10" onClick={() => setConfirmRegen(true)} disabled={generate.isPending}>Tout régénérer</Button>
+                <Button onClick={doAddNew} disabled={generate.isPending}>{generate.isPending ? '…' : 'Ajouter les nouvelles tâches'}</Button>
+              </>
+            ) : (
+              <Button onClick={() => doGenerate(false)} disabled={generate.isPending}>{generate.isPending ? 'Génération…' : 'Générer'}</Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -369,6 +458,79 @@ export default function RentreePage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)}>Annuler</Button>
             <Button onClick={saveEdit} disabled={updateTask.isPending}>Enregistrer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add one-off task dialog — year-specific, does NOT modify the template */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader><DialogTitle>Ajouter une tâche — {year}</DialogTitle></DialogHeader>
+          <div className="min-w-0 space-y-3">
+            <div className="space-y-1"><RequiredLabel required>Titre</RequiredLabel><Input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} /></div>
+            <div className="space-y-1"><RequiredLabel>Description</RequiredLabel><Input value={addForm.description} onChange={e => setAddForm(f => ({ ...f, description: e.target.value }))} /></div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1"><RequiredLabel required>Phase</RequiredLabel>
+                <Input list="year-phases" value={addForm.phase} onChange={e => setAddForm(f => ({ ...f, phase: e.target.value }))} placeholder="Configuration…" />
+                <datalist id="year-phases">{yearPhases.map(p => <option key={p} value={p} />)}</datalist>
+              </div>
+              <div className="space-y-1"><RequiredLabel>Échéance (texte)</RequiredLabel><Input value={addForm.deadlineLabel} onChange={e => setAddForm(f => ({ ...f, deadlineLabel: e.target.value }))} placeholder="1ʳᵉ sem. octobre" /></div>
+            </div>
+            <div className="space-y-1"><RequiredLabel>Date limite</RequiredLabel><Input type="date" value={addForm.dueDate} onChange={e => setAddForm(f => ({ ...f, dueDate: e.target.value }))} /></div>
+
+            <div className="space-y-1"><RequiredLabel>Action</RequiredLabel>
+              <Select value={addForm.actionKey || 'none'} onValueChange={v => setAddForm(f => ({ ...f, actionKey: v === 'none' ? '' : v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{RENTREE_ACTION_OPTIONS.map(o => <SelectItem key={o.value || 'none'} value={o.value || 'none'}>{o.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1"><RequiredLabel required>Responsable</RequiredLabel>
+              <Select value={addForm.assigneeType} onValueChange={v => setAddForm(f => ({ ...f, assigneeType: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="role">Un rôle</SelectItem><SelectItem value="members">Des membres précis</SelectItem></SelectContent>
+              </Select>
+            </div>
+
+            {addForm.assigneeType === 'role' ? (
+              <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
+                <div className="space-y-1"><RequiredLabel>Rôle</RequiredLabel>
+                  <Select value={addForm.assigneeRole} onValueChange={v => setAddForm(f => ({ ...f, assigneeRole: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{ROLES.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" checked={addForm.fanOutPerUnit} onChange={e => setAddForm(f => ({ ...f, fanOutPerUnit: e.target.checked }))} />Une tâche par unité</label>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <RequiredLabel>Membres</RequiredLabel>
+                <div className="flex flex-wrap gap-1.5">
+                  {addForm.assigneeMemberIds.map((id, i) => (
+                    <span key={id} className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs">
+                      {addForm.assigneeMemberNames[i] ?? '?'}
+                      <button type="button" onClick={() => setAddForm(f => ({ ...f, assigneeMemberIds: f.assigneeMemberIds.filter(x => x !== id), assigneeMemberNames: f.assigneeMemberNames.filter((_, j) => j !== i) }))}><X className="h-3 w-3" /></button>
+                    </span>
+                  ))}
+                </div>
+                <Input value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Rechercher un membre…" />
+                {debouncedMember && memberResults && (
+                  <div className="max-h-40 overflow-y-auto rounded-md border text-sm">
+                    {memberResults.items.filter(m => !addForm.assigneeMemberIds.includes(m.id)).map(m => (
+                      <button key={m.id} type="button" className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-muted"
+                        onClick={() => { setAddForm(f => ({ ...f, assigneeMemberIds: [...f.assigneeMemberIds, m.id], assigneeMemberNames: [...f.assigneeMemberNames, `${m.firstName} ${m.lastName}`] })); setMemberSearch('') }}>
+                        <Users className="h-3.5 w-3.5 text-muted-foreground" />{m.lastName} {m.firstName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">Ajoutée uniquement à l'année {year} (le modèle n'est pas modifié). « Une tâche par unité » en crée une par unité active.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>Annuler</Button>
+            <Button onClick={submitAdd} disabled={createTask.isPending}>{createTask.isPending ? 'Ajout…' : 'Ajouter'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

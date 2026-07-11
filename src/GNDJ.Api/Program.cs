@@ -322,6 +322,7 @@ using (var scope = app.Services.CreateScope())
     await SeedData.SeedMemberEmailTemplatesAsync(context);
     await SeedData.SeedFunctionalRoleRanksAsync(context);
     await SeedData.SeedRentreeTemplateAsync(context);
+    await SeedData.SeedRentreeActionKeysAsync(context);
 }
 
 // Middleware pipeline

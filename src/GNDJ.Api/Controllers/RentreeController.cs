@@ -39,6 +39,15 @@ public class RentreeController : BaseApiController
     }
     public record CompleteBody(bool Done);
 
+    /// <summary>Runs a task's built-in action (e.g. open the inscriptions) and marks it done. Requires rentree.manage.</summary>
+    [HttpPost("tasks/{id:guid}/run-action")]
+    [HasPermission(Permissions.RentreeManage)]
+    public async Task<IActionResult> RunAction(Guid id)
+    {
+        var result = await Mediator.Send(new RunRentreeTaskActionCommand(id));
+        return result.IsSuccess ? Ok(new { message = result.Value }) : BadRequest(new { error = result.Error });
+    }
+
     // ── Manage (super-admin + Chef de Groupe) ──
     /// <summary>Lists the master task templates. Requires rentree.manage.</summary>
     [HttpGet("templates")]
@@ -79,6 +88,15 @@ public class RentreeController : BaseApiController
     [HttpPost("generate")]
     [HasPermission(Permissions.RentreeManage)]
     public async Task<IActionResult> Generate([FromBody] GenerateRentreeChecklistCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return result.IsSuccess ? Ok(new { created = result.Value }) : BadRequest(new { error = result.Error });
+    }
+
+    /// <summary>Adds a one-off task directly to a scout year (not in the template). Requires rentree.manage.</summary>
+    [HttpPost("tasks")]
+    [HasPermission(Permissions.RentreeManage)]
+    public async Task<IActionResult> CreateTask([FromBody] CreateRentreeTaskCommand command)
     {
         var result = await Mediator.Send(command);
         return result.IsSuccess ? Ok(new { created = result.Value }) : BadRequest(new { error = result.Error });
