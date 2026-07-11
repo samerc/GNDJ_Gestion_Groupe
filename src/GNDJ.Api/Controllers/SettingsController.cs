@@ -79,7 +79,7 @@ public class SettingsController : BaseApiController
     /// </summary>
     /// <param name="key">The list setting key (e.g. member.schools).</param>
     [HttpGet("list-usage/{key}")]
-    [HasPermission(Permissions.AssociationsManage)]
+    [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> GetListUsage(string key)
     {
         var result = await Mediator.Send(new GetListValueUsageQuery(key));
@@ -92,7 +92,7 @@ public class SettingsController : BaseApiController
     /// (managed keys). Returns the number of records updated. Requires associations.manage.
     /// </summary>
     [HttpPost("list-value/rename")]
-    [HasPermission(Permissions.AssociationsManage)]
+    [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> RenameListValue([FromBody] RenameListValueCommand command,
         [FromServices] IOutputCacheStore outputCache)
     {
@@ -108,7 +108,7 @@ public class SettingsController : BaseApiController
     /// on the records that hold it; an unused value is hard-removed. Returns archived=true/false. Requires associations.manage.
     /// </summary>
     [HttpPost("list-value/archive")]
-    [HasPermission(Permissions.AssociationsManage)]
+    [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> ArchiveListValue([FromBody] DeleteListValueCommand command,
         [FromServices] IOutputCacheStore outputCache)
     {
@@ -119,9 +119,22 @@ public class SettingsController : BaseApiController
         return Ok(new { archived = result.Value });
     }
 
-    /// <summary>Restores an archived list value back into the active list. Requires associations.manage.</summary>
+    /// <summary>Adds a value to a list setting (member-data lists are Chef-de-Groupe-accessible). Requires maitrise.manage (scoped by the handler).</summary>
+    [HttpPost("list-value/add")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> AddListValue([FromBody] AddListValueCommand command,
+        [FromServices] IOutputCacheStore outputCache)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        await outputCache.EvictByTagAsync("lookup", default);
+        await outputCache.EvictByTagAsync("short", default);
+        return Ok(new { added = result.Value });
+    }
+
+    /// <summary>Restores an archived list value back into the active list. Requires maitrise.manage (scoped by the handler).</summary>
     [HttpPost("list-value/unarchive")]
-    [HasPermission(Permissions.AssociationsManage)]
+    [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> UnarchiveListValue([FromBody] UnarchiveListValueCommand command,
         [FromServices] IOutputCacheStore outputCache)
     {

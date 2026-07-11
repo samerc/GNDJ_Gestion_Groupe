@@ -1757,6 +1757,24 @@ fixed catalog (chosen in the template editor OR when adding a task) — kept in 
 - Verified live: open-demandes flips `demande.enabled` false→true + marks the task done (blocked path refused);
   one-off create (group=1 / fan-out=18, TemplateId null); add-new added a missing template's instances only. DEV until deploy.
 
+### Managed member-data lists → one CG page (2026-07-11)
+Cities were editable in TWO places (dedicated Villes page + Settings). Consolidated ALL four managed member-data
+lists into a single **Chef-de-Groupe-accessible** page and removed them from Settings.
+- New **"Listes"** page (`/admin/lists`, `client/pages/admin/managed-lists.tsx`, perm `maitrise.manage`) with tabs
+  **Écoles / Classes / Villes / Professions** (member.schools/classes/cities/profession_domains). Replaces the old
+  `/admin/cities` "Villes" page (deleted). Sidebar "Villes" → "Listes".
+- Extracted the rich `ManagedListEditor` (was inline in settings.tsx) to **`components/shared/managed-list-editor.tsx`**
+  — add, inline **rename that CASCADES** onto member/applicant fiches, **archive** an in-use value (kept on fiches,
+  restorable), usage counts, filter. Used by the Listes page AND Settings.
+- Backend: the 4 list-value endpoints (list-usage / rename / archive / unarchive) **relaxed from
+  associations.manage → maitrise.manage**, with a handler guard (`ListValueHelpers.CanManageKey`) so a
+  non-super-admin can only touch the four member-data lists (`CgManagedKeys`) — any other json_array stays
+  super-admin. New **CG-accessible `AddListValueCommand`** (`POST /settings/list-value/add`) so the shared editor's
+  ADD works for a CG (the old add went through the super-admin generic setting write). All four keys removed from
+  the Settings page (`HIDDEN_KEYS`) — Settings is now pure system config.
+- Verified live with a real CG (`giorgio.rizk`): full CRUD (add/rename-cascade/archive) on écoles/classes/villes/
+  professions; a super-admin still does everything. Builds clean (dotnet+tsc+eslint). DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

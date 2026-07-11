@@ -102,15 +102,26 @@ internal static class ListValueHelpers
     }
 
     public static bool Rejected(string v) => v.Length == 0 || v.Length > 150 || v.Contains('<') || v.Contains('>');
+
+    // The list-value endpoints are gated on maitrise.manage so a Chef de Groupe can curate the member-data
+    // reference lists they own (écoles / classes / villes / domaines de profession). Any OTHER managed key
+    // requires super-admin / associations.manage.
+    private static readonly HashSet<string> CgManagedKeys = new()
+    {
+        "member.cities", "member.schools", "member.classes", "member.profession_domains",
+    };
+    public static bool CanManageKey(string key, ICurrentUserService user)
+        => CgManagedKeys.Contains(key) || user.IsSuperAdmin || user.Permissions.Contains(GNDJ.Domain.Enums.Permissions.AssociationsManage);
 }
 
 // ── Usage query: active + archived values (with live counts) for a list setting ──
 public record GetListValueUsageQuery(string Key) : IRequest<Result<ListValueUsageDto>>;
 
-public class GetListValueUsageQueryHandler(IApplicationDbContext context) : IRequestHandler<GetListValueUsageQuery, Result<ListValueUsageDto>>
+public class GetListValueUsageQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetListValueUsageQuery, Result<ListValueUsageDto>>
 {
     public async ValueTask<Result<ListValueUsageDto>> Handle(GetListValueUsageQuery request, CancellationToken ct)
     {
+        if (!ListValueHelpers.CanManageKey(request.Key, currentUser)) return Result<ListValueUsageDto>.Failure("Accès refusé.");
         var setting = await context.Settings.FindAsync([request.Key], ct);
         if (setting is null) return Result<ListValueUsageDto>.Failure("Paramètre introuvable.");
 
@@ -131,10 +142,11 @@ public class GetListValueUsageQueryHandler(IApplicationDbContext context) : IReq
 // ── Rename a value in a list setting, cascading the new spelling onto member data for managed keys ──
 public record RenameListValueCommand(string Key, string OldValue, string NewValue) : IRequest<Result<int>>;
 
-public class RenameListValueCommandHandler(IApplicationDbContext context, IAuditService audit) : IRequestHandler<RenameListValueCommand, Result<int>>
+public class RenameListValueCommandHandler(IApplicationDbContext context, IAuditService audit, ICurrentUserService currentUser) : IRequestHandler<RenameListValueCommand, Result<int>>
 {
     public async ValueTask<Result<int>> Handle(RenameListValueCommand request, CancellationToken ct)
     {
+        if (!ListValueHelpers.CanManageKey(request.Key, currentUser)) return Result<int>.Failure("Accès refusé.");
         var setting = await context.Settings.FindAsync([request.Key], ct);
         if (setting is null || setting.ValueType != "json_array") return Result<int>.Failure("Liste introuvable.");
 
@@ -175,10 +187,11 @@ public class RenameListValueCommandHandler(IApplicationDbContext context, IAudit
 // Result value = true when archived, false when deleted (mirrors DeleteFunctionalRole).
 public record DeleteListValueCommand(string Key, string Value) : IRequest<Result<bool>>;
 
-public class DeleteListValueCommandHandler(IApplicationDbContext context, IAuditService audit) : IRequestHandler<DeleteListValueCommand, Result<bool>>
+public class DeleteListValueCommandHandler(IApplicationDbContext context, IAuditService audit, ICurrentUserService currentUser) : IRequestHandler<DeleteListValueCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteListValueCommand request, CancellationToken ct)
     {
+        if (!ListValueHelpers.CanManageKey(request.Key, currentUser)) return Result<bool>.Failure("Accès refusé.");
         var setting = await context.Settings.FindAsync([request.Key], ct);
         if (setting is null || setting.ValueType != "json_array") return Result<bool>.Failure("Liste introuvable.");
 
@@ -227,13 +240,38 @@ public class DeleteListValueCommandHandler(IApplicationDbContext context, IAudit
     }
 }
 
+// ── Add a value to a list setting (CG-accessible for the member-data lists; dedup accent/case-insensitive) ──
+public record AddListValueCommand(string Key, string Value) : IRequest<Result<bool>>;
+
+public class AddListValueCommandHandler(IApplicationDbContext context, IAuditService audit, ICurrentUserService currentUser) : IRequestHandler<AddListValueCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(AddListValueCommand request, CancellationToken ct)
+    {
+        if (!ListValueHelpers.CanManageKey(request.Key, currentUser)) return Result<bool>.Failure("Accès refusé.");
+        var setting = await context.Settings.FindAsync([request.Key], ct);
+        if (setting is null || setting.ValueType != "json_array") return Result<bool>.Failure("Liste introuvable.");
+
+        var val = (request.Value ?? "").Trim();
+        if (ListValueHelpers.Rejected(val)) return Result<bool>.Failure("Valeur vide ou invalide.");
+        var items = ListValueHelpers.Parse(setting.Value);
+        if (items.Any(i => string.Equals(i, val, StringComparison.OrdinalIgnoreCase))) return Result<bool>.Failure("Cette valeur existe déjà.");
+
+        items.Add(val);
+        setting.Value = JsonSerializer.Serialize(items);
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("AddListValue", "Setting", null, newValues: new { request.Key, Value = val }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
 // ── Restore an archived value back into the active list ──
 public record UnarchiveListValueCommand(string Key, string Value) : IRequest<Result<bool>>;
 
-public class UnarchiveListValueCommandHandler(IApplicationDbContext context, IAuditService audit) : IRequestHandler<UnarchiveListValueCommand, Result<bool>>
+public class UnarchiveListValueCommandHandler(IApplicationDbContext context, IAuditService audit, ICurrentUserService currentUser) : IRequestHandler<UnarchiveListValueCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UnarchiveListValueCommand request, CancellationToken ct)
     {
+        if (!ListValueHelpers.CanManageKey(request.Key, currentUser)) return Result<bool>.Failure("Accès refusé.");
         var setting = await context.Settings.FindAsync([request.Key], ct);
         if (setting is null) return Result<bool>.Failure("Liste introuvable.");
 

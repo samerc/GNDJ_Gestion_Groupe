@@ -53,6 +53,15 @@ export function useListValueUsage(key: string, enabled = true) {
   })
 }
 
+// CG-accessible add (member-data lists) — appends a value to a json_array setting.
+export function useAddListValue() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { key: string; value: string }) => apiClient.post('/settings/list-value/add', body),
+    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ['list-usage', v.key] }); qc.invalidateQueries({ queryKey: ['settings'] }) },
+  })
+}
+
 export function useRenameListValue() {
   const qc = useQueryClient()
   return useMutation({
