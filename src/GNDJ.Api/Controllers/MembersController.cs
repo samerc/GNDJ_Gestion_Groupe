@@ -109,6 +109,30 @@ public class MembersController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Lists soft-deleted members (the "corbeille") with when each will be permanently purged. Requires members.delete.</summary>
+    [HttpGet("deleted")]
+    [HasPermission(Permissions.MembersDelete)]
+    public async Task<IActionResult> GetDeleted()
+        => Ok(await Mediator.Send(new GNDJ.Application.Members.GetDeletedMembersQuery()));
+
+    /// <summary>Restores a soft-deleted member (undo the deletion, re-enable their login). Requires members.delete.</summary>
+    [HttpPost("{id:guid}/restore")]
+    [HasPermission(Permissions.MembersDelete)]
+    public async Task<IActionResult> Restore(Guid id)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Members.RestoreMemberCommand(id));
+        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+    }
+
+    /// <summary>Permanently purges a soft-deleted member NOW (member + login + all connected data + files). Requires members.delete.</summary>
+    [HttpPost("{id:guid}/purge")]
+    [HasPermission(Permissions.MembersDelete)]
+    public async Task<IActionResult> Purge(Guid id)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Members.PurgeMemberCommand(id));
+        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+    }
+
     /// <summary>
     /// Leader/CG resets a member's password, generating a temp password (returned once in the body). Requires
     /// members.reset_password; handler additionally requires super-admin OR an active-unit-leader of the member.

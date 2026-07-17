@@ -67,7 +67,9 @@ public static class SeedData
             Permissions.All.Where(p => p != Permissions.AdminHardDelete).ToArray());
         var chefUniteProfile = CreateProfile("Chef d'unité", "chef-unite", "Gestion d'une unité",
         [
-            Permissions.MembersView, Permissions.MembersCreate, Permissions.MembersEdit, Permissions.MembersDelete, Permissions.MembersResetPassword,
+            // NOTE: no MembersCreate — only a Chef de Groupe / super-admin creates new members; a CU manages
+            // existing ones (edit, reset password, etc.).
+            Permissions.MembersView, Permissions.MembersEdit, Permissions.MembersDelete, Permissions.MembersResetPassword,
             Permissions.UnitsView, Permissions.UnitsEdit,
             Permissions.TeamsView, Permissions.TeamsCreate, Permissions.TeamsEdit, Permissions.TeamsDelete,
             Permissions.AssignmentsView, Permissions.AssignmentsCreate, Permissions.AssignmentsEdit, Permissions.AssignmentsDelete,
@@ -202,6 +204,24 @@ public static class SeedData
             }
         }
 
+        // Permissions to REVOKE from a profile if present (grants that were later restricted). Chef d'unité
+        // can no longer CREATE members — only a Chef de Groupe / super-admin does; a CU manages existing ones.
+        // Idempotent: no-op once the row is gone. Only patches these named profiles (custom profiles untouched).
+        var profileRevocations = new Dictionary<string, string[]>
+        {
+            ["chef-unite"] = [Permissions.MembersCreate],
+        };
+        foreach (var (code, revoke) in profileRevocations)
+        {
+            var profile = await context.SecurityProfiles
+                .Include(p => p.Permissions)
+                .FirstOrDefaultAsync(p => p.Code == code);
+            if (profile is null) continue;
+
+            var toRemove = profile.Permissions.Where(p => revoke.Contains(p.Permission)).ToList();
+            context.SecurityProfilePermissions.RemoveRange(toRemove);
+        }
+
         await context.SaveChangesAsync();
     }
 
@@ -227,10 +247,15 @@ public static class SeedData
         await context.SaveChangesAsync();
     }
 
-    // Assistant baseline = group-wide management WITHOUT the CG-only powers (maitrise.manage = managing
-    // the maîtrise, roles.manage_group = setting staff access). The CG tunes each per area from there.
+    // Assistant baseline = a Chef de Groupe can do everything an ACG can; the ACG differs on exactly the two
+    // capabilities the CG APPOINTS per assistant — Demandes (demande.*) and Camp BP (camp.*) — plus
+    // roles.manage_group (the "Accès maîtrise" appointment tool itself), which stays CG-only so only the CG
+    // appoints. Everything else, incl. maitrise.manage, is shared. The CG then grants Demandes/Camp to a
+    // specific ACG via Accès maîtrise (which forks that function's profile — others untouched).
     public static readonly string[] AssistantDeGroupePermissions = ChefDeGroupePermissions
-        .Where(p => p != Permissions.MaitriseManage && p != Permissions.RolesManageGroup).ToArray();
+        .Where(p => p != Permissions.DemandeView && p != Permissions.DemandeManage
+                 && p != Permissions.CampGrade && p != Permissions.CampManage
+                 && p != Permissions.RolesManageGroup).ToArray();
 
     // Ensures the assistant-de-groupe baseline exists, moves the non-CG group functions off chef-de-groupe
     // onto it (so only the CG keeps the CG-only pages), and strips CG-only powers from any forked group
@@ -242,12 +267,30 @@ public static class SeedData
         if (assistant is null)
         {
             assistant = CreateProfile("Assistant(e) de Groupe", "assistant-de-groupe",
-                "Gestion du groupe (sans gérer la maîtrise ni les accès)", AssistantDeGroupePermissions);
+                "Comme le Chef de Groupe, sauf Demandes et Camp BP (accordés par le CG)", AssistantDeGroupePermissions);
             assistant.IsGroupLevel = true;
             context.SecurityProfiles.Add(assistant);
             await context.SaveChangesAsync();
         }
-        else if (!assistant.IsGroupLevel) { assistant.IsGroupLevel = true; await context.SaveChangesAsync(); }
+        else
+        {
+            if (!assistant.IsGroupLevel) assistant.IsGroupLevel = true;
+            // Bring the BASE assistant profile in line with the baseline WITHOUT nuking unrelated admin edits:
+            //  • ADD any missing baseline perm (e.g. maitrise.manage/rentree.manage added after it was seeded);
+            //  • REVOKE only the CG-only capabilities that must never sit on the base ACG (Demandes, Camp BP and
+            //    the appointment tool) — those are delegated per-function via Accès maîtrise, not held here.
+            // Any OTHER permission an admin added to this profile via the editor is left intact. Per-function
+            // FORKED profiles (different codes, created when the CG appoints someone) are never touched here.
+            var baseline = AssistantDeGroupePermissions.ToHashSet();
+            var current = assistant.Permissions.Select(p => p.Permission).ToHashSet();
+            foreach (var p in baseline.Where(p => !current.Contains(p)))
+                context.SecurityProfilePermissions.Add(new SecurityProfilePermission { SecurityProfileId = assistant.Id, Permission = p });
+            // CG-only-relative-to-ACG = what a CG has that the ACG baseline deliberately drops (demande.*, camp.*, roles.manage_group).
+            var cgOnlyForAcg = ChefDeGroupePermissions.Except(AssistantDeGroupePermissions).ToHashSet();
+            var revoke = assistant.Permissions.Where(p => cgOnlyForAcg.Contains(p.Permission)).ToList();
+            context.SecurityProfilePermissions.RemoveRange(revoke);
+            await context.SaveChangesAsync();
+        }
 
         // Move non-CG group functions still sharing chef-de-groupe onto the assistant baseline.
         var cdg = await context.SecurityProfiles.FirstOrDefaultAsync(p => p.Code == "chef-de-groupe");
@@ -261,8 +304,11 @@ public static class SeedData
             if (toMove.Count > 0) await context.SaveChangesAsync();
         }
 
-        // Strip CG-only powers from every group-level profile except chef-de-groupe (e.g. forked ones).
-        var cgOnly = new[] { Permissions.MaitriseManage, Permissions.RolesManageGroup };
+        // Strip the CG-only APPOINTMENT tool (roles.manage_group) from every group-level profile except
+        // chef-de-groupe (incl. forked ones) — only the CG appoints. maitrise.manage is NOT stripped anymore:
+        // it's now shared with assistants. (demande.*/camp.* are left alone here — they're legitimately
+        // present on a forked profile the CG appointed; they're kept off the base profile by the sync above.)
+        var cgOnly = new[] { Permissions.RolesManageGroup };
         var strays = await context.SecurityProfilePermissions
             .Where(spp => cgOnly.Contains(spp.Permission)
                 && spp.SecurityProfile.IsGroupLevel && spp.SecurityProfile.Code != "chef-de-groupe")
@@ -386,6 +432,7 @@ public static class SeedData
             new() { Key = "member.classes", Value = "[\"8ème\",\"7ème\",\"6ème\",\"5ème\",\"4ème\",\"3ème\",\"2nde\",\"1ère\",\"Term\",\"Université\"]", Category = "members", Label = "Classes", Description = "Liste des classes disponibles dans le formulaire membre", ValueType = "json_array" },
             new() { Key = "member.cities", Value = CuratedCitiesJson, Category = "members", Label = "Villes", Description = "Liste des villes disponibles dans les formulaires d'adresse (gérable par le Chef de Groupe)", ValueType = "json_array" },
             new() { Key = "member.profession_domains", Value = ProfessionDomainsJson, Category = "members", Label = "Domaines de profession", Description = "Catégories d'activité proposées pour la profession des parents (le titre reste en texte libre)", ValueType = "json_array" },
+            new() { Key = "member.purge_after_days", Value = "30", Category = "members", Label = "Suppression définitive après (jours)", Description = "Délai après lequel un membre supprimé (corbeille) est définitivement effacé, avec son compte et toutes ses données. Avant ce délai, la suppression est réversible.", ValueType = "number" },
             new() { Key = "camp.familles_count", Value = "12", Category = "camp", Label = "Nombre de familles (Camp BP)", Description = "Nombre de familles par défaut lors de la création d'un camp BP", ValueType = "number" },
             new() { Key = "passage.enabled", Value = "false", Category = "passage", Label = "Passage annuel actif", Description = "Active ou désactive le processus de passage annuel", ValueType = "boolean" },
             new() { Key = "passage.scout_year", Value = "2026-2027", Category = "passage", Label = "Année scoute du passage", Description = "Année scoute cible pour le passage en cours", ValueType = "string" },

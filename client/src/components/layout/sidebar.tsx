@@ -37,6 +37,7 @@ import {
   ListChecks,
   Tent,
   ClipboardList,
+  Trash2,
   Image as ImageIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -57,6 +58,15 @@ function BrandMark({ className }: { className?: string }) {
 }
 
 // Admin/super admin nav
+// Personal links every member has — shown to EVERYONE, managers included (a CG/ACG is still a member with
+// their own fiche, documents and trombinoscope history). Previously these lived only in leaderNavItems, so a
+// manager (who gets adminNavItems instead) had no "Ma fiche" link at all.
+const personalNavItems = [
+  { path: '/my-profile', label: 'Ma fiche', icon: Users, permission: null },
+  { path: '/my-documents', label: 'Mes documents', icon: FileText, permission: null },
+  { path: '/my-trombinoscope', label: 'Trombinoscope', icon: ImageIcon, permission: null },
+]
+
 const adminNavItems = [
   { path: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard, permission: null },
   { path: '/members', label: 'Membres', icon: Users, permission: PERMISSIONS.MEMBERS_VIEW },
@@ -66,9 +76,6 @@ const adminNavItems = [
 
 // Unit leader nav — "Mon unité" and "Documents" only visible to CU (members.edit permission)
 const leaderNavItems = [
-  { path: '/my-profile', label: 'Ma fiche', icon: Users, permission: null },
-  { path: '/my-documents', label: 'Mes documents', icon: FileText, permission: null },
-  { path: '/my-trombinoscope', label: 'Trombinoscope', icon: ImageIcon, permission: null },
   { path: '/dashboard', label: 'Mon unité', icon: Building2, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/unit-documents', label: 'Documents', icon: FileText, permission: PERMISSIONS.DOCUMENTS_APPROVE },
@@ -102,6 +109,7 @@ const adminGroups: AdminGroup[] = [
     label: 'Gestion',
     items: [
       { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
+      { path: '/admin/deleted-members', label: 'Corbeille', icon: Trash2, permission: PERMISSIONS.MEMBERS_DELETE },
       { path: '/maitrises', label: 'Maîtrises', icon: Crown, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/group-access', label: 'Accès maîtrise', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE_GROUP },
       { path: '/admin/lists', label: 'Listes', icon: List, permission: PERMISSIONS.MAITRISE_MANAGE },
@@ -153,7 +161,8 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   // Managers (super-admin / Chef de Groupe / Assistant Chef de Groupe — any group-level role) get the admin
   // nav; individual items still filter by the user's own permissions, so an ACG only sees what they can reach.
   const isManager = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.MAITRISE_MANAGE) || !!user?.unitAccess.some(u => u.isGroupLevel)
-  const navItems = isManager ? adminNavItems : leaderNavItems
+  // Personal links first (Ma fiche / Mes documents / Trombinoscope) for EVERYONE, then the role-specific nav.
+  const navItems = [...personalNavItems, ...(isManager ? adminNavItems : leaderNavItems)]
   const visibleNav = navItems.filter((item) => !item.permission || hasPermission(item.permission))
   const visibleAdminGroups = isManager
     ? adminGroups

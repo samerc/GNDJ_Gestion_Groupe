@@ -1775,6 +1775,62 @@ lists into a single **Chef-de-Groupe-accessible** page and removed them from Set
 - Verified live with a real CG (`giorgio.rizk`): full CRUD (add/rename-cascade/archive) on écoles/classes/villes/
   professions; a super-admin still does everything. Builds clean (dotnet+tsc+eslint). DEV until deploy.
 
+### Pre-launch batch — member mgmt, permissions, deletion lifecycle (2026-07-13)
+A session of launch-prep work (all on main, pushed; DEV until the next deploy unless noted).
+- **Public /unites cards → historic foulard colours.** Each unit card header is a diagonal two-tone band in its
+  sub-group's scarf colours (2ᵉ Beyrouth solid blue · 3ᵉ blue/white · 10ᵉ blue/orange · Jamhour navy/light-blue),
+  sourced from the old site. `components/public/foulard.tsx` (`foulardColors(name)` maps by sub-group in the unit
+  name). Dropped the broken-looking Compass gradient + the redundant per-card age; unified header/description/grid.
+- **Manual member creation upgraded** (`CreateMemberCommand`): optional **father/mother name + mother maiden name**
+  → creates linked Père/Mère **Guardians**; **Classe optional**; optional **Unité placement** → an active
+  assignment (no team, unit-type default function) so the member shows on the CU roster immediately; duplicate
+  username now disambiguated with the **father's initial** (`georges.b.testparent`) instead of `x`. Unit placement
+  is unit-scoped (a non-super-admin can only place in their own units).
+- **Member creation restricted to CG / super-admin.** `members.create` removed from **chef-unite** (seed + an
+  idempotent revoke in `SeedMissingPermissionsAsync` so existing DBs self-patch on startup + live dev DB). The
+  "Nouveau membre" button is gated on `members.create`.
+- **ACG = CG except Demandes + Camp BP.** `AssistantDeGroupePermissions` = `ChefDeGroupePermissions` minus
+  `demande.*`, `camp.*`, `roles.manage_group` (the appointment tool stays CG-only so only the CG appoints). ACG
+  now KEEPS `maitrise.manage`/`members.reset_password`/`rentree.manage`. `SeedAssistantDeGroupeProfileAsync` now
+  **targeted-syncs** the base profile (adds missing baseline perms, revokes only the CG-only ones — doesn't nuke
+  other admin edits). Added a **"Camp BP" delegable area** to *Accès maîtrise* (Demandes already existed) and
+  removed `maitrise.manage` from `NonDelegatable` so an appointed ACG's forked profile keeps it. So a CG appoints a
+  specific ACG to Demandes and/or Camp BP per function.
+- **ACHG → ACG unify (data).** The active group assistant role was coded `ACHG` while the pre-consolidation `ACG`
+  lingered as an archived role (55 historical assignments). Merged: moved that history onto the active role, deleted
+  the empty archived ACG, renamed `ACHG`→`ACG`. Done on **live dev DB**; shipped to other envs via the new patch
+  system (below). Seed/migration-tool still say `ACHG` — alignment deferred (a re-import/fresh DB isn't affected
+  since the ScoutStructure seeder is guarded).
+- **Automatic prod data-patch runner.** `deploy/patches/*.sql` = idempotent, reviewed **data** patches (not carried
+  by EF migrations/seeders). `DataPatchRunner` (wired in Program.cs after migrations+seeders) applies each unrun
+  patch once, in filename order, each in its own transaction, tracked in a **`data_patches`** table (runs at most
+  once/DB). `.sql` copied into the app output at publish. Files must have NO `BEGIN/COMMIT` (the runner owns the txn)
+  and are idempotent; a failing patch rolls back + logs + is skipped (never crashes startup). First patch:
+  **`001_achg_to_acg.sql`** (the unify above). See `deploy/patches/README.md`. This keeps prod's member data
+  untouched — only committed patch files run; dev-only cleanup never becomes a file.
+- **Dashboard per-unit counts fixed.** The group dashboard counted **assignment rows over the whole scout year**
+  (incl. mid-year leavers + double-counting members with >1 assignment row) → C1 showed 121 vs 86 real. Now counts
+  **distinct members**, and for the **in-progress year** a point-in-time "today" snapshot (past years keep the
+  window, still distinct). Applied consistently so per-unit sums to the total. Matches the public site (Meute 2 = 73
+  both places).
+- **Sidebar: managers get "Ma fiche".** A group-level user (CG/ACG/super-admin) was shown `adminNavItems` which
+  lacked the personal links — extracted `personalNavItems` (Ma fiche / Mes documents / Trombinoscope) shown to
+  EVERYONE, then the role nav.
+- **Member deletion = two-phase lifecycle.** DELETE `/members/{id}` (members.delete) now **soft-deletes + disables
+  the login immediately** (clears refresh token) — hidden + can't sign in, but fully restorable. A daily
+  **`MemberPurgeBackgroundService`** permanently purges members soft-deleted > `member.purge_after_days` (new
+  setting, default 30): the member, login, and ALL connected data (contacts, guardian links + orphaned shared
+  guardians, documents+files, cotisations, progressions, assignments, passages, relationships, camp entries) in
+  FK-safe order via `MemberPurgeService` (raw SQL bypasses the soft-delete interceptor; RESTRICT children cleared
+  first, demande unlinked, member row cascades the rest). Login made defensive (null member → clean auth failure,
+  no 500). New **"Corbeille"** admin page (`/admin/deleted-members`, sidebar Gestion, members.delete): lists deleted
+  members with a purge countdown + **Restaurer** (undo + re-enable login) and **Supprimer définitivement** (purge
+  now). No migration (reuses IsDeleted/DeletedAt). NOTE: the 53 members soft-deleted 2026-06-24 (merge losers/
+  cleanup) will auto-purge ~2026-07-24 once live.
+- **Dependencies bumped** (pre-launch, in-range, 0 vulns both stacks): Npgsql.EFCore 10.0.2→10.0.3, QuestPDF
+  2026.7.0→2026.7.1; frontend `npm update` (84 pkgs — Radix, TipTap 3.27.3, vite 8.1.4, react-router 8.2, dompurify
+  3.4.12, lucide 1.24). TypeScript 6→7 (major) deferred. Builds + 4 tests pass.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

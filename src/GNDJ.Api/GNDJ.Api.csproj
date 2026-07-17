@@ -35,6 +35,11 @@
     <None Update="Assets\header-logo.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- One-off DATA patches: shipped into <output>/DataPatches and applied once each at startup by
+         DataPatchRunner (tracked in the data_patches table). See deploy/patches/README.md. -->
+    <None Include="..\..\deploy\patches\*.sql" Link="DataPatches\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

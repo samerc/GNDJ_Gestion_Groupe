@@ -80,6 +80,12 @@ export interface MemberFormData {
   medicalNotes?: string | null
   allergies?: string | null
   notes?: string | null
+  // Optional parents captured on manual creation → create Père/Mère guardians (ignored on update).
+  fatherName?: string | null
+  motherName?: string | null
+  motherMaidenName?: string | null
+  // Optional unit placement on manual creation → an active assignment (no team, default function). Ignored on update.
+  unitId?: string | null
 }
 
 // Paginated member list. alumni=true switches to former-members (identity only); default is active.
@@ -124,6 +130,41 @@ export function useDeleteMember() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiClient.delete(`/members/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['members'] }),
+  })
+}
+
+// ── Corbeille (trash): soft-deleted members, restorable until they are permanently purged ──
+export interface DeletedMember {
+  id: string
+  firstName: string
+  lastName: string
+  cardNumber: string | null
+  deletedAt: string
+  purgeAt: string   // when the background job will permanently delete this member
+}
+
+export function useDeletedMembers() {
+  return useQuery({
+    queryKey: ['members', 'deleted'],
+    queryFn: () => apiClient.get<DeletedMember[]>('/members/deleted').then(r => r.data),
+  })
+}
+
+// Restore (undo the deletion + re-enable the login). Invalidates both the active lists and the trash.
+export function useRestoreMember() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.post(`/members/${id}/restore`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['members'] }),
+  })
+}
+
+// Permanently purge now (skips the wait). Irreversible.
+export function usePurgeMember() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.post(`/members/${id}/purge`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['members'] }),
   })
 }

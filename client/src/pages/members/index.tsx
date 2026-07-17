@@ -685,6 +685,7 @@ function SortHeader({ label, field, current, dir, onSort }: { label: string; fie
 // ─── Main page ───────────────────────────
 export default function MembersPage() {
   const { id: routeMemberId } = useParams<{ id: string }>()
+  const canCreate = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_CREATE)) // CG / super-admin only
   const pinnedNationalities = useSettingArray('pinned_nationalities')
   const schools = useSettingArray('member.schools')
   const defaultSchool = useSettingValue('member.default_school')
@@ -739,7 +740,7 @@ export default function MembersPage() {
   const createMutation = useCreateMember()
 
   const openCreate = () => {
-    setForm({ firstName: '', lastName: '', dateOfBirth: '', gender: '', bloodType: '', nationality: '', school: defaultSchool ?? '', classe: '', section: '', externalCardNumber: '' })
+    setForm({ firstName: '', lastName: '', dateOfBirth: '', gender: '', bloodType: '', nationality: '', school: defaultSchool ?? '', classe: '', section: '', externalCardNumber: '', fatherName: '', motherName: '', motherMaidenName: '', unitId: '' })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -749,7 +750,7 @@ export default function MembersPage() {
     setError('')
     if (!validate({ firstName: !form.firstName, lastName: !form.lastName })) return
     try {
-      const payload = { ...form, dateOfBirth: form.dateOfBirth || null, gender: form.gender || null, bloodType: form.bloodType || null, nationality: form.nationality || null, school: form.school || null, classe: form.classe || null, section: form.section || null }
+      const payload = { ...form, dateOfBirth: form.dateOfBirth || null, gender: form.gender || null, bloodType: form.bloodType || null, nationality: form.nationality || null, school: form.school || null, classe: form.classe || null, section: form.section || null, fatherName: form.fatherName || null, motherName: form.motherName || null, motherMaidenName: form.motherMaidenName || null, unitId: form.unitId || null }
       const result = await createMutation.mutateAsync(payload)
       toast.success('Membre créé')
       setFormOpen(false)
@@ -775,7 +776,7 @@ export default function MembersPage() {
                 </Button>
               </span>
             </Tip>
-            <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />Nouveau membre</Button>
+            {canCreate && <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />Nouveau membre</Button>}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -1000,10 +1001,11 @@ export default function MembersPage() {
                 })()}
               </div>
               <div className="space-y-2">
-                <RequiredLabel required>Classe</RequiredLabel>
-                <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v }))}>
+                <RequiredLabel>Classe</RequiredLabel>
+                <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v === '__clear__' ? '' : v }))}>
                   <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__clear__">-- Aucune --</SelectItem>
                     {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -1017,6 +1019,40 @@ export default function MembersPage() {
               <div className="space-y-2">
                 <RequiredLabel>Numéro de carte (SDL/GDL)</RequiredLabel>
                 <Input value={form.externalCardNumber || ''} onChange={(e) => setForm(f => ({ ...f, externalCardNumber: e.target.value }))} placeholder="Optionnel" maxLength={50} />
+              </div>
+            </div>
+            {/* Optional unit placement: creates an active assignment (no team, default function) so the member
+                shows on the CU's roster immediately. Options are the units the current user can access. */}
+            <div className="space-y-2">
+              <RequiredLabel>Unité</RequiredLabel>
+              <Select value={form.unitId || ''} onValueChange={(v) => setForm(f => ({ ...f, unitId: v === '__clear__' ? '' : v }))}>
+                <SelectTrigger><SelectValue placeholder="Aucune (à affecter plus tard)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__clear__">Aucune (à affecter plus tard)</SelectItem>
+                  {units?.items.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Le membre sera placé dans l'unité (sans équipe, fonction par défaut) et visible par le chef d'unité.</p>
+            </div>
+            {/* Parents (optional): creates linked Père/Mère guardians. The father's initial also
+                disambiguates a duplicate username. */}
+            <div className="space-y-4 rounded-lg border border-border/60 bg-muted/30 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Parents (facultatif)</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <RequiredLabel>Nom du père</RequiredLabel>
+                  <Input value={form.fatherName || ''} onChange={(e) => setForm(f => ({ ...f, fatherName: e.target.value }))} placeholder="Prénom du père" maxLength={100} />
+                </div>
+                <div className="space-y-2">
+                  <RequiredLabel>Nom de la mère</RequiredLabel>
+                  <Input value={form.motherName || ''} onChange={(e) => setForm(f => ({ ...f, motherName: e.target.value }))} placeholder="Prénom de la mère" maxLength={100} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <RequiredLabel>Nom de jeune fille (mère)</RequiredLabel>
+                  <Input value={form.motherMaidenName || ''} onChange={(e) => setForm(f => ({ ...f, motherMaidenName: e.target.value.toUpperCase() }))} placeholder="Nom de famille de la mère" maxLength={100} />
+                </div>
               </div>
             </div>
             <DialogFooter>

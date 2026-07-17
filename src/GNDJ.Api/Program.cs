@@ -81,6 +81,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<GNDJ.Api.Services.EmailQueueBackgroundService>();
+builder.Services.AddHostedService<GNDJ.Api.Services.MemberPurgeBackgroundService>();
 
 // Performance: Response compression (gzip + brotli)
 builder.Services.AddResponseCompression(options =>
@@ -323,6 +324,14 @@ using (var scope = app.Services.CreateScope())
     await SeedData.SeedFunctionalRoleRanksAsync(context);
     await SeedData.SeedRentreeTemplateAsync(context);
     await SeedData.SeedRentreeActionKeysAsync(context);
+
+    // One-off DATA patches (deploy/patches/*.sql, copied to <ContentRoot>/DataPatches on publish). Applied
+    // exactly once each — tracked in the data_patches table — for data changes the migrations/seeders don't
+    // carry. See deploy/patches/README.md.
+    // AppContext.BaseDirectory (the app's binary folder) is where the .sql files are copied — this matches
+    // both `dotnet run` (bin/…) and a published app (the deploy folder), unlike ContentRootPath.
+    var patchLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DataPatches");
+    await DataPatchRunner.RunAsync(context, Path.Combine(AppContext.BaseDirectory, "DataPatches"), patchLogger);
 }
 
 // Middleware pipeline

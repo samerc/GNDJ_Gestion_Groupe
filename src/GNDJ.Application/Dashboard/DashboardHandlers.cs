@@ -171,8 +171,16 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
         // before the year ends, and not already ended at/before it starts (an assignment ending exactly
         // on Oct 1 belongs to the year that just ended).
         var (windowStart, windowEnd) = ScoutYearWindow(request.ScoutYear);
-        var membersInYear = _context.Members
-            .Where(m => m.Assignments.Any(a => a.StartDate < windowEnd && (a.EndDate == null || a.EndDate > windowStart)));
+        // For the IN-PROGRESS scout year the overlap window runs into the future, so a plain overlap counts
+        // everyone who was in a unit at ANY point this year — including members who have since LEFT — which
+        // overstates the live roster. So: current/future year → a point-in-time "today" snapshot (members
+        // whose assignment is still open now); a past year → the overlap window (who was active during it).
+        // Both count DISTINCT members, never assignment rows (a member with >1 assignment in a unit counts once).
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var yearInProgress = windowEnd > today;
+        var membersInYear = yearInProgress
+            ? _context.Members.Where(m => m.Assignments.Any(a => a.EndDate == null && a.StartDate <= today))
+            : _context.Members.Where(m => m.Assignments.Any(a => a.StartDate < windowEnd && (a.EndDate == null || a.EndDate > windowStart)));
 
         // Member counts via SQL aggregates (avoids materializing every member row just to count).
         var genderCounts = await membersInYear
@@ -218,25 +226,35 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
             : 0;
         var missingDocuments = activeMemberIds.Count - membersWithAllDocs;
 
-        // Unit breakdown with doc compliance (reuses docCountsByMember above)
+        // Unit breakdown — DISTINCT members per unit (not assignment rows), using the same year predicate as
+        // the totals above. Materialize the (unit, member) pairs, dedupe, and keep only valid in-year members
+        // (activeMemberIds already excludes soft-deleted ones), so the per-unit counts sum to the total.
+        var membershipPairs = await (yearInProgress
+                ? _context.MemberAssignments.Where(a => a.EndDate == null && a.StartDate <= today)
+                : _context.MemberAssignments.Where(a => a.StartDate < windowEnd && (a.EndDate == null || a.EndDate > windowStart)))
+            .Select(a => new { a.UnitId, a.MemberId })
+            .Distinct()
+            .ToListAsync(ct);
+        var membersByUnit = membershipPairs
+            .Where(x => activeMemberIds.Contains(x.MemberId))
+            .GroupBy(x => x.UnitId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.MemberId).ToList());
+
         var units = await _context.Units
             .Where(u => u.IsActive)
             .OrderBy(u => u.Name)
-            .Select(u => new
-            {
-                u.Code, u.Name,
-                MemberCount = u.Assignments.Count(a => a.StartDate < windowEnd && (a.EndDate == null || a.EndDate > windowStart)),
-                MemberIds = u.Assignments.Where(a => a.StartDate < windowEnd && (a.EndDate == null || a.EndDate > windowStart)).Select(a => a.MemberId).ToList()
-            })
+            .Select(u => new { u.Id, u.Code, u.Name })
             .ToListAsync(ct);
 
         var unitBreakdown = units.Select(u =>
         {
+            var ids = membersByUnit.GetValueOrDefault(u.Id, []);
+            var count = ids.Count;
             var compliant = activeDocTypeCount > 0
-                ? u.MemberIds.Count(mid => docCountsByMember.GetValueOrDefault(mid, 0) >= activeDocTypeCount)
-                : u.MemberCount;
-            var pct = u.MemberCount > 0 ? (int)Math.Round(100.0 * compliant / u.MemberCount) : 100;
-            return new UnitBreakdownDto(u.Code, u.Name, u.MemberCount, pct);
+                ? ids.Count(mid => docCountsByMember.GetValueOrDefault(mid, 0) >= activeDocTypeCount)
+                : count;
+            var pct = count > 0 ? (int)Math.Round(100.0 * compliant / count) : 100;
+            return new UnitBreakdownDto(u.Code, u.Name, count, pct);
         }).ToList();
 
         // Age groups — ages as of the start of the selected scout year (Oct 1), so past years show the

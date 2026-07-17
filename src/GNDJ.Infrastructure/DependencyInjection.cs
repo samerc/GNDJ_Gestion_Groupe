@@ -62,6 +62,9 @@ public static class DependencyInjection
         services.AddSingleton<EmailQueue>();
         services.AddSingleton<IEmailQueue>(sp => sp.GetRequiredService<EmailQueue>());
 
+        // Permanent purge of soft-deleted members past the retention window (driven by a hosted job).
+        services.AddScoped<IMemberPurgeService, MemberPurgeService>();
+
         // PDF services
         QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
         services.AddSingleton<IReceiptService, ReceiptService>();

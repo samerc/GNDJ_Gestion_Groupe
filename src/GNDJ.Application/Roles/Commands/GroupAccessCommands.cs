@@ -25,6 +25,9 @@ public static class GroupAccessAreas
         new("progression", "Progression", [P.ProgressionView], [P.ProgressionManage]),
         new("passages", "Passages", [P.PassageView], [P.PassagePropose, P.PassageManage]),
         new("demandes", "Demandes d'inscription", [P.DemandeView], [P.DemandeManage]),
+        // Camp BP is CG-only by default; the CG appoints a specific ACG here. Lecture = grade participants,
+        // Complet = full camp management (draft familles, jeux, reports).
+        new("camp", "Camp BP", [P.CampGrade], [P.CampManage]),
         new("site", "Site public", [], [P.ContentManage]),
         new("audit", "Journal d'audit", [P.AuditView], []),
     ];
@@ -33,9 +36,10 @@ public static class GroupAccessAreas
     // CG who edits it holds them — prevents an assistant from gaining admin or access-management powers.
     public static readonly HashSet<string> NonDelegatable =
     [
-        // CG-only powers (managing the maîtrise + setting access) + system/admin permissions: never
-        // granted to an assistant profile, even if the CG editing it holds them.
-        P.MaitriseManage, P.RolesManage, P.RolesManageGroup, P.AssociationsManage, P.UnitTypesManage,
+        // The CG-only APPOINTMENT tool (roles.manage_group) + system/admin permissions: never granted to a
+        // delegated profile, even if the CG editing it holds them. NOTE: maitrise.manage is NOT here — it's
+        // shared with assistants, so a forked (appointed) ACG profile must keep it rather than have it stripped.
+        P.RolesManage, P.RolesManageGroup, P.AssociationsManage, P.UnitTypesManage,
         P.UnitsCreate, P.UnitsEdit, P.UnitsDelete, P.AdminHardDelete,
     ];
 

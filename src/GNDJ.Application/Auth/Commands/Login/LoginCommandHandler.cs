@@ -31,10 +31,13 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
             .Include(u => u.Member)
             .FirstOrDefaultAsync(u => u.Email == request.Email && u.IsActive, cancellationToken);
 
-        if (user is null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
+        // Also treat a missing/deleted member as an auth failure: a soft-deleted member's User is deactivated
+        // (so the IsActive filter above already excludes it), but the query filter would also null out Member
+        // — guard so we never dereference it below (defensive; avoids a 500 if a user's member is ever gone).
+        if (user is null || user.Member is null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
         {
             await _auditService.LogAsync("LoginFailed", "User", user?.Id,
-                newValues: new { Email = request.Email, Reason = user is null ? "Utilisateur introuvable" : "Mot de passe incorrect" },
+                newValues: new { Email = request.Email, Reason = user is null ? "Utilisateur introuvable" : user.Member is null ? "Membre supprimé" : "Mot de passe incorrect" },
                 cancellationToken: cancellationToken);
             return Result<AuthResponse>.Failure("Adresse courriel ou mot de passe incorrect.");
         }
