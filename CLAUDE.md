@@ -1831,6 +1831,40 @@ A session of launch-prep work (all on main, pushed; DEV until the next deploy un
   2026.7.0→2026.7.1; frontend `npm update` (84 pkgs — Radix, TipTap 3.27.3, vite 8.1.4, react-router 8.2, dompurify
   3.4.12, lucide 1.24). TypeScript 6→7 (major) deferred. Builds + 4 tests pass.
 
+### Pre-launch stress test + hardening (2026-07-13)
+Ran a live load test (150-concurrent login storm, concurrent public reads/registrations, double-submit, bad-input
+battery) against the running API + 3 parallel code audits (enrollment flow, concurrency/hangs, uploads/reports),
+targeting the busiest week (September enrollment: non-technical parents hammering the demande portal). Fixes (all
+verified live, committed; DEV until deploy):
+- **DB constraint → clean 4xx** (`ExceptionHandlingMiddleware`): a `DbUpdateException` wrapping a `PostgresException`
+  now maps SqlState → 400/409 (23505→409 "existe déjà", 23502/22001/23514→400, 23503→400) instead of an opaque
+  500. This is the root fix — a parent double-clicking "S'inscrire" now gets **409** (verified), field overflows
+  → 400, card-number collisions → retryable, etc.
+- **Async bcrypt gate** (`PasswordHasher` → `HashAsync`/`VerifyAsync` with `WaitAsync` + `Task.Run`; `IPasswordHasher`
+  made async; all ~10 callers awaited): a login storm no longer starves the thread pool. Verified: public reads
+  during a 150-login storm went **1426ms → 317ms p50, 0 errors**. (ApiKeyMiddleware still BCrypt-direct — low vol.)
+- **QuestPDF layout failure → 400** (middleware, namespace check): one member with pathological data no longer
+  500s a whole trombinoscope/roster/cards report. Plus `GetInitials` null-guard (both PDF services).
+- **Excel export** sheet-name sanitized (a unit named ".../..." with `/ \ ? * [ ]` no longer crashes ClosedXML).
+- **Document download/zip**: `FileStream` open wrapped in try/catch (a file deleted/locked at download time →
+  404 / skipped, not 500).
+- **Email queue** logs a Warning when the bounded channel is full (was silently dropping mail during a big batch).
+- **Doc upload limit is settings-driven everywhere** (`member-documents.tsx`): the "Formats … — Max N Mo" text,
+  the `accept` attr, AND a new client-side size/type pre-check all read `documents.max_file_size_mb` /
+  `documents.allowed_file_types` (via `useSettingValue`/`useSettingArray`, `GET /settings/{key}` is open to any
+  auth user) — the on-screen limit always matches what the server enforces (was hardcoded "10 Mo" while the setting
+  default is 5).
+- Verified SAFE (no change): advisory locks (distinct keys, no deadlock pair, bcrypt/email outside the lock),
+  email worker (timeout+retry+bounded concurrency, can't stall the app or OOM), rate limiting (per-IP w/ CF real
+  IP), path-traversal + magic-byte upload guards. 150 concurrent → 0 crashes/timeouts even on the 2-core dev box.
+- **OPEN go-live items (ops/decisions, NOT code)** — see memory [[project-email-golive]]: (1) DEPLOY this to prod;
+  (2) **CLEAR `email.override_recipient`** or parents never get acceptance/decline mail (biggest enrollment
+  blocker); (3) set an explicit **prod DB pool size** — recommend `Maximum Pool Size=150;Minimum Pool Size=5` in
+  the prod connection string + Postgres `max_connections≥200` (default 100 could bottleneck at high concurrency);
+  (4) `require_email_verification` will be turned ON for launch — that REQUIRES #2 (working email) first, else a
+  parent whose verification mail never arrives is stuck (no admin manual-verify exists yet — consider adding).
+  Forms rate limit (10/min/IP) confirmed fine (a parent can't fill a demande that fast).
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

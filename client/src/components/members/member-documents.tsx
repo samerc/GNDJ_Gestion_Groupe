@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { useState, useRef } from 'react'
 import { useMemberDocuments, useUploadDocument, useReviewDocument, useDeleteDocument, downloadDocument, type MemberDocumentDto } from '@/services/document-service'
 import { useDocumentTypeList, type DocumentTypeListDto } from '@/services/document-type-service'
+import { useSettingValue, useSettingArray } from '@/services/settings-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
@@ -45,6 +46,14 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const reviewMutation = useReviewDocument(memberId)
   const deleteMutation = useDeleteDocument(memberId)
 
+  // Upload limits come from settings (documents.max_file_size_mb / documents.allowed_file_types) — shown to
+  // the user AND enforced client-side — so the on-screen text always matches what the server actually accepts.
+  const maxSizeMb = Number(useSettingValue('documents.max_file_size_mb')) || 5
+  const allowedTypesRaw = useSettingArray('documents.allowed_file_types')
+  const allowedTypes = allowedTypesRaw.length > 0 ? allowedTypesRaw : ['pdf', 'jpg', 'jpeg', 'png']
+  const acceptAttr = allowedTypes.map((t) => '.' + t).join(',')
+  const formatsLabel = [...new Set(allowedTypes.map((t) => t.toUpperCase()))].join(', ')
+
   const [reviewOpen, setReviewOpen] = useState<MemberDocumentDto | null>(null)
   const [deleting, setDeleting] = useState<MemberDocumentDto | null>(null)
   const [error, setError] = useState('')
@@ -58,6 +67,17 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
 
   const handleUploadForType = async (docType: DocumentTypeListDto, file: File) => {
     setError('')
+    // Client-side guards (match the server) so a careless upload gets an instant, readable message with the
+    // real limit instead of waiting for a server 400 — the limits come from settings.
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+    if (!allowedTypes.includes(ext)) {
+      toast.error(`Type de fichier non autorisé. Formats acceptés : ${formatsLabel}.`)
+      return
+    }
+    if (file.size > maxSizeMb * 1024 * 1024) {
+      toast.error(`Le fichier est trop volumineux (max ${maxSizeMb} Mo).`)
+      return
+    }
     const today = new Date().toISOString().split('T')[0]
     const formData = new FormData()
     formData.append('memberId', memberId)
@@ -284,13 +304,13 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground">Formats : PDF, JPG, PNG — Max 10 Mo</p>
+      <p className="text-xs text-muted-foreground">Formats : {formatsLabel} — Max {maxSizeMb} Mo</p>
 
       {/* Hidden file input for direct upload */}
       <input
         ref={fileInputRef}
         type="file"
-        accept=".pdf,.jpg,.jpeg,.png"
+        accept={acceptAttr}
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0]
