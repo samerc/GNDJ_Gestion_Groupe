@@ -1,6 +1,7 @@
 import { Link } from 'react-router'
-import { ArrowRight, Compass, Users } from 'lucide-react'
+import { ArrowRight, Users } from 'lucide-react'
 import { PageHero } from '@/components/public/page-hero'
+import { foulardColors } from '@/components/public/foulard'
 import { usePublicUnits, type PublicUnitListItem } from '@/services/public-service'
 
 // Format an age range into a French label, tolerating either bound being absent (returns null if both are).
@@ -11,21 +12,24 @@ function ageLabel(min: number | null, max: number | null) {
   return null
 }
 
-// Single unit tile linking to its public detail page.
+// Single unit tile linking to its public detail page. Header is a diagonal two-tone band in the unit's
+// historic foulard (scarf) colours — its sub-group identity. Age is intentionally omitted here: it's
+// identical for every unit in the branch and already shown once in the section header.
 function UnitCard({ unit }: { unit: PublicUnitListItem }) {
-  const age = ageLabel(unit.ageMin, unit.ageMax)
+  const { a, b } = foulardColors(unit.name)
   return (
     <Link
       to={`/unites/${unit.slug}`}
       className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5"
     >
-      <div className="relative flex h-28 items-center justify-center bg-gradient-to-br from-primary/15 to-accent/15">
-        <Compass className="h-8 w-8 text-primary/40" />
-      </div>
+      {/* Foulard colours split on the diagonal (top-left / bottom-right). Solid scarves (f2) read as one colour. */}
+      <div
+        className="h-20 border-b border-border/60"
+        style={{ background: `linear-gradient(to top right, ${a} 0 49.5%, ${b} 50.5% 100%)` }}
+      />
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="font-semibold">{unit.name}</h3>
-        {age && <span className="mt-0.5 text-xs font-medium uppercase tracking-wider text-accent">{age}</span>}
-        <div className="mt-3 flex flex-1 items-end justify-between">
+        <h3 className="font-semibold leading-snug">{unit.name}</h3>
+        <div className="mt-4 flex flex-1 items-end justify-between">
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <Users className="h-3.5 w-3.5" /> {unit.memberCount} membres
           </span>
@@ -58,24 +62,35 @@ export default function PublicUnitsPage() {
         ) : !groups || groups.length === 0 ? (
           <p className="text-muted-foreground">Les unités seront bientôt présentées ici.</p>
         ) : (
-          <div className="space-y-14">
+          <div className="space-y-16">
             {groups.map((group) => {
               const age = ageLabel(group.ageMin, group.ageMax)
               return (
                 <div key={group.unitTypeName}>
-                  <div className="mb-6 flex items-center gap-3">
+                  {/* Branch header + description share one block, set off by the branch colour bar, so the
+                      intro text reads as a caption for the cards below it rather than a floating paragraph. */}
+                  <div className="mb-7 flex gap-4">
                     <span
-                      className="h-7 w-1.5 rounded-full"
+                      className="mt-1 w-1.5 shrink-0 self-stretch rounded-full"
                       style={{ backgroundColor: group.color ?? 'var(--primary)' }}
                     />
-                    <div>
-                      <h2 className="text-2xl font-bold tracking-tight">{group.unitTypeName}</h2>
-                      {age && <p className="text-sm text-muted-foreground">{age}</p>}
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <h2 className="text-2xl font-bold tracking-tight">{group.unitTypeName}</h2>
+                        {age && (
+                          <span
+                            className="text-xs font-semibold uppercase tracking-wider"
+                            style={{ color: group.color ?? 'var(--primary)' }}
+                          >
+                            {age}
+                          </span>
+                        )}
+                      </div>
+                      {group.description && (
+                        <p className="mt-2 max-w-3xl text-pretty leading-relaxed text-muted-foreground">{group.description}</p>
+                      )}
                     </div>
                   </div>
-                  {group.description && (
-                    <p className="mb-6 max-w-3xl text-pretty leading-relaxed text-muted-foreground">{group.description}</p>
-                  )}
                   <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                     {group.units.map((u) => <UnitCard key={u.slug} unit={u} />)}
                   </div>
