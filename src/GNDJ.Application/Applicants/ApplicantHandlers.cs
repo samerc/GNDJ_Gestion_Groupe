@@ -205,10 +205,11 @@ public class RegisterApplicantCommandHandler(IApplicationDbContext context, IPas
 
         // Terms & conditions are accepted AFTER account creation, on a separate screen (AcceptTermsCommand) —
         // NOT here. New accounts start with TermsAcceptedAt = null; the portal gates on it until accepted.
+        var passwordHash = await hasher.HashAsync(request.Password);
         var account = new ApplicantAccount
         {
             Email = addr,
-            PasswordHash = hasher.Hash(request.Password),
+            PasswordHash = passwordHash,
             ContactName = string.IsNullOrWhiteSpace(request.ContactName) ? null : request.ContactName.Trim(),
             EmailVerified = false,
             EmailVerificationToken = Guid.NewGuid().ToString("N"),
@@ -293,7 +294,7 @@ public class LoginApplicantCommandHandler(IApplicationDbContext context, IPasswo
     {
         var email = request.Email.Trim().ToLowerInvariant();
         var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Email == email, ct);
-        if (account is null || !account.IsActive || !hasher.Verify(request.Password, account.PasswordHash))
+        if (account is null || !account.IsActive || !await hasher.VerifyAsync(request.Password, account.PasswordHash))
             return Result<ApplicantAuthDto>.Failure("Email ou mot de passe incorrect.");
 
         var refresh = tokens.GenerateRefreshToken();

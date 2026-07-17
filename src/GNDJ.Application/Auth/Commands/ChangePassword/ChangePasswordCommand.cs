@@ -36,11 +36,11 @@ public class ChangePasswordCommandHandler(
         if (user is null)
             return Result<bool>.Failure("Utilisateur introuvable.");
 
-        if (!passwordHasher.Verify(request.CurrentPassword, user.PasswordHash))
+        if (!await passwordHasher.VerifyAsync(request.CurrentPassword, user.PasswordHash))
             return Result<bool>.Failure("Le mot de passe actuel est incorrect.");
 
         // Changing the password invalidates other sessions by clearing the refresh token.
-        user.PasswordHash = passwordHasher.Hash(request.NewPassword);
+        user.PasswordHash = await passwordHasher.HashAsync(request.NewPassword);
         user.RefreshToken = null;
         user.RefreshTokenExpiry = null;
 

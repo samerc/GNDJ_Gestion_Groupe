@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using GNDJ.Application.Common.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace GNDJ.Infrastructure.Services;
 
@@ -9,6 +10,10 @@ namespace GNDJ.Infrastructure.Services;
 // backlog — the worker drains continuously and the largest batch is ~100 — so in practice it never fills.
 public class EmailQueue : IEmailQueue
 {
+    private readonly ILogger<EmailQueue> _logger;
+
+    public EmailQueue(ILogger<EmailQueue> logger) => _logger = logger;
+
     private readonly Channel<EmailJob> _channel = Channel.CreateBounded<EmailJob>(
         new BoundedChannelOptions(10_000)
         {
@@ -18,5 +23,12 @@ public class EmailQueue : IEmailQueue
 
     public ChannelReader<EmailJob> Reader => _channel.Reader;
 
-    public void Enqueue(EmailJob job) => _channel.Writer.TryWrite(job);
+    // TryWrite never blocks; on a full queue it returns false and the message would be silently dropped —
+    // log it loudly (Warning → also hits the DB sink) so a backed-up queue during a big batch is visible.
+    public void Enqueue(EmailJob job)
+    {
+        if (!_channel.Writer.TryWrite(job))
+            _logger.LogWarning("Email queue full ({Capacity}) — dropped '{Code}' to {To}. SMTP may be stuck/slow.",
+                10_000, job.TemplateCode, job.ToEmail);
+    }
 }

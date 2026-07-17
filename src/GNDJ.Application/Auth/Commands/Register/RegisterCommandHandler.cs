@@ -53,11 +53,12 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
         });
 
         // Create user
+        var passwordHash = await _passwordHasher.HashAsync(request.Password);
         var user = new User
         {
             MemberId = member.Id,
             Email = request.Email,
-            PasswordHash = _passwordHasher.Hash(request.Password),
+            PasswordHash = passwordHash,
             IsActive = true,
             IsSuperAdmin = false
         };

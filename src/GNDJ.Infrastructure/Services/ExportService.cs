@@ -34,7 +34,11 @@ public class ExportService : IExportService
         var columns = ResolveColumns(data.Columns);
 
         using var workbook = new XLWorkbook();
-        var sheetName = data.Title.Length > 31 ? data.Title[..31] : data.Title;
+        // Excel forbids : \ / ? * [ ] in a sheet name (ClosedXML throws) and caps it at 31 chars. Real unit
+        // names can contain "/" (e.g. "10ème / Jamhour"), so sanitize before adding the sheet.
+        var safeTitle = System.Text.RegularExpressions.Regex.Replace(data.Title ?? "", @"[:\\/?*\[\]]", "-").Trim();
+        if (string.IsNullOrEmpty(safeTitle)) safeTitle = "Export";
+        var sheetName = safeTitle.Length > 31 ? safeTitle[..31] : safeTitle;
         var worksheet = workbook.Worksheets.Add(sheetName);
 
         // Header row

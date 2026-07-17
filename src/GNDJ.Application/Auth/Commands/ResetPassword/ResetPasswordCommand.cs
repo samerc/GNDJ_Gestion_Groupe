@@ -40,7 +40,7 @@ public class ResetPasswordCommandHandler(
             return Result<bool>.Failure("Lien de réinitialisation invalide ou expiré.");
 
         // Consume the token and invalidate any existing sessions (refresh token) once the password changes.
-        user.PasswordHash = passwordHasher.Hash(request.NewPassword);
+        user.PasswordHash = await passwordHasher.HashAsync(request.NewPassword);
         user.PasswordResetToken = null;
         user.PasswordResetTokenExpiry = null;
         user.RefreshToken = null;

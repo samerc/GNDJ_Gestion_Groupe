@@ -68,10 +68,11 @@ public class CreateApiKeyCommandHandler(IApplicationDbContext context, IPassword
         var rawKey = $"gndj_{Convert.ToBase64String(keyBytes).Replace("+", "").Replace("/", "").Replace("=", "")}";
         var prefix = rawKey[..8];
 
+        var keyHash = await passwordHasher.HashAsync(rawKey);
         var entity = new ApiKey
         {
             Name = request.Name,
-            KeyHash = passwordHasher.Hash(rawKey),
+            KeyHash = keyHash,
             KeyPrefix = prefix,
             Scopes = request.Scopes,
             MemberId = request.MemberId,

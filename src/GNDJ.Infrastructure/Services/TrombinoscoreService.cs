@@ -169,6 +169,7 @@ public class TrombinoscoreService : ITrombinoscoreService
 
     private static string GetInitials(string name)
     {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
         var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length >= 2) return $"{parts[0][0]}{parts[^1][0]}";
         if (parts.Length == 1) return parts[0][..1];

@@ -15,17 +15,20 @@ public class PasswordHasher : IPasswordHasher
     // each hash fast and total throughput high.
     private static readonly SemaphoreSlim _gate = new(Math.Max(2, Environment.ProcessorCount * 2));
 
-    public string Hash(string password)
+    public async Task<string> HashAsync(string password)
     {
-        _gate.Wait();
-        try { return BCrypt.Net.BCrypt.HashPassword(password, workFactor: WorkFactor); }
+        // WaitAsync (not Wait) frees the thread while queued; Task.Run runs the CPU-bound hash on a pool
+        // thread so the awaiting request thread isn't held either. Under a burst, waiters no longer starve
+        // the thread pool — unrelated endpoints stay responsive.
+        await _gate.WaitAsync();
+        try { return await Task.Run(() => BCrypt.Net.BCrypt.HashPassword(password, workFactor: WorkFactor)); }
         finally { _gate.Release(); }
     }
 
-    public bool Verify(string password, string hash)
+    public async Task<bool> VerifyAsync(string password, string hash)
     {
-        _gate.Wait();
-        try { return BCrypt.Net.BCrypt.Verify(password, hash); }
+        await _gate.WaitAsync();
+        try { return await Task.Run(() => BCrypt.Net.BCrypt.Verify(password, hash)); }
         finally { _gate.Release(); }
     }
 

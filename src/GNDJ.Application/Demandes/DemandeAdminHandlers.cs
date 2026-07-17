@@ -490,7 +490,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         await Parallel.ForEachAsync(preApprovedIds, ct, async (id, c) =>
         {
             var pwd = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}";
-            var hash = await Task.Run(() => hasher.Hash(pwd), c);
+            var hash = await hasher.HashAsync(pwd); // HashAsync already offloads to a pool thread + gates concurrency
             creds[id] = (pwd, hash);
         });
 
@@ -657,7 +657,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             usedEmails.Add(username);
             string tempPassword, passwordHash;
             if (creds.TryGetValue(d.Id, out var c)) { tempPassword = c.Pwd; passwordHash = c.Hash; }
-            else { tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}"; passwordHash = hasher.Hash(tempPassword); }
+            else { tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}"; passwordHash = await hasher.HashAsync(tempPassword); }
             context.Users.Add(new User { MemberId = member.Id, Email = username, PasswordHash = passwordHash, IsActive = true, IsSuperAdmin = false });
 
             d.CreatedMemberId = member.Id;

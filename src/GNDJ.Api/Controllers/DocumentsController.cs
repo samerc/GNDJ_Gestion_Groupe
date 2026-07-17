@@ -155,8 +155,17 @@ public class DocumentsController : BaseApiController
         if (!fullPath.StartsWith(uploadsRoot) || !System.IO.File.Exists(fullPath))
             return NotFound(new { error = "Le fichier n'existe plus sur le serveur." });
 
-        var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
-        return File(stream, doc.MimeType, doc.FileName);
+        // Open in a try/catch: the file can be deleted/locked between the Exists check and the open (a
+        // concurrent purge/delete during the busy week) — return 404 instead of a 500.
+        try
+        {
+            var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
+            return File(stream, doc.MimeType, doc.FileName);
+        }
+        catch (IOException)
+        {
+            return NotFound(new { error = "Le fichier n'est pas accessible pour le moment." });
+        }
     }
 
     /// <summary>Approves or rejects a document (with optional notes). Requires documents.approve.</summary>
@@ -236,10 +245,15 @@ public class DocumentsController : BaseApiController
                 var ext = Path.GetExtension(doc.FileName);
                 var entryName = $"{sanitizedMember}/{sanitizedDocType}{ext}";
 
-                var entry = archive.CreateEntry(entryName);
-                using var entryStream = entry.Open();
-                using var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
-                await fileStream.CopyToAsync(entryStream);
+                // A single unreadable/locked file must not abort the whole zip (500) — skip it and continue.
+                try
+                {
+                    var entry = archive.CreateEntry(entryName);
+                    using var entryStream = entry.Open();
+                    using var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
+                    await fileStream.CopyToAsync(entryStream);
+                }
+                catch (IOException) { /* skip this file, keep building the zip */ }
             }
         }
 

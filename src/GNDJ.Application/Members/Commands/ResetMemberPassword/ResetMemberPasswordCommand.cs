@@ -44,7 +44,7 @@ public class ResetMemberPasswordCommandHandler(
 
         // Same temporary-password shape as member creation. The member must change it after logging in.
         var tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}";
-        user.PasswordHash = passwordHasher.Hash(tempPassword);
+        user.PasswordHash = await passwordHasher.HashAsync(tempPassword);
         // Invalidate any active session and pending reset link.
         user.RefreshToken = null;
         user.RefreshTokenExpiry = null;

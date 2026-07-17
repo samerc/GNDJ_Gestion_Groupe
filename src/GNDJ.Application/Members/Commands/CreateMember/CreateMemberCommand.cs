@@ -159,12 +159,13 @@ public class CreateMemberCommandHandler : IRequestHandler<CreateMemberCommand, R
 
         // Generate temporary password
         var tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}";
+        var passwordHash = await _passwordHasher.HashAsync(tempPassword);
 
         var user = new User
         {
             MemberId = member.Id,
             Email = email,
-            PasswordHash = _passwordHasher.Hash(tempPassword),
+            PasswordHash = passwordHash,
             IsActive = true,
             IsSuperAdmin = false,
         };
