@@ -1,0 +1,37 @@
+{
+  "_comment": "Copy this file to ops-alert.config.json (gitignored) on the PROD server and fill it in. Used by backup-db.ps1 and healthcheck.ps1.",
+
+  "smtp": {
+    "_comment": "SMTP used ONLY for ops alert emails (backup/health) — independent of the app's mail. Use port 587 (STARTTLS). A Zoho mailbox app-password works (MX is already Zoho). NOT port 465.",
+    "host": "smtp.zoho.com",
+    "port": 587,
+    "useSsl": true,
+    "username": "alerts@gndj.org",
+    "password": "REPLACE_WITH_APP_PASSWORD",
+    "from": "alerts@gndj.org",
+    "fromName": "GNDJ Ops"
+  },
+
+  "alertTo": ["ai@bahriah.com"],
+
+  "database": {
+    "name": "gndj",
+    "user": "gndj_admin",
+    "password": "REPLACE_WITH_DB_PASSWORD",
+    "pgBin": "C:\\Program Files\\PostgreSQL\\18\\bin"
+  },
+
+  "backup": {
+    "dir": "C:\\gndj-backups",
+    "_comment_rclone": "rcloneRemote = 'remoteName:folder' created by 'rclone config'. Leave rcloneRemote empty to keep backups LOCAL ONLY (not recommended). rcloneConfig points the SYSTEM task at the token you created under your user.",
+    "rcloneRemote": "gndj-onedrive:GNDJ-Backups",
+    "rcloneConfig": "C:\\ProgramData\\rclone\\rclone.conf",
+    "retentionDays": 30,
+    "notifyOnSuccess": true
+  },
+
+  "health": {
+    "url": "https://new.gndj.org/health",
+    "timeoutSec": 20
+  }
+}
