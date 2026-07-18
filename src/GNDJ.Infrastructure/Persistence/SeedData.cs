@@ -711,6 +711,17 @@ public static class SeedData
                 IsActive = true
             });
 
+        // Launch access rollout: a member's login username + a one-click link to set their own password.
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "account_activation"))
+            toAdd.Add(new EmailTemplate
+            {
+                Name = "Activation du compte (accès)", Code = "account_activation", Module = "auth",
+                Subject = "Votre accès à l'espace GNDJ",
+                BodyHtml = "<h2>Bonjour {{memberName}},</h2><p>Votre espace personnel GNDJ est prêt. Voici comment y accéder :</p><ul><li><strong>Votre identifiant :</strong> {{username}}</li></ul><p>Cliquez sur le bouton ci-dessous pour choisir votre mot de passe et activer votre compte :</p><p><a href=\"{{activationLink}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Activer mon compte</a></p><p>Ce lien est valable {{expiryDays}} jours. Conservez bien votre identifiant : il vous servira à chaque connexion.</p><p>Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br><span style=\"font-size:12px;color:#555;\">{{activationLink}}</span></p><p>— L'équipe GNDJ</p>",
+                Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"username\",\"label\":\"Identifiant\"},{\"key\":\"activationLink\",\"label\":\"Lien d'activation\"},{\"key\":\"expiryDays\",\"label\":\"Validité (jours)\"}]",
+                IsActive = true
+            });
+
         if (toAdd.Count > 0) { context.EmailTemplates.AddRange(toAdd); await context.SaveChangesAsync(); }
     }
 

@@ -153,6 +153,37 @@ public class MembersController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>
+    /// Lists a unit's active members with their login/email/last-login status, so the CG can choose who to send
+    /// activation ("access") emails to. Requires members.reset_password; unit-scoped (super-admin sees any unit).
+    /// </summary>
+    [HttpGet("access-candidates")]
+    [HasPermission(Permissions.MembersResetPassword)]
+    public async Task<IActionResult> GetAccessCandidates([FromQuery] Guid unitId)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Members.GetAccessCandidatesQuery(unitId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Sends activation ("access") emails: their login username + a one-click link to set a password. Target is
+    /// either a whole unit (unitId) or an explicit memberIds list (single-member resend). onlyNeverLoggedIn skips
+    /// members who have already signed in. Requires members.reset_password; unit-scoped in the handler. Returns a
+    /// sent/no-email/no-account/skipped summary (the app only knows the mail was queued, not delivered).
+    /// </summary>
+    [HttpPost("send-access")]
+    [HasPermission(Permissions.MembersResetPassword)]
+    public async Task<IActionResult> SendAccess([FromBody] SendAccessRequest body)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Members.SendAccessEmailsCommand(
+            body?.UnitId, body?.MemberIds, body?.OnlyNeverLoggedIn ?? false));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    public record SendAccessRequest(Guid? UnitId, List<Guid>? MemberIds, bool OnlyNeverLoggedIn);
+
     /// <summary>Sets (or clears with an empty body) the member's primary contact email — the recipient for member-facing mail. Requires members.edit.</summary>
     [HttpPut("{id:guid}/primary-email")]
     [HasPermission(Permissions.MembersEdit)]

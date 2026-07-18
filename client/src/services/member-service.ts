@@ -169,6 +169,45 @@ export function usePurgeMember() {
   })
 }
 
+// ── "Envoyer les accès" — launch activation-email rollout (username + set-password link) ──
+export interface AccessCandidate {
+  memberId: string
+  memberName: string
+  username: string | null
+  hasAccount: boolean
+  hasEmail: boolean
+  contactEmail: string | null
+  lastLoginAt: string | null
+}
+
+export interface SendAccessResult {
+  sent: number
+  noEmail: number
+  noAccount: number
+  noAccess: number
+  skipped: number
+  details: { memberId: string; memberName: string; status: string; email: string | null }[]
+}
+
+// The active members of a unit + their login/email/last-login status, so the CG can pick who to send to.
+export function useAccessCandidates(unitId: string | undefined) {
+  return useQuery({
+    queryKey: ['members', 'access-candidates', unitId],
+    queryFn: () => apiClient.get<AccessCandidate[]>('/members/access-candidates', { params: { unitId } }).then(r => r.data),
+    enabled: !!unitId,
+  })
+}
+
+// Send activation emails to a whole unit or to an explicit member list (single-member resend).
+export function useSendAccess() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { unitId?: string; memberIds?: string[]; onlyNeverLoggedIn?: boolean }) =>
+      apiClient.post<SendAccessResult>('/members/send-access', body).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', 'access-candidates'] }),
+  })
+}
+
 // CG/leader resets a member's password → returns a fresh temp password + the address it was emailed to
 // (sentToEmail is null when the member has no email on file — creds are then shown on screen only).
 export function useResetMemberPassword() {

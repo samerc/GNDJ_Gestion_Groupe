@@ -15,6 +15,8 @@ export default function ResetPasswordPage() {
   // token+email come from the emailed reset link; both required (else the invalid-link card renders).
   const token = searchParams.get('token') ?? ''
   const email = searchParams.get('email') ?? ''
+  // setup=1 comes from the "activation" (first access) email → switches the copy from "reset" to "activate".
+  const isSetup = searchParams.get('setup') === '1'
 
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -71,14 +73,20 @@ export default function ResetPasswordPage() {
       </div>
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Nouveau mot de passe</CardTitle>
-          <CardDescription>Choisissez un nouveau mot de passe pour votre compte.</CardDescription>
+          <CardTitle className="text-2xl">{isSetup ? 'Activez votre compte' : 'Nouveau mot de passe'}</CardTitle>
+          <CardDescription>
+            {isSetup
+              ? 'Choisissez votre mot de passe pour accéder à votre espace GNDJ.'
+              : 'Choisissez un nouveau mot de passe pour votre compte.'}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {success ? (
             <div className="space-y-4">
               <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-800">
-                Votre mot de passe a été réinitialisé avec succès.
+                {isSetup
+                  ? 'Votre compte est activé. Vous pouvez maintenant vous connecter.'
+                  : 'Votre mot de passe a été réinitialisé avec succès.'}
               </div>
               <Link to="/login" className="block text-center text-sm text-primary hover:underline">
                 Se connecter
@@ -114,7 +122,9 @@ export default function ResetPasswordPage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={mutation.isPending}>
-                {mutation.isPending ? 'Réinitialisation...' : 'Réinitialiser le mot de passe'}
+                {mutation.isPending
+                  ? (isSetup ? 'Activation...' : 'Réinitialisation...')
+                  : (isSetup ? 'Activer mon compte' : 'Réinitialiser le mot de passe')}
               </Button>
               <Link to="/login" className="block text-center text-sm text-primary hover:underline">
                 Retour à la connexion

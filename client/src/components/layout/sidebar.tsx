@@ -110,6 +110,7 @@ const adminGroups: AdminGroup[] = [
     items: [
       { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
       { path: '/admin/deleted-members', label: 'Corbeille', icon: Trash2, permission: PERMISSIONS.MEMBERS_DELETE },
+      { path: '/admin/send-access', label: 'Envoyer les accès', icon: Key, permission: PERMISSIONS.MEMBERS_RESET_PASSWORD },
       { path: '/maitrises', label: 'Maîtrises', icon: Crown, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/group-access', label: 'Accès maîtrise', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE_GROUP },
       { path: '/admin/lists', label: 'Listes', icon: List, permission: PERMISSIONS.MAITRISE_MANAGE },

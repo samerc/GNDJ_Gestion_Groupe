@@ -12,6 +12,7 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { useMembers, useMember, useCreateMember, useUpdateMember, useResetMemberPassword, useSetPrimaryContactEmail,
+  useSendAccess,
   useAddPhone, useDeletePhone, useUpdatePhone, useAddEmail, useDeleteEmail, useUpdateEmail,
   useAddAddress, useDeleteAddress, useUpdateAddress,
   type MemberFormData, type MemberPhoneDto, type MemberEmailDto, type MemberAddressDto } from '@/services/member-service'
@@ -43,7 +44,7 @@ import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send } from 'lucide-react'
 import { toast } from 'sonner'
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
@@ -99,6 +100,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
   const { data: member, isLoading } = useMember(memberId)
   const updateMember = useUpdateMember()
   const resetPassword = useResetMemberPassword()
+  const sendAccess = useSendAccess()
   const setPrimary = useSetPrimaryContactEmail(memberId)
   const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
   const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
@@ -203,6 +205,17 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
     finally { setResetConfirmOpen(false) }
   }
 
+  // Send (or resend) this member's activation email — their username + a link to set their own password.
+  const handleResendAccess = async () => {
+    try {
+      const res = await sendAccess.mutateAsync({ memberIds: [memberId] })
+      if (res.sent > 0) toast.success(`Accès envoyé à ${res.details[0]?.email ?? "l'email de contact"}`)
+      else if (res.noEmail > 0) toast.error('Aucun email de contact sur la fiche')
+      else if (res.noAccount > 0) toast.error("Ce membre n'a pas de compte utilisateur")
+      else toast.error('Envoi impossible')
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
+
   const setPrimaryEmail = async (email: string | null) => {
     try { await setPrimary.mutateAsync(email); toast.success('Courriel de contact principal mis à jour') }
     catch (err) { toast.error(parseApiError(err)) }
@@ -260,6 +273,11 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
             </p>
           </div>
           <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+            {!editing && canResetPassword && member.username && (
+              <Tip content="Envoyer l'accès (identifiant + lien mot de passe) à l'email de contact">
+                <Button variant="outline" size="sm" onClick={handleResendAccess} disabled={sendAccess.isPending}><Send className="h-4 w-4" /></Button>
+              </Tip>
+            )}
             {!editing && canResetPassword && member.username && (
               <Tip content="Réinitialiser le mot de passe">
                 <Button variant="outline" size="sm" onClick={() => setResetConfirmOpen(true)}><KeyRound className="h-4 w-4" /></Button>

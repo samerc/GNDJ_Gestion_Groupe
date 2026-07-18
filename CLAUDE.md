@@ -1865,10 +1865,44 @@ verified live, committed; DEV until deploy):
   parent whose verification mail never arrives is stuck (no admin manual-verify exists yet — consider adding).
   Forms rate limit (10/min/IP) confirmed fine (a parent can't fill a demande that fast).
 
+### Ops hardening + activation-link access rollout (2026-07-18)
+Launch-readiness batch (all on main, pushed; scripts + code — reaches prod on the next deploy).
+- **Off-server backups + health monitoring (deploy/, script-only, run ON the prod server):**
+  `backup-db.ps1` (nightly pg_dump → local + off-server cloud via **rclone** [OneDrive/Google Drive] +
+  retention prune both sides + email status), `healthcheck.ps1` (pings the PUBLIC /health with a browser UA
+  through Cloudflare; emails only on up↔down **state change**, tracked in a state file), `install-ops-tasks.ps1`
+  (registers both as **SYSTEM** scheduled tasks), `ops-common.ps1` (config loader + SMTP alert sender). Secrets
+  live in the gitignored `deploy/ops-alert.config.json` (example + `deploy/OPS.md` setup guide: `rclone config`,
+  Zoho :587 STARTTLS for ops mail). Scripts are **ASCII-only** (PS 5.1 parses non-BOM files as ANSI, so
+  box-drawing/arrow chars in comments broke the parser — learned the hard way).
+- **"Envoyer les accès" — the login rollout tool (how existing members first sign in).** Sends each member
+  their **username + a one-click set-password link** (activation email). REUSES the existing reset-token fields
+  on `User` with a **30-day** expiry (rollout window); link = `/reset-password?token=…&email=…&setup=1` (the
+  reset page switches to "Activez votre compte" wording when `setup=1`). No migration. Backend
+  `Members/SendAccessHandlers.cs`: `GetAccessCandidatesQuery(unitId)` (unit's active members + login/email/
+  last-login status) + `SendAccessEmailsCommand(unitId? | memberIds?, onlyNeverLoggedIn)` (batched contact-email
+  resolver PrimaryContactEmail→own→guardian; stamps token, queues `account_activation`; returns a
+  sent/no-email/no-account/skipped report). Endpoints `GET /members/access-candidates`, `POST /members/send-access`
+  (perm **members.reset_password**, unit-scoped — CG all units, CU own). Frontend: new page **`/admin/send-access`**
+  ("Envoyer les accès", sidebar Gestion) — unit picker → status table with per-row select + whole-unit send +
+  "seulement ceux qui ne se sont jamais connectés" toggle + result summary; plus a per-member **"Envoyer l'accès"**
+  button on the member panel (single resend). Seeded template `account_activation` (auth, idempotent via
+  SeedMemberEmailTemplatesAsync). Run unit by unit, **Maîtrise first**. NOTE: the app only knows the mail was
+  QUEUED — delivery/bounces are in the SMTP provider dashboard.
+- **DNS finding (go-live blocker #3):** `gndj.org` SPF authorizes **Mailjet + Zoho** only; DKIM selectors
+  `s1/s2` → **SendGrid**; DMARC `p=none`; MX Zoho. So DNS is NOT set up for **SMTP2GO/Mailgun** — sending via
+  either now fails SPF + has no DKIM (→ spam). Each provider a category routes through MUST be added to DNS
+  first. **Multi-SMTP routing already works** via `EmailTemplate.SmtpServerId` (bind demandes → SMTP2GO,
+  auth/reset → Mailgun, etc.); `EmailService` uses the template's bound server else the oldest active one.
+- Verified live: access-candidates (50 rows, inactive logins correctly flagged), single send → `sent=1` +
+  token stamped w/ exactly 30-day expiry + template seeded; no real mail (dev SMTP off). Backend + tsc + eslint
+  + vite build all clean. DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);
       optional force-password-change-on-first-login; deploy this session's dev-only work to prod (code + dump).
+      Activation-link sender ("Envoyer les accès") is BUILT — run it unit by unit after email delivery works.
 - [ ] Public site #3: knowledge / ressources section (lightweight CMS pages vs structured downloadable library).
 - [ ] Optional: disable logins for the 86 login-having orphans; correct the 50 zero-day marker dates in-app.
 - [ ] Deployment hardening (optional): secrets → env vars, httpOnly cookies. (HSTS done; prod CORS moot — SPA is
