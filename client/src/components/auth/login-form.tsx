@@ -77,9 +77,12 @@ export function LoginForm() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Connexion...' : 'Se connecter'}
           </Button>
-          <div className="text-center">
+          <div className="flex flex-col items-center gap-1 text-center">
             <Link to="/forgot-password" className="text-sm text-primary hover:underline">
               Mot de passe oublié ?
+            </Link>
+            <Link to="/forgot-username" className="text-sm text-primary hover:underline">
+              Identifiant oublié ?
             </Link>
           </div>
         </form>

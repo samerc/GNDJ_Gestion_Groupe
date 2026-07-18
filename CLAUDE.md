@@ -1889,6 +1889,16 @@ Launch-readiness batch (all on main, pushed; scripts + code — reaches prod on 
   button on the member panel (single resend). Seeded template `account_activation` (auth, idempotent via
   SeedMemberEmailTemplatesAsync). Run unit by unit, **Maîtrise first**. NOTE: the app only knows the mail was
   QUEUED — delivery/bounces are in the SMTP provider dashboard.
+- **"Identifiant oublié ?" — self-service access recovery (login page).** A member/parent enters an email
+  **on file for them** (own email / a linked guardian's email / primary contact email) → the backend emails
+  THAT address each matching account's username + a set-password link (reuses `account_activation`, **7-day**
+  token — shorter than the 30-day CG rollout). The email being on file IS the proof of ownership, so the
+  response is **always generic** ("Si cette adresse est enregistrée…") — no account enumeration. **One family
+  email → several accounts** (a parent's children): each gets its own clearly-named email. Backend
+  `Auth/Commands/ForgotUsername/RequestMyAccessCommand.cs` (anonymous, FluentValidation email, `forms` rate-limit
+  + honeypot), endpoint `POST /auth/forgot-username`. Frontend page `/forgot-username` + "Identifiant oublié ?"
+  link under "Mot de passe oublié ?" on the login form. Verified live: `edmond.raad@gmail.com` (guardian on 5
+  accounts) → all 5 tokens stamped w/ 7-day expiry; unknown email → same generic 200; honeypot → 400.
 - **DNS finding (go-live blocker #3):** `gndj.org` SPF authorizes **Mailjet + Zoho** only; DKIM selectors
   `s1/s2` → **SendGrid**; DMARC `p=none`; MX Zoho. So DNS is NOT set up for **SMTP2GO/Mailgun** — sending via
   either now fails SPF + has no DKIM (→ spam). Each provider a category routes through MUST be added to DNS

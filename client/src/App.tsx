@@ -28,6 +28,7 @@ const PublicStandalonePage = lazy(() => import('@/pages/public/page'))
 const PublicContactPage = lazy(() => import('@/pages/public/contact'))
 const LoginPage = lazy(() => import('@/pages/login'))
 const ForgotPasswordPage = lazy(() => import('@/pages/forgot-password'))
+const ForgotUsernamePage = lazy(() => import('@/pages/forgot-username'))
 const ResetPasswordPage = lazy(() => import('@/pages/reset-password'))
 const InscriptionLandingPage = lazy(() => import('@/pages/inscription/index'))
 const ApplicantLoginPage = lazy(() => import('@/pages/inscription/login'))
@@ -104,6 +105,7 @@ export default function App() {
 
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/forgot-username" element={<ForgotUsernamePage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Public membership-application portal (isolated applicant auth) */}

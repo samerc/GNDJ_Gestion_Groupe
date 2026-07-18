@@ -1,4 +1,5 @@
 using GNDJ.Application.Auth.Commands.ChangePassword;
+using GNDJ.Application.Auth.Commands.ForgotUsername;
 using GNDJ.Application.Auth.Commands.Login;
 using GNDJ.Application.Auth.Commands.Logout;
 using GNDJ.Application.Auth.Commands.RefreshToken;
@@ -96,6 +97,17 @@ public class AuthController : BaseApiController
         // Returns { found, sentTo[] } so the UI can confirm the account + masked target (or say "not found").
         var result = await Mediator.Send(command);
         return Ok(result.Value);
+    }
+
+    /// <summary>Identifiant oublié — send a member's username + set-password link to an email on file for them.</summary>
+    /// <response code="200">Always generic ("if this email is on file, you'll receive your access") — no account enumeration.</response>
+    [HttpPost("forgot-username")]
+    [AllowAnonymous]
+    [EnableRateLimiting("forms")]
+    public async Task<IActionResult> ForgotUsername([FromBody] RequestMyAccessCommand command)
+    {
+        await Mediator.Send(command); // response is deliberately generic regardless of whether the email matched
+        return Ok(new { message = "Si cette adresse est enregistrée sur un dossier, vous recevrez vos accès par email." });
     }
 
     /// <summary>Set a new password using the reset token from the email link.</summary>

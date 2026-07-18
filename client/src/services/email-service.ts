@@ -102,6 +102,15 @@ export function useForgotPassword() {
   })
 }
 
+// POST /auth/forgot-username → self-service access recovery: email your username + a set-password link to an
+// address on file for you (own/guardian/primary-contact). Always returns a generic message (anti-enumeration).
+export function useForgotUsername() {
+  return useMutation({
+    mutationFn: (data: { email: string; website?: string }) =>
+      apiClient.post<{ message: string }>('/auth/forgot-username', data).then(r => r.data),
+  })
+}
+
 // POST /auth/reset-password → set new password via emailed token (website = honeypot field).
 export function useResetPassword() {
   return useMutation({ mutationFn: (data: { email: string; token: string; newPassword: string; website?: string }) => apiClient.post('/auth/reset-password', data) })
