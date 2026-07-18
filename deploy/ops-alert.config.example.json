@@ -2,17 +2,17 @@
   "_comment": "Copy this file to ops-alert.config.json (gitignored) on the PROD server and fill it in. Used by backup-db.ps1 and healthcheck.ps1.",
 
   "smtp": {
-    "_comment": "SMTP used ONLY for ops alert emails (backup/health) — independent of the app's mail. Use port 587 (STARTTLS). A Zoho mailbox app-password works (MX is already Zoho). NOT port 465.",
-    "host": "smtp.zoho.com",
+    "_comment": "SMTP used ONLY for ops alert emails (backup/health), independent of the app's mail. ALL sending goes via SMTP2GO/SendGrid (NOT Zoho — Zoho is receiving only). Use an SMTP2GO SMTP user; port 587 (STARTTLS), NOT 465. 'from' MUST be a @gndj.org address (verified sender domain, so DKIM/SPF align).",
+    "host": "mail.smtp2go.com",
     "port": 587,
     "useSsl": true,
-    "username": "alerts@gndj.org",
-    "password": "REPLACE_WITH_APP_PASSWORD",
-    "from": "alerts@gndj.org",
+    "username": "REPLACE_WITH_SMTP2GO_SMTP_USER",
+    "password": "REPLACE_WITH_SMTP2GO_SMTP_PASSWORD",
+    "from": "noreply@gndj.org",
     "fromName": "GNDJ Ops"
   },
 
-  "alertTo": ["ai@bahriah.com"],
+  "alertTo": ["samer@fancyshark.com"],
 
   "database": {
     "name": "gndj",

@@ -19,8 +19,10 @@ cd C:\path\to\GNDJ_Gestion_Groupe\deploy
 Copy-Item ops-alert.config.example.json ops-alert.config.json
 notepad ops-alert.config.json     # fill in SMTP password, DB password, alertTo, health.url
 ```
-- **smtp** — an SMTP account used ONLY for ops alerts (separate from the app's mail). A **Zoho**
-  mailbox app-password on **port 587** is simplest (the domain's MX is already Zoho). Not port 465.
+- **smtp** — an SMTP account used ONLY for ops alerts (separate from the app's mail). Use **SMTP2GO**
+  (an SMTP user from Sending → SMTP Users), host `mail.smtp2go.com`, **port 587** (STARTTLS, not 465).
+  `from` must be a **@gndj.org** address (verified sender → DKIM/SPF align). All group sending goes via
+  SMTP2GO/SendGrid; **Zoho is receiving-only** (mailboxes/MX), never used for sending.
 - **database.password** — the `gndj_admin` password.
 - **alertTo** — your email (`ai@bahriah.com`).
 - **health.url** — `https://new.gndj.org/health` (public URL; the probe uses a browser UA so
