@@ -146,10 +146,21 @@ static class ApplicantHelpers
         return null;
     }
 
-    public static DemandeDto ToDto(Demande d) => new(
-        d.Id, d.ScoutYear, d.FirstName, d.LastName, d.DateOfBirth, d.Gender, d.Nationality, d.School, d.Classe, d.Section,
-        d.BloodType, d.MedicalNotes, d.Allergies, d.PhoneCountryCode, d.PhoneNumber, d.Email, d.ParentNotes,
-        d.Status, d.DecisionNotes, d.SubmittedAt, d.ResponseSentAt, d.HasPreviousDemande, d.PreviousDemandeYear);
+    public static DemandeDto ToDto(Demande d)
+    {
+        // The CG's decision is STAGED: an Approved/Declined status and its DecisionNotes must stay hidden from the
+        // applicant until the batch response is actually sent (ResponseSentAt). Before that, a decided demande still
+        // reads as "Submitted" (under review) and the notes are withheld — otherwise a parent could see the outcome
+        // (and the decline reason) before the CG posts it, while it can still change.
+        var sent = d.ResponseSentAt != null;
+        var decided = d.Status == DemandeStatus.Approved || d.Status == DemandeStatus.Declined;
+        var status = (!sent && decided) ? DemandeStatus.Submitted : d.Status;
+        var notes = sent ? d.DecisionNotes : null;
+        return new(
+            d.Id, d.ScoutYear, d.FirstName, d.LastName, d.DateOfBirth, d.Gender, d.Nationality, d.School, d.Classe, d.Section,
+            d.BloodType, d.MedicalNotes, d.Allergies, d.PhoneCountryCode, d.PhoneNumber, d.Email, d.ParentNotes,
+            status, notes, d.SubmittedAt, d.ResponseSentAt, d.HasPreviousDemande, d.PreviousDemandeYear);
+    }
 
     public static void Apply(Demande d, DemandeInput i)
     {

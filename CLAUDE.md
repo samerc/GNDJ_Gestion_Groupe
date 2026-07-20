@@ -1908,6 +1908,28 @@ Launch-readiness batch (all on main, pushed; scripts + code — reaches prod on 
   token stamped w/ exactly 30-day expiry + template seeded; no real mail (dev SMTP off). Backend + tsc + eslint
   + vite build all clean. DEV until deploy.
 
+### API data-minimization / over-exposure audit (2026-07-19)
+Pre-launch sweep of what the API actually RETURNS (not access control — that was the 2026-07-09 IDOR sweep),
+via 2 parallel audits (anonymous public surface + self-registered applicant portal) + a secrets check.
+- **Secrets:** clean — every `PasswordHash`/`RefreshToken`/`PasswordResetToken` hit is an assignment or an auth
+  comparison; none appear in a response DTO. `AuthResponse` returns the access/refresh tokens (intended);
+  `MeResponse` exposes nothing sensitive. All controllers return DTOs, never raw EF entities.
+- **Public surface (PublicController, anonymous): CLEAN.** Youth appear only as per-team **counts** (never named/
+  IDed/photographed); the maîtrise is **name + role only** (no email/phone/photo/DOB). No member photo is served
+  anonymously (content images are CMS-only, path-traversal-guarded). Public DTOs key on **slugs, not GUIDs** (no
+  enumeration surface). Contact-form recipient + site-config are server-side/intended-public only.
+- **Applicant portal (self-registered parents): one real leak, FIXED.** `ApplicantHelpers.ToDto` (the applicant's
+  own `GET /applicant/profile`) returned the demande's **`Status` + `DecisionNotes` unconditionally** — so a parent
+  could see the CG's **staged** Approved/Declined decision (and the decline reason) BEFORE the CG posts the batch,
+  while it can still change (violates DemandeStatus's "decisions are staged, revealed when the batch is sent"). Fix:
+  `ToDto` now withholds the decision until `ResponseSentAt` is set — a decided-but-unsent demande reads as
+  **`Submitted`** with **null** notes; once sent, the real status + notes appear. (CG review DTO unaffected — that
+  path SHOULD show the decision.) Verified live: staged Approved → applicant sees `Submitted`/no notes; after
+  `response_sent_at` set → `Approved` + notes revealed. Also confirmed OK: `RelatedMemberName/Unit` stay null on the
+  applicant path (CG-only), household-lookup requires the emailed code + returns only the matched family,
+  ApplicantConfigDto is config/pick-lists only, applicant token fully isolated (no permissions/units).
+- dotnet build clean. Backend-only (ApplicantHandlers.cs), DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);
