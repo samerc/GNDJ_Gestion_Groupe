@@ -7,19 +7,10 @@
   It hits the PUBLIC url with a browser User-Agent so it exercises the whole path (DNS, Cloudflare,
   TLS, origin) - i.e. "is the site up for a real user", not just "is the process alive".
   Settings/secrets come from deploy\ops-alert.config.json (gitignored). See deploy\OPS.md.
-.PARAMETER SimulateDown
-  Test the alert pipeline WITHOUT touching the real site: forces a "down" result (skips the network
-  probe) so you receive a real "[GNDJ DOWN]" email. Run the script again normally afterwards to fire
-  the "[GNDJ recovered]" email and restore the state file. Emails/subject are marked SIMULATED.
 .EXAMPLE
   ./deploy/healthcheck.ps1
-.EXAMPLE
-  ./deploy/healthcheck.ps1 -SimulateDown   # then: ./deploy/healthcheck.ps1  (fires the recovery email)
 #>
-param(
-    [string]$ConfigPath,
-    [switch]$SimulateDown
-)
+param([string]$ConfigPath)
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "ops-common.ps1")
 $cfg = Get-OpsConfig -ConfigPath $ConfigPath
@@ -34,21 +25,13 @@ $stateFile = Join-Path $PSScriptRoot "health-state.txt"
 
 $healthy = $false
 $detail = ""
-if ($SimulateDown) {
-    # Test mode: pretend the probe failed (the real site is NOT contacted). This exercises the exact
-    # state-transition + email path a real outage would. Run the script again with no switch to fire the
-    # recovery email and put the state file back to "up".
-    $detail = "SIMULATED failure (-SimulateDown test run)"
+try {
+    $resp = Invoke-WebRequest -Uri $url -TimeoutSec $timeout -UseBasicParsing -Headers @{ "User-Agent" = $ua }
+    if ($resp.StatusCode -eq 200) { $healthy = $true; $detail = "200 OK" }
+    else { $detail = "HTTP $($resp.StatusCode)" }
 }
-else {
-    try {
-        $resp = Invoke-WebRequest -Uri $url -TimeoutSec $timeout -UseBasicParsing -Headers @{ "User-Agent" = $ua }
-        if ($resp.StatusCode -eq 200) { $healthy = $true; $detail = "200 OK" }
-        else { $detail = "HTTP $($resp.StatusCode)" }
-    }
-    catch {
-        $detail = $_.Exception.Message
-    }
+catch {
+    $detail = $_.Exception.Message
 }
 
 $prev = if (Test-Path $stateFile) { (Get-Content $stateFile -Raw).Trim() } else { "unknown" }
@@ -58,8 +41,7 @@ Set-Content $stateFile $now -NoNewline -Encoding utf8
 # Alert only on transitions (first run from "unknown" to down also alerts; unknown to up is silent).
 if ($now -ne $prev) {
     if ($now -eq "down") {
-        $tag = if ($SimulateDown) { "[GNDJ DOWN - SIMULATED TEST]" } else { "[GNDJ DOWN]" }
-        Send-OpsAlert -Config $cfg -Subject "$tag $url unreachable" `
+        Send-OpsAlert -Config $cfg -Subject "[GNDJ DOWN] $url unreachable" `
             -Body "Health check FAILED at $(Get-Date -Format 'u')`nURL: $url`nDetail: $detail"
     }
     elseif ($prev -ne "unknown") {

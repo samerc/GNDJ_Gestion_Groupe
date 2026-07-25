@@ -69,15 +69,21 @@ Start-ScheduledTask -TaskName GNDJ-HealthCheck  # first run emails once (unknown
 ```
 Or run directly to see output:  `.\backup-db.ps1`  /  `.\healthcheck.ps1`
 
-### e. Test the DOWN/recovery alert emails (without any real outage)
-`-SimulateDown` forces a "down" result without contacting the site, so you can confirm the alert emails
-actually arrive (SMTP2GO auth, From address, delivery) safely:
+### e. End-to-end alert test — a REAL (brief) outage
+To prove the whole chain works — a genuine site failure detected by the monitoring, which then emails you —
+use `simulate-outage.ps1`. It stops the IIS app pool (the site really goes down), lets the health check
+detect it and send "[GNDJ DOWN]", then restarts and lets it send "[GNDJ recovered]". The alert comes from
+the monitoring reacting to a real failure — nothing is faked.
 ```powershell
-.\healthcheck.ps1 -SimulateDown   # -> emails "[GNDJ DOWN - SIMULATED TEST] ..." (real site untouched)
-.\healthcheck.ps1                 # -> emails "[GNDJ recovered] ..." + restores state to "up"
+# Fast: take it down, trigger the real health check now (DOWN email), bring it back, check again (recovered).
+.\simulate-outage.ps1 -PoolName gndj -SiteName GNDJ
+
+# Autonomous: take it down and LEAVE it down long enough for the SCHEDULED task to catch it on its own,
+# then bring it back (the next scheduled run emails recovery). Proves the cron actually alerts unattended.
+.\simulate-outage.ps1 -DownSeconds 360 -Wait
 ```
-> Don't test by pinging a fake PATH on the real domain (e.g. `/health-xyz`) — the SPA falls back to
-> `index.html` and returns 200, so the probe would read as UP. That's why the switch skips the network.
+> Only run this when it's OK for the site to be briefly unreachable (pre-launch, or a quiet window).
+> Behind Cloudflare, visitors during the window see a Cloudflare 502/error page.
 
 ---
 
