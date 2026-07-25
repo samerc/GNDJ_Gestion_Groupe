@@ -1958,3 +1958,10 @@ via 2 parallel audits (anonymous public surface + self-registered applicant port
       same-origin; secrets already gitignored server-side.)
 - [ ] Perf (optional later): async Serilog file sink (Serilog.Sinks.Async); DbContextCheck on /health; batch the
       demande-send in-loop unit/role/email lookups (now indexed, so low priority)
+- [ ] **TypeScript 6 → 7** (deferred 2026-07-19): the codebase is ALREADY TS-7-clean — trialled live, `tsc` +
+      `vite build` pass with ZERO code changes; the ONLY change needed is tsconfig.app.json (remove `baseUrl` +
+      `ignoreDeprecations`, make paths relative `"@/*": ["./src/*"]`). Blocker: **`typescript-eslint` hard-fails on
+      TS 7.0** (throws "does not support TS 7.0", tracked for TS ≥7.1 — GH issue typescript-eslint#10940), which
+      would break `eslint`/CI. **Revisit when typescript-eslint ships TS 7 support** → then it's a 5-min bump:
+      `npm i -D typescript@7 typescript-eslint@<new>` + the tsconfig edit above, no code work. (TS 7 = native/Go
+      compiler; benefit is type-check speed only — Vite emits the bundle, so no runtime change either way.)
