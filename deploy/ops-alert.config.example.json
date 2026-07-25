@@ -12,11 +12,12 @@
     "fromName": "GNDJ Ops"
   },
 
-  "alertTo": ["samer@fancyshark.com"],
+  "_comment_alertTo": "Where ops alerts (backup status + site down/recovered) are emailed. One or more addresses.",
+  "alertTo": ["you@example.com"],
 
   "database": {
     "name": "gndj",
-    "user": "gndj_admin",
+    "user": "REPLACE_WITH_DB_USER",
     "password": "REPLACE_WITH_DB_PASSWORD",
     "pgBin": "C:\\Program Files\\PostgreSQL\\18\\bin"
   },
@@ -32,7 +33,7 @@
   },
 
   "health": {
-    "url": "https://new.gndj.org/health",
+    "url": "https://your-domain.example/health",
     "timeoutSec": 20
   }
 }
