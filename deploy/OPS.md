@@ -69,6 +69,16 @@ Start-ScheduledTask -TaskName GNDJ-HealthCheck  # first run emails once (unknown
 ```
 Or run directly to see output:  `.\backup-db.ps1`  /  `.\healthcheck.ps1`
 
+### e. Test the DOWN/recovery alert emails (without any real outage)
+`-SimulateDown` forces a "down" result without contacting the site, so you can confirm the alert emails
+actually arrive (SMTP2GO auth, From address, delivery) safely:
+```powershell
+.\healthcheck.ps1 -SimulateDown   # -> emails "[GNDJ DOWN - SIMULATED TEST] ..." (real site untouched)
+.\healthcheck.ps1                 # -> emails "[GNDJ recovered] ..." + restores state to "up"
+```
+> Don't test by pinging a fake PATH on the real domain (e.g. `/health-xyz`) — the SPA falls back to
+> `index.html` and returns 200, so the probe would read as UP. That's why the switch skips the network.
+
 ---
 
 ## 2. Restoring a backup
