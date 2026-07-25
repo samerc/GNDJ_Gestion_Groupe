@@ -8,6 +8,7 @@ interface AuthState {
   isLoading: boolean
   login: (data: LoginRequest) => Promise<void>
   register: (data: RegisterRequest) => Promise<void>
+  applyTokens: (accessToken: string, refreshToken: string) => void
   logout: () => Promise<void>
   loadUser: () => Promise<void>
   hasPermission: (permission: string) => boolean
@@ -36,6 +37,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     localStorage.setItem('refreshToken', response.refreshToken)
     set({ isAuthenticated: true })
     await get().loadUser()
+  },
+
+  // Persist a freshly-rotated token pair (e.g. after "sign out other devices") so this device keeps its
+  // session while the previous refresh token — held by other devices — is now dead.
+  applyTokens: (accessToken: string, refreshToken: string) => {
+    localStorage.setItem('accessToken', accessToken)
+    localStorage.setItem('refreshToken', refreshToken)
+    set({ isAuthenticated: true })
   },
 
   logout: async () => {

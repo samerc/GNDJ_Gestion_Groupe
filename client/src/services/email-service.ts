@@ -120,3 +120,12 @@ export function useResetPassword() {
 export function useChangePassword() {
   return useMutation({ mutationFn: (data: { currentPassword: string; newPassword: string }) => apiClient.post('/auth/change-password', data) })
 }
+
+// POST /auth/sign-out-other-devices → rotate the refresh token so every OTHER device is signed out
+// (their session dies within ~15 min). Returns a fresh token pair to keep THIS device signed in.
+export function useSignOutOtherDevices() {
+  return useMutation({
+    mutationFn: () =>
+      apiClient.post<{ accessToken: string; refreshToken: string }>('/auth/sign-out-other-devices').then(r => r.data),
+  })
+}

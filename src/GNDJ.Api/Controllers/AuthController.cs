@@ -6,6 +6,7 @@ using GNDJ.Application.Auth.Commands.RefreshToken;
 using GNDJ.Application.Auth.Commands.Register;
 using GNDJ.Application.Auth.Commands.RequestPasswordReset;
 using GNDJ.Application.Auth.Commands.ResetPassword;
+using GNDJ.Application.Auth.Commands.SignOutOtherDevices;
 using GNDJ.Application.Auth.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -73,6 +74,18 @@ public class AuthController : BaseApiController
         var result = await Mediator.Send(new LogoutCommand());
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return NoContent();
+    }
+
+    /// <summary>Sign out all OTHER devices: rotate the refresh token so other sessions can no longer refresh (they drop within ~15 min). This device stays signed in with a fresh token pair.</summary>
+    /// <response code="200">Other devices signed out; returns a new token pair for the current device.</response>
+    /// <response code="401">Not authenticated.</response>
+    [Authorize]
+    [HttpPost("sign-out-other-devices")]
+    public async Task<IActionResult> SignOutOtherDevices()
+    {
+        var result = await Mediator.Send(new SignOutOtherDevicesCommand());
+        if (!result.IsSuccess) return Unauthorized(new { error = result.Error });
+        return Ok(result.Value);
     }
 
     /// <summary>Get the authenticated user's profile, permissions and unit access (drives the UI).</summary>

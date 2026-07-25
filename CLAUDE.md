@@ -1947,6 +1947,25 @@ via 2 parallel audits (anonymous public surface + self-registered applicant port
   majors). `dotnet build` clean, **4 tests pass**, `list package --vulnerable` = 0, live smoke (health + login,
   exercising the EF + JWT paths) OK. DEV until deploy.
 
+### "Déconnecter les autres appareils" — session control (2026-07-25)
+Sessions use a stateless 15-min access token (localStorage, unrevocable until expiry) + a **single** rotating
+refresh token per user (`User.RefreshToken`, SHA-256 hash, 7-day). So there is no session table/device list, and
+each login/refresh **overwrites** the one token (whichever device refreshed last owns it; others are orphaned on
+their next refresh). Change/reset-password already null the token (log out everywhere). Added an explicit,
+discoverable control for a lost/shared/public device:
+- **`POST /auth/sign-out-other-devices`** (`SignOutOtherDevicesCommand`, [Authorize]) — **rotates** the refresh
+  token: issues a brand-new one (overwriting the stored hash, orphaning every OTHER device — their next refresh
+  401s, access dies ≤15 min) and returns a **fresh token pair** so the CURRENT device stays signed in. Audited
+  `SignOutOtherDevices`. No password change needed.
+- **Placement:** header user dropdown ("Déconnecter les autres appareils", next to Modifier le mot de passe) —
+  deliberately NOT on Ma fiche (would crowd the page for every member). Confirm dialog; on success
+  `authStore.applyTokens(new pair)` re-persists so this device is uninterrupted. `useSignOutOtherDevices()`.
+- Verified live: login A → sign-out-other-devices returns a new refresh token; the OLD token → **401**, the NEW
+  token → **200** (current device kept in). Build + tsc + eslint clean. DEV until deploy.
+- Inherent limits (stateless JWT): revocation is "≤15 min," never instant; still no per-device list / "last login
+  from" (that needs a `user_sessions` table — backlog if leaders go multi-device); no MFA / new-device alert
+  (a fresh login from a stolen laptop with the password looks normal). Deemed acceptable for launch.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

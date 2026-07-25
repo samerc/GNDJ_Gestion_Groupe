@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSidebarStore } from '@/stores/sidebar-store'
 import { useNavigate } from 'react-router'
-import { useChangePassword } from '@/services/email-service'
+import { useChangePassword, useSignOutOtherDevices } from '@/services/email-service'
 import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,17 +15,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, Menu, KeyRound, IdCard } from 'lucide-react'
+import { LogOut, Menu, KeyRound, IdCard, MonitorSmartphone } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ROLE: top bar for the authenticated shell — mobile sidebar toggle (lg-hidden)
 // + user dropdown (change-password dialog, logout). Session auto-refresh lives in
 // the auth store / SessionWarning; this only exposes the manual actions.
 export function Header() {
-  const { user, logout } = useAuthStore()
+  const { user, logout, applyTokens } = useAuthStore()
   const { setMobileOpen } = useSidebarStore()
   const navigate = useNavigate()
   const [loggingOut, setLoggingOut] = useState(false)
+
+  const signOutOthersMutation = useSignOutOtherDevices()
+  const [signOutOthersOpen, setSignOutOthersOpen] = useState(false)
 
   const changePasswordMutation = useChangePassword()
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
@@ -58,6 +61,19 @@ export function Header() {
     setLoggingOut(true)
     await logout()
     navigate('/login')
+  }
+
+  // Rotate the refresh token: signs out every OTHER device (lost/shared/public computer) while keeping
+  // this one signed in via the fresh token pair the server returns.
+  const handleSignOutOthers = async () => {
+    try {
+      const res = await signOutOthersMutation.mutateAsync()
+      applyTokens(res.accessToken, res.refreshToken)
+      toast.success('Les autres appareils ont été déconnectés')
+      setSignOutOthersOpen(false)
+    } catch (err) {
+      toast.error(parseApiError(err))
+    }
   }
 
   return (
@@ -104,6 +120,10 @@ export function Header() {
               <KeyRound className="mr-2 h-4 w-4" />
               Modifier le mot de passe
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSignOutOthersOpen(true)}>
+              <MonitorSmartphone className="mr-2 h-4 w-4" />
+              Déconnecter les autres appareils
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} disabled={loggingOut} className="text-destructive focus:text-destructive">
               <LogOut className="mr-2 h-4 w-4" />
@@ -135,6 +155,22 @@ export function Header() {
               <Button type="submit" disabled={changePasswordMutation.isPending}>{changePasswordMutation.isPending ? 'Enregistrement...' : 'Modifier'}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={signOutOthersOpen} onOpenChange={setSignOutOthersOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Déconnecter les autres appareils</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Toutes vos autres sessions (téléphone, ordinateur perdu ou partagé…) seront déconnectées d'ici
+            quelques minutes. Vous resterez connecté sur cet appareil.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => setSignOutOthersOpen(false)}>Annuler</Button>
+            <Button type="button" onClick={handleSignOutOthers} disabled={signOutOthersMutation.isPending}>
+              {signOutOthersMutation.isPending ? 'Déconnexion...' : 'Déconnecter les autres'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
