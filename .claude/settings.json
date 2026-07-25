@@ -24,8 +24,7 @@
       "PowerShell(git add -A)",
       "PowerShell(git reset -q .claude/settings.json)",
       "PowerShell(git push 2>&1)",
-      "WebSearch",
-      "Read(//c/Users/Administrator/Documents/old/**)"
+      "WebSearch"
     ],
     "additionalDirectories": [
       "C:\\Users\\Administrator\\Desktop\\BP 2026"
