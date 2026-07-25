@@ -1966,6 +1966,22 @@ discoverable control for a lost/shared/public device:
   from" (that needs a `user_sessions` table — backlog if leaders go multi-device); no MFA / new-device alert
   (a fresh login from a stolen laptop with the password looks normal). Deemed acceptable for launch.
 
+### CG cotisation dashboard — actionable unpaid list (2026-07-25)
+The `/admin/cotisations` "Membres sans cotisation" list was a flat alphabetical **name + unit** table —
+nothing to act on, so useless for actually chasing payments. Reworked into a follow-up worklist:
+- **Backend** (`GetUnpaidCotisationsQuery`/`UnpaidCotisationDto`): now carries `UnitId` + a resolved
+  follow-up **contact** — `ParentName`, `ContactEmail`, `ContactPhone` — via a batched `UnpaidContactResolver`
+  (member's PrimaryContactEmail → own primary/first → guardian; phone own→guardian; parent = primary-contact
+  guardian first). One-pass, no N+1. Ordered by unit → name. CG-only (members.edit gate) so contact is fine.
+- **Frontend** (`cotisation-dashboard.tsx`): **grouped by unit** (per-unit count), each row shows the parent +
+  clickable **mailto:/tel:** links; **member name → opens the member file** (`/members/:id`); inline
+  **"Paiement"** (compact single-line record-payment dialog → `useCreateCotisation`, auto receipt#) and
+  **"Ne paiera pas"** (exempt → `useSetCotisationExempt`), both refreshing the unpaid+summary queries;
+  **Exporter (CSV)** (client-side, UTF-8 BOM for Excel) + **Imprimer** (new `@media print` isolation in
+  index.css — `.print-area` shows alone, `.no-print` hidden).
+- Verified live: 1073 unpaid returned with parent/email/phone resolved + unit grouping. Build + tsc + eslint
+  clean. DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

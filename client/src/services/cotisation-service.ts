@@ -40,7 +40,11 @@ export interface CotisationFormData {
 export interface UnpaidCotisationDto {
   memberId: string
   memberName: string
+  unitId: string
   unitName: string
+  contactEmail: string | null
+  contactPhone: string | null
+  parentName: string | null
 }
 
 export interface CurrencyTotalDto {

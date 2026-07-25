@@ -161,3 +161,21 @@
     box-shadow: var(--shadow-md);
   }
 }
+
+/* Print isolation: when a page marks a region `.print-area`, printing shows ONLY that region (the app
+   chrome — sidebar/header/buttons — is hidden). Elements marked `.no-print` are always hidden on paper.
+   Used by the cotisation follow-up list ("Imprimer"). */
+@media print {
+  .no-print { display: none !important; }
+  body:has(.print-area) * { visibility: hidden; }
+  body:has(.print-area) .print-area,
+  body:has(.print-area) .print-area * { visibility: visible; }
+  body:has(.print-area) .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    box-shadow: none;
+    border: none;
+  }
+}

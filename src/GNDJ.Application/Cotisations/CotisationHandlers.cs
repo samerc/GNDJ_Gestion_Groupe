@@ -431,9 +431,13 @@ public class GetCotisationSummaryQueryHandler(IApplicationDbContext context, ICu
     }
 }
 
-// Dashboard: unpaid cotisations for current year
+// Dashboard: unpaid cotisations for a scout year. Carries each member's UNIT (id for grouping/linking) and
+// a resolved follow-up CONTACT (parent name + email + phone) so the CG can actually chase the payment — not
+// just read a list of names. CG-only (members.edit gate), so exposing contact here is fine.
 public record GetUnpaidCotisationsQuery(string ScoutYear) : IRequest<IReadOnlyList<UnpaidCotisationDto>>;
-public record UnpaidCotisationDto(Guid MemberId, string MemberName, string UnitName);
+public record UnpaidCotisationDto(
+    Guid MemberId, string MemberName, Guid UnitId, string UnitName,
+    string? ContactEmail, string? ContactPhone, string? ParentName);
 
 public class GetUnpaidCotisationsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetUnpaidCotisationsQuery, IReadOnlyList<UnpaidCotisationDto>>
 {
@@ -458,17 +462,113 @@ public class GetUnpaidCotisationsQueryHandler(IApplicationDbContext context, ICu
             .Select(c => c.MemberId)
             .ToListAsync(ct);
 
-        // Materialize then dedup + order in memory — EF can't translate Distinct()+OrderBy() over a
-        // projected DTO with a computed name. A member with two active assignments would otherwise appear
-        // twice, so dedup by member id.
+        // Materialize then dedup in memory — a member with two active assignments would appear twice.
         var rows = await query
             .Where(a => !settledMemberIds.Contains(a.MemberId))
-            .Select(a => new UnpaidCotisationDto(a.MemberId, a.Member.FirstName + " " + a.Member.LastName, a.Unit.Name))
+            .Select(a => new { a.MemberId, MemberName = a.Member.FirstName + " " + a.Member.LastName, a.UnitId, UnitName = a.Unit.Name })
             .ToListAsync(ct);
 
-        return rows
-            .DistinctBy(r => r.MemberId)
-            .OrderBy(r => r.MemberName)
+        var deduped = rows.DistinctBy(r => r.MemberId).ToList();
+        var memberIds = deduped.Select(r => r.MemberId).ToList();
+
+        // Batch-resolve follow-up contacts once (no N+1), then build the DTOs. Ordered by unit then name so
+        // the frontend can group per unit and hand each CU their own section.
+        var contacts = await UnpaidContactResolver.LoadAsync(context, memberIds, ct);
+        return deduped
+            .Select(r =>
+            {
+                var (email, phone, parent) = contacts.Resolve(r.MemberId);
+                return new UnpaidCotisationDto(r.MemberId, r.MemberName, r.UnitId, r.UnitName, email, phone, parent);
+            })
+            .OrderBy(r => r.UnitName).ThenBy(r => r.MemberName)
             .ToList();
+    }
+}
+
+// Batched follow-up-contact resolver for the unpaid list. Per member returns a parent name + a reachable
+// email and phone, preferring the member's own designated/primary contact, then their own entries, then a
+// guardian's (primary-contact guardian first). Loaded once for the whole set; Resolve(...) is in-memory.
+internal sealed class UnpaidContactResolver
+{
+    private readonly Dictionary<Guid, string?> _primaryContact;
+    private readonly ILookup<Guid, (string Address, bool IsPrimary)> _ownEmail;
+    private readonly ILookup<Guid, (string Phone, bool IsPrimary)> _ownPhone;
+    private readonly Dictionary<Guid, List<Guid>> _memberGuardians; // ordered: primary-contact guardian first
+    private readonly Dictionary<Guid, string> _guardianName;
+    private readonly ILookup<Guid, (string Address, bool IsPrimary)> _guardianEmail;
+    private readonly ILookup<Guid, string> _guardianPhone;
+
+    private UnpaidContactResolver(
+        Dictionary<Guid, string?> primaryContact,
+        ILookup<Guid, (string, bool)> ownEmail,
+        ILookup<Guid, (string, bool)> ownPhone,
+        Dictionary<Guid, List<Guid>> memberGuardians,
+        Dictionary<Guid, string> guardianName,
+        ILookup<Guid, (string, bool)> guardianEmail,
+        ILookup<Guid, string> guardianPhone)
+    {
+        _primaryContact = primaryContact;
+        _ownEmail = ownEmail;
+        _ownPhone = ownPhone;
+        _memberGuardians = memberGuardians;
+        _guardianName = guardianName;
+        _guardianEmail = guardianEmail;
+        _guardianPhone = guardianPhone;
+    }
+
+    private static string Fmt(string countryCode, string number) =>
+        string.IsNullOrWhiteSpace(countryCode) ? number.Trim() : $"{countryCode} {number}".Trim();
+
+    public static async Task<UnpaidContactResolver> LoadAsync(IApplicationDbContext ctx, List<Guid> memberIds, CancellationToken ct)
+    {
+        var primaryContact = (await ctx.Members.Where(m => memberIds.Contains(m.Id))
+            .Select(m => new { m.Id, m.PrimaryContactEmail }).ToListAsync(ct))
+            .ToDictionary(m => m.Id, m => m.PrimaryContactEmail);
+
+        var ownEmail = (await ctx.MemberEmails.Where(e => memberIds.Contains(e.MemberId) && !e.IsDeleted)
+            .Select(e => new { e.MemberId, e.Address, e.IsPrimary }).ToListAsync(ct))
+            .ToLookup(e => e.MemberId, e => (e.Address, e.IsPrimary));
+
+        var ownPhone = (await ctx.MemberPhones.Where(p => memberIds.Contains(p.MemberId) && !p.IsDeleted)
+            .Select(p => new { p.MemberId, p.CountryCode, p.Number, p.IsPrimary }).ToListAsync(ct))
+            .ToLookup(p => p.MemberId, p => (Fmt(p.CountryCode, p.Number), p.IsPrimary));
+
+        var links = await ctx.GuardianLinks.Where(l => memberIds.Contains(l.MemberId) && !l.IsDeleted)
+            .Select(l => new { l.MemberId, l.GuardianId, l.IsPrimaryContact }).ToListAsync(ct);
+        var memberGuardians = links.GroupBy(l => l.MemberId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.IsPrimaryContact).Select(x => x.GuardianId).Distinct().ToList());
+        var guardianIds = links.Select(l => l.GuardianId).Distinct().ToList();
+
+        var guardianName = (await ctx.Guardians.Where(g => guardianIds.Contains(g.Id))
+            .Select(g => new { g.Id, g.FirstName, g.LastName }).ToListAsync(ct))
+            .ToDictionary(g => g.Id, g => $"{g.FirstName} {g.LastName}".Trim());
+
+        var guardianEmail = (await ctx.GuardianEmails.Where(e => guardianIds.Contains(e.GuardianId) && !e.IsDeleted)
+            .Select(e => new { e.GuardianId, e.Address, e.IsPrimary }).ToListAsync(ct))
+            .ToLookup(e => e.GuardianId, e => (e.Address, e.IsPrimary));
+
+        var guardianPhone = (await ctx.GuardianPhones.Where(p => guardianIds.Contains(p.GuardianId) && !p.IsDeleted)
+            .Select(p => new { p.GuardianId, p.CountryCode, p.Number }).ToListAsync(ct))
+            .ToLookup(p => p.GuardianId, p => Fmt(p.CountryCode, p.Number));
+
+        return new UnpaidContactResolver(primaryContact, ownEmail, ownPhone, memberGuardians, guardianName, guardianEmail, guardianPhone);
+    }
+
+    public (string? Email, string? Phone, string? ParentName) Resolve(Guid memberId)
+    {
+        string? email = _primaryContact.TryGetValue(memberId, out var pc) && !string.IsNullOrWhiteSpace(pc) ? pc : null;
+        email ??= _ownEmail[memberId].OrderByDescending(e => e.IsPrimary).Select(e => e.Address).FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
+        string? phone = _ownPhone[memberId].OrderByDescending(p => p.IsPrimary).Select(p => p.Phone).FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
+
+        string? parentName = null;
+        if (_memberGuardians.TryGetValue(memberId, out var gids))
+            foreach (var gid in gids)
+            {
+                if (parentName is null && _guardianName.TryGetValue(gid, out var gn) && !string.IsNullOrWhiteSpace(gn)) parentName = gn;
+                email ??= _guardianEmail[gid].OrderByDescending(e => e.IsPrimary).Select(e => e.Address).FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
+                phone ??= _guardianPhone[gid].FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
+            }
+
+        return (email, phone, parentName);
     }
 }
