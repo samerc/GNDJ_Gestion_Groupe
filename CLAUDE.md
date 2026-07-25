@@ -1930,6 +1930,23 @@ via 2 parallel audits (anonymous public surface + self-registered applicant port
   ApplicantConfigDto is config/pick-lists only, applicant token fully isolated (no permissions/units).
 - dotnet build clean. Backend-only (ApplicantHandlers.cs), DEV until deploy.
 
+### Dependency update — vulns cleared + in-range refresh (2026-07-19)
+`npm audit` flagged **2 high** vulns (fixed); backend NuGet had **0**. Result: both stacks 0 vulnerabilities.
+- **Frontend:** `npm audit fix` bumped **react-router 8.2.0→8.3.0** (advisory GHSA-qwww-vcr4-c8h2, "RSC-mode CSRF
+  bypass" — this SPA doesn't use RSC mode, so not actually exploitable here, but patched anyway) + **brace-expansion**
+  (transitive DoS). Then a **selective** `npm update` of the safe in-range families (Radix, React 19.2.8, TanStack,
+  Vite 8.1.5, lucide, tailwind, react-hook-form, typescript-eslint, eslint, @vitejs/plugin-react, fontsource).
+  **Held back on purpose:** (1) **TipTap 3.27.3** — the 3.29 minor bumps ONLY starter-kit unless every @tiptap
+  package moves together, which fragments `@tiptap/core` into two copies and breaks the editor's types; not
+  security-relevant, so pinned at 3.27.3 (all @tiptap consistent). (2) **@hookform/resolvers 5.4.0** — 5.4.2's new
+  peerOptional wants valibot ^1.0.0 while the tree has valibot 0.39.0 (an unused optional peer — the app validates
+  with **zod**); trivial patch, not worth the ERESOLVE. (3) **TypeScript 6→7** — major, deferred (can surface new
+  type errors pre-launch). Verified: tsc + eslint + `vite build` clean, **`npm ci` clean** (the deploy path), 0 vulns.
+- **Backend:** bumped EF Core + EFCore.Relational/Design/Tools + AspNetCore.OpenApi + JwtBearer **10.0.9→10.0.10**,
+  System.IdentityModel.Tokens.Jwt **8.19.1→8.21.0**, Microsoft.NET.Test.Sdk **18.7.0→18.8.1** (all patch/minor, no
+  majors). `dotnet build` clean, **4 tests pass**, `list package --vulnerable` = 0, live smoke (health + login,
+  exercising the EF + JWT paths) OK. DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);
