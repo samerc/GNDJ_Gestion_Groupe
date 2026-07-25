@@ -29,9 +29,11 @@ Register-ScheduledTask -TaskName "GNDJ-Backup" -Action $backupAction -Trigger $b
 # Health check every N minutes.
 $healthAction = New-ScheduledTaskAction -Execute $psExe `
     -Argument "-NonInteractive -ExecutionPolicy Bypass -File `"$scripts\healthcheck.ps1`""
+# NOTE: use a large but FINITE duration (~10 years). [TimeSpan]::MaxValue produces
+# P99999999D which Task Scheduler rejects as out of range on Windows Server.
 $healthTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) `
     -RepetitionInterval (New-TimeSpan -Minutes $HealthEveryMinutes) `
-    -RepetitionDuration ([TimeSpan]::MaxValue)
+    -RepetitionDuration (New-TimeSpan -Days 3650)
 Register-ScheduledTask -TaskName "GNDJ-HealthCheck" -Action $healthAction -Trigger $healthTrigger `
     -RunLevel Highest -User "SYSTEM" -Force `
     -Description "GNDJ: pings /health, emails on state change (deploy\healthcheck.ps1)" | Out-Null
