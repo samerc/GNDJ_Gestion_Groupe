@@ -42,8 +42,18 @@ copy your rclone.conf to the shared path referenced by the config:
 New-Item -ItemType Directory C:\ProgramData\rclone -Force
 Copy-Item "$env:APPDATA\rclone\rclone.conf" C:\ProgramData\rclone\rclone.conf
 ```
-Set `backup.rcloneRemote` in the config to `gndj-onedrive:GNDJ-Backups` (remote:folder) and
+Set `backup.rcloneRemote` in the config to `gndj-cloud:GNDJ-Backups` (remote:folder) and
 `backup.rcloneConfig` to `C:\ProgramData\rclone\rclone.conf`.
+
+Also set **`backup.rcloneExe`** to the FULL path of `rclone.exe`. `winget` often installs rclone into a
+user-scoped folder that the **SYSTEM** scheduled task's PATH doesn't include, so the nightly 03:00 run fails
+to find `rclone` even when a manual run works. Find the path and paste it into the config:
+```powershell
+(Get-Command rclone).Source     # e.g. C:\Users\<you>\AppData\Local\Microsoft\WinGet\Links\rclone.exe
+```
+```json
+"rcloneExe": "C:\\Users\\<you>\\AppData\\Local\\Microsoft\\WinGet\\Links\\rclone.exe"
+```
 > To keep backups local only (NOT recommended), leave `rcloneRemote` empty.
 
 ### c. Register the tasks

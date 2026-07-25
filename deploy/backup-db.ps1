@@ -40,17 +40,25 @@ try {
 
     # Step 2. Off-server copy via rclone.
     if ($bk.rcloneRemote) {
-        if (-not (Get-Command rclone -ErrorAction SilentlyContinue)) {
-            throw "rclone is not installed but backup.rcloneRemote is set. Install rclone and run 'rclone config' (see OPS.md)."
+        # Resolve rclone: prefer an explicit full path from the config (backup.rcloneExe) — the SYSTEM-run
+        # scheduled task's PATH often does NOT include a user-scoped winget install, so relying on PATH alone
+        # fails at 03:00 even when a manual run works. Fall back to 'rclone' on PATH if no explicit path is set.
+        $rcloneExe = $bk.rcloneExe
+        if (-not $rcloneExe) {
+            $cmd = Get-Command rclone -ErrorAction SilentlyContinue
+            if ($cmd) { $rcloneExe = $cmd.Source }
+        }
+        if (-not $rcloneExe -or -not (Test-Path $rcloneExe)) {
+            throw "rclone not found. Install it, then set backup.rcloneExe to the full path of rclone.exe (see OPS.md)."
         }
         # --config lets the SYSTEM-run scheduled task find the OAuth token created under your user.
         $rc = @()
         if ($bk.rcloneConfig) { $rc += @("--config", $bk.rcloneConfig) }
-        & rclone @rc copy $file $bk.rcloneRemote --no-traverse
+        & $rcloneExe @rc copy $file $bk.rcloneRemote --no-traverse
         if ($LASTEXITCODE -ne 0) { throw "rclone copy exited with code $LASTEXITCODE" }
         $log += "Uploaded to $($bk.rcloneRemote)"
         # Prune remote copies older than the retention window (best-effort).
-        & rclone @rc delete $bk.rcloneRemote --min-age "$($bk.retentionDays)d" 2>$null
+        & $rcloneExe @rc delete $bk.rcloneRemote --min-age "$($bk.retentionDays)d" 2>$null
         $log += "Remote prune (older than $($bk.retentionDays)d) done"
     } else {
         $log += "WARNING: no rcloneRemote configured - backup is LOCAL ONLY (lost if the server dies)."

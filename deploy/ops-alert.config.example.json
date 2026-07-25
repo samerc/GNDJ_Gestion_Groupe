@@ -23,9 +23,10 @@
 
   "backup": {
     "dir": "C:\\gndj-backups",
-    "_comment_rclone": "rcloneRemote = 'remoteName:folder' created by 'rclone config'. Leave rcloneRemote empty to keep backups LOCAL ONLY (not recommended). rcloneConfig points the SYSTEM task at the token you created under your user.",
-    "rcloneRemote": "gndj-onedrive:GNDJ-Backups",
+    "_comment_rclone": "rcloneRemote = 'remoteName:folder' created by 'rclone config' (e.g. Box: 'gndj-cloud:GNDJ-Backups'). Leave empty to keep backups LOCAL ONLY (not recommended). rcloneConfig points the SYSTEM task at the token you created under your user. rcloneExe = FULL path to rclone.exe — set this so the SYSTEM scheduled task finds rclone even when a user-scoped winget install isn't on the machine PATH (find it with: (Get-Command rclone).Source).",
+    "rcloneRemote": "gndj-cloud:GNDJ-Backups",
     "rcloneConfig": "C:\\ProgramData\\rclone\\rclone.conf",
+    "rcloneExe": "",
     "retentionDays": 30,
     "notifyOnSuccess": true
   },
