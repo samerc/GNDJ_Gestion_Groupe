@@ -1,4 +1,4 @@
-import { parseApiError } from '@/lib/error-utils'
+import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { useMemberCotisations, useCreateCotisation, useUpdateCotisation, useDeleteCotisation, useSetCotisationExempt, downloadReceipt, type MemberCotisationDto, type PaymentLineInput } from '@/services/cotisation-service'
@@ -190,7 +190,8 @@ export function MemberCotisations({ memberId, memberName, bare }: Props) {
       a.click()
       window.URL.revokeObjectURL(url)
     } catch (err) {
-      setError(parseApiError(err))
+      // Blob download: the JSON error body is a Blob, so read it back for the real message.
+      setError(await parseBlobError(err))
     }
   }
 

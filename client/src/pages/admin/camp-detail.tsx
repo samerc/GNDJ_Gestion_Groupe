@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { parseApiError } from '@/lib/error-utils'
+import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
@@ -195,8 +195,8 @@ function FamillesTab({ campId }: { campId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">Choisissez deux familles (<b>A</b> et <b>B</b>) dans le tableau, puis glissez-déposez un membre d'une famille à l'autre (ou sur un membre pour échanger).</p>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => printAllFamilles(campId).catch(() => toast.error('Erreur'))}><Printer className="mr-1 h-4 w-4" />Toutes les familles</Button>
-          <Button variant="outline" size="sm" onClick={() => printUnitList(campId).catch(() => toast.error('Erreur'))}><Printer className="mr-1 h-4 w-4" />Liste par unité</Button>
+          <Button variant="outline" size="sm" onClick={() => printAllFamilles(campId).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="mr-1 h-4 w-4" />Toutes les familles</Button>
+          <Button variant="outline" size="sm" onClick={() => printUnitList(campId).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="mr-1 h-4 w-4" />Liste par unité</Button>
           <Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />{draft.isPending ? 'Tirage…' : 'Lancer le tirage'}</Button>
         </div>
       </div>
@@ -274,7 +274,7 @@ function FamilleColumn({ campId, f, label, onEditLeaders }: { campId: string; f:
             <span className="text-muted-foreground">P:</span> <b>{f.pereName ?? '—'}</b>
             <span className="ml-1 text-muted-foreground">M:</span> <b>{f.mereName ?? '—'}</b>
           </button>
-          <Tip content="Imprimer la famille (PDF)"><Button variant="outline" size="icon" className="h-7 w-7" onClick={() => printFamille(campId, f.number).catch(() => toast.error('Erreur'))}><Printer className="h-3.5 w-3.5" /></Button></Tip>
+          <Tip content="Imprimer la famille (PDF)"><Button variant="outline" size="icon" className="h-7 w-7" onClick={() => printFamille(campId, f.number).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="h-3.5 w-3.5" /></Button></Tip>
         </div>
       </div>
       <div className="max-h-[60vh] space-y-1 overflow-y-auto p-2">

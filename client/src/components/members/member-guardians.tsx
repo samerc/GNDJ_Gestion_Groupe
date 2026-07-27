@@ -501,7 +501,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setEditDialogOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={updateMutation.isPending}>{updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={updateMutation.isPending || updateLinkMutation.isPending}>{updateMutation.isPending || updateLinkMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

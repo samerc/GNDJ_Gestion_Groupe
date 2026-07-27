@@ -1,5 +1,7 @@
+using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using GNDJ.Domain.Enums;
 using Mediator;
@@ -62,6 +64,17 @@ public class GetCampAttendanceQueryHandler(IApplicationDbContext context, ICurre
 
 public record SetCampAttendanceCommand(Guid CampId, IReadOnlyList<AttendanceItem> Items) : IRequest<Result<bool>>;
 public record AttendanceItem(Guid MemberId, bool Attending);
+
+// Bound the payload (the whole group is < ~1000 youth) so a caller can't post an unbounded list.
+public class SetCampAttendanceCommandValidator : AbstractValidator<SetCampAttendanceCommand>
+{
+    public SetCampAttendanceCommandValidator()
+    {
+        RuleFor(x => x.CampId).NotEmpty();
+        RuleFor(x => x.Items).NotNull().Must(i => i.Count <= 2000).WithMessage("Trop d'éléments (max 2000).");
+        RuleForEach(x => x.Items).ChildRules(i => i.RuleFor(a => a.MemberId).NotEmpty());
+    }
+}
 
 public class SetCampAttendanceCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
     : IRequestHandler<SetCampAttendanceCommand, Result<bool>>
@@ -193,6 +206,23 @@ public class GetCampGradingQueryHandler(IApplicationDbContext context, ICurrentU
 // demand the first time a member is touched; marking "ne vient pas" keeps the row but flips IsAttending.
 public record SaveCampGradesCommand(Guid CampId, IReadOnlyList<GradeItem> Grades) : IRequest<Result<bool>>;
 public record GradeItem(Guid MemberId, bool Attending, int? Force, int? Annee, bool IsLeaderCandidate, string? Notes);
+
+// Bound the payload + sanity-check each grade (generous ranges; the handler also clamps).
+public class SaveCampGradesCommandValidator : AbstractValidator<SaveCampGradesCommand>
+{
+    public SaveCampGradesCommandValidator()
+    {
+        RuleFor(x => x.CampId).NotEmpty();
+        RuleFor(x => x.Grades).NotNull().Must(g => g.Count <= 2000).WithMessage("Trop d'éléments (max 2000).");
+        RuleForEach(x => x.Grades).ChildRules(g =>
+        {
+            g.RuleFor(x => x.MemberId).NotEmpty();
+            g.RuleFor(x => x.Force).InclusiveBetween(0, 100).When(x => x.Force.HasValue);
+            g.RuleFor(x => x.Annee).InclusiveBetween(0, 20).When(x => x.Annee.HasValue);
+            g.RuleFor(x => x.Notes).MaximumLength(2000).NoHtml();
+        });
+    }
+}
 
 public class SaveCampGradesCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
     : IRequestHandler<SaveCampGradesCommand, Result<bool>>

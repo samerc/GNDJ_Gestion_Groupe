@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import { generateExport } from '@/services/report-service'
 import { useSettingValue } from '@/services/settings-service'
-import { parseApiError } from '@/lib/error-utils'
+import { parseBlobError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
@@ -114,7 +114,7 @@ export function ExportDialog({ unitId, unitName, teamId, open, onOpenChange }: P
       toast.success(`Export ${format.toUpperCase()} g\u00e9n\u00e9r\u00e9`)
       onOpenChange(false)
     } catch (err) {
-      setError(parseApiError(err))
+      setError(await parseBlobError(err))
     } finally {
       setGenerating(false)
     }

@@ -45,9 +45,11 @@ export default function CampPage() {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'team', dir: 1 })
 
   // Seed the editable rows from the server whenever the grading payload (re)loads; clears the dirty flag.
-  // Render-phase reset, keyed on the grading payload.
+  // Render-phase reset, keyed on the grading payload. Skip while there are UNSAVED edits (dirty) so a
+  // background refetch can't wipe in-progress grading — a successful save clears dirty, letting the next
+  // payload re-seed with the persisted values.
   const [prevGrading, setPrevGrading] = useState(grading)
-  if (grading && grading !== prevGrading) {
+  if (grading && grading !== prevGrading && !dirty) {
     setPrevGrading(grading)
     const m: Record<string, Row> = {}
     for (const g of grading) m[g.memberId] = { attending: g.isAttending, force: g.force, annee: g.annee, isLeaderCandidate: g.isLeaderCandidate, notes: g.notes ?? '' }

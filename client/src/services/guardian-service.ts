@@ -32,7 +32,8 @@ export function useCreateGuardian(memberId: string) {
   return useMutation({
     mutationFn: (data: { firstName: string; lastName: string; profession?: string | null; professionDomain?: string | null; isDeceased: boolean; relationshipType: string; isPrimaryContact: boolean; isEmergencyContact: boolean; notes?: string | null }) =>
       apiClient.post(`/guardians/members/${memberId}/guardians`, { memberId, ...data }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+    // Also refresh the member's "Famille" tab-count badge (member.counts on ['members', memberId]).
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['guardians', memberId] }); qc.invalidateQueries({ queryKey: ['members', memberId] }) },
   })
 }
 
@@ -42,7 +43,7 @@ export function useLinkGuardian(memberId: string) {
   return useMutation({
     mutationFn: (data: { guardianId: string; relationshipType: string; isPrimaryContact: boolean; isEmergencyContact: boolean }) =>
       apiClient.post(`/guardians/members/${memberId}/guardians/link`, { memberId, ...data }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['guardians', memberId] }); qc.invalidateQueries({ queryKey: ['members', memberId] }) },
   })
 }
 
@@ -71,7 +72,7 @@ export function useUnlinkGuardian(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (linkId: string) => apiClient.delete(`/guardians/guardian-links/${linkId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['guardians', memberId] }); qc.invalidateQueries({ queryKey: ['members', memberId] }) },
   })
 }
 

@@ -116,6 +116,18 @@ export default function UnitDocumentsPage() {
   const [error, setError] = useState('')
   const [downloading, setDownloading] = useState(false)
 
+  // Switching unit re-queries the matrix — also clear any leftover error banner and open preview/payment
+  // dialog from the previous unit (they'd reference a member absent from the new unit). Render-phase adjust.
+  const [prevUnitId, setPrevUnitId] = useState(unitId)
+  if (unitId !== prevUnitId) {
+    setPrevUnitId(unitId)
+    setPreviewCell(null)
+    setPreviewBlobUrl(null)
+    setPreviewError(false)
+    setCotisationMember(null)
+    setError('')
+  }
+
   if (!user) return <LoadingSpinner />
 
   // ─── Preview logic ─────────────────────────────────

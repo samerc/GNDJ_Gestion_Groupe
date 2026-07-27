@@ -1,4 +1,4 @@
-import { parseApiError } from '@/lib/error-utils'
+import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { useState, useRef } from 'react'
 import { useMemberDocuments, useUploadDocument, useReviewDocument, useDeleteDocument, downloadDocument, type MemberDocumentDto } from '@/services/document-service'
@@ -131,7 +131,8 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
       a.click()
       window.URL.revokeObjectURL(url)
     } catch (err) {
-      setError(parseApiError(err))
+      // Blob download (a missing/locked file returns a JSON 404 body as a Blob) — read the real message.
+      setError(await parseBlobError(err))
     }
   }
 
@@ -336,7 +337,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setUploadingDocTypeId(null)}>Annuler</Button>
-              <Button disabled={!expiryDate} onClick={() => fileInputRef.current?.click()}>
+              <Button disabled={!expiryDate || uploadMutation.isPending} onClick={() => fileInputRef.current?.click()}>
                 <Upload className="mr-1 h-4 w-4" />Choisir le fichier
               </Button>
             </DialogFooter>

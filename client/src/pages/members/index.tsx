@@ -5,7 +5,7 @@
 // inline editing, photo, card PDF, and the SDL/GDL external-card-number editor.
 // The split is drag-resizable on desktop. A create dialog returns auto-generated login credentials.
 // Route param :id deep-links a member into the right panel.
-import { parseApiError } from '@/lib/error-utils'
+import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { useState, useRef, useCallback, type ReactNode, type ComponentType } from 'react'
 import { useParams } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
@@ -249,7 +249,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
       const a = document.createElement('a')
       a.href = url; a.download = `Carte_${member.firstName}_${member.lastName}.pdf`; a.click()
       URL.revokeObjectURL(url)
-    } catch (err) { toast.error(parseApiError(err)) }
+    } catch (err) { toast.error(await parseBlobError(err)) }
   }
 
   return (
@@ -716,6 +716,13 @@ export default function MembersPage() {
   const [sortBy, setSortBy] = useState('lastname')
   const [sortDir, setSortDir] = useState('asc')
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(routeMemberId ?? null)
+  // If the URL /members/:id changes while this page stays mounted (a deep link / notification to another
+  // member), follow it. Render-phase adjust (React's "reset state when a prop changes" pattern), no effect.
+  const [prevRouteMemberId, setPrevRouteMemberId] = useState(routeMemberId)
+  if (routeMemberId && routeMemberId !== prevRouteMemberId) {
+    setPrevRouteMemberId(routeMemberId)
+    setSelectedMemberId(routeMemberId)
+  }
   const [leftWidth, setLeftWidth] = useState(340)
 
   // Export dialog
