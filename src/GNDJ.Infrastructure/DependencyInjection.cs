@@ -62,6 +62,9 @@ public static class DependencyInjection
         services.AddSingleton<EmailQueue>();
         services.AddSingleton<IEmailQueue>(sp => sp.GetRequiredService<EmailQueue>());
 
+        // Best-effort admin alerting on server/client errors (singleton: owns its own scope, never throws).
+        services.AddSingleton<IErrorNotifier, ErrorNotifier>();
+
         // Permanent purge of soft-deleted members past the retention window (driven by a hosted job).
         services.AddScoped<IMemberPurgeService, MemberPurgeService>();
 

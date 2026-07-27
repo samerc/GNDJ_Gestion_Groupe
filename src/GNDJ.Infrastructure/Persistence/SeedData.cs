@@ -453,6 +453,7 @@ public static class SeedData
             new() { Key = "demande.excluded_classe", Value = "6ème", Category = "demande", Label = "Classe non éligible (demande)", Description = "Classe exclue du formulaire de demande : un enfant dans cette classe ne peut pas s'inscrire (masquée du menu Classe + refusée à la soumission). Laisser vide pour ne pas exclure de classe.", ValueType = "string" },
             new() { Key = "contact.recipient_email", Value = "", Category = "contact", Label = "Email de contact", Description = "Adresse qui reçoit les messages du formulaire de contact public (si vide, les messages vont au super administrateur)", ValueType = "string" },
             new() { Key = "email.override_recipient", Value = "", Category = "email", Label = "Redirection de tous les emails (test)", Description = "Si renseigné, TOUS les emails sortants sont envoyés à cette adresse au lieu du vrai destinataire (l'adresse prévue est indiquée dans l'objet). À utiliser pendant les tests ; laisser vide en production pour envoyer aux vrais destinataires.", ValueType = "string" },
+            new() { Key = "error.notify_email", Value = "", Category = "email", Label = "Email d'alerte des erreurs", Description = "Adresse qui reçoit une alerte quand une erreur inattendue survient dans l'application (côté serveur ou navigateur), avec une référence pour la retrouver. Si vide, l'alerte va au super administrateur. Les alertes sont regroupées (une par type d'erreur toutes les 30 min) pour éviter le flot.", ValueType = "string" },
         };
 
         var missing = allSettings.Where(s => !existingKeys.Contains(s.Key)).ToList();
@@ -719,6 +720,18 @@ public static class SeedData
                 Subject = "Votre accès à l'espace GNDJ",
                 BodyHtml = "<h2>Bonjour {{memberName}},</h2><p>Votre espace personnel GNDJ est prêt. Voici comment y accéder :</p><ul><li><strong>Votre identifiant :</strong> {{username}}</li></ul><p>Cliquez sur le bouton ci-dessous pour choisir votre mot de passe et activer votre compte :</p><p><a href=\"{{activationLink}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Activer mon compte</a></p><p>Ce lien est valable {{expiryDays}} jours. Conservez bien votre identifiant : il vous servira à chaque connexion.</p><p>Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br><span style=\"font-size:12px;color:#555;\">{{activationLink}}</span></p><p>— L'équipe GNDJ</p>",
                 Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"username\",\"label\":\"Identifiant\"},{\"key\":\"activationLink\",\"label\":\"Lien d'activation\"},{\"key\":\"expiryDays\",\"label\":\"Validité (jours)\"}]",
+                IsActive = true
+            });
+
+        // Admin error alert: sent to the super-admin (or error.notify_email) when an unexpected error occurs,
+        // with the reference the user was shown so it can be tied to the logs.
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "error_alert"))
+            toAdd.Add(new EmailTemplate
+            {
+                Name = "Alerte erreur (administrateur)", Code = "error_alert", Module = "auth",
+                Subject = "[GNDJ Erreur {{source}}] réf. {{errorId}}",
+                BodyHtml = "<h2>Une erreur est survenue</h2><p>Une erreur inattendue a été détectée dans l'application GNDJ. Voici les détails pour la diagnostiquer :</p><table cellpadding=\"6\" style=\"border-collapse:collapse;font-family:monospace;font-size:13px;\"><tr><td><strong>Référence</strong></td><td>{{errorId}}</td></tr><tr><td><strong>Origine</strong></td><td>{{source}}</td></tr><tr><td><strong>Date (UTC)</strong></td><td>{{timestamp}}</td></tr><tr><td><strong>Utilisateur</strong></td><td>{{user}}</td></tr><tr><td><strong>Requête</strong></td><td>{{method}} {{path}}</td></tr><tr><td><strong>Message</strong></td><td>{{message}}</td></tr></table><p><strong>Détail :</strong></p><pre style=\"background:#f4f4f4;padding:10px;border-radius:5px;font-size:12px;white-space:pre-wrap;\">{{detail}}</pre><p style=\"color:#888;font-size:12px;\">Les erreurs identiques sont regroupées (une alerte toutes les 30 minutes). Retrouvez la référence dans les journaux (application_logs).</p>",
+                Variables = "[{\"key\":\"errorId\",\"label\":\"Référence\"},{\"key\":\"source\",\"label\":\"Origine\"},{\"key\":\"timestamp\",\"label\":\"Date\"},{\"key\":\"user\",\"label\":\"Utilisateur\"},{\"key\":\"method\",\"label\":\"Méthode HTTP\"},{\"key\":\"path\",\"label\":\"Chemin\"},{\"key\":\"message\",\"label\":\"Message\"},{\"key\":\"detail\",\"label\":\"Détail / trace\"}]",
                 IsActive = true
             });
 

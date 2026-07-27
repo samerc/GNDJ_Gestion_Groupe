@@ -1982,6 +1982,37 @@ nothing to act on, so useless for actually chasing payments. Reworked into a fol
 - Verified live: 1073 unpaid returned with parent/email/phone resolved + unit grouping. Build + tsc + eslint
   clean. DEV until deploy.
 
+### Error handling — friendly messages + admin alerting (2026-07-27)
+Two goals: a user who hits an error gets a clear explanation + a reference, and the super-admin is
+auto-notified so they can act. Built on the existing single `ExceptionHandlingMiddleware` chokepoint +
+`IEmailQueue`; Serilog already logs 500s to `application_logs`.
+- **Server errors:** the middleware's final 500 branch now mints a short **reference** (`errorId`, 8 hex),
+  logs it structured (`{ErrorId} {Method} {Path} User=`), and returns a friendly message
+  ("Une erreur est survenue de notre côté. Notre équipe a été prévenue automatiquement. Référence : XXXX")
+  + `errorId` in the JSON. The 4xx branches (validation/DbUpdate/QuestPDF) are unchanged (expected, no alert).
+- **`IErrorNotifier` / `ErrorNotifier`** (Infrastructure, **singleton**, best-effort — NEVER throws): emails
+  the admin via the email queue. **Deduped** via IMemoryCache (one alert per `source|path|message` signature
+  per 30 min → an error storm ≠ inbox flood). Recipient = setting **`error.notify_email`** → config
+  `ErrorAlerts:Email` → first active super-admin, resolved in a FRESH DbContext scope (the failing request's
+  scope may be faulted; falls back to config if the DB itself is down). Seeded template **`error_alert`**
+  (module auth; errorId/source/timestamp/user/method/path/message/detail — detail passed RAW since
+  EmailService HTML-encodes substituted values). New setting `error.notify_email` (category email, default
+  empty; SeedMissingSettings).
+- **Client crashes:** new **`ErrorBoundary`** (class component, wraps the app in main.tsx) catches render
+  crashes → shows a reassuring French page (reload / accueil) instead of a white screen + auto-reports and
+  shows the same reference. Plus global `window` `error`/`unhandledrejection` handlers (safety net for async
+  errors) with `isBenignError` filtering (skips already-handled axios errors + ResizeObserver noise).
+  `lib/error-report.ts` (`reportClientError`) uses a bare fetch (no axios interceptors), auth-only, throttled
+  30s/signature. **`POST /errors/report`** (auth + forms rate-limit) logs + notifies (source "client"),
+  returns the errorId.
+- **Delivery depends on email being ON** (same as all app mail): in dev SMTP is inactive + override set, so
+  alerts are QUEUED + attempted but not delivered (verified: client report → 200 + errorId, logged to
+  application_logs, error_alert queued to the resolved recipient, worker dropped after 3 tries vs inactive
+  SMTP). Once an SMTP server is active at go-live, alerts deliver; the user sets `error.notify_email` (or it
+  falls back to super-admin / `ErrorAlerts:Email`). Build clean (dotnet + tsc + eslint + vite). DEV until deploy.
+- NOTE/optional next: an in-app "Journal des erreurs" admin page over `application_logs` (data already there,
+  email-independent) if the user wants to browse/resolve errors without relying on the inbox.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

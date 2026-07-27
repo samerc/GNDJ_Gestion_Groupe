@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentValidation;
+using GNDJ.Application.Common.Interfaces;
 
 namespace GNDJ.Api.Middleware;
 
@@ -12,11 +13,13 @@ public class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+    private readonly IErrorNotifier _errorNotifier;
 
-    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
+    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger, IErrorNotifier errorNotifier)
     {
         _next = next;
         _logger = logger;
+        _errorNotifier = errorNotifier;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -80,10 +83,40 @@ public class ExceptionHandlingMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception");
+            // A genuine, unexpected server fault. Mint a short REFERENCE so the user, the logs and the admin
+            // email all point at the same incident, log it (also lands in application_logs via Serilog), and
+            // alert the super-admin (best-effort — the notifier never throws). Return a friendly message that
+            // (a) reassures it's not the user's fault, (b) says it's been reported, (c) shows the reference.
+            var errorId = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+            var method = context.Request.Method;
+            var path = context.Request.Path.Value ?? "";
+            var user = DescribeUser(context);
+
+            _logger.LogError(ex, "Unhandled exception {ErrorId} {Method} {Path} User={User}", errorId, method, path, user);
+            await _errorNotifier.NotifyAsync(
+                new ErrorReport(errorId, "server", ex.Message, ex.ToString(), method, path, user),
+                context.RequestAborted);
+
             context.Response.StatusCode = 500;
             context.Response.ContentType = "application/json";
-            await context.Response.WriteAsync(JsonSerializer.Serialize(new { error = "Une erreur interne est survenue." }));
+            await context.Response.WriteAsync(JsonSerializer.Serialize(new
+            {
+                error = $"Une erreur est survenue de notre côté. Notre équipe a été prévenue automatiquement. Référence : {errorId}",
+                errorId
+            }));
         }
+    }
+
+    // A compact "who + from where" for the log line and the admin email (no secrets): the user id / email
+    // claim if authenticated, plus the client IP.
+    private static string DescribeUser(HttpContext context)
+    {
+        var sub = context.User?.FindFirst("sub")?.Value
+                  ?? context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var email = context.User?.FindFirst("email")?.Value
+                    ?? context.User?.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+        var ip = context.Connection?.RemoteIpAddress?.ToString();
+        var who = email ?? sub ?? "anonyme";
+        return ip is null ? who : $"{who} ({ip})";
     }
 }
