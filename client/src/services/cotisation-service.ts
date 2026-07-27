@@ -87,6 +87,10 @@ export function useCreateCotisation(memberId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cotisations', memberId] })
       qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
+      // Recording a payment flips the member list "cotisation OK" flag, tab counts, summary + dashboard.
+      qc.invalidateQueries({ queryKey: ['cotisations', 'summary'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }
@@ -100,6 +104,9 @@ export function useUpdateCotisation(memberId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cotisations', memberId] })
       qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
+      qc.invalidateQueries({ queryKey: ['cotisations', 'summary'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }
@@ -114,6 +121,8 @@ export function useSetCotisationExempt() {
       qc.invalidateQueries({ queryKey: ['cotisations', data.memberId] })
       qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
       qc.invalidateQueries({ queryKey: ['cotisations', 'summary'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }

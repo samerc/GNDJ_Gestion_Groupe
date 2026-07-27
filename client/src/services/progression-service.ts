@@ -151,7 +151,8 @@ export function useCreateProgression(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: CreateProgressionData) => apiClient.post('/progressions', data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['progressions', memberId] }),
+    // Also refresh the member's Progression tab-count badge (lives on ['members', memberId]).
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['progressions', memberId] }); qc.invalidateQueries({ queryKey: ['members', memberId] }) },
   })
 }
 
@@ -160,6 +161,6 @@ export function useDeleteProgression(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiClient.delete(`/progressions/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['progressions', memberId] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['progressions', memberId] }); qc.invalidateQueries({ queryKey: ['members', memberId] }) },
   })
 }

@@ -198,7 +198,9 @@ export default function SecurityProfilesPage() {
 
         {/* Permission editor + members */}
         {selectedId ? (
-          <PermissionEditor profileId={selectedId} canManage={canManage} onDeleted={() => setSelectedId('')} />
+          // key={selectedId} remounts the editor on profile switch so staged (unsaved) permission toggles,
+          // the dirty/saved flags, error banner and active tab don't bleed from the previous profile onto the next.
+          <PermissionEditor key={selectedId} profileId={selectedId} canManage={canManage} onDeleted={() => setSelectedId('')} />
         ) : (
           <Card>
             <CardContent className="flex items-center justify-center py-16 text-muted-foreground">

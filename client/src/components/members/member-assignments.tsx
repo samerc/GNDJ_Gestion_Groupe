@@ -197,7 +197,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
                         <Pencil className="h-4 w-4" />
                       </Button></Tip>
                       {/* One-click "end today": closes the post with endDate = today (moves it to history). */}
-                      <Tip content="Terminer aujourd'hui"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={async () => { try { await endMutation.mutateAsync({ id: a.id, endDate: new Date().toISOString().split('T')[0] }); toast.success('Affectation terminée') } catch { /* handled by query refresh */ } }}>
+                      <Tip content="Terminer aujourd'hui"><Button variant="ghost" size="icon" className="h-8 w-8" disabled={endMutation.isPending} onClick={async () => { try { await endMutation.mutateAsync({ id: a.id, endDate: new Date().toISOString().split('T')[0] }); toast.success('Affectation terminée') } catch (err) { toast.error(parseApiError(err)) } }}>
                         <StopCircle className="h-4 w-4 text-orange-500" />
                       </Button></Tip>
                       <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleting(a)}>

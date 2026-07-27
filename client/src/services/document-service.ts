@@ -57,6 +57,9 @@ export function useUploadDocument(memberId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['documents', memberId] })
       qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
+      // A doc change also moves the member's tab counts + list "dossier complet" flag + dashboard compliance.
+      qc.invalidateQueries({ queryKey: ['members'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }
@@ -70,6 +73,8 @@ export function useReviewDocument(memberId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['documents', memberId] })
       qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }
@@ -82,6 +87,8 @@ export function useDeleteDocument(memberId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['documents', memberId] })
       qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }
@@ -164,7 +171,12 @@ export function useReviewDocumentMatrix(unitId: string) {
   return useMutation({
     mutationFn: ({ id, status, reviewNotes }: { id: string; status: string; reviewNotes?: string }) =>
       apiClient.put(`/documents/${id}/review`, { id, status, reviewNotes }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents', 'matrix', unitId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents', 'matrix', unitId] })
+      // Also refresh the member list "dossier complet" flag + dashboard compliance (no memberId in scope here).
+      qc.invalidateQueries({ queryKey: ['members'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
   })
 }
 

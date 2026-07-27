@@ -67,7 +67,9 @@ export default function AdminEventsPage() {
   }
 
   const openCreate = () => { setEditingId(null); setForm(emptyForm); setError(''); setDirty(false); setFormOpen(true) }
-  const openEdit = (ev: EventAdmin) => { setEditingId(ev.id); setForm(emptyForm); setError(''); setDirty(false); setFormOpen(true) }
+  // setPrevEditData(undefined) forces the render-phase populate to re-fire even when editData comes back
+  // from cache with the SAME reference (re-editing the same item within staleTime) — else the form stays blank.
+  const openEdit = (ev: EventAdmin) => { setEditingId(ev.id); setForm(emptyForm); setPrevEditData(undefined); setError(''); setDirty(false); setFormOpen(true) }
 
   // Guarded close: warn if there are unsaved edits before discarding the dialog.
   const requestClose = () => {

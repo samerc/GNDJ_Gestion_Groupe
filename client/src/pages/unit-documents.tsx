@@ -607,8 +607,8 @@ export default function UnitDocumentsPage() {
 
               <DialogFooter>
                 <Button variant="outline" type="button" onClick={() => setCotisationMember(null)}>Annuler</Button>
-                <Button type="submit" disabled={createCotisation.isPending}>
-                  {createCotisation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                <Button type="submit" disabled={createCotisation.isPending || updateCotisation.isPending}>
+                  {createCotisation.isPending || updateCotisation.isPending ? 'Enregistrement...' : 'Enregistrer'}
                 </Button>
               </DialogFooter>
             </form>

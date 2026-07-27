@@ -130,6 +130,12 @@ public class ProposeAssignmentHandler(IApplicationDbContext context, ICurrentUse
         if (unit is null) return Result<Guid>.Failure("Unité introuvable.");
         var role = await context.FunctionalRoles.FindAsync([request.FunctionalRoleId], ct);
         if (role is null) return Result<Guid>.Failure("Fonction introuvable.");
+        // A member can NEVER self-propose a maîtrise (leadership) role — a role drives its holder's permissions
+        // (AuthAccess), so allowing it would be a privilege-escalation vector. Those changes go through the CG.
+        if (role.IsMaitrise) return Result<Guid>.Failure("Une fonction de maîtrise ne peut pas être proposée. Contactez votre chef de groupe.");
+        // The role must belong to the target unit's type (a per-type role in the wrong unit is invalid).
+        if (role.UnitTypeId is not null && role.UnitTypeId != unit.UnitTypeId)
+            return Result<Guid>.Failure("Cette fonction n'appartient pas au type de cette unité.");
         string? teamName = null;
         if (request.TeamId is not null)
         {
@@ -234,10 +240,15 @@ public class ReviewChangeRequestHandler(IApplicationDbContext context, ICurrentU
 
         if (request.Approve)
         {
-            // Apply the proposed change: create the real record from the payload.
+            // Apply the proposed change: create the real record from the payload. CanManageMember only proved
+            // the member is active in one of the reviewer's units — NOT that the payload's TARGET unit is one
+            // the reviewer controls. Re-validate the target unit here so a leader can't apply a placement into
+            // a unit outside their scope (super-admin / group-level holders have all units).
             if (entity.Kind == ChangeRequestKinds.Progression)
             {
                 var p = JsonSerializer.Deserialize<ProgressionPayload>(entity.PayloadJson)!;
+                if (!currentUser.IsSuperAdmin && !currentUser.AuthorizedUnitIds.Contains(p.UnitId))
+                    return Result<bool>.Failure("Vous ne gérez pas l'unité cible de cette demande.");
                 context.MemberProgressions.Add(new MemberProgression
                 {
                     MemberId = entity.MemberId, UnitId = p.UnitId, ScoutStageId = p.ScoutStageId,
@@ -247,6 +258,19 @@ public class ReviewChangeRequestHandler(IApplicationDbContext context, ICurrentU
             else if (entity.Kind == ChangeRequestKinds.Assignment)
             {
                 var p = JsonSerializer.Deserialize<AssignmentPayload>(entity.PayloadJson)!;
+                if (!currentUser.IsSuperAdmin && !currentUser.AuthorizedUnitIds.Contains(p.UnitId))
+                    return Result<bool>.Failure("Vous ne gérez pas l'unité cible de cette demande.");
+                // Re-check role sanity at approval time (defense in depth vs. a payload crafted before the
+                // propose-side guards, or bypassing the client): never grant a maîtrise role via a member
+                // request (permission escalation), and keep role/unit-type consistent.
+                var role = await context.FunctionalRoles.FindAsync([p.FunctionalRoleId], ct);
+                if (role is null) return Result<bool>.Failure("Fonction introuvable.");
+                if (role.IsMaitrise) return Result<bool>.Failure("Une fonction de maîtrise ne peut pas être attribuée via une demande de membre.");
+                if (role.UnitTypeId is not null)
+                {
+                    var unitTypeId = await context.Units.Where(u => u.Id == p.UnitId).Select(u => (Guid?)u.UnitTypeId).FirstOrDefaultAsync(ct);
+                    if (unitTypeId != role.UnitTypeId) return Result<bool>.Failure("Cette fonction n'appartient pas au type de l'unité cible.");
+                }
                 context.MemberAssignments.Add(new MemberAssignment
                 {
                     MemberId = entity.MemberId, UnitId = p.UnitId, TeamId = p.TeamId,

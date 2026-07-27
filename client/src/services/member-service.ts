@@ -110,7 +110,8 @@ export function useCreateMember() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: MemberFormData) => apiClient.post<{ memberId: string; username: string; temporaryPassword: string }>('/members', data).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['members'] }),
+    // Creating a member (optionally placed in a unit) shifts the dashboard counts too.
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['members'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }) },
   })
 }
 
@@ -130,7 +131,7 @@ export function useDeleteMember() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiClient.delete(`/members/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['members'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['members'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }) },
   })
 }
 

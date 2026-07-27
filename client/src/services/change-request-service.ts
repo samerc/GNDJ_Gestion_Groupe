@@ -79,9 +79,12 @@ export function useReviewChangeRequest() {
       apiClient.post(`/change-requests/${id}/review`, { id, approve, decisionNotes }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['change-requests'] })
-      // Approving creates a real progression/assignment → refresh those views.
+      // Approving creates a real progression/assignment → refresh those views + the member tab counts,
+      // list and dashboard (roster/overview) that reflect the new record.
       qc.invalidateQueries({ queryKey: ['progressions'] })
       qc.invalidateQueries({ queryKey: ['assignments'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }

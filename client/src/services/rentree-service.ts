@@ -79,7 +79,14 @@ export function useRunRentreeTaskAction() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiClient.post<{ message: string }>(`/rentree/tasks/${id}/run-action`).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['rentree'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rentree'] })
+      // "do" actions flip global state (open-demandes / open-passage): refresh the demande + passage status
+      // and settings so the rest of the UI (banners, sidebar badges, pills) reflects it without a reload.
+      qc.invalidateQueries({ queryKey: ['demandes'] })
+      qc.invalidateQueries({ queryKey: ['passages'] })
+      qc.invalidateQueries({ queryKey: ['settings'] })
+    },
   })
 }
 

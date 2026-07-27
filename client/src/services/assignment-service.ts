@@ -60,7 +60,7 @@ export function useCreateAssignment() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: AssignmentFormData) => apiClient.post('/assignments', data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assignments'] }); qc.invalidateQueries({ queryKey: ['members'] }); qc.invalidateQueries({ queryKey: ['units'] }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assignments'] }); qc.invalidateQueries({ queryKey: ['members'] }); qc.invalidateQueries({ queryKey: ['units'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }) },
   })
 }
 
@@ -70,7 +70,7 @@ export function useUpdateAssignment() {
   return useMutation({
     mutationFn: ({ id, ...data }: AssignmentFormData & { id: string }) =>
       apiClient.put(`/assignments/${id}`, { id, ...data }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assignments'] }); qc.invalidateQueries({ queryKey: ['members'] }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assignments'] }); qc.invalidateQueries({ queryKey: ['members'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }) },
   })
 }
 
@@ -80,7 +80,7 @@ export function useEndAssignment() {
   return useMutation({
     mutationFn: ({ id, endDate }: { id: string; endDate: string }) =>
       apiClient.put(`/assignments/${id}/end`, { id, endDate }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assignments'] }); qc.invalidateQueries({ queryKey: ['members'] }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assignments'] }); qc.invalidateQueries({ queryKey: ['members'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }) },
   })
 }
 
@@ -89,6 +89,6 @@ export function useDeleteAssignment() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiClient.delete(`/assignments/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assignments'] }); qc.invalidateQueries({ queryKey: ['members'] }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assignments'] }); qc.invalidateQueries({ queryKey: ['members'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }) },
   })
 }
