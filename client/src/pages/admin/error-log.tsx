@@ -1,7 +1,8 @@
 // Super-admin "Journal des erreurs" — browse recent Warning+ application logs (every server error alert's
 // reference lands here) so an incident can be diagnosed in-app, without depending on the alert email. Read-only.
 import { useState } from 'react'
-import { useErrorLogs, type ErrorLogEntry } from '@/services/log-service'
+import { toast } from 'sonner'
+import { useErrorLogs, useClearErrorLogs, type ErrorLogEntry } from '@/services/log-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -10,7 +11,8 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { ChevronDown, ChevronRight, Search, X, AlertTriangle } from 'lucide-react'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { ChevronDown, ChevronRight, Search, X, AlertTriangle, Trash2 } from 'lucide-react'
 
 function levelColor(level: string): string {
   const l = level.toLowerCase()
@@ -62,6 +64,15 @@ export default function ErrorLogPage() {
   const { data, isLoading, isFetching } = useErrorLogs(effectiveLevel, debouncedSearch, page, pageSize)
   const totalPages = data ? Math.max(1, Math.ceil(data.total / pageSize)) : 1
 
+  const clearLogs = useClearErrorLogs()
+  const [confirmClear, setConfirmClear] = useState(false)
+  const handleClear = () => {
+    clearLogs.mutate(undefined, {
+      onSuccess: (r) => { setConfirmClear(false); setPage(1); toast.success(`Journal vidé (${r.deleted} entrée${r.deleted > 1 ? 's' : ''} supprimée${r.deleted > 1 ? 's' : ''})`) },
+      onError: () => toast.error('Impossible de vider le journal'),
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -99,6 +110,10 @@ export default function ErrorLogPage() {
                 </button>
               )}
             </div>
+            <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700"
+              disabled={!data || data.total === 0 || clearLogs.isPending} onClick={() => setConfirmClear(true)}>
+              <Trash2 className="mr-1.5 h-4 w-4" /> Vider le journal
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -133,6 +148,17 @@ export default function ErrorLogPage() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={confirmClear}
+        onOpenChange={setConfirmClear}
+        title="Vider le journal des erreurs ?"
+        description={`Cette action supprime définitivement les ${data?.total ?? 0} entrée(s) du journal. Les erreurs futures continueront d'être enregistrées.`}
+        confirmLabel="Vider"
+        variant="destructive"
+        loading={clearLogs.isPending}
+        onConfirm={handleClear}
+      />
     </div>
   )
 }

@@ -34,4 +34,15 @@ public class LogsController : ControllerBase
         var result = await _reader.QueryAsync(lvl, q, page, pageSize, HttpContext.RequestAborted);
         return Ok(result);
     }
+
+    /// <summary>Clear the application log. Super-admin only. Optional ?before= keeps newer entries.</summary>
+    /// <response code="200">Number of rows deleted.</response>
+    /// <response code="403">Not a super-admin.</response>
+    [HttpDelete]
+    public async Task<IActionResult> Clear([FromQuery] DateTime? before)
+    {
+        if (!_currentUser.IsSuperAdmin) return Forbid();
+        var deleted = await _reader.PurgeAsync(before, HttpContext.RequestAborted);
+        return Ok(new { deleted });
+    }
 }

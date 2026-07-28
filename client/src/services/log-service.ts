@@ -1,5 +1,5 @@
 // Super-admin error journal: reads Serilog's application_logs (Warning+) via GET /logs. Keyed on the filters.
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
 export interface ErrorLogEntry {
@@ -21,5 +21,15 @@ export function useErrorLogs(level: string, search: string, page: number, pageSi
         .get<ErrorLogPage>('/logs', { params: { level: level || undefined, search: search || undefined, page, pageSize } })
         .then((r) => r.data),
     staleTime: 10_000,
+  })
+}
+
+// Clear the log (super-admin). `before` (ISO) keeps newer entries; omit to wipe everything.
+export function useClearErrorLogs() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (before?: string) =>
+      apiClient.delete<{ deleted: number }>('/logs', { params: { before: before || undefined } }).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['logs'] }),
   })
 }

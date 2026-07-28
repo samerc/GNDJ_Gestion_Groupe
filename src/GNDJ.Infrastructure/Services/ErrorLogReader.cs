@@ -67,4 +67,26 @@ public class ErrorLogReader : IErrorLogReader
             return new ErrorLogPage([], 0);
         }
     }
+
+    public async Task<int> PurgeAsync(DateTime? before, CancellationToken ct)
+    {
+        try
+        {
+            await using var conn = new NpgsqlConnection(_connString);
+            await conn.OpenAsync(ct);
+
+            // Parameterized; when `before` is null every row is deleted (@before IS NULL short-circuits).
+            await using var cmd = new NpgsqlCommand(
+                "DELETE FROM application_logs WHERE @before IS NULL OR timestamp < @before", conn);
+            cmd.Parameters.Add(new NpgsqlParameter("before", NpgsqlDbType.TimestampTz)
+            {
+                Value = (object?)before ?? DBNull.Value,
+            });
+            return await cmd.ExecuteNonQueryAsync(ct);
+        }
+        catch (PostgresException ex) when (ex.SqlState == "42P01") // table not created yet — nothing to purge
+        {
+            return 0;
+        }
+    }
 }

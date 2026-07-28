@@ -9,4 +9,8 @@ public record ErrorLogPage(IReadOnlyList<ErrorLogEntry> Items, int Total);
 public interface IErrorLogReader
 {
     Task<ErrorLogPage> QueryAsync(string? level, string? search, int page, int pageSize, CancellationToken ct);
+
+    // Delete log rows (super-admin "Vider le journal"). When `before` is set, only rows older than it are
+    // removed; otherwise the whole table is cleared. Returns the number of rows deleted.
+    Task<int> PurgeAsync(DateTime? before, CancellationToken ct);
 }
