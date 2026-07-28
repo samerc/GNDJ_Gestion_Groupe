@@ -8,6 +8,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { PublicLayout } from '@/components/public/public-layout'
 import { ApplicantProtectedRoute } from '@/components/applicant/applicant-protected-route'
 import { ApplicantOpenRoute } from '@/components/applicant/applicant-open-route'
+import { ApplicantMaintenanceGate } from '@/components/applicant/applicant-maintenance-gate'
 import { ApplicantTermsGate } from '@/components/applicant/applicant-terms-gate'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 
@@ -71,6 +72,7 @@ const AdminResourcesPage = lazy(() => import('@/pages/admin/resources'))
 const AdminPagesPage = lazy(() => import('@/pages/admin/pages'))
 const AdminSiteTextsPage = lazy(() => import('@/pages/admin/site-texts'))
 const AuditLogsPage = lazy(() => import('@/pages/admin/audit-logs'))
+const ErrorLogPage = lazy(() => import('@/pages/admin/error-log'))
 const AssociationsPage = lazy(() => import('@/pages/admin/associations'))
 const UnitTypesPage = lazy(() => import('@/pages/admin/unit-types'))
 const UnitTypeDetailPage = lazy(() => import('@/pages/admin/unit-type-detail'))
@@ -108,23 +110,26 @@ export default function App() {
         <Route path="/forgot-username" element={<ForgotUsernamePage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-        {/* Public membership-application portal (isolated applicant auth) */}
-        <Route path="/inscription" element={<InscriptionLandingPage />} />
-        {/* Anonymous entry points — hidden (redirected to the landing's "fermées" notice) when inscriptions are closed. */}
-        <Route element={<ApplicantOpenRoute />}>
-          <Route path="/inscription/login" element={<ApplicantLoginPage />} />
-          <Route path="/inscription/verify" element={<ApplicantVerifyPage />} />
-        </Route>
-        {/* Register also needs the submission window open (blocked during the CG review phase). */}
-        <Route element={<ApplicantOpenRoute submissionsRequired />}>
-          <Route path="/inscription/register" element={<ApplicantRegisterPage />} />
-        </Route>
-        <Route element={<ApplicantProtectedRoute />}>
-          {/* T&C acceptance lives OUTSIDE the terms gate (no redirect loop); the portal routes are gated. */}
-          <Route path="/inscription/conditions" element={<ApplicantConditionsPage />} />
-          <Route element={<ApplicantTermsGate />}>
-            <Route path="/inscription/portail" element={<ApplicantPortalPage />} />
-            <Route path="/inscription/portail/demande/:id" element={<DemandeWizardPage />} />
+        {/* Public membership-application portal (isolated applicant auth). The gate shows a maintenance page
+            for the whole area when the site or "demande" module is turned off from settings. */}
+        <Route element={<ApplicantMaintenanceGate />}>
+          <Route path="/inscription" element={<InscriptionLandingPage />} />
+          {/* Anonymous entry points — hidden (redirected to the landing's "fermées" notice) when inscriptions are closed. */}
+          <Route element={<ApplicantOpenRoute />}>
+            <Route path="/inscription/login" element={<ApplicantLoginPage />} />
+            <Route path="/inscription/verify" element={<ApplicantVerifyPage />} />
+          </Route>
+          {/* Register also needs the submission window open (blocked during the CG review phase). */}
+          <Route element={<ApplicantOpenRoute submissionsRequired />}>
+            <Route path="/inscription/register" element={<ApplicantRegisterPage />} />
+          </Route>
+          <Route element={<ApplicantProtectedRoute />}>
+            {/* T&C acceptance lives OUTSIDE the terms gate (no redirect loop); the portal routes are gated. */}
+            <Route path="/inscription/conditions" element={<ApplicantConditionsPage />} />
+            <Route element={<ApplicantTermsGate />}>
+              <Route path="/inscription/portail" element={<ApplicantPortalPage />} />
+              <Route path="/inscription/portail/demande/:id" element={<DemandeWizardPage />} />
+            </Route>
           </Route>
         </Route>
 
@@ -212,6 +217,7 @@ export default function App() {
               <Route path="/admin/card-designer" element={<CardDesignerPage />} />
               <Route path="/admin/email-settings" element={<EmailSettingsPage />} />
               <Route path="/admin/settings" element={<SettingsPage />} />
+              <Route path="/admin/error-log" element={<ErrorLogPage />} />
               <Route path="/admin/report-templates" element={<ReportTemplatesPage />} />
               <Route path="/admin/progression-path" element={<ProgressionPathPage />} />
             </Route>

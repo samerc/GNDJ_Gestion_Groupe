@@ -440,6 +440,10 @@ app.UseAuthentication();
 app.UseMiddleware<ApiKeyMiddleware>();
 app.UseAuthorization();
 
+// Maintenance/kill-switches — after auth (needs the super-admin claim to grant them access) so a module
+// (or the whole site) in maintenance returns 503 to everyone else. Only gates /api/*; the SPA still loads.
+app.UseMiddleware<MaintenanceMiddleware>();
+
 // Serilog request logging (after auth so user context is available)
 app.UseSerilogRequestLogging(options =>
 {

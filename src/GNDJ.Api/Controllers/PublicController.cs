@@ -25,6 +25,11 @@ public class PublicController : BaseApiController
     public async Task<IActionResult> SiteConfig()
         => Ok(await Mediator.Send(new GetPublicSiteConfigQuery()));
 
+    /// <summary>Maintenance/kill-switch status so each frontend can show a "Sous maintenance" page. Not cached (toggles must reflect quickly; the provider caches ~15s server-side).</summary>
+    [HttpGet("maintenance")]
+    public async Task<IActionResult> Maintenance()
+        => Ok(await Mediator.Send(new GetMaintenanceStatusQuery()));
+
     /// <summary>Lists the published units grouped by branch, with category descriptions.</summary>
     [HttpGet("units")]
     [OutputCache(PolicyName = "ShortCache")]

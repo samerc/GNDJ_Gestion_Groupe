@@ -23,6 +23,8 @@ function FacebookIcon() {
 import { cn } from '@/lib/utils'
 import { usePublicPages } from '@/services/page-service'
 import { usePublicSiteConfig } from '@/services/public-service'
+import { useMaintenance } from '@/services/maintenance-service'
+import { MaintenancePage } from '@/components/shared/maintenance-page'
 
 const FIXED_LEFT = [{ to: '/', label: 'Accueil', end: true }]
 // A fixed nav entry is either a direct link (to) or a group with a hover dropdown (children).
@@ -66,6 +68,7 @@ export function PublicLayout() {
   const { data: pages } = usePublicPages()
   const { data: config } = usePublicSiteConfig()
   const inscriptionsOpen = config?.inscriptionsOpen ?? false
+  const { data: maint } = useMaintenance()
 
   // Solidify the header background once the page is scrolled past the top.
   useEffect(() => {
@@ -87,6 +90,9 @@ export function PublicLayout() {
   const MAX_INLINE_PAGES = 5
   const inlinePages = topPages.slice(0, MAX_INLINE_PAGES)
   const overflowPages = topPages.slice(MAX_INLINE_PAGES)
+
+  // Public site kill-switch (whole site or the "public" module).
+  if (maint && (maint.site || maint.publicSite)) return <MaintenancePage message={maint.message} />
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

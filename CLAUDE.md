@@ -2013,6 +2013,36 @@ auto-notified so they can act. Built on the existing single `ExceptionHandlingMi
 - NOTE/optional next: an in-app "Journal des erreurs" admin page over `application_logs` (data already there,
   email-independent) if the user wants to browse/resolve errors without relying on the inbox.
 
+### Error-log page + ops-SMTP alerts + maintenance kill-switches (2026-07-28)
+Follow-ups to the error-handling feature + a maintenance/kill-switch system. All DEV until deploy.
+- **Ops-SMTP for alerts (independent of app email):** `ErrorNotifier` now prefers a DEDICATED alert SMTP —
+  appsettings `ErrorAlerts:Smtp:{Host,Port,Username,Password,From,UseSsl}` — sent DIRECTLY via System.Net.Mail
+  (fire-and-forget, never blocks the request), so error alerts work even before the member-email go-live and
+  are never redirected by `email.override_recipient`. Falls back to the templated email queue when
+  `ErrorAlerts:Smtp:Host` is empty. Set the SMTP2GO creds in appsettings.Production.json.
+- **"Journal des erreurs" (super-admin):** browse recent Warning+ `application_logs` (where every error
+  reference lands) in-app, no email needed. `IErrorLogReader`/`ErrorLogReader` (direct parameterized Npgsql —
+  the table is Serilog's, not EF; **filter params explicitly typed Text** else Postgres 42P08 on NULL params;
+  returns empty if the table doesn't exist yet). `GET /logs?level=&search=&page=&pageSize=` (super-admin ONLY,
+  IsSuperAdmin gate — logs carry emails/IPs). Page `/admin/error-log` (level filter, debounced search,
+  expandable exception, pagination), route under `AdminRoute`, sidebar "Journal des erreurs" (Administration).
+- **Maintenance / kill-switches:** turn off the whole site OR a single module (public / demande / membres)
+  from Settings → a user hitting it sees a "Sous maintenance" page. Settings `maintenance.{site,public,demande,
+  membres}` (boolean) + `maintenance.message` (category `maintenance`). **`MaintenanceMiddleware`** (after auth)
+  returns **503** `{maintenance,message}` for `/api/*` calls to a module in maintenance — EXCEPT the super-admin
+  (claim `is_super_admin` — they toggle it back off), the member auth endpoints (login/refresh/me), the status
+  probe, and crash reporting. Module by path: `/public/*`→public, `/applicant*`→demande, else membres. Only
+  gates `/api/*` (SPA HTML always loads so the maintenance page renders). `IMaintenanceProvider`/
+  `MaintenanceProvider` reads the flags cached 15s. Anonymous `GET /public/maintenance` (`GetMaintenanceStatusQuery`)
+  drives the frontends: `useMaintenance()` (public client, polled 60s) + `MaintenancePage`; gated in AppLayout
+  (site||membres, super-admin sees an amber banner instead), PublicLayout (site||public), and a new
+  `ApplicantMaintenanceGate` wrapping all `/inscription` routes (site||demande).
+- **Settings page:** added the missing `email` + `maintenance` category tabs to CATEGORY_ORDER/LABELS (the
+  `email.*` settings incl. override_recipient were previously not surfaced anywhere — now editable).
+- Verified live: /logs 200 (1010 rows) + level/search filters + 403 for non-super-admin; maintenance.membres=on
+  → member 503, super-admin 200, login 200, public 200; status endpoint returns flags. Build clean
+  (dotnet+tsc+eslint). NOTE: alert delivery still needs an SMTP (ops `ErrorAlerts:Smtp` OR app email on).
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);

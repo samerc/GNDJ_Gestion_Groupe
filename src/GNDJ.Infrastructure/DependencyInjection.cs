@@ -65,6 +65,12 @@ public static class DependencyInjection
         // Best-effort admin alerting on server/client errors (singleton: owns its own scope, never throws).
         services.AddSingleton<IErrorNotifier, ErrorNotifier>();
 
+        // Read-only access to Serilog's application_logs table for the super-admin error journal.
+        services.AddScoped<IErrorLogReader, ErrorLogReader>();
+
+        // Maintenance/kill-switch state (cached), read by the maintenance middleware + public status endpoint.
+        services.AddScoped<IMaintenanceProvider, MaintenanceProvider>();
+
         // Permanent purge of soft-deleted members past the retention window (driven by a hosted job).
         services.AddScoped<IMemberPurgeService, MemberPurgeService>();
 

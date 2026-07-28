@@ -454,6 +454,15 @@ public static class SeedData
             new() { Key = "contact.recipient_email", Value = "", Category = "contact", Label = "Email de contact", Description = "Adresse qui reçoit les messages du formulaire de contact public (si vide, les messages vont au super administrateur)", ValueType = "string" },
             new() { Key = "email.override_recipient", Value = "", Category = "email", Label = "Redirection de tous les emails (test)", Description = "Si renseigné, TOUS les emails sortants sont envoyés à cette adresse au lieu du vrai destinataire (l'adresse prévue est indiquée dans l'objet). À utiliser pendant les tests ; laisser vide en production pour envoyer aux vrais destinataires.", ValueType = "string" },
             new() { Key = "error.notify_email", Value = "", Category = "email", Label = "Email d'alerte des erreurs", Description = "Adresse qui reçoit une alerte quand une erreur inattendue survient dans l'application (côté serveur ou navigateur), avec une référence pour la retrouver. Si vide, l'alerte va au super administrateur. Les alertes sont regroupées (une par type d'erreur toutes les 30 min) pour éviter le flot.", ValueType = "string" },
+            // Maintenance / kill-switches — turn off the whole site or a single module. A user hitting a module
+            // in maintenance sees a "Sous maintenance" page (API returns 503). Super-admin is ALWAYS exempt (so
+            // they can toggle it back off). Separate from demande.enabled (that's "inscriptions open", a business
+            // state; this is "the module is down for maintenance").
+            new() { Key = "maintenance.site", Value = "false", Category = "maintenance", Label = "Maintenance — tout le site", Description = "Met TOUT le site en maintenance (public, inscriptions et espace membres). Le super administrateur garde l'accès.", ValueType = "boolean" },
+            new() { Key = "maintenance.public", Value = "false", Category = "maintenance", Label = "Maintenance — site public", Description = "Met le site public (pages, actualités, unités…) en maintenance.", ValueType = "boolean" },
+            new() { Key = "maintenance.demande", Value = "false", Category = "maintenance", Label = "Maintenance — demandes d'inscription", Description = "Met le portail public de demande d'inscription en maintenance.", ValueType = "boolean" },
+            new() { Key = "maintenance.membres", Value = "false", Category = "maintenance", Label = "Maintenance — espace membres", Description = "Met l'espace membres et chefs (application connectée) en maintenance. Le super administrateur garde l'accès pour intervenir.", ValueType = "boolean" },
+            new() { Key = "maintenance.message", Value = "Cette partie du site est momentanément en maintenance. Merci de réessayer dans quelques instants.", Category = "maintenance", Label = "Message de maintenance", Description = "Message affiché aux utilisateurs pendant la maintenance.", ValueType = "string" },
         };
 
         var missing = allSettings.Where(s => !existingKeys.Contains(s.Key)).ToList();

@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Mail;
 using GNDJ.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -51,19 +53,35 @@ public class ErrorNotifier : IErrorNotifier
                 return;
             }
 
-            var vars = new Dictionary<string, string>
+            var source = report.Source == "client" ? "Application (navigateur)" : "Serveur";
+            var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss 'UTC'");
+
+            // Prefer a DEDICATED alert SMTP (appsettings ErrorAlerts:Smtp:*) so error alerts work independently
+            // of the member-facing email system — i.e. even before email go-live, and never redirected by
+            // email.override_recipient. This mirrors the always-on ops scripts (SMTP2GO). If not configured,
+            // fall back to the normal templated email queue (delivers once the app's SMTP is active).
+            if (!string.IsNullOrWhiteSpace(_config["ErrorAlerts:Smtp:Host"]))
             {
-                ["errorId"] = report.ErrorId,
-                ["source"] = report.Source == "client" ? "Application (navigateur)" : "Serveur",
-                ["timestamp"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss 'UTC'"),
-                ["message"] = Truncate(report.Message, 500),
-                // EmailService HTML-encodes every substituted value for the body, so pass the raw trace here.
-                ["detail"] = Truncate(report.Detail ?? "", 3000),
-                ["method"] = report.Method ?? "",
-                ["path"] = report.Path ?? "",
-                ["user"] = report.User ?? "anonyme",
-            };
-            _emailQueue.Enqueue(new EmailJob("error_alert", recipient!, vars));
+                // Fire-and-forget: never block the (already-failing) request on an SMTP round-trip.
+                var rcpt = recipient!;
+                _ = Task.Run(() => SendDirectSafeAsync(rcpt, report, source, timestamp));
+            }
+            else
+            {
+                var vars = new Dictionary<string, string>
+                {
+                    ["errorId"] = report.ErrorId,
+                    ["source"] = source,
+                    ["timestamp"] = timestamp,
+                    ["message"] = Truncate(report.Message, 500),
+                    // EmailService HTML-encodes every substituted value for the body, so pass the raw trace here.
+                    ["detail"] = Truncate(report.Detail ?? "", 3000),
+                    ["method"] = report.Method ?? "",
+                    ["path"] = report.Path ?? "",
+                    ["user"] = report.User ?? "anonyme",
+                };
+                _emailQueue.Enqueue(new EmailJob("error_alert", recipient!, vars));
+            }
         }
         catch (Exception ex)
         {
@@ -95,6 +113,47 @@ public class ErrorNotifier : IErrorNotifier
         {
             // DB unreachable (a likely cause of the very error we're reporting) → fall back to config only.
             return _config["ErrorAlerts:Email"];
+        }
+    }
+
+    // Send the alert directly via the dedicated ErrorAlerts SMTP (independent of the app's email system).
+    // Wrapped so it never throws (fire-and-forget on the thread pool).
+    private async Task SendDirectSafeAsync(string recipient, ErrorReport report, string source, string timestamp)
+    {
+        try
+        {
+            var host = _config["ErrorAlerts:Smtp:Host"]!;
+            var port = int.TryParse(_config["ErrorAlerts:Smtp:Port"], out var p) ? p : 587;
+            var user = _config["ErrorAlerts:Smtp:Username"];
+            var pass = _config["ErrorAlerts:Smtp:Password"];
+            var from = _config["ErrorAlerts:Smtp:From"] ?? user ?? "noreply@gndj.org";
+            var useSsl = !bool.TryParse(_config["ErrorAlerts:Smtp:UseSsl"], out var s) || s; // default true (STARTTLS)
+
+            string Row(string k, string v) => $"<tr><td style='padding:4px 8px;font-weight:bold'>{k}</td><td style='padding:4px 8px'>{WebUtility.HtmlEncode(v)}</td></tr>";
+            var body =
+                "<h2>Une erreur est survenue</h2><table style='border-collapse:collapse;font-family:monospace;font-size:13px'>" +
+                Row("Référence", report.ErrorId) + Row("Origine", source) + Row("Date (UTC)", timestamp) +
+                Row("Utilisateur", report.User ?? "anonyme") + Row("Requête", $"{report.Method} {report.Path}") +
+                Row("Message", Truncate(report.Message, 500)) + "</table>" +
+                "<p><strong>Détail :</strong></p><pre style='background:#f4f4f4;padding:10px;border-radius:5px;font-size:12px;white-space:pre-wrap'>" +
+                WebUtility.HtmlEncode(Truncate(report.Detail ?? "", 3000)) + "</pre>";
+
+            using var msg = new MailMessage
+            {
+                From = new MailAddress(from, "GNDJ Alertes"),
+                Subject = $"[GNDJ Erreur {source}] réf. {report.ErrorId}",
+                Body = body,
+                IsBodyHtml = true,
+            };
+            msg.To.Add(recipient);
+
+            using var client = new SmtpClient(host, port) { EnableSsl = useSsl };
+            if (!string.IsNullOrWhiteSpace(user)) client.Credentials = new NetworkCredential(user, pass);
+            await client.SendMailAsync(msg);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Direct error-alert send failed for ErrorId={ErrorId}", report.ErrorId);
         }
     }
 

@@ -6,6 +6,9 @@ import { Header } from './header'
 import { SessionWarning } from '@/components/shared/session-warning'
 import { RentreeOverduePopup } from '@/components/rentree/overdue-popup'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { useAuthStore } from '@/stores/auth-store'
+import { useMaintenance } from '@/services/maintenance-service'
+import { MaintenancePage } from '@/components/shared/maintenance-page'
 
 // ROLE: authenticated app shell — sidebar + header around the routed <Outlet>.
 // Used as the layout route wrapping every signed-in page. Mounts the global
@@ -21,6 +24,13 @@ export function AppLayout() {
     mainRef.current?.scrollTo({ top: 0, left: 0 })
   }, [pathname])
 
+  // Maintenance kill-switch: when the whole site or the "membres" module is off, everyone but the super-admin
+  // (who needs access to turn it back off) sees the maintenance page. The super-admin sees a warning banner.
+  const user = useAuthStore((s) => s.user)
+  const { data: maint } = useMaintenance()
+  const inMaintenance = !!maint && (maint.site || maint.membres)
+  if (inMaintenance && !user?.isSuperAdmin) return <MaintenancePage message={maint?.message} />
+
   return (
     <TooltipProvider delayDuration={250} skipDelayDuration={300}>
     <div className="flex h-screen">
@@ -31,6 +41,11 @@ export function AppLayout() {
       <RentreeOverduePopup />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
+        {inMaintenance && (
+          <div className="bg-amber-500 px-4 py-1.5 text-center text-xs font-medium text-amber-950">
+            Mode maintenance actif ({maint?.site ? 'tout le site' : 'espace membres'}) — seuls les super-administrateurs ont accès. Désactivez-le dans Paramètres.
+          </div>
+        )}
         <main ref={mainRef} className="flex-1 overflow-auto p-4 sm:p-6">
           <Outlet />
         </main>
