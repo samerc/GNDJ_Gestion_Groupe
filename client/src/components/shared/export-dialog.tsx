@@ -4,7 +4,7 @@
 // returned blob with the matching MIME type / extension.
 import { useState } from 'react'
 import { generateExport } from '@/services/report-service'
-import { useSettingValue } from '@/services/settings-service'
+import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { parseBlobError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -71,7 +71,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
 const DEFAULT_SELECTED = new Set(['name', 'cardNumber', 'age', 'phone', 'email', 'role', 'team'])
 
 export function ExportDialog({ unitId, unitName, teamId, open, onOpenChange }: Props) {
-  const scoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
+  const scoutYear = useCurrentScoutYear()
   const [selectedCols, setSelectedCols] = useState<Set<string>>(new Set(DEFAULT_SELECTED))
   const [format, setFormat] = useState<'excel' | 'csv'>('excel')
   const [generating, setGenerating] = useState(false)

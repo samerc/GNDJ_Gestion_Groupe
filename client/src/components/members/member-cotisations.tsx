@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { useState } from 'react'
 import { useMemberCotisations, useCreateCotisation, useUpdateCotisation, useDeleteCotisation, useSetCotisationExempt, downloadReceipt, type MemberCotisationDto, type PaymentLineInput } from '@/services/cotisation-service'
 import { useSettingValue } from '@/services/settings-service'
+import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
@@ -52,7 +53,7 @@ export function MemberCotisations({ memberId, memberName, bare }: Props) {
   const { hasPermission } = useAuthStore()
   const { data: cotisations, isLoading } = useMemberCotisations(memberId)
   const defaultAmount = useSettingValue('cotisation.default_amount')
-  const currentScoutYear = useSettingValue('cotisation.current_scout_year')
+  const currentScoutYear = useCurrentScoutYear()
   const defaultCurrency = useSettingValue('cotisation.default_currency') ?? 'USD'
   const exchangeRatesRaw = useSettingValue('cotisation.exchange_rates')
   const createMutation = useCreateCotisation(memberId)

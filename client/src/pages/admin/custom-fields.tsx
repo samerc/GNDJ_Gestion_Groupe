@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Pencil, Trash2, ListPlus } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
+import { BackLink } from '@/components/shared/back-link'
 
 const FIELD_TYPE_LABELS: Record<string, string> = {
   text: 'Texte',
@@ -123,6 +124,7 @@ export default function CustomFieldsPage() {
 
   return (
     <div className="space-y-6">
+      <BackLink to="/admin/settings" label="Retour aux paramètres" />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Champs personnalisés</h1>
         <Button onClick={openCreate}>

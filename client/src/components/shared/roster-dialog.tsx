@@ -4,7 +4,7 @@
 // single team via teamId. Calls the report API and downloads the returned PDF blob.
 import { useState } from 'react'
 import { generateRoster } from '@/services/report-service'
-import { useSettingValue } from '@/services/settings-service'
+import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { parseBlobError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -70,7 +70,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
 const ALL_COLUMN_KEYS = COLUMN_GROUPS.flatMap(g => g.columns.map(c => c.key))
 
 export function RosterDialog({ unitId, unitName, teamId, open, onOpenChange }: Props) {
-  const scoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
+  const scoutYear = useCurrentScoutYear()
   const [selected, setSelected] = useState<Set<string>>(new Set(ALL_COLUMN_KEYS))
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')

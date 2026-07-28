@@ -4,7 +4,7 @@
 // re-downloads and what every member sees on their Trombinoscope page, with the photos as they were at
 // generation time (so replacing a member's photo later never rewrites a past year, and it's never
 // regenerated on view). The leader picks which teams to include and whether to print photos.
-// Year = cotisation.current_scout_year.
+// Year = the active scout year (follows the passage year).
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -13,7 +13,7 @@ import {
   downloadTrombinoscopeArchive,
 } from '@/services/report-service'
 import { useTeams } from '@/services/team-service'
-import { useSettingValue } from '@/services/settings-service'
+import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -29,7 +29,7 @@ interface Props {
 }
 
 export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Props) {
-  const scoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
+  const scoutYear = useCurrentScoutYear()
   const { data: teamsData } = useTeams({ unitId, pageSize: 100 })
   const teams = teamsData?.items ?? []
 

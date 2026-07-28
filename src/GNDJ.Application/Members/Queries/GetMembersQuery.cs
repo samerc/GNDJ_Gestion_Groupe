@@ -129,9 +129,10 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
                     .Select(a => a.FunctionalRole.Name).FirstOrDefault(),
                 m.Assignments.Where(a => a.EndDate == null && (scopeUnitId == null || a.UnitId == scopeUnitId))
                     .Select(a => (int?)a.FunctionalRole.Rank).FirstOrDefault(),
-                // Father's name (relationship stored as "Pere" or "Père").
+                // Father's FIRST name only (relationship stored as "Pere" or "Père"). The family name is
+                // redundant next to the member's own last name in the roster, so we drop it.
                 m.GuardianLinks.Where(l => !l.IsDeleted && (l.RelationshipType == "Pere" || l.RelationshipType == "Père"))
-                    .Select(l => l.Guardian.FirstName + " " + l.Guardian.LastName).FirstOrDefault()
+                    .Select(l => l.Guardian.FirstName).FirstOrDefault()
             ));
 
         var result = await PaginatedList<MemberListDto>.CreateAsync(projected, request.Page, request.PageSize, cancellationToken);
@@ -157,7 +158,8 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
                     .Select(g => new { Id = g.Key, N = g.Select(x => x.DocumentTypeId).Distinct().Count() })
                     .ToDictionaryAsync(x => x.Id, x => x.N, cancellationToken);
 
-            var scoutYear = await _context.Settings.Where(s => s.Key == "cotisation.current_scout_year")
+            // Active scout year follows the passage year (the year the CG opens) — single source of truth.
+            var scoutYear = await _context.Settings.Where(s => s.Key == "passage.scout_year")
                 .Select(s => s.Value).FirstOrDefaultAsync(cancellationToken);
             var cotisTracked = !string.IsNullOrWhiteSpace(scoutYear);
             var cotisOk = cotisTracked

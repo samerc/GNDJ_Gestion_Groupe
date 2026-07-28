@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import type { UnitAccess } from '@/types/auth'
 import { useAdminDashboard } from '@/services/dashboard-service'
-import { useSettingValue } from '@/services/settings-service'
+import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
@@ -34,8 +34,8 @@ function ChartBar({ value, max, color, label, suffix }: { value: number; max: nu
 // Group-wide overview shown to super-admins and Chefs de Groupe: key counts, members-by-unit
 // and age-distribution charts, all scoped to the selected scout year (every tile is year-aware).
 function AdminDashboard() {
-  // Default the year selector to the configured current scout year (falls back if the setting is missing).
-  const currentScoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
+  // Default the year selector to the active scout year (follows the passage year).
+  const currentScoutYear = useCurrentScoutYear()
   const [scoutYear, setScoutYear] = useState(currentScoutYear)
   const { data, isLoading } = useAdminDashboard(scoutYear)
 

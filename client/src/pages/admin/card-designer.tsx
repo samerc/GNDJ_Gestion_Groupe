@@ -11,6 +11,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Save, CreditCard, User, Hash, Building2, Users, Shield, Calendar, Droplet, Phone, ListPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
+import { BackLink } from '@/components/shared/back-link'
 
 // Catalog of card fields; `alwaysOn` fields (name) can't be toggled off.
 const CARD_FIELDS = [
@@ -87,6 +88,7 @@ export default function CardDesignerPage() {
 
   return (
     <div className="space-y-6">
+      <BackLink to="/admin/settings" label="Retour aux paramètres" />
       <div className="flex items-center gap-3">
         <CreditCard className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold">Carte membre</h1>

@@ -17,6 +17,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Plus, Pencil, Trash2, Search, Landmark, X } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
+import { BackLink } from '@/components/shared/back-link'
 
 export default function AssociationsPage() {
   const [search, setSearch] = useState('')
@@ -86,6 +87,7 @@ export default function AssociationsPage() {
 
   return (
     <div className="space-y-6">
+      <BackLink to="/admin/settings" label="Retour aux paramètres" />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Associations</h1>
         <Button onClick={openCreate}>

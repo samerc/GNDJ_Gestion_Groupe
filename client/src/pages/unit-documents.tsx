@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { useMemo, useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingValue } from '@/services/settings-service'
+import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import {
   useUnitDocumentsMatrix, useReviewDocumentMatrix, downloadDocument, downloadUnitDocumentsZip,
   type MemberDocRowDto, type MemberDocCellDto, type DocTypeColumnDto
@@ -66,7 +67,7 @@ const PAYMENT_METHOD_OPTIONS = [
 // payment dialog. Unit-scoped to the CU's authorized units; the unit picker only shows when they lead >1.
 export default function UnitDocumentsPage() {
   const user = useAuthStore((s) => s.user)
-  const currentScoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
+  const currentScoutYear = useCurrentScoutYear()
   const defaultAmount = useSettingValue('cotisation.default_amount')
   const [selectedUnit, setSelectedUnit] = useState<string>(user?.unitAccess[0]?.unitId ?? '')
 

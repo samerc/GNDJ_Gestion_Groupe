@@ -26,7 +26,7 @@ import { parseBlobError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { useReportTemplates } from '@/services/report-template-service'
 import { generateRoster, generateExport } from '@/services/report-service'
-import { useSettingValue } from '@/services/settings-service'
+import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -243,7 +243,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const [bulkCardsLoading, setBulkCardsLoading] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const { data: reportTemplates } = useReportTemplates(true)
-  const currentScoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
+  const currentScoutYear = useCurrentScoutYear()
   const [generatingReport, setGeneratingReport] = useState<string | null>(null)
 
   // Run a CG-defined report template (roster PDF or data export) for this unit and trigger a download.

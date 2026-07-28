@@ -12,6 +12,7 @@ import {
   type UnpaidCotisationDto,
 } from '@/services/cotisation-service'
 import { useSettingValue } from '@/services/settings-service'
+import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { useQueryClient } from '@tanstack/react-query'
 import { parseApiError } from '@/lib/error-utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -36,7 +37,7 @@ function formatCurrency(amount: number, currency: string): string {
 }
 
 export default function CotisationDashboardPage() {
-  const currentScoutYear = useSettingValue('cotisation.current_scout_year') ?? '2025-2026'
+  const currentScoutYear = useCurrentScoutYear()
   const defaultAmount = useSettingValue('cotisation.default_amount')
   const [scoutYear, setScoutYear] = useState(currentScoutYear)
   const navigate = useNavigate()
