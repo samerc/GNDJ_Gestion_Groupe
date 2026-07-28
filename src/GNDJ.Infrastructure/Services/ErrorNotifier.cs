@@ -25,6 +25,8 @@ public class ErrorNotifier : IErrorNotifier
 
     // One alert per identical (source|path|message) signature per this window — throttles an error storm.
     private static readonly TimeSpan DedupeWindow = TimeSpan.FromMinutes(30);
+    // Hard ceiling on alert emails per clock-hour (across all sources) — inbox-flood safety net.
+    private const int MaxAlertsPerHour = 30;
 
     public ErrorNotifier(IServiceScopeFactory scopeFactory, IEmailQueue emailQueue, IMemoryCache cache,
         IConfiguration config, ILogger<ErrorNotifier> logger)
@@ -44,6 +46,18 @@ public class ErrorNotifier : IErrorNotifier
             var signature = $"errnotify:{report.Source}|{report.Path}|{Truncate(report.Message, 120)}";
             if (_cache.TryGetValue(signature, out _)) return;
             _cache.Set(signature, true, DedupeWindow);
+
+            // Global circuit-breaker: cap TOTAL alerts per clock-hour so neither a diverse error storm nor an
+            // authenticated abuser varying the message (which bypasses the per-signature dedupe) can flood the
+            // inbox. Beyond the cap the error is still logged/visible in the journal; only the email is skipped.
+            var bucket = $"errnotify:count:{DateTime.UtcNow:yyyyMMddHH}";
+            var sentThisHour = _cache.TryGetValue(bucket, out int c) ? c : 0;
+            if (sentThisHour >= MaxAlertsPerHour)
+            {
+                _logger.LogWarning("Error-alert hourly cap ({Cap}) reached; suppressing email for ErrorId={ErrorId}", MaxAlertsPerHour, report.ErrorId);
+                return;
+            }
+            _cache.Set(bucket, sentThisHour + 1, TimeSpan.FromHours(2));
 
             var recipient = await ResolveRecipientAsync(ct);
             if (string.IsNullOrWhiteSpace(recipient))
