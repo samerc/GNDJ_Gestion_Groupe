@@ -29,6 +29,17 @@ $changelog = Join-Path $client 'src/data/changelog.json'
 $dirty = git -C $root status --porcelain
 if ($dirty) { throw "Working tree is not clean. Commit or stash your changes before bumping." }
 
+# Refuse to author a release on a STALE checkout. The version/tag must build on the latest origin history —
+# otherwise this clone and the other one diverge (a release created on a behind checkout can't be pushed
+# fast-forward, and its changelog would miss commits it hasn't pulled). Fetch, then block if we're behind.
+git -C $root fetch --quiet 2>$null
+$upstream = git -C $root rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>$null
+if (-not $upstream) { $upstream = "origin/$(git -C $root rev-parse --abbrev-ref HEAD)" }
+$behind = git -C $root rev-list --count "HEAD..$upstream" 2>$null
+if ($LASTEXITCODE -eq 0 -and [int]$behind -gt 0) {
+  throw "Local branch is $behind commit(s) behind $upstream. Run 'git pull' first so the release builds on the latest history."
+}
+
 # The previous version tag (vX.Y.Z). Used as the lower bound for 'what changed'. Empty on the very first bump.
 $lastTag = (git -C $root tag --list 'v*' --sort=-v:refname | Select-Object -First 1)
 

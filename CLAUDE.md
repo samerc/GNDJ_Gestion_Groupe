@@ -2053,6 +2053,46 @@ Follow-ups to the error-handling feature + a maintenance/kill-switch system. All
   signature (e.g. `union select`) could 400 that one report — reliability edge only (the error still lands in
   application_logs); not exempting the endpoint for now.
 
+### Sidebar/menu pass + error-log clear + app versioning (2026-07-28)
+Post-error-handling polish (all on main, pushed; DEV until deploy). Also fixed two prod log noises.
+- [x] **Prod log fixes:** (1) `SecurityProfilePermission` (not a BaseEntity) now filters through its parent
+      (`!SecurityProfile.IsDeleted`) — silences the recurring EF "required end of a relationship with a
+      query-filtered entity" startup Warning (query filter only, no migration). (2) `deploy/deploy.ps1` now
+      ensures `dataprotection-keys`/`uploads`/`logs` exist + grants the IIS app-pool Modify (best-effort,
+      needs elevation) — fixes the prod "An error occurred while reading the key ring"
+      UnauthorizedAccessException on `C:\inetpub\www\gndj\dataprotection-keys` (one-time server fix:
+      `icacls <dir> /grant "IIS AppPool\gndj:(OI)(CI)M" /T`).
+- [x] **Error log "Vider le journal":** `DELETE /logs` (super-admin only, optional `?before=` keeps newer
+      rows) via `IErrorLogReader.PurgeAsync` (parameterized DELETE, no-op if table absent) + a destructive-
+      confirm button on the Journal des erreurs page (toast with deleted count). Verified: cleared 1024→0;
+      non-super-admin → 403.
+- [x] **Sidebar = collapsible accordion, regrouped by task (managers).** The manager (super-admin/CG/ACG)
+      nav rendered ~39 links at once (groups never collapsed; "Gestion" was a 14-item junk drawer). Now:
+      groups are a persisted **accordion** (collapsed by default, the group holding the active route
+      auto-expands; state in `sidebar-store` via zustand persist; icon-collapsed sidebar still shows all
+      items). Pinned the daily items (Tableau de bord, Membres) at top; split "Gestion" into
+      **Suivi & demandes / Unités & maîtrise / Camp & rentrée / Configuration / Site public / Système**
+      (ordered by frequency). Pending badges (demandes/change-requests) roll up onto a COLLAPSED group's
+      header so nothing actionable hides. Every link keeps its permission gate.
+- [x] **Set-and-forget pages out of the nav → Paramètres.** Associations + Champs personnalisés + Carte
+      membre moved behind a **"Pages de configuration ▾"** dropdown in the Paramètres header (all
+      associations.manage, same as Settings access). Routes unchanged. **Rapports stays in the menu** (user
+      request).
+- [x] **App version number + private changelog ("Journal des versions").** Version source = `client/
+      package.json` (npm semver). `vite.config.ts` bakes **version + git short-commit + build date** into the
+      bundle (`define`; declared in new `src/env.d.ts`, surfaced via `src/lib/app-version.ts`), so the live
+      build is always identifiable. **Super-admin-only** page `/admin/changelog` (NOT in the main nav; reached
+      from a discreet `vX.Y.Z` link in the **sidebar footer**, shown to super-admin only) lists the current
+      build identity + release history from `src/data/changelog.json`. **Release tooling:**
+      `deploy/bump.ps1 -Type major|minor|patch [-Push]` bumps package.json, auto-generates the changelog from
+      the **commit subjects since the previous `v*` tag** (`git log <lastTag>..HEAD`, minus `chore(release)`;
+      written by `deploy/bump.mjs` to avoid PS 5.1 JSON quirks), commits `chore(release): vX.Y.Z` + tags it;
+      guarded (clean tree + **refuses if the checkout is behind origin** so a release can't be authored on a
+      stale clone). Baseline tag **v1.0.0** created. `update.ps1` gained `-Bump major|minor|patch` (calls
+      bump.ps1 before build) for a one-command deploy-and-release. **Final agreed process: bump on DEV
+      (`bump.ps1 -Type patch -Push`), then deploy on prod (`update.ps1 -Pull`)** — dev stays the authoritative
+      history; prod is pull-only. Versions live on **origin** (whoever bumps pushes there).
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);
