@@ -43,6 +43,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { usePendingDemandeCount } from '@/services/demande-admin-service'
 import { usePendingChangeRequestsCount } from '@/services/change-request-service'
+import { APP_VERSION, BUILD_COMMIT, BUILD_DATE } from '@/lib/app-version'
 
 function BrandMark({ className }: { className?: string }) {
   return (
@@ -272,6 +273,9 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
 
 export function Sidebar() {
   const { collapsed, toggle } = useSidebarStore()
+  // The version number is a private maintainer entry point to the changelog — shown to the super-admin only.
+  const isSuperAdmin = useAuthStore((s) => !!s.user?.isSuperAdmin)
+  const showVersion = !collapsed && isSuperAdmin
 
   return (
     <aside
@@ -301,11 +305,20 @@ export function Sidebar() {
         <NavContent collapsed={collapsed} />
       </div>
 
-      {/* Collapse toggle */}
+      {/* Version (super-admin only) + collapse toggle */}
       <div className={cn(
-        'border-t border-sidebar-border p-2',
-        collapsed ? 'flex justify-center' : 'flex justify-end'
+        'flex items-center border-t border-sidebar-border p-2',
+        collapsed ? 'justify-center' : showVersion ? 'justify-between' : 'justify-end'
       )}>
+        {showVersion && (
+          <Link
+            to="/admin/changelog"
+            title={`build ${BUILD_COMMIT}${BUILD_DATE ? ` · ${BUILD_DATE}` : ''}`}
+            className="px-2 text-[11px] font-medium text-sidebar-foreground/40 transition-colors hover:text-sidebar-foreground/70"
+          >
+            v{APP_VERSION}
+          </Link>
+        )}
         <Button
           variant="ghost"
           size="icon"

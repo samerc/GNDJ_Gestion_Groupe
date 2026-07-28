@@ -2,8 +2,26 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
+import { execSync } from 'child_process'
+import { readFileSync } from 'fs'
+
+// Bake the release identity into the bundle at build time. Version comes from package.json (bumped by
+// deploy/bump.ps1); the short commit + build date are captured from git so we can always tell exactly
+// which build is live — even if a version bump was forgotten. Git may be absent when building from a
+// published package, so we fall back gracefully.
+const pkgVersion = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')).version as string
+function safeGit(cmd: string, fallback: string): string {
+  try { return execSync(cmd, { cwd: __dirname }).toString().trim() } catch { return fallback }
+}
+const gitCommit = safeGit('git rev-parse --short HEAD', 'dev')
+const buildDate = new Date().toISOString().slice(0, 10) // yyyy-MM-dd (build day, UTC)
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkgVersion),
+    __BUILD_COMMIT__: JSON.stringify(gitCommit),
+    __BUILD_DATE__: JSON.stringify(buildDate),
+  },
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

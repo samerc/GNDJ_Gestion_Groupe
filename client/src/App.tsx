@@ -73,6 +73,7 @@ const AdminPagesPage = lazy(() => import('@/pages/admin/pages'))
 const AdminSiteTextsPage = lazy(() => import('@/pages/admin/site-texts'))
 const AuditLogsPage = lazy(() => import('@/pages/admin/audit-logs'))
 const ErrorLogPage = lazy(() => import('@/pages/admin/error-log'))
+const ChangelogPage = lazy(() => import('@/pages/admin/changelog'))
 const AssociationsPage = lazy(() => import('@/pages/admin/associations'))
 const UnitTypesPage = lazy(() => import('@/pages/admin/unit-types'))
 const UnitTypeDetailPage = lazy(() => import('@/pages/admin/unit-type-detail'))
@@ -218,6 +219,7 @@ export default function App() {
               <Route path="/admin/email-settings" element={<EmailSettingsPage />} />
               <Route path="/admin/settings" element={<SettingsPage />} />
               <Route path="/admin/error-log" element={<ErrorLogPage />} />
+              <Route path="/admin/changelog" element={<ChangelogPage />} />
               <Route path="/admin/report-templates" element={<ReportTemplatesPage />} />
               <Route path="/admin/progression-path" element={<ProgressionPathPage />} />
             </Route>
