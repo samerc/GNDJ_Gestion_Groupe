@@ -23,6 +23,8 @@ import {
   Settings2,
   ChevronsLeft,
   ChevronsRight,
+  ChevronDown,
+  ChevronRight,
   X,
   Receipt,
   Route,
@@ -68,11 +70,11 @@ const personalNavItems = [
   { path: '/my-trombinoscope', label: 'Trombinoscope', icon: ImageIcon, permission: null },
 ]
 
+// Ungrouped, pinned at the very top for managers — the handful of pages opened daily. Everything else lives
+// in a collapsible group below (accordion), so the sidebar opens as a short list instead of a ~39-link wall.
 const adminNavItems = [
   { path: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard, permission: null },
   { path: '/members', label: 'Membres', icon: Users, permission: PERMISSIONS.MEMBERS_VIEW },
-  { path: '/units', label: 'Unités', icon: Building2, permission: PERMISSIONS.UNITS_VIEW },
-  { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: null },
 ]
 
 // Unit leader nav — "Mon unité" and "Documents" only visible to CU (members.edit permission)
@@ -90,37 +92,51 @@ const leaderNavItems = [
 
 type AdminGroup = {
   label: string
-  items: { path: string; label: string; icon: React.ComponentType<{ className?: string }>; permission: string }[]
+  items: { path: string; label: string; icon: React.ComponentType<{ className?: string }>; permission: string | null }[]
 }
 
+// Task-focused groups (was a single 14-item "Gestion" junk drawer). Each renders as a collapsible accordion
+// section — collapsed by default, the group holding the current route auto-expands. Ordered roughly by how
+// often a manager reaches for them: day-to-day follow-up first, rarely-touched configuration/system last.
 const adminGroups: AdminGroup[] = [
   {
-    label: 'Données scouts',
+    label: 'Suivi & demandes',
+    items: [
+      { path: '/admin/demandes', label: "Demandes d'inscription", icon: Inbox, permission: PERMISSIONS.DEMANDE_VIEW },
+      { path: '/admin/demande-stats', label: 'Statistiques demandes', icon: BarChart3, permission: PERMISSIONS.DEMANDE_VIEW },
+      { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
+      { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
+      { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },
+    ],
+  },
+  {
+    label: 'Unités & maîtrise',
+    items: [
+      { path: '/units', label: 'Unités', icon: Building2, permission: PERMISSIONS.UNITS_VIEW },
+      { path: '/maitrises', label: 'Maîtrises', icon: Crown, permission: PERMISSIONS.MAITRISE_MANAGE },
+      { path: '/admin/group-access', label: 'Accès maîtrise', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE_GROUP },
+      { path: '/admin/send-access', label: 'Envoyer les accès', icon: Key, permission: PERMISSIONS.MEMBERS_RESET_PASSWORD },
+    ],
+  },
+  {
+    label: 'Camp & rentrée',
+    items: [
+      { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: null },
+      { path: '/admin/rentree-template', label: 'Modèle de rentrée', icon: ListChecks, permission: PERMISSIONS.RENTREE_MANAGE },
+      { path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: PERMISSIONS.CAMP_MANAGE },
+    ],
+  },
+  {
+    label: 'Configuration',
     items: [
       { path: '/admin/associations', label: 'Associations', icon: Landmark, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/unit-types', label: "Types d'unité", icon: FolderTree, permission: PERMISSIONS.UNIT_TYPES_MANAGE },
       { path: '/admin/roles', label: 'Fonctions', icon: Shield, permission: PERMISSIONS.ROLES_MANAGE },
+      { path: '/admin/progression-path', label: 'Parcours scouts', icon: Route, permission: PERMISSIONS.UNIT_TYPES_MANAGE },
       { path: '/admin/progression', label: 'Progression scoute', icon: Star, permission: PERMISSIONS.PROGRESSION_MANAGE },
       { path: '/admin/document-types', label: 'Types de documents', icon: FileText, permission: PERMISSIONS.DOCUMENT_TYPES_VIEW },
-      { path: '/admin/progression-path', label: 'Parcours scouts', icon: Route, permission: PERMISSIONS.UNIT_TYPES_MANAGE },
       { path: '/admin/custom-fields', label: 'Champs personnalisés', icon: ListPlus, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-    ],
-  },
-  {
-    label: 'Gestion',
-    items: [
-      { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
-      { path: '/admin/deleted-members', label: 'Corbeille', icon: Trash2, permission: PERMISSIONS.MEMBERS_DELETE },
-      { path: '/admin/send-access', label: 'Envoyer les accès', icon: Key, permission: PERMISSIONS.MEMBERS_RESET_PASSWORD },
-      { path: '/maitrises', label: 'Maîtrises', icon: Crown, permission: PERMISSIONS.MAITRISE_MANAGE },
-      { path: '/admin/group-access', label: 'Accès maîtrise', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE_GROUP },
       { path: '/admin/lists', label: 'Listes', icon: List, permission: PERMISSIONS.MAITRISE_MANAGE },
-      { path: '/admin/rentree-template', label: 'Modèle de rentrée', icon: ListChecks, permission: PERMISSIONS.RENTREE_MANAGE },
-      { path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: PERMISSIONS.CAMP_MANAGE },
-      { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
-      { path: '/admin/demandes', label: "Demandes d'inscription", icon: Inbox, permission: PERMISSIONS.DEMANDE_VIEW },
-      { path: '/admin/demande-stats', label: 'Statistiques demandes', icon: BarChart3, permission: PERMISSIONS.DEMANDE_VIEW },
-      { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },
       { path: '/admin/card-designer', label: 'Carte membre', icon: CreditCard, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/report-templates', label: 'Rapports', icon: FileText, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
     ],
@@ -136,13 +152,14 @@ const adminGroups: AdminGroup[] = [
     ],
   },
   {
-    label: 'Administration',
+    label: 'Système',
     items: [
       { path: '/admin/security-profiles', label: 'Profils de sécurité', icon: ShieldCheck, permission: PERMISSIONS.ROLES_VIEW },
       { path: '/admin/email-settings', label: 'Email / SMTP', icon: Mail, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/api-keys', label: 'Clés API', icon: Key, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/audit-logs', label: 'Journal d\'audit', icon: ScrollText, permission: PERMISSIONS.AUDIT_VIEW },
       { path: '/admin/error-log', label: 'Journal des erreurs', icon: AlertTriangle, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+      { path: '/admin/deleted-members', label: 'Corbeille', icon: Trash2, permission: PERMISSIONS.MEMBERS_DELETE },
       { path: '/admin/settings', label: 'Paramètres', icon: Settings2, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
     ],
   },
@@ -153,6 +170,8 @@ const adminGroups: AdminGroup[] = [
 function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const location = useLocation()
   const { hasPermission, user } = useAuthStore()
+  // Accordion open/closed state (persisted). The group containing the current route auto-expands.
+  const { openGroups, toggleGroup } = useSidebarStore()
   // Pending-demande badge count — only fetched when the user can see demandes.
   const { data: pendingDemandes } = usePendingDemandeCount(hasPermission(PERMISSIONS.DEMANDE_VIEW))
   // Pending member-change-request badge — only fetched when the user can review them (members.edit).
@@ -171,10 +190,20 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
     ? adminGroups
         .map((group) => ({
           ...group,
-          items: group.items.filter((item) => hasPermission(item.permission)),
+          // null permission = visible to every manager (e.g. Rentrée scoute checklist).
+          items: group.items.filter((item) => !item.permission || hasPermission(item.permission)),
         }))
         .filter((group) => group.items.length > 0)
     : []
+
+  // Pending badges (demandes / change-requests) roll up onto a COLLAPSED group's header so a manager never
+  // misses actionable items just because the section is folded away.
+  const groupPending = (group: AdminGroup) =>
+    group.items.reduce((sum, i) => {
+      if (i.path === '/admin/demandes') return sum + (pendingDemandes ?? 0)
+      if (i.path === '/change-requests') return sum + (pendingChanges ?? 0)
+      return sum
+    }, 0)
 
   const renderLink = (item: { path: string; label: string; icon: React.ComponentType<{ className?: string }>; permission: string | null }, isActive: boolean) => {
     const Icon = item.icon
@@ -212,20 +241,35 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
     <nav className={cn('space-y-1', collapsed ? 'px-2' : 'px-3')}>
       {visibleNav.map((item) => renderLink(item, location.pathname === item.path))}
 
-      {visibleAdminGroups.map((group) => (
-        <div key={group.label}>
-          {!collapsed ? (
-            <div className="pt-5 pb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-sidebar-foreground/45">
-              {group.label}
-            </div>
-          ) : (
-            <div className="pt-3 pb-1">
-              <div className="mx-auto h-px w-6 bg-sidebar-border" />
-            </div>
-          )}
-          {group.items.map((item) => renderLink(item, location.pathname === item.path))}
-        </div>
-      ))}
+      {visibleAdminGroups.map((group) => {
+        const activeInGroup = group.items.some((i) => i.path === location.pathname)
+        // Icon-only sidebar: always show items (no room for accordion headers). Expanded: open if the user
+        // opened it OR it holds the active route.
+        const isOpen = collapsed || activeInGroup || !!openGroups[group.label]
+        const pending = groupPending(group)
+        return (
+          <div key={group.label}>
+            {!collapsed ? (
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.label)}
+                className="mt-4 flex w-full items-center gap-1.5 rounded-md px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-sidebar-foreground/45 transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground/70"
+              >
+                {isOpen ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
+                <span>{group.label}</span>
+                {!isOpen && pending > 0 && (
+                  <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white">{pending}</span>
+                )}
+              </button>
+            ) : (
+              <div className="pt-3 pb-1">
+                <div className="mx-auto h-px w-6 bg-sidebar-border" />
+              </div>
+            )}
+            {isOpen && group.items.map((item) => renderLink(item, location.pathname === item.path))}
+          </div>
+        )
+      })}
     </nav>
   )
 }
