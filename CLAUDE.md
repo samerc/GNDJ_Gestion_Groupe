@@ -2042,6 +2042,16 @@ Follow-ups to the error-handling feature + a maintenance/kill-switch system. All
 - Verified live: /logs 200 (1010 rows) + level/search filters + 403 for non-super-admin; maintenance.membres=on
   → member 503, super-admin 200, login 200, public 200; status endpoint returns flags. Build clean
   (dotnet+tsc+eslint). NOTE: alert delivery still needs an SMTP (ops `ErrorAlerts:Smtp` OR app email on).
+- **Security review (2026-07-28):** audited this session's surfaces. Verified live: maintenance toggle + `/logs`
+  are super-admin-ONLY (CG/youth → 403; write needs `AssociationsManage` which CG lacks), `/errors/report`
+  auth-only (anon → 401), log search parameterized (SQLi → 200, table intact), maintenance super-admin bypass
+  rides a signed JWT claim (unforgeable), 500 responses leak only the reference (no stack/message), alert
+  emails HTML-encode all values + no user-controlled headers. FIXED: added a **global 30-alerts/clock-hour
+  circuit-breaker** in `ErrorNotifier` (the per-signature dedupe could be bypassed by varying the message →
+  inbox flood; over the cap the error is still logged, only email suppressed). KEPT AS-IS (revisit once using
+  the app): `AbuseDetectionMiddleware` runs before `/errors/report`, so a crash whose stack contains an attack
+  signature (e.g. `union select`) could 400 that one report — reliability edge only (the error still lands in
+  application_logs); not exempting the endpoint for now.
 
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
