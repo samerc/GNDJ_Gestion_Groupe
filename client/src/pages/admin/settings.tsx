@@ -15,8 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { NATIONALITY_OPTIONS, PHONE_COUNTRY_CODES, COUNTRY_OPTIONS, PROFESSION_OPTIONS } from '@/lib/options'
-import { Save, X, Settings2, Search, Plus, Trash2, Landmark } from 'lucide-react'
+import { Save, X, Settings2, Search, Plus, Trash2, Landmark, ListPlus, CreditCard, ChevronDown } from 'lucide-react'
 import { Link } from 'react-router'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { ManagedListEditor } from '@/components/shared/managed-list-editor'
@@ -331,10 +332,20 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold">Paramètres</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* Associations rarely change, so they live here rather than cluttering the nav. */}
-          <Button asChild variant="outline" size="sm">
-            <Link to="/admin/associations"><Landmark className="mr-1.5 h-4 w-4" />Associations</Link>
-          </Button>
+          {/* Set-and-forget config pages (Associations / Champs perso / Carte membre) live here rather than
+              cluttering the everyday nav. Grouped in one dropdown to keep the header tidy. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Settings2 className="mr-1.5 h-4 w-4" />Pages de configuration<ChevronDown className="ml-1.5 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild><Link to="/admin/associations"><Landmark className="mr-2 h-4 w-4" />Associations</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/admin/custom-fields"><ListPlus className="mr-2 h-4 w-4" />Champs personnalisés</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/admin/card-designer"><CreditCard className="mr-2 h-4 w-4" />Carte membre</Link></DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="relative w-full max-w-xs">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Rechercher un paramètre..." value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9 pr-8" />
