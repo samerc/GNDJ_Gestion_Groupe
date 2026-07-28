@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   Shield,
   ShieldCheck,
-  Landmark,
   FolderTree,
   FileText,
   Star,
@@ -129,7 +128,7 @@ const adminGroups: AdminGroup[] = [
   {
     label: 'Configuration',
     items: [
-      { path: '/admin/associations', label: 'Associations', icon: Landmark, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+      // Associations are set-and-forget (they never change) → not in the nav; reachable from the Paramètres page.
       { path: '/admin/unit-types', label: "Types d'unité", icon: FolderTree, permission: PERMISSIONS.UNIT_TYPES_MANAGE },
       { path: '/admin/roles', label: 'Fonctions', icon: Shield, permission: PERMISSIONS.ROLES_MANAGE },
       { path: '/admin/progression-path', label: 'Parcours scouts', icon: Route, permission: PERMISSIONS.UNIT_TYPES_MANAGE },

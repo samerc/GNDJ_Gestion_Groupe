@@ -15,7 +15,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { NATIONALITY_OPTIONS, PHONE_COUNTRY_CODES, COUNTRY_OPTIONS, PROFESSION_OPTIONS } from '@/lib/options'
-import { Save, X, Settings2, Search, Plus, Trash2 } from 'lucide-react'
+import { Save, X, Settings2, Search, Plus, Trash2, Landmark } from 'lucide-react'
+import { Link } from 'react-router'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { ManagedListEditor } from '@/components/shared/managed-list-editor'
@@ -329,10 +330,16 @@ export default function SettingsPage() {
           <Settings2 className="h-6 w-6 text-muted-foreground" />
           <h1 className="text-2xl font-bold">Paramètres</h1>
         </div>
-        <div className="relative w-full max-w-xs">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Rechercher un paramètre..." value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9 pr-8" />
-          {query && <Tip content="Effacer la recherche"><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setQuery('')}><X className="h-3.5 w-3.5" /></button></Tip>}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Associations rarely change, so they live here rather than cluttering the nav. */}
+          <Button asChild variant="outline" size="sm">
+            <Link to="/admin/associations"><Landmark className="mr-1.5 h-4 w-4" />Associations</Link>
+          </Button>
+          <div className="relative w-full max-w-xs">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Rechercher un paramètre..." value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9 pr-8" />
+            {query && <Tip content="Effacer la recherche"><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setQuery('')}><X className="h-3.5 w-3.5" /></button></Tip>}
+          </div>
         </div>
       </div>
 
