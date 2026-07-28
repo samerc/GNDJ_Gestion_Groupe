@@ -18,10 +18,16 @@
   ./deploy/update.ps1                              # afterwards: just this
 .EXAMPLE
   ./deploy/update.ps1 -Pull                        # git pull --ff-only first, then build + ship
+.EXAMPLE
+  ./deploy/update.ps1 -Pull -Bump patch            # pull, bump version + changelog (commit/tag/push), build + ship
 #>
 param(
   [string]$Target,
   [switch]$Pull,
+  # Optional version bump baked into this deploy: runs deploy/bump.ps1 (bumps package.json, auto-writes the
+  # changelog from commits since the last tag, commits "chore(release): vX.Y.Z", tags it, and pushes) BEFORE
+  # building — so it's a single command. Omit to deploy without changing the version.
+  [ValidateSet('none', 'major', 'minor', 'patch')][string]$Bump = 'none',
   [string]$Configuration = "Release"
 )
 $ErrorActionPreference = "Stop"
@@ -43,6 +49,12 @@ if ($Pull) {
   Write-Host "==> git pull --ff-only..." -ForegroundColor Cyan
   git pull --ff-only
   if ($LASTEXITCODE -ne 0) { throw "git pull failed" }
+}
+
+# ── Optional version bump (+ changelog + tag + push) before building ─────────────
+if ($Bump -ne 'none') {
+  Write-Host "==> Bumping version ($Bump)..." -ForegroundColor Cyan
+  & "$PSScriptRoot\bump.ps1" -Type $Bump -Push
 }
 
 # ── Build, then ship ───────────────────────────────────────────────────────────
