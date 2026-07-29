@@ -14,12 +14,23 @@
   ./deploy/bump.ps1 -Type patch -Push
 .EXAMPLE
   ./deploy/bump.ps1 -Type minor        # bump + commit + tag locally; push yourself later
+.EXAMPLE
+  ./deploy/bump.ps1 -SetVersion 3.0.0 -Push   # set an EXPLICIT version (product-identity jump, not an increment)
 #>
 param(
-  [Parameter(Mandatory = $true)][ValidateSet('major', 'minor', 'patch')][string]$Type,
+  # Semver increment from the current version. Mutually exclusive with -SetVersion.
+  [ValidateSet('major', 'minor', 'patch')][string]$Type,
+  # Set an EXPLICIT version (e.g. '3.0.0') instead of incrementing. Use when the major number is a
+  # product-identity choice (e.g. "our 3rd product") rather than a semver increment. Mutually exclusive with -Type.
+  [string]$SetVersion,
   [switch]$Push
 )
 $ErrorActionPreference = 'Stop'
+
+# Exactly one of -Type / -SetVersion is required.
+if ($Type -and $SetVersion) { throw "Specify only one of -Type or -SetVersion, not both." }
+if (-not $Type -and -not $SetVersion) { throw "Specify -Type (major|minor|patch) or -SetVersion X.Y.Z." }
+if ($SetVersion -and $SetVersion -notmatch '^\d+\.\d+\.\d+$') { throw "-SetVersion must be a semver X.Y.Z (got '$SetVersion')." }
 
 $root = Split-Path $PSScriptRoot -Parent
 $client = Join-Path $root 'client'
@@ -44,8 +55,10 @@ if ($LASTEXITCODE -eq 0 -and [int]$behind -gt 0) {
 $lastTag = (git -C $root tag --list 'v*' --sort=-v:refname | Select-Object -First 1)
 
 # Bump package.json only (no git commit/tag from npm — we own those below).
+# npm accepts either a bump keyword (major|minor|patch) or an explicit version string.
+$npmArg = if ($SetVersion) { $SetVersion } else { $Type }
 Push-Location $client
-try { npm version $Type --no-git-tag-version | Out-Null } finally { Pop-Location }
+try { npm version $npmArg --no-git-tag-version --allow-same-version | Out-Null } finally { Pop-Location }
 $version = (Get-Content (Join-Path $client 'package.json') -Raw | ConvertFrom-Json).version
 $date = (Get-Date -Format 'yyyy-MM-dd')
 
