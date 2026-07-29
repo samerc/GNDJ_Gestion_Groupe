@@ -234,7 +234,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                         <span>{p.countryCode} {p.number}</span>
                         <span className="text-muted-foreground text-xs">{p.type}</span>
                         {p.isPrimary && <Badge variant="outline" className="text-xs h-5">Principal</Badge>}
-                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" disabled={deletePhoneMutation.isPending} onClick={() => deletePhoneMutation.mutateAsync(p.id).then(() => toast.success('Téléphone supprimé')).catch(err => toast.error(parseApiError(err)))}>
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8 ml-auto" disabled={deletePhoneMutation.isPending} onClick={() => deletePhoneMutation.mutateAsync(p.id).then(() => toast.success('Téléphone supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button></Tip>
                       </div>
@@ -259,7 +259,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                         <span>{em.address}</span>
                         <span className="text-muted-foreground text-xs">{em.type}</span>
                         {em.isPrimary && <Badge variant="outline" className="text-xs h-5">Principal</Badge>}
-                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" disabled={deleteEmailMutation.isPending} onClick={() => deleteEmailMutation.mutateAsync(em.id).then(() => toast.success('Courriel supprimé')).catch(err => toast.error(parseApiError(err)))}>
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8 ml-auto" disabled={deleteEmailMutation.isPending} onClick={() => deleteEmailMutation.mutateAsync(em.id).then(() => toast.success('Courriel supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button></Tip>
                       </div>
@@ -329,7 +329,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
             <form onSubmit={handleCreate} className="space-y-4">
               {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
               <FormFieldErrors show={hasErrors} />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <RequiredLabel required>Prénom</RequiredLabel>
                   <Input className={fieldClass('firstName')} value={form.firstName} onChange={(e) => { setForm(f => ({ ...f, firstName: e.target.value })); clearField('firstName') }} required />
@@ -340,7 +340,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                   <Input className={fieldClass('lastName')} value={form.lastName} onChange={(e) => { setForm(f => ({ ...f, lastName: e.target.value.toUpperCase() })); clearField('lastName') }} required />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <RequiredLabel required>Relation</RequiredLabel>
                   <Select value={form.relationshipType} onValueChange={(v) => { setForm(f => ({ ...f, relationshipType: v })); clearField('relationshipType') }}>
@@ -388,7 +388,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
         <DialogContent>
           <DialogHeader><DialogTitle>Ajouter un téléphone</DialogTitle></DialogHeader>
           <form onSubmit={handleAddPhone} className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-2">
                 <RequiredLabel required>Indicatif</RequiredLabel>
                 <SearchableSelect
@@ -399,7 +399,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                   searchPlaceholder="Rechercher un indicatif..."
                 />
               </div>
-              <div className="col-span-2 space-y-2">
+              <div className="sm:col-span-2 space-y-2">
                 <RequiredLabel required>Numéro</RequiredLabel>
                 <Input value={phoneForm.number} onChange={(e) => setPhoneForm(f => ({ ...f, number: e.target.value }))} required />
               </div>
@@ -451,7 +451,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
           <DialogHeader><DialogTitle>Modifier le parent</DialogTitle></DialogHeader>
           <form onSubmit={handleEdit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel required>Prénom</RequiredLabel>
                 <Input value={editForm.firstName} onChange={(e) => setEditForm(f => ({ ...f, firstName: e.target.value }))} required />
@@ -461,7 +461,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                 <Input value={editForm.lastName} onChange={(e) => setEditForm(f => ({ ...f, lastName: e.target.value.toUpperCase() }))} required />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel>Relation</RequiredLabel>
                 <Select value={editForm.relationshipType} onValueChange={(v) => setEditForm(f => ({ ...f, relationshipType: v }))}>

@@ -62,6 +62,10 @@ export function LoginForm() {
               autoComplete="email"
               autoFocus
             />
+            {/* Members often mistype their personal email — clarify the synthetic login format. */}
+            <p className="text-xs text-muted-foreground">
+              Votre identifiant a le format <span className="font-medium">prénom.nom@scouts.gndj</span> — ce n'est pas votre adresse email personnelle.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Mot de passe</Label>
