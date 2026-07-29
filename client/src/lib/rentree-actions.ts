@@ -15,7 +15,7 @@ export const RENTREE_ACTIONS: Record<string, RentreeActionDef> = {
   'open-passage': { label: 'Ouvrir le passage', kind: 'do' },
   // Navigation shortcuts
   'goto-settings': { label: 'Paramètres', kind: 'goto', route: '/admin/settings' },
-  'goto-units': { label: 'Unités & équipes', kind: 'goto', route: '/admin/units' },
+  'goto-units': { label: 'Unités & équipes', kind: 'goto', route: '/units' },
   'goto-maitrises': { label: 'Maîtrises', kind: 'goto', route: '/maitrises' },
   'goto-demandes': { label: 'Revue des demandes', kind: 'goto', route: '/admin/demandes' },
   'goto-passage': { label: 'Proposer les passages', kind: 'goto', route: '/passage' },
