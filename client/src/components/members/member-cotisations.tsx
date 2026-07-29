@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { useMemberCotisations, useCreateCotisation, useUpdateCotisation, useDeleteCotisation, useSetCotisationExempt, downloadReceipt, type MemberCotisationDto, type PaymentLineInput } from '@/services/cotisation-service'
 import { useSettingValue } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
+import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
+import { formatMoney } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
@@ -24,16 +26,6 @@ const CURRENCY_OPTIONS = [
   { value: 'EUR', label: 'EUR (€)' },
 ]
 
-const PAYMENT_METHOD_OPTIONS = [
-  { value: 'Cash', label: 'Espèces' },
-  { value: 'Virement', label: 'Virement bancaire' },
-  { value: 'Autre', label: 'Autre' },
-]
-
-function formatAmount(amount: number, currency: string): string {
-  const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'ل.ل'
-  return `${amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} ${symbol}`
-}
 
 // "Cotisations" tab of the member detail page (CG/leader view). Lists paid cotisations per scout
 // year — each cotisation is one receipt with multiple multi-currency payment lines — with receipt
@@ -214,7 +206,7 @@ export function MemberCotisations({ memberId, memberName, bare }: Props) {
               <div className="mb-3 flex items-center justify-between rounded-md border border-amber-300 bg-amber-50/70 px-3 py-2">
                 <span className="flex items-center gap-2 text-sm text-amber-800">
                   <AlertTriangle className="h-4 w-4" />
-                  Cotisation partielle pour {year} — {formatAmount(totalPaidDefault, defaultCurrency)} / {formatAmount(expectedAmount, defaultCurrency)}
+                  Cotisation partielle pour {year} — {formatMoney(totalPaidDefault, defaultCurrency)} / {formatMoney(expectedAmount, defaultCurrency)}
                 </span>
               </div>
             ) : isPaidThisYear ? (
@@ -253,7 +245,7 @@ export function MemberCotisations({ memberId, memberName, bare }: Props) {
                     <div className="mt-1 space-y-0.5">
                       {c.payments.map((p, i) => (
                         <div key={i} className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                          <span className="font-semibold text-green-700">{formatAmount(p.amount, p.currency)}</span>
+                          <span className="font-semibold text-green-700">{formatMoney(p.amount, p.currency)}</span>
                           <span className="text-muted-foreground">{PAYMENT_METHOD_OPTIONS.find(o => o.value === p.paymentMethod)?.label ?? p.paymentMethod}</span>
                         </div>
                       ))}

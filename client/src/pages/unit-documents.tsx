@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingValue } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
+import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
 import {
   useUnitDocumentsMatrix, useReviewDocumentMatrix, downloadDocument, downloadUnitDocumentsZip,
   type MemberDocRowDto, type MemberDocCellDto, type DocTypeColumnDto
@@ -53,12 +54,6 @@ const CURRENCY_OPTIONS = [
   { value: 'USD', label: '$' },
   { value: 'LBP', label: 'ل.ل' },
   { value: 'EUR', label: '€' },
-]
-
-const PAYMENT_METHOD_OPTIONS = [
-  { value: 'Cash', label: 'Espèces' },
-  { value: 'Virement', label: 'Virement' },
-  { value: 'Autre', label: 'Autre' },
 ]
 
 // "Documents & Cotisations" — chef d'unité (CU) screen. A members × document-types matrix for the CU's

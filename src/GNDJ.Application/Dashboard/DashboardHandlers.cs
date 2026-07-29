@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -170,7 +171,7 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
         // dashboard reflects the group as it was that scout year — not just "today". Half-open: started
         // before the year ends, and not already ended at/before it starts (an assignment ending exactly
         // on Oct 1 belongs to the year that just ended).
-        var (windowStart, windowEnd) = ScoutYearWindow(request.ScoutYear);
+        var (windowStart, windowEnd) = ScoutYearHelper.Window(request.ScoutYear);
         // For the IN-PROGRESS scout year the overlap window runs into the future, so a plain overlap counts
         // everyone who was in a unit at ANY point this year — including members who have since LEFT — which
         // overstates the live roster. So: current/future year → a point-in-time "today" snapshot (members
@@ -270,18 +271,5 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
         ageGroups.Add(new AgeGroupDto("22+ ans", ages.Count(a => a >= 22)));
 
         return new AdminDashboardDto(totalMembers, boys, girls, ungendered, withoutUnit, unpaidCotisations, missingDocuments, unitBreakdown, ageGroups);
-    }
-
-    // "2024-2025" → [Oct 1 2024, Oct 1 2025). Falls back to the current scout year on a bad value.
-    static (DateOnly start, DateOnly end) ScoutYearWindow(string scoutYear)
-    {
-        var now = DateTime.UtcNow;
-        var startYear = now.Month >= 10 ? now.Year : now.Year - 1;
-        if (!string.IsNullOrWhiteSpace(scoutYear))
-        {
-            var first = scoutYear.Split('-')[0].Trim();
-            if (int.TryParse(first, out var y) && y is >= 2000 and <= 2100) startYear = y;
-        }
-        return (new DateOnly(startYear, 10, 1), new DateOnly(startYear + 1, 10, 1));
     }
 }

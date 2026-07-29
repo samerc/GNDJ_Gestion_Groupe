@@ -15,6 +15,8 @@ import { useSettingValue } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { useQueryClient } from '@tanstack/react-query'
 import { parseApiError } from '@/lib/error-utils'
+import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
+import { formatMoney } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -25,16 +27,6 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Receipt, Users, AlertTriangle, CheckCircle, Mail, Phone, Ban, Printer, Download, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 
-const PAYMENT_METHOD_OPTIONS = [
-  { value: 'Cash', label: 'Espèces' },
-  { value: 'Virement', label: 'Virement bancaire' },
-  { value: 'Autre', label: 'Autre' },
-]
-
-function formatCurrency(amount: number, currency: string): string {
-  const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'ل.ل'
-  return `${amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} ${symbol}`
-}
 
 export default function CotisationDashboardPage() {
   const currentScoutYear = useCurrentScoutYear()
@@ -187,7 +179,7 @@ export default function CotisationDashboardPage() {
                     {summary.totalsByCurrency.length > 0 ? (
                       <div className="space-y-0.5">
                         {summary.totalsByCurrency.map(t => (
-                          <div key={t.currency} className="text-lg font-bold">{formatCurrency(t.total, t.currency)}</div>
+                          <div key={t.currency} className="text-lg font-bold">{formatMoney(t.total, t.currency)}</div>
                         ))}
                       </div>
                     ) : (
@@ -257,7 +249,7 @@ export default function CotisationDashboardPage() {
                             {u.totals.length > 0 ? (
                               <div className="space-y-0.5">
                                 {u.totals.map(t => (
-                                  <div key={t.currency} className="text-sm">{formatCurrency(t.total, t.currency)}</div>
+                                  <div key={t.currency} className="text-sm">{formatMoney(t.total, t.currency)}</div>
                                 ))}
                               </div>
                             ) : (

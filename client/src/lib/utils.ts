@@ -23,3 +23,9 @@ export function formatDateLong(d: string | null | undefined): string {
   if (!d) return ''
   return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
+
+// A cotisation amount with its currency symbol ($, €, or ل.ل for LBP), fr-FR grouping, 2 decimals.
+export function formatMoney(amount: number, currency: string): string {
+  const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'ل.ل'
+  return `${amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} ${symbol}`
+}

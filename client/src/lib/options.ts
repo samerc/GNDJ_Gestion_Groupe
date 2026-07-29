@@ -43,6 +43,12 @@ export const NATIONALITY_OPTIONS = [
   { value: 'Autre', label: 'Autre' },
 ]
 
+export const PAYMENT_METHOD_OPTIONS = [
+  { value: 'Cash', label: 'Espèces' },
+  { value: 'Virement', label: 'Virement bancaire' },
+  { value: 'Autre', label: 'Autre' },
+]
+
 export const PHONE_TYPE_OPTIONS = [
   { value: 'Mobile', label: 'Mobile' },
   { value: 'Domicile', label: 'Domicile' },
