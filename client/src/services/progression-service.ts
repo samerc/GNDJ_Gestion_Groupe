@@ -118,15 +118,6 @@ export function useDeleteBadge() {
   })
 }
 
-// PUT /badges/reorder — persist drag order (orderedIds).
-export function useReorderBadges() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (orderedIds: string[]) => apiClient.put('/badges/reorder', { orderedIds }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['badges'] }),
-  })
-}
-
 // ─── Member Progressions ───────────────────
 export interface MemberProgressionDto {
   id: string; memberId: string; unitId: string; unitName: string

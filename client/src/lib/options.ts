@@ -43,8 +43,6 @@ export const NATIONALITY_OPTIONS = [
   { value: 'Autre', label: 'Autre' },
 ]
 
-export const PINNED_NATIONALITIES = ['Libanaise', 'Française', 'Syrienne', 'Palestinienne']
-
 export const PHONE_TYPE_OPTIONS = [
   { value: 'Mobile', label: 'Mobile' },
   { value: 'Domicile', label: 'Domicile' },

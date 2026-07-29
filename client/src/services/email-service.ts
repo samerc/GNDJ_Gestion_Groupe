@@ -58,15 +58,6 @@ export function useEmailTemplates() {
   return useQuery({ queryKey: ['email-templates'], queryFn: () => apiClient.get<EmailTemplateDto[]>('/email/templates').then(r => r.data) })
 }
 
-// GET /email/templates/{id} → single template; disabled until id is set.
-export function useEmailTemplate(id: string) {
-  return useQuery({
-    queryKey: ['email-templates', id],
-    queryFn: () => apiClient.get<EmailTemplateDto>(`/email/templates/${id}`).then(r => r.data),
-    enabled: !!id,
-  })
-}
-
 // POST /email/templates → create; invalidates the list.
 export function useCreateEmailTemplate() {
   const qc = useQueryClient()

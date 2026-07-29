@@ -93,14 +93,6 @@ export function useDeleteDocument(memberId: string) {
   })
 }
 
-// GET /documents/expiring — docs expiring within daysAhead (default 30), for dashboard warnings.
-export function useExpiringDocuments(daysAhead = 30) {
-  return useQuery({
-    queryKey: ['documents', 'expiring', daysAhead],
-    queryFn: () => apiClient.get<ExpiringDocumentDto[]>('/documents/expiring', { params: { daysAhead } }).then(r => r.data),
-  })
-}
-
 // GET /documents/{id}/download — raw file as a blob (not a hook).
 export function downloadDocument(id: string) {
   return apiClient.get(`/documents/${id}/download`, { responseType: 'blob' })

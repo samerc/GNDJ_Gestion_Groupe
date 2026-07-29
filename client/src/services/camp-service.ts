@@ -71,14 +71,6 @@ export function useDeleteCamp() {
 }
 
 // ── Attendance + grading (CU) ──
-// GET /camps/{id}/attendance → attendees (optionally one unit, else all in scope); disabled until campId.
-export const useCampAttendance = (campId?: string, unitId?: string) =>
-  useQuery({ queryKey: ['camp-attendance', campId, unitId ?? 'all'], queryFn: () => apiClient.get<CampAttendeeDto[]>(`/camps/${campId}/attendance`, { params: unitId ? { unitId } : {} }).then(r => r.data), enabled: !!campId })
-// POST /camps/{id}/attendance → set who's attending; invalidates attendance + grading.
-export function useSetCampAttendance(campId: string) {
-  const qc = useQueryClient()
-  return useMutation({ mutationFn: (items: { memberId: string; attending: boolean }[]) => apiClient.post(`/camps/${campId}/attendance`, { campId, items }), onSuccess: () => { qc.invalidateQueries({ queryKey: ['camp-attendance'] }); qc.invalidateQueries({ queryKey: ['camp-grading'] }) } })
-}
 // GET /camps/{id}/grading → all eligible youth in scope with grade fields (unit-scoped for CU); disabled until campId.
 export const useCampGrading = (campId?: string, unitId?: string) =>
   useQuery({ queryKey: ['camp-grading', campId, unitId ?? 'all'], queryFn: () => apiClient.get<CampGradeRowDto[]>(`/camps/${campId}/grading`, { params: unitId ? { unitId } : {} }).then(r => r.data), enabled: !!campId })
@@ -124,11 +116,6 @@ export const useCampGames = (campId?: string) =>
 export function useCreateGame(campId: string) {
   const qc = useQueryClient()
   return useMutation({ mutationFn: (data: { name: string; description: string | null }) => apiClient.post(`/camps/${campId}/games`, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
-}
-// PUT /camps/games/{gameId} → update a game; invalidates ['camp-games', campId].
-export function useUpdateGame(campId: string) {
-  const qc = useQueryClient()
-  return useMutation({ mutationFn: ({ gameId, ...data }: { gameId: string; name: string; description: string | null }) => apiClient.put(`/camps/games/${gameId}`, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
 }
 // DELETE /camps/games/{gameId} → delete a game; invalidates ['camp-games', campId].
 export function useDeleteGame(campId: string) {

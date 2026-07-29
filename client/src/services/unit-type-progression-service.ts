@@ -34,15 +34,6 @@ export function useUnitTypeProgressions(associationId?: string) {
   })
 }
 
-// Suggested next branch for a member (GET /unit-type-progressions/suggest/:memberId), matched by gender. Keyed ['passage-suggestion', memberId].
-export function usePassageSuggestion(memberId: string) {
-  return useQuery({
-    queryKey: ['passage-suggestion', memberId],
-    queryFn: () => apiClient.get<PassageSuggestionDto>(`/unit-type-progressions/suggest/${memberId}`).then(r => r.data),
-    enabled: !!memberId,
-  })
-}
-
 // POST /unit-type-progressions; invalidates ['unit-type-progressions'].
 export function useCreateUnitTypeProgression() {
   const qc = useQueryClient()

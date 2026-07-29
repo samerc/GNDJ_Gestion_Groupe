@@ -323,8 +323,3 @@ export function useUploadPhoto(memberId: string) {
     },
   })
 }
-
-// Authenticated photo endpoint URL (served with the JWT; MemberPhoto fetches it as a blob).
-export function getMemberPhotoUrl(memberId: string): string {
-  return `/api/v1/members/${memberId}/photo`
-}

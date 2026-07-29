@@ -110,14 +110,6 @@ export function useCities(): string[] {
   return useSettingArray('member.cities')
 }
 
-export function useUpdateCities() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (cities: string[]) => apiClient.put('/settings/cities', { cities }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
-  })
-}
-
 // Snap a typed city onto the canonical list entry ignoring accents/case; new names pass through trimmed.
 export function matchCity(typed: string, cities: string[]): string {
   const t = normalizeSchool(typed)
