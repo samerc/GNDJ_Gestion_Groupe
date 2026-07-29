@@ -2128,6 +2128,36 @@ sweep alone; builds clean (dotnet 0 warn, tsc+eslint+vite OK), 4 tests pass, liv
       confirm dialog (soft-delete → Corbeille, login disabled, restorable) → clears selection + toast. Deletion
       previously had no trigger from the panel where CUs actually work.
 
+### Pentest pass — JWT secret, youth data leak, login timing (2026-07-29)
+Ran a full live attack battery (auth/JWT, IDOR/BOLA, BFLA, path traversal, file upload, rate-limit, info
+disclosure, mass assignment, XSS, CORS, DoS) + SQLi. Most of the app held up (SQLi none; object-IDOR denied;
+path traversal neutralized; magic-byte upload validation rejects disguised files; mass assignment ignores
+locked fields; token isolation; generic error messages; security headers present). Three real findings FIXED
+(all on main, pushed; backend-only, DEV until deploy):
+- **#1 (critical) Weak/committed JWT secret.** `appsettings.json` ships the placeholder
+      `CHANGE_THIS_..._IN_PRODUCTION`; a token forged with it was accepted as super-admin. JWT *validation*
+      is fine (alg=none/tamper/strip/wrong-key all 401) — the risk is the key. Added a startup guard in
+      `DependencyInjection` that throws if `Jwt:Secret` is missing / < 32 chars / still the placeholder outside
+      Development. Prod now refuses to boot with the default key (verified); Development still starts.
+- **#2 (high) Read-only youth read privileged data.** The `read-only` profile = ALL `.view` perms, so a youth
+      could GET `/audit-logs` (trail + IPs), `/demandes` (children's medical/PII), `/security-profiles` +
+      `/{id}/members` (authz model + who's super-admin), `/demandes/statistics`. Root cause = the same "all
+      .view" design the 2026-07-09 sweep fixed for member-data but not these aggregate endpoints. Fix:
+      `SeedData.ReadOnlyExcludedViews` = {audit.view, demande.view, roles.view, passage.view} removed from the
+      read-only profile (seed + missing-perms add + an idempotent startup **revoke** for existing DBs) → the
+      `[HasPermission]` attributes now deny youth automatically. Plus `MemberAccess.IsGroupManager` (super-admin
+      OR maitrise.manage) defense-in-depth on the demande review + statistics handlers. Verified: youth perms
+      15→11, all leak endpoints 403, own data still 200, super-admin/CG still 200.
+- **#3 (medium) Login user-enumeration via timing.** bcrypt ran only for existing accounts (0.006s unknown vs
+      0.32s valid = 50×) → email enumeration despite the generic message. Both member + applicant login now run
+      exactly one bcrypt verify; the account-missing path runs `IPasswordHasher.VerifyDummyAsync` (a fixed dummy
+      hash pinned to **WF12** to match the stored population — new hashes are WF10 but all existing users are
+      WF12). Verified: gap 0.318s → 0.031s.
+- **Noted / not code bugs:** login rate limit is 100/min per-IP (generous for credential-spraying, esp. with
+      the shared temp password `Gndj2026!` — mitigate at launch via forced first-login change + per-account
+      backoff); oversized body → 500 instead of 413 (+ fires an error-alert, mildly spammable); `Server: Kestrel`
+      header (masked by Cloudflare). All the "confirmed secure" categories above needed no change.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);
