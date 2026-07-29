@@ -197,6 +197,9 @@ public class DeleteDocumentTypeCommandHandler(IApplicationDbContext context, IAu
         if (entity.Documents.Any())
             return Result<bool>.Failure("Impossible de supprimer un type de document utilisé par des documents existants.");
 
+        // Also deactivate on delete: the soft-delete interceptor only sets IsDeleted, leaving IsActive as-is,
+        // which left deleted types still counted as "active". Clearing it keeps the row's state coherent.
+        entity.IsActive = false;
         context.DocumentTypes.Remove(entity);
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Delete", "DocumentType", entity.Id, oldValues: new { entity.Name, entity.Code }, cancellationToken: ct);
