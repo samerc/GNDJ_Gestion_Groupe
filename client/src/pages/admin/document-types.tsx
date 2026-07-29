@@ -46,7 +46,10 @@ export default function DocumentTypesPage() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   // Local order copy for a smooth drag (arrayMove locally, then persist). Synced from the query.
-  const [items, setItems] = useState<DocumentTypeDto[]>([])
+  // IMPORTANT: initialize `items` from the (possibly already-cached) query data, NOT []. If the query cache
+  // is warm at mount, prevItems === data.items on the first render, so the render-phase resync below is
+  // skipped — initializing to [] would then leave the list permanently empty (the "Aucun type" bug).
+  const [items, setItems] = useState<DocumentTypeDto[]>(data?.items ?? [])
   const [prevItems, setPrevItems] = useState(data?.items)
   if (data?.items && data.items !== prevItems) { setPrevItems(data.items); setItems(data.items) } // resync from query (render-phase)
 
