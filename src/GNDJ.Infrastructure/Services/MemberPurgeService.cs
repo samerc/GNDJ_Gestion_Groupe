@@ -57,7 +57,6 @@ public class MemberPurgeService : IMemberPurgeService
             // RESTRICT children first (each would otherwise block the member delete).
             await _context.Database.ExecuteSqlRawAsync("DELETE FROM member_assignments WHERE member_id = {0}", p, ct);
             await _context.Database.ExecuteSqlRawAsync("DELETE FROM passages WHERE member_id = {0}", p, ct);
-            await _context.Database.ExecuteSqlRawAsync("DELETE FROM member_relationships WHERE member_id = {0} OR related_member_id = {0}", p, ct);
             await _context.Database.ExecuteSqlRawAsync("DELETE FROM camp_game_etapistes WHERE member_id = {0}", p, ct);
             await _context.Database.ExecuteSqlRawAsync("DELETE FROM camp_participants WHERE member_id = {0}", p, ct);
             await _context.Database.ExecuteSqlRawAsync("DELETE FROM users WHERE member_id = {0}", p, ct);

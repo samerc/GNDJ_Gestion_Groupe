@@ -22,7 +22,6 @@ public interface IApplicationDbContext
     DbSet<MemberEmail> MemberEmails { get; }
     DbSet<MemberAddress> MemberAddresses { get; }
     DbSet<MemberAssignment> MemberAssignments { get; }
-    DbSet<MemberRelationship> MemberRelationships { get; }
     DbSet<Guardian> Guardians { get; }
     DbSet<GuardianLink> GuardianLinks { get; }
     DbSet<GuardianPhone> GuardianPhones { get; }

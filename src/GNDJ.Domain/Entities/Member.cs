@@ -34,8 +34,6 @@ public class Member : BaseEntity
     public ICollection<MemberAddress> Addresses { get; set; } = [];
     public ICollection<MemberAssignment> Assignments { get; set; } = [];
     public ICollection<GuardianLink> GuardianLinks { get; set; } = [];
-    public ICollection<MemberRelationship> Relationships { get; set; } = [];     // relations this member declares
-    public ICollection<MemberRelationship> InverseRelationships { get; set; } = []; // relations pointing back at this member
     public ICollection<MemberDocument> Documents { get; set; } = [];
     public ICollection<MemberCotisation> Cotisations { get; set; } = [];
     public ICollection<MemberProgression> Progressions { get; set; } = [];

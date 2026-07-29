@@ -25,7 +25,6 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<MemberEmail> MemberEmails => Set<MemberEmail>();
     public DbSet<MemberAddress> MemberAddresses => Set<MemberAddress>();
     public DbSet<MemberAssignment> MemberAssignments => Set<MemberAssignment>();
-    public DbSet<MemberRelationship> MemberRelationships => Set<MemberRelationship>();
     public DbSet<Guardian> Guardians => Set<Guardian>();
     public DbSet<GuardianLink> GuardianLinks => Set<GuardianLink>();
     public DbSet<GuardianPhone> GuardianPhones => Set<GuardianPhone>();
