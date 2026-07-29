@@ -2093,6 +2093,41 @@ Post-error-handling polish (all on main, pushed; DEV until deploy). Also fixed t
       (`bump.ps1 -Type patch -Push`), then deploy on prod (`update.ps1 -Pull`)** — dev stays the authoritative
       history; prod is pull-only. Versions live on **origin** (whoever bumps pushes there).
 
+### Dead-code / duplication cleanup + delete-member button + drop dead table (2026-07-29)
+An audit-driven cleanup pass (all on main, pushed; DEV until deploy). Net backend −47 lines on the access
+sweep alone; builds clean (dotnet 0 warn, tsc+eslint+vite OK), 4 tests pass, live-verified end-to-end.
+- **Frontend `lib/download.ts` (saveBlob/openBlob):** replaced ~11 copies of the
+      `createObjectURL → anchor.click → revokeObjectURL` (and open-PDF-in-new-tab) boilerplate across
+      member-documents/cotisations, export/roster/trombinoscope dialogs, dashboard-unit-leader, members panel,
+      unit-documents (zip), cotisation-dashboard (CSV), camp-service, my-profile-service. (unit-documents' preview
+      blob + camera/member-photo preview blobs are NOT downloads — left as-is.)
+- **Backend dedups:** `Common/ContactEmailResolver` (batched PrimaryContactEmail→own→guardian) moved out of
+      SendAccessHandlers; single-member `ResetMemberPassword` now reuses it (the cotisation superset resolver
+      w/ phone+parent-name and the list-returning password-reset intentionally stay separate).
+      `Infrastructure/Services/PdfText.GetInitials` shared by Trombinoscope + MemberCard (were identical).
+      `Common/FunctionalRoleQueries.ResolveBaseRoleId(s)` (default-for-new-members else lowest rank then name)
+      shared by CreateMember + demande-send.
+- **`Common/MemberAccess` = single member-data authz policy.** Consolidated ~20 hand-copied checks:
+      **CanAccessMemberAsync** (super-admin | own record | members.edit leader of the member's ACTIVE unit) —
+      the 3 identical helper bodies (Document/Cotisation/Guardian) delegate; the inline copies in Progression
+      (read), CustomFields (read), GenerateMemberCard, UpdateMember, SetPrimaryContactEmail and all 9 contact
+      commands (Add/Update/Delete × Phone/Email/Address) call it directly. **CanLeadUnit** (super-admin |
+      members.edit + unit) — DocumentHandlers' IsUnitLeaderFor + trombinoscope CanManageUnit delegate. The
+      contact/update commands lacked an in-handler members.edit gate but are all members.edit-gated at the
+      controller, so routing them through the shared policy only ADDS defense-in-depth (own + super-admin bypass
+      unchanged). Leader-only mutations with no own-access (progression/custom-field create/delete) are
+      intentionally NOT unified. **Live-verified:** admin all-200; read-only youth own-data 200 / cross-member
+      denied (docs/cotis/progression/card 400, guardians 403, custom-fields empty) / own card 200; chef-unité
+      own-unit 200 + cotisation summary scoped; youth cross-write (AddPhone) 403.
+- **Removed the dead `MemberRelationship` feature:** entity + `RelationshipType` enum (only that entity used it)
+      + `Member.Relationships`/`InverseRelationships` navs + EF config + `MemberRelationships` DbSet + the dead
+      `DELETE FROM member_relationships` in MemberPurgeService. Migration **`DropMemberRelationships`** drops the
+      (empty) table (applies on next startup/deploy; dropped on dev + verified). The live guardian-link
+      `RelationshipType` string field and the `relationships.*` permission labels are unrelated and untouched.
+- **Members panel: wired the missing "Supprimer le membre" button** (red Trash, gated on members.delete) →
+      confirm dialog (soft-delete → Corbeille, login disabled, restorable) → clears selection + toast. Deletion
+      previously had no trigger from the panel where CUs actually work.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);
