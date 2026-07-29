@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
@@ -15,13 +16,8 @@ public class SetPrimaryContactEmailCommandHandler(IApplicationDbContext context,
     public async ValueTask<Result<bool>> Handle(SetPrimaryContactEmailCommand request, CancellationToken ct)
     {
         // Unit-scoped access (same rule as viewing/editing the member).
-        if (!currentUser.IsSuperAdmin && currentUser.MemberId != request.MemberId)
-        {
-            var authorizedUnitIds = currentUser.AuthorizedUnitIds;
-            var hasAccess = await context.MemberAssignments.AnyAsync(a =>
-                a.MemberId == request.MemberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId), ct);
-            if (!hasAccess) return Result<bool>.Failure("Accès non autorisé à ce membre.");
-        }
+        if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, request.MemberId, ct))
+            return Result<bool>.Failure("Accès non autorisé à ce membre.");
 
         var member = await context.Members.FirstOrDefaultAsync(m => m.Id == request.MemberId, ct);
         if (member is null) return Result<bool>.Failure("Membre introuvable.");

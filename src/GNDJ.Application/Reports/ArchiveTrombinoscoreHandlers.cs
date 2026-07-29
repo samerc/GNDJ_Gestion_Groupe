@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Domain.Entities;
@@ -55,11 +56,9 @@ public static class TrombinoscoreRoster
         return (unit.Name, teams);
     }
 
-    // Leader-only report (multi-member PII): members.edit + unit scope. Not bare co-unit membership (a
-    // read-only youth carries their own unit in AuthorizedUnitIds). Mirrors GenerateTrombinoscoreQuery.
+    // Leader-only report (multi-member PII): members.edit + unit scope. Delegates to the shared policy.
     public static bool CanManageUnit(ICurrentUserService currentUser, Guid unitId) =>
-        currentUser.IsSuperAdmin ||
-        (currentUser.Permissions.Contains(Permissions.MembersEdit) && currentUser.AuthorizedUnitIds.Contains(unitId));
+        MemberAccess.CanLeadUnit(currentUser, unitId);
 }
 
 // Save (or overwrite) the trombinoscope for (unit, scout year) with the current roster + photos.

@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Common.Validation;
@@ -35,12 +36,8 @@ public class AddPhoneCommandHandler : IRequestHandler<AddPhoneCommand, Result<Gu
     public async ValueTask<Result<Guid>> Handle(AddPhoneCommand request, CancellationToken cancellationToken)
     {
         // Not own profile and not super-admin → require an ACTIVE assignment in an authorized unit.
-        if (!_currentUser.IsSuperAdmin && _currentUser.MemberId != request.MemberId)
-        {
-            var canAccess = await _context.MemberAssignments.AnyAsync(a =>
-                a.MemberId == request.MemberId && a.EndDate == null && _currentUser.AuthorizedUnitIds.Contains(a.UnitId), cancellationToken);
-            if (!canAccess) return Result<Guid>.Failure("Accès non autorisé.");
-        }
+        if (!await MemberAccess.CanAccessMemberAsync(_context, _currentUser, request.MemberId, cancellationToken))
+            return Result<Guid>.Failure("Accès non autorisé.");
 
         var entity = new MemberPhone
         {

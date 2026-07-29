@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using FluentValidation;
@@ -67,16 +68,10 @@ public class UpdateMemberCommandHandler : IRequestHandler<UpdateMemberCommand, R
         if (entity is null)
             return Result<bool>.Failure("Membre introuvable.");
 
-        // Authorization: super admin can edit anyone; a member can edit their own profile;
-        // a unit leader can edit members within their authorized units.
-        if (!_currentUser.IsSuperAdmin && _currentUser.MemberId != request.Id)
-        {
-            var authorizedUnitIds = _currentUser.AuthorizedUnitIds;
-            var hasUnitAccess = await _context.MemberAssignments.AnyAsync(a =>
-                a.MemberId == request.Id && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId), cancellationToken);
-            if (!hasUnitAccess)
-                return Result<bool>.Failure("Accès non autorisé à ce membre.");
-        }
+        // Authorization: super admin can edit anyone; own record; or a members.edit leader of the member's
+        // unit (endpoint is members.edit-gated). Shared policy in MemberAccess.
+        if (!await MemberAccess.CanAccessMemberAsync(_context, _currentUser, request.Id, cancellationToken))
+            return Result<bool>.Failure("Accès non autorisé à ce membre.");
 
         // The official SDL/GDL card number must be unique across members (friendly 400 vs the DB index's 500).
         if (!string.IsNullOrWhiteSpace(request.ExternalCardNumber))

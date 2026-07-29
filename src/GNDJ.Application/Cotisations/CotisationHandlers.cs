@@ -1,4 +1,5 @@
 using FluentValidation;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Domain.Entities;
@@ -20,20 +21,11 @@ public record MemberCotisationDto(
 );
 
 // Unit-scoping helper: super-admin, own member, or active leader of the member's unit.
+// Thin wrapper over the shared MemberAccess policy (kept for call-site readability).
 static class CotisationAccessHelper
 {
-    public static async Task<bool> CanAccessMember(IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
-    {
-        if (currentUser.IsSuperAdmin) return true;
-        if (currentUser.MemberId == memberId) return true;
-        // Cross-member access is a leader action — require members.edit, not bare co-unit membership.
-        // A read-only youth carries their own unit in AuthorizedUnitIds, so a unit-only check would leak
-        // co-members' cotisations/receipts.
-        if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit)) return false;
-        var authorizedUnitIds = currentUser.AuthorizedUnitIds;
-        return await context.MemberAssignments.AnyAsync(a =>
-            a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId), ct);
-    }
+    public static Task<bool> CanAccessMember(IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
+        => MemberAccess.CanAccessMemberAsync(context, currentUser, memberId, ct);
 }
 
 // Get cotisations for a member

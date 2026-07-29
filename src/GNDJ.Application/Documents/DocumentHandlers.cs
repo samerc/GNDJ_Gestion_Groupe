@@ -1,4 +1,5 @@
 using FluentValidation;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Domain.Entities;
@@ -16,29 +17,16 @@ public record MemberDocumentDto(
     DateOnly? ExpiryDate, DateOnly? IssuedDate, bool IsExpired, DateTime CreatedAt
 );
 
-// Helper: check if the caller may access a given member's documents.
+// Helper: check if the caller may access a given member's documents. Thin wrappers over the shared
+// MemberAccess policy (kept for call-site readability).
 static class DocumentAccessHelper
 {
-    public static async Task<bool> CanAccessMember(IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
-    {
-        if (currentUser.IsSuperAdmin) return true;
-        // A member can always access their OWN documents.
-        if (currentUser.MemberId == memberId) return true;
-        // Accessing ANOTHER member's documents is a leader action: require members.edit (unit leaders / CG),
-        // NOT mere co-unit membership. A read-only youth carries their own unit in AuthorizedUnitIds, so a
-        // unit-only check would let them read every co-member's documents — hence the explicit leader gate.
-        if (!currentUser.Permissions.Contains(Permissions.MembersEdit)) return false;
-        var authorizedUnitIds = currentUser.AuthorizedUnitIds;
-        return await context.MemberAssignments.AnyAsync(a =>
-            a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId), ct);
-    }
+    public static Task<bool> CanAccessMember(IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
+        => MemberAccess.CanAccessMemberAsync(context, currentUser, memberId, ct);
 
-    // Leader-level access to a whole unit's document views (compliance matrix / zip export): super-admin,
-    // or a members.edit holder with that unit in scope. documents.view alone is NOT sufficient — the
-    // read-only youth profile holds every ".view" permission, so it must not unlock unit-wide document views.
+    // Leader-level access to a whole unit's document views (compliance matrix / zip export).
     public static bool IsUnitLeaderFor(ICurrentUserService currentUser, Guid unitId)
-        => currentUser.IsSuperAdmin
-           || (currentUser.Permissions.Contains(Permissions.MembersEdit) && currentUser.AuthorizedUnitIds.Contains(unitId));
+        => MemberAccess.CanLeadUnit(currentUser, unitId);
 }
 
 // Get documents for a member

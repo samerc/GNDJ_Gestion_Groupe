@@ -1,4 +1,5 @@
 using FluentValidation;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Common.Validation;
@@ -28,12 +29,8 @@ public class UpdatePhoneCommandHandler(IApplicationDbContext context, ICurrentUs
         var entity = await context.MemberPhones.FindAsync([request.Id], ct);
         if (entity is null) return Result<bool>.Failure("Téléphone introuvable.");
 
-        if (!currentUser.IsSuperAdmin && currentUser.MemberId != entity.MemberId)
-        {
-            var canAccess = await context.MemberAssignments.AnyAsync(a =>
-                a.MemberId == entity.MemberId && a.EndDate == null && currentUser.AuthorizedUnitIds.Contains(a.UnitId), ct);
-            if (!canAccess) return Result<bool>.Failure("Accès non autorisé.");
-        }
+        if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, entity.MemberId, ct))
+            return Result<bool>.Failure("Accès non autorisé.");
 
         entity.CountryCode = request.CountryCode;
         entity.Number = request.Number;

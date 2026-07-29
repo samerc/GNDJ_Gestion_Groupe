@@ -1,4 +1,5 @@
 using FluentValidation;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Common.Validation;
@@ -57,17 +58,11 @@ public class GetMemberCustomFieldValuesQueryHandler(IApplicationDbContext contex
 {
     public async ValueTask<List<MemberCustomFieldValueDto>> Handle(GetMemberCustomFieldValuesQuery request, CancellationToken ct)
     {
-        // Access check (previously missing): own member, or a leader (members.edit) of the member's unit.
-        // A read-only youth holds members.view + their own unit in AuthorizedUnitIds, so without this any
-        // authenticated user could read another member's custom-field values. Unauthorized → empty list.
-        if (!currentUser.IsSuperAdmin && currentUser.MemberId != request.MemberId)
-        {
-            if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit))
-                return [];
-            var canAccess = await context.MemberAssignments.AnyAsync(a =>
-                a.MemberId == request.MemberId && a.EndDate == null && currentUser.AuthorizedUnitIds.Contains(a.UnitId), ct);
-            if (!canAccess) return [];
-        }
+        // Access check: own member, or a leader (members.edit) of the member's unit. A read-only youth
+        // holds members.view + their own unit in AuthorizedUnitIds, so without this any authenticated user
+        // could read another member's custom-field values. Unauthorized → empty list.
+        if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, request.MemberId, ct))
+            return [];
 
         return await context.MemberCustomFieldValues
             .Where(v => v.MemberId == request.MemberId && v.CustomField.IsActive)

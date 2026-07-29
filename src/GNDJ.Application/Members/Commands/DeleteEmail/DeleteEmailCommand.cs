@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
@@ -24,12 +25,8 @@ public class DeleteEmailCommandHandler : IRequestHandler<DeleteEmailCommand, Res
         var entity = await _context.MemberEmails.FindAsync([request.Id], cancellationToken);
         if (entity is null) return Result<bool>.Failure("Courriel introuvable.");
 
-        if (!_currentUser.IsSuperAdmin && _currentUser.MemberId != entity.MemberId)
-        {
-            var canAccess = await _context.MemberAssignments.AnyAsync(a =>
-                a.MemberId == entity.MemberId && a.EndDate == null && _currentUser.AuthorizedUnitIds.Contains(a.UnitId), cancellationToken);
-            if (!canAccess) return Result<bool>.Failure("Accès non autorisé.");
-        }
+        if (!await MemberAccess.CanAccessMemberAsync(_context, _currentUser, entity.MemberId, cancellationToken))
+            return Result<bool>.Failure("Accès non autorisé.");
 
         _context.MemberEmails.Remove(entity);
         await _context.SaveChangesAsync(cancellationToken);

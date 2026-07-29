@@ -1,4 +1,5 @@
 using FluentValidation;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Content;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
@@ -393,15 +394,9 @@ public class GetMemberProgressionsQueryHandler(IApplicationDbContext context, IC
     {
         // Access check: own member, or a leader (members.edit) of the member's unit. A read-only youth
         // holds progression.view + their own unit in AuthorizedUnitIds, so a unit-only check would let
-        // them read co-members' progression — hence the explicit members.edit gate for non-own access.
-        if (!currentUser.IsSuperAdmin && currentUser.MemberId != request.MemberId)
-        {
-            if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit))
-                return Result<IReadOnlyList<MemberProgressionDto>>.Failure("Accès non autorisé.");
-            var canAccess = await context.MemberAssignments.AnyAsync(a =>
-                a.MemberId == request.MemberId && a.EndDate == null && currentUser.AuthorizedUnitIds.Contains(a.UnitId), ct);
-            if (!canAccess) return Result<IReadOnlyList<MemberProgressionDto>>.Failure("Accès non autorisé.");
-        }
+        // them read co-members' progression — hence the members.edit gate baked into MemberAccess.
+        if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, request.MemberId, ct))
+            return Result<IReadOnlyList<MemberProgressionDto>>.Failure("Accès non autorisé.");
 
         var items = await context.MemberProgressions
             .Where(p => p.MemberId == request.MemberId)

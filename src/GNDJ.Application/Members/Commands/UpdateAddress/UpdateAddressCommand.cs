@@ -1,4 +1,5 @@
 using FluentValidation;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Common.Validation;
@@ -29,12 +30,8 @@ public class UpdateAddressCommandHandler(IApplicationDbContext context, ICurrent
         var entity = await context.MemberAddresses.FindAsync([request.Id], ct);
         if (entity is null) return Result<bool>.Failure("Adresse introuvable.");
 
-        if (!currentUser.IsSuperAdmin && currentUser.MemberId != entity.MemberId)
-        {
-            var canAccess = await context.MemberAssignments.AnyAsync(a =>
-                a.MemberId == entity.MemberId && a.EndDate == null && currentUser.AuthorizedUnitIds.Contains(a.UnitId), ct);
-            if (!canAccess) return Result<bool>.Failure("Accès non autorisé.");
-        }
+        if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, entity.MemberId, ct))
+            return Result<bool>.Failure("Accès non autorisé.");
 
         entity.Type = request.Type;
         entity.Country = request.Country;
