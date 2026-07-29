@@ -56,7 +56,6 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
 
   const [reviewOpen, setReviewOpen] = useState<MemberDocumentDto | null>(null)
   const [deleting, setDeleting] = useState<MemberDocumentDto | null>(null)
-  const [error, setError] = useState('')
   const [reviewNotes, setReviewNotes] = useState('')
 
   // For inline upload per doc type
@@ -66,7 +65,6 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleUploadForType = async (docType: DocumentTypeListDto, file: File) => {
-    setError('')
     // Client-side guards (match the server) so a careless upload gets an instant, readable message with the
     // real limit instead of waiting for a server 400 — the limits come from settings.
     const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
@@ -95,7 +93,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
       setExpiryDate('')
     } catch (err) {
       setUploadProgress(null)
-      setError(parseApiError(err))
+      toast.error(parseApiError(err))
     }
   }
 
@@ -104,7 +102,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
       await reviewMutation.mutateAsync({ id: docId, status })
       toast.success('Statut modifié')
     } catch (err) {
-      setError(parseApiError(err))
+      toast.error(parseApiError(err))
     }
   }
 
@@ -116,7 +114,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
       setReviewOpen(null)
       setReviewNotes('')
     } catch (err) {
-      setError(parseApiError(err))
+      toast.error(parseApiError(err))
     }
   }
 
@@ -132,7 +130,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
       window.URL.revokeObjectURL(url)
     } catch (err) {
       // Blob download (a missing/locked file returns a JSON 404 body as a Blob) — read the real message.
-      setError(await parseBlobError(err))
+      toast.error(await parseBlobError(err))
     }
   }
 
@@ -142,7 +140,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
       await deleteMutation.mutateAsync(deleting.id)
       setDeleting(null)
     } catch (err) {
-      setError(parseApiError(err))
+      toast.error(parseApiError(err))
       setDeleting(null)
     }
   }
@@ -187,8 +185,6 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
 
   return (
     <div className="space-y-4">
-      {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-
       {/* Progress summary */}
       {docStats && docStats.total > 0 && (
         <div className="flex flex-wrap items-center gap-4 rounded-lg border bg-card p-4">
@@ -268,8 +264,11 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button></Tip>
                   )}
-                  {/* Upload only offered when nothing is on file or the last one was rejected ("Renvoyer"). */}
-                  {canUpload && (!doc || doc.status === 'Rejected') && (
+                  {/* Upload offered unless a valid (approved, non-expired) doc is already on file. So a member
+                      can (re)send a missing / pending / rejected / expired doc themselves ("Renvoyer") — an
+                      APPROVED and still-valid doc is locked (only a leader can change it). Fixes members being
+                      stuck on a mistaken pending upload they can't delete. */}
+                  {canUpload && (!doc || doc.status !== 'Approved' || doc.isExpired) && (
                     <Button
                       variant={doc ? 'outline' : 'default'}
                       size="sm"
@@ -287,7 +286,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       disabled={uploadMutation.isPending}
                     >
                       <Upload className="mr-1.5 h-4 w-4" />
-                      {doc?.status === 'Rejected' ? 'Renvoyer' : 'Envoyer'}
+                      {doc ? 'Renvoyer' : 'Envoyer'}
                     </Button>
                   )}
                 </div>

@@ -190,17 +190,18 @@ export default function MyProfilePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-4">
           <MemberPhoto
             memberId={memberId}
             name={`${member.firstName} ${member.lastName}`}
             photoPath={member.photoPath}
             size={56}
           />
-          <div>
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold">Ma fiche</h1>
-            <p className="text-sm text-muted-foreground">{user?.email}</p>
+            {/* Synthetic login (prenom.nom@scouts.gndj) can be long — truncate so it never overflows on mobile. */}
+            <p className="truncate text-sm text-muted-foreground">{user?.email}</p>
           </div>
         </div>
         {/* The Modifier button edits the Profil + Médical fields, so only show it on those tabs.
