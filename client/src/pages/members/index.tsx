@@ -12,7 +12,7 @@ import { useParams } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useMembers, useMember, useCreateMember, useUpdateMember, useResetMemberPassword, useSetPrimaryContactEmail,
+import { useMembers, useMember, useCreateMember, useUpdateMember, useDeleteMember, useResetMemberPassword, useSetPrimaryContactEmail,
   useSendAccess,
   useAddPhone, useDeletePhone, useUpdatePhone, useAddEmail, useDeleteEmail, useUpdateEmail,
   useAddAddress, useDeleteAddress, useUpdateAddress,
@@ -97,14 +97,16 @@ function TabCount({ n }: { n: number }) {
 }
 
 // ─── Member detail panel ─────────────────
-function MemberDetailPanel({ memberId }: { memberId: string }) {
+function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDeleted: () => void }) {
   const { data: member, isLoading } = useMember(memberId)
   const updateMember = useUpdateMember()
+  const deleteMember = useDeleteMember()
   const resetPassword = useResetMemberPassword()
   const sendAccess = useSendAccess()
   const setPrimary = useSetPrimaryContactEmail(memberId)
   const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
   const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
+  const canDelete = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_DELETE))
 
   // Tab item counts come from the member detail payload itself (folded into GET /members/{id}), so opening
   // a member is ONE request — no more firing five secondary list queries just to render these badges.
@@ -138,6 +140,19 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
   // Reset password (one-time credentials).
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [resetCreds, setResetCreds] = useState<{ username: string; password: string; sentToEmail: string | null } | null>(null)
+
+  // Delete member (soft-delete → Corbeille, restorable until the purge job runs).
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const handleDelete = async () => {
+    try {
+      await deleteMember.mutateAsync(memberId)
+      toast.success('Membre supprimé — récupérable dans la Corbeille')
+      setDeleteConfirmOpen(false)
+      onDeleted()
+    } catch (err) {
+      toast.error(parseApiError(err))
+    }
+  }
 
   // Contact add/edit/delete dialog state.
   const [phoneDialogOpen, setPhoneDialogOpen] = useState(false)
@@ -283,6 +298,11 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
             {!editing && (
               <Tip content="Télécharger la carte de membre">
                 <Button variant="outline" size="sm" onClick={downloadCard}><CreditCard className="h-4 w-4" /></Button>
+              </Tip>
+            )}
+            {!editing && canDelete && (
+              <Tip content="Supprimer le membre">
+                <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteConfirmOpen(true)}><Trash2 className="h-4 w-4" /></Button>
               </Tip>
             )}
             {canEdit && isFormTab && (editing ? (
@@ -614,6 +634,11 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
 
       <ConfirmDialog open={!!deletingContact} onOpenChange={() => setDeletingContact(null)} title="Supprimer" description={`Êtes-vous sûr de vouloir supprimer « ${deletingContact?.label} » ?`} confirmLabel="Supprimer" variant="destructive" onConfirm={handleDeleteContact} />
 
+      {/* Delete member (soft-delete → Corbeille) */}
+      <ConfirmDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen} title="Supprimer le membre"
+        description={`${member.firstName} ${member.lastName} sera déplacé(e) vers la Corbeille (son compte est désactivé). Vous pourrez le/la restaurer jusqu'à sa suppression définitive automatique. Continuer ?`}
+        confirmLabel="Supprimer" variant="destructive" loading={deleteMember.isPending} onConfirm={handleDelete} />
+
       {/* Reset password */}
       <ConfirmDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen} title="Réinitialiser le mot de passe"
         description={`Un nouveau mot de passe temporaire sera généré pour ${member.firstName} ${member.lastName}. Les sessions actives seront déconnectées. Continuer ?`}
@@ -924,7 +949,7 @@ export default function MembersPage() {
                 <ArrowLeft className="h-4 w-4" /> Retour à la liste
               </button>
               <div className="min-h-0 flex-1 overflow-hidden">
-                <MemberDetailPanel key={selectedMemberId} memberId={selectedMemberId} />
+                <MemberDetailPanel key={selectedMemberId} memberId={selectedMemberId} onDeleted={() => setSelectedMemberId(null)} />
               </div>
             </>
           ) : (
