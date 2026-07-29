@@ -60,3 +60,6 @@ deploy/health-state.txt
 dataprotection-keys/
 **/dataprotection-keys/
 temp/
+
+# Local pen-testing crash course / findings playbook (do not commit — describes live weaknesses)
+docs/SECURITY_TESTING.md
