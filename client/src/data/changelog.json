@@ -1,5 +1,33 @@
 [
   {
+    "version": "3.0.0",
+    "date": "2026-07-29",
+    "changes": [
+      "bump.ps1: add -SetVersion for an explicit version (product-identity jump)",
+      "Gitignore the local security-testing crash course (describes live weaknesses)",
+      "Docs: log the pentest pass + 3 security fixes in CLAUDE.md",
+      "Security: harden JWT secret, close youth data leak + login timing oracle",
+      "Docs: log the dead-code/dedup cleanup + delete-member button in CLAUDE.md",
+      "Remove dead MemberRelationship feature + drop its table",
+      "Dedup: single MemberAccess policy for member-data authorization",
+      "Members panel: wire the 'Supprimer le membre' button",
+      "Dedup: shared saveBlob/openBlob, ContactEmailResolver, GetInitials, base-role resolver",
+      "De-dup: shared formatMoney + PAYMENT_METHOD_OPTIONS + ScoutYearWindow",
+      "Dead code: remove 10 unused frontend exports (ts-prune, verified 0 refs)",
+      "Doc types: align config pills to the same height as \"Actif\"",
+      "Doc types: clearer config badges (Approbation/Expiration were cryptic)",
+      "Purge soft-deleted junk document types (one-off patch)",
+      "Doc types: clear is_active on delete (+ patch existing soft-deleted rows)",
+      "Fix \"Types de documents\" showing empty on a cached revisit",
+      "Rentrée: fix \"Unités & équipes\" action 404 (/admin/units → /units)",
+      "Member portal UX: login hint, Ma fiche documents CTA, mobile dialog/tap-target pass",
+      "Member portal: upload failures now toast, members can replace pending/expired docs",
+      "Fixes: settings back-link, roster father first-name, cotisation year follows passage",
+      "bump.ps1: refuse to release on a stale checkout + document versioning process",
+      "Deploy: fold version bump into update.ps1 (-Bump) so releasing is one command"
+    ]
+  },
+  {
     "version": "1.0.0",
     "date": "2026-07-28",
     "changes": [
