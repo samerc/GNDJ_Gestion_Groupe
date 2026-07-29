@@ -249,18 +249,18 @@ function SortableTypeRow({ item, canReorder, onEdit, onDelete }: { item: Documen
           <span className="font-medium">{item.name}</span>
           <span className="font-mono text-xs text-muted-foreground">{item.code}</span>
         </div>
-        <div className="mt-1 flex flex-wrap gap-1">
+        <div className="mt-1 flex flex-wrap items-center gap-1">
           {item.isActive ? <Badge className="bg-green-600">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}
           {/* Terse "Expiration"/"Approbation" confused users — spell out the meaning + explain on hover.
               (Badge isn't ref-forwarding, so wrap in a span for the tooltip trigger.) */}
           {item.requiresExpiry && (
             <Tip content="Le membre doit indiquer une date d'expiration en envoyant ce document.">
-              <span><Badge variant="outline">Date d'expiration requise</Badge></span>
+              <span className="inline-flex"><Badge variant="outline">Date d'expiration requise</Badge></span>
             </Tip>
           )}
           {item.requiresApproval && (
             <Tip content="Ce document doit être validé par un chef après l'envoi (il reste « en attente » jusque-là).">
-              <span><Badge variant="outline">Validation par un chef</Badge></span>
+              <span className="inline-flex"><Badge variant="outline">Validation par un chef</Badge></span>
             </Tip>
           )}
         </div>
