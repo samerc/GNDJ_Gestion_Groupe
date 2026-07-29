@@ -1,4 +1,5 @@
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
+import { saveBlob } from '@/lib/download'
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { useMemberCotisations, useCreateCotisation, useUpdateCotisation, useDeleteCotisation, useSetCotisationExempt, downloadReceipt, type MemberCotisationDto, type PaymentLineInput } from '@/services/cotisation-service'
@@ -173,15 +174,9 @@ export function MemberCotisations({ memberId, memberName, bare }: Props) {
   const handleDownloadReceipt = async (cotisation: MemberCotisationDto) => {
     try {
       const response = await downloadReceipt(cotisation.id)
-      const blob = new Blob([response.data], { type: 'application/pdf' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
       // Filename embeds member name (spaces → _), year and receipt number for easy filing.
       const namePart = memberName ? `${memberName.replace(/\s+/g, '_')}_` : ''
-      a.download = `Recu_${namePart}${cotisation.scoutYear}_${cotisation.receiptNumber}.pdf`
-      a.click()
-      window.URL.revokeObjectURL(url)
+      saveBlob(response.data, `Recu_${namePart}${cotisation.scoutYear}_${cotisation.receiptNumber}.pdf`, 'application/pdf')
     } catch (err) {
       // Blob download: the JSON error body is a Blob, so read it back for the real message.
       setError(await parseBlobError(err))

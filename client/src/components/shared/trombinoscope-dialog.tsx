@@ -15,6 +15,7 @@ import {
 import { useTeams } from '@/services/team-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { parseApiError } from '@/lib/error-utils'
+import { saveBlob } from '@/lib/download'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
@@ -59,16 +60,6 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
 
   const teamIds = () => (allSelected ? null : Array.from(selectedTeams))
 
-  // Downloads a blob to the browser as a named file.
-  const saveBlob = (data: BlobPart, fileName: string) => {
-    const url = URL.createObjectURL(new Blob([data], { type: 'application/pdf' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = fileName
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
   const defaultName = `Trombinoscope ${unitName} ${scoutYear}.pdf`
 
   // Generate = save (freeze/overwrite) the current-roster trombinoscope, then download it.
@@ -78,7 +69,7 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
       const info = await archiveTrombinoscope({ unitId, scoutYear, includePhotos, teamIds: teamIds() })
       // Re-read the freshly saved bytes to download them (same file the members now see).
       const response = await downloadTrombinoscopeArchive(unitId, scoutYear)
-      saveBlob(response.data, info.fileName ?? defaultName)
+      saveBlob(response.data, info.fileName ?? defaultName, 'application/pdf')
       toast.success(`Trombinoscope généré et enregistré (${info.memberCount} membres)`)
       refetchInfo()
       onOpenChange(false)
@@ -92,7 +83,7 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
     setBusy('download'); setError('')
     try {
       const response = await downloadTrombinoscopeArchive(unitId, scoutYear)
-      saveBlob(response.data, archiveInfo?.fileName ?? defaultName)
+      saveBlob(response.data, archiveInfo?.fileName ?? defaultName, 'application/pdf')
     } catch (err) {
       setError(parseApiError(err))
     } finally { setBusy('') }

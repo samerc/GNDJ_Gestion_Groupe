@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { saveBlob } from '@/lib/download'
 import { useNavigate } from 'react-router'
 import { useUnitDashboard, type RosterMemberDto } from '@/services/dashboard-service'
 import { useMember } from '@/services/member-service'
@@ -259,13 +260,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
       }
       const ext = template.format === 'xlsx' ? 'xlsx' : template.format === 'csv' ? 'csv' : 'pdf'
       const mimeType = ext === 'pdf' ? 'application/pdf' : ext === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/csv'
-      const blob = new Blob([response.data], { type: mimeType })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${template.name.replace(/\s+/g, '_')}.${ext}`
-      a.click()
-      URL.revokeObjectURL(url)
+      saveBlob(response.data, `${template.name.replace(/\s+/g, '_')}.${ext}`, mimeType)
       toast.success('Rapport généré')
     } catch (err) {
       // Responses are blobs, so a backend JSON error (e.g. "aucun membre") is unreadable via parseApiError.
@@ -279,13 +274,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
     setBulkCardsLoading(true)
     try {
       const response = await generateBulkCards(unitId)
-      const blob = new Blob([response.data], { type: 'application/pdf' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `Cartes_${data?.unitName?.replace(/\s+/g, '_') ?? 'Unite'}.pdf`
-      a.click()
-      URL.revokeObjectURL(url)
+      saveBlob(response.data, `Cartes_${data?.unitName?.replace(/\s+/g, '_') ?? 'Unite'}.pdf`, 'application/pdf')
       toast.success('Cartes générées')
     } catch (err) {
       toast.error(await parseBlobError(err))

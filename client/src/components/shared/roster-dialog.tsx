@@ -3,6 +3,7 @@
 // medical) with select-all/none; name+firstname are always included server-side. Optionally scoped to a
 // single team via teamId. Calls the report API and downloads the returned PDF blob.
 import { useState } from 'react'
+import { saveBlob } from '@/lib/download'
 import { generateRoster } from '@/services/report-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { parseBlobError } from '@/lib/error-utils'
@@ -93,14 +94,7 @@ export function RosterDialog({ unitId, unitName, teamId, open, onOpenChange }: P
     try {
       const columns = Array.from(selected)
       const response = await generateRoster({ unitId, teamId: teamId || null, scoutYear, columns })
-      // Wrap the raw PDF bytes in a blob and click a temporary anchor to download it.
-      const blob = new Blob([response.data], { type: 'application/pdf' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `Liste_${unitName.replace(/\s+/g, '_')}_${scoutYear}.pdf`
-      a.click()
-      URL.revokeObjectURL(url)
+      saveBlob(response.data, `Liste_${unitName.replace(/\s+/g, '_')}_${scoutYear}.pdf`, 'application/pdf')
       toast.success('Liste générée')
       onOpenChange(false)
     } catch (err) {

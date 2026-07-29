@@ -3,6 +3,7 @@
 // a format radio; optionally scoped to a single team via teamId. Calls the report API and downloads the
 // returned blob with the matching MIME type / extension.
 import { useState } from 'react'
+import { saveBlob } from '@/lib/download'
 import { generateExport } from '@/services/report-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { parseBlobError } from '@/lib/error-utils'
@@ -101,16 +102,10 @@ export function ExportDialog({ unitId, unitName, teamId, open, onOpenChange }: P
         columns: Array.from(selectedCols),
         format,
       })
-      // Pick extension + MIME from the chosen format, then download the blob via a temporary anchor.
+      // Pick extension + MIME from the chosen format, then download the blob.
       const ext = format === 'csv' ? 'csv' : 'xlsx'
       const contentType = format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      const blob = new Blob([response.data], { type: contentType })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${unitName.replace(/\s+/g, '_')}_${scoutYear}.${ext}`
-      a.click()
-      URL.revokeObjectURL(url)
+      saveBlob(response.data, `${unitName.replace(/\s+/g, '_')}_${scoutYear}.${ext}`, contentType)
       toast.success(`Export ${format.toUpperCase()} g\u00e9n\u00e9r\u00e9`)
       onOpenChange(false)
     } catch (err) {

@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Domain.Entities;
@@ -218,14 +219,7 @@ public class CreateMemberCommandHandler : IRequestHandler<CreateMemberCommand, R
                 return Result<CreateMemberResult>.Failure("Vous n'avez pas accès à cette unité.");
 
             // Base role = the unit type's default function, else its lowest-rank non-archived one.
-            var baseRoleId = (await _context.FunctionalRoles
-                    .Where(r => r.UnitTypeId == unit.UnitTypeId && !r.IsArchived)
-                    .Select(r => new { r.Id, r.Rank, r.Name, r.IsDefaultForNewMembers })
-                    .ToListAsync(cancellationToken))
-                .OrderByDescending(r => r.IsDefaultForNewMembers)
-                .ThenBy(r => r.Rank).ThenBy(r => r.Name)
-                .Select(r => (Guid?)r.Id)
-                .FirstOrDefault();
+            var baseRoleId = await FunctionalRoleQueries.ResolveBaseRoleIdAsync(_context, unit.UnitTypeId, cancellationToken);
             if (baseRoleId is null)
                 return Result<CreateMemberResult>.Failure("Aucune fonction disponible pour cette unité.");
 

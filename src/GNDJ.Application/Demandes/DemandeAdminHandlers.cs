@@ -553,11 +553,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         var unitTypeByUnit = await context.Units.Where(u => unitIds.Contains(u.Id))
             .Select(u => new { u.Id, u.UnitTypeId }).ToDictionaryAsync(u => u.Id, u => u.UnitTypeId, ct);
         var typeIds = unitTypeByUnit.Values.Distinct().ToList();
-        var baseRoleByType = (await context.FunctionalRoles.Where(r => r.UnitTypeId != null && typeIds.Contains(r.UnitTypeId.Value) && !r.IsArchived)
-                .Select(r => new { r.Id, UnitTypeId = r.UnitTypeId!.Value, r.Rank, r.Name, r.IsDefaultForNewMembers }).ToListAsync(ct))
-            .GroupBy(r => r.UnitTypeId)
-            .ToDictionary(g => g.Key, g => (g.FirstOrDefault(r => r.IsDefaultForNewMembers)
-                ?? g.OrderBy(r => r.Rank).ThenBy(r => r.Name).FirstOrDefault())?.Id);
+        var baseRoleByType = await FunctionalRoleQueries.ResolveBaseRoleIdsAsync(context, typeIds, ct);
         foreach (var (uId, typeId) in unitTypeByUnit)
             baseRoleCache[uId] = baseRoleByType.GetValueOrDefault(typeId);
 

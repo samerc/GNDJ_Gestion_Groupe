@@ -6,6 +6,7 @@
 // The split is drag-resizable on desktop. A create dialog returns auto-generated login credentials.
 // Route param :id deep-links a member into the right panel.
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
+import { saveBlob } from '@/lib/download'
 import { useState, useRef, useCallback, type ReactNode, type ComponentType } from 'react'
 import { useParams } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
@@ -244,11 +245,7 @@ function MemberDetailPanel({ memberId }: { memberId: string }) {
   const downloadCard = async () => {
     try {
       const response = await generateMemberCard(memberId)
-      const blob = new Blob([response.data], { type: 'application/pdf' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = `Carte_${member.firstName}_${member.lastName}.pdf`; a.click()
-      URL.revokeObjectURL(url)
+      saveBlob(response.data, `Carte_${member.firstName}_${member.lastName}.pdf`, 'application/pdf')
     } catch (err) { toast.error(await parseBlobError(err)) }
   }
 

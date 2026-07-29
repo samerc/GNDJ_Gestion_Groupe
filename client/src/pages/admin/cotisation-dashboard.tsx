@@ -6,6 +6,7 @@
 // export and print. "Payé" = a cotisation with a payment line; exempt ("ne paiera pas") members are excluded
 // from impayés. Multi-currency (USD/EUR/LBP) — totals are per-currency, not converted.
 import { useState, useMemo } from 'react'
+import { saveBlob } from '@/lib/download'
 import { useNavigate } from 'react-router'
 import {
   useCotisationSummary, useUnpaidCotisations, useCreateCotisation, useSetCotisationExempt,
@@ -110,12 +111,7 @@ export default function CotisationDashboardPage() {
     const lines = unpaid.map(u => [u.unitName, u.memberName, u.parentName ?? '', u.contactEmail ?? '', u.contactPhone ?? ''].map(escape).join(','))
     // UTF-8 BOM so Excel reads accents correctly.
     const csv = '﻿' + [header.map(escape).join(','), ...lines].join('\r\n')
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `impayes_cotisations_${scoutYear}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    saveBlob(csv, `impayes_cotisations_${scoutYear}.csv`, 'text/csv;charset=utf-8')
   }
 
   if (isLoading) return <LoadingSpinner variant="page" />

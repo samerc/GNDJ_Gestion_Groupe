@@ -1,4 +1,5 @@
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
+import { saveBlob } from '@/lib/download'
 import { toast } from 'sonner'
 import { useState, useRef } from 'react'
 import { useMemberDocuments, useUploadDocument, useReviewDocument, useDeleteDocument, downloadDocument, type MemberDocumentDto } from '@/services/document-service'
@@ -121,13 +122,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const handleDownload = async (doc: MemberDocumentDto) => {
     try {
       const response = await downloadDocument(doc.id)
-      const blob = new Blob([response.data], { type: doc.mimeType })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = doc.fileName
-      a.click()
-      window.URL.revokeObjectURL(url)
+      saveBlob(response.data, doc.fileName, doc.mimeType)
     } catch (err) {
       // Blob download (a missing/locked file returns a JSON 404 body as a Blob) — read the real message.
       toast.error(await parseBlobError(err))

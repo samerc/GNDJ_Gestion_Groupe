@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
+import { saveBlob } from '@/lib/download'
 
 // Camp BP resource: split the group into balanced "familles" (CU grades → CG drafts/assigns/scores).
 // Query keys: ['camps'], ['camp', id], ['camp-attendance'/'-grading'/'-familles'/'-games'/'-leader-candidates'/'-etapiste-candidates', ...].
@@ -135,8 +136,7 @@ export const useEtapisteCandidates = (campId?: string) =>
 // Helper: GET a PDF blob and trigger a browser download (not a hook).
 async function downloadPdf(url: string, filename: string) {
   const r = await apiClient.get(url, { responseType: 'blob' })
-  const blobUrl = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }))
-  const a = document.createElement('a'); a.href = blobUrl; a.download = filename; a.click(); URL.revokeObjectURL(blobUrl)
+  saveBlob(r.data, filename, 'application/pdf')
 }
 // GET /camps/{id}/familles/{n}/pdf → one famille sheet (blob → save).
 export const printFamille = (campId: string, number: number) => downloadPdf(`/camps/${campId}/familles/${number}/pdf`, `Famille_${number}.pdf`)

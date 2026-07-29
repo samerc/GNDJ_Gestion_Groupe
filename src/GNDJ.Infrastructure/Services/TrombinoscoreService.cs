@@ -138,7 +138,7 @@ public class TrombinoscoreService : ITrombinoscoreService
                                                     .Width(photoSize).Height(photoHeight)
                                                     .Background(Colors.Grey.Lighten2)
                                                     .AlignCenter().AlignMiddle()
-                                                    .Text(GetInitials(member.Name))
+                                                    .Text(PdfText.GetInitials(member.Name))
                                                     .FontSize(12).FontColor(Colors.Grey.Darken1);
                                             }
                                         }
@@ -167,12 +167,4 @@ public class TrombinoscoreService : ITrombinoscoreService
         return document.GeneratePdf();
     }
 
-    private static string GetInitials(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return "?";
-        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length >= 2) return $"{parts[0][0]}{parts[^1][0]}";
-        if (parts.Length == 1) return parts[0][..1];
-        return "?";
-    }
 }

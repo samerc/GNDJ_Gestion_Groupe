@@ -1,4 +1,5 @@
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
+import { saveBlob } from '@/lib/download'
 import { toast } from 'sonner'
 import { useMemo, useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
@@ -197,13 +198,7 @@ export default function UnitDocumentsPage() {
     setDownloading(true)
     try {
       const response = await downloadUnitDocumentsZip(unitId, docTypeId)
-      const blob = new Blob([response.data], { type: 'application/zip' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'Documents_Unite.zip'
-      a.click()
-      URL.revokeObjectURL(url)
+      saveBlob(response.data, 'Documents_Unite.zip', 'application/zip')
     } catch (err) {
       // The zip is fetched as a blob, so a JSON error comes back as a Blob — parseBlobError reads it.
       // The common case (an empty unit) is a 400 with a clear message: show it as a friendly info toast,

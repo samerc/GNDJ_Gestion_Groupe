@@ -4,6 +4,7 @@
 // fonctions) which live elsewhere.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
+import { openBlob } from '@/lib/download'
 
 // The member-editable profile + medical fields (locked identity fields are intentionally absent).
 export interface MyProfileUpdate {
@@ -92,7 +93,5 @@ export function useMyTrombinoscopes() {
 // GET /my-profile/trombinoscope?unitId&scoutYear → open the generated PDF in a new tab.
 export async function viewMyTrombinoscope(unitId: string, scoutYear: string) {
   const res = await apiClient.get('/my-profile/trombinoscope', { params: { unitId, scoutYear }, responseType: 'blob' })
-  const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
-  window.open(url, '_blank')
-  setTimeout(() => window.URL.revokeObjectURL(url), 60_000)
+  openBlob(res.data, 'application/pdf')
 }

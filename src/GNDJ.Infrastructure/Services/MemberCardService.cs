@@ -137,7 +137,7 @@ public class MemberCardService : IMemberCardService
                         // No usable photo: draw a grey tile with the member's initials instead
                         if (!photoRendered)
                         {
-                            var initials = GetInitials(data.MemberName);
+                            var initials = PdfText.GetInitials(data.MemberName);
                             photoCol.Item().Width(45).Height(50)
                                 .Background(Colors.Grey.Lighten2)
                                 .AlignCenter().AlignMiddle()
@@ -191,12 +191,4 @@ public class MemberCardService : IMemberCardService
         });
     }
 
-    private static string GetInitials(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return "?";
-        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length >= 2) return $"{parts[0][0]}{parts[^1][0]}";
-        if (parts.Length == 1) return parts[0][..1];
-        return "?";
-    }
 }

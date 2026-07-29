@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
@@ -55,7 +56,8 @@ public class ResetMemberPasswordCommandHandler(
         await auditService.LogAsync("ResetPassword", "User", user.Id, newValues: new { user.Email }, cancellationToken: ct);
 
         // Resolve the contact email and queue the temp password there (best-effort, background-sent).
-        var sentTo = await ResolveContactEmailAsync(member, ct);
+        var resolver = await ContactEmailResolver.LoadAsync(context, [member.Id], ct);
+        var sentTo = resolver.Resolve(member.Id, member.PrimaryContactEmail);
         if (!string.IsNullOrWhiteSpace(sentTo))
         {
             var baseUrl = (await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct)
@@ -70,26 +72,5 @@ public class ResetMemberPasswordCommandHandler(
         }
 
         return Result<ResetMemberPasswordResult>.Success(new ResetMemberPasswordResult(user.Email, tempPassword, sentTo));
-    }
-
-    // Recipient for member-facing mail: the designated primary contact email, else the member's own
-    // (primary) email, else a linked guardian's email; null if the member has no email anywhere.
-    private async Task<string?> ResolveContactEmailAsync(Domain.Entities.Member member, CancellationToken ct)
-    {
-        if (!string.IsNullOrWhiteSpace(member.PrimaryContactEmail))
-            return member.PrimaryContactEmail;
-
-        var ownEmail = await context.MemberEmails
-            .Where(e => e.MemberId == member.Id && !e.IsDeleted)
-            .OrderByDescending(e => e.IsPrimary)
-            .Select(e => e.Address)
-            .FirstOrDefaultAsync(ct);
-        if (!string.IsNullOrWhiteSpace(ownEmail)) return ownEmail;
-
-        return await context.GuardianEmails
-            .Where(e => !e.IsDeleted && e.Guardian.Links.Any(l => l.MemberId == member.Id && !l.IsDeleted))
-            .OrderByDescending(e => e.IsPrimary)
-            .Select(e => e.Address)
-            .FirstOrDefaultAsync(ct);
     }
 }
