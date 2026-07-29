@@ -20,6 +20,21 @@ public static class SeedData
         p != Permissions.RolesManage &&
         p != Permissions.AdminHardDelete).ToArray();
 
+    // ".view" permissions that must NOT be granted to the read-only (youth/member) profile even though they
+    // end in ".view": they gate leader/CG-only AGGREGATE views over the whole group. The read-only profile is
+    // "all .view" for convenience, but these expose data a member must never see — audit trail (audit.view),
+    // the entire enrollment queue incl. children's medical/PII (demande.view), the authorization model +
+    // who holds each profile (roles.view), and the group passage plan (passage.view). A youth's own data is
+    // served by /my-profile & /auth/me (no .view perm needed), so removing these breaks nothing for them.
+    public static readonly string[] ReadOnlyExcludedViews =
+    [
+        Permissions.AuditView, Permissions.DemandeView, Permissions.RolesView, Permissions.PassageView,
+    ];
+
+    // The permission set for the read-only profile: every ".view" EXCEPT the sensitive aggregate ones above.
+    public static string[] ReadOnlyPermissions() =>
+        Permissions.All.Where(p => p.EndsWith(".view") && !ReadOnlyExcludedViews.Contains(p)).ToArray();
+
     // Curated starter list of Lebanese towns (Beirut + Mount Lebanon focus, where the group's families
     // live, plus major cities). CG/super-admin curate it afterwards via the "Villes" admin page.
     public static readonly string CuratedCitiesJson = System.Text.Json.JsonSerializer.Serialize(new[]
@@ -90,7 +105,7 @@ public static class SeedData
             Permissions.CotisationsView
         ]);
         var readOnlyProfile = CreateProfile("Lecture seule", "read-only", "Accès en lecture uniquement (membre)",
-            Permissions.All.Where(p => p.EndsWith(".view")).ToArray());
+            ReadOnlyPermissions());
         var chefDeGroupeProfile = CreateProfile("Chef de Groupe", "chef-de-groupe",
             "Gestion du groupe entier (toutes les unités), sans administration système", ChefDeGroupePermissions);
         chefDeGroupeProfile.IsGroupLevel = true;
@@ -181,7 +196,7 @@ public static class SeedData
                 Permissions.CampGrade
             ],
             ["chef-equipe"] = [Permissions.DocumentsView, Permissions.CotisationsView, Permissions.ProgressionView, Permissions.PassageView],
-            ["read-only"] = Permissions.All.Where(p => p.EndsWith(".view")).ToArray(),
+            ["read-only"] = ReadOnlyPermissions(),
         };
 
         foreach (var (code, permissions) in profilePermissions)
@@ -210,6 +225,11 @@ public static class SeedData
         var profileRevocations = new Dictionary<string, string[]>
         {
             ["chef-unite"] = [Permissions.MembersCreate],
+            // The read-only (youth/member) profile previously got ALL ".view" perms, which included the
+            // sensitive aggregate ones (audit/demande/roles/passage) — a member could read the audit trail,
+            // the whole enrollment queue (children's medical/PII), the authz model, and the passage plan.
+            // Revoke them from existing DBs so the [HasPermission] attributes now deny a youth automatically.
+            ["read-only"] = ReadOnlyExcludedViews,
         };
         foreach (var (code, revoke) in profileRevocations)
         {

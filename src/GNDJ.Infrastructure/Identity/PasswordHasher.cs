@@ -32,6 +32,20 @@ public class PasswordHasher : IPasswordHasher
         finally { _gate.Release(); }
     }
 
+    // Fixed dummy hash computed once at startup, used to equalize login timing for unknown accounts —
+    // see IPasswordHasher.VerifyDummyAsync. It must cost at least as much as a real verify or the timing
+    // gap reopens; existing stored hashes are WF12 (only NEW hashes use the WF10 above), so the dummy is
+    // pinned to the HIGHER of the two. Keep this >= the highest work factor present in the DB.
+    private const int DummyWorkFactor = 12;
+    private static readonly string _dummyHash = BCrypt.Net.BCrypt.HashPassword("timing-equalizer", workFactor: DummyWorkFactor);
+
+    public async Task<bool> VerifyDummyAsync(string password)
+    {
+        await _gate.WaitAsync();
+        try { return await Task.Run(() => BCrypt.Net.BCrypt.Verify(password, _dummyHash)); }
+        finally { _gate.Release(); }
+    }
+
     // Refresh tokens are stored as a SHA-256 hex digest (fast, deterministic) rather than BCrypt
     // so lookup can hit an index — an O(N) BCrypt scan over every stored token was the bottleneck.
     public string HashToken(string token)

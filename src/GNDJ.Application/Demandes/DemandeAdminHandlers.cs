@@ -100,10 +100,15 @@ public record GetDemandesForReviewQuery(
     string ScoutYear, string? Status, string? Gender, string? Classe, string? School,
     int? AgeMin, int? AgeMax, Guid? UnitId) : IRequest<Result<IReadOnlyList<DemandeReviewDto>>>;
 
-public class GetDemandesForReviewQueryHandler(IApplicationDbContext context) : IRequestHandler<GetDemandesForReviewQuery, Result<IReadOnlyList<DemandeReviewDto>>>
+public class GetDemandesForReviewQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetDemandesForReviewQuery, Result<IReadOnlyList<DemandeReviewDto>>>
 {
     public async ValueTask<Result<IReadOnlyList<DemandeReviewDto>>> Handle(GetDemandesForReviewQuery request, CancellationToken ct)
     {
+        // Defense-in-depth: this returns children's medical/PII, so require a whole-group manager even though
+        // the endpoint is already demande.view-gated (a member profile must never hold demande.view).
+        if (!MemberAccess.IsGroupManager(currentUser))
+            return Result<IReadOnlyList<DemandeReviewDto>>.Failure("Accès refusé.");
+
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         // Only show submitted / decided demandes (never drafts).
@@ -250,10 +255,14 @@ public class GetUnitOccupancyQueryHandler(IApplicationDbContext context) : IRequ
 // ============================================================
 public record GetDemandeStatisticsQuery(string ScoutYear) : IRequest<Result<DemandeStatisticsDto>>;
 
-public class GetDemandeStatisticsQueryHandler(IApplicationDbContext context) : IRequestHandler<GetDemandeStatisticsQuery, Result<DemandeStatisticsDto>>
+public class GetDemandeStatisticsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetDemandeStatisticsQuery, Result<DemandeStatisticsDto>>
 {
     public async ValueTask<Result<DemandeStatisticsDto>> Handle(GetDemandeStatisticsQuery request, CancellationToken ct)
     {
+        // Defense-in-depth: group-wide enrollment stats — require a whole-group manager (see IsGroupManager).
+        if (!MemberAccess.IsGroupManager(currentUser))
+            return Result<DemandeStatisticsDto>.Failure("Accès refusé.");
+
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var drafts = await context.Demandes.CountAsync(d => d.ScoutYear == request.ScoutYear && d.Status == DemandeStatus.Draft, ct);

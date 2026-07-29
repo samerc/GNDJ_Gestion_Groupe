@@ -305,7 +305,12 @@ public class LoginApplicantCommandHandler(IApplicationDbContext context, IPasswo
     {
         var email = request.Email.Trim().ToLowerInvariant();
         var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Email == email, ct);
-        if (account is null || !account.IsActive || !await hasher.VerifyAsync(request.Password, account.PasswordHash))
+        // Always run exactly one bcrypt verify (dummy when the account is missing/inactive) so response time
+        // doesn't leak which applicant emails are registered — see IPasswordHasher.VerifyDummyAsync.
+        var ok = account is not null && account.IsActive
+            ? await hasher.VerifyAsync(request.Password, account.PasswordHash)
+            : await hasher.VerifyDummyAsync(request.Password);
+        if (account is null || !account.IsActive || !ok)
             return Result<ApplicantAuthDto>.Failure("Email ou mot de passe incorrect.");
 
         var refresh = tokens.GenerateRefreshToken();

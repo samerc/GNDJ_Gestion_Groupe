@@ -84,7 +84,21 @@ public static class DependencyInjection
         services.AddSingleton<IExportService, ExportService>();
 
         // JWT Authentication
-        var jwtSecret = configuration["Jwt:Secret"]!;
+        // Fail-safe against a weak/default signing key: a forgeable secret = full account takeover, so we
+        // refuse to start rather than run with the committed placeholder. Dev may keep the placeholder;
+        // any non-Development environment MUST supply a unique secret (appsettings.Production.json or the
+        // JWT__SECRET env var). Also enforce a minimum length so a short key can't be brute-forced.
+        var jwtSecret = configuration["Jwt:Secret"];
+        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+        var isDevelopment = string.Equals(env, "Development", StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32)
+            throw new InvalidOperationException(
+                "Jwt:Secret is missing or too short (>= 32 chars required). Set a strong random secret via " +
+                "appsettings.Production.json or the JWT__SECRET environment variable.");
+        if (!isDevelopment && jwtSecret.Contains("CHANGE_THIS"))
+            throw new InvalidOperationException(
+                "Jwt:Secret is still the placeholder value. Generate a unique secret for this environment " +
+                "before starting outside Development.");
         var key = Encoding.UTF8.GetBytes(jwtSecret);
 
         services.AddAuthentication(options =>

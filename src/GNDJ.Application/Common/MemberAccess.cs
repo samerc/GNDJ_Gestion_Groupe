@@ -30,4 +30,11 @@ public static class MemberAccess
     public static bool CanLeadUnit(ICurrentUserService currentUser, Guid unitId)
         => currentUser.IsSuperAdmin
            || (currentUser.Permissions.Contains(Permissions.MembersEdit) && currentUser.AuthorizedUnitIds.Contains(unitId));
+
+    // Whole-group manager: super-admin OR a maitrise.manage holder (Chef de Groupe / Assistant CG /
+    // association-admin). Used as defense-in-depth on group-wide aggregate views that expose sensitive data
+    // (the enrollment queue with children's medical/PII, group statistics), so a future accidental grant of
+    // a bare ".view" permission can't re-expose them.
+    public static bool IsGroupManager(ICurrentUserService currentUser)
+        => currentUser.IsSuperAdmin || currentUser.Permissions.Contains(Permissions.MaitriseManage);
 }
