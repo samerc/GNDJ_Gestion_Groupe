@@ -80,7 +80,7 @@ builder.Services.AddHttpContextAccessor();
 // It is stateless — it reads the current request's user lazily from the singleton IHttpContextAccessor.
 builder.Services.AddSingleton<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddHostedService<GNDJ.Api.Services.EmailQueueBackgroundService>();
+builder.Services.AddHostedService<GNDJ.Api.Services.OutboxSenderBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.MemberPurgeBackgroundService>();
 
 // Performance: Response compression (gzip + brotli)

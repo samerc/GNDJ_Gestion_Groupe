@@ -80,12 +80,12 @@ static class ApplicantHelpers
     {
         var baseUrl = (await Setting(ctx, "app.base_url", ct) ?? "http://localhost:5173").TrimEnd('/');
         var link = $"{baseUrl}/inscription/verify?token={account.EmailVerificationToken}";
-        queue.Enqueue(new EmailJob("demande_email_verification", account.Email, new Dictionary<string, string>
+        await queue.EnqueueAsync(new EmailJob("demande_email_verification", account.Email, new Dictionary<string, string>
         {
             ["contactName"] = account.ContactName ?? "",
             ["verifyLink"] = link,
             ["expiryDays"] = "7",
-        }));
+        }), ct);
     }
 
     static readonly string[] ConfigKeys =
@@ -483,7 +483,7 @@ public class RequestHouseholdLookupCommandHandler(IApplicationDbContext context,
             account.HouseholdLookupCodeHash = hasher.HashToken(code);
             account.HouseholdLookupExpiry = DateTime.UtcNow.AddMinutes(15);
             await context.SaveChangesAsync(ct);
-            emailQueue.Enqueue(new EmailJob("household_lookup_code", email, new Dictionary<string, string> { ["code"] = code }));
+            await emailQueue.EnqueueAsync(new EmailJob("household_lookup_code", email, new Dictionary<string, string> { ["code"] = code }), ct);
         }
         return Result<bool>.Success(true);
     }

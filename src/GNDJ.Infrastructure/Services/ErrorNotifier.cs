@@ -94,7 +94,7 @@ public class ErrorNotifier : IErrorNotifier
                     ["path"] = report.Path ?? "",
                     ["user"] = report.User ?? "anonyme",
                 };
-                _emailQueue.Enqueue(new EmailJob("error_alert", recipient!, vars));
+                await _emailQueue.EnqueueAsync(new EmailJob("error_alert", recipient!, vars), ct);
             }
         }
         catch (Exception ex)

@@ -42,13 +42,13 @@ public class SendContactMessageCommandHandler(IApplicationDbContext context, IEm
         if (string.IsNullOrWhiteSpace(recipient))
             return Result<bool>.Failure("La messagerie de contact n'est pas configurée. Veuillez réessayer plus tard.");
 
-        emailQueue.Enqueue(new EmailJob("contact_form", recipient, new Dictionary<string, string>
+        await emailQueue.EnqueueAsync(new EmailJob("contact_form", recipient, new Dictionary<string, string>
         {
             ["senderName"] = request.Name.Trim(),
             ["senderEmail"] = request.Email.Trim(),
             ["subject"] = request.Subject.Trim(),
             ["message"] = request.Message.Trim(),
-        }));
+        }), ct);
 
         return Result<bool>.Success(true);
     }

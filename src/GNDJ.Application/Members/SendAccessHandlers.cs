@@ -169,7 +169,7 @@ public class SendAccessEmailsCommandHandler(
 
         // Persist the tokens, THEN queue the mail (so a token always exists when the link is clicked).
         await context.SaveChangesAsync(ct);
-        foreach (var job in jobs) emailQueue.Enqueue(job);
+        await emailQueue.EnqueueManyAsync(jobs, ct);
         await audit.LogAsync("SendAccess", "Member", null,
             newValues: new { sent, noEmail, noAccount, skipped, unit = request.UnitId }, cancellationToken: ct);
 

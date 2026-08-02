@@ -66,8 +66,8 @@ public class RequestPasswordResetCommandHandler(
             ["resetLink"] = resetLink,
             ["expiryHours"] = "1"
         };
-        foreach (var to in recipients)
-            emailQueue.Enqueue(new EmailJob("password_reset", to, vars));
+        await emailQueue.EnqueueManyAsync(
+            recipients.Select(to => new EmailJob("password_reset", to, vars)), ct);
 
         // Account found — report the masked address(es) the link was sent to (empty if none on file).
         return Result<ForgotPasswordResult>.Success(

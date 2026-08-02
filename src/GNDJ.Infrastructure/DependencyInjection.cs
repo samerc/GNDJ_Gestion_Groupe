@@ -57,10 +57,12 @@ public static class DependencyInjection
         services.AddScoped<ICurrentApplicantService, CurrentApplicantService>();
         services.AddScoped<IAuditService, AuditService>();
 
-        // Email service + background queue
+        // Email service + durable outbox queue. Enqueuing persists an email_outbox row (survives restart);
+        // the OutboxSenderBackgroundService (registered in the API host) drains it. The signal lets an
+        // enqueue wake the sender immediately instead of waiting for its poll interval.
         services.AddScoped<IEmailService, EmailService>();
-        services.AddSingleton<EmailQueue>();
-        services.AddSingleton<IEmailQueue>(sp => sp.GetRequiredService<EmailQueue>());
+        services.AddSingleton<IOutboxSignal, OutboxSignal>();
+        services.AddSingleton<IEmailQueue, OutboxEmailQueue>();
 
         // Best-effort admin alerting on server/client errors (singleton: owns its own scope, never throws).
         services.AddSingleton<IErrorNotifier, ErrorNotifier>();

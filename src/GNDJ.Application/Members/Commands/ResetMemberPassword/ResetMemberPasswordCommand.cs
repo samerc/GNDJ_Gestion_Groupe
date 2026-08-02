@@ -62,13 +62,13 @@ public class ResetMemberPasswordCommandHandler(
         {
             var baseUrl = (await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct)
                 ?? "http://localhost:5173").TrimEnd('/');
-            emailQueue.Enqueue(new EmailJob("member_password_reset", sentTo!, new Dictionary<string, string>
+            await emailQueue.EnqueueAsync(new EmailJob("member_password_reset", sentTo!, new Dictionary<string, string>
             {
                 ["memberName"] = $"{member.FirstName} {member.LastName}".Trim(),
                 ["username"] = user.Email,
                 ["tempPassword"] = tempPassword,
                 ["loginUrl"] = baseUrl,
-            }));
+            }), ct);
         }
 
         return Result<ResetMemberPasswordResult>.Success(new ResetMemberPasswordResult(user.Email, tempPassword, sentTo));

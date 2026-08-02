@@ -62,6 +62,7 @@ public interface IApplicationDbContext
     DbSet<CampGame> CampGames { get; }
     DbSet<CampGameEtapiste> CampGameEtapistes { get; }
     DbSet<TrombinoscopeArchive> TrombinoscopeArchives { get; }
+    DbSet<OutboxEmail> OutboxEmails { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

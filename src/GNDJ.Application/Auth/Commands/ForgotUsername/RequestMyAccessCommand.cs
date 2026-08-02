@@ -90,7 +90,7 @@ public class RequestMyAccessCommandHandler(IApplicationDbContext context, IEmail
         }
 
         await context.SaveChangesAsync(ct);
-        foreach (var job in jobs) emailQueue.Enqueue(job);
+        await emailQueue.EnqueueManyAsync(jobs, ct);
         return Result<bool>.Success(true);
     }
 }

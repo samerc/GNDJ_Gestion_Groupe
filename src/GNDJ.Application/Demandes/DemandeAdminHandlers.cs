@@ -722,9 +722,10 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         await context.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
-        // Queue notification emails (sent in the background — the request returns immediately).
-        foreach (var job in emailJobs)
-            emailQueue.Enqueue(new EmailJob(job.Code, job.To, job.Vars));
+        // Queue notification emails (sent in the background — the request returns immediately). Enqueued
+        // AFTER the commit above, so a durable outbox row is written only for responses that were persisted.
+        await emailQueue.EnqueueManyAsync(
+            emailJobs.Select(job => new EmailJob(job.Code, job.To, job.Vars)), ct);
         await audit.LogAsync("SendResponses", "Demande", null, newValues: new { Approved = approved.Count, Declined = declined.Count, request.ScoutYear }, cancellationToken: ct);
 
         return Result<SendDemandeResponsesResult>.Success(new SendDemandeResponsesResult(approved.Count, declined.Count));
