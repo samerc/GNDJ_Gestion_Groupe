@@ -2174,12 +2174,20 @@ before-commit, sequence races). Most heavy ops were already correct. Details in 
       MemberPurgeService = capture paths → all raw deletes in one txn (rollback on crash) → files after commit;
       document upload = file first + compensating delete if the DB save fails; card/receipt numbers = read-max+1
       guarded by unique indexes (collision → clean 409). 
-- **Systemic caveat (NOT yet fixed — tie to go-live email):** the email queue is IN-MEMORY (`Channel`, drained by
-      `EmailQueueBackgroundService`). Emails are enqueued AFTER the state commit (so no false sends), but a process
-      restart loses queued/in-flight mail (at-most-once). Sharpest case = leader reset-member-password (password
-      already changed → member locked out if the mail vanishes; on-screen creds dialog is the fallback). Proposed:
-      a persistent `email_outbox` table (write the row in/after the state txn, a worker polls unsent → at-least-once,
-      survives restart). See [[project-email-golive]].
+- [x] **Durable email outbox (systemic caveat FIXED):** the email queue WAS an in-memory `Channel` drained by a
+      background service — enqueued after the state commit (no false sends) but a restart/crash/deploy lost
+      queued/in-flight mail (at-most-once). Sharpest case = leader reset-member-password (password already changed
+      → member locked out if the mail vanished). Replaced with a persistent **`email_outbox`** table (migration
+      `AddEmailOutbox`; plain table, no soft-delete/audit; index on `(status, next_attempt_at)`). `IEmailQueue.Enqueue`
+      → async **`EnqueueAsync`/`EnqueueManyAsync`**; **`OutboxEmailQueue`** (singleton, opens a scope) persists a
+      Pending row + signals the sender; all 9 call sites await it. **`OutboxSenderBackgroundService`** polls due rows,
+      **leases** them (crash-safe — a mid-send crash retries after the lease), sends with bounded concurrency (5),
+      and records the outcome: **Sent**, or a **retry** with increasing backoff (30s/2m/10m/30m), or **Failed** after
+      5 attempts (LastError kept for inspection). `IOutboxSignal` wakes it on enqueue (15s fallback poll). Now
+      at-least-once + survives restart. Verified live via row-state (email off in dev): enqueue→Pending; worker
+      attempts + backs off + records last_error; the row **survived a process kill** and the restarted worker
+      resumed it; reached Failed after max attempts. Pending→Sent needs a live SMTP (go-live). See
+      [[project-email-golive]] / [[project-crash-consistency-audit]].
 
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
