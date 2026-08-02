@@ -361,18 +361,28 @@ public class MembersController : BaseApiController
         var fileName = $"{memberId}.{ext}";
         var filePath = Path.Combine(photosDir, fileName);
 
-        // Delete old photo if exists and different extension
-        if (!string.IsNullOrEmpty(member.PhotoPath))
-        {
-            var oldPath = Path.Combine(Directory.GetCurrentDirectory(), member.PhotoPath);
-            if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
-        }
+        // Remember the previous photo path BEFORE overwriting so we can clean it up only AFTER the new
+        // photo is safely persisted (crash-consistency: never delete the old file until the DB points at
+        // the new one, or an interruption would leave the member with a broken photo reference → 404).
+        var previousPhotoPath = member.PhotoPath;
 
+        // 1) Write the new file. Same-extension re-uploads reuse the deterministic "{memberId}.{ext}" name,
+        //    so this overwrites in place; a different extension writes a new file (old one removed in step 3).
         using (var stream = new FileStream(filePath, FileMode.Create))
             await file.CopyToAsync(stream);
 
+        // 2) Commit the DB pointer to the new file. If anything failed above, the old photo is still intact.
         member.PhotoPath = Path.Combine("uploads", "photos", fileName);
         await _context.SaveChangesAsync();
+
+        // 3) Now that the new photo is committed, delete the OLD file — but only if it's a different path
+        //    (an extension change). Worst case if this fails is a harmless orphan file, never a broken ref.
+        if (!string.IsNullOrEmpty(previousPhotoPath))
+        {
+            var oldPath = Path.Combine(Directory.GetCurrentDirectory(), previousPhotoPath);
+            if (!string.Equals(oldPath, filePath, StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(oldPath))
+                System.IO.File.Delete(oldPath);
+        }
 
         return Ok(new { photoPath = member.PhotoPath });
     }
