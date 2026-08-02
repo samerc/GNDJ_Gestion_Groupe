@@ -2158,6 +2158,29 @@ locked fields; token isolation; generic error messages; security headers present
       backoff); oversized body → 500 instead of 413 (+ fires an error-alert, mildly spammable); `Server: Kestrel`
       header (masked by Cloudflare). All the "confirmed secure" categories above needed no change.
 
+### Crash-consistency / partial-failure audit (2026-08)
+Swept the app for "a small interruption → a bigger issue" (multi-write atomicity, file+DB ordering, side-effect-
+before-commit, sequence races). Most heavy ops were already correct. Details in memory
+[[project-crash-consistency-audit]].
+- [x] **Photo upload reorder (real bug, FIXED):** `MembersController.UploadPhoto` deleted the old photo file
+      BEFORE writing/committing the new one → an IO error or crash mid-upload lost the member's photo (DB still
+      pointed at the now-deleted file → 404 → initials; a flaky batch photo session could wipe photos). Now:
+      write new file → `SaveChangesAsync` (DB points at new) → THEN delete the old file, and only on an
+      **extension change** (the filename is deterministic `{memberId}.{ext}`, so same-ext overwrites in place).
+      Worst case on a crash is now a harmless orphan file, never a broken reference. Mirrors MemberPurgeService
+      (files after commit). Verified live: upload + same-ext re-upload + fetch all 200. DEV until deploy.
+- **Verified CORRECT (no change):** CreateMember = one atomic SaveChanges; SendDemandeResponses / campaign-close /
+      FinalizePassages = advisory-lock single txns, emails Enqueued ONLY after CommitAsync (no false sends);
+      MemberPurgeService = capture paths → all raw deletes in one txn (rollback on crash) → files after commit;
+      document upload = file first + compensating delete if the DB save fails; card/receipt numbers = read-max+1
+      guarded by unique indexes (collision → clean 409). 
+- **Systemic caveat (NOT yet fixed — tie to go-live email):** the email queue is IN-MEMORY (`Channel`, drained by
+      `EmailQueueBackgroundService`). Emails are enqueued AFTER the state commit (so no false sends), but a process
+      restart loses queued/in-flight mail (at-most-once). Sharpest case = leader reset-member-password (password
+      already changed → member locked out if the mail vanishes; on-screen creds dialog is the fallback). Proposed:
+      a persistent `email_outbox` table (write the row in/after the state txn, a worker polls unsent → at-least-once,
+      survives restart). See [[project-email-golive]].
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);
