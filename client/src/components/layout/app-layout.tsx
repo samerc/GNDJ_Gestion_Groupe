@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { Toaster } from 'sonner'
 import { Sidebar, MobileSidebar } from './sidebar'
@@ -18,11 +18,17 @@ import { ForcePasswordChange } from '@/components/auth/force-password-change'
 export function AppLayout() {
   // The app scrolls INSIDE <main> (not the window), and <main> lives in this persistent layout — so
   // React Router swaps the page but the container keeps its old scrollTop, landing you mid/bottom of the
-  // new page (clamped to its shorter height). Reset the scroll container to the top on every navigation.
+  // new page. Reset it to the top on every navigation.
+  // useLayoutEffect (NOT useEffect) so the reset runs synchronously BEFORE the browser paints: when both the
+  // old and new page are tall and the new page renders instantly (cached data), a post-paint useEffect would
+  // let the browser show one frame of the new page at the OLD scroll position (its bottom) before snapping to
+  // the top — a visible "landed at the bottom" flash. Resetting pre-paint eliminates it. Also nudge the window
+  // (belt-and-suspenders for any page that scrolls the document instead of <main>).
   const { pathname } = useLocation()
   const mainRef = useRef<HTMLElement>(null)
-  useEffect(() => {
+  useLayoutEffect(() => {
     mainRef.current?.scrollTo({ top: 0, left: 0 })
+    window.scrollTo({ top: 0, left: 0 })
   }, [pathname])
 
   // Maintenance kill-switch: when the whole site or the "membres" module is off, everyone but the super-admin

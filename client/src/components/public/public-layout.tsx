@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link, NavLink, Outlet } from 'react-router'
+import { useEffect, useLayoutEffect, useState } from 'react'
+import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { Toaster } from 'sonner'
 import { Compass, Menu, X, ArrowRight, ChevronDown, MapPin, Mail, Phone, ArrowUp } from 'lucide-react'
 
@@ -69,6 +69,15 @@ export function PublicLayout() {
   const { data: config } = usePublicSiteConfig()
   const inscriptionsOpen = config?.inscriptionsOpen ?? false
   const { data: maint } = useMaintenance()
+
+  // Scroll back to the top of the WINDOW on every navigation. The public site scrolls the document (unlike the
+  // authenticated app, which scrolls an inner <main>), and React Router keeps the window scroll position across
+  // route changes — so without this, going from a long page (e.g. a news article) to another leaves you partway
+  // down / at the bottom of the new page. useLayoutEffect resets it before the browser paints (no flash).
+  const { pathname } = useLocation()
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0 })
+  }, [pathname])
 
   // Solidify the header background once the page is scrolled past the top.
   useEffect(() => {
