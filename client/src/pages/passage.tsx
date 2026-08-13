@@ -222,6 +222,14 @@ export default function PassagePage() {
     </th>
   )
 
+  // The base youth role of a unit type = the fonction a new arrival gets (e.g. Meute → Louveteau,
+  // Troupe → Éclaireur): the explicit "défaut pour les nouveaux membres" role, else the lowest-rank
+  // non-archived, non-maîtrise one. Used when a member moves UP the parcours — they start at the bottom.
+  const baseRoleForType = (type: string | undefined | null) => {
+    const list = roles.filter(r => !r.isArchived && !r.isMaitrise && (type ? r.unitTypeId === type : true))
+    return list.find(r => r.isDefaultForNewMembers) ?? [...list].sort((a, b) => a.rank - b.rank)[0]
+  }
+
   const openPropose = async (row: MemberRow) => {
     setEditingMember(row)
     setPropTeamId(row.passage?.proposedTeamId ?? row.currentTeamId ?? '')
@@ -615,8 +623,13 @@ export default function PassagePage() {
                 return (
                   <Select value={propUnitId} onValueChange={(v) => {
                     setPropUnitId(v); setPropTeamId('')
-                    const newType = destinations.find(d => d.unitId === v)?.unitTypeId ?? units.find(u => u.id === v)?.unitTypeId
-                    changeRoleForType(newType)
+                    const dest = destinations.find(d => d.unitId === v)
+                    const newType = dest?.unitTypeId ?? units.find(u => u.id === v)?.unitTypeId
+                    // Moving UP the parcours (unité supérieure): a member always starts at the base youth
+                    // role (e.g. Éclaireur) — auto-select it and lock the Fonction picker below. Staying in
+                    // the same branch: keep the CU's existing choice (unless the type changed).
+                    if (dest?.kind === 'up') setPropRoleId(baseRoleForType(newType)?.id ?? '')
+                    else changeRoleForType(newType)
                   }}>
                     <SelectTrigger><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
                     <SelectContent>
@@ -668,9 +681,16 @@ export default function PassagePage() {
                 // parcours), so maîtrise (leadership) functions are excluded. The destination may be out of
                 // the CU's scope (e.g. Noyau), so resolve its type from the destinations list first.
                 const destTypeId = destinations.find(d => d.unitId === propUnitId)?.unitTypeId ?? units.find(u => u.id === propUnitId)?.unitTypeId
-                const fnRoles = roles.filter(r => !r.isArchived && !r.isMaitrise && (destTypeId ? r.unitTypeId === destTypeId : true))
+                // Moving UP to a higher unit: only the base youth role is offered (a new arrival always starts
+                // at the bottom, e.g. Éclaireur) — the CU can't grant Chef/Second de Patrouille via a passage.
+                const isUp = destinations.some(d => d.unitId === propUnitId && d.kind === 'up')
+                let fnRoles = roles.filter(r => !r.isArchived && !r.isMaitrise && (destTypeId ? r.unitTypeId === destTypeId : true))
+                if (isUp) {
+                  const base = baseRoleForType(destTypeId)
+                  fnRoles = base ? [base] : []
+                }
                 return (
-                  <Select value={propRoleId} onValueChange={setPropRoleId}>
+                  <Select value={propRoleId} onValueChange={setPropRoleId} disabled={isUp}>
                     <SelectTrigger><SelectValue placeholder="Sélectionner une fonction" /></SelectTrigger>
                     <SelectContent>
                       {fnRoles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
