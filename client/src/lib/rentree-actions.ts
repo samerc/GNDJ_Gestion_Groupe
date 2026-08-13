@@ -24,6 +24,7 @@ export const RENTREE_ACTIONS: Record<string, RentreeActionDef> = {
   'goto-photo': { label: 'Séance photo', kind: 'goto', route: '/photo-session' },
   'goto-my-unit': { label: 'Mon unité', kind: 'goto', route: '/dashboard' },
   'goto-progression': { label: 'Étapes & badges', kind: 'goto', route: '/admin/progression' },
+  'goto-communications': { label: 'Envoyer un message aux chefs', kind: 'goto', route: '/admin/communications' },
 }
 
 // Options for the template-editor dropdown ("Aucune action" first).

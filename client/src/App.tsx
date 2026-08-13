@@ -51,6 +51,7 @@ const PhotoSessionPage = lazy(() => import('@/pages/photo-session'))
 const RentreePage = lazy(() => import('@/pages/rentree'))
 const RentreeTemplatePage = lazy(() => import('@/pages/admin/rentree-template'))
 const MaitrisesPage = lazy(() => import('@/pages/maitrises'))
+const CommunicationsPage = lazy(() => import('@/pages/admin/communications'))
 const ManagedListsPage = lazy(() => import('@/pages/admin/managed-lists'))
 const CampPage = lazy(() => import('@/pages/camp'))
 const CampsAdminPage = lazy(() => import('@/pages/admin/camps'))
@@ -166,6 +167,7 @@ export default function App() {
             <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
               <Route path="/maitrises" element={<MaitrisesPage />} />
               <Route path="/admin/lists" element={<ManagedListsPage />} />
+              <Route path="/admin/communications" element={<CommunicationsPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.CAMP_GRADE} />}>
               <Route path="/camp" element={<CampPage />} />

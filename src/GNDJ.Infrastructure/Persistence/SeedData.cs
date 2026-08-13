@@ -361,7 +361,8 @@ public static class SeedData
         // ① Configuration
         var cfgYear = Add("Définir la nouvelle année scoute et les dates", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-settings");
         var cfgUnits = Add("Vérifier les unités, types et équipes (créer les nouvelles sizaines)", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-units");
-        Add("Confirmer les maîtrises (CU/ACU de chaque unité)", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-maitrises");
+        var cfgMaitrises = Add("Confirmer les maîtrises (CU/ACU de chaque unité)", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-maitrises");
+        Add("Envoyer l'email d'accueil aux chefs", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-communications", cfgMaitrises);
         var cfgQuotas = Add("Définir les quotas d'accueil par unité", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-demandes", cfgUnits);
         // ② Passage
         var pasOpen = Add("Ouvrir le passage", "Passage", CG, false, "1ʳᵉ sem. octobre", "open-passage", cfgYear);
@@ -769,6 +770,29 @@ public static class SeedData
                 Subject = "[GNDJ Erreur {{source}}] réf. {{errorId}}",
                 BodyHtml = "<h2>Une erreur est survenue</h2><p>Une erreur inattendue a été détectée dans l'application GNDJ. Voici les détails pour la diagnostiquer :</p><table cellpadding=\"6\" style=\"border-collapse:collapse;font-family:monospace;font-size:13px;\"><tr><td><strong>Référence</strong></td><td>{{errorId}}</td></tr><tr><td><strong>Origine</strong></td><td>{{source}}</td></tr><tr><td><strong>Date (UTC)</strong></td><td>{{timestamp}}</td></tr><tr><td><strong>Utilisateur</strong></td><td>{{user}}</td></tr><tr><td><strong>Requête</strong></td><td>{{method}} {{path}}</td></tr><tr><td><strong>Message</strong></td><td>{{message}}</td></tr></table><p><strong>Détail :</strong></p><pre style=\"background:#f4f4f4;padding:10px;border-radius:5px;font-size:12px;white-space:pre-wrap;\">{{detail}}</pre><p style=\"color:#888;font-size:12px;\">Les erreurs identiques sont regroupées (une alerte toutes les 30 minutes). Retrouvez la référence dans les journaux (application_logs).</p>",
                 Variables = "[{\"key\":\"errorId\",\"label\":\"Référence\"},{\"key\":\"source\",\"label\":\"Origine\"},{\"key\":\"timestamp\",\"label\":\"Date\"},{\"key\":\"user\",\"label\":\"Utilisateur\"},{\"key\":\"method\",\"label\":\"Méthode HTTP\"},{\"key\":\"path\",\"label\":\"Chemin\"},{\"key\":\"message\",\"label\":\"Message\"},{\"key\":\"detail\",\"label\":\"Détail / trace\"}]",
+                IsActive = true
+            });
+
+        // Yearly rentrée onboarding emails sent to the leaders (chefs) via the Communications tool. Two audiences:
+        // a RETURNING chef gets the seasonal reminder; a NEW chef gets the same + a "prise en main" (how to log in
+        // and navigate). Editable each year in Admin → Email. Variables resolved per recipient at send time.
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "cu_rentree"))
+            toAdd.Add(new EmailTemplate
+            {
+                Name = "Rentrée — chef (déjà en poste)", Code = "cu_rentree", Module = "general",
+                Subject = "Rentrée scoute {{scoutYear}} — informations pour les chefs",
+                BodyHtml = "<h2>Bonjour {{leaderName}},</h2><p>La rentrée scoute <strong>{{scoutYear}}</strong> est lancée. Voici ce qui vous attend pour votre unité <strong>{{unitName}}</strong> sur la plateforme GNDJ.</p><h3>À faire</h3><ol><li><strong>Vérifiez votre unité</strong> — la liste de vos membres (présents / partis) et leurs données.</li><li><strong>Réalisez le passage</strong> — pour chaque membre : pas de changement, proposer une montée, ou quitte le groupe.</li><li><strong>Vérifiez les documents</strong> — approuvez/refusez les documents que les familles téléversent, suivez les cotisations.</li></ol><p>Connectez-vous sur <a href=\"{{loginUrl}}\">{{loginUrl}}</a> avec votre identifiant habituel.</p><p>Merci pour votre engagement et bonne rentrée scoute !</p><p>— La Maîtrise de Groupe</p>",
+                Variables = "[{\"key\":\"leaderName\",\"label\":\"Nom du chef\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"}]",
+                IsActive = true
+            });
+
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "cu_rentree_nouveau"))
+            toAdd.Add(new EmailTemplate
+            {
+                Name = "Rentrée — nouveau chef", Code = "cu_rentree_nouveau", Module = "general",
+                Subject = "Bienvenue — votre accès et la rentrée scoute {{scoutYear}}",
+                BodyHtml = "<h2>Bonjour {{leaderName}},</h2><p>Bienvenue dans l'équipe de maîtrise ! Cette année, le Groupe utilise une plateforme en ligne pour gérer les membres, le passage, les documents et les inscriptions. Voici comment démarrer pour votre unité <strong>{{unitName}}</strong>.</p><h3>1. Prise en main</h3><ul><li>Connectez-vous sur <a href=\"{{loginUrl}}\">{{loginUrl}}</a> avec l'identifiant qui vous a été communiqué (vous choisirez votre mot de passe à la première connexion).</li><li>Vous arrivez sur le tableau de bord de votre unité : <em>Mon unité</em> (vos membres), <em>Passage des membres</em>, <em>Documents</em>.</li><li>En cas de souci de connexion : lien « Identifiant oublié ? » sur la page de connexion.</li></ul><h3>2. À faire pour la rentrée {{scoutYear}}</h3><ol><li><strong>Vérifiez votre unité</strong> — la liste de vos membres et leurs données.</li><li><strong>Réalisez le passage</strong> — une ligne par membre (pas de changement / montée / quitte le groupe).</li><li><strong>Vérifiez les documents</strong> — approuvez/refusez les documents des familles, suivez les cotisations.</li></ol><p>Une question ? Contactez votre chef de groupe. Bonne rentrée scoute !</p><p>— La Maîtrise de Groupe</p>",
+                Variables = "[{\"key\":\"leaderName\",\"label\":\"Nom du chef\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"}]",
                 IsActive = true
             });
 

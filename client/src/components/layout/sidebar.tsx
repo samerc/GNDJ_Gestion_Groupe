@@ -32,6 +32,7 @@ import {
   Library,
   BarChart3,
   MailCheck,
+  Megaphone,
   Crown,
   List,
   ListChecks,
@@ -116,6 +117,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/maitrises', label: 'Maîtrises', icon: Crown, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/group-access', label: 'Accès maîtrise', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE_GROUP },
       { path: '/admin/send-access', label: 'Envoyer les accès', icon: Key, permission: PERMISSIONS.MEMBERS_RESET_PASSWORD },
+      { path: '/admin/communications', label: 'Message aux chefs', icon: Megaphone, permission: PERMISSIONS.MAITRISE_MANAGE },
     ],
   },
   {
