@@ -2216,9 +2216,18 @@ Built ahead of the September go-live (all on main, pushed; DEV until deploy). Pl
       client-side. Verified live: weak passwords 400 with the right messages; endpoint reflects settings.
 - NOTE (frontend enforcement): MustChangePassword blocks the UI only — the server doesn't reject API calls from a
       must-change user (they're authenticated as themselves, own-data only). Acceptable for launch (hygiene nudge).
-- TODO (user, 2026-08): the CU onboarding email (`docs/emails/cu_onboarding.md`) is sent EVERY year → make it a
-      reusable editable EmailTemplate + a rentrée checklist task; needs a "send to all leaders" mechanism (none
-      exists yet). See [[project-email-golive]].
+- [x] **Communications — "Message aux chefs" (leaders broadcast tool).** Reusable CG tool (perm maitrise.manage)
+      to send an email template to selected leaders — for the yearly rentrée onboarding + any mid-year
+      announcement. Leaders-only by design (parents/all-members broadcast deliberately out of scope). Two seeded
+      editable templates: **`cu_rentree`** (returning chef) + **`cu_rentree_nouveau`** (new chef = same + a "prise
+      en main"). `GET /communications/leaders` lists leaders (active maîtrise assignment) with resolved contact
+      email (`ContactEmailResolver`) + has-account + never-logged-in flags, filterable by unit + "nouveaux chefs"
+      (never logged in); `POST /communications/send` queues the template per-recipient (leaderName/unitName/
+      scoutYear/loginUrl) via the durable outbox → sent/no-email report. Page **`/admin/communications`** (sidebar
+      "Message aux chefs", Unités & maîtrise group). Rentrée gained a task "Envoyer l'email d'accueil aux chefs"
+      + a `goto-communications` action. Verified live: 69 leaders (63 w/ email), never-logged-in filter, send →
+      Pending outbox rows + report. (The `docs/emails/cu_onboarding.md` draft is now superseded by the seeded
+      templates — kept as reference.) See [[project-email-golive]].
 
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
