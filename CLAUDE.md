@@ -2189,11 +2189,44 @@ before-commit, sequence races). Most heavy ops were already correct. Details in 
       resumed it; reached Failed after max attempts. Pending→Sent needs a live SMTP (go-live). See
       [[project-email-golive]] / [[project-crash-consistency-audit]].
 
+### Go-live prep batch (2026-08) — manual verify + forced password + policy
+Built ahead of the September go-live (all on main, pushed; DEV until deploy). Plan/decisions in memory
+[[project-email-golive]].
+- [x] **CG manual email-verify** (email verification is REQUIRED for demandes, so a parent whose verification
+      email fails is stuck with no demande to act on): new page **`/admin/demande-accounts`** ("Comptes
+      d'inscription", sidebar Suivi & demandes, perm demande.view) lists applicant accounts incl. unverified ones
+      with no demande (unverifiedOnly + search). `GET /demandes/accounts` (IsGroupManager) +
+      `POST /demandes/accounts/{id}/verify-email` (demande.manage, marks verified + clears token, audited
+      `VerifyEmailManual`). Verified live.
+- [x] **Force every member to set their own password on first login.** `User.MustChangePassword` (migration
+      `AddUserMustChangePassword`) set on ALL temp-password paths (CreateMember, demande conversion, leader
+      ResetMemberPassword) and cleared when the user sets their own (activation link/self-service reset via
+      ResetPassword, or ChangePassword). Login/refresh/me carry the flag; **AppLayout shows a blocking
+      "Définissez votre mot de passe" screen** (`ForcePasswordChange`) until cleared. Activation-link users set
+      their password via the link (flag already clear) so they never see it. **Manual go-live script**
+      `deploy/golive/force-password-reset.sql` (NOT in deploy/patches — deliberately not auto-applied) flags all
+      existing member logins (excludes super-admins) when accounts are activated for real. Frontend nudge, not an
+      access boundary (a member only accesses their own data).
+- [x] **Password complexity configurable via Settings.** New `security.password_*` settings (min length +
+      require upper/lower/digit/special, category "Sécurité") read by a cached **`IPasswordPolicy`** service that
+      replaces the hardcoded `StrongPassword` across register/reset/change/applicant-register. The validation
+      pipeline (`ValidationBehavior`) now runs **`ValidateAsync`** so the policy rule can read settings (sync rules
+      unaffected; 4 tests pass). `GET /auth/password-policy` (anonymous) exposes the rules; the set/change/reset
+      screens show a **live checklist** (`PasswordRules` + `lib/password-policy`) and enforce the same policy
+      client-side. Verified live: weak passwords 400 with the right messages; endpoint reflects settings.
+- NOTE (frontend enforcement): MustChangePassword blocks the UI only — the server doesn't reject API calls from a
+      must-change user (they're authenticated as themselves, own-data only). Acceptable for launch (hygiene nudge).
+- TODO (user, 2026-08): the CU onboarding email (`docs/emails/cu_onboarding.md`) is sent EVERY year → make it a
+      reusable editable EmailTemplate + a rentrée checklist task; needs a "send to all leaders" mechanism (none
+      exists yet). See [[project-email-golive]].
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
-      `email.override_recipient` only when ready; decide login identity (synthetic `@scouts.gndj` vs real email);
-      optional force-password-change-on-first-login; deploy this session's dev-only work to prod (code + dump).
-      Activation-link sender ("Envoyer les accès") is BUILT — run it unit by unit after email delivery works.
+      `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
+      net now BUILT); run `deploy/golive/force-password-reset.sql` when activating accounts; login identity stays
+      synthetic `@scouts.gndj`. Forced first-login password + configurable policy now BUILT. Deploy this session's
+      dev-only work to prod (code + dump). Activation-link sender ("Envoyer les accès") BUILT — run it unit by unit
+      (Maîtrise first) after email delivery works, to TEST the pipeline before members.
 - [ ] Public site #3: knowledge / ressources section (lightweight CMS pages vs structured downloadable library).
 - [ ] Optional: disable logins for the 86 login-having orphans; correct the 50 zero-day marker dates in-app.
 - [ ] Deployment hardening (optional): secrets → env vars, httpOnly cookies. (HSTS done; prod CORS moot — SPA is
