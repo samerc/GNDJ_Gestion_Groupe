@@ -150,5 +150,27 @@ public class DemandesController : BaseApiController
         return Ok(new { success = true });
     }
 
+    /// <summary>Lists applicant (parent) accounts — incl. unverified ones with no demande — so the CG can spot a
+    /// parent whose verification email failed. Optional unverifiedOnly + search. Requires demande.view.</summary>
+    [HttpGet("accounts")]
+    [HasPermission(Permissions.DemandeView)]
+    public async Task<IActionResult> Accounts([FromQuery] bool unverifiedOnly = false, [FromQuery] string? search = null)
+    {
+        var result = await Mediator.Send(new GetDemandeAccountsQuery(unverifiedOnly, search));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>Manually marks an applicant account's email as verified (safety net when the verification email
+    /// never arrived, so the parent can log in + submit). Requires demande.manage.</summary>
+    [HttpPost("accounts/{id:guid}/verify-email")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> VerifyAccountEmail(Guid id)
+    {
+        var result = await Mediator.Send(new VerifyApplicantEmailManuallyCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { success = true });
+    }
+
     public record DecideBody(string Status, Guid? DecidedUnitId, string? DecisionNotes);
 }

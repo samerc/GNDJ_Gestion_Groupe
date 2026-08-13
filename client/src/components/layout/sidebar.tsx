@@ -31,6 +31,7 @@ import {
   CalendarDays,
   Library,
   BarChart3,
+  MailCheck,
   Crown,
   List,
   ListChecks,
@@ -102,6 +103,7 @@ const adminGroups: AdminGroup[] = [
     items: [
       { path: '/admin/demandes', label: "Demandes d'inscription", icon: Inbox, permission: PERMISSIONS.DEMANDE_VIEW },
       { path: '/admin/demande-stats', label: 'Statistiques demandes', icon: BarChart3, permission: PERMISSIONS.DEMANDE_VIEW },
+      { path: '/admin/demande-accounts', label: "Comptes d'inscription", icon: MailCheck, permission: PERMISSIONS.DEMANDE_VIEW },
       { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
       { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },

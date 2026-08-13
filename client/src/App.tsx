@@ -62,6 +62,7 @@ const ChangeRequestsPage = lazy(() => import('@/pages/admin/change-requests'))
 const DeletedMembersPage = lazy(() => import('@/pages/admin/deleted-members'))
 const SendAccessPage = lazy(() => import('@/pages/admin/send-access'))
 const DemandeStatsPage = lazy(() => import('@/pages/admin/demande-stats'))
+const DemandeAccountsPage = lazy(() => import('@/pages/admin/demande-accounts'))
 const PassageValidationPage = lazy(() => import('@/pages/admin/passage-validation'))
 const CotisationDashboardPage = lazy(() => import('@/pages/admin/cotisation-dashboard'))
 const ProgressionPage = lazy(() => import('@/pages/admin/progression'))
@@ -182,6 +183,7 @@ export default function App() {
             <Route element={<PermissionRoute permission={PERMISSIONS.DEMANDE_VIEW} />}>
               <Route path="/admin/demandes" element={<DemandeValidationPage />} />
               <Route path="/admin/demande-stats" element={<DemandeStatsPage />} />
+              <Route path="/admin/demande-accounts" element={<DemandeAccountsPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.PASSAGE_MANAGE} />}>
               <Route path="/admin/passage-validation" element={<PassageValidationPage />} />

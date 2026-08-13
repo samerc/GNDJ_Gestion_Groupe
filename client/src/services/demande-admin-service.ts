@@ -196,3 +196,33 @@ export function useSetSubmissions() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes', 'campaign-status'] }); qc.invalidateQueries({ queryKey: ['settings'] }) },
   })
 }
+
+// One applicant (parent) account row for the CG "Comptes d'inscription" list.
+export interface DemandeAccount {
+  id: string
+  email: string
+  contactName: string | null
+  emailVerified: boolean
+  isActive: boolean
+  demandeCount: number
+  submittedCount: number
+  createdAt: string
+}
+
+// GET /demandes/accounts → applicant accounts (incl. unverified ones with no demande, so a parent whose
+// verification email failed is visible). Optional unverifiedOnly + search.
+export function useDemandeAccounts(unverifiedOnly: boolean, search: string) {
+  return useQuery({
+    queryKey: ['demandes', 'accounts', unverifiedOnly, search],
+    queryFn: () => apiClient.get<DemandeAccount[]>('/demandes/accounts', { params: { unverifiedOnly, search: search || undefined } }).then((r) => r.data),
+  })
+}
+
+// POST /demandes/accounts/{id}/verify-email → CG manually marks the account verified (safety net); invalidates the list.
+export function useVerifyAccountEmail() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.post(`/demandes/accounts/${id}/verify-email`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['demandes', 'accounts'] }),
+  })
+}
