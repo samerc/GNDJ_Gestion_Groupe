@@ -12,11 +12,11 @@ public record ResetPasswordCommand(string Email, string Token, string NewPasswor
 
 public class ResetPasswordCommandValidator : AbstractValidator<ResetPasswordCommand>
 {
-    public ResetPasswordCommandValidator()
+    public ResetPasswordCommandValidator(IPasswordPolicy policy)
     {
         RuleFor(x => x.Email).NotEmpty().EmailAddress();
         RuleFor(x => x.Token).NotEmpty();
-        RuleFor(x => x.NewPassword).StrongPassword();
+        RuleFor(x => x.NewPassword).PasswordPolicy(policy);
     }
 }
 
@@ -45,6 +45,8 @@ public class ResetPasswordCommandHandler(
         user.PasswordResetTokenExpiry = null;
         user.RefreshToken = null;
         user.RefreshTokenExpiry = null;
+        // The user set their own password (self-service reset OR the activation link) — clear the forced-change flag.
+        user.MustChangePassword = false;
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("PasswordReset", "User", user.Id, newValues: new { user.Email }, cancellationToken: ct);

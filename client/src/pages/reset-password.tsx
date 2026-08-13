@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { HoneypotField } from '@/components/shared/honeypot-field'
+import { PasswordRules } from '@/components/auth/password-rules'
+import { usePasswordPolicy, passwordMeetsPolicy } from '@/lib/password-policy'
 
 // "Nouveau mot de passe" — anonymous step 2 of password reset: the user lands here from
 // the emailed link, which carries token+email as query params. Submits the new password.
@@ -24,6 +26,7 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const mutation = useResetPassword()
+  const { data: policy } = usePasswordPolicy()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,8 +37,8 @@ export default function ResetPasswordPage() {
       return
     }
 
-    if (newPassword.length < 8) {
-      setError('Le mot de passe doit contenir au moins 8 caractères (avec majuscule, minuscule et chiffre).')
+    if (!passwordMeetsPolicy(newPassword, policy)) {
+      setError('Le mot de passe ne respecte pas les exigences ci-dessous.')
       return
     }
 
@@ -109,6 +112,7 @@ export default function ResetPasswordPage() {
                   autoFocus
                   autoComplete="new-password"
                 />
+                <div className="pt-1"><PasswordRules password={newPassword} /></div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>

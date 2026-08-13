@@ -663,7 +663,8 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             string tempPassword, passwordHash;
             if (creds.TryGetValue(d.Id, out var c)) { tempPassword = c.Pwd; passwordHash = c.Hash; }
             else { tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}"; passwordHash = await hasher.HashAsync(tempPassword); }
-            context.Users.Add(new User { MemberId = member.Id, Email = username, PasswordHash = passwordHash, IsActive = true, IsSuperAdmin = false });
+            // Generated temp password (emailed to the family) → force them to set their own on first login.
+            context.Users.Add(new User { MemberId = member.Id, Email = username, PasswordHash = passwordHash, IsActive = true, IsSuperAdmin = false, MustChangePassword = true });
 
             d.CreatedMemberId = member.Id;
             d.ResponseSentAt = DateTime.UtcNow;

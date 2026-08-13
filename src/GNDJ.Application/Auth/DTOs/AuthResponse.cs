@@ -8,7 +8,10 @@ public record AuthResponse(
     string AccessToken,
     string RefreshToken,
     DateTime ExpiresAt,
-    IReadOnlyList<string> Permissions
+    IReadOnlyList<string> Permissions,
+    // True when the user must set a new password before using the app (temp/imported/reset password). The
+    // client routes to a mandatory change-password screen and blocks the rest of the app until it's cleared.
+    bool MustChangePassword = false
 );
 
 // Returned by GetMe — the current user's profile plus the unit/role access list driving role-based UI.
@@ -20,7 +23,10 @@ public record MeResponse(
     string LastName,
     bool IsSuperAdmin,
     IReadOnlyList<string> Permissions,
-    IReadOnlyList<UnitAccessDto> UnitAccess
+    IReadOnlyList<UnitAccessDto> UnitAccess,
+    // Mirrors AuthResponse.MustChangePassword so a page reload (which calls GetMe, not Login) still knows to
+    // force the change-password screen.
+    bool MustChangePassword = false
 );
 
 public record UnitAccessDto(

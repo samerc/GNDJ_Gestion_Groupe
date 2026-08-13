@@ -169,6 +169,8 @@ public class CreateMemberCommandHandler : IRequestHandler<CreateMemberCommand, R
             PasswordHash = passwordHash,
             IsActive = true,
             IsSuperAdmin = false,
+            // Temp password issued above → force the member to set their own on first login.
+            MustChangePassword = true,
         };
         _context.Users.Add(user);
 

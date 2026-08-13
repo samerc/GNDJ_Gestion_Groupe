@@ -9,6 +9,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuthStore } from '@/stores/auth-store'
 import { useMaintenance } from '@/services/maintenance-service'
 import { MaintenancePage } from '@/components/shared/maintenance-page'
+import { ForcePasswordChange } from '@/components/auth/force-password-change'
 
 // ROLE: authenticated app shell — sidebar + header around the routed <Outlet>.
 // Used as the layout route wrapping every signed-in page. Mounts the global
@@ -30,6 +31,11 @@ export function AppLayout() {
   const { data: maint } = useMaintenance()
   const inMaintenance = !!maint && (maint.site || maint.membres)
   if (inMaintenance && !user?.isSuperAdmin) return <MaintenancePage message={maint?.message} />
+
+  // Forced first-login password change: block the entire app (no sidebar/routes) until the user sets their own
+  // password. Applies to temp/imported/leader-reset accounts (mustChangePassword); those who activated via the
+  // email link already set their password (flag cleared) and never see this.
+  if (user?.mustChangePassword) return <ForcePasswordChange />
 
   return (
     <TooltipProvider delayDuration={250} skipDelayDuration={300}>

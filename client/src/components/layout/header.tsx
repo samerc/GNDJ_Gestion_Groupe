@@ -4,6 +4,8 @@ import { useSidebarStore } from '@/stores/sidebar-store'
 import { useNavigate } from 'react-router'
 import { useChangePassword, useSignOutOtherDevices } from '@/services/email-service'
 import { parseApiError } from '@/lib/error-utils'
+import { PasswordRules } from '@/components/auth/password-rules'
+import { usePasswordPolicy, passwordMeetsPolicy } from '@/lib/password-policy'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RequiredLabel } from '@/components/shared/required-label'
@@ -31,11 +33,12 @@ export function Header() {
   const [signOutOthersOpen, setSignOutOthersOpen] = useState(false)
 
   const changePasswordMutation = useChangePassword()
+  const { data: passwordPolicy } = usePasswordPolicy()
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordError, setPasswordError] = useState('')
 
-  // Client-side guard (match + min length); the server enforces the full StrongPassword policy.
+  // Client-side guard (match + policy); the server enforces the same configurable password policy.
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setPasswordError('')
@@ -43,8 +46,8 @@ export function Header() {
       setPasswordError('Les mots de passe ne correspondent pas.')
       return
     }
-    if (passwordForm.newPassword.length < 8) {
-      setPasswordError('Le mot de passe doit contenir au moins 8 caractères (avec majuscule, minuscule et chiffre).')
+    if (!passwordMeetsPolicy(passwordForm.newPassword, passwordPolicy)) {
+      setPasswordError('Le mot de passe ne respecte pas les exigences affichées.')
       return
     }
     try {
@@ -145,6 +148,7 @@ export function Header() {
             <div className="space-y-2">
               <RequiredLabel required>Nouveau mot de passe</RequiredLabel>
               <Input type="password" value={passwordForm.newPassword} onChange={(e) => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))} required autoComplete="new-password" />
+              <div className="pt-1"><PasswordRules password={passwordForm.newPassword} /></div>
             </div>
             <div className="space-y-2">
               <RequiredLabel required>Confirmer le nouveau mot de passe</RequiredLabel>

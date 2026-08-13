@@ -17,5 +17,10 @@ public class User : BaseEntity
     public string? PasswordResetToken { get; set; }
     public DateTime? PasswordResetTokenExpiry { get; set; }
 
+    // When true, the user is forced to set a new password before using the app (login returns the flag; the
+    // frontend routes to a mandatory change-password screen). Set on any admin/temp-password path (leader reset,
+    // member auto-creation); cleared once the user sets their own password (activation link, reset, or change).
+    public bool MustChangePassword { get; set; }
+
     public Member Member { get; set; } = null!;
 }

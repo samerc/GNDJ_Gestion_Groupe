@@ -52,6 +52,8 @@ public static class DependencyInjection
 
         // Identity services
         services.AddScoped<IPasswordHasher, PasswordHasher>();
+        // Configurable password-complexity policy (security.password_* settings), read by the password validators.
+        services.AddScoped<IPasswordPolicy, PasswordPolicyService>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<ICurrentApplicantService, CurrentApplicantService>();

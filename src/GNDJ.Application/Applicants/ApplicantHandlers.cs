@@ -191,10 +191,10 @@ public record RegisterApplicantCommand(string Email, string Password, string? Co
 
 public class RegisterApplicantCommandValidator : AbstractValidator<RegisterApplicantCommand>
 {
-    public RegisterApplicantCommandValidator()
+    public RegisterApplicantCommandValidator(IPasswordPolicy policy)
     {
         RuleFor(x => x.Email).NotEmpty().EmailAddress().WithMessage("Adresse email invalide.").MaximumLength(254);
-        RuleFor(x => x.Password).StrongPassword();
+        RuleFor(x => x.Password).PasswordPolicy(policy);
         RuleFor(x => x.ContactName).MaximumLength(200).NoHtml();
     }
 }

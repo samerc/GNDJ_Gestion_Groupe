@@ -11,10 +11,11 @@ public record ChangePasswordCommand(string CurrentPassword, string NewPassword) 
 
 public class ChangePasswordCommandValidator : AbstractValidator<ChangePasswordCommand>
 {
-    public ChangePasswordCommandValidator()
+    public ChangePasswordCommandValidator(IPasswordPolicy policy)
     {
         RuleFor(x => x.CurrentPassword).NotEmpty().WithMessage("Le mot de passe actuel est requis.");
-        RuleFor(x => x.NewPassword).StrongPassword()
+        RuleFor(x => x.NewPassword).PasswordPolicy(policy);
+        RuleFor(x => x.NewPassword)
             .Must((cmd, newPwd) => newPwd != cmd.CurrentPassword)
             .WithMessage("Le nouveau mot de passe doit être différent de l'actuel.");
     }
@@ -43,6 +44,8 @@ public class ChangePasswordCommandHandler(
         user.PasswordHash = await passwordHasher.HashAsync(request.NewPassword);
         user.RefreshToken = null;
         user.RefreshTokenExpiry = null;
+        // The user just set their own password — clear any forced-change requirement.
+        user.MustChangePassword = false;
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("ChangePassword", "User", user.Id, cancellationToken: ct);

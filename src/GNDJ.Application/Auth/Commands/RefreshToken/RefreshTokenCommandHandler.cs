@@ -46,7 +46,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
 
         return Result<AuthResponse>.Success(new AuthResponse(
             user.Id, user.MemberId, user.Email, accessToken, newRefreshToken,
-            DateTime.UtcNow.AddMinutes(15), permissions
+            DateTime.UtcNow.AddMinutes(15), permissions, user.MustChangePassword
         ));
     }
 }

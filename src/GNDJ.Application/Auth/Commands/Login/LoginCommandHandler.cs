@@ -66,7 +66,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
 
         return Result<AuthResponse>.Success(new AuthResponse(
             user.Id, user.MemberId, user.Email, accessToken, refreshToken,
-            DateTime.UtcNow.AddMinutes(15), permissions
+            DateTime.UtcNow.AddMinutes(15), permissions, user.MustChangePassword
         ));
     }
 }

@@ -19,6 +19,9 @@ export interface MeResponse {
   isSuperAdmin: boolean
   permissions: string[]
   unitAccess: UnitAccess[]
+  // True when the user must set a new password before using the app (temp/imported/reset password). The app
+  // shell shows a blocking change-password screen until it's cleared.
+  mustChangePassword?: boolean
 }
 
 export interface UnitAccess {

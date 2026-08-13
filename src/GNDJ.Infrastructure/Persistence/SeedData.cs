@@ -484,6 +484,13 @@ public static class SeedData
             new() { Key = "maintenance.demande", Value = "false", Category = "maintenance", Label = "Maintenance — demandes d'inscription", Description = "Met le portail public de demande d'inscription en maintenance.", ValueType = "boolean" },
             new() { Key = "maintenance.membres", Value = "false", Category = "maintenance", Label = "Maintenance — espace membres", Description = "Met l'espace membres et chefs (application connectée) en maintenance. Le super administrateur garde l'accès pour intervenir.", ValueType = "boolean" },
             new() { Key = "maintenance.message", Value = "Cette partie du site est momentanément en maintenance. Merci de réessayer dans quelques instants.", Category = "maintenance", Label = "Message de maintenance", Description = "Message affiché aux utilisateurs pendant la maintenance.", ValueType = "string" },
+            // Password-complexity policy — enforced server-side (all password-setting paths) AND shown on the
+            // set/change-password screens (GET /auth/password-policy). Changing these takes effect within ~30s.
+            new() { Key = "security.password_min_length", Value = "8", Category = "security", Label = "Longueur minimale du mot de passe", Description = "Nombre minimum de caractères requis pour un mot de passe (min 4, max 128).", ValueType = "number" },
+            new() { Key = "security.password_require_uppercase", Value = "true", Category = "security", Label = "Exiger une majuscule", Description = "Le mot de passe doit contenir au moins une lettre majuscule.", ValueType = "boolean" },
+            new() { Key = "security.password_require_lowercase", Value = "true", Category = "security", Label = "Exiger une minuscule", Description = "Le mot de passe doit contenir au moins une lettre minuscule.", ValueType = "boolean" },
+            new() { Key = "security.password_require_digit", Value = "true", Category = "security", Label = "Exiger un chiffre", Description = "Le mot de passe doit contenir au moins un chiffre.", ValueType = "boolean" },
+            new() { Key = "security.password_require_special", Value = "false", Category = "security", Label = "Exiger un caractère spécial", Description = "Le mot de passe doit contenir au moins un caractère spécial (ni lettre ni chiffre).", ValueType = "boolean" },
         };
 
         var missing = allSettings.Where(s => !existingKeys.Contains(s.Key)).ToList();

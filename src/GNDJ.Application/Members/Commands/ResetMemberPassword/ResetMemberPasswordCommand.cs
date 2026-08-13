@@ -51,6 +51,8 @@ public class ResetMemberPasswordCommandHandler(
         user.RefreshTokenExpiry = null;
         user.PasswordResetToken = null;
         user.PasswordResetTokenExpiry = null;
+        // Leader-issued temp password → force the member to set their own on next login.
+        user.MustChangePassword = true;
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("ResetPassword", "User", user.Id, newValues: new { user.Email }, cancellationToken: ct);

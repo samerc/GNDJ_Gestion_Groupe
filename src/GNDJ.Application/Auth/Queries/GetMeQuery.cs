@@ -53,7 +53,8 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
             user.Member.LastName,
             user.IsSuperAdmin,
             _currentUser.Permissions,
-            unitAccess
+            unitAccess,
+            user.MustChangePassword
         ));
     }
 }

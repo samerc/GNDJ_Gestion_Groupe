@@ -149,4 +149,12 @@ public class AuthController : BaseApiController
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(new { message = "Mot de passe modifié avec succès." });
     }
+
+    /// <summary>Returns the current password-complexity policy (min length + required character classes) so the
+    /// set/change-password screens can show and enforce the same rules the server does. Anonymous (the
+    /// activation/reset pages are pre-login).</summary>
+    [HttpGet("password-policy")]
+    [AllowAnonymous]
+    public async Task<IActionResult> PasswordPolicy([FromServices] GNDJ.Application.Common.Interfaces.IPasswordPolicy policy)
+        => Ok(await policy.GetAsync());
 }

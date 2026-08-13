@@ -26,8 +26,10 @@ public sealed class ValidationBehavior<TMessage, TResponse> : IPipelineBehavior<
 
         var context = new ValidationContext<TMessage>(message);
 
-        var failures = _validators
-            .Select(v => v.Validate(context))
+        // ValidateAsync (not Validate) so validators may use async rules (e.g. the password-policy rule reads
+        // the security.password_* settings). Synchronous rules run exactly as before under ValidateAsync.
+        var results = await Task.WhenAll(_validators.Select(v => v.ValidateAsync(context, cancellationToken)));
+        var failures = results
             .SelectMany(result => result.Errors)
             .Where(f => f is not null)
             .ToList();
