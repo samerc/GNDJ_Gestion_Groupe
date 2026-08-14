@@ -2264,6 +2264,25 @@ all pass; IDOR is solidly blocked (404/400/403, no existence leak). Findings:
       attempts 0), bulk retry-failed (count), CU-blocked; page renders clean. STILL DO at go-live: pilot-verify SMTP
       to Maîtrise before any mass send. See [[project-email-golive]]. Backend+frontend, DEV until deploy.
 
+### Applicant/demande live audit + terms gate (2026-08-14)
+Walked the full parent enrollment flow against the live API (register → login → accept-terms → create → household
+→ submit) + validation, caps, gating, isolation, data-minimization, household-lookup, email-verification. Verdict:
+the portal is solid — clean 400s everywhere (weak password / honeypot / future DOB / XSS / bad gender), **zero
+unhandled 500s**; create is a lenient save-as-you-go DRAFT while **submit is the real gate** (rejects 6ème + missing
+required fields); caps enforced (max_per_account=3, max_scout_relations=3); auth isolation holds both ways
+(applicant token → /members 403, → /auth/me 401; member token → /applicant 401); **data-minimization holds** (a
+staged CG "Approved" stays hidden — applicant still sees Submitted/None until the batch is sent); household-lookup
+is code-gated with no enumeration (known vs unknown = identical generic 200); with `require_email_verification` on,
+submit is blocked until verified and the **CG manual verify-email unblocks it**.
+- [x] **FIXED — terms of service now enforced server-side on submit.** The frontend `ApplicantTermsGate` blocked
+      the portal UI until accepted, but the API's CreateDemande/SubmitDemande didn't check `TermsAcceptedAt` — a
+      direct/crafted call could submit without accepting (and `RegisterApplicantCommand.AcceptedTerms` is a DEAD
+      field: register with acceptedTerms=false still creates the account, terms is set only via the post-login
+      accept-terms endpoint). Added a defense-in-depth gate in `SubmitDemandeCommandHandler`: `TermsAcceptedAt is
+      null` → 400 "Veuillez accepter les conditions d'inscription avant de soumettre une demande." Verified live:
+      submit-before-accept → 400, accept → 200, submit → 200. (The dead `AcceptedTerms` register field left as-is —
+      harmless, ignored.) Backend-only, DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

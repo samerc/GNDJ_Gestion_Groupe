@@ -811,6 +811,10 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
         if (account is null) return Result<bool>.Failure("Compte introuvable.");
         if (config.RequireEmailVerification && !account.EmailVerified)
             return Result<bool>.Failure("Veuillez vérifier votre adresse email avant de soumettre une demande.");
+        // Terms of service: the portal (ApplicantTermsGate) blocks the UI until accepted, but enforce it at the
+        // API too (defense-in-depth) so the accepted-terms consent is real even for a crafted/direct submission.
+        if (account.TermsAcceptedAt is null)
+            return Result<bool>.Failure("Veuillez accepter les conditions d'inscription avant de soumettre une demande.");
 
         var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id && d.ApplicantAccountId == id, ct);
         if (demande is null) return Result<bool>.Failure("Demande introuvable.");
