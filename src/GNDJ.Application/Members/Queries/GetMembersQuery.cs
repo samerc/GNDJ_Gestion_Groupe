@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Members.DTOs;
@@ -199,19 +200,12 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
 
     public async ValueTask<MemberDetailDto?> Handle(GetMemberByIdQuery request, CancellationToken cancellationToken)
     {
-        if (!_currentUser.IsSuperAdmin)
-        {
-            if (_currentUser.MemberId != request.Id)
-            {
-                // Viewing ANOTHER member's full profile (medical, allergies, contacts) is a leader action:
-                // require members.edit, not bare co-unit membership. A read-only youth carries their own
-                // unit in AuthorizedUnitIds, so a unit-only check would leak every co-member's dossier.
-                if (!_currentUser.Permissions.Contains(Domain.Enums.Permissions.MembersEdit)) return null;
-                var canAccess = await _context.MemberAssignments.AnyAsync(a =>
-                    a.MemberId == request.Id && a.EndDate == null && _currentUser.AuthorizedUnitIds.Contains(a.UnitId), cancellationToken);
-                if (!canAccess) return null;
-            }
-        }
+        // Shared member-data policy: super-admin / own record / whole-group manager (CG/ACG — any member,
+        // incl. orphans) / a members.edit leader of the member's active unit. Routed through MemberAccess so it
+        // stays consistent with the document/cotisation/guardian handlers (this used to be an inline copy that
+        // drifted — it blocked a CG from opening a member with no active assignment).
+        if (!await MemberAccess.CanAccessMemberAsync(_context, _currentUser, request.Id, cancellationToken))
+            return null;
 
         return await _context.Members
             .Where(m => m.Id == request.Id)

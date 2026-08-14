@@ -18,6 +18,10 @@ public static class MemberAccess
     {
         if (currentUser.IsSuperAdmin) return true;
         if (currentUser.MemberId == memberId) return true;
+        // A whole-group manager (Chef de Groupe / Assistant CG / association-admin) manages EVERY member —
+        // including those between assignments (no active unit / alumni). So they can access any member without
+        // the active-assignment-in-scope requirement (a CG holds all units anyway; this also covers orphans).
+        if (IsGroupManager(currentUser)) return true;
         if (!currentUser.Permissions.Contains(Permissions.MembersEdit)) return false;
         var authorizedUnitIds = currentUser.AuthorizedUnitIds;
         return await context.MemberAssignments.AnyAsync(a =>

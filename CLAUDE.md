@@ -2317,6 +2317,18 @@ one gap the member surfaced:
       security-profile labels + document-types (7 files, French display strings only — the internal `'Approved'`
       status value and `documents.approve` permission key are untouched). Verified: 0 French `approuv*` left, badge
       shows "Accepté".
+- [x] **A Chef de Groupe can upload to / manage ANY member — including orphans (no active assignment).**
+      `MemberAccess.CanAccessMemberAsync` required an ACTIVE assignment in the caller's units, so a CG (all units
+      granted) could reach any *active* member but got 404/400 on a member with no active unit (between assignments/
+      alumni). Now a **group manager** (`IsGroupManager` = super-admin OR `maitrise.manage` → CG/ACG/assoc-admin)
+      bypasses the active-assignment requirement, same as super-admin. Also **`GetMemberByIdQuery` had drifted to an
+      inline copy** of the old check (it wasn't using `MemberAccess`) — routed it back through the shared policy so
+      the member detail (and thus the Documents tab) opens for a CG on any member. Read paths for docs/cotis/
+      guardians/custom-fields/progression already use `MemberAccess` so they picked it up automatically. Verified
+      live: CG → orphan member detail/documents/cotisations all 200 (were 404/400) + upload → 201; a **CU is still
+      blocked** from a member outside their unit (404) and youth stay own-only. HOW A CU/CG UPLOADS (existing path):
+      member → detail → **Documents** tab → **Envoyer** (multi-file). Backend-only, DEV until deploy. (Matrix-cell
+      inline upload offered but not built — the CU/CG upload from the member's Documents tab.)
 
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
