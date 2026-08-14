@@ -2330,6 +2330,35 @@ one gap the member surfaced:
       member → detail → **Documents** tab → **Envoyer** (multi-file). Backend-only, DEV until deploy. (Matrix-cell
       inline upload offered but not built — the CU/CG upload from the member's Documents tab.)
 
+### Email provider plan + outbox send-rate throttle (2026-08-15)
+Planning for go-live email + a throttle so a big blast can't trip a provider's free-tier rate limit.
+- **Active-member email volume (dev = prod-like):** **1,077 active members** (69 chefs / 1,008 youth), **not**
+  the ~2,200 total (rest are alumni). **1,008 reachable** by ≥1 email; **69 have NO email** (biggest gaps: Clan
+  12/50, both big Troupes 9 each — those get the on-screen temp password instead). Activation = **~1,008 emails**
+  (one per member via the contact resolver); all-addresses fan-out = 2,194 (1,634 distinct). Maîtrise counted on
+  their PERSONAL email only (guardians excluded). Per-unit query lives in the session; biggest units ~80–85.
+- **Provider routing (decided):** **SMTP2GO** (free 1,000/mo, resets the 12th) → **demandes** (Sept ~350 confirms +
+  Oct ~700 responses fit, each in its own cycle). **Mailgun Flex** (legacy PAYG still active on the group account:
+  1,000 free/mo then $0.002/msg, un-throttled, resets 12th) + **SendPulse** (free 12k/mo but **50/hr**) → member
+  activation + post-launch ops (reset/warnings/announcements). Mailgun Flex is the smoothest vehicle for the
+  one-time ~1,008 activation blast (~$0.02, no throttle). SendGrid dropped (free tier ended). NOTE: **DNS must
+  authorize each provider** before use — `gndj.org` SPF currently = Mailjet+Zoho, DKIM → SendGrid; add each
+  chosen provider's SPF include + DKIM first. See [[project-email-golive]].
+- [x] **Per-provider send-rate throttle on the outbox.** New nullable **`SmtpServer.MaxPerHour`** (null =
+      unlimited, unchanged) + **`OutboxEmail.SmtpServerId`** (stamped at send; migration `AddEmailThrottle`, +
+      index). **`IEmailService.ResolveRouteAsync`** exposes which server + cap a template routes to WITHOUT
+      sending, so `OutboxSenderBackgroundService` can rate-limit before dispatch. Model = **rolling-hour count**
+      re-derived from the durable table each sweep (no in-memory cursor to drift/run-away; survives restarts for
+      free): a capped server dispatches while its rows Sent in the last hour < cap; at the cap, further rows defer
+      to when the window frees (oldest in-window send + 1h), staggered one interval (3600/cap) apart → guarantees
+      ≤ cap sends in any rolling hour. Un-throttled servers keep the parallel fast path. So the whole activation
+      blast can be enqueued at once and trickles out cleanly — **no Failed pile-up, no babysitting**. SMTP server
+      form gained a **"Max emails / heure"** field (+ Limite/h column); set SendPulse free to ~45. NOTE: an
+      earlier smooth min-interval-cursor design was tried and REJECTED — the in-memory cursor ran ahead of the
+      pre-assigned slots so matured rows got re-deferred (verified failing); the rolling-count model has no such
+      state. Verified live (cap=3, 6 rows → exactly 3 dispatched, 3 deferred ~1h staggered 20 min apart, stamped,
+      no burst). Build + 4 tests + tsc + eslint clean. DEV until deploy (migration applies on prod startup).
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
