@@ -2248,15 +2248,21 @@ all pass; IDOR is solidly blocked (404/400/403, no existence leak). Findings:
       the helper (tsc-clean, in-component scope). Re-verified in a real browser: the propose dialog opens, selecting
       an "up" destination (Troupe→Clan) auto-sets Fonction = base role **"Routier"**, field **disabled** + 0 options
       when clicked, no runtime error. The "up → base youth role only" change is confirmed end-to-end in the UI.
-- [ ] **OPEN (email observability, go-live) — silent email-delivery blindness.** With email OFF, reset-password /
-      send-access / communications all report success ("envoyé"/counts) because those mean QUEUED, not delivered; a
-      Failed outbox row only logs a Warning (no alert, no admin resend/inspect UI). reset-password is OK (the dialog
-      always shows the temp password on screen as a manual fallback — the `sentToEmail` ternary only swaps the
-      banner), but the **link-based bulk flows** (send-access / communications / demande-responses) have no on-screen
-      fallback → if SMTP is misconfigured at go-live, everything looks sent while the outbox silently fills with
-      Failed rows. RECOMMEND: a small admin "Emails — file d'attente / échecs" view over `email_outbox` (Pending/
-      Failed counts + last error + resend) and pilot-verify SMTP to Maîtrise before any mass send. See
-      [[project-email-golive]].
+- [x] **FIXED (email observability, go-live) — silent email-delivery blindness → "Emails — file d'attente /
+      échecs" admin page.** The problem: with email OFF (or SMTP misconfigured), reset-password / send-access /
+      communications all report success ("envoyé"/counts) because those mean QUEUED not delivered; a Failed outbox
+      row only logged a Warning (no alert, no admin UI). reset-password itself is OK (the dialog ALWAYS shows the
+      temp password on screen as a manual fallback — the `sentToEmail` ternary only swaps the banner), but the
+      link-based bulk flows (send-access / communications / demande-responses) have no on-screen fallback. BUILT a
+      new super-admin/assoc-admin page **`/admin/email-outbox`** ("File d'emails", sidebar Système, perm
+      associations.manage) over the `email_outbox` table: pending/failed/sent count cards, status filter + recipient/
+      template search, per-row **last-error** (expandable) + **Réessayer** (requeue: fresh attempt budget, due now —
+      the sender polls ≤15s, no signal needed) + **Supprimer**, plus **Réessayer les échecs** (bulk requeue) and
+      **Vider les envoyés** (housekeeping). Backend `Application/Email/OutboxHandlers.cs` (Get/Retry/RetryFailed/
+      Delete/PurgeSent) + `EmailController` `/email/outbox*`. Payload is deliberately NOT exposed (holds the temp
+      password for reset templates). Verified live: CU 403; super-admin list/summary, single retry (→Pending,
+      attempts 0), bulk retry-failed (count), CU-blocked; page renders clean. STILL DO at go-live: pilot-verify SMTP
+      to Maîtrise before any mass send. See [[project-email-golive]]. Backend+frontend, DEV until deploy.
 
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear

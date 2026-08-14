@@ -121,4 +121,55 @@ public class EmailController : BaseApiController
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return NoContent();
     }
+
+    // ── Outbox (durable email queue) — delivery visibility + requeue ──────────
+    /// <summary>Lists outbox emails (filterable by status/search) + overall pending/failed/sent counts. Requires associations.manage.</summary>
+    [HttpGet("outbox")]
+    [HasPermission(Permissions.AssociationsManage)]
+    public async Task<IActionResult> GetOutbox([FromQuery] string? status, [FromQuery] string? search,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+    {
+        var result = await Mediator.Send(new GetOutboxEmailsQuery(status, search, page, pageSize));
+        return Ok(result);
+    }
+
+    /// <summary>Requeues one outbox email (fresh attempt budget, due now). Requires associations.manage.</summary>
+    [HttpPost("outbox/{id:guid}/retry")]
+    [HasPermission(Permissions.AssociationsManage)]
+    public async Task<IActionResult> RetryOutbox(Guid id)
+    {
+        var result = await Mediator.Send(new RetryOutboxEmailCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    /// <summary>Requeues every failed outbox email; returns the count. Requires associations.manage.</summary>
+    [HttpPost("outbox/retry-failed")]
+    [HasPermission(Permissions.AssociationsManage)]
+    public async Task<IActionResult> RetryFailedOutbox()
+    {
+        var result = await Mediator.Send(new RetryFailedOutboxEmailsCommand());
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { count = result.Value });
+    }
+
+    /// <summary>Discards one outbox email. Requires associations.manage.</summary>
+    [HttpDelete("outbox/{id:guid}")]
+    [HasPermission(Permissions.AssociationsManage)]
+    public async Task<IActionResult> DeleteOutbox(Guid id)
+    {
+        var result = await Mediator.Send(new DeleteOutboxEmailCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    /// <summary>Purges sent outbox rows (housekeeping); optional ?before= keeps newer. Returns the count. Requires associations.manage.</summary>
+    [HttpDelete("outbox/sent")]
+    [HasPermission(Permissions.AssociationsManage)]
+    public async Task<IActionResult> PurgeSentOutbox([FromQuery] DateTime? before)
+    {
+        var result = await Mediator.Send(new PurgeSentOutboxEmailsCommand(before));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { count = result.Value });
+    }
 }
