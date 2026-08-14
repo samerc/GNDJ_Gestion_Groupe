@@ -7,9 +7,10 @@ import { useSettingValue } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
 import {
-  useUnitDocumentsMatrix, useReviewDocumentMatrix, downloadDocument, downloadUnitDocumentsZip,
-  type MemberDocRowDto, type MemberDocCellDto, type DocTypeColumnDto
+  useUnitDocumentsMatrix, useReviewDocumentMatrix, downloadDocument, downloadDocumentPage, downloadUnitDocumentsZip,
+  type MemberDocRowDto, type MemberDocCellDto, type DocTypeColumnDto, type DocumentPageDto, type MemberDocumentDto
 } from '@/services/document-service'
+import apiClient from '@/lib/api-client'
 import { useCreateCotisation, useUpdateCotisation, useSetCotisationExempt } from '@/services/cotisation-service'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
@@ -18,7 +19,7 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban } from 'lucide-react'
+import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban, ChevronLeft, ChevronRight } from 'lucide-react'
 
 // ─── Cell rendering helpers ────────────────────────────────
 function docStatusColor(cell: MemberDocCellDto): string {
@@ -45,7 +46,7 @@ function docStatusLabel(cell: MemberDocCellDto): string {
   if (!cell.documentId) return 'Manquant'
   if (cell.isExpired) return 'Expiré'
   switch (cell.status) {
-    case 'Approved': return 'Approuvé'
+    case 'Approved': return 'Accepté'
     case 'Rejected': return 'Refusé'
     default: return 'En attente'
   }
@@ -91,6 +92,9 @@ export default function UnitDocumentsPage() {
   const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null)
   const [previewError, setPreviewError] = useState(false)
   const [reviewNotes, setReviewNotes] = useState('')
+  // Pages of the previewed document (page 1 + any extra files) so the CU can page through a multi-file document.
+  const [previewPages, setPreviewPages] = useState<DocumentPageDto[]>([])
+  const [previewIndex, setPreviewIndex] = useState(0)
 
   // Cotisation dialog state
   const [cotisationMember, setCotisationMember] = useState<MemberDocRowDto | null>(null)
@@ -121,6 +125,8 @@ export default function UnitDocumentsPage() {
     setPreviewCell(null)
     setPreviewBlobUrl(null)
     setPreviewError(false)
+    setPreviewPages([])
+    setPreviewIndex(0)
     setCotisationMember(null)
     setError('')
   }
@@ -128,16 +134,14 @@ export default function UnitDocumentsPage() {
   if (!user) return <LoadingSpinner />
 
   // ─── Preview logic ─────────────────────────────────
-  const openPreview = async (member: MemberDocRowDto, cell: MemberDocCellDto, docType: DocTypeColumnDto) => {
-    if (!cell.documentId) return
-    setPreviewCell({ cell, member, docType })
-    setReviewNotes('')
-    setError('')
+  // Load one page's file as a blob object URL for inline <img>/<iframe> preview.
+  const loadPreviewPage = async (documentId: string, pages: DocumentPageDto[], index: number) => {
+    const page = pages[index]
+    if (!page) return
     setPreviewError(false)
-    // Fetch the file as a blob and hold an object URL for inline <img>/<iframe> preview (revoked on close).
     try {
-      const response = await downloadDocument(cell.documentId)
-      const blob = new Blob([response.data], { type: cell.mimeType ?? 'application/octet-stream' })
+      const response = page.isPrimary ? await downloadDocument(documentId) : await downloadDocumentPage(page.pageId!)
+      const blob = new Blob([response.data], { type: page.mimeType ?? 'application/octet-stream' })
       setPreviewBlobUrl(URL.createObjectURL(blob))
     } catch {
       setPreviewBlobUrl(null)
@@ -145,10 +149,41 @@ export default function UnitDocumentsPage() {
     }
   }
 
+  const openPreview = async (member: MemberDocRowDto, cell: MemberDocCellDto, docType: DocTypeColumnDto) => {
+    if (!cell.documentId) return
+    setPreviewCell({ cell, member, docType })
+    setReviewNotes('')
+    setError('')
+    setPreviewError(false)
+    setPreviewIndex(0)
+    setPreviewBlobUrl(null)
+    // Fetch the document's page list (page 1 + extras) so a multi-file document (ID recto/verso, multi-page
+    // scan) can be paged through here. Fall back to the single inline file if the fetch fails.
+    let pages: DocumentPageDto[] = []
+    try {
+      const docs = await apiClient.get<MemberDocumentDto[]>(`/documents/member/${member.memberId}`).then(r => r.data)
+      pages = docs.find(d => d.id === cell.documentId)?.pages ?? []
+    } catch { /* fall back below */ }
+    if (pages.length === 0)
+      pages = [{ pageId: null, order: 1, fileName: cell.fileName ?? '', mimeType: cell.mimeType ?? '', fileSize: 0, isPrimary: true }]
+    setPreviewPages(pages)
+    await loadPreviewPage(cell.documentId, pages, 0)
+  }
+
+  const goToPage = async (index: number) => {
+    if (!previewCell?.cell.documentId || index < 0 || index >= previewPages.length) return
+    if (previewBlobUrl) URL.revokeObjectURL(previewBlobUrl)
+    setPreviewBlobUrl(null)
+    setPreviewIndex(index)
+    await loadPreviewPage(previewCell.cell.documentId, previewPages, index)
+  }
+
   const closePreview = () => {
     if (previewBlobUrl) URL.revokeObjectURL(previewBlobUrl)
     setPreviewBlobUrl(null)
     setPreviewCell(null)
+    setPreviewPages([])
+    setPreviewIndex(0)
   }
 
   const handleReview = async (status: string) => {
@@ -167,7 +202,7 @@ export default function UnitDocumentsPage() {
     if (!cell.documentId || cell.status === 'Approved' || reviewMutation.isPending) return
     try {
       await reviewMutation.mutateAsync({ id: cell.documentId, status: 'Approved' })
-      toast.success('Document approuvé')
+      toast.success('Document accepté')
     } catch (err) {
       toast.error(parseApiError(err)) // toast (not the top banner) so it's visible where the CU is looking
     }
@@ -185,13 +220,14 @@ export default function UnitDocumentsPage() {
   }
 
   const handleDownloadDoc = async () => {
-    if (!previewCell?.cell.documentId || !previewCell.cell.fileName) return
-    if (previewBlobUrl) {
-      const a = document.createElement('a')
-      a.href = previewBlobUrl
-      a.download = previewCell.cell.fileName
-      a.click()
-    }
+    if (!previewCell?.cell.documentId || !previewBlobUrl) return
+    // Download the file of the currently shown page.
+    const name = previewPages[previewIndex]?.fileName ?? previewCell.cell.fileName
+    if (!name) return
+    const a = document.createElement('a')
+    a.href = previewBlobUrl
+    a.download = name
+    a.click()
   }
 
   const handleDownloadZip = async (docTypeId?: string) => {
@@ -262,8 +298,12 @@ export default function UnitDocumentsPage() {
     }
   }
 
-  const isImage = previewCell?.cell.mimeType?.startsWith('image/')
-  const isPdf = previewCell?.cell.mimeType === 'application/pdf'
+  // MIME of the CURRENTLY shown page (pages can mix types — e.g. a PNG recto + a PDF verso).
+  const currentPage: DocumentPageDto | undefined = previewPages[previewIndex]
+  const currentMime = currentPage?.mimeType ?? previewCell?.cell.mimeType
+  const currentFileName = currentPage?.fileName ?? previewCell?.cell.fileName ?? ''
+  const isImage = currentMime?.startsWith('image/')
+  const isPdf = currentMime === 'application/pdf'
 
   return (
     <div className="space-y-4">
@@ -295,7 +335,7 @@ export default function UnitDocumentsPage() {
         <>
           {/* Legend */}
           <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-muted-foreground px-1">
-            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-green-50 text-green-600"><CheckCircle className="h-4 w-4" /></span> Approuvé</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-green-50 text-green-600"><CheckCircle className="h-4 w-4" /></span> Accepté</span>
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-amber-50 text-amber-600"><Clock className="h-4 w-4" /></span> En attente</span>
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 text-red-500"><XCircle className="h-4 w-4" /></span> Refusé</span>
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 text-red-500"><AlertTriangle className="h-4 w-4" /></span> Expiré</span>
@@ -390,7 +430,7 @@ export default function UnitDocumentsPage() {
                                   <button
                                     className="flex h-4 w-4 items-center justify-center rounded-full bg-green-600 text-white shadow hover:bg-green-700"
                                     onClick={(e) => handleQuickApprove(e, cell)}
-                                    title="Approuver"
+                                    title="Accepter"
                                   >
                                     <CheckCircle className="h-2.5 w-2.5" />
                                   </button>
@@ -460,7 +500,7 @@ export default function UnitDocumentsPage() {
           {previewCell?.cell.documentId ? (
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-sm">
-                <span className="text-muted-foreground">{previewCell.cell.fileName}</span>
+                <span className="text-muted-foreground">{currentFileName}</span>
                 {previewCell.cell.status && (
                   <Badge variant={previewCell.cell.status === 'Approved' ? 'default' : previewCell.cell.status === 'Rejected' ? 'destructive' : 'secondary'}
                     className={previewCell.cell.status === 'Approved' ? 'bg-green-600' : ''}>
@@ -469,10 +509,23 @@ export default function UnitDocumentsPage() {
                 )}
               </div>
 
+              {/* Pager — a multi-file document (e.g. an ID recto + verso) can be paged through here. */}
+              {previewPages.length > 1 && (
+                <div className="flex items-center justify-center gap-3 text-sm">
+                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={previewIndex === 0} onClick={() => goToPage(previewIndex - 1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="font-medium">Page {previewIndex + 1} / {previewPages.length}</span>
+                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={previewIndex === previewPages.length - 1} onClick={() => goToPage(previewIndex + 1)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
               {/* Inline preview */}
               <div className="rounded-md border bg-muted/20 overflow-hidden flex items-center justify-center" style={{ minHeight: 200, maxHeight: 480 }}>
                 {previewBlobUrl && isImage && (
-                  <img src={previewBlobUrl} alt={previewCell.cell.fileName ?? ''} className="max-w-full max-h-[480px] object-contain" />
+                  <img src={previewBlobUrl} alt={currentFileName} className="max-w-full max-h-[480px] object-contain" />
                 )}
                 {previewBlobUrl && isPdf && (
                   <iframe src={previewBlobUrl} className="w-full" style={{ height: 440 }} title="PDF" />
@@ -513,7 +566,7 @@ export default function UnitDocumentsPage() {
                 )}
                 {previewCell.cell.status !== 'Approved' && (
                   <Button size="sm" onClick={() => handleReview('Approved')} disabled={reviewMutation.isPending}>
-                    <CheckCircle className="mr-1 h-4 w-4" />Approuver
+                    <CheckCircle className="mr-1 h-4 w-4" />Accepter
                   </Button>
                 )}
               </DialogFooter>

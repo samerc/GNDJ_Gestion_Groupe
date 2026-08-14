@@ -130,7 +130,7 @@ export default function PassageValidationPage() {
         finalRoleId: null,
         cgNotes: null,
       })
-      toast.success('Passage approuvé')
+      toast.success('Passage accepté')
     } catch (err) {
       toast.error(parseApiError(err))
     } finally {
@@ -176,7 +176,7 @@ export default function PassageValidationPage() {
         finalRoleId: editFinalRoleId || null,
         cgNotes: editCgNotes || null,
       })
-      toast.success('Passage modifié et approuvé')
+      toast.success('Passage modifié et accepté')
       setEditDialog(null)
     } catch (err) {
       setEditError(parseApiError(err))
@@ -189,7 +189,7 @@ export default function PassageValidationPage() {
         passageIds: Array.from(selected),
         status: 'Approved',
       })
-      toast.success(`${result.count} passage(s) approuvé(s)`)
+      toast.success(`${result.count} passage(s) accepté(s)`)
       setSelected(new Set())
     } catch (err) {
       toast.error(parseApiError(err))
@@ -218,7 +218,7 @@ export default function PassageValidationPage() {
         unitId: unitFilter === '_all' ? null : unitFilter,
       })
       if (result.count > 0) toast.success(`${result.count} passage(s) finalisé(s)`)
-      else toast.info('Aucun passage approuvé à finaliser (déjà finalisé ?)')
+      else toast.info('Aucun passage accepté à finaliser (déjà finalisé ?)')
       setFinalizeDialog(false)
     } catch (err) {
       toast.error(parseApiError(err))
@@ -236,7 +236,7 @@ export default function PassageValidationPage() {
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case 'Approved': return <Badge className="bg-green-600">Approuvé</Badge>
+      case 'Approved': return <Badge className="bg-green-600">Accepté</Badge>
       case 'Rejected': return <Badge variant="destructive">Rejeté</Badge>
       case 'Finalized': return <Badge className="bg-blue-600">Finalisé</Badge>
       default: return <Badge variant="secondary">En attente</Badge>
@@ -307,7 +307,7 @@ export default function PassageValidationPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{summary?.approved ?? 0}</p>
-              <p className="text-xs text-muted-foreground">Approuvés</p>
+              <p className="text-xs text-muted-foreground">Acceptés</p>
             </div>
           </CardContent>
         </Card>
@@ -338,7 +338,7 @@ export default function PassageValidationPage() {
           <SelectContent>
             <SelectItem value="_all">Tous les statuts</SelectItem>
             <SelectItem value="Pending">En attente</SelectItem>
-            <SelectItem value="Approved">Approuvé</SelectItem>
+            <SelectItem value="Approved">Accepté</SelectItem>
             <SelectItem value="Rejected">Rejeté</SelectItem>
             <SelectItem value="Finalized">Finalisé</SelectItem>
           </SelectContent>
@@ -352,7 +352,7 @@ export default function PassageValidationPage() {
             <span className="text-sm font-medium">{selected.size} passage(s) sélectionné(s)</span>
             <div className="flex flex-wrap gap-2 sm:ml-auto">
               <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleBulkApprove} disabled={bulkReviewMutation.isPending}>
-                <Check className="mr-1 h-4 w-4" />Approuver la sélection
+                <Check className="mr-1 h-4 w-4" />Accepter la sélection
               </Button>
               <Button size="sm" variant="destructive" onClick={handleBulkReject} disabled={bulkReviewMutation.isPending}>
                 <X className="mr-1 h-4 w-4" />Rejeter la sélection
@@ -433,7 +433,7 @@ export default function PassageValidationPage() {
                   <td className="px-3 py-2">{statusBadge(p.status)}</td>
                   <td className="px-3 py-2">
                     <div className="flex gap-1">
-                      <Tip content="Approuver">
+                      <Tip content="Accepter">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -486,7 +486,7 @@ export default function PassageValidationPage() {
         )}
         {missingInScope === 0 && pendingCount > 0 && unitFilter === '_all' && (
           <div className="w-full rounded-md border border-amber-200 bg-amber-50/60 p-3 text-sm text-amber-700">
-            {pendingCount} proposition(s) en attente de revue. La finalisation ne traitera que les passages approuvés.
+            {pendingCount} proposition(s) en attente de revue. La finalisation ne traitera que les passages acceptés.
           </div>
         )}
         {approvedCount > 0 && (
@@ -561,7 +561,7 @@ export default function PassageValidationPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialog(null)}>Annuler</Button>
             <Button onClick={handleEditSubmit} disabled={reviewMutation.isPending}>
-              {reviewMutation.isPending ? 'Enregistrement...' : 'Approuver et enregistrer'}
+              {reviewMutation.isPending ? 'Enregistrement...' : 'Accepter et enregistrer'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -573,7 +573,7 @@ export default function PassageValidationPage() {
         onOpenChange={setFinalizeDialog}
         title="Finaliser les passages"
         description={
-          `Ceci va finaliser ${approvedCount} passage(s) approuvé(s) ${unitFilter === '_all' ? '(toutes unités)' : 'de cette unité'} : ` +
+          `Ceci va finaliser ${approvedCount} passage(s) accepté(s) ${unitFilter === '_all' ? '(toutes unités)' : 'de cette unité'} : ` +
           `les affectations actuelles seront clôturées et les nouvelles créées. Cette action est définitive. Continuer ?`
         }
         confirmLabel="Finaliser"

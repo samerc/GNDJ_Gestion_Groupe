@@ -75,7 +75,7 @@ const PERMISSION_GROUPS: { label: string; permissions: { value: string; label: s
       { value: 'documents.create', label: 'Créer' },
       { value: 'documents.edit', label: 'Modifier' },
       { value: 'documents.delete', label: 'Supprimer' },
-      { value: 'documents.approve', label: 'Approuver' },
+      { value: 'documents.approve', label: 'Accepter' },
     ],
   },
   {

@@ -19,11 +19,11 @@ import { Tip } from '@/components/ui/tooltip'
 import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus, Files, Plus } from 'lucide-react'
 
 // Status badge for a doc. Expiry overrides the workflow status (an expired doc reads "Expiré"
-// regardless of approval). Workflow: upload → "En attente" → "Approuvé" / "Refusé".
+// regardless of approval). Workflow: upload → "En attente" → "Accepté" / "Refusé".
 function statusBadge(status: string, isExpired: boolean) {
   if (isExpired) return <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />Expiré</Badge>
   switch (status) {
-    case 'Approved': return <Badge className="gap-1 bg-green-600"><CheckCircle className="h-3 w-3" />Approuvé</Badge>
+    case 'Approved': return <Badge className="gap-1 bg-green-600"><CheckCircle className="h-3 w-3" />Accepté</Badge>
     case 'Rejected': return <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" />Refusé</Badge>
     default: return <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" />En attente</Badge>
   }
@@ -235,7 +235,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
             </div>
           </div>
           <div className="flex gap-3 text-xs">
-            {docStats.approved > 0 && <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-green-500" />{docStats.approved} approuvé{docStats.approved > 1 ? 's' : ''}</span>}
+            {docStats.approved > 0 && <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-green-500" />{docStats.approved} accepté{docStats.approved > 1 ? 's' : ''}</span>}
             {docStats.pending > 0 && <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-amber-400" />{docStats.pending} en attente</span>}
             {docStats.rejected > 0 && <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-red-500" />{docStats.rejected} refusé{docStats.rejected > 1 ? 's' : ''}</span>}
             {docStats.missing > 0 && <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-gray-300" />{docStats.missing} manquant{docStats.missing > 1 ? 's' : ''}</span>}
@@ -290,7 +290,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                     </Button></Tip>
                   )}
                   {doc && doc.status !== 'Approved' && hasPermission(PERMISSIONS.DOCUMENTS_APPROVE) && (
-                    <Tip content="Approuver"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleQuickReview(doc.id, 'Approved')}>
+                    <Tip content="Accepter"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleQuickReview(doc.id, 'Approved')}>
                       <CheckCircle className="h-4 w-4 text-green-600" />
                     </Button></Tip>
                   )}
@@ -406,7 +406,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
           <DialogHeader><DialogTitle>Changer le statut du document</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <p className="text-sm">Document : <span className="font-medium">{reviewOpen?.title}</span></p>
-            <p className="text-sm text-muted-foreground">Statut actuel : {reviewOpen?.status === 'Approved' ? 'Approuvé' : reviewOpen?.status === 'Rejected' ? 'Refusé' : 'En attente'}</p>
+            <p className="text-sm text-muted-foreground">Statut actuel : {reviewOpen?.status === 'Approved' ? 'Accepté' : reviewOpen?.status === 'Rejected' ? 'Refusé' : 'En attente'}</p>
             <div className="space-y-2">
               <RequiredLabel>Notes (optionnel)</RequiredLabel>
               <textarea
@@ -424,7 +424,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
               </Button>
               {reviewOpen?.status !== 'Approved' && (
                 <Button onClick={() => handleReview('Approved')} disabled={reviewMutation.isPending}>
-                  <CheckCircle className="mr-1 h-4 w-4" />Approuver
+                  <CheckCircle className="mr-1 h-4 w-4" />Accepter
                 </Button>
               )}
             </DialogFooter>

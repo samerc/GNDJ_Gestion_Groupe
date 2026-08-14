@@ -344,11 +344,11 @@ export default function PassagePage() {
   }
 
   // Colored status pill for a proposal; an approved proposal that keeps the same unit+role reads as
-  // "Pas de changement" rather than "Approuvé".
+  // "Pas de changement" rather than "Accepté".
   const statusBadge = (passage: PassageDto) => {
     if (passage.isLeaving) return <Badge className="bg-orange-600">Quitte le groupe{passage.status === 'Approved' ? ' ✓' : passage.status === 'Rejected' ? ' ✗' : ''}</Badge>
     switch (passage.status) {
-      case 'Approved': return <Badge className="bg-green-600">{passage.proposedUnitId === passage.currentUnitId && passage.proposedRoleName === passage.currentRoleName ? 'Pas de changement' : 'Approuvé'}</Badge>
+      case 'Approved': return <Badge className="bg-green-600">{passage.proposedUnitId === passage.currentUnitId && passage.proposedRoleName === passage.currentRoleName ? 'Pas de changement' : 'Accepté'}</Badge>
       case 'Rejected': return <Badge variant="destructive">Rejeté</Badge>
       case 'Finalized': return <Badge className="bg-blue-600">Finalisé</Badge>
       default: return <Badge variant="secondary">En attente</Badge>
@@ -477,7 +477,7 @@ export default function PassagePage() {
               <SelectItem value="all">Tous les statuts</SelectItem>
               <SelectItem value="todo">À proposer</SelectItem>
               <SelectItem value="pending">En attente</SelectItem>
-              <SelectItem value="approved">Approuvé / Pas de changement</SelectItem>
+              <SelectItem value="approved">Accepté / Pas de changement</SelectItem>
               <SelectItem value="leaving">Quitte le groupe</SelectItem>
               <SelectItem value="rejected">Rejeté</SelectItem>
             </SelectContent>

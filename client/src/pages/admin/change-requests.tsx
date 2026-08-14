@@ -21,7 +21,7 @@ export default function ChangeRequestsPage() {
   const [reason, setReason] = useState('')
 
   const approve = async (r: ChangeRequestDto) => {
-    try { await reviewMutation.mutateAsync({ id: r.id, approve: true }); toast.success('Demande approuvée et appliquée') }
+    try { await reviewMutation.mutateAsync({ id: r.id, approve: true }); toast.success('Demande acceptée et appliquée') }
     catch (err) { toast.error(parseApiError(err)) }
   }
   const confirmReject = async () => {
@@ -65,7 +65,7 @@ export default function ChangeRequestsPage() {
                     <XCircle className="mr-1 h-4 w-4 text-red-500" />Refuser
                   </Button></Tip>
                   <Button size="sm" onClick={() => approve(r)} disabled={reviewMutation.isPending}>
-                    <CheckCircle2 className="mr-1 h-4 w-4" />Approuver
+                    <CheckCircle2 className="mr-1 h-4 w-4" />Accepter
                   </Button>
                 </div>
               </CardContent>

@@ -206,7 +206,7 @@ export default function DocumentTypesPage() {
                   <input type="checkbox" checked={form.requiresApproval} onChange={(e) => setForm(f => ({ ...f, requiresApproval: e.target.checked }))} />
                   Approbation requise
                 </label>
-                <p className="text-xs text-muted-foreground ml-6">Un responsable devra approuver le document après envoi</p>
+                <p className="text-xs text-muted-foreground ml-6">Un responsable devra accepter le document après envoi</p>
               </div>
             </div>
             <DialogFooter>

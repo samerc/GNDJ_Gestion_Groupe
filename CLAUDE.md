@@ -2307,8 +2307,16 @@ one gap the member surfaced:
       UPDATE) → insert pages directly via `context.MemberDocumentPages.Add` (never load/mutate the parent). Verified
       live end-to-end (2-file upload → 1 doc/2 pages, 3rd file appends to same doc, page downloads, add-page,
       CU delete-page, member delete-page 403) + in a real browser (member uploads recto+verso → "2 pages" viewer).
-      NOTE: the CU matrix still previews page 1 only (full pages are on the member detail + in the zip). Backend+
-      frontend, migration applies on prod startup; DEV until deploy.
+      Backend+frontend, migration applies on prod startup; DEV until deploy.
+- [x] **CU review preview pages through a multi-file document** (`unit-documents.tsx`): the matrix click-to-preview
+      loaded only page 1. It now fetches the document's `pages[]` on open and shows a **◀ Page X / N ▶** pager
+      (each page's file loaded on demand; per-page MIME so a PNG recto + PDF verso both render); download grabs the
+      current page. Verified live as a CU: Raul's 4-page Fiche Médicale → "Page 1/4 → 2/4". (Pre-existing React
+      key-prop warning in the matrix left as-is — unrelated.)
+- [x] **UI wording: "Approuver/Approuvé" → "Accepter/Accepté"** across documents + passage + change-requests +
+      security-profile labels + document-types (7 files, French display strings only — the internal `'Approved'`
+      status value and `documents.approve` permission key are untouched). Verified: 0 French `approuv*` left, badge
+      shows "Accepté".
 
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
