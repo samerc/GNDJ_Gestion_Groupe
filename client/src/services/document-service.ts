@@ -3,6 +3,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
+// One file of a document. isPrimary = page 1 (download via /documents/{docId}/download); otherwise a child
+// page (download via /documents/pages/{pageId}/download).
+export interface DocumentPageDto {
+  pageId: string | null
+  order: number
+  fileName: string
+  mimeType: string
+  fileSize: number
+  isPrimary: boolean
+}
+
 export interface MemberDocumentDto {
   id: string
   memberId: string
@@ -20,6 +31,7 @@ export interface MemberDocumentDto {
   issuedDate: string | null
   isExpired: boolean
   createdAt: string
+  pages: DocumentPageDto[]   // all files of the document (page 1 + extra pages)
 }
 
 export interface ExpiringDocumentDto {
@@ -93,9 +105,42 @@ export function useDeleteDocument(memberId: string) {
   })
 }
 
-// GET /documents/{id}/download — raw file as a blob (not a hook).
+// POST /documents/{id}/pages — add extra pages/files to an existing document. Invalidates member docs + matrix.
+export function useAddDocumentPages(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ documentId, formData, onUploadProgress }: { documentId: string; formData: FormData; onUploadProgress?: (pct: number) => void }) =>
+      apiClient.post(`/documents/${documentId}/pages`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => { if (e.total && onUploadProgress) onUploadProgress(Math.round((e.loaded * 100) / e.total)) },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents', memberId] })
+      qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+    },
+  })
+}
+
+// DELETE /documents/pages/{pageId} — remove one extra page (leader). Invalidates member docs + matrix.
+export function useDeleteDocumentPage(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (pageId: string) => apiClient.delete(`/documents/pages/${pageId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents', memberId] })
+      qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+    },
+  })
+}
+
+// GET /documents/{id}/download (page 1) or /documents/pages/{pageId}/download (extra page) — raw blob (not a hook).
 export function downloadDocument(id: string) {
   return apiClient.get(`/documents/${id}/download`, { responseType: 'blob' })
+}
+export function downloadDocumentPage(pageId: string) {
+  return apiClient.get(`/documents/pages/${pageId}/download`, { responseType: 'blob' })
 }
 
 // Unit documents matrix (CU page)

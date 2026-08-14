@@ -10,12 +10,45 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Documents;
 
 // DTOs
+// A single file of a document. IsPrimary = page 1 (the inline file on MemberDocument, downloaded via
+// /documents/{docId}/download); otherwise a child page (downloaded via /documents/pages/{pageId}/download).
+public record DocumentPageDto(Guid? PageId, int Order, string FileName, string MimeType, long FileSize, bool IsPrimary);
+
 public record MemberDocumentDto(
     Guid Id, Guid MemberId, Guid DocumentTypeId, string DocumentTypeName,
     string Title, string FileName, long FileSize, string MimeType,
     string Status, string? ReviewNotes, Guid? ReviewedBy, DateTime? ReviewedAt,
-    DateOnly? ExpiryDate, DateOnly? IssuedDate, bool IsExpired, DateTime CreatedAt
+    DateOnly? ExpiryDate, DateOnly? IssuedDate, bool IsExpired, DateTime CreatedAt,
+    IReadOnlyList<DocumentPageDto> Pages   // all files of the document: page 1 (inline) + any extra pages
 );
+
+// A file saved to disk by the controller, ready to be recorded (inline page 1 or an extra page).
+public record SavedDocFile(string FilePath, string FileName, long FileSize, string MimeType);
+
+// Builds the ordered page list of a document = the inline file (page 1) + child pages (2, 3, …).
+static class DocumentPageMapper
+{
+    public static IReadOnlyList<DocumentPageDto> Build(MemberDocument d)
+    {
+        var pages = new List<DocumentPageDto> { new(null, 1, d.FileName, d.MimeType, d.FileSize, true) };
+        pages.AddRange(d.Pages.OrderBy(p => p.PageOrder)
+            .Select(p => new DocumentPageDto(p.Id, p.PageOrder, p.FileName, p.MimeType, p.FileSize, false)));
+        return pages;
+    }
+
+    // Inserts extra pages onto a document by id (page 1 is the inline file, so extra pages start at 2). Adds the
+    // page rows directly — never loads/mutates the parent — so SaveChanges only issues INSERTs.
+    public static async Task AppendPagesAsync(IApplicationDbContext context, Guid documentId, IReadOnlyList<SavedDocFile> files, DateTime now, CancellationToken ct)
+    {
+        var maxOrder = await context.MemberDocumentPages
+            .Where(p => p.MemberDocumentId == documentId)
+            .Select(p => (int?)p.PageOrder).MaxAsync(ct) ?? 1;
+        var order = maxOrder + 1;
+        foreach (var f in files)
+            context.MemberDocumentPages.Add(new MemberDocumentPage { MemberDocumentId = documentId, FilePath = f.FilePath, FileName = f.FileName, FileSize = f.FileSize, MimeType = f.MimeType, PageOrder = order++, CreatedAt = now });
+        await context.SaveChangesAsync(ct);
+    }
+}
 
 // Helper: check if the caller may access a given member's documents. Thin wrappers over the shared
 // MemberAccess policy (kept for call-site readability).
@@ -40,48 +73,55 @@ public class GetMemberDocumentsQueryHandler(IApplicationDbContext context, ICurr
             return Result<IReadOnlyList<MemberDocumentDto>>.Failure("Accès non autorisé à ce membre.");
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        // Materialize with the child pages, then map in memory (the page list is assembled from the inline
+        // file + child rows, which EF can't build inside a single projection).
         var docs = await context.MemberDocuments
             .Where(d => d.MemberId == request.MemberId)
             .Include(d => d.DocumentType)
+            .Include(d => d.Pages)
             .OrderByDescending(d => d.CreatedAt)
-            .Select(d => new MemberDocumentDto(
-                d.Id, d.MemberId, d.DocumentTypeId, d.DocumentType.Name,
-                d.Title, d.FileName, d.FileSize, d.MimeType,
-                d.Status, d.ReviewNotes, d.ReviewedBy, d.ReviewedAt,
-                d.ExpiryDate, d.IssuedDate,
-                d.ExpiryDate != null && d.ExpiryDate < today,
-                d.CreatedAt
-            ))
             .ToListAsync(ct);
 
-        return Result<IReadOnlyList<MemberDocumentDto>>.Success(docs);
+        var result = docs.Select(d => new MemberDocumentDto(
+            d.Id, d.MemberId, d.DocumentTypeId, d.DocumentType.Name,
+            d.Title, d.FileName, d.FileSize, d.MimeType,
+            d.Status, d.ReviewNotes, d.ReviewedBy, d.ReviewedAt,
+            d.ExpiryDate, d.IssuedDate,
+            d.ExpiryDate != null && d.ExpiryDate < today,
+            d.CreatedAt,
+            DocumentPageMapper.Build(d)
+        )).ToList();
+
+        return Result<IReadOnlyList<MemberDocumentDto>>.Success(result);
     }
 }
 
-// Upload document (metadata only — the controller already saved the file to disk). Status starts
-// Pending when the doc type RequiresApproval, else auto-Approved (stamped reviewed by the uploader).
-public record CreateMemberDocumentCommand(
+// Upload one or more files as a document (metadata only — the controller already saved the files to disk).
+// A document can hold several files (page 1 = the inline file, pages 2+ = child rows), so an ID card front +
+// back, or a multi-page scan, is ONE reviewable document. Behaviour:
+//   • If a still-PENDING document of the same (member, type) exists, the new files are APPENDED to it as extra
+//     pages (so "upload front" then "upload back" build one document, and re-sending doesn't create duplicates).
+//   • Otherwise a new document is created from the first file, with any remaining files as extra pages.
+// Status starts Pending when the type RequiresApproval, else auto-Approved (stamped reviewed by the uploader).
+public record UploadMemberDocumentCommand(
     Guid MemberId, Guid DocumentTypeId, string Title,
-    string FilePath, string FileName, long FileSize, string MimeType,
-    DateOnly? ExpiryDate, DateOnly? IssuedDate
+    DateOnly? ExpiryDate, DateOnly? IssuedDate, IReadOnlyList<SavedDocFile> Files
 ) : IRequest<Result<Guid>>;
 
-public class CreateMemberDocumentCommandValidator : AbstractValidator<CreateMemberDocumentCommand>
+public class UploadMemberDocumentCommandValidator : AbstractValidator<UploadMemberDocumentCommand>
 {
-    public CreateMemberDocumentCommandValidator()
+    public UploadMemberDocumentCommandValidator()
     {
         RuleFor(x => x.MemberId).NotEmpty().WithMessage("Le membre est requis.");
         RuleFor(x => x.DocumentTypeId).NotEmpty().WithMessage("Le type de document est requis.");
         RuleFor(x => x.Title).NotEmpty().WithMessage("Le titre est requis.").MaximumLength(200);
-        RuleFor(x => x.FileName).NotEmpty().MaximumLength(300);
-        RuleFor(x => x.FilePath).NotEmpty().MaximumLength(500);
-        RuleFor(x => x.MimeType).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.Files).NotEmpty().WithMessage("Aucun fichier n'a été fourni.");
     }
 }
 
-public class CreateMemberDocumentCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<CreateMemberDocumentCommand, Result<Guid>>
+public class UploadMemberDocumentCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<UploadMemberDocumentCommand, Result<Guid>>
 {
-    public async ValueTask<Result<Guid>> Handle(CreateMemberDocumentCommand request, CancellationToken ct)
+    public async ValueTask<Result<Guid>> Handle(UploadMemberDocumentCommand request, CancellationToken ct)
     {
         if (!await DocumentAccessHelper.CanAccessMember(context, currentUser, request.MemberId, ct))
             return Result<Guid>.Failure("Accès non autorisé à ce membre.");
@@ -93,28 +133,51 @@ public class CreateMemberDocumentCommandHandler(IApplicationDbContext context, I
         if (docType.RequiresExpiry && request.ExpiryDate is null)
             return Result<Guid>.Failure("La date d'expiration est requise pour ce type de document.");
 
-        var status = docType.RequiresApproval ? DocumentStatus.Pending : DocumentStatus.Approved;
+        var files = request.Files;
+        var now = DateTime.UtcNow;
 
+        // Append to an in-progress (Pending) document of the same type if one exists — front/back land together.
+        // Insert the pages directly (don't load/mutate the tracked parent + its collection) so SaveChanges only
+        // does INSERTs and never issues a spurious parent UPDATE.
+        var existingId = await context.MemberDocuments
+            .Where(d => d.MemberId == request.MemberId && d.DocumentTypeId == request.DocumentTypeId && d.Status == DocumentStatus.Pending)
+            .OrderByDescending(d => d.CreatedAt)
+            .Select(d => (Guid?)d.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (existingId is Guid docId)
+        {
+            await DocumentPageMapper.AppendPagesAsync(context, docId, files, now, ct);
+            await auditService.LogAsync("AddPages", "MemberDocument", docId, newValues: new { added = files.Count }, cancellationToken: ct);
+            return Result<Guid>.Success(docId);
+        }
+
+        var status = docType.RequiresApproval ? DocumentStatus.Pending : DocumentStatus.Approved;
+        var first = files[0];
         var entity = new MemberDocument
         {
             MemberId = request.MemberId,
             DocumentTypeId = request.DocumentTypeId,
             Title = request.Title,
-            FilePath = request.FilePath,
-            FileName = request.FileName,
-            FileSize = request.FileSize,
-            MimeType = request.MimeType,
+            FilePath = first.FilePath,
+            FileName = first.FileName,
+            FileSize = first.FileSize,
+            MimeType = first.MimeType,
             Status = status,
             ExpiryDate = request.ExpiryDate,
             IssuedDate = request.IssuedDate,
             // Auto-approve if no approval required
             ReviewedBy = !docType.RequiresApproval ? currentUser.UserId : null,
-            ReviewedAt = !docType.RequiresApproval ? DateTime.UtcNow : null
+            ReviewedAt = !docType.RequiresApproval ? now : null
         };
+        // Remaining files become extra pages (2, 3, …).
+        var order = 2;
+        foreach (var f in files.Skip(1))
+            entity.Pages.Add(new MemberDocumentPage { FilePath = f.FilePath, FileName = f.FileName, FileSize = f.FileSize, MimeType = f.MimeType, PageOrder = order++, CreatedAt = now });
 
         context.MemberDocuments.Add(entity);
         await context.SaveChangesAsync(ct);
-        await auditService.LogAsync("Create", "MemberDocument", entity.Id, newValues: new { entity.Title, entity.FileName, entity.Status }, cancellationToken: ct);
+        await auditService.LogAsync("Create", "MemberDocument", entity.Id, newValues: new { entity.Title, entity.FileName, entity.Status, pages = files.Count }, cancellationToken: ct);
 
         return Result<Guid>.Success(entity.Id);
     }
@@ -199,6 +262,78 @@ public class GetDocumentFileQueryHandler(IApplicationDbContext context, ICurrent
             return null;
 
         return new DocumentFileDto(doc.FilePath, doc.FileName, doc.MimeType);
+    }
+}
+
+// ── Extra pages of a document (files beyond page 1) ──────────────────────────
+// Append already-saved files as extra pages to a specific document (the "Ajouter une page" action). Same
+// own/leader access rule as the document's member; adding a page re-opens a Rejected document for review.
+public record AddDocumentPagesCommand(Guid DocumentId, IReadOnlyList<SavedDocFile> Files) : IRequest<Result<Guid>>;
+
+public class AddDocumentPagesCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<AddDocumentPagesCommand, Result<Guid>>
+{
+    public async ValueTask<Result<Guid>> Handle(AddDocumentPagesCommand request, CancellationToken ct)
+    {
+        if (request.Files.Count == 0) return Result<Guid>.Failure("Aucun fichier n'a été fourni.");
+        // Load only what we need (no tracked parent to mutate).
+        var doc = await context.MemberDocuments
+            .Where(d => d.Id == request.DocumentId)
+            .Select(d => new { d.Id, d.MemberId, d.Status })
+            .FirstOrDefaultAsync(ct);
+        if (doc is null) return Result<Guid>.Failure("Document introuvable.");
+        if (!await DocumentAccessHelper.CanAccessMember(context, currentUser, doc.MemberId, ct))
+            return Result<Guid>.Failure("Accès non autorisé.");
+
+        await DocumentPageMapper.AppendPagesAsync(context, doc.Id, request.Files, DateTime.UtcNow, ct);
+
+        // Adding a page to a rejected document re-opens it for review (targeted update, no tracking needed).
+        if (doc.Status == DocumentStatus.Rejected)
+            await context.MemberDocuments.Where(d => d.Id == doc.Id)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.Status, DocumentStatus.Pending)
+                    .SetProperty(x => x.ReviewNotes, (string?)null)
+                    .SetProperty(x => x.ReviewedAt, (DateTime?)null)
+                    .SetProperty(x => x.ReviewedBy, (Guid?)null), ct);
+
+        await auditService.LogAsync("AddPages", "MemberDocument", doc.Id, newValues: new { added = request.Files.Count }, cancellationToken: ct);
+        return Result<Guid>.Success(doc.Id);
+    }
+}
+
+// Delete one extra page (documents.delete gated at the controller). Page 1 is removed by deleting the whole
+// document. Returns the file path so the controller can remove the file from disk (this is a hard delete).
+public record DeleteDocumentPageCommand(Guid PageId) : IRequest<Result<PageFileRef>>;
+public record PageFileRef(string FilePath);
+
+public class DeleteDocumentPageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<DeleteDocumentPageCommand, Result<PageFileRef>>
+{
+    public async ValueTask<Result<PageFileRef>> Handle(DeleteDocumentPageCommand request, CancellationToken ct)
+    {
+        var page = await context.MemberDocumentPages.Include(p => p.MemberDocument).FirstOrDefaultAsync(p => p.Id == request.PageId, ct);
+        if (page is null || page.MemberDocument is null) return Result<PageFileRef>.Failure("Page introuvable.");
+        if (!await DocumentAccessHelper.CanAccessMember(context, currentUser, page.MemberDocument.MemberId, ct))
+            return Result<PageFileRef>.Failure("Accès non autorisé.");
+
+        var path = page.FilePath;
+        context.MemberDocumentPages.Remove(page);
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("DeletePage", "MemberDocument", page.MemberDocumentId, oldValues: new { page.FileName }, cancellationToken: ct);
+        return Result<PageFileRef>.Success(new PageFileRef(path));
+    }
+}
+
+// Resolves the on-disk path for an extra page download (own/leader access via the parent document's member).
+public record GetDocumentPageFileQuery(Guid PageId) : IRequest<DocumentFileDto?>;
+
+public class GetDocumentPageFileQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetDocumentPageFileQuery, DocumentFileDto?>
+{
+    public async ValueTask<DocumentFileDto?> Handle(GetDocumentPageFileQuery request, CancellationToken ct)
+    {
+        var page = await context.MemberDocumentPages.Include(p => p.MemberDocument).FirstOrDefaultAsync(p => p.Id == request.PageId, ct);
+        if (page is null || page.MemberDocument is null) return null;
+        if (!await DocumentAccessHelper.CanAccessMember(context, currentUser, page.MemberDocument.MemberId, ct))
+            return null;
+        return new DocumentFileDto(page.FilePath, page.FileName, page.MimeType);
     }
 }
 
@@ -335,7 +470,8 @@ public class GetUnitDocumentsMatrixQueryHandler(IApplicationDbContext context, I
 // builds the archive (member-name folders) and re-checks each path against the uploads root.
 public record GetUnitDocumentFilesQuery(Guid UnitId, Guid? DocTypeId = null) : IRequest<Result<IReadOnlyList<ZipDocumentDto>>>;
 
-public record ZipDocumentDto(string MemberName, string DocTypeName, string FileName, string FilePath);
+// PageLabel distinguishes files of the same document in the zip (e.g. "" for page 1, " - p2" for extra pages).
+public record ZipDocumentDto(string MemberName, string DocTypeName, string FileName, string FilePath, string PageLabel = "");
 
 public class GetUnitDocumentFilesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetUnitDocumentFilesQuery, Result<IReadOnlyList<ZipDocumentDto>>>
 {
@@ -356,17 +492,22 @@ public class GetUnitDocumentFilesQueryHandler(IApplicationDbContext context, ICu
         if (request.DocTypeId.HasValue)
             query = query.Where(d => d.DocumentTypeId == request.DocTypeId.Value);
 
-        return Result<IReadOnlyList<ZipDocumentDto>>.Success(
-            await query
-                .OrderBy(d => d.Member.LastName).ThenBy(d => d.Member.FirstName)
-                .Select(d => new ZipDocumentDto(
-                    d.Member.FirstName + " " + d.Member.LastName,
-                    d.DocumentType.Name,
-                    d.FileName,
-                    d.FilePath
-                ))
-                .ToListAsync(ct)
-        );
+        // Materialize with pages, then flatten each document into one entry per file (page 1 + extra pages).
+        var docs = await query
+            .Include(d => d.Member).Include(d => d.DocumentType).Include(d => d.Pages)
+            .OrderBy(d => d.Member.LastName).ThenBy(d => d.Member.FirstName)
+            .ToListAsync(ct);
+
+        var files = new List<ZipDocumentDto>();
+        foreach (var d in docs)
+        {
+            var name = d.Member.FirstName + " " + d.Member.LastName;
+            files.Add(new ZipDocumentDto(name, d.DocumentType.Name, d.FileName, d.FilePath));
+            foreach (var p in d.Pages.OrderBy(p => p.PageOrder))
+                files.Add(new ZipDocumentDto(name, d.DocumentType.Name, p.FileName, p.FilePath, $" - p{p.PageOrder}"));
+        }
+
+        return Result<IReadOnlyList<ZipDocumentDto>>.Success(files);
     }
 }
 

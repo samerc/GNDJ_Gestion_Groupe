@@ -2283,6 +2283,33 @@ submit is blocked until verified and the **CG manual verify-email unblocks it**.
       submit-before-accept → 400, accept → 200, submit → 200. (The dead `AcceptedTerms` register field left as-is —
       harmless, ignored.) Backend-only, DEV until deploy.
 
+### Member audit + multi-page documents (2026-08-14)
+Audited the regular-member (youth) journey live (login → see own data → submit docs). Result: solid, zero 500s —
+forced first-login password (must_change → change → cleared), all own-data reads OK, document upload (own → 201,
+fake magic bytes → 400, upload-for-another-member → 400, self-approve → 403), self-edit `/my-profile` with identity
+fields locked (nom/prénom/DOB/sexe aren't in the command), change-request propose, and IDOR/leader-action denial all
+correct (other member 404/400/403; matrix/members-list/pending empty or denied; reset-other 403). Then built the
+one gap the member surfaced:
+- [x] **Multi-page / multi-file documents (an ID as recto + verso, a multi-page scan) → ONE reviewable document.**
+      Previously one document = one file, and a 2nd file of the same type made a competing duplicate record. Now a
+      document holds several files: page 1 stays inline on `MemberDocument`, extra pages go in a new
+      **`member_document_pages`** child table (migration `AddMemberDocumentPages`, cascade FK). The CU approves the
+      whole document once. Backend: upload accepts **several files** (`IFormFileCollection`, back-compatible) — first
+      = page 1, rest = pages — and **appends to an existing PENDING document of the same type** (so "send recto" then
+      "send verso" build one doc, and re-sending doesn't duplicate); `UploadMemberDocumentCommand` replaced
+      `CreateMemberDocumentCommand`. New: `POST /documents/{id}/pages` (add pages; re-opens a Rejected doc),
+      `GET /documents/pages/{pageId}/download`, `DELETE /documents/pages/{pageId}` (documents.delete; deletes the
+      file). `GetMemberDocuments` DTO gained `pages[]` (page 1 + extras, each with a download route); the zip export
+      includes every page (` - p2` suffix); `MemberPurgeService` now also deletes page files. Frontend
+      (`member-documents.tsx`): the file picker is **multiple**, the row shows a "N pages" link → a **pages viewer**
+      (download each page, leader delete extra pages, "Ajouter une page"). GOTCHA fixed during build: appending by
+      mutating the tracked parent's `.Pages` collection threw `DbUpdateConcurrencyException` (spurious parent
+      UPDATE) → insert pages directly via `context.MemberDocumentPages.Add` (never load/mutate the parent). Verified
+      live end-to-end (2-file upload → 1 doc/2 pages, 3rd file appends to same doc, page downloads, add-page,
+      CU delete-page, member delete-page 403) + in a real browser (member uploads recto+verso → "2 pages" viewer).
+      NOTE: the CU matrix still previews page 1 only (full pages are on the member detail + in the zip). Backend+
+      frontend, migration applies on prod startup; DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

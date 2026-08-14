@@ -48,15 +48,18 @@ public class DocumentsController : BaseApiController
     /// </summary>
     // No permission attribute — members can upload their own documents,
     // CU can upload for members in their unit. Handler checks access.
+    // Accepts one OR several files (an ID card front + back, a multi-page scan): the first becomes the
+    // document's page 1, the rest extra pages — one reviewable document. IFormFileCollection captures every
+    // uploaded file regardless of field name, so old single-file ("file") callers keep working.
     [HttpPost("upload")]
     [ProducesResponseType(201)]
     [EnableRateLimiting("upload")]
     [RequestSizeLimit(20 * 1024 * 1024)] // 20MB hard limit
     public async Task<IActionResult> Upload([FromForm] Guid memberId, [FromForm] Guid documentTypeId,
         [FromForm] string? title, [FromForm] DateOnly? expiryDate, [FromForm] DateOnly? issuedDate,
-        IFormFile file)
+        IFormFileCollection files)
     {
-        if (file is null || file.Length == 0)
+        if (files is null || files.Count == 0)
             return BadRequest(new { error = "Aucun fichier n'a été fourni." });
 
         // Auto-fill title from document type name if not provided
@@ -66,74 +69,110 @@ public class DocumentsController : BaseApiController
             title = docType?.Name ?? "Document";
         }
 
-        // Validate file size from settings
+        var (saved, savedPaths, error) = await SaveUploadedFilesAsync(files);
+        if (error is not null) return BadRequest(new { error });
+
+        var result = await Mediator.Send(new UploadMemberDocumentCommand(
+            memberId, documentTypeId, title!, expiryDate, issuedDate, saved));
+
+        if (!result.IsSuccess)
+        {
+            CleanupFiles(savedPaths);
+            return BadRequest(new { error = result.Error });
+        }
+
+        return Created($"/api/v1/documents/{result.Value}", new { id = result.Value });
+    }
+
+    /// <summary>
+    /// Adds one or more extra pages/files to an existing document (e.g. the back of an ID). Same auth as upload;
+    /// re-opens a rejected document for review. Requires no permission (handler checks own/leader access).
+    /// </summary>
+    [HttpPost("{id:guid}/pages")]
+    [EnableRateLimiting("upload")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public async Task<IActionResult> AddPages(Guid id, IFormFileCollection files)
+    {
+        if (files is null || files.Count == 0)
+            return BadRequest(new { error = "Aucun fichier n'a été fourni." });
+
+        var (saved, savedPaths, error) = await SaveUploadedFilesAsync(files);
+        if (error is not null) return BadRequest(new { error });
+
+        var result = await Mediator.Send(new AddDocumentPagesCommand(id, saved));
+        if (!result.IsSuccess)
+        {
+            CleanupFiles(savedPaths);
+            return BadRequest(new { error = result.Error });
+        }
+        return Ok(new { id = result.Value });
+    }
+
+    // Validates (size / extension / magic bytes) and saves every uploaded file to disk. Returns the saved
+    // file descriptors + their absolute paths (for cleanup on a later failure), or the first validation error
+    // (already-saved files are removed before returning so a bad file in the batch leaves nothing behind).
+    private async Task<(List<SavedDocFile> saved, List<string> paths, string? error)> SaveUploadedFilesAsync(IFormFileCollection files)
+    {
         var maxSizeSetting = await _context.Settings.FirstOrDefaultAsync(s => s.Key == "documents.max_file_size_mb");
         var maxSizeMb = int.TryParse(maxSizeSetting?.Value, out var parsed) ? parsed : 5;
-        if (file.Length > maxSizeMb * 1024 * 1024)
-            return BadRequest(new { error = $"Le fichier dépasse la taille maximale autorisée ({maxSizeMb} Mo)." });
-
-        // Validate file extension
-        var ext = Path.GetExtension(file.FileName).TrimStart('.').ToLower();
         var allowedSetting = await _context.Settings.FirstOrDefaultAsync(s => s.Key == "documents.allowed_file_types");
         var allowedTypes = new[] { "pdf", "jpg", "jpeg", "png" };
         if (allowedSetting is not null)
         {
             try { allowedTypes = JsonSerializer.Deserialize<string[]>(allowedSetting.Value) ?? allowedTypes; } catch { }
         }
-        if (!allowedTypes.Contains(ext))
-            return BadRequest(new { error = $"Type de fichier non autorisé. Types acceptés : {string.Join(", ", allowedTypes)}" });
 
-        // Validate file content matches extension
-        using var headerStream = file.OpenReadStream();
-        var header = new byte[4];
-        var bytesRead = 0;
-        while (bytesRead < 4)
-        {
-            var read = await headerStream.ReadAsync(header.AsMemory(bytesRead, 4 - bytesRead));
-            if (read == 0) break;
-            bytesRead += read;
-        }
-        headerStream.Position = 0;
-
-        var isValid = ext switch
-        {
-            "pdf" => bytesRead >= 4 && header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46, // %PDF
-            "jpg" or "jpeg" => bytesRead >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
-            "png" => bytesRead >= 4 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47, // .PNG
-            _ => false
-        };
-        if (!isValid)
-            return BadRequest(new { error = "Le contenu du fichier ne correspond pas à son extension." });
-
-        // Save file to disk
         var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "documents");
         Directory.CreateDirectory(uploadsDir);
 
-        var safeFileName = Path.GetFileName(file.FileName); // Strip any directory components
-        var uniqueName = $"{Guid.CreateVersion7()}_{safeFileName}";
-        var filePath = Path.Combine(uploadsDir, uniqueName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
+        var saved = new List<SavedDocFile>();
+        var paths = new List<string>();
+        foreach (var file in files)
         {
-            await file.CopyToAsync(stream);
+            if (file.Length == 0) { CleanupFiles(paths); return (saved, paths, "Un fichier fourni est vide."); }
+            if (file.Length > maxSizeMb * 1024 * 1024) { CleanupFiles(paths); return (saved, paths, $"Le fichier dépasse la taille maximale autorisée ({maxSizeMb} Mo)."); }
+
+            var ext = Path.GetExtension(file.FileName).TrimStart('.').ToLower();
+            if (!allowedTypes.Contains(ext)) { CleanupFiles(paths); return (saved, paths, $"Type de fichier non autorisé. Types acceptés : {string.Join(", ", allowedTypes)}"); }
+
+            // Magic-byte check: the content must match the extension.
+            using (var headerStream = file.OpenReadStream())
+            {
+                var header = new byte[4];
+                var bytesRead = 0;
+                while (bytesRead < 4)
+                {
+                    var read = await headerStream.ReadAsync(header.AsMemory(bytesRead, 4 - bytesRead));
+                    if (read == 0) break;
+                    bytesRead += read;
+                }
+                var isValid = ext switch
+                {
+                    "pdf" => bytesRead >= 4 && header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46, // %PDF
+                    "jpg" or "jpeg" => bytesRead >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+                    "png" => bytesRead >= 4 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47, // .PNG
+                    _ => false
+                };
+                if (!isValid) { CleanupFiles(paths); return (saved, paths, "Le contenu du fichier ne correspond pas à son extension."); }
+            }
+
+            var safeFileName = Path.GetFileName(file.FileName); // Strip any directory components
+            var uniqueName = $"{Guid.CreateVersion7()}_{safeFileName}";
+            var fullPath = Path.Combine(uploadsDir, uniqueName);
+            using (var stream = new FileStream(fullPath, FileMode.Create))
+                await file.CopyToAsync(stream);
+
+            var relativePath = Path.Combine("uploads", "documents", uniqueName);
+            saved.Add(new SavedDocFile(relativePath, file.FileName, file.Length, file.ContentType));
+            paths.Add(fullPath);
         }
+        return (saved, paths, null);
+    }
 
-        var relativePath = Path.Combine("uploads", "documents", uniqueName);
-
-        var result = await Mediator.Send(new CreateMemberDocumentCommand(
-            memberId, documentTypeId, title, relativePath, file.FileName, file.Length,
-            file.ContentType, expiryDate, issuedDate
-        ));
-
-        if (!result.IsSuccess)
-        {
-            // Cleanup file on failure
-            if (System.IO.File.Exists(filePath))
-                System.IO.File.Delete(filePath);
-            return BadRequest(new { error = result.Error });
-        }
-
-        return Created($"/api/v1/documents/{result.Value}", new { id = result.Value });
+    private static void CleanupFiles(IEnumerable<string> fullPaths)
+    {
+        foreach (var p in fullPaths)
+            try { if (System.IO.File.Exists(p)) System.IO.File.Delete(p); } catch { /* best effort */ }
     }
 
     /// <summary>
@@ -186,6 +225,40 @@ public class DocumentsController : BaseApiController
     {
         var result = await Mediator.Send(new DeleteMemberDocumentCommand(id));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    /// <summary>Downloads an extra page of a document. Auth-only (own/leader access in the handler); traversal guarded.</summary>
+    /// <response code="404">Page not found, or the file no longer exists.</response>
+    [HttpGet("pages/{pageId:guid}/download")]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> DownloadPage(Guid pageId)
+    {
+        var doc = await Mediator.Send(new GetDocumentPageFileQuery(pageId));
+        if (doc is null) return NotFound(new { error = "Fichier introuvable." });
+
+        var uploadsRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "uploads"));
+        var fullPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), doc.FilePath));
+        if (!fullPath.StartsWith(uploadsRoot) || !System.IO.File.Exists(fullPath))
+            return NotFound(new { error = "Le fichier n'existe plus sur le serveur." });
+
+        try { return File(new FileStream(fullPath, FileMode.Open, FileAccess.Read), doc.MimeType, doc.FileName); }
+        catch (IOException) { return NotFound(new { error = "Le fichier n'est pas accessible pour le moment." }); }
+    }
+
+    /// <summary>Deletes one extra page of a document (and its file on disk). Requires documents.delete.</summary>
+    [HttpDelete("pages/{pageId:guid}")]
+    [HasPermission(Permissions.DocumentsDelete)]
+    public async Task<IActionResult> DeletePage(Guid pageId)
+    {
+        var result = await Mediator.Send(new DeleteDocumentPageCommand(pageId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+
+        // Hard delete of the page → remove its file (best-effort, traversal-guarded).
+        var uploadsRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "uploads"));
+        var fullPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), result.Value!.FilePath));
+        if (fullPath.StartsWith(uploadsRoot))
+            try { if (System.IO.File.Exists(fullPath)) System.IO.File.Delete(fullPath); } catch { /* best effort */ }
         return NoContent();
     }
 
@@ -243,7 +316,7 @@ public class DocumentsController : BaseApiController
                 var sanitizedMember = doc.MemberName.Replace("/", "-").Replace("\\", "-");
                 var sanitizedDocType = doc.DocTypeName.Replace("/", "-").Replace("\\", "-");
                 var ext = Path.GetExtension(doc.FileName);
-                var entryName = $"{sanitizedMember}/{sanitizedDocType}{ext}";
+                var entryName = $"{sanitizedMember}/{sanitizedDocType}{doc.PageLabel}{ext}";
 
                 // A single unreadable/locked file must not abort the whole zip (500) — skip it and continue.
                 try

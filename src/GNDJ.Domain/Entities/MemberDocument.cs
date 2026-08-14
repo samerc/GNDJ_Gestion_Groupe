@@ -23,4 +23,8 @@ public class MemberDocument : BaseEntity
     public Member Member { get; set; } = null!;
     public DocumentType DocumentType { get; set; } = null!;
     public User? Reviewer { get; set; }
+
+    // Extra files beyond the inline one (page 1). Lets a single reviewable document hold several files
+    // (e.g. front + back of an ID card, multi-page scans) — see MemberDocumentPage.
+    public ICollection<MemberDocumentPage> Pages { get; set; } = new List<MemberDocumentPage>();
 }

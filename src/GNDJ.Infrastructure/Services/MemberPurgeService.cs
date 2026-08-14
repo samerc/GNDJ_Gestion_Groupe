@@ -47,6 +47,9 @@ public class MemberPurgeService : IMemberPurgeService
             "SELECT photo_path AS \"Value\" FROM members WHERE id = {0}", memberId).ToListAsync(ct)).FirstOrDefault();
         var docPaths = await _context.Database.SqlQueryRaw<string>(
             "SELECT file_path AS \"Value\" FROM member_documents WHERE member_id = {0}", memberId).ToListAsync(ct);
+        // Extra document pages (their rows cascade with the document, but capture the files to delete from disk).
+        var pagePaths = await _context.Database.SqlQueryRaw<string>(
+            "SELECT p.file_path AS \"Value\" FROM member_document_pages p JOIN member_documents d ON d.id = p.member_document_id WHERE d.member_id = {0}", memberId).ToListAsync(ct);
         var guardianIds = await _context.Database.SqlQueryRaw<Guid>(
             "SELECT guardian_id AS \"Value\" FROM guardian_links WHERE member_id = {0}", memberId).ToListAsync(ct);
 
@@ -86,6 +89,7 @@ public class MemberPurgeService : IMemberPurgeService
         // Files last — outside the transaction, so a missing/locked file can't undo the DB purge.
         DeleteFileSafe(photoPath);
         foreach (var d in docPaths) DeleteFileSafe(d);
+        foreach (var d in pagePaths) DeleteFileSafe(d);
     }
 
     // Best-effort delete of a member file stored under the app's uploads tree. Handles both stored formats

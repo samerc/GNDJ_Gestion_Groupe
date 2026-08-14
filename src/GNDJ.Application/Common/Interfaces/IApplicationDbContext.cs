@@ -30,6 +30,7 @@ public interface IApplicationDbContext
     DbSet<Setting> Settings { get; }
     DbSet<DocumentType> DocumentTypes { get; }
     DbSet<MemberDocument> MemberDocuments { get; }
+    DbSet<MemberDocumentPage> MemberDocumentPages { get; }
     DbSet<MemberCotisation> MemberCotisations { get; }
     DbSet<CotisationPayment> CotisationPayments { get; }
     DbSet<ScoutStage> ScoutStages { get; }

@@ -33,6 +33,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
     public DbSet<MemberDocument> MemberDocuments => Set<MemberDocument>();
+    public DbSet<MemberDocumentPage> MemberDocumentPages => Set<MemberDocumentPage>();
     public DbSet<MemberCotisation> MemberCotisations => Set<MemberCotisation>();
     public DbSet<CotisationPayment> CotisationPayments => Set<CotisationPayment>();
     public DbSet<ScoutStage> ScoutStages => Set<ScoutStage>();

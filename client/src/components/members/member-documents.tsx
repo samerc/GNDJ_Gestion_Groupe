@@ -2,7 +2,7 @@ import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { saveBlob } from '@/lib/download'
 import { toast } from 'sonner'
 import { useState, useRef } from 'react'
-import { useMemberDocuments, useUploadDocument, useReviewDocument, useDeleteDocument, downloadDocument, type MemberDocumentDto } from '@/services/document-service'
+import { useMemberDocuments, useUploadDocument, useReviewDocument, useDeleteDocument, useAddDocumentPages, useDeleteDocumentPage, downloadDocument, downloadDocumentPage, type MemberDocumentDto, type DocumentPageDto } from '@/services/document-service'
 import { useDocumentTypeList, type DocumentTypeListDto } from '@/services/document-type-service'
 import { useSettingValue, useSettingArray } from '@/services/settings-service'
 import { useAuthStore } from '@/stores/auth-store'
@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Tip } from '@/components/ui/tooltip'
-import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus } from 'lucide-react'
+import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus, Files, Plus } from 'lucide-react'
 
 // Status badge for a doc. Expiry overrides the workflow status (an expired doc reads "Expiré"
 // regardless of approval). Workflow: upload → "En attente" → "Approuvé" / "Refusé".
@@ -46,6 +46,8 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const uploadMutation = useUploadDocument(memberId)
   const reviewMutation = useReviewDocument(memberId)
   const deleteMutation = useDeleteDocument(memberId)
+  const addPagesMutation = useAddDocumentPages(memberId)
+  const deletePageMutation = useDeleteDocumentPage(memberId)
 
   // Upload limits come from settings (documents.max_file_size_mb / documents.allowed_file_types) — shown to
   // the user AND enforced client-side — so the on-screen text always matches what the server actually accepts.
@@ -63,38 +65,78 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [uploadingDocTypeId, setUploadingDocTypeId] = useState<string | null>(null)
   const [expiryDate, setExpiryDate] = useState('')
+  const [pagesDoc, setPagesDoc] = useState<MemberDocumentDto | null>(null) // "pages" viewer for a multi-file doc
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const addPageRef = useRef<HTMLInputElement>(null)
 
-  const handleUploadForType = async (docType: DocumentTypeListDto, file: File) => {
-    // Client-side guards (match the server) so a careless upload gets an instant, readable message with the
-    // real limit instead of waiting for a server 400 — the limits come from settings.
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
-    if (!allowedTypes.includes(ext)) {
-      toast.error(`Type de fichier non autorisé. Formats acceptés : ${formatsLabel}.`)
-      return
+  // Client-side guard (matches the server) so a bad file gets an instant, readable message. Returns an error or null.
+  const validateFiles = (files: File[]): string | null => {
+    for (const file of files) {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+      if (!allowedTypes.includes(ext)) return `Type de fichier non autorisé (${file.name}). Formats acceptés : ${formatsLabel}.`
+      if (file.size > maxSizeMb * 1024 * 1024) return `Le fichier « ${file.name} » est trop volumineux (max ${maxSizeMb} Mo).`
     }
-    if (file.size > maxSizeMb * 1024 * 1024) {
-      toast.error(`Le fichier est trop volumineux (max ${maxSizeMb} Mo).`)
-      return
-    }
+    return null
+  }
+
+  // Upload one or several files as a document. Several files → one document with multiple pages (e.g. an ID's
+  // front + back). The server appends to an existing pending document of the same type, so this also acts as
+  // "send the rest of the pages" without creating a duplicate.
+  const handleUploadForType = async (docType: DocumentTypeListDto, files: File[]) => {
+    const err = validateFiles(files)
+    if (err) { toast.error(err); return }
     const today = new Date().toISOString().split('T')[0]
     const formData = new FormData()
     formData.append('memberId', memberId)
     formData.append('documentTypeId', docType.id)
     formData.append('title', docType.name)
-    formData.append('file', file)
+    for (const file of files) formData.append('files', file)
     formData.append('issuedDate', today)
     if (expiryDate) formData.append('expiryDate', expiryDate)
 
     try {
       await uploadMutation.mutateAsync({ formData, onUploadProgress: setUploadProgress })
-      toast.success('Document envoyé')
+      toast.success(files.length > 1 ? `${files.length} fichiers envoyés` : 'Document envoyé')
       setUploadProgress(null)
       setUploadingDocTypeId(null)
       setExpiryDate('')
     } catch (err) {
       setUploadProgress(null)
       toast.error(parseApiError(err))
+    }
+  }
+
+  // Add extra page(s) to an existing document (the "Ajouter une page" action in the pages viewer).
+  const handleAddPages = async (documentId: string, files: File[]) => {
+    const err = validateFiles(files)
+    if (err) { toast.error(err); return }
+    const formData = new FormData()
+    for (const file of files) formData.append('files', file)
+    try {
+      await addPagesMutation.mutateAsync({ documentId, formData, onUploadProgress: setUploadProgress })
+      toast.success(files.length > 1 ? `${files.length} pages ajoutées` : 'Page ajoutée')
+      setUploadProgress(null) // dialog stays open; the pager refreshes from the invalidated query
+    } catch (err) {
+      setUploadProgress(null)
+      toast.error(parseApiError(err))
+    }
+  }
+
+  const handleDeletePage = async (pageId: string) => {
+    try {
+      await deletePageMutation.mutateAsync(pageId)
+      toast.success('Page supprimée')
+    } catch (err) {
+      toast.error(parseApiError(err))
+    }
+  }
+
+  const handleDownloadPage = async (doc: MemberDocumentDto, page: DocumentPageDto) => {
+    try {
+      const response = page.isPrimary ? await downloadDocument(doc.id) : await downloadDocumentPage(page.pageId!)
+      saveBlob(response.data, page.fileName, page.mimeType)
+    } catch (err) {
+      toast.error(await parseBlobError(err))
     }
   }
 
@@ -223,6 +265,11 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                   {doc && (
                     <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><FileText className="h-3 w-3" />{doc.fileName}</span>
+                      {doc.pages.length > 1 && (
+                        <button className="flex items-center gap-1 text-primary hover:underline" onClick={() => setPagesDoc(doc)}>
+                          <Files className="h-3 w-3" />{doc.pages.length} pages
+                        </button>
+                      )}
                       {doc.expiryDate && <span>Expire : {new Date(doc.expiryDate).toLocaleDateString('fr-FR')}</span>}
                       <span>Envoyé : {new Date(doc.createdAt!).toLocaleDateString('fr-FR')}</span>
                     </div>
@@ -299,20 +346,34 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground">Formats : {formatsLabel} — Max {maxSizeMb} Mo</p>
+      <p className="text-xs text-muted-foreground">Formats : {formatsLabel} — Max {maxSizeMb} Mo. Astuce : sélectionnez plusieurs fichiers pour un document à plusieurs pages (recto/verso d'une carte, etc.).</p>
 
-      {/* Hidden file input for direct upload */}
+      {/* Hidden file input for direct upload (multiple = one document with several pages, e.g. ID front + back) */}
       <input
         ref={fileInputRef}
         type="file"
         accept={acceptAttr}
+        multiple
         className="hidden"
         onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file && uploadingDocTypeId) {
+          const files = e.target.files ? Array.from(e.target.files) : []
+          if (files.length > 0 && uploadingDocTypeId) {
             const dt = docTypes?.find(d => d.id === uploadingDocTypeId)
-            if (dt) handleUploadForType(dt, file)
+            if (dt) handleUploadForType(dt, files)
           }
+          e.target.value = ''
+        }}
+      />
+      {/* Hidden file input for adding pages to an existing document (from the pages viewer) */}
+      <input
+        ref={addPageRef}
+        type="file"
+        accept={acceptAttr}
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          const files = e.target.files ? Array.from(e.target.files) : []
+          if (files.length > 0 && pagesDoc) handleAddPages(pagesDoc.id, files)
           e.target.value = ''
         }}
       />
@@ -370,6 +431,47 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Pages viewer — all files of a multi-page document (download each; a leader can delete extra pages;
+          the member/leader can add pages). Rendered from the LIVE document so it refreshes after add/delete. */}
+      {(() => {
+        const openDoc = pagesDoc ? (documents?.find(d => d.id === pagesDoc.id) ?? null) : null
+        return (
+          <Dialog open={!!pagesDoc} onOpenChange={() => setPagesDoc(null)}>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Pages — {openDoc?.title ?? pagesDoc?.title}</DialogTitle></DialogHeader>
+              <div className="space-y-2">
+                {openDoc?.pages.map((p) => (
+                  <div key={p.pageId ?? 'primary'} className="flex items-center gap-2 rounded-md border p-2 text-sm">
+                    <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="mr-1 text-muted-foreground">Page {p.order}</span>{p.fileName}
+                    </span>
+                    <Tip content="Télécharger"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDoc && handleDownloadPage(openDoc, p)}>
+                      <Download className="h-4 w-4" />
+                    </Button></Tip>
+                    {p.isPrimary ? (
+                      <span className="px-1 text-[10px] text-muted-foreground">page principale</span>
+                    ) : hasPermission(PERMISSIONS.DOCUMENTS_DELETE) && (
+                      <Tip content="Supprimer la page"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" disabled={deletePageMutation.isPending} onClick={() => p.pageId && handleDeletePage(p.pageId)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button></Tip>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <DialogFooter>
+                {canUpload && (
+                  <Button variant="outline" onClick={() => addPageRef.current?.click()} disabled={addPagesMutation.isPending}>
+                    <Plus className="mr-1 h-4 w-4" />Ajouter une page
+                  </Button>
+                )}
+                <Button onClick={() => setPagesDoc(null)}>Fermer</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )
+      })()}
 
       <ConfirmDialog
         open={!!deleting}
