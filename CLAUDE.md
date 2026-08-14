@@ -2229,6 +2229,35 @@ Built ahead of the September go-live (all on main, pushed; DEV until deploy). Pl
       Pending outbox rows + report. (The `docs/emails/cu_onboarding.md` draft is now superseded by the seeded
       templates — kept as reference.) See [[project-email-golive]].
 
+### CU live audit + logging fix (2026-08-14)
+Logged in as a real CU (Chef de Troupe, 89 members) and walked the whole stay against the live API — reads,
+permission gates, IDOR, all 6 PDF/Excel/CSV reports, and mutations (passage propose, cotisation, reset-password)
+all pass; IDOR is solidly blocked (404/400/403, no existence leak). Findings:
+- [x] **FIXED — handled 4xx were logged as 500 Errors.** `ExceptionHandlingMiddleware` (registered outermost,
+      Program.cs) wraps `UseSerilogRequestLogging`, so an exception it translates into a clean 4xx (FluentValidation
+      →400, UnauthorizedAccess→403, Postgres constraint→409/400, QuestPDF→400) still propagated through Serilog
+      first → logged as **"responded 500" + full stack** and persisted to `application_logs` (DB sink is Warning+),
+      flooding the Journal des erreurs with non-errors (every form-validation failure / permission denial) and
+      burying real faults — go-live's 2205 forced password changes would have amplified it on every fumbled attempt.
+      Added a Serilog **`options.GetLevel`** that downgrades those deliberately-4xx exception types to Information
+      (still in the file log; below the DB threshold); genuine unhandled faults + any 5xx stay Error. Client
+      responses unchanged. Verified live: validation 400 / authz 403 / change-password 400 now produce ZERO
+      Error-level DB rows. Backend-only, DEV until deploy.
+- [x] **CHECKED (not a bug) — passage `/passage` client crash `baseRoleForType is not defined`** (a CU hit it
+      2026-08-13): it was a transient stale/HMR bundle during the passage-change edit — the committed code defines
+      the helper (tsc-clean, in-component scope). Re-verified in a real browser: the propose dialog opens, selecting
+      an "up" destination (Troupe→Clan) auto-sets Fonction = base role **"Routier"**, field **disabled** + 0 options
+      when clicked, no runtime error. The "up → base youth role only" change is confirmed end-to-end in the UI.
+- [ ] **OPEN (email observability, go-live) — silent email-delivery blindness.** With email OFF, reset-password /
+      send-access / communications all report success ("envoyé"/counts) because those mean QUEUED, not delivered; a
+      Failed outbox row only logs a Warning (no alert, no admin resend/inspect UI). reset-password is OK (the dialog
+      always shows the temp password on screen as a manual fallback — the `sentToEmail` ternary only swaps the
+      banner), but the **link-based bulk flows** (send-access / communications / demande-responses) have no on-screen
+      fallback → if SMTP is misconfigured at go-live, everything looks sent while the outbox silently fills with
+      Failed rows. RECOMMEND: a small admin "Emails — file d'attente / échecs" view over `email_outbox` (Pending/
+      Failed counts + last error + resend) and pilot-verify SMTP to Maîtrise before any mass send. See
+      [[project-email-golive]].
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
