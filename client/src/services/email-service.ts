@@ -8,6 +8,7 @@ import apiClient from '@/lib/api-client'
 export interface SmtpServerDto {
   id: string; name: string; host: string; port: number; username: string
   fromEmail: string; fromName: string; useSsl: boolean; isActive: boolean
+  maxPerHour: number | null   // optional send-rate cap (emails/hour); null = unlimited
 }
 
 // GET /email/smtp-servers → list of configured SMTP servers.
@@ -19,7 +20,7 @@ export function useSmtpServers() {
 export function useCreateSmtpServer() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; host: string; port: number; username: string; password: string; fromEmail: string; fromName: string; useSsl: boolean; isActive: boolean }) => apiClient.post('/email/smtp-servers', data),
+    mutationFn: (data: { name: string; host: string; port: number; username: string; password: string; fromEmail: string; fromName: string; useSsl: boolean; isActive: boolean; maxPerHour: number | null }) => apiClient.post('/email/smtp-servers', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['smtp-servers'] }),
   })
 }
@@ -28,7 +29,7 @@ export function useCreateSmtpServer() {
 export function useUpdateSmtpServer() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name: string; host: string; port: number; username: string; password?: string; fromEmail: string; fromName: string; useSsl: boolean; isActive: boolean }) => apiClient.put(`/email/smtp-servers/${id}`, { id, ...data }),
+    mutationFn: ({ id, ...data }: { id: string; name: string; host: string; port: number; username: string; password?: string; fromEmail: string; fromName: string; useSsl: boolean; isActive: boolean; maxPerHour: number | null }) => apiClient.put(`/email/smtp-servers/${id}`, { id, ...data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['smtp-servers'] }),
   })
 }

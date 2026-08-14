@@ -22,5 +22,8 @@ public class OutboxEmailConfiguration : IEntityTypeConfiguration<OutboxEmail>
 
         // The sender's hot query: WHERE status = Pending AND next_attempt_at <= now ORDER BY created_at.
         builder.HasIndex(e => new { e.Status, e.NextAttemptAt });
+
+        // The rate-limiter's per-server query: MAX(sent_at) WHERE smtp_server_id = X AND status = Sent.
+        builder.HasIndex(e => new { e.SmtpServerId, e.Status, e.SentAt });
     }
 }

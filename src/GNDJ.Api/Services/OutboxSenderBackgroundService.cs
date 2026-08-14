@@ -82,48 +82,123 @@ public class OutboxSenderBackgroundService : BackgroundService
         foreach (var row in due) row.NextAttemptAt = leaseUntil;
         await context.SaveChangesAsync(ct); // commit the claim before we start sending
 
-        // Send in parallel, each in its own scope (pooled DbContext/IEmailService aren't concurrency-safe).
-        using var gate = new SemaphoreSlim(MaxConcurrency);
-        var results = await Task.WhenAll(due.Select(async row =>
-        {
-            await gate.WaitAsync(ct);
-            try { return (row.Id, ok: await TrySendAsync(row, ct), error: (string?)null); }
-            catch (Exception ex) { return (row.Id, ok: false, error: ex.Message); }
-            finally { gate.Release(); }
-        }));
+        // Resolve each row's delivery route (which SMTP server + its optional per-hour cap) and split the batch
+        // into rows to send NOW vs rows to defer to a future rate-limit slot. Route resolution is sequential
+        // (shares this sweep's scope/DbContext) and cached per template code within the sweep.
+        //
+        // Rate-limiting model = ROLLING-HOUR COUNT (re-derived from the durable table every sweep, so it needs
+        // no in-memory cursor and can't drift or "run away"): a capped server may dispatch while its count of
+        // rows Sent in the last hour is below the cap; once at the cap, further rows are deferred to when the
+        // window frees (the oldest in-window send ages out), staggered one interval apart. This guarantees
+        // ≤ cap sends in any rolling hour and survives restarts/crashes for free (the counts live in the DB).
+        var email = scope.ServiceProvider.GetRequiredService<IEmailService>();
+        var routeCache = new Dictionary<string, EmailRoute?>();
+        var toSendNow = new List<OutboxEmail>();
+        var hourCount = new Dictionary<Guid, int>();       // server → rows Sent in the last hour (+ reserved this sweep)
+        var windowFree = new Dictionary<Guid, DateTime>(); // server → next time an over-cap row should re-check
+        var windowStart = now.AddHours(-1);
 
-        // Apply outcomes to the tracked rows and persist in one write.
-        var outcome = results.ToDictionary(r => r.Id, r => (r.ok, r.error));
-        var doneAt = DateTime.UtcNow;
         foreach (var row in due)
         {
-            var (ok, error) = outcome[row.Id];
-            row.Attempts++;
-            if (ok)
+            if (!routeCache.TryGetValue(row.TemplateCode, out var route))
             {
-                row.Status = OutboxEmailStatus.Sent;
-                row.SentAt = doneAt;
-                row.LastError = null;
+                route = await email.ResolveRouteAsync(row.TemplateCode, ct);
+                routeCache[row.TemplateCode] = route;
+            }
+            if (route is not null) row.SmtpServerId = route.ServerId; // stamp for the admin view + rate counting
+
+            var cap = route?.MaxPerHour ?? 0;
+            if (route is null || cap <= 0)
+            {
+                toSendNow.Add(row); // un-throttled (or route unknown → let the real send surface the error)
+                continue;
+            }
+
+            var serverId = route.ServerId;
+            if (!hourCount.TryGetValue(serverId, out var used))
+            {
+                // How many this server has actually Sent in the last rolling hour (committed, real sends only —
+                // a failed attempt has no SentAt so it never counts against the cap).
+                used = await context.OutboxEmails.CountAsync(
+                    e => e.SmtpServerId == serverId && e.Status == OutboxEmailStatus.Sent
+                         && e.SentAt != null && e.SentAt > windowStart, ct);
+                hourCount[serverId] = used;
+            }
+
+            if (used < cap)
+            {
+                toSendNow.Add(row);
+                hourCount[serverId] = used + 1; // reserve the slot within this sweep (optimistic; DB re-count self-heals)
             }
             else
             {
-                row.LastError = Truncate(error, 2000);
-                if (row.Attempts >= MaxAttempts)
+                // At the cap for the rolling hour → schedule this row for when a slot frees: the oldest in-window
+                // send ages out one hour after it was sent. Stagger successive over-cap rows one interval apart so
+                // they don't all wake at once.
+                var interval = TimeSpan.FromSeconds(3600.0 / cap);
+                if (!windowFree.TryGetValue(serverId, out var freeAt))
                 {
-                    row.Status = OutboxEmailStatus.Failed; // terminal — a human can inspect LastError
-                    _logger.LogWarning("Outbox email '{Code}' to {To} FAILED after {Attempts} attempts: {Error}",
-                        row.TemplateCode, row.ToEmail, row.Attempts, row.LastError);
+                    var oldest = await context.OutboxEmails
+                        .Where(e => e.SmtpServerId == serverId && e.Status == OutboxEmailStatus.Sent
+                                    && e.SentAt != null && e.SentAt > windowStart)
+                        .MinAsync(e => (DateTime?)e.SentAt, ct);
+                    freeAt = (oldest ?? now).AddHours(1).AddSeconds(5); // small buffer past the exact roll
+                    if (freeAt < now) freeAt = now.Add(interval);       // safety: never schedule in the past
+                }
+                row.NextAttemptAt = freeAt;
+                windowFree[serverId] = freeAt.Add(interval); // next over-cap row targets the following freed slot
+            }
+        }
+
+        // Send the "now" rows in parallel, each in its own scope (pooled DbContext/IEmailService aren't
+        // concurrency-safe). Deferred rows already have their NextAttemptAt set above and are untouched here.
+        var doneAt = now;
+        if (toSendNow.Count > 0)
+        {
+            using var gate = new SemaphoreSlim(MaxConcurrency);
+            var results = await Task.WhenAll(toSendNow.Select(async row =>
+            {
+                await gate.WaitAsync(ct);
+                try { return (row.Id, ok: await TrySendAsync(row, ct), error: (string?)null); }
+                catch (Exception ex) { return (row.Id, ok: false, error: ex.Message); }
+                finally { gate.Release(); }
+            }));
+
+            var outcome = results.ToDictionary(r => r.Id, r => (r.ok, r.error));
+            doneAt = DateTime.UtcNow;
+            foreach (var row in toSendNow)
+            {
+                var (ok, error) = outcome[row.Id];
+                row.Attempts++;
+                if (ok)
+                {
+                    row.Status = OutboxEmailStatus.Sent;
+                    row.SentAt = doneAt;
+                    row.LastError = null;
                 }
                 else
                 {
-                    // Stays Pending; retry after backoff (index = attempts already made − 1, clamped).
-                    var idx = Math.Min(row.Attempts - 1, Backoff.Length - 1);
-                    row.NextAttemptAt = doneAt.Add(Backoff[idx]);
+                    row.LastError = Truncate(error, 2000);
+                    if (row.Attempts >= MaxAttempts)
+                    {
+                        row.Status = OutboxEmailStatus.Failed; // terminal — a human can inspect LastError
+                        _logger.LogWarning("Outbox email '{Code}' to {To} FAILED after {Attempts} attempts: {Error}",
+                            row.TemplateCode, row.ToEmail, row.Attempts, row.LastError);
+                    }
+                    else
+                    {
+                        // Stays Pending; retry after backoff (index = attempts already made − 1, clamped).
+                        var idx = Math.Min(row.Attempts - 1, Backoff.Length - 1);
+                        row.NextAttemptAt = doneAt.Add(Backoff[idx]);
+                    }
                 }
             }
         }
+
         await context.SaveChangesAsync(ct);
-        return due.Count;
+        // Return only the count actually SENT this sweep (not deferred): a defer-only sweep returns 0 so the
+        // outer loop waits for the poll/signal instead of hot-looping through a large throttled backlog.
+        return toSendNow.Count;
     }
 
     // Sends one row via IEmailService in a dedicated scope, with a per-attempt timeout. Returns true on success;

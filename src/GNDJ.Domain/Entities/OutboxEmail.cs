@@ -29,6 +29,12 @@ public class OutboxEmail
     // a row up (a lease) so a crashed mid-send doesn't double-send and a failed send is retried after backoff.
     public DateTime NextAttemptAt { get; set; }
     public DateTime? SentAt { get; set; }         // when it was successfully sent (null until Sent)
+
+    // The SMTP server this row was (or will be) sent through, stamped by the sender when it resolves the route.
+    // Lets the rate-limiter measure a provider's recent send count PER server from the durable table (so the
+    // cap survives restarts) and lets the admin outbox view show which provider carried each mail. Nullable:
+    // legacy rows and rows never yet attempted have no server. No FK — a deleted server just leaves a dangling id.
+    public Guid? SmtpServerId { get; set; }
 }
 
 public enum OutboxEmailStatus

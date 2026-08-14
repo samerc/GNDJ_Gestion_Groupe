@@ -29,9 +29,11 @@ public class EmailService : IEmailService
     }
 
     // Resolved, connection-ready template — no EF entities, safe to cache/share across scopes.
+    // ServerId + MaxPerHour let the outbox sender rate-limit per provider without re-querying.
     private sealed record ResolvedTemplate(
         string Subject, string BodyHtml,
-        string Host, int Port, string? Username, string? Password, bool UseSsl, string FromEmail, string? FromName);
+        string Host, int Port, string? Username, string? Password, bool UseSsl, string FromEmail, string? FromName,
+        Guid ServerId, int? MaxPerHour);
 
     private static readonly TimeSpan TemplateTtl = TimeSpan.FromSeconds(60); // template/SMTP change rarely
     private static readonly TimeSpan OverrideTtl = TimeSpan.FromSeconds(15); // safety toggle — refresh quickly
@@ -105,9 +107,26 @@ public class EmailService : IEmailService
             throw new InvalidOperationException("No active SMTP server configured.");
 
         var resolved = new ResolvedTemplate(template.Subject, template.BodyHtml,
-            smtp.Host, smtp.Port, smtp.Username, smtp.Password, smtp.UseSsl, smtp.FromEmail, smtp.FromName);
+            smtp.Host, smtp.Port, smtp.Username, smtp.Password, smtp.UseSsl, smtp.FromEmail, smtp.FromName,
+            smtp.Id, smtp.MaxPerHour);
         _cache.Set($"emailtpl:{templateCode}", resolved, TemplateTtl);
         return resolved;
+    }
+
+    // Which server + per-hour cap a template routes to, without sending (reuses the cached resolution). Returns
+    // null if the template/server can't be resolved so the sender treats the row as un-throttled and lets the
+    // real send surface the error.
+    public async Task<EmailRoute?> ResolveRouteAsync(string templateCode, CancellationToken ct = default)
+    {
+        try
+        {
+            var r = await ResolveTemplateAsync(templateCode, ct);
+            return new EmailRoute(r.ServerId, r.MaxPerHour);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
     }
 
     // The override-recipient setting, cached briefly. Empty string = no override (cached as "" so the miss

@@ -82,8 +82,9 @@ const MODULE_OPTIONS = [
 interface SmtpForm {
   name: string; host: string; port: number; username: string; password: string
   fromEmail: string; fromName: string; useSsl: boolean; isActive: boolean
+  maxPerHour: string   // kept as string in the form ('' = unlimited); parsed to number|null on save
 }
-const defaultSmtpForm: SmtpForm = { name: '', host: '', port: 587, username: '', password: '', fromEmail: '', fromName: '', useSsl: true, isActive: true }
+const defaultSmtpForm: SmtpForm = { name: '', host: '', port: 587, username: '', password: '', fromEmail: '', fromName: '', useSsl: true, isActive: true, maxPerHour: '' }
 
 // -- Template form --
 interface TemplateForm {
@@ -142,6 +143,7 @@ function SmtpTab() {
       username: server.username, password: '',
       fromEmail: server.fromEmail, fromName: server.fromName,
       useSsl: server.useSsl, isActive: server.isActive,
+      maxPerHour: server.maxPerHour != null ? String(server.maxPerHour) : '',
     })
     setError('')
     setFormOpen(true)
@@ -156,17 +158,24 @@ function SmtpTab() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    // Parse the optional rate cap: blank field = null (unlimited).
+    const maxPerHour = form.maxPerHour.trim() === '' ? null : parseInt(form.maxPerHour, 10)
     try {
       if (editing) {
         await updateMutation.mutateAsync({
           id: editing.id, name: form.name, host: form.host, port: form.port,
           username: form.username, password: form.password || undefined,
           fromEmail: form.fromEmail, fromName: form.fromName,
-          useSsl: form.useSsl, isActive: form.isActive,
+          useSsl: form.useSsl, isActive: form.isActive, maxPerHour,
         })
         toast.success('Serveur SMTP modifié')
       } else {
-        await createMutation.mutateAsync(form)
+        await createMutation.mutateAsync({
+          name: form.name, host: form.host, port: form.port,
+          username: form.username, password: form.password,
+          fromEmail: form.fromEmail, fromName: form.fromName,
+          useSsl: form.useSsl, isActive: form.isActive, maxPerHour,
+        })
         toast.success('Serveur SMTP créé')
       }
       setFormOpen(false)
@@ -217,6 +226,7 @@ function SmtpTab() {
                 <TableHead>Hote</TableHead>
                 <TableHead>Port</TableHead>
                 <TableHead>Email expediteur</TableHead>
+                <TableHead>Limite/h</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="w-32" />
               </TableRow>
@@ -228,6 +238,7 @@ function SmtpTab() {
                   <TableCell>{s.host}</TableCell>
                   <TableCell>{s.port}</TableCell>
                   <TableCell>{s.fromEmail}</TableCell>
+                  <TableCell>{s.maxPerHour != null ? `${s.maxPerHour}/h` : <span className="text-muted-foreground">Illimité</span>}</TableCell>
                   <TableCell>{s.isActive ? <Badge className="bg-green-600">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -284,6 +295,15 @@ function SmtpTab() {
                 <RequiredLabel required>Nom expediteur</RequiredLabel>
                 <Input value={form.fromName} onChange={(e) => setForm(f => ({ ...f, fromName: e.target.value }))} required />
               </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Max emails / heure</label>
+              <Input type="number" min={1} value={form.maxPerHour} onChange={(e) => setForm(f => ({ ...f, maxPerHour: e.target.value }))} placeholder="Illimité" />
+              <p className="text-xs text-muted-foreground">
+                Laissez vide pour ne pas limiter. Renseignez le plafond horaire du fournisseur pour lisser les
+                gros envois (ex. SendPulse gratuit&nbsp;: 50/h → mettez&nbsp;45). Les emails en trop sont
+                automatiquement échelonnés dans le temps, sans échec.
+              </p>
             </div>
             <div className="flex gap-4">
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.useSsl} onChange={(e) => setForm(f => ({ ...f, useSsl: e.target.checked }))} />SSL/TLS</label>

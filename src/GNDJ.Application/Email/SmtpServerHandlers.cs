@@ -10,8 +10,8 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Email;
 
 // CRUD + connectivity test for the SMTP servers that templates send through.
-// DTOs — Password is never returned
-public record SmtpServerDto(Guid Id, string Name, string Host, int Port, string Username, string FromEmail, string FromName, bool UseSsl, bool IsActive, DateTime CreatedAt);
+// DTOs — Password is never returned. MaxPerHour = optional send-rate cap (null = unlimited).
+public record SmtpServerDto(Guid Id, string Name, string Host, int Port, string Username, string FromEmail, string FromName, bool UseSsl, bool IsActive, int? MaxPerHour, DateTime CreatedAt);
 
 // GetAll
 public record GetSmtpServersQuery() : IRequest<List<SmtpServerDto>>;
@@ -22,13 +22,13 @@ public class GetSmtpServersQueryHandler(IApplicationDbContext context) : IReques
     {
         return await context.SmtpServers
             .OrderBy(s => s.Name)
-            .Select(s => new SmtpServerDto(s.Id, s.Name, s.Host, s.Port, s.Username, s.FromEmail, s.FromName, s.UseSsl, s.IsActive, s.CreatedAt))
+            .Select(s => new SmtpServerDto(s.Id, s.Name, s.Host, s.Port, s.Username, s.FromEmail, s.FromName, s.UseSsl, s.IsActive, s.MaxPerHour, s.CreatedAt))
             .ToListAsync(ct);
     }
 }
 
 // Create
-public record CreateSmtpServerCommand(string Name, string Host, int Port, string Username, string Password, string FromEmail, string FromName, bool UseSsl, bool IsActive) : IRequest<Result<Guid>>;
+public record CreateSmtpServerCommand(string Name, string Host, int Port, string Username, string Password, string FromEmail, string FromName, bool UseSsl, bool IsActive, int? MaxPerHour) : IRequest<Result<Guid>>;
 
 public class CreateSmtpServerCommandValidator : AbstractValidator<CreateSmtpServerCommand>
 {
@@ -41,6 +41,8 @@ public class CreateSmtpServerCommandValidator : AbstractValidator<CreateSmtpServ
         RuleFor(x => x.Password).MaximumLength(500);
         RuleFor(x => x.FromEmail).NotEmpty().EmailAddress().WithMessage("L'adresse email d'expédition est invalide.").MaximumLength(254);
         RuleFor(x => x.FromName).MaximumLength(100);
+        // Optional per-hour send cap: when provided it must be a sane positive rate. Empty = unlimited.
+        RuleFor(x => x.MaxPerHour!.Value).InclusiveBetween(1, 100000).WithMessage("La limite horaire doit être entre 1 et 100000.").When(x => x.MaxPerHour.HasValue);
     }
 }
 
@@ -58,7 +60,8 @@ public class CreateSmtpServerCommandHandler(IApplicationDbContext context, IAudi
             FromEmail = request.FromEmail,
             FromName = request.FromName,
             UseSsl = request.UseSsl,
-            IsActive = request.IsActive
+            IsActive = request.IsActive,
+            MaxPerHour = request.MaxPerHour
         };
 
         context.SmtpServers.Add(entity);
@@ -70,7 +73,7 @@ public class CreateSmtpServerCommandHandler(IApplicationDbContext context, IAudi
 }
 
 // Update — Password is optional: when blank/null the stored password is kept (UI never re-shows it).
-public record UpdateSmtpServerCommand(Guid Id, string Name, string Host, int Port, string Username, string? Password, string FromEmail, string FromName, bool UseSsl, bool IsActive) : IRequest<Result<bool>>;
+public record UpdateSmtpServerCommand(Guid Id, string Name, string Host, int Port, string Username, string? Password, string FromEmail, string FromName, bool UseSsl, bool IsActive, int? MaxPerHour) : IRequest<Result<bool>>;
 
 public class UpdateSmtpServerCommandValidator : AbstractValidator<UpdateSmtpServerCommand>
 {
@@ -83,6 +86,7 @@ public class UpdateSmtpServerCommandValidator : AbstractValidator<UpdateSmtpServ
         RuleFor(x => x.Password).MaximumLength(500);
         RuleFor(x => x.FromEmail).NotEmpty().EmailAddress().WithMessage("L'adresse email d'expédition est invalide.").MaximumLength(254);
         RuleFor(x => x.FromName).MaximumLength(100);
+        RuleFor(x => x.MaxPerHour!.Value).InclusiveBetween(1, 100000).WithMessage("La limite horaire doit être entre 1 et 100000.").When(x => x.MaxPerHour.HasValue);
     }
 }
 
@@ -106,6 +110,7 @@ public class UpdateSmtpServerCommandHandler(IApplicationDbContext context, IAudi
         entity.FromName = request.FromName;
         entity.UseSsl = request.UseSsl;
         entity.IsActive = request.IsActive;
+        entity.MaxPerHour = request.MaxPerHour;
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Update", "SmtpServer", entity.Id, oldValues: oldValues, newValues: new { entity.Name, entity.Host, entity.IsActive }, cancellationToken: ct);
