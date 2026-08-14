@@ -456,6 +456,20 @@ app.UseSerilogRequestLogging(options =>
         diagnosticContext.Set("RemoteIP", httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
     };
     options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.000}ms";
+    // ExceptionHandlingMiddleware sits OUTSIDE this middleware, so an exception that it translates into a clean
+    // 4xx still propagates through here first — Serilog would otherwise log it as a 500 with a full stack trace
+    // and persist it to application_logs (the DB sink is Warning+), flooding the "Journal des erreurs" page with
+    // non-errors (every form-validation failure, permission denial, duplicate-key, or PDF layout issue) and
+    // burying genuine faults. Downgrade the exception types that are deliberately mapped to 4xx to Information
+    // (below the DB threshold); real unhandled faults and 5xx responses stay Error.
+    options.GetLevel = (httpContext, _, ex) =>
+    {
+        if (ex is ValidationException or UnauthorizedAccessException) return LogEventLevel.Information;
+        if (ex is DbUpdateException { InnerException: Npgsql.PostgresException }) return LogEventLevel.Information;
+        if (ex is not null && ex.GetType().FullName?.StartsWith("QuestPDF", StringComparison.Ordinal) == true) return LogEventLevel.Information;
+        if (ex is not null || httpContext.Response.StatusCode >= 500) return LogEventLevel.Error;
+        return LogEventLevel.Information;
+    };
 });
 
 app.UseOutputCache();
