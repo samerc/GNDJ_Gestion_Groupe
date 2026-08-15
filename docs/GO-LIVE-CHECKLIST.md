@@ -32,8 +32,9 @@ Everything below is built on `main` but **prod is still on an older build** — 
 | # | Task | Owner | Status |
 |---|------|-------|--------|
 | 1.1 | Outbox per-provider send-rate throttle (so a big blast can't trip a free-tier limit) | Me | `[x]` |
-| 1.2 | **DNS: add Mailgun + SendPulse** to `gndj.org` (SPF include + DKIM), verify each provider's domain. (SMTP2GO already done.) SPF = one TXT, both includes, watch the 10-lookup limit | You | `[ ]` |
-| 1.3 | Add the SMTP server rows in-app (Mailgun, SendPulse) + bind templates: demandes→SMTP2GO; `account_activation` / `member_password_reset` / `document_reminder` / resets → Mailgun (or SendPulse). Set **SendPulse `Max emails / heure` = 45** | Me / You | `[ ]` |
+| 1.2 | **DNS: add Mailgun + SendPulse** to `gndj.org` (SPF include + DKIM), verify each provider's domain. (SMTP2GO already done; SendPulse done — test passes.) Mailgun DNS/verify **in progress**. SPF = one TXT, both includes, watch the 10-lookup limit | You | `[~]` |
+| 1.3a | Add SMTP server rows + test: **SMTP2GO ✓ added & tested**, **SendPulse ✓ added & tested** (set `Max emails / heure` = 45), **Mailgun added — troubleshooting** | You | `[~]` |
+| 1.3b | Bind templates: demandes→SMTP2GO; `account_activation` / `member_password_reset` / `document_reminder` / resets → Mailgun (or SendPulse) | You | `[ ]` |
 | 1.4 | **Pilot send to the Maîtrise only** — confirm real inbox delivery (not spam) before any mass send | You | `[ ]` |
 | 1.5 | **Clear `email.override_recipient`** (currently forces all mail to samer_cheaib@hotmail.com) — ONLY after 1.4 passes | You | `[ ]` |
 | 1.6 | Watch the **File d'emails** page (`/admin/email-outbox`) for Failed rows during the first sends | You | `[ ]` |
