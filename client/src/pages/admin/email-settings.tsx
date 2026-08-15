@@ -127,6 +127,7 @@ function SmtpTab() {
   const [testDialogOpen, setTestDialogOpen] = useState(false)
   const [testServerId, setTestServerId] = useState('')
   const [testEmail, setTestEmail] = useState('')
+  const [testError, setTestError] = useState('')
 
   const openCreate = () => {
     setEditing(null)
@@ -152,6 +153,7 @@ function SmtpTab() {
   const openTest = (serverId: string) => {
     setTestServerId(serverId)
     setTestEmail('')
+    setTestError('')
     setTestDialogOpen(true)
   }
 
@@ -198,12 +200,16 @@ function SmtpTab() {
 
   const handleTest = async (e: React.FormEvent) => {
     e.preventDefault()
+    setTestError('')
     try {
       await testMutation.mutateAsync({ smtpServerId: testServerId, testEmail })
       toast.success('Email de test envoyé')
       setTestDialogOpen(false)
     } catch (err) {
-      toast.error(parseApiError(err))
+      // Keep the FULL SMTP error visible in the dialog (a transient toast is easy to miss while debugging).
+      const msg = parseApiError(err)
+      setTestError(msg)
+      toast.error(msg)
     }
   }
 
@@ -324,6 +330,12 @@ function SmtpTab() {
         <DialogContent>
           <DialogHeader><DialogTitle>Tester le serveur SMTP</DialogTitle></DialogHeader>
           <form onSubmit={handleTest} className="space-y-4">
+            {testError && (
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive break-words">
+                <p className="font-medium">Échec de l'envoi</p>
+                <p className="mt-1 whitespace-pre-wrap">{testError}</p>
+              </div>
+            )}
             <div className="space-y-2">
               <RequiredLabel required>Adresse email de test</RequiredLabel>
               <Input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} required placeholder="test@example.com" />
