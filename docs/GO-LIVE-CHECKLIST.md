@@ -49,7 +49,7 @@ Everything below is built on `main` but **prod is still on an older build** — 
 | 2.2 | Configurable password complexity (`security.password_*` settings + live checklist) | Me | `[x]` |
 | 2.3 | CG manual email-verify (`/admin/demande-accounts`) — safety net when a verification email fails | Me | `[x]` |
 | 2.4 | `require_email_verification` = ON for demandes (depends on Phase 1 working) | You | `[ ]` |
-| 2.5 | Run `deploy/golive/force-password-reset.sql` on prod when activating accounts (flags ~2205 member logins; excludes super-admins) | You | `[ ]` |
+| 2.5 | Run `deploy/golive/force-password-reset.sql` on prod when activating accounts (flags ~2205 member logins; excludes super-admins) — **DONE: ran on prod, 2205 flagged; now 2204 after one member set their own password (flag clears on set → working). NB: re-run only if the prod DB is ever re-synced from a dump.** | You | `[x]` |
 | 2.6 | Login identity stays synthetic `prenom.nom@scouts.gndj` (decided — do not switch to real-email login) | — | `[x]` |
 
 ---
