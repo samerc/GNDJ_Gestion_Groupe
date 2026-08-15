@@ -1,5 +1,37 @@
 [
   {
+    "version": "3.1.0",
+    "date": "2026-08-15",
+    "changes": [
+      "Email settings: show the full SMTP error in the test dialog (persistent)",
+      "docs(go-live): SMTP2GO + SendPulse added & tested; Mailgun in progress",
+      "docs: add GO-LIVE-CHECKLIST.md (living launch runbook with owners + status)",
+      "Relance documents: one-click per-unit worklist (+ individual send)",
+      "Documents: \"Relance documents\" — CG reminder emails for incomplete dossiers",
+      "docs: email provider plan + outbox send-rate throttle (2026-08-15)",
+      "Emails: per-provider send-rate throttle on the outbox (SendPulse free-tier safe)",
+      "Access: a group manager (CG/ACG) can reach ANY member, including orphans",
+      "Documents: CU review pages through multi-file docs + rename Approuver->Accepter",
+      "Documents: multi-page / multi-file support (one reviewable document)",
+      "Demande: enforce terms acceptance server-side on submit",
+      "Emails: admin outbox delivery view (file d'attente / échecs)",
+      "Docs: log CU live audit + logging fix in CLAUDE.md",
+      "Logging: don't log handled 4xx as 500 errors (Serilog GetLevel)",
+      "Passage: moving up the parcours offers only the base youth role",
+      "Fix: scroll to top on navigation (public site landed scrolled down)",
+      "Docs: CU guide (guide-chef-unite.md) + gitignore for its PII screenshots/PDF",
+      "Docs: log the \"Message aux chefs\" communications tool in CLAUDE.md",
+      "Communications: send an email template to the leaders (chefs)",
+      "Docs: log the go-live prep batch (manual verify, forced password, policy) in CLAUDE.md",
+      "Forced first-login password set + configurable password policy",
+      "Demande: CG manual email-verify + \"Comptes d'inscription\" page",
+      "Docs: mark the email outbox DONE in CLAUDE.md crash-consistency section",
+      "Durable email outbox — replace in-memory queue so mail survives restart",
+      "Docs: log the crash-consistency audit + photo-upload fix in CLAUDE.md",
+      "Photo upload: write+commit new file before deleting the old one"
+    ]
+  },
+  {
     "version": "3.0.0",
     "date": "2026-07-29",
     "changes": [
