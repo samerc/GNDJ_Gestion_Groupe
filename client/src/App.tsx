@@ -35,6 +35,8 @@ const InscriptionLandingPage = lazy(() => import('@/pages/inscription/index'))
 const ApplicantLoginPage = lazy(() => import('@/pages/inscription/login'))
 const ApplicantRegisterPage = lazy(() => import('@/pages/inscription/register'))
 const ApplicantVerifyPage = lazy(() => import('@/pages/inscription/verify'))
+const ApplicantForgotPasswordPage = lazy(() => import('@/pages/inscription/forgot-password'))
+const ApplicantResetPasswordPage = lazy(() => import('@/pages/inscription/reset-password'))
 const ApplicantConditionsPage = lazy(() => import('@/pages/inscription/conditions'))
 const ApplicantPortalPage = lazy(() => import('@/pages/inscription/portail'))
 const DemandeWizardPage = lazy(() => import('@/pages/inscription/demande-wizard'))
@@ -123,6 +125,9 @@ export default function App() {
           <Route element={<ApplicantOpenRoute />}>
             <Route path="/inscription/login" element={<ApplicantLoginPage />} />
             <Route path="/inscription/verify" element={<ApplicantVerifyPage />} />
+            {/* Password reset — reachable whenever the portal is open (like login), even during the review phase. */}
+            <Route path="/inscription/forgot-password" element={<ApplicantForgotPasswordPage />} />
+            <Route path="/inscription/reset-password" element={<ApplicantResetPasswordPage />} />
           </Route>
           {/* Register also needs the submission window open (blocked during the CG review phase). */}
           <Route element={<ApplicantOpenRoute submissionsRequired />}>

@@ -197,6 +197,21 @@ export function useAcceptTerms() {
   })
 }
 
+// POST /applicant/forgot-password → email a reset link if the address has an account (generic success, no enumeration).
+export function useApplicantForgotPassword() {
+  return useMutation({
+    mutationFn: (data: { email: string; website?: string }) => applicantApi.post('/applicant/forgot-password', data),
+  })
+}
+
+// POST /applicant/reset-password → set a new password with the emailed token.
+export function useApplicantResetPassword() {
+  return useMutation({
+    mutationFn: (data: { email: string; token: string; newPassword: string; website?: string }) =>
+      applicantApi.post('/applicant/reset-password', data),
+  })
+}
+
 // POST /applicant/verify-email → confirm the account via emailed token.
 export function useVerifyEmail() {
   return useMutation({

@@ -72,6 +72,28 @@ public class ApplicantController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>Starts an applicant password reset: emails a reset link if the address has an account. Anonymous, rate-limited.</summary>
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting("forms")]
+    public async Task<IActionResult> ForgotPassword([FromBody] RequestApplicantPasswordResetCommand command)
+    {
+        await Mediator.Send(command);
+        // Always generic (anti-enumeration) — never reveal whether the email is registered.
+        return Ok(new { message = "Si un compte existe pour cette adresse, un lien de réinitialisation a été envoyé." });
+    }
+
+    /// <summary>Completes an applicant password reset using the emailed token. Anonymous, rate-limited.</summary>
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting("forms")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetApplicantPasswordCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { message = "Mot de passe réinitialisé." });
+    }
+
     /// <summary>Resends the email-verification link to the current applicant. Rate-limited.</summary>
     [Authorize]
     [HttpPost("resend-verification")]

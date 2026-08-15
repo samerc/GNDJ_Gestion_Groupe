@@ -351,6 +351,85 @@ public class RefreshApplicantTokenCommandHandler(IApplicationDbContext context, 
 }
 
 // ============================================================
+// Password reset (anonymous, public portal)
+// ============================================================
+// The applicant's email IS their real inbox (they registered with it), so the reset link is emailed
+// straight to it — no contact resolution needed (unlike the member reset, which fans out to a member's
+// file). ALWAYS returns generic success so a caller can't discover which emails are registered
+// (anti-enumeration matters on a public portal — the member tool deliberately does the opposite).
+public record RequestApplicantPasswordResetCommand(string Email) : IRequest<Result<bool>>;
+
+public class RequestApplicantPasswordResetCommandValidator : AbstractValidator<RequestApplicantPasswordResetCommand>
+{
+    public RequestApplicantPasswordResetCommandValidator()
+        => RuleFor(x => x.Email).NotEmpty().WithMessage("L'adresse email est requise.")
+            .EmailAddress().WithMessage("Adresse email invalide.").MaximumLength(254);
+}
+
+public class RequestApplicantPasswordResetCommandHandler(IApplicationDbContext context, IEmailQueue emailQueue)
+    : IRequestHandler<RequestApplicantPasswordResetCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(RequestApplicantPasswordResetCommand request, CancellationToken ct)
+    {
+        var email = request.Email.Trim().ToLowerInvariant();
+        var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Email == email && a.IsActive, ct);
+        // Only mint a token + send when the address actually has an account; return generic success either way.
+        if (account is not null)
+        {
+            var token = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
+                .Replace("+", "").Replace("/", "").Replace("=", "");
+            account.PasswordResetToken = token;
+            account.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1);
+            await context.SaveChangesAsync(ct);
+
+            var baseUrl = (await ApplicantHelpers.Setting(context, "app.base_url", ct) ?? "http://localhost:5173").TrimEnd('/');
+            var link = $"{baseUrl}/inscription/reset-password?token={token}&email={Uri.EscapeDataString(email)}";
+            await emailQueue.EnqueueAsync(new EmailJob("demande_password_reset", account.Email, new Dictionary<string, string>
+            {
+                ["contactName"] = account.ContactName ?? "",
+                ["resetLink"] = link,
+                ["expiryHours"] = "1",
+            }), ct);
+        }
+        return Result<bool>.Success(true);
+    }
+}
+
+public record ResetApplicantPasswordCommand(string Email, string Token, string NewPassword) : IRequest<Result<bool>>;
+
+public class ResetApplicantPasswordCommandValidator : AbstractValidator<ResetApplicantPasswordCommand>
+{
+    public ResetApplicantPasswordCommandValidator(IPasswordPolicy policy)
+    {
+        RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(254);
+        RuleFor(x => x.Token).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.NewPassword).PasswordPolicy(policy);
+    }
+}
+
+public class ResetApplicantPasswordCommandHandler(IApplicationDbContext context, IPasswordHasher hasher)
+    : IRequestHandler<ResetApplicantPasswordCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(ResetApplicantPasswordCommand request, CancellationToken ct)
+    {
+        var email = request.Email.Trim().ToLowerInvariant();
+        var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Email == email && a.IsActive, ct);
+        // Same generic message for unknown-email / wrong or expired token — don't reveal which check failed.
+        if (account is null || account.PasswordResetToken != request.Token || account.PasswordResetTokenExpiry < DateTime.UtcNow)
+            return Result<bool>.Failure("Lien de réinitialisation invalide ou expiré.");
+
+        account.PasswordHash = await hasher.HashAsync(request.NewPassword);
+        account.PasswordResetToken = null;
+        account.PasswordResetTokenExpiry = null;
+        // Changing the password invalidates any existing session (refresh token).
+        account.RefreshToken = null;
+        account.RefreshTokenExpiry = null;
+        await context.SaveChangesAsync(ct);
+        return Result<bool>.Success(true);
+    }
+}
+
+// ============================================================
 // Config (anonymous)
 // ============================================================
 public record GetApplicantConfigQuery() : IRequest<Result<ApplicantConfigDto>>;

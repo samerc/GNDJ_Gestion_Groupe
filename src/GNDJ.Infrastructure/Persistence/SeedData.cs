@@ -592,6 +592,14 @@ public static class SeedData
             },
             new EmailTemplate
             {
+                Name = "Réinitialisation du mot de passe (inscription)", Code = "demande_password_reset", Module = "demande",
+                Subject = "Réinitialisation de votre mot de passe — GNDJ Scout",
+                BodyHtml = "<h2>Bonjour {{contactName}},</h2><p>Vous avez demandé la réinitialisation du mot de passe de votre compte d'inscription au groupe scout GNDJ.</p><p>Cliquez sur le lien ci-dessous pour choisir un nouveau mot de passe :</p><p><a href=\"{{resetLink}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Réinitialiser mon mot de passe</a></p><p>Ce lien expire dans {{expiryHours}} heure(s). Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email.</p><p>— L'équipe GNDJ</p>",
+                Variables = "[{\"key\":\"contactName\",\"label\":\"Nom du contact\"},{\"key\":\"resetLink\",\"label\":\"Lien de réinitialisation\"},{\"key\":\"expiryHours\",\"label\":\"Validité (heures)\"}]",
+                IsActive = true
+            },
+            new EmailTemplate
+            {
                 Name = "Demande acceptée", Code = "demande_approved", Module = "demande",
                 Subject = "Votre demande d'inscription a été acceptée — GNDJ Scout",
                 BodyHtml = "<h2>Bonjour {{contactName}},</h2><p>Nous avons le plaisir de vous informer que la demande d'inscription de <strong>{{childName}}</strong> a été acceptée.</p><p><strong>Unité :</strong> {{unitName}}</p><p>Un compte a été créé pour le nouveau membre :</p><ul><li><strong>Identifiant :</strong> {{username}}</li><li><strong>Mot de passe temporaire :</strong> {{tempPassword}}</li></ul><p>Connectez-vous sur <a href=\"{{loginUrl}}\">{{loginUrl}}</a> et changez le mot de passe à la première connexion.</p><p>Bienvenue dans le mouvement !</p><p>— L'équipe GNDJ</p>",
