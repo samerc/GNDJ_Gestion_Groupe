@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Mail;
 using FluentValidation;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Domain.Entities;
@@ -179,7 +180,9 @@ public class TestSmtpCommandHandler(IApplicationDbContext context) : IRequestHan
         }
         catch (Exception ex)
         {
-            return Result<bool>.Failure($"Erreur d'envoi : {ex.Message}");
+            // Flatten the InnerException chain — SmtpException.Message is just "Failure sending mail.";
+            // the real cause (auth rejected / TLS / "550 domain not allowed" / connection) is inside.
+            return Result<bool>.Failure($"Erreur d'envoi : {ex.Flatten()}");
         }
     }
 }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Domain.Entities;
 using GNDJ.Infrastructure.Services;
@@ -159,8 +160,9 @@ public class OutboxSenderBackgroundService : BackgroundService
             var results = await Task.WhenAll(toSendNow.Select(async row =>
             {
                 await gate.WaitAsync(ct);
+                // Flatten the InnerException chain — the real SMTP cause is nested, not in the outer message.
                 try { return (row.Id, ok: await TrySendAsync(row, ct), error: (string?)null); }
-                catch (Exception ex) { return (row.Id, ok: false, error: ex.Message); }
+                catch (Exception ex) { return (row.Id, ok: false, error: ex.Flatten()); }
                 finally { gate.Release(); }
             }));
 
