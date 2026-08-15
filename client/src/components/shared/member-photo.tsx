@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { useUploadPhoto } from '@/services/member-service'
+import { useUploadPhoto, useDeletePhoto } from '@/services/member-service'
 import { parseApiError } from '@/lib/error-utils'
 import apiClient from '@/lib/api-client'
 import { cn } from '@/lib/utils'
-import { Camera } from 'lucide-react'
+import { Camera, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface MemberPhotoProps {
@@ -29,6 +29,7 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
   const fileInputRef = useRef<HTMLInputElement>(null)
   const elRef = useRef<HTMLElement | null>(null)
   const uploadMutation = useUploadPhoto(memberId)
+  const deleteMutation = useDeletePhoto(memberId)
 
   const initials = name
     .split(' ')
@@ -100,6 +101,20 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
     }
   }
 
+  const handlePhotoDelete = async () => {
+    if (!window.confirm('Supprimer la photo de ce membre ?')) return
+    setLoading(true)
+    try {
+      await deleteMutation.mutateAsync()
+      setSrc(null)
+      toast.success('Photo supprimée')
+    } catch (err) {
+      toast.error(parseApiError(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const photoElement = src ? (
     <img
       ref={el => { elRef.current = el }}
@@ -137,6 +152,20 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
       >
         <Camera style={{ width: size * 0.2, height: size * 0.2, minWidth: 12, minHeight: 12 }} />
       </button>
+      {/* Delete affordance — only when there's actually a photo to remove. Sits top-right, opposite the
+          camera button, so it never overlaps it. */}
+      {src && (
+        <button
+          type="button"
+          onClick={handlePhotoDelete}
+          disabled={loading}
+          className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full bg-destructive text-white shadow-sm hover:bg-destructive/90 transition-colors"
+          style={{ width: size * 0.35, height: size * 0.35, minWidth: 20, minHeight: 20 }}
+          title="Supprimer la photo"
+        >
+          <X style={{ width: size * 0.2, height: size * 0.2, minWidth: 12, minHeight: 12 }} />
+        </button>
+      )}
       <input
         ref={fileInputRef}
         type="file"

@@ -400,6 +400,50 @@ public class MembersController : BaseApiController
     }
 
     /// <summary>
+    /// Removes a member's photo: clears the DB pointer then deletes the file. Requires members.edit; access is
+    /// super-admin, the member themselves, or a leader of one of the member's ACTIVE units (same rule as upload).
+    /// Idempotent — returns 200 even if the member already has no photo.
+    /// </summary>
+    /// <response code="404">No member with this id.</response>
+    [HttpDelete("{memberId:guid}/photo")]
+    [HasPermission(Permissions.MembersEdit)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> DeletePhoto(Guid memberId, [FromServices] ICurrentUserService currentUser)
+    {
+        // Same authorization as UploadPhoto: super admin, the member themselves, or a leader of the member's unit.
+        if (!currentUser.IsSuperAdmin && currentUser.MemberId != memberId)
+        {
+            var authorizedUnitIds = currentUser.AuthorizedUnitIds;
+            var hasAccess = await _context.MemberAssignments.AnyAsync(a =>
+                a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId));
+            if (!hasAccess)
+                return BadRequest(new { error = "Accès non autorisé à ce membre." });
+        }
+
+        var member = await _context.Members.FindAsync(memberId);
+        if (member is null)
+            return NotFound(new { error = "Membre introuvable." });
+
+        var previousPhotoPath = member.PhotoPath;
+
+        // 1) Clear the DB pointer first and commit — so a crash after this leaves no broken reference (the
+        //    member simply falls back to initials); worst case is a harmless orphan file, cleaned in step 2.
+        member.PhotoPath = null;
+        await _context.SaveChangesAsync();
+
+        // 2) Delete the file now that the DB no longer points at it (path-traversal guarded, best-effort).
+        if (!string.IsNullOrEmpty(previousPhotoPath))
+        {
+            var uploadsRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "uploads"));
+            var oldPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), previousPhotoPath));
+            if (oldPath.StartsWith(uploadsRoot) && System.IO.File.Exists(oldPath))
+                System.IO.File.Delete(oldPath);
+        }
+
+        return Ok(new { photoPath = (string?)null });
+    }
+
+    /// <summary>
     /// Serves a member's photo file. Auth + unit-scoped: super admin, the member themselves, or a leader of
     /// the member's active unit (same rule as viewing the member). An unauthorized caller gets 404 (not 403)
     /// so the member's existence isn't leaked and the UI falls back to initials. Path-traversal guarded via

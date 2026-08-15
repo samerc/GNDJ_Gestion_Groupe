@@ -363,14 +363,17 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
           </Tip>
           {reportTemplates && reportTemplates.length > 0 && (
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Tip content="Rapports personnalisés">
+              {/* Tip must wrap the trigger from the OUTSIDE: DropdownMenuTrigger asChild uses a Radix Slot
+                  that clones its onClick/ref onto its single child. If that child is <Tip>, those props are
+                  swallowed (Tip doesn't forward them) and the menu never opens. So nest Tip > Trigger > Button. */}
+              <Tip content="Rapports personnalisés">
+                <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="shrink-0">
                     <FileText className="mr-1 h-4 w-4" />
                     Rapports
                   </Button>
-                </Tip>
-              </DropdownMenuTrigger>
+                </DropdownMenuTrigger>
+              </Tip>
               <DropdownMenuContent align="end">
                 {reportTemplates.map(t => (
                   <DropdownMenuItem

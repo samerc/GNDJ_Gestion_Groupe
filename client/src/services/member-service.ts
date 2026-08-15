@@ -334,3 +334,15 @@ export function useUploadPhoto(memberId: string) {
     },
   })
 }
+
+// Removes the member's photo; invalidates detail + list (both show the avatar/thumbnail).
+export function useDeletePhoto(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiClient.delete(`/members/${memberId}/photo`).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members', memberId] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+    },
+  })
+}
