@@ -17,8 +17,8 @@ Everything below is built on `main` but **prod is still on an older build** — 
 | # | Task | Owner | Status |
 |---|------|-------|--------|
 | 0.1 | Final `code-review` + `wrap-up` error check on `main` | Me | `[ ]` |
-| 0.2 | Bump version (`deploy/bump.ps1 -Type minor -Push`) on dev | Me | `[ ]` |
-| 0.3 | Deploy to prod: `update.ps1 -Pull` (elevated shell on prod). Migrations auto-apply on startup: `AddEmailThrottle`, `AddMemberDocumentPages`, `AddEmailOutbox` + any others | You | `[ ]` |
+| 0.2 | Bump version on dev → **v3.1.0** (tagged + pushed) | Me | `[x]` |
+| 0.3 | Deploy to prod: `update.ps1 -Pull` (elevated shell on prod). Migrations auto-apply on startup: `AddEmailThrottle`, `AddMemberDocumentPages`, `AddEmailOutbox` + any others. **Do NOT run `reset-to-import.ps1`** (wipes the SMTP servers/settings added on prod) | You | `[~]` |
 | 0.4 | Smoke-test prod: `/health` 200, login, a member detail, one report | You + Me | `[ ]` |
 
 ---
