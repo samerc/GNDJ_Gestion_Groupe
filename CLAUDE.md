@@ -2396,6 +2396,27 @@ durable outbox → sent/no-email report.
       "Relancer". Both modes hit the same `POST /documents/send-reminders` (unitId vs memberIds). Verified live:
       summary ranks units by incomplete count; one-click Feu Jamhour → 6 members → 6 distinct outbox rows.
 
+### Members unit-filter dropdown — scroll fix + Maîtrises + hide-empty (2026-08-15)
+Four fixes to the members-page "Toutes les unités" filter (from a live report):
+- [x] **Long dropdowns now scroll (shared primitive bug).** `ui/select.tsx` `SelectContent` had
+      `max-h-[--radix-select-content-available-height]` — in **Tailwind v4** a bracket CSS-var needs `var()`, so
+      the height cap emitted invalid CSS and never applied → long lists (units, schools) overflowed past the
+      viewport with no scroll. Fixed to `max-h-[var(--radix-...available-height)]` (+ the `origin-[var(...)]`).
+      Fixes EVERY long Select in the app.
+- [x] **"Maîtrises" filter option** — shows all leadership-role holders across the caller's units. Backend
+      `GetMembersQuery` gained a `Maitrise` flag (active/alumni-aware, scoped: super-admin/CG all units, CU their
+      own) + `?maitrise=` on `GET /members`. Verified: 69 maîtrise members group-wide.
+- [x] **Hide empty units, per view.** New `GetMemberUnitOptionsQuery(alumni)` + `GET /members/unit-options?alumni=`
+      returns only units that HAVE members in the current view (with a count): under **Actifs** a unit with no
+      active members is hidden; under **Anciens** it appears if it still has former members. Verified live: Actifs
+      18 units (incl. "Compagnie (Non affectés) 1"), Anciens 17 (empty placeholders gone). The dropdown fetches
+      this (re-fetched on the Actifs/Anciens toggle) instead of listing all units; the create-form unit picker
+      still lists all active units. GOTCHA: EF can't translate `GroupBy(...).Count()` over a `Distinct()` subquery
+      → materialize the distinct (member,unit) pairs via `SELECT DISTINCT` then group in memory (bounded set).
+- [x] **Reset stale selection on toggle:** if the chosen unit vanishes from the options after flipping Actifs/
+      Anciens, the filter falls back to "Toutes les unités" (render-phase reset). Export + the export dialog treat
+      `maitrises` as a non-unit (disabled, like `all`/`none`). Build + tsc + eslint + vite clean. DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

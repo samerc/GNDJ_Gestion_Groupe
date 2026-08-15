@@ -46,16 +46,28 @@ public class MembersController : BaseApiController
     /// <param name="alumni">When true, returns former members (identity only; contact withheld).</param>
     /// <param name="sortBy">Optional sort column.</param>
     /// <param name="sortDir">Optional sort direction (asc/desc).</param>
+    /// <param name="maitrise">When true, only members holding a leadership (maîtrise) role.</param>
     [HttpGet]
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search, [FromQuery] Guid? unitId, [FromQuery] Guid? teamId,
         [FromQuery] bool? noUnit, [FromQuery] bool? alumni, [FromQuery] string? sortBy, [FromQuery] string? sortDir,
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] bool? maitrise = null)
     {
-        var result = await Mediator.Send(new GetMembersQuery(search, unitId, teamId, noUnit, alumni, sortBy, sortDir, page, pageSize));
+        var result = await Mediator.Send(new GetMembersQuery(search, unitId, teamId, noUnit, alumni, sortBy, sortDir, page, pageSize, maitrise));
         return Ok(result);
     }
+
+    /// <summary>
+    /// Units that actually have members in the given view (active by default, or former members when
+    /// alumni=true) — drives the members-page unit filter so empty units are hidden. Requires members.view;
+    /// scoped to the caller's units (super-admin / Chef de Groupe see all).
+    /// </summary>
+    /// <param name="alumni">When true, count former members per unit instead of active ones.</param>
+    [HttpGet("unit-options")]
+    [HasPermission(Permissions.MembersView)]
+    public async Task<IActionResult> GetUnitOptions([FromQuery] bool alumni = false)
+        => Ok(await Mediator.Send(new GetMemberUnitOptionsQuery(alumni)));
 
     /// <summary>Gets a member's full profile. Requires members.view; own profile or members in authorized units.</summary>
     /// <response code="404">No accessible member with this id.</response>

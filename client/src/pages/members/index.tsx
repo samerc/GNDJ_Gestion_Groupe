@@ -12,7 +12,7 @@ import { useParams } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useMembers, useMember, useCreateMember, useUpdateMember, useDeleteMember, useResetMemberPassword, useSetPrimaryContactEmail,
+import { useMembers, useMember, useMemberUnitOptions, useCreateMember, useUpdateMember, useDeleteMember, useResetMemberPassword, useSetPrimaryContactEmail,
   useSendAccess,
   useAddPhone, useDeletePhone, useUpdatePhone, useAddEmail, useDeleteEmail, useUpdateEmail,
   useAddAddress, useDeleteAddress, useUpdateAddress,
@@ -771,14 +771,30 @@ export default function MembersPage() {
     setPage(1)
   }
 
-  // unitFilter is a single Select holding three kinds of value: 'all', 'none' (no unit), or a unit id.
-  const unitId = unitFilter === 'all' || unitFilter === 'none' ? undefined : unitFilter
+  // unitFilter is a single Select holding these kinds of value: 'all', 'maitrises' (all leaders), 'none'
+  // (no unit), or a unit id.
+  const isSpecialFilter = unitFilter === 'all' || unitFilter === 'none' || unitFilter === 'maitrises'
+  const unitId = isSpecialFilter ? undefined : unitFilter
   const noUnit = unitFilter === 'none' ? true : undefined
+  const maitrise = unitFilter === 'maitrises' ? true : undefined
 
+  // Units shown in the filter depend on the view: only units that HAVE members in Actifs vs Anciens (so an
+  // empty unit is hidden under Actifs but appears under Anciens if it still has former members). Re-fetched
+  // when the toggle flips. `units` (all active units) is kept for the create form + resolving the selected name.
+  const { data: unitOptions } = useMemberUnitOptions(showAlumni)
   const { data: units } = useUnits({ pageSize: 100 })
+
+  // If the selected unit vanished from the options for the current view (e.g. it's empty under Actifs), fall
+  // back to "Toutes les unités" so the list isn't stuck on a hidden unit. Render-phase reset (same idiom as the
+  // route-member sync above); only fires while a real-but-missing unit is selected, so it can't loop.
+  if (unitOptions && !isSpecialFilter && !unitOptions.some(u => u.id === unitFilter)) {
+    setUnitFilter('all')
+    setPage(1)
+  }
+
   const { data, isLoading } = useMembers({
     search: debouncedSearch || undefined,
-    unitId, noUnit,
+    unitId, noUnit, maitrise,
     alumni: showAlumni || undefined,
     sortBy, sortDir,
     page, pageSize: 50,
@@ -815,9 +831,9 @@ export default function MembersPage() {
           <h1 className="text-xl font-bold">Membres</h1>
           <div className="flex items-center gap-2">
             {/* Span wrapper so the tooltip still fires when the button is disabled (Radix skips disabled triggers). */}
-            <Tip content={!unitFilter || unitFilter === 'all' || unitFilter === 'none' ? 'Sélectionnez une unité pour exporter' : "Exporter l'unité en Excel ou CSV"}>
+            <Tip content={isSpecialFilter ? 'Sélectionnez une unité pour exporter' : "Exporter l'unité en Excel ou CSV"}>
               <span className="inline-flex">
-                <Button variant="outline" size="sm" onClick={() => setExportOpen(true)} disabled={!unitFilter || unitFilter === 'all' || unitFilter === 'none'}>
+                <Button variant="outline" size="sm" onClick={() => setExportOpen(true)} disabled={isSpecialFilter}>
                   <FileSpreadsheet className="mr-1 h-4 w-4" />
                   Exporter
                 </Button>
@@ -842,8 +858,10 @@ export default function MembersPage() {
             <SelectTrigger className="w-52 h-8 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes les unités</SelectItem>
-              {units?.items.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-              {/* Export is enabled only for a concrete unit (not 'all'/'none') — unit-scoped report */}
+              <SelectItem value="maitrises">Maîtrises</SelectItem>
+              {/* Only units that have members in the current view (Actifs / Anciens) — empty units are hidden. */}
+              {unitOptions?.map(u => <SelectItem key={u.id} value={u.id}>{u.name} ({u.count})</SelectItem>)}
+              {/* Export is enabled only for a concrete unit (not 'all'/'maitrises'/'none') — unit-scoped report */}
               <SelectItem value="none">Sans unité</SelectItem>
             </SelectContent>
           </Select>
@@ -1111,7 +1129,7 @@ export default function MembersPage() {
       </Dialog>
 
       {/* Export dialog */}
-      {unitFilter && unitFilter !== 'all' && unitFilter !== 'none' && (
+      {!isSpecialFilter && (
         <ExportDialog
           unitId={unitFilter}
           unitName={units?.items.find(u => u.id === unitFilter)?.name ?? ''}

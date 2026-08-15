@@ -12,7 +12,7 @@ namespace GNDJ.Application.Members.Queries;
 public record GetMembersQuery(
     string? Search, Guid? UnitId, Guid? TeamId, bool? NoUnit, bool? Alumni,
     string? SortBy, string? SortDir,
-    int Page = 1, int PageSize = 50
+    int Page = 1, int PageSize = 50, bool? Maitrise = null
 ) : IRequest<PaginatedList<MemberListDto>>;
 
 public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, PaginatedList<MemberListDto>>
@@ -89,6 +89,15 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
                 // (super-admin) list shows current members only — alumni are reached via the Alumni view.
                 query = query.Where(m => m.Assignments.Any(a => a.EndDate == null));
         }
+
+        // "Maîtrises" filter: only members holding a leadership (is_maitrise) role — matching the current view
+        // (active leaders, or former leaders in the Alumni view). Scoped like the branches above: super-admin and
+        // Chef de Groupe (all units) see every maîtrise; a CU sees the maîtrise of their own units.
+        if (request.Maitrise == true)
+            query = query.Where(m => m.Assignments.Any(a =>
+                a.FunctionalRole.IsMaitrise
+                && (isAlumni ? a.EndDate != null : a.EndDate == null)
+                && (_currentUser.IsSuperAdmin || authorizedUnitIds.Contains(a.UnitId))));
 
         if (request.TeamId.HasValue)
             query = query.Where(m => m.Assignments.Any(a => a.TeamId == request.TeamId.Value && a.EndDate == null));
@@ -180,6 +189,53 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
         }
 
         return result;
+    }
+}
+
+// Units that actually HAVE members in the current view (Actifs vs Anciens), for the members-page unit filter
+// dropdown — so an empty unit (no active members) is hidden under "Actifs" but appears under "Anciens" if it
+// still has former members. Scoped like the member list: super-admin / Chef de Groupe see all units; a CU sees
+// their own; a non-manager gets nothing.
+public record MemberUnitOptionDto(Guid Id, string Name, string Code, int Count);
+public record GetMemberUnitOptionsQuery(bool Alumni) : IRequest<IReadOnlyList<MemberUnitOptionDto>>;
+
+public class GetMemberUnitOptionsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetMemberUnitOptionsQuery, IReadOnlyList<MemberUnitOptionDto>>
+{
+    public async ValueTask<IReadOnlyList<MemberUnitOptionDto>> Handle(GetMemberUnitOptionsQuery request, CancellationToken ct)
+    {
+        // Same manager gate as the list: only members.edit holders (CU/CG/super-admin) may enumerate units;
+        // a read-only youth gets an empty dropdown.
+        if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(Domain.Enums.Permissions.MembersEdit))
+            return [];
+
+        var authorized = currentUser.AuthorizedUnitIds;
+        var assignments = context.MemberAssignments
+            .Where(a => !a.IsDeleted && !a.Member.IsDeleted && !a.Unit.IsDeleted);
+
+        if (request.Alumni)
+            // Alumni-of-a-unit: an ended assignment there AND no active assignment in that same unit.
+            assignments = assignments.Where(a => a.EndDate != null
+                && !a.Member.Assignments.Any(b => b.UnitId == a.UnitId && b.EndDate == null && !b.IsDeleted));
+        else
+            assignments = assignments.Where(a => a.EndDate == null); // active members of the unit
+
+        if (!currentUser.IsSuperAdmin) // CG's authorized set is all units; a CU is limited to their own
+            assignments = assignments.Where(a => authorized.Contains(a.UnitId));
+
+        // EF can't translate a GroupBy(...).Count() over a Distinct() subquery, so do the DISTINCT in SQL
+        // (translatable) and the group+count in memory — a member appears once per unit. The set is the distinct
+        // (member, unit) pairs in scope (bounded, admin endpoint), so materializing it is fine.
+        var pairs = await assignments
+            .Select(a => new { a.MemberId, a.UnitId, a.Unit.Name, a.Unit.Code })
+            .Distinct()
+            .ToListAsync(ct);
+
+        return pairs
+            .GroupBy(a => new { a.UnitId, a.Name, a.Code })
+            .Select(g => new MemberUnitOptionDto(g.Key.UnitId, g.Key.Name, g.Key.Code, g.Count()))
+            .OrderBy(o => o.Name)
+            .ToList();
     }
 }
 
