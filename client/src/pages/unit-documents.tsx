@@ -1,13 +1,14 @@
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { saveBlob } from '@/lib/download'
 import { toast } from 'sonner'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
-import { useSettingValue } from '@/services/settings-service'
+import { useSettingValue, useSettingArray } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
+import { PERMISSIONS } from '@/lib/constants'
 import {
-  useUnitDocumentsMatrix, useReviewDocumentMatrix, downloadDocument, downloadDocumentPage, downloadUnitDocumentsZip,
+  useUnitDocumentsMatrix, useReviewDocumentMatrix, useUploadDocument, downloadDocument, downloadDocumentPage, downloadUnitDocumentsZip,
   type MemberDocRowDto, type MemberDocCellDto, type DocTypeColumnDto, type DocumentPageDto, type MemberDocumentDto
 } from '@/services/document-service'
 import apiClient from '@/lib/api-client'
@@ -19,7 +20,7 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban, ChevronLeft, ChevronRight, Upload } from 'lucide-react'
 
 // ─── Cell rendering helpers ────────────────────────────────
 function docStatusColor(cell: MemberDocCellDto): string {
@@ -72,6 +73,24 @@ export default function UnitDocumentsPage() {
   const unitId = selectedUnit || user?.unitAccess[0]?.unitId || ''
   const { data: matrix, isLoading } = useUnitDocumentsMatrix(unitId, currentScoutYear)
   const reviewMutation = useReviewDocumentMatrix(unitId)
+  const hasPermission = useAuthStore((s) => s.hasPermission)
+  const canUpload = hasPermission(PERMISSIONS.DOCUMENTS_CREATE)
+
+  // ─── Inline upload from a matrix cell ──────────────
+  // useUploadDocument('') invalidates ['documents','matrix'] on success, so the cell flips to "En attente".
+  const uploadMutation = useUploadDocument('')
+  const [uploadTarget, setUploadTarget] = useState<{ member: MemberDocRowDto; docType: DocTypeColumnDto } | null>(null)
+  const [uploadExpiry, setUploadExpiry] = useState('')
+  const [expiryOpen, setExpiryOpen] = useState(false)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
+
+  // Upload limits from settings — enforced client-side so a bad file gets an instant, readable message
+  // (matches what the server accepts).
+  const maxSizeMb = Number(useSettingValue('documents.max_file_size_mb')) || 5
+  const allowedTypesRaw = useSettingArray('documents.allowed_file_types')
+  const allowedTypes = allowedTypesRaw.length > 0 ? allowedTypesRaw : ['pdf', 'jpg', 'jpeg', 'png']
+  const acceptAttr = allowedTypes.map((t) => '.' + t).join(',')
+  const formatsLabel = [...new Set(allowedTypes.map((t) => t.toUpperCase()))].join(', ')
 
   // Cotisation stats for THIS unit (computed from the matrix — already scoped to the CU's unit, no extra call).
   // paid = has a payment line · exempt = "ne paiera pas" with no payment · en attente = the rest.
@@ -128,6 +147,8 @@ export default function UnitDocumentsPage() {
     setPreviewPages([])
     setPreviewIndex(0)
     setCotisationMember(null)
+    setUploadTarget(null)
+    setExpiryOpen(false)
     setError('')
   }
 
@@ -184,6 +205,61 @@ export default function UnitDocumentsPage() {
     setPreviewCell(null)
     setPreviewPages([])
     setPreviewIndex(0)
+  }
+
+  // ─── Inline upload logic ───────────────────────────
+  // Start uploading a MISSING document straight from its matrix cell. A doc type that needs an expiry date
+  // opens a small dialog first (to capture it), then the file picker; otherwise it goes straight to the picker.
+  const startUpload = (member: MemberDocRowDto, docType: DocTypeColumnDto) => {
+    if (!canUpload) return
+    setUploadTarget({ member, docType })
+    setUploadExpiry('')
+    if (docType.requiresExpiry) {
+      setExpiryOpen(true)
+    } else {
+      // Defer the click so the input's onChange sees the freshly-set target (state flush).
+      setTimeout(() => uploadInputRef.current?.click(), 0)
+    }
+  }
+
+  // Client-side guard mirroring the server (type + size). Returns an error message or null.
+  const validateFiles = (files: File[]): string | null => {
+    for (const file of files) {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+      if (!allowedTypes.includes(ext)) return `Type de fichier non autorisé (${file.name}). Formats acceptés : ${formatsLabel}.`
+      if (file.size > maxSizeMb * 1024 * 1024) return `Le fichier « ${file.name} » est trop volumineux (max ${maxSizeMb} Mo).`
+    }
+    return null
+  }
+
+  const handleUploadFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = '' // reset so re-picking the same file fires onChange again
+    if (files.length === 0 || !uploadTarget) return
+    const { member, docType } = uploadTarget
+    const err = validateFiles(files)
+    if (err) { toast.error(err); return }
+
+    // Several files → one document with multiple pages (e.g. an ID recto + verso). The server appends to an
+    // existing pending doc of the same type, so this never creates a duplicate.
+    const today = new Date().toISOString().split('T')[0]
+    const formData = new FormData()
+    formData.append('memberId', member.memberId)
+    formData.append('documentTypeId', docType.id)
+    formData.append('title', docType.name)
+    for (const file of files) formData.append('files', file)
+    formData.append('issuedDate', today)
+    if (uploadExpiry) formData.append('expiryDate', uploadExpiry)
+
+    try {
+      await uploadMutation.mutateAsync({ formData })
+      toast.success(files.length > 1 ? `${files.length} fichiers envoyés` : 'Document envoyé')
+      setUploadTarget(null)
+      setUploadExpiry('')
+      setExpiryOpen(false)
+    } catch (err) {
+      toast.error(parseApiError(err))
+    }
   }
 
   const handleReview = async (status: string) => {
@@ -417,12 +493,21 @@ export default function UnitDocumentsPage() {
                           className="px-1 py-1.5 text-center"
                         >
                           <div
-                            className={`group relative mx-auto flex h-11 w-11 items-center justify-center rounded-md cursor-pointer transition-all hover:scale-110 ${docStatusColor(cell)}`}
-                            title={docStatusLabel(cell)}
+                            className={`group relative mx-auto flex h-11 w-11 items-center justify-center rounded-md transition-all ${(cell.documentId || canUpload) ? 'cursor-pointer hover:scale-110' : ''} ${docStatusColor(cell)}`}
+                            title={cell.documentId ? docStatusLabel(cell) : canUpload ? `Envoyer — ${docType.name}` : docStatusLabel(cell)}
                             tabIndex={0}
-                            onClick={() => openPreview(member, cell, docType)}
+                            onClick={() => cell.documentId ? openPreview(member, cell, docType) : canUpload ? startUpload(member, docType) : undefined}
                           >
-                            {docStatusIcon(cell)}
+                            {/* Empty + uploadable: swap the "missing" dash for an upload icon on hover so the CU
+                                sees the cell is clickable to send the document. */}
+                            {!cell.documentId && canUpload ? (
+                              <>
+                                <span className="group-hover:hidden"><Minus className="h-5 w-5" /></span>
+                                <span className="hidden group-hover:inline text-blue-500"><Upload className="h-5 w-5" /></span>
+                              </>
+                            ) : (
+                              docStatusIcon(cell)
+                            )}
                             {/* Quick approve/reject on hover/focus — show for any uploaded doc */}
                             {cell.documentId && (
                               <div className="absolute -top-1 -right-1 hidden group-hover:flex group-focus-within:flex gap-0.5">
@@ -669,6 +754,41 @@ export default function UnitDocumentsPage() {
               </DialogFooter>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Hidden file input driving the inline matrix upload — multiple = several pages into one document. */}
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept={acceptAttr}
+        multiple
+        className="hidden"
+        onChange={handleUploadFiles}
+      />
+
+      {/* ─── Expiry dialog (doc types that require an expiry date) ─── */}
+      <Dialog open={expiryOpen} onOpenChange={(o) => { if (!o) { setExpiryOpen(false); setUploadTarget(null) } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {uploadTarget?.docType.name} — {uploadTarget?.member.firstName} {uploadTarget?.member.lastName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <RequiredLabel required>Date d'expiration</RequiredLabel>
+              <Input type="date" value={uploadExpiry} onChange={(e) => setUploadExpiry(e.target.value)} />
+              <p className="text-xs text-muted-foreground">Ce document a une date d'expiration. Indiquez-la avant de choisir le fichier.</p>
+            </div>
+            <p className="text-xs text-muted-foreground">Formats : {formatsLabel} — Max {maxSizeMb} Mo. Plusieurs fichiers = un document à plusieurs pages.</p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setExpiryOpen(false); setUploadTarget(null) }}>Annuler</Button>
+              <Button disabled={!uploadExpiry || uploadMutation.isPending} onClick={() => uploadInputRef.current?.click()}>
+                <Upload className="mr-1 h-4 w-4" />Choisir le fichier
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
