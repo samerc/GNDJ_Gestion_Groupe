@@ -13,10 +13,14 @@ import {
 import { MemberPhoto } from '@/components/shared/member-photo'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { GripVertical, ArrowRightLeft, Users, Crown } from 'lucide-react'
+import { GripVertical, ArrowRightLeft, Users, Crown, Search, X, ChevronDown, ChevronRight } from 'lucide-react'
+
+// Accent/case-insensitive normalize for the member search box.
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
 
 // A board column = a team of the unit, plus a virtual "Sans équipe" column (teamId null).
 interface Column { id: string | null; name: string; isMaitrise: boolean }
@@ -52,6 +56,16 @@ export default function OrganizeUnitPage() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
   const [dragName, setDragName] = useState<string | null>(null)
   const [moveMember, setMoveMember] = useState<OrgMember | null>(null)
+  const [search, setSearch] = useState('')
+  // Teams the user has folded away (by column key). Search overrides collapse so matches are always visible.
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const toggle = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
 
   // Columns: teams (Maîtrise first, already ordered by the server) + a trailing "Sans équipe".
   const columns: Column[] = useMemo(() => {
@@ -62,7 +76,9 @@ export default function OrganizeUnitPage() {
     ]
   }, [org])
 
-  const membersOf = (teamId: string | null) => (org?.members ?? []).filter((m) => m.teamId === teamId)
+  const q = norm(search.trim())
+  const membersOf = (teamId: string | null) =>
+    (org?.members ?? []).filter((m) => m.teamId === teamId && (!q || norm(`${m.firstName} ${m.lastName}`).includes(q)))
 
   // The one operation: set a member's (team, fonction) in place. teamId undefined = keep current team.
   const place = async (m: OrgMember, teamId: string | null, roleId?: string) => {
@@ -110,9 +126,24 @@ export default function OrganizeUnitPage() {
         <LoadingSpinner variant="cards" />
       ) : (
         <>
-          {/* Hint for the mobile path (drag is finicky on phones — tap the ⇄ button on a card to move it). */}
+          {/* Toolbar: search across the whole unit + fold/unfold all teams. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="Rechercher un membre…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 pr-8" />
+              {search && (
+                <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Effacer">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setCollapsed(collapsed.size > 0 ? new Set() : new Set(columns.map((c) => c.id ?? 'none')))}>
+              {collapsed.size > 0 ? 'Tout déplier' : 'Tout replier'}
+            </Button>
+          </div>
+          {/* On a phone, tap a card's ⇄ button to move a member (drag is the desktop path). */}
           <p className="text-xs text-muted-foreground sm:hidden">
-            Sur mobile, touchez le bouton <ArrowRightLeft className="inline h-3 w-3" /> d'un membre pour le déplacer.
+            Touchez le bouton <ArrowRightLeft className="inline h-3 w-3" /> d'un membre pour le déplacer vers une autre équipe.
           </p>
 
           <DndContext
@@ -121,17 +152,25 @@ export default function OrganizeUnitPage() {
             onDragStart={(e) => setDragName((e.active.data.current as { member: OrgMember })?.member.lastName + ' ' + (e.active.data.current as { member: OrgMember })?.member.firstName)}
             onDragEnd={onDragEnd}
           >
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {columns.map((col) => (
-                <BoardColumn
-                  key={col.id ?? 'none'}
-                  col={col}
-                  members={membersOf(col.id)}
-                  roles={org.roles}
-                  onRole={(m, roleId) => place(m, m.teamId, roleId)}
-                  onMove={setMoveMember}
-                />
-              ))}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              {columns.map((col) => {
+                const members = membersOf(col.id)
+                // While searching, hide teams with no match to cut clutter; otherwise always show the team.
+                if (q && members.length === 0) return null
+                const key = col.id ?? 'none'
+                return (
+                  <BoardColumn
+                    key={key}
+                    col={col}
+                    members={members}
+                    collapsed={!q && collapsed.has(key)}
+                    onToggle={() => toggle(key)}
+                    roles={org.roles}
+                    onRole={(m, roleId) => place(m, m.teamId, roleId)}
+                    onMove={setMoveMember}
+                  />
+                )
+              })}
             </div>
             <DragOverlay>
               {dragName ? <div className="rounded-md border bg-background px-2.5 py-1.5 text-sm font-medium shadow-lg">{dragName}</div> : null}
@@ -157,38 +196,44 @@ export default function OrganizeUnitPage() {
   )
 }
 
-// ─── One column (a team, or "Sans équipe") ───
-function BoardColumn({ col, members, roles, onRole, onMove }: {
+// ─── One column (a team, or "Sans équipe") — collapsible; a cell of the responsive grid ───
+function BoardColumn({ col, members, collapsed, onToggle, roles, onRole, onMove }: {
   col: Column
   members: OrgMember[]
+  collapsed: boolean
+  onToggle: () => void
   roles: OrgRole[]
   onRole: (m: OrgMember, roleId: string) => void
   onMove: (m: OrgMember) => void
 }) {
+  // The whole box (header included) is the drop target, so you can drop onto a collapsed team's header too.
   const { setNodeRef, isOver } = useDroppable({ id: `col-${col.id ?? 'none'}`, data: { teamId: col.id } })
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        'flex w-64 shrink-0 flex-col rounded-lg border bg-card',
+        'flex flex-col self-start rounded-lg border bg-card',
         col.isMaitrise && 'border-primary/40 bg-primary/5',
         isOver && 'ring-2 ring-primary/50',
       )}
     >
-      <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
-        <span className="flex items-center gap-1.5 truncate text-sm font-semibold">
-          {col.isMaitrise && <Crown className="h-3.5 w-3.5 text-primary" />}
+      <button type="button" onClick={onToggle} className="flex items-center justify-between gap-2 rounded-t-lg px-3 py-2.5 text-left hover:bg-muted/40">
+        <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+          {collapsed ? <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />}
+          {col.isMaitrise && <Crown className="h-3.5 w-3.5 shrink-0 text-primary" />}
           <span className="truncate">{col.name}</span>
         </span>
         <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground tabular-nums">{members.length}</span>
-      </div>
-      <div className="flex min-h-24 flex-1 flex-col gap-1.5 p-2">
-        {members.length === 0 ? (
-          <p className="px-1 py-3 text-center text-xs text-muted-foreground">Déposez un membre ici</p>
-        ) : (
-          members.map((m) => <MemberCard key={m.assignmentId} m={m} roles={roles} onRole={onRole} onMove={onMove} />)
-        )}
-      </div>
+      </button>
+      {!collapsed && (
+        <div className="flex min-h-16 flex-col gap-1.5 border-t p-2">
+          {members.length === 0 ? (
+            <p className="px-1 py-3 text-center text-xs text-muted-foreground">Déposez un membre ici</p>
+          ) : (
+            members.map((m) => <MemberCard key={m.assignmentId} m={m} roles={roles} onRole={onRole} onMove={onMove} />)
+          )}
+        </div>
+      )}
     </div>
   )
 }
