@@ -242,6 +242,22 @@ export interface SendRemindersResult {
   details: { memberId: string; memberName: string; status: string; email: string | null }[]
 }
 
+// One unit's incomplete-dossier tally, for the CG one-click worklist.
+export interface UnitReminderSummary {
+  unitId: string
+  unitName: string
+  incompleteCount: number
+  withEmailCount: number
+}
+
+// GET /documents/reminder-summary — every unit with incomplete dossiers + counts (CG overview).
+export function useDocumentReminderSummary() {
+  return useQuery({
+    queryKey: ['documents', 'reminder-summary'],
+    queryFn: () => apiClient.get<UnitReminderSummary[]>('/documents/reminder-summary').then(r => r.data),
+  })
+}
+
 // GET /documents/unit/{unitId}/reminder-candidates — members whose dossier is incomplete + their gaps.
 export function useDocumentReminderCandidates(unitId: string | undefined) {
   return useQuery({
@@ -252,11 +268,15 @@ export function useDocumentReminderCandidates(unitId: string | undefined) {
 }
 
 // POST /documents/send-reminders — send the reminder email to a whole unit or an explicit member list.
+// Invalidates both the per-unit candidates and the units summary (counts change after a send).
 export function useSendDocumentReminders() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: { unitId?: string; memberIds?: string[] }) =>
       apiClient.post<SendRemindersResult>('/documents/send-reminders', body).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents', 'reminder-candidates'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents', 'reminder-candidates'] })
+      qc.invalidateQueries({ queryKey: ['documents', 'reminder-summary'] })
+    },
   })
 }

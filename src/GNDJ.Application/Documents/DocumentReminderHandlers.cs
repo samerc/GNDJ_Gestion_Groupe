@@ -63,6 +63,76 @@ internal static class DocumentGaps
     };
 }
 
+// ── Overview: every unit that has incomplete dossiers + how many (the CG one-click worklist) ──
+public record UnitReminderSummaryDto(Guid UnitId, string UnitName, int IncompleteCount, int WithEmailCount);
+public record GetDocumentReminderSummaryQuery() : IRequest<Result<IReadOnlyList<UnitReminderSummaryDto>>>;
+
+public class GetDocumentReminderSummaryQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetDocumentReminderSummaryQuery, Result<IReadOnlyList<UnitReminderSummaryDto>>>
+{
+    public async ValueTask<Result<IReadOnlyList<UnitReminderSummaryDto>>> Handle(GetDocumentReminderSummaryQuery request, CancellationToken ct)
+    {
+        // CG-level: a group manager sees every unit's incomplete count in one pass (super-admin OR maitrise.manage).
+        if (!MemberAccess.IsGroupManager(currentUser))
+            return Result<IReadOnlyList<UnitReminderSummaryDto>>.Failure("Accès réservé au Chef de Groupe.");
+
+        var activeTypes = await context.DocumentTypes
+            .Where(dt => dt.IsActive).Select(dt => new { dt.Id, dt.Name }).ToListAsync(ct);
+        if (activeTypes.Count == 0)
+            return Result<IReadOnlyList<UnitReminderSummaryDto>>.Success(new List<UnitReminderSummaryDto>());
+        var typeList = activeTypes.Select(t => (t.Id, t.Name)).ToList();
+        var typeIds = typeList.Select(t => t.Id).ToList();
+
+        // Every active (member, unit) across the group + the unit name.
+        var assignments = await context.MemberAssignments
+            .Where(a => a.EndDate == null && !a.IsDeleted)
+            .Select(a => new { a.MemberId, a.UnitId, UnitName = a.Unit.Name })
+            .ToListAsync(ct);
+        var memberIds = assignments.Select(a => a.MemberId).Distinct().ToList();
+        if (memberIds.Count == 0)
+            return Result<IReadOnlyList<UnitReminderSummaryDto>>.Success(new List<UnitReminderSummaryDto>());
+
+        var docs = await context.MemberDocuments
+            .Where(d => memberIds.Contains(d.MemberId) && typeIds.Contains(d.DocumentTypeId))
+            .Select(d => new { d.MemberId, d.DocumentTypeId, d.Status, d.ExpiryDate, d.CreatedAt })
+            .ToListAsync(ct);
+        var docsByMember = docs.GroupBy(d => d.MemberId)
+            .ToDictionary(g => g.Key, g => g.Select(d => new DocumentGaps.DocFacts(d.DocumentTypeId, d.Status, d.ExpiryDate, d.CreatedAt)).ToList());
+
+        var resolver = await ContactEmailResolver.LoadAsync(context, memberIds, ct);
+        var primaryByMember = await context.Members
+            .Where(m => memberIds.Contains(m.Id))
+            .Select(m => new { m.Id, m.PrimaryContactEmail })
+            .ToDictionaryAsync(m => m.Id, m => m.PrimaryContactEmail, ct);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Which members are incomplete (gaps > 0) + whether they have a contact email — computed once per member.
+        var incomplete = new HashSet<Guid>();
+        var incompleteWithEmail = new HashSet<Guid>();
+        foreach (var memberId in memberIds)
+        {
+            var memberDocs = docsByMember.TryGetValue(memberId, out var d) ? d : [];
+            if (DocumentGaps.Compute(typeList, memberDocs, today).Count == 0) continue;
+            incomplete.Add(memberId);
+            primaryByMember.TryGetValue(memberId, out var primary);
+            if (!string.IsNullOrWhiteSpace(resolver.Resolve(memberId, primary))) incompleteWithEmail.Add(memberId);
+        }
+
+        // Roll up per unit (a member counts once per unit they're active in). Only units WITH incomplete dossiers.
+        var summary = assignments
+            .Where(a => incomplete.Contains(a.MemberId))
+            .GroupBy(a => new { a.UnitId, a.UnitName })
+            .Select(g => new UnitReminderSummaryDto(
+                g.Key.UnitId, g.Key.UnitName,
+                g.Select(x => x.MemberId).Distinct().Count(),
+                g.Select(x => x.MemberId).Distinct().Count(id => incompleteWithEmail.Contains(id))))
+            .OrderByDescending(x => x.IncompleteCount).ThenBy(x => x.UnitName)
+            .ToList();
+
+        return Result<IReadOnlyList<UnitReminderSummaryDto>>.Success(summary);
+    }
+}
+
 // ── Preview: the non-compliant members of a unit + their gaps + resolved contact email ──
 public record GetDocumentReminderCandidatesQuery(Guid UnitId) : IRequest<Result<IReadOnlyList<DocReminderCandidateDto>>>;
 

@@ -1,21 +1,24 @@
-// "Relance documents" — after the document submission + CU-verification window, email the members whose
-// dossier is still incomplete a list of exactly what's missing / to correct / to renew. For a chosen unit it
-// shows each non-compliant member + their gaps + resolved contact email; row checkboxes send to a subset, or
-// with none checked the primary button sends to the whole unit. One email per member goes out via the durable
-// outbox. The app only knows the mail was QUEUED — delivery/bounces live in the SMTP provider's dashboard.
-import { useState } from 'react'
-import { FileWarning, Send, AlertTriangle, Info } from 'lucide-react'
-import { useUnits } from '@/services/unit-service'
-import { useDocumentReminderCandidates, useSendDocumentReminders, type SendRemindersResult } from '@/services/document-service'
+// "Relance documents" (Chef de Groupe) — after the document submission + CU-verification window, email the
+// families whose dossier is still incomplete (missing / to correct / to renew). PRIMARY action = one click
+// relances a WHOLE unit (all its incomplete members with an email). SECONDARY = expand a unit and relance a
+// single member. The page opens on a worklist of every unit that has incomplete dossiers + its count, so the
+// CG never has to go member-by-member. One email per member goes out via the durable outbox — the app only
+// knows the mail was QUEUED (delivery/bounces live in the SMTP provider's dashboard).
+import { useState, Fragment } from 'react'
+import { FileWarning, Send, AlertTriangle, Info, ChevronRight, ChevronDown } from 'lucide-react'
+import {
+  useDocumentReminderSummary, useDocumentReminderCandidates, useSendDocumentReminders,
+  type UnitReminderSummary, type SendRemindersResult,
+} from '@/services/document-service'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/shared/empty-state'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 
-// Reason key → French label + chip colour. missing = à fournir, rejected = à corriger, expired = à renouveler.
+// Reason key → French label + chip colour. missing = manquant, rejected = à corriger, expired = à renouveler.
 const REASON: Record<string, { label: string; cls: string }> = {
   missing: { label: 'Manquant', cls: 'bg-red-100 text-red-700' },
   rejected: { label: 'À corriger', cls: 'bg-orange-100 text-orange-700' },
@@ -23,129 +26,106 @@ const REASON: Record<string, { label: string; cls: string }> = {
 }
 
 export default function DocumentRemindersPage() {
-  const { data: units } = useUnits({ pageSize: 100, isActive: true })
-  const [unitId, setUnitId] = useState<string>('')
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const { data: summary, isLoading } = useDocumentReminderSummary()
+  const send = useSendDocumentReminders()
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [confirmUnit, setConfirmUnit] = useState<UnitReminderSummary | null>(null)
   const [result, setResult] = useState<SendRemindersResult | null>(null)
 
-  const { data: candidates, isLoading } = useDocumentReminderCandidates(unitId || undefined)
-  const send = useSendDocumentReminders()
+  const reportToast = (res: SendRemindersResult) =>
+    toast.success(`${res.sent} relance(s) envoyée(s)` + (res.noEmail ? ` · ${res.noEmail} sans email` : ''))
 
-  // Reset per-unit UI state in the change handler (not an effect) — keeps selection tied to the unit.
-  const onUnitChange = (id: string) => { setUnitId(id); setSelected(new Set()); setResult(null) }
-
-  const eligibleIds = (candidates ?? []).filter(c => c.hasEmail).map(c => c.memberId)
-  const allSelected = eligibleIds.length > 0 && eligibleIds.every(id => selected.has(id))
-  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(eligibleIds))
-  const toggle = (id: string) => setSelected(prev => {
-    const next = new Set(prev)
-    if (next.has(id)) next.delete(id); else next.add(id)
-    return next
-  })
-
-  const handleSend = async () => {
+  // One-click: relance every incomplete member (with an email) of a whole unit.
+  const sendUnit = async (u: UnitReminderSummary) => {
+    setConfirmUnit(null)
     try {
-      // Checked rows → send to exactly those; otherwise the whole unit's incomplete members.
-      const body = selected.size > 0 ? { memberIds: [...selected] } : { unitId }
-      const res = await send.mutateAsync(body)
+      const res = await send.mutateAsync({ unitId: u.unitId })
       setResult(res)
-      setSelected(new Set())
-      toast.success(`${res.sent} relance(s) envoyée(s)` + (res.noEmail ? ` · ${res.noEmail} sans email` : ''))
-    } catch (e) {
-      toast.error(parseApiError(e))
-    }
+      reportToast(res)
+    } catch (e) { toast.error(parseApiError(e)) }
   }
 
-  const unitName = units?.items.find(u => u.id === unitId)?.name ?? ''
-  const sendLabel = selected.size > 0 ? `Relancer les ${selected.size} sélectionné(s)` : `Relancer toute l'unité`
+  // Relance a single member (from the expanded unit view).
+  const sendMember = async (memberId: string) => {
+    try {
+      const res = await send.mutateAsync({ memberIds: [memberId] })
+      setResult(res)
+      reportToast(res)
+    } catch (e) { toast.error(parseApiError(e)) }
+  }
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="flex items-center gap-2 text-xl font-bold"><FileWarning className="h-5 w-5 text-primary" />Relance documents</h1>
         <p className="text-sm text-muted-foreground">
-          Envoyez aux familles dont le dossier est incomplet la liste des documents manquants, à corriger ou à
-          renouveler. À utiliser après la période de dépôt et de vérification.
+          Relancez en un clic toute une unité (documents manquants ou à corriger), ou dépliez une unité pour
+          relancer un membre en particulier. À utiliser après la période de dépôt et de vérification.
         </p>
       </div>
 
       <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground sm:flex-row sm:items-start">
         <Info className="h-4 w-4 shrink-0 text-primary sm:mt-0.5" />
         <span>
-          Les membres dont le dossier est complet n'apparaissent pas. Un document <em>en attente de vérification</em>
-          {' '}n'est pas considéré comme manquant. L'application indique seulement que l'email a été <em>envoyé</em> —
-          les détails de livraison sont dans le tableau de bord de votre fournisseur SMTP.
+          Seules les unités avec au moins un dossier incomplet apparaissent. Un document <em>en attente de
+          vérification</em> n'est pas considéré comme manquant. L'application indique seulement que l'email a été
+          {' '}<em>envoyé</em> — les détails de livraison sont dans le tableau de bord de votre fournisseur SMTP.
         </span>
       </div>
 
-      <Select value={unitId} onValueChange={onUnitChange}>
-        <SelectTrigger className="w-full sm:w-80"><SelectValue placeholder="Choisir une unité…" /></SelectTrigger>
-        <SelectContent>
-          {units?.items.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-        </SelectContent>
-      </Select>
-
-      {!unitId ? (
-        <EmptyState icon={FileWarning} title="Choisissez une unité" description="Sélectionnez une unité pour voir les dossiers incomplets." />
-      ) : isLoading ? (
+      {isLoading ? (
         <LoadingSpinner variant="table" />
-      ) : !candidates || candidates.length === 0 ? (
-        <EmptyState icon={FileWarning} title="Aucun dossier incomplet" description="Tous les membres actifs de cette unité ont un dossier complet." />
+      ) : !summary || summary.length === 0 ? (
+        <EmptyState icon={FileWarning} title="Aucun dossier incomplet" description="Tous les membres actifs ont un dossier complet." />
       ) : (
-        <>
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
-                <tr>
-                  <th className="w-10 p-2">
-                    <input type="checkbox" className="accent-primary" checked={allSelected} onChange={toggleAll}
-                      aria-label="Tout sélectionner" disabled={eligibleIds.length === 0} />
-                  </th>
-                  <th className="p-2">Membre</th>
-                  <th className="p-2">Équipe</th>
-                  <th className="p-2">Documents à compléter</th>
-                  <th className="p-2">Email de contact</th>
-                </tr>
-              </thead>
-              <tbody>
-                {candidates.map(c => (
-                  <tr key={c.memberId} className="border-t hover:bg-muted/30">
-                    <td className="p-2">
-                      <input type="checkbox" className="accent-primary" disabled={!c.hasEmail}
-                        checked={selected.has(c.memberId)} onChange={() => toggle(c.memberId)}
-                        aria-label={`Sélectionner ${c.memberName}`} />
-                    </td>
-                    <td className="p-2 font-medium">{c.memberName}</td>
-                    <td className="p-2 text-muted-foreground">{c.teamName ?? '—'}</td>
-                    <td className="p-2">
-                      <div className="flex flex-wrap gap-1">
-                        {c.gaps.map((g, i) => {
-                          const r = REASON[g.reason] ?? { label: g.reason, cls: 'bg-muted text-foreground' }
-                          return (
-                            <span key={i} className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs ${r.cls}`}>
-                              {g.docTypeName} · {r.label}
-                            </span>
-                          )
-                        })}
-                      </div>
-                    </td>
-                    <td className="p-2 text-muted-foreground">{c.contactEmail ?? <span className="inline-flex items-center gap-1 text-amber-600"><AlertTriangle className="h-3.5 w-3.5" />aucun</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">
-              {unitName} · {candidates.length} dossier(s) incomplet(s) · {eligibleIds.length} avec email
-            </p>
-            <Button onClick={handleSend} disabled={send.isPending || eligibleIds.length === 0}>
-              <Send className="mr-2 h-4 w-4" />
-              {send.isPending ? 'Envoi…' : sendLabel}
-            </Button>
-          </div>
-        </>
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="p-2">Unité</th>
+                <th className="p-2">Dossiers incomplets</th>
+                <th className="p-2 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summary.map(u => {
+                const isOpen = expanded === u.unitId
+                const noEmail = u.withEmailCount === 0
+                return (
+                  <Fragment key={u.unitId}>
+                    <tr className="border-t hover:bg-muted/30">
+                      <td className="p-2 font-medium">{u.unitName}</td>
+                      <td className="p-2 text-muted-foreground">
+                        {u.incompleteCount} incomplet{u.incompleteCount > 1 ? 's' : ''}
+                        {u.withEmailCount < u.incompleteCount && (
+                          <span className="text-amber-600"> · {u.incompleteCount - u.withEmailCount} sans email</span>
+                        )}
+                      </td>
+                      <td className="p-2">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button size="sm" onClick={() => setConfirmUnit(u)} disabled={noEmail || send.isPending}>
+                            <Send className="mr-1.5 h-3.5 w-3.5" />Relancer l'unité
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setExpanded(isOpen ? null : u.unitId)}>
+                            {isOpen ? <ChevronDown className="mr-1 h-4 w-4" /> : <ChevronRight className="mr-1 h-4 w-4" />}
+                            Membres
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                    {isOpen && (
+                      <tr>
+                        <td colSpan={3} className="bg-muted/20 p-0">
+                          <UnitMembers unitId={u.unitId} onSend={sendMember} sending={send.isPending} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {result && (
@@ -158,6 +138,55 @@ export default function DocumentRemindersPage() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={!!confirmUnit}
+        onOpenChange={(o) => !o && setConfirmUnit(null)}
+        title="Relancer toute l'unité ?"
+        description={confirmUnit
+          ? `Envoyer une relance aux ${confirmUnit.withEmailCount} famille(s) de « ${confirmUnit.unitName} » ayant un email. Chaque email liste les documents manquants ou à corriger du membre.`
+          : ''}
+        confirmLabel="Envoyer les relances"
+        loading={send.isPending}
+        onConfirm={() => confirmUnit && sendUnit(confirmUnit)}
+      />
     </div>
+  )
+}
+
+// Expanded unit view: the incomplete members + their gaps, each with a one-click individual relance.
+function UnitMembers({ unitId, onSend, sending }: { unitId: string; onSend: (memberId: string) => void; sending: boolean }) {
+  const { data: members, isLoading } = useDocumentReminderCandidates(unitId)
+  if (isLoading) return <div className="p-3"><LoadingSpinner variant="table" /></div>
+  if (!members || members.length === 0) return <p className="p-3 text-sm text-muted-foreground">Aucun dossier incomplet.</p>
+  return (
+    <table className="w-full text-sm">
+      <tbody>
+        {members.map(c => (
+          <tr key={c.memberId} className="border-t">
+            <td className="p-2 pl-6 font-medium">{c.memberName}</td>
+            <td className="p-2 text-muted-foreground">{c.teamName ?? '—'}</td>
+            <td className="p-2">
+              <div className="flex flex-wrap gap-1">
+                {c.gaps.map((g, i) => {
+                  const r = REASON[g.reason] ?? { label: g.reason, cls: 'bg-muted text-foreground' }
+                  return (
+                    <span key={i} className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs ${r.cls}`}>
+                      {g.docTypeName} · {r.label}
+                    </span>
+                  )
+                })}
+              </div>
+            </td>
+            <td className="p-2 text-muted-foreground">{c.contactEmail ?? <span className="inline-flex items-center gap-1 text-amber-600"><AlertTriangle className="h-3.5 w-3.5" />aucun</span>}</td>
+            <td className="p-2 text-right">
+              <Button size="sm" variant="outline" disabled={!c.hasEmail || sending} onClick={() => onSend(c.memberId)}>
+                <Send className="mr-1.5 h-3.5 w-3.5" />Relancer
+              </Button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }

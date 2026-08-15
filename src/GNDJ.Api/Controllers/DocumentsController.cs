@@ -336,6 +336,20 @@ public class DocumentsController : BaseApiController
     }
 
     /// <summary>
+    /// "Relance documents" overview — every unit that has at least one incomplete dossier, with the count of
+    /// incomplete members (and how many are reachable by email). Drives the CG one-click-per-unit worklist.
+    /// CG-level feature: requires maitrise.manage.
+    /// </summary>
+    [HttpGet("reminder-summary")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> GetReminderSummary()
+    {
+        var result = await Mediator.Send(new GetDocumentReminderSummaryQuery());
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>
     /// "Relance documents" (Chef de Groupe) — lists a unit's members whose dossier is incomplete (missing /
     /// rejected / expired required documents) with the exact gaps + their resolved contact email.
     /// Fully-compliant members are omitted. CG-level feature: requires maitrise.manage (group manager).

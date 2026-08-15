@@ -2387,6 +2387,14 @@ durable outbox → sent/no-email report.
       dev/prod) — wired in Program.cs; a fresh DB gets it from the full template seed. Verified live: candidates
       (Feu Jamhour → members missing both active doc types + contact email), send (sent=1, outbox row w/ bulleted
       list + unit), CU→403, both seeds applied. Build + 4 tests + tsc + eslint + vite clean. DEV until deploy.
+- [x] **Worklist redesign (user: "send in one click to a unit… not clicking on an individual name"):** the page
+      now opens on a **one-click-per-unit worklist** instead of a unit dropdown. New `GetDocumentReminderSummaryQuery`
+      + `GET /documents/reminder-summary` (maitrise.manage) = every unit WITH incomplete dossiers + its count
+      (incompleteCount / withEmailCount), computed group-wide in one pass, ordered by count desc. The page lists
+      each unit with a **"Relancer l'unité"** button (one click → confirm → sends to all its incomplete members
+      with an email) + a **"Membres"** expander that lazy-loads that unit's candidates for **individual** per-row
+      "Relancer". Both modes hit the same `POST /documents/send-reminders` (unitId vs memberIds). Verified live:
+      summary ranks units by incomplete count; one-click Feu Jamhour → 6 members → 6 distinct outbox rows.
 
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
