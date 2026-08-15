@@ -222,3 +222,41 @@ export function downloadUnitDocumentsZip(unitId: string, docTypeId?: string) {
   const params = docTypeId ? { docTypeId } : {}
   return apiClient.get(`/documents/unit/${unitId}/zip`, { params, responseType: 'blob' })
 }
+
+// ── Relance documents (CU reminder emails) ──
+// One non-compliant member + their gaps. reason: "missing" | "rejected" | "expired".
+export interface DocGap { docTypeName: string; reason: string }
+export interface DocReminderCandidate {
+  memberId: string
+  memberName: string
+  teamName: string | null
+  gaps: DocGap[]
+  hasEmail: boolean
+  contactEmail: string | null
+}
+export interface SendRemindersResult {
+  sent: number
+  noEmail: number
+  compliant: number
+  noAccess: number
+  details: { memberId: string; memberName: string; status: string; email: string | null }[]
+}
+
+// GET /documents/unit/{unitId}/reminder-candidates — members whose dossier is incomplete + their gaps.
+export function useDocumentReminderCandidates(unitId: string | undefined) {
+  return useQuery({
+    queryKey: ['documents', 'reminder-candidates', unitId],
+    queryFn: () => apiClient.get<DocReminderCandidate[]>(`/documents/unit/${unitId}/reminder-candidates`).then(r => r.data),
+    enabled: !!unitId,
+  })
+}
+
+// POST /documents/send-reminders — send the reminder email to a whole unit or an explicit member list.
+export function useSendDocumentReminders() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { unitId?: string; memberIds?: string[] }) =>
+      apiClient.post<SendRemindersResult>('/documents/send-reminders', body).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents', 'reminder-candidates'] }),
+  })
+}

@@ -375,8 +375,10 @@ public static class SeedData
         var demReview = Add("Réviser les demandes d'inscription (accepter/refuser + unité)", "Demandes", CG, false, "octobre", "goto-demandes", demOpen);
         Add("Envoyer les réponses aux demandes (conversion en membres)", "Demandes", CG, false, "octobre", "goto-demandes", demReview);
         // ④ Dossiers membres
-        Add("Vérifier et approuver les documents des membres", "Dossiers membres", CU, true, "octobre – novembre", "goto-documents", pasFinalize);
+        var docVerify = Add("Vérifier et approuver les documents des membres", "Dossiers membres", CU, true, "octobre – novembre", "goto-documents", pasFinalize);
         Add("Suivre et enregistrer les cotisations", "Dossiers membres", CU, true, "octobre – novembre", "goto-documents", pasFinalize);
+        // CG follow-up once the CUs have reviewed: email the families whose dossier is still incomplete.
+        Add("Relancer les familles avec des documents manquants", "Dossiers membres", CG, false, "novembre", "goto-document-reminders", docVerify);
         var photo = Add("Organiser la séance photo", "Dossiers membres", CU, true, "octobre", "goto-photo", pasFinalize);
         // ⑤ Organisation
         var orgTeams = Add("Répartir les membres en sizaines / équipes", "Organisation", CU, true, "octobre", "goto-my-unit", pasFinalize);
@@ -428,6 +430,34 @@ public static class SeedData
             if (byTitle.TryGetValue(t.Title, out var key)) { t.ActionKey = key; changed = true; }
 
         if (changed) await context.SaveChangesAsync();
+    }
+
+    // Inserts the CG "Relancer les familles avec des documents manquants" template task into DBs whose rentrée
+    // template was seeded before this feature existed (SeedRentreeTemplateAsync is skipped once any template
+    // exists, so it can't add it). Idempotent: only inserts when a template with that title is absent, and only
+    // when a template already exists (a fresh DB gets it from the full seed instead). Wired in Program.cs after
+    // SeedRentreeActionKeysAsync. The generated-year checklists pick it up via "Ajouter les nouvelles tâches".
+    public static async Task SeedRentreeReminderTaskAsync(GndjDbContext context)
+    {
+        const string title = "Relancer les familles avec des documents manquants";
+        var anyTemplates = await context.RentreeTaskTemplates.AnyAsync();
+        if (!anyTemplates) return; // fresh DB → the full template seed already includes this task
+        if (await context.RentreeTaskTemplates.AnyAsync(t => t.Title == title)) return; // already present
+
+        // Depend on the CU document-verification task if it's there, so the relance stays blocked until review.
+        var docVerifyId = await context.RentreeTaskTemplates
+            .Where(t => t.Title == "Vérifier et approuver les documents des membres")
+            .Select(t => (Guid?)t.Id).FirstOrDefaultAsync();
+        var maxOrder = await context.RentreeTaskTemplates.MaxAsync(t => (int?)t.DisplayOrder) ?? 0;
+
+        context.RentreeTaskTemplates.Add(new RentreeTaskTemplate
+        {
+            Title = title, Phase = "Dossiers membres", DisplayOrder = maxOrder + 1,
+            AssigneeType = "role", AssigneeRole = "chef-de-groupe", FanOutPerUnit = false,
+            DefaultDeadlineLabel = "novembre", ActionKey = "goto-document-reminders",
+            DependsOnTemplateIds = docVerifyId is Guid dv ? [dv] : []
+        });
+        await context.SaveChangesAsync();
     }
 
     public static async Task SeedMissingSettingsAsync(GndjDbContext context)
@@ -793,6 +823,20 @@ public static class SeedData
                 Subject = "Bienvenue — votre accès et la rentrée scoute {{scoutYear}}",
                 BodyHtml = "<h2>Bonjour {{leaderName}},</h2><p>Bienvenue dans l'équipe de maîtrise ! Cette année, le Groupe utilise une plateforme en ligne pour gérer les membres, le passage, les documents et les inscriptions. Voici comment démarrer pour votre unité <strong>{{unitName}}</strong>.</p><h3>1. Prise en main</h3><ul><li>Connectez-vous sur <a href=\"{{loginUrl}}\">{{loginUrl}}</a> avec l'identifiant qui vous a été communiqué (vous choisirez votre mot de passe à la première connexion).</li><li>Vous arrivez sur le tableau de bord de votre unité : <em>Mon unité</em> (vos membres), <em>Passage des membres</em>, <em>Documents</em>.</li><li>En cas de souci de connexion : lien « Identifiant oublié ? » sur la page de connexion.</li></ul><h3>2. À faire pour la rentrée {{scoutYear}}</h3><ol><li><strong>Vérifiez votre unité</strong> — la liste de vos membres et leurs données.</li><li><strong>Réalisez le passage</strong> — une ligne par membre (pas de changement / montée / quitte le groupe).</li><li><strong>Vérifiez les documents</strong> — approuvez/refusez les documents des familles, suivez les cotisations.</li></ol><p>Une question ? Contactez votre chef de groupe. Bonne rentrée scoute !</p><p>— La Maîtrise de Groupe</p>",
                 Variables = "[{\"key\":\"leaderName\",\"label\":\"Nom du chef\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"}]",
+                IsActive = true
+            });
+
+        // "Relance documents": a member's list of missing / to-correct / to-renew documents, sent from the CU
+        // "Relance documents" page after the verification window. {{documentsList}} is a plain-text bulleted
+        // list (one gap per line) rendered in a white-space:pre-line block — the newlines survive EmailService's
+        // HTML-encoding of substituted values (XSS defense at the sink), so the list shows line-by-line.
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "document_reminder"))
+            toAdd.Add(new EmailTemplate
+            {
+                Name = "Relance documents (membre)", Code = "document_reminder", Module = "documents",
+                Subject = "Documents à compléter — {{memberName}}",
+                BodyHtml = "<h2>Bonjour,</h2><p>Il manque un ou plusieurs documents dans le dossier scout de <strong>{{memberName}}</strong> (unité {{unitName}}). Merci de les compléter dès que possible :</p><div style=\"white-space:pre-line;background:#f6f8fa;border:1px solid #e5e7eb;border-radius:6px;padding:12px 16px;margin:12px 0;\">{{documentsList}}</div><p>Vous pouvez téléverser les documents manquants ou corrigés depuis votre espace personnel, rubrique « Mes documents » :</p><p><a href=\"{{documentsUrl}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Mes documents</a></p><p>Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br><span style=\"font-size:12px;color:#555;\">{{documentsUrl}}</span></p><p>Merci pour votre réactivité !<br>— La Maîtrise GNDJ</p>",
+                Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"documentsList\",\"label\":\"Liste des documents\"},{\"key\":\"documentsUrl\",\"label\":\"Lien Mes documents\"}]",
                 IsActive = true
             });
 

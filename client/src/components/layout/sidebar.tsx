@@ -24,6 +24,7 @@ import {
   ChevronRight,
   X,
   Receipt,
+  FileWarning,
   Route,
   Compass,
   Inbox,
@@ -109,6 +110,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
       { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },
+      { path: '/admin/document-reminders', label: 'Relance documents', icon: FileWarning, permission: PERMISSIONS.MAITRISE_MANAGE },
     ],
   },
   {

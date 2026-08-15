@@ -324,6 +324,7 @@ using (var scope = app.Services.CreateScope())
     await SeedData.SeedFunctionalRoleRanksAsync(context);
     await SeedData.SeedRentreeTemplateAsync(context);
     await SeedData.SeedRentreeActionKeysAsync(context);
+    await SeedData.SeedRentreeReminderTaskAsync(context);
 
     // One-off DATA patches (deploy/patches/*.sql, copied to <ContentRoot>/DataPatches on publish). Applied
     // exactly once each — tracked in the data_patches table — for data changes the migrations/seeders don't

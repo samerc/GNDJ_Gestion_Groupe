@@ -25,6 +25,7 @@ export const RENTREE_ACTIONS: Record<string, RentreeActionDef> = {
   'goto-my-unit': { label: 'Mon unité', kind: 'goto', route: '/dashboard' },
   'goto-progression': { label: 'Étapes & badges', kind: 'goto', route: '/admin/progression' },
   'goto-communications': { label: 'Envoyer un message aux chefs', kind: 'goto', route: '/admin/communications' },
+  'goto-document-reminders': { label: 'Relancer les documents manquants', kind: 'goto', route: '/admin/document-reminders' },
 }
 
 // Options for the template-editor dropdown ("Aucune action" first).

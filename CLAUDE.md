@@ -2359,6 +2359,35 @@ Planning for go-live email + a throttle so a big blast can't trip a provider's f
       state. Verified live (cap=3, 6 rows → exactly 3 dispatched, 3 deferred ~1h staggered 20 min apart, stamped,
       no burst). Build + 4 tests + tsc + eslint clean. DEV until deploy (migration applies on prod startup).
 
+### Relance documents — CG reminder emails (2026-08-15)
+After the document submission + CU-verification window, the **Chef de Groupe** can email the families whose
+dossier is still incomplete a personalized list of exactly what's missing / to correct / to renew. Same shape as
+*Envoyer les accès*: pick a unit → preview the non-compliant members + gaps → send one email per member via the
+durable outbox → sent/no-email report.
+- [x] **Backend** `Application/Documents/DocumentReminderHandlers.cs`: `GetDocumentReminderCandidatesQuery(unitId)`
+      (non-compliant members + gaps + resolved contact email) + `SendDocumentRemindersCommand(unitId?|memberIds?)`.
+      "Required" = every **active** document type (the CU matrix already treats all active types as expected — no
+      per-type required flag). A gap = **missing** (no doc), **rejected** ("à corriger"), or **expired** (Approved
+      past expiry → "à renouveler"); a **Pending** doc is NOT nagged (CU's turn); fully-compliant members skipped.
+      Shared `DocumentGaps.Compute` used by both preview + send so they can't diverge; server recomputes gaps on
+      send (never trusts the client). Uses `ContactEmailResolver` (PrimaryContactEmail→own→guardian, one email/member).
+- [x] **CG-only** (user: "this is a CG feature", "of course a superadmin can also send"): endpoints gated on
+      **`maitrise.manage`** + handler `MemberAccess.IsGroupManager` (super-admin OR maitrise.manage → CG/ACG). A
+      **chef-unité** (holds documents.approve but NOT maitrise.manage) is **403**. `GET /documents/unit/{id}/
+      reminder-candidates` + `POST /documents/send-reminders`. Frontend page `/admin/document-reminders`
+      ("Relance documents", sidebar **Suivi & demandes**, gated maitrise.manage) — unit picker, candidate table
+      (member/équipe/gap chips colored by reason/contact email), row-select or whole-unit send, result summary.
+- [x] **Seeded template `document_reminder`** (module documents; `{{documentsList}}` is a plain-text bulleted list
+      in a `white-space:pre-line` block so newlines survive EmailService's HTML-encode-at-the-sink). Routes via the
+      outbox → whichever SMTP the template binds (per the provider plan, member-facing = Mailgun/SendPulse).
+- [x] **Added to the CG rentrée checklist:** new template task **"Relancer les familles avec des documents
+      manquants"** (phase Dossiers membres, role chef-de-groupe, not fanned-out, depends on the CU doc-verification
+      task) with a new **`goto-document-reminders`** rentrée action (added to RentreeActions + rentree-actions.ts).
+      Idempotent `SeedRentreeReminderTaskAsync` inserts it into DBs whose template was already seeded (existing
+      dev/prod) — wired in Program.cs; a fresh DB gets it from the full template seed. Verified live: candidates
+      (Feu Jamhour → members missing both active doc types + contact email), send (sent=1, outbox row w/ bulleted
+      list + unit), CU→403, both seeds applied. Build + 4 tests + tsc + eslint + vite clean. DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

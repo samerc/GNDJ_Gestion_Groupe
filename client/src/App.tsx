@@ -62,6 +62,7 @@ const DemandeValidationPage = lazy(() => import('@/pages/admin/demande-validatio
 const ChangeRequestsPage = lazy(() => import('@/pages/admin/change-requests'))
 const DeletedMembersPage = lazy(() => import('@/pages/admin/deleted-members'))
 const SendAccessPage = lazy(() => import('@/pages/admin/send-access'))
+const DocumentRemindersPage = lazy(() => import('@/pages/admin/document-reminders'))
 const DemandeStatsPage = lazy(() => import('@/pages/admin/demande-stats'))
 const DemandeAccountsPage = lazy(() => import('@/pages/admin/demande-accounts'))
 const PassageValidationPage = lazy(() => import('@/pages/admin/passage-validation'))
@@ -159,6 +160,9 @@ export default function App() {
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.MEMBERS_RESET_PASSWORD} />}>
               <Route path="/admin/send-access" element={<SendAccessPage />} />
+            </Route>
+            <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
+              <Route path="/admin/document-reminders" element={<DocumentRemindersPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.RENTREE_MANAGE} />}>
               <Route path="/admin/rentree-template" element={<RentreeTemplatePage />} />

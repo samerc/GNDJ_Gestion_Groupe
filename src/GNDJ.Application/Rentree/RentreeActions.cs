@@ -20,7 +20,7 @@ public static class RentreeActions
     {
         "goto-settings", "goto-units", "goto-maitrises", "goto-demandes", "goto-passage",
         "goto-passage-review", "goto-documents", "goto-photo", "goto-my-unit", "goto-progression",
-        "goto-communications",
+        "goto-communications", "goto-document-reminders",
     };
 
     // All valid ActionKey values (null/empty = no action).

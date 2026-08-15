@@ -334,4 +334,33 @@ public class DocumentsController : BaseApiController
         var zipName = docTypeId.HasValue ? $"Documents_{docTypeId}.zip" : "Documents_Unite.zip";
         return File(memoryStream.ToArray(), "application/zip", zipName);
     }
+
+    /// <summary>
+    /// "Relance documents" (Chef de Groupe) — lists a unit's members whose dossier is incomplete (missing /
+    /// rejected / expired required documents) with the exact gaps + their resolved contact email.
+    /// Fully-compliant members are omitted. CG-level feature: requires maitrise.manage (group manager).
+    /// </summary>
+    /// <param name="unitId">The unit whose non-compliant members to list.</param>
+    [HttpGet("unit/{unitId:guid}/reminder-candidates")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> GetReminderCandidates(Guid unitId)
+    {
+        var result = await Mediator.Send(new GetDocumentReminderCandidatesQuery(unitId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Sends a document-reminder email (the member's list of missing/to-correct/to-renew documents) to a whole
+    /// unit or an explicit member list, via the durable outbox. Members whose dossier is complete are skipped.
+    /// Returns a sent / no-email / compliant report. CG-level feature: requires maitrise.manage.
+    /// </summary>
+    [HttpPost("send-reminders")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> SendReminders([FromBody] SendDocumentRemindersCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
 }
