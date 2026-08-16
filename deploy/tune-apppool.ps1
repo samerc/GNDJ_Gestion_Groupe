@@ -18,7 +18,9 @@
 .PARAMETER SiteName
   The IIS site name. Default: GNDJ
 .PARAMETER RecycleTime
-  Daily quiet-hours recycle, HH:mm (24h). Default: 03:00. Pass "" to disable entirely.
+  Daily quiet-hours recycle, HH:mm (24h). Default: "" (NONE). A .NET app with idleTimeout=0 and no interval
+  recycle doesn't need a clock recycle, and a daily one caused an outage (2026-08-16); pass e.g. "04:00" only if
+  you want one — keep it OFF the 03:00 DB-backup window, and note overlapping rotation is disabled either way.
 .EXAMPLE
   ./deploy/tune-apppool.ps1
 .EXAMPLE
@@ -27,7 +29,7 @@
 param(
   [string]$PoolName = "gndj",
   [string]$SiteName = "GNDJ",
-  [string]$RecycleTime = "03:00"
+  [string]$RecycleTime = ""
 )
 $ErrorActionPreference = "Stop"
 Import-Module WebAdministration -ErrorAction Stop
@@ -51,6 +53,14 @@ if ($RecycleTime) {
 } else {
   Write-Host "    periodic recycle disabled entirely" -ForegroundColor DarkGray
 }
+
+# 3b. CRITICAL: forbid OVERLAPPING rotation. By default a recycle starts the new worker while the old one is
+#     still running; both then run the app's startup seeders concurrently and the loser hits a duplicate-key
+#     (23505), which crash-loops the app and trips rapid-fail -> HTTP 500.30 until the pool is restarted
+#     (the 2026-08-16 outage). With this true, the new worker waits for the old to drain first — no concurrent
+#     startup. (The app also holds a Postgres advisory lock over startup as a second layer of protection.)
+Set-ItemProperty $poolPath -Name recycling.disallowOverlappingRotation -Value $true
+Write-Host "    overlapping rotation disabled (no concurrent startup seeding)" -ForegroundColor DarkGray
 
 # 4. Start the worker as soon as IIS/Windows starts (don't wait for the first request).
 Set-ItemProperty $poolPath -Name startMode -Value "AlwaysRunning"
