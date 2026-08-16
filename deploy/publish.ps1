@@ -37,44 +37,12 @@ if (Test-Path $wwwroot) { Remove-Item $wwwroot -Recurse -Force }
 New-Item -ItemType Directory -Force $wwwroot | Out-Null
 Copy-Item "client/dist/*" $wwwroot -Recurse -Force
 
-Write-Host "==> Friendly offline page + custom startup-error handling..." -ForegroundColor Cyan
-# A small static "we'll be right back" page served by IIS when the app can't START (HTTP 500.30) — instead of
-# the default ASP.NET Core diagnostic page, which leaks stack/config details. Lives at the site root (next to
-# web.config); IIS serves it directly even while the app is down.
-Copy-Item (Join-Path $PSScriptRoot "offline.html") (Join-Path $OutDir "offline.html") -Force
-
-# PATCH the web.config that `dotnet publish` generated (rather than commit our own) so the ASP.NET Core Module's
-# processPath/arguments stay exactly as generated — no risk of a wrong launch path. We only ADD two things:
-#   (1) disableStartupErrorPage="true"  -> the module returns an empty 500.30 instead of its detailed page, so
-#   (2) <httpErrors> can substitute our offline.html for the startup-failure status codes. existingResponse="Auto"
-#       leaves the app's OWN error responses (their JSON body / errorId) untouched — only the body-less ANCM
-#       startup failures get the friendly page.
-$webConfigPath = Join-Path $OutDir "web.config"
-if (-not (Test-Path $webConfigPath)) { throw "web.config not found in '$OutDir' after publish." }
-# ABSOLUTE path: XmlDocument.Save() is a raw .NET method that resolves relative paths against the PROCESS
-# working dir ([Environment]::CurrentDirectory), which does NOT follow PowerShell's Set-Location — so a relative
-# OutDir would save to the wrong place (or fail). Resolve-Path (uses $PWD) gives the correct absolute path.
-$webConfigPath = (Resolve-Path $webConfigPath).Path
-[xml]$wc = Get-Content $webConfigPath
-$ancm = $wc.SelectSingleNode("//aspNetCore")
-if (-not $ancm) { throw "aspNetCore element not found in generated web.config." }
-$ancm.SetAttribute("disableStartupErrorPage", "true")
-
-$sw = $ancm.ParentNode   # the <system.webServer> containing <aspNetCore> (works whether or not it's inside <location>)
-$existing = $sw.SelectSingleNode("httpErrors")
-if ($existing) { $sw.RemoveChild($existing) | Out-Null }
-$he = $wc.CreateElement("httpErrors")
-$he.SetAttribute("errorMode", "Custom")
-$he.SetAttribute("existingResponse", "Auto")
-# In-process startup failures are 500.30-500.38; 502.5 is the out-of-process process-failure (safety net).
-$codes = @(); foreach ($s in 30,31,32,33,34,35,36,37,38) { $codes += ,@(500,$s) }; $codes += ,@(502,5)
-foreach ($c in $codes) {
-  $rm = $wc.CreateElement("remove"); $rm.SetAttribute("statusCode", "$($c[0])"); $rm.SetAttribute("subStatusCode", "$($c[1])"); $he.AppendChild($rm) | Out-Null
-  $er = $wc.CreateElement("error"); $er.SetAttribute("statusCode", "$($c[0])"); $er.SetAttribute("subStatusCode", "$($c[1])"); $er.SetAttribute("path", "offline.html"); $er.SetAttribute("responseMode", "File"); $he.AppendChild($er) | Out-Null
-}
-$sw.AppendChild($he) | Out-Null
-$wc.Save($webConfigPath)
-Write-Host "    offline.html + web.config custom errors applied." -ForegroundColor DarkGray
+# NOTE: a custom "offline" page for the 500.30 startup-failure case (via web.config <httpErrors> +
+# disableStartupErrorPage) was tried and REVERTED 2026-08-16 — adding <httpErrors> to the generated web.config
+# made IIS unable to parse it ("Unable to get required configuration section 'system.webServer/aspNetCore'"),
+# taking prod down. It's too server-fragile to bake into every deploy. If revisited, do it as a ONE-TIME server
+# step (unlock the section: `appcmd unlock config -section:system.webServer/httpErrors`) and test on prod in a
+# maintenance window — never patch web.config from publish.ps1. deploy/offline.html is kept for that future use.
 
 Write-Host "==> Done. Package ready in '$OutDir'." -ForegroundColor Green
 Write-Host "    Next: ./deploy/deploy.ps1 -Source $OutDir -Target <site path>"
