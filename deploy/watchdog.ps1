@@ -2,9 +2,9 @@
 .SYNOPSIS
   Self-healing watchdog: if the app is down, restart the services automatically and email the outcome.
 .DESCRIPTION
-  Run every few minutes via Task Scheduler (installed by install-ops-tasks.ps1) as SYSTEM. Probes the
-  LOCAL /health endpoint (fast, and independent of DNS/Cloudflare, so it reflects the app itself, not the
-  network). If it's still down after a few retries, it walks a remediation ladder:
+  Run every few minutes via Task Scheduler (installed by install-ops-tasks.ps1) as SYSTEM. Probes /health
+  (by default the SAME public URL the notifier uses — prod hosts the app IN-PROCESS under IIS, so a naive
+  localhost:5000 probe would always fail). If it's still down after a few retries, it walks a remediation ladder:
      1. ensure PostgreSQL is running (the app crash-loops on startup without a DB), then
      2. restart the IIS app pool — which ALSO re-enables a pool that IIS disabled via rapid-fail protection
         (exactly the 2026-08-16 failure mode: 500.30 until someone restarted the pool by hand).
@@ -13,7 +13,9 @@
 
   Complements healthcheck.ps1 (which NOTIFIES on external up/down); this one ACTS. Secrets/settings come
   from deploy\ops-alert.config.json (gitignored). See deploy\OPS.md.
-.PARAMETER LocalUrl    Local health probe (default http://localhost:5000/health, or config.watchdog.localUrl).
+.PARAMETER ProbeUrl    Health URL to probe. Default = the SAME public /health the notifier uses
+                       (config.health.url), or config.watchdog.localUrl to override. NOTE: prod hosts the app
+                       IN-PROCESS under IIS (not Kestrel on :5000), so probe the real site URL, not localhost:5000.
 .PARAMETER PoolName    IIS app pool to restart (default "gndj").
 .PARAMETER SitePath    Site root, checked for app_offline.htm (default C:\inetpub\www\gndj).
 .PARAMETER PgService   PostgreSQL service name (default postgresql-x64-18).
@@ -23,7 +25,7 @@
 #>
 param(
   [string]$ConfigPath,
-  [string]$LocalUrl,
+  [string]$ProbeUrl,
   [string]$PoolName,
   [string]$SitePath,
   [string]$PgService,
@@ -36,16 +38,28 @@ $cfg = Get-OpsConfig -ConfigPath $ConfigPath
 
 # Config with fallbacks (works even if the config file has no "watchdog" block).
 $wd = $cfg.watchdog
-if (-not $LocalUrl)  { $LocalUrl  = if ($wd -and $wd.localUrl)  { $wd.localUrl }  else { "http://localhost:5000/health" } }
+# Probe URL: an explicit watchdog.localUrl, else the SAME public /health the notifier uses (proven to work
+# through Cloudflare), else a dev fallback. Prod runs in-process under IIS, so localhost:5000 would always fail.
+if (-not $ProbeUrl) {
+  $ProbeUrl = if ($wd -and $wd.localUrl) { $wd.localUrl }
+              elseif ($cfg.health -and $cfg.health.url) { $cfg.health.url }
+              else { "http://localhost:5000/health" }
+}
 if (-not $PoolName)  { $PoolName  = if ($wd -and $wd.poolName)  { $wd.poolName }  else { "gndj" } }
 if (-not $SitePath)  { $SitePath  = if ($wd -and $wd.sitePath)  { $wd.sitePath }  else { "C:\inetpub\www\gndj" } }
 if (-not $PgService) { $PgService = if ($wd -and $wd.pgService) { $wd.pgService } else { "postgresql-x64-18" } }
+
+# Browser UA so Cloudflare doesn't 403 the probe (bare script/urllib agents are blocked) — matches healthcheck.ps1.
+$ua = if ($cfg.health -and $cfg.health.userAgent) { $cfg.health.userAgent } else {
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
+$timeout = if ($cfg.health -and $cfg.health.timeoutSec) { [int]$cfg.health.timeoutSec } else { 20 }
 
 $stateFile = Join-Path $PSScriptRoot "watchdog-state.txt"
 
 function Test-AppHealth {
   try {
-    $r = Invoke-WebRequest -Uri $LocalUrl -TimeoutSec 15 -UseBasicParsing
+    $r = Invoke-WebRequest -Uri $ProbeUrl -TimeoutSec $timeout -UseBasicParsing -Headers @{ "User-Agent" = $ua }
     return ($r.StatusCode -eq 200)
   } catch { return $false }
 }
@@ -109,7 +123,7 @@ if ($recovered) {
   Write-Host "RECOVERED: $summary"
   # A self-heal is worth knowing about — send it every time it happens (should be rare).
   Send-OpsAlert -Config $cfg -Subject "[GNDJ auto-healed] the app was down and recovered" `
-    -Body "The watchdog detected the app DOWN and restored it automatically at $ts.`n`nActions: $summary`nProbe: $LocalUrl"
+    -Body "The watchdog detected the app DOWN and restored it automatically at $ts.`n`nActions: $summary`nProbe: $ProbeUrl"
 } else {
   Set-Content $stateFile "down" -NoNewline -Encoding utf8
   Write-Host "STILL DOWN: $summary"
@@ -117,7 +131,7 @@ if ($recovered) {
   # the watchdog keeps retrying remediation on each run regardless.
   if ($prev -ne "down") {
     Send-OpsAlert -Config $cfg -Subject "[GNDJ auto-heal FAILED] app still DOWN - manual help needed" `
-      -Body "The watchdog tried to restart the services at $ts but the app is STILL DOWN.`n`nActions: $summary`nProbe: $LocalUrl`n`nCheck: app pool state, PostgreSQL, disk space, and C:\inetpub\www\gndj\logs."
+      -Body "The watchdog tried to restart the services at $ts but the app is STILL DOWN.`n`nActions: $summary`nProbe: $ProbeUrl`n`nCheck: app pool state, PostgreSQL, disk space, and C:\inetpub\www\gndj\logs."
   }
   exit 1
 }
