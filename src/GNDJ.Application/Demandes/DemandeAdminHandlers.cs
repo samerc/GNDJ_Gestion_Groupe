@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using FluentValidation;
 using GNDJ.Application.Applicants;
 using GNDJ.Application.Common;
@@ -522,8 +523,10 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         var startDateRaw = await context.Settings.Where(s => s.Key == "demande.member_start_date").Select(s => s.Value).FirstOrDefaultAsync(ct);
         var memberStartDate = DateOnly.TryParseExact(startDateRaw, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var msd) ? msd : today;
 
-        // Pre-hash login passwords in parallel BEFORE taking the lock/transaction, so the expensive
-        // bcrypt work (one per approved member) doesn't hold the advisory lock or stretch the tx.
+        // Pre-hash a RANDOM login password in parallel BEFORE taking the lock/transaction, so the expensive
+        // bcrypt work (one per approved member) doesn't hold the advisory lock or stretch the tx. The password
+        // itself is NEVER shared — the family activates the account by setting their OWN password via the
+        // emailed set-password link (see the activation token below), so this hash just makes the row valid.
         var preApprovedIds = await context.Demandes
             .Where(d => d.ScoutYear == request.ScoutYear && d.ResponseSentAt == null && d.Status == DemandeStatus.Approved)
             .Select(d => d.Id).ToListAsync(ct);
@@ -585,6 +588,10 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         var unitNames = await context.Units.Where(u => unitIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Name, ct);
         var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct)) ?? "http://localhost:5173").TrimEnd('/');
         var loginUrl = $"{baseUrl}/login";
+        // The acceptance email carries a set-password (activation) link, valid for a long rollout window so a
+        // busy parent has time to click — same model as "Envoyer les accès" (reuses the reset-token fields).
+        const int activationExpiryDays = 30;
+        var activationExpiry = DateTime.UtcNow.AddDays(activationExpiryDays);
 
         // PERF: pre-resolve everything the per-member loop used to query one-by-one INSIDE the advisory lock —
         // base role per unit, existing guardians by contact, and taken usernames — into a few batched reads,
@@ -688,15 +695,25 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             // assignment (chosen unit, base role, no team)
             context.MemberAssignments.Add(new MemberAssignment { MemberId = member.Id, UnitId = unitId, TeamId = null, FunctionalRoleId = roleId.Value, StartDate = memberStartDate, Notes = "Inscription" });
 
-            // login — reuse the pre-computed password hash (fallback: hash inline if a demande was
-            // approved between the pre-hash read and acquiring the lock)
+            // login — reuse the pre-computed RANDOM password hash (fallback: hash inline if a demande was
+            // approved between the pre-hash read and acquiring the lock). The random password is never shared;
+            // the family sets their own via the activation link below.
             var username = UniqueEmail(d.FirstName, d.LastName, domain, usedEmails, takenEmails);
             usedEmails.Add(username);
-            string tempPassword, passwordHash;
-            if (creds.TryGetValue(d.Id, out var c)) { tempPassword = c.Pwd; passwordHash = c.Hash; }
-            else { tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}"; passwordHash = await hasher.HashAsync(tempPassword); }
-            // Generated temp password (emailed to the family) → force them to set their own on first login.
-            context.Users.Add(new User { MemberId = member.Id, Email = username, PasswordHash = passwordHash, IsActive = true, IsSuperAdmin = false, MustChangePassword = true });
+            string passwordHash = creds.TryGetValue(d.Id, out var c)
+                ? c.Hash
+                : await hasher.HashAsync($"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}");
+            // Activation token: reuses the reset-token fields (raw in DB, compared on redemption at
+            // /reset-password?...&setup=1). MustChangePassword stays false — they set their OWN password
+            // via the link, so there's nothing to "change" and no temp password to force-rotate.
+            var activationToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "").Replace("/", "").Replace("=", "");
+            context.Users.Add(new User
+            {
+                MemberId = member.Id, Email = username, PasswordHash = passwordHash, IsActive = true, IsSuperAdmin = false,
+                MustChangePassword = false, PasswordResetToken = activationToken, PasswordResetTokenExpiry = activationExpiry,
+            });
+            // setup=1 switches the reset page copy to "activation" wording (first-time password set).
+            var activationLink = $"{baseUrl}/reset-password?token={activationToken}&email={Uri.EscapeDataString(username)}&setup=1";
 
             d.CreatedMemberId = member.Id;
             d.ResponseSentAt = DateTime.UtcNow;
@@ -707,7 +724,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                 ["childName"] = $"{d.FirstName} {d.LastName}",
                 ["unitName"] = unitNames.GetValueOrDefault(unitId, ""),
                 ["username"] = username,
-                ["tempPassword"] = tempPassword,
+                ["activationLink"] = activationLink,
                 ["loginUrl"] = loginUrl,
             };
             foreach (var to in Recipients(d, acc))

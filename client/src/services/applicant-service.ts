@@ -76,6 +76,11 @@ export interface Demande {
   decisionNotes?: string | null
   submittedAt?: string | null
   responseSentAt?: string | null
+  // Result-page fields — only populated once the response is sent (never a staged decision):
+  converted?: boolean          // accepted → a member account was created
+  decidedUnitName?: string | null
+  memberUsername?: string | null   // the created member's login username
+  memberHasLoggedIn?: boolean       // they've already entered the member area → stop showing onboarding
 }
 
 export interface ApplicantProfile {
@@ -223,5 +228,13 @@ export function useVerifyEmail() {
 export function useResendVerification() {
   return useMutation({
     mutationFn: () => applicantApi.post('/applicant/resend-verification'),
+  })
+}
+
+// POST /applicant/demandes/{id}/resend-activation → re-send the member account set-password (activation)
+// email for an accepted demande (e.g. the acceptance email was lost or its link expired).
+export function useResendMemberActivation() {
+  return useMutation({
+    mutationFn: (demandeId: string) => applicantApi.post(`/applicant/demandes/${demandeId}/resend-activation`),
   })
 }

@@ -96,6 +96,12 @@ export default function DemandeWizardPage() {
   const notesMax = config?.notesMaxLength ?? 500
   const maxRelations = config?.maxScoutRelations ?? 50
 
+  // A demande whose response has been SENT has a dedicated result page (accepted → onboarding steps /
+  // declined → reason) — send them there instead of showing the read-only wizard.
+  useEffect(() => {
+    if (existing?.responseSentAt) navigate(`/inscription/portail/demande/${id}/resultat`, { replace: true })
+  }, [existing?.responseSentAt, id, navigate])
+
   // Hydrate from profile (shared data always; child only when editing existing). Multi-source hydration
   // (profile + existing + config), so it stays an effect rather than a render-phase reset.
   useEffect(() => {

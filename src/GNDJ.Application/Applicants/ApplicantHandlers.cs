@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using FluentValidation;
 using GNDJ.Application.Common;
@@ -47,7 +48,12 @@ public record DemandeDto(Guid Id, string ScoutYear, string FirstName, string Las
     string? Nationality, string? School, string? Classe, string? Section, string? BloodType, string? MedicalNotes, string? Allergies,
     string? PhoneCountryCode, string? PhoneNumber, string? Email, string? ParentNotes,
     string Status, string? DecisionNotes, DateTime? SubmittedAt, DateTime? ResponseSentAt,
-    bool HasPreviousDemande = false, string? PreviousDemandeYear = null);
+    bool HasPreviousDemande = false, string? PreviousDemandeYear = null,
+    // Result-page fields — populated only once the response is SENT (never leak a staged decision):
+    // Converted = an accepted demande that produced a member account; DecidedUnitName = the admitted unit;
+    // MemberUsername = that member's login; MemberHasLoggedIn = they've already entered the member area
+    // (so the portal stops showing onboarding steps and just links to the login page).
+    bool Converted = false, string? DecidedUnitName = null, string? MemberUsername = null, bool MemberHasLoggedIn = false);
 
 public record ApplicantProfileDto(Guid AccountId, string Email, bool EmailVerified, string? ContactName,
     string? AddressCountry, string? AddressCity, string? AddressDetails,
@@ -465,15 +471,95 @@ public class GetApplicantProfileQueryHandler(IApplicationDbContext context, ICur
                 r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName))
             .ToListAsync(ct);
 
-        var demandes = await context.Demandes.Where(d => d.ApplicantAccountId == id)
+        var demandeEntities = await context.Demandes.Where(d => d.ApplicantAccountId == id)
             .OrderByDescending(d => d.CreatedAt)
-            .Select(d => ApplicantHelpers.ToDto(d))
             .ToListAsync(ct);
+
+        // For SENT + converted (accepted) demandes, surface what the result page needs: the admitted unit's
+        // name, the created member's login username, and whether that member has already logged in (so the
+        // portal stops showing onboarding and just links to the member login). Batched — one query each.
+        var createdMemberIds = demandeEntities.Where(d => d.ResponseSentAt != null && d.CreatedMemberId != null)
+            .Select(d => d.CreatedMemberId!.Value).Distinct().ToList();
+        var decidedUnitIds = demandeEntities.Where(d => d.ResponseSentAt != null && d.DecidedUnitId != null)
+            .Select(d => d.DecidedUnitId!.Value).Distinct().ToList();
+        var unitNames = decidedUnitIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await context.Units.Where(u => decidedUnitIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Name, ct);
+        var memberUsers = createdMemberIds.Count == 0
+            ? new Dictionary<Guid, (string Email, bool LoggedIn)>()
+            : (await context.Users.Where(u => createdMemberIds.Contains(u.MemberId))
+                    .Select(u => new { u.MemberId, u.Email, u.LastLoginAt }).ToListAsync(ct))
+                .ToDictionary(u => u.MemberId, u => (Email: u.Email, LoggedIn: u.LastLoginAt != null));
+
+        var demandes = demandeEntities.Select(d =>
+        {
+            var dto = ApplicantHelpers.ToDto(d);
+            if (d.ResponseSentAt == null) return dto; // never enrich (or leak) a staged/unsent decision
+            var unitName = d.DecidedUnitId != null ? unitNames.GetValueOrDefault(d.DecidedUnitId.Value) : null;
+            var converted = d.CreatedMemberId != null;
+            string? username = null; var loggedIn = false;
+            if (d.CreatedMemberId != null && memberUsers.TryGetValue(d.CreatedMemberId.Value, out var mu)) { username = mu.Email; loggedIn = mu.LoggedIn; }
+            return dto with { Converted = converted, DecidedUnitName = unitName, MemberUsername = username, MemberHasLoggedIn = loggedIn };
+        }).ToList();
 
         return Result<ApplicantProfileDto>.Success(new ApplicantProfileDto(
             account.Id, account.Email, account.EmailVerified, account.ContactName,
             account.AddressCountry, account.AddressCity, account.AddressDetails,
             guardians, relations, demandes, account.TermsAcceptedAt != null, account.PrimaryContactEmail));
+    }
+}
+
+// ============================================================
+// Resend the member activation email for an accepted (converted) demande
+// ============================================================
+// From the result page a parent can re-send the set-password link (e.g. the acceptance email was lost or
+// its 30-day token expired). Owns-account guarded; re-stamps a FRESH token and queues the account_activation
+// email to the member's contact address. No enumeration risk — the caller can only touch their own demande.
+public record ResendMemberActivationCommand(Guid DemandeId) : IRequest<Result<bool>>;
+
+public class ResendMemberActivationCommandHandler(IApplicationDbContext context, ICurrentApplicantService current, IEmailQueue emailQueue)
+    : IRequestHandler<ResendMemberActivationCommand, Result<bool>>
+{
+    private const int ActivationExpiryDays = 30;
+
+    public async ValueTask<Result<bool>> Handle(ResendMemberActivationCommand request, CancellationToken ct)
+    {
+        var id = current.ApplicantAccountId;
+        if (id is null) return Result<bool>.Failure("Non autorisé.");
+
+        var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.DemandeId && d.ApplicantAccountId == id, ct);
+        if (demande is null) return Result<bool>.Failure("Demande introuvable.");
+        if (demande.ResponseSentAt is null || demande.CreatedMemberId is null)
+            return Result<bool>.Failure("Aucun compte membre n'est associé à cette demande.");
+
+        var user = await context.Users.FirstOrDefaultAsync(u => u.MemberId == demande.CreatedMemberId, ct);
+        if (user is null || !user.IsActive) return Result<bool>.Failure("Compte membre introuvable.");
+
+        // Fresh activation token (reuses the reset-token fields, redeemed at /reset-password?...&setup=1).
+        var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "").Replace("/", "").Replace("=", "");
+        user.PasswordResetToken = token;
+        user.PasswordResetTokenExpiry = DateTime.UtcNow.AddDays(ActivationExpiryDays);
+        await context.SaveChangesAsync(ct);
+
+        var baseUrl = (await ApplicantHelpers.Setting(context, "app.base_url", ct) ?? "http://localhost:5173").TrimEnd('/');
+        var link = $"{baseUrl}/reset-password?token={token}&email={Uri.EscapeDataString(user.Email)}&setup=1";
+
+        // Deliver to the member's designated contact email (household primary → account email fallback).
+        var member = await context.Members.Where(m => m.Id == demande.CreatedMemberId)
+            .Select(m => new { m.FirstName, m.LastName, m.PrimaryContactEmail }).FirstAsync(ct);
+        var accountEmail = await context.ApplicantAccounts.Where(a => a.Id == id).Select(a => a.Email).FirstOrDefaultAsync(ct);
+        var to = !string.IsNullOrWhiteSpace(member.PrimaryContactEmail) ? member.PrimaryContactEmail! : accountEmail;
+        if (string.IsNullOrWhiteSpace(to)) return Result<bool>.Failure("Aucune adresse email au dossier.");
+
+        await emailQueue.EnqueueAsync(new EmailJob("account_activation", to!, new Dictionary<string, string>
+        {
+            ["memberName"] = $"{member.FirstName} {member.LastName}".Trim(),
+            ["username"] = user.Email,
+            ["activationLink"] = link,
+            ["expiryDays"] = ActivationExpiryDays.ToString(),
+        }), ct);
+
+        return Result<bool>.Success(true);
     }
 }
 

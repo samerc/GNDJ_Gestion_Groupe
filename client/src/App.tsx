@@ -40,6 +40,7 @@ const ApplicantResetPasswordPage = lazy(() => import('@/pages/inscription/reset-
 const ApplicantConditionsPage = lazy(() => import('@/pages/inscription/conditions'))
 const ApplicantPortalPage = lazy(() => import('@/pages/inscription/portail'))
 const DemandeWizardPage = lazy(() => import('@/pages/inscription/demande-wizard'))
+const DemandeResultPage = lazy(() => import('@/pages/inscription/demande-result'))
 const DashboardPage = lazy(() => import('@/pages/dashboard'))
 const MyProfilePage = lazy(() => import('@/pages/my-profile'))
 const MyDocumentsPage = lazy(() => import('@/pages/my-documents'))
@@ -139,6 +140,8 @@ export default function App() {
             <Route path="/inscription/conditions" element={<ApplicantConditionsPage />} />
             <Route element={<ApplicantTermsGate />}>
               <Route path="/inscription/portail" element={<ApplicantPortalPage />} />
+              {/* Result page for a demande whose response has been sent (accepted → steps / declined → reason). */}
+              <Route path="/inscription/portail/demande/:id/resultat" element={<DemandeResultPage />} />
               <Route path="/inscription/portail/demande/:id" element={<DemandeWizardPage />} />
             </Route>
           </Route>

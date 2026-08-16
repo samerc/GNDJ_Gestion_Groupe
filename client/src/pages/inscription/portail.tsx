@@ -6,7 +6,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
-import { UserPlus, Pencil, Trash2, Users, MailWarning, CheckCircle2, XCircle, Clock, FileEdit } from 'lucide-react'
+import { UserPlus, Pencil, Trash2, Users, MailWarning, CheckCircle2, XCircle, Clock, FileEdit, LogIn } from 'lucide-react'
 
 // Maps a demande to its status: a coloured row bar (green accepted / amber pending / red refused /
 // grey draft) + a matching badge. The CG's decision is only revealed once the response batch has
@@ -118,6 +118,17 @@ export default function ApplicantPortalPage() {
                 // editable = wizard can still be opened to change it (period open + not yet replied to).
                 const locked = !!d.responseSentAt || !!d.submittedAt && d.status !== 'Draft'
                 const editable = canSubmit && !d.responseSentAt
+                const sent = !!d.responseSentAt
+                // Once the accepted member has entered the member area, the demande no longer opens — the
+                // button just takes them to the login page. Otherwise a sent demande shows its result page,
+                // and an open demande opens the wizard.
+                const enteredMemberArea = sent && d.status === 'Approved' && !!d.memberHasLoggedIn
+                const openDemande = () => {
+                  if (enteredMemberArea) navigate('/login')
+                  else if (sent) navigate(`/inscription/portail/demande/${d.id}/resultat`)
+                  else navigate(`/inscription/portail/demande/${d.id}`)
+                }
+                const buttonLabel = enteredMemberArea ? 'Espace membre' : sent ? 'Voir le résultat' : editable && d.status === 'Draft' ? 'Continuer' : 'Voir'
                 const { border, badge } = statusMeta(d)
                 return (
                   <tr key={d.id} className="hover:bg-muted/30">
@@ -141,8 +152,8 @@ export default function ApplicantPortalPage() {
                     <td className="px-4 py-3">{badge}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        <Button size="sm" variant="outline" onClick={() => navigate(`/inscription/portail/demande/${d.id}`)}>
-                          <Pencil className="mr-1 h-3.5 w-3.5" />{editable && d.status === 'Draft' ? 'Continuer' : 'Voir'}
+                        <Button size="sm" variant="outline" onClick={openDemande}>
+                          {enteredMemberArea ? <LogIn className="mr-1 h-3.5 w-3.5" /> : <Pencil className="mr-1 h-3.5 w-3.5" />}{buttonLabel}
                         </Button>
                         {editable && !locked && (
                           <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(d)}>

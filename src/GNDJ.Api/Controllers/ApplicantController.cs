@@ -202,4 +202,15 @@ public class ApplicantController : BaseApiController
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return NoContent();
     }
+
+    /// <summary>Re-sends the member account activation (set-password) email for an accepted demande. Rate-limited.</summary>
+    [Authorize]
+    [HttpPost("demandes/{id:guid}/resend-activation")]
+    [EnableRateLimiting("forms")]
+    public async Task<IActionResult> ResendActivation(Guid id)
+    {
+        var result = await Mediator.Send(new ResendMemberActivationCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { message = "Email d'activation renvoyé." });
+    }
 }
