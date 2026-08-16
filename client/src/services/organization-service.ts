@@ -52,6 +52,17 @@ export function useUnitOrganization(unitId: string) {
   })
 }
 
+// Batch move: apply a placement (team + fonction) to one or several members at once. Reuses the single
+// placement endpoint per member (fine for a unit-sized batch), then refreshes the board once.
+export function useMovePlacements(unitId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (moves: { assignmentId: string; teamId: string | null; functionalRoleId: string }[]) =>
+      Promise.all(moves.map((m) => apiClient.put(`/organization/placement/${m.assignmentId}`, { teamId: m.teamId, functionalRoleId: m.functionalRoleId }))),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['organization', unitId] }),
+  })
+}
+
 // PUT /organization/placement/{assignmentId} → move a member (team + fonction), edited in place.
 // Optimistic: updates the cached board immediately, rolls back on error, then re-syncs.
 export function useSetPlacement(unitId: string) {

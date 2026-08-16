@@ -7,7 +7,7 @@ import { PERMISSIONS } from '@/lib/constants'
 import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 import {
-  useUnitOrganization, useSetPlacement,
+  useUnitOrganization, useMovePlacements,
   type OrgMember, type OrgRole,
 } from '@/services/organization-service'
 import { MemberPhoto } from '@/components/shared/member-photo'
@@ -17,26 +17,25 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { GripVertical, ArrowRightLeft, Users, Crown, Search, X, ChevronDown, ChevronRight } from 'lucide-react'
+import { GripVertical, ArrowRightLeft, Users, Crown, Search, X, ChevronDown, ChevronRight, Check } from 'lucide-react'
 
 // Accent/case-insensitive normalize for the member search box.
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
 
-// A board column = a team of the unit, plus a virtual "Sans équipe" column (teamId null).
-interface Column { id: string | null; name: string; isMaitrise: boolean }
+// A "column" here is just a team of the unit, plus a virtual "Sans équipe" (teamId null) — used both to
+// group the vertical list and as the destinations in the move popup.
+interface Team { id: string | null; name: string; isMaitrise: boolean }
 
-// "Organiser mon unité" — the CU roster board (Mode A: live roster tidy). Drag a member between équipes or
-// change their fonction; every change edits the member's EXISTING active assignment in place (a correction,
-// not history — the passage is what rolls members forward). Later this same board gains a "passage" mode with
-// destination-branch columns when the CG opens passage. Access = leader of the unit (CU) or a group manager.
+// "Organiser mon unité" — the CU roster board (Mode A: live roster tidy). A vertical list grouped by team;
+// move members with the row's ⇄ button, by checking several + the bulk bar, or by dragging a name to the
+// center drop zone — all open the same popup (choose team + fonction). Every change edits the member's
+// EXISTING active assignment in place (a correction, not history — the passage rolls members forward).
 export default function OrganizeUnitPage() {
   const user = useAuthStore((s) => s.user)
   const hasPermission = useAuthStore((s) => s.hasPermission)
-  // A group manager (CG/ACG/super-admin) can organize ANY unit; a CU only their own led units.
   const isGroupManager = hasPermission(PERMISSIONS.MAITRISE_MANAGE)
 
-  // Unit picker source: a CU's real led units (exclude the group-level Maîtrise assignment); a group manager
-  // gets the full active-units list (their unitAccess only lists their own group assignment, not every unit).
+  // Unit picker: a CU's own led units; a group manager (CG/ACG/super-admin) gets the full active-units list.
   const leaderUnits = (user?.unitAccess ?? []).filter((u) => u.isLeader && !u.isGroupLevel)
   const { data: allUnits } = useUnits({ isActive: true, pageSize: 200 })
   const unitOptions = useMemo(
@@ -51,24 +50,28 @@ export default function OrganizeUnitPage() {
   const unitId = selectedUnit || unitOptions[0]?.unitId || ''
 
   const { data: org, isLoading } = useUnitOrganization(unitId)
-  const setPlacement = useSetPlacement(unitId)
+  const moveMutation = useMovePlacements(unitId)
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
-  const [dragName, setDragName] = useState<string | null>(null)
-  const [moveMember, setMoveMember] = useState<OrgMember | null>(null)
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  // UI state
   const [search, setSearch] = useState('')
-  // Teams the user has folded away (by column key). Search overrides collapse so matches are always visible.
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-  const toggle = (key: string) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
+  const [selected, setSelected] = useState<Set<string>>(new Set()) // checked member ids
+  const [dragName, setDragName] = useState<string | null>(null)
+  const [popupTargets, setPopupTargets] = useState<OrgMember[] | null>(null) // members the move popup will move
 
-  // Columns: teams (Maîtrise first, already ordered by the server) + a trailing "Sans équipe".
-  const columns: Column[] = useMemo(() => {
+  // Reset per-unit UI when switching units (render-phase).
+  const [prevUnit, setPrevUnit] = useState(unitId)
+  if (unitId !== prevUnit) {
+    setPrevUnit(unitId)
+    setSelected(new Set())
+    setCollapsed(new Set())
+    setPopupTargets(null)
+    setDragName(null)
+  }
+
+  const teams: Team[] = useMemo(() => {
     if (!org) return []
     return [
       ...org.teams.map((t) => ({ id: t.id as string | null, name: t.name, isMaitrise: t.isMaitrise })),
@@ -80,10 +83,20 @@ export default function OrganizeUnitPage() {
   const membersOf = (teamId: string | null) =>
     (org?.members ?? []).filter((m) => m.teamId === teamId && (!q || norm(`${m.firstName} ${m.lastName}`).includes(q)))
 
-  // The one operation: set a member's (team, fonction) in place. teamId undefined = keep current team.
-  const place = async (m: OrgMember, teamId: string | null, roleId?: string) => {
+  const selectedMembers = useMemo(() => (org?.members ?? []).filter((m) => selected.has(m.memberId)), [org, selected])
+
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const toggleTeam = (key: string) =>
+    setCollapsed((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n })
+
+  // Perform the move for the popup's targets → applies one (team, fonction) to all of them.
+  const applyMove = async (targets: OrgMember[], teamId: string | null, roleId: string) => {
     try {
-      await setPlacement.mutateAsync({ assignmentId: m.assignmentId, teamId, functionalRoleId: roleId ?? m.functionalRoleId })
+      await moveMutation.mutateAsync(targets.map((t) => ({ assignmentId: t.assignmentId, teamId, functionalRoleId: roleId })))
+      toast.success(targets.length > 1 ? `${targets.length} membres déplacés` : 'Membre déplacé')
+      setPopupTargets(null)
+      setSelected(new Set())
     } catch (err) {
       toast.error(parseApiError(err))
     }
@@ -91,12 +104,11 @@ export default function OrganizeUnitPage() {
 
   const onDragEnd = (e: DragEndEvent) => {
     setDragName(null)
-    const a = e.active.data.current as { member: OrgMember } | undefined
-    const o = e.over?.data.current as { teamId: string | null } | undefined
-    if (!a || !e.over) return
-    const target = o?.teamId ?? null
-    if (a.member.teamId === target) return // dropped back in the same column
-    place(a.member, target)
+    const m = (e.active.data.current as { member: OrgMember })?.member
+    if (!m || e.over?.id !== 'center-drop') return
+    // If the dragged member is part of a multi-selection, move the whole selection; else just this one.
+    if (selected.has(m.memberId) && selected.size > 1) setPopupTargets(selectedMembers)
+    else setPopupTargets([m])
   }
 
   if (!user) return <LoadingSpinner />
@@ -107,7 +119,7 @@ export default function OrganizeUnitPage() {
         <div>
           <h1 className="text-2xl font-bold">Organiser mon unité</h1>
           <p className="text-sm text-muted-foreground">
-            Glissez un membre d'une équipe à l'autre, ou changez sa fonction. Les modifications sont enregistrées immédiatement.
+            Déplacez un membre avec le bouton <ArrowRightLeft className="inline h-3.5 w-3.5" />, en cochant plusieurs, ou en glissant un nom au centre. Enregistré immédiatement.
           </p>
         </div>
         {unitOptions.length > 1 && (
@@ -123,10 +135,10 @@ export default function OrganizeUnitPage() {
       {!unitId ? (
         <EmptyState icon={Users} title="Aucune unité" description="Vous ne dirigez aucune unité à organiser." />
       ) : isLoading || !org ? (
-        <LoadingSpinner variant="cards" />
+        <LoadingSpinner variant="table" />
       ) : (
         <>
-          {/* Toolbar: search across the whole unit + fold/unfold all teams. */}
+          {/* Toolbar: search + fold/unfold all */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative min-w-0 flex-1">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -137,41 +149,63 @@ export default function OrganizeUnitPage() {
                 </button>
               )}
             </div>
-            <Button variant="outline" size="sm" onClick={() => setCollapsed(collapsed.size > 0 ? new Set() : new Set(columns.map((c) => c.id ?? 'none')))}>
+            <Button variant="outline" size="sm" onClick={() => setCollapsed(collapsed.size > 0 ? new Set() : new Set(teams.map((t) => t.id ?? 'none')))}>
               {collapsed.size > 0 ? 'Tout déplier' : 'Tout replier'}
             </Button>
           </div>
-          {/* On a phone, tap a card's ⇄ button to move a member (drag is the desktop path). */}
-          <p className="text-xs text-muted-foreground sm:hidden">
-            Touchez le bouton <ArrowRightLeft className="inline h-3 w-3" /> d'un membre pour le déplacer vers une autre équipe.
-          </p>
+
+          {/* Bulk selection bar */}
+          {selected.size > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-primary/5 px-3 py-2">
+              <span className="text-sm font-medium">{selected.size} sélectionné{selected.size > 1 ? 's' : ''}</span>
+              <Button size="sm" onClick={() => setPopupTargets(selectedMembers)}>
+                <ArrowRightLeft className="mr-1 h-4 w-4" />Déplacer la sélection
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Effacer</Button>
+            </div>
+          )}
 
           <DndContext
             sensors={sensors}
             collisionDetection={pointerWithin}
-            onDragStart={(e) => setDragName((e.active.data.current as { member: OrgMember })?.member.lastName + ' ' + (e.active.data.current as { member: OrgMember })?.member.firstName)}
+            onDragStart={(e) => { const m = (e.active.data.current as { member: OrgMember })?.member; setDragName(m ? `${m.firstName} ${m.lastName}` : null) }}
             onDragEnd={onDragEnd}
           >
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-              {columns.map((col) => {
-                const members = membersOf(col.id)
-                // While searching, hide teams with no match to cut clutter; otherwise always show the team.
+            <div className="overflow-hidden rounded-lg border">
+              {teams.map((team) => {
+                const members = membersOf(team.id)
                 if (q && members.length === 0) return null
-                const key = col.id ?? 'none'
+                const key = team.id ?? 'none'
+                const isCollapsed = !q && collapsed.has(key)
                 return (
-                  <BoardColumn
-                    key={key}
-                    col={col}
-                    members={members}
-                    collapsed={!q && collapsed.has(key)}
-                    onToggle={() => toggle(key)}
-                    roles={org.roles}
-                    onRole={(m, roleId) => place(m, m.teamId, roleId)}
-                    onMove={setMoveMember}
-                  />
+                  <div key={key} className="border-b last:border-b-0">
+                    <button type="button" onClick={() => toggleTeam(key)}
+                      className={cn('flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-muted/40', team.isMaitrise && 'bg-primary/5')}>
+                      <span className="flex items-center gap-1.5 text-sm font-semibold">
+                        {isCollapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                        {team.isMaitrise && <Crown className="h-3.5 w-3.5 text-primary" />}
+                        {team.name}
+                      </span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground tabular-nums">{members.length}</span>
+                    </button>
+                    {!isCollapsed && (
+                      <ul>
+                        {members.length === 0 ? (
+                          <li className="px-3 py-3 text-center text-xs text-muted-foreground">Aucun membre</li>
+                        ) : (
+                          members.map((m) => (
+                            <MemberRow key={m.assignmentId} m={m} checked={selected.has(m.memberId)} onCheck={() => toggleSelect(m.memberId)} onMove={() => setPopupTargets([m])} />
+                          ))
+                        )}
+                      </ul>
+                    )}
+                  </div>
                 )
               })}
             </div>
+
+            {/* Center drop zone — appears while dragging a name; dropping opens the move popup. */}
+            <CenterDropZone visible={!!dragName} />
             <DragOverlay>
               {dragName ? <div className="rounded-md border bg-background px-2.5 py-1.5 text-sm font-medium shadow-lg">{dragName}</div> : null}
             </DragOverlay>
@@ -179,136 +213,118 @@ export default function OrganizeUnitPage() {
         </>
       )}
 
-      {/* Mobile / fallback move dialog — pick team + fonction, then apply. Keyed so it re-seeds per member. */}
-      <MoveDialog
-        key={moveMember?.assignmentId ?? 'none'}
-        member={moveMember}
-        columns={columns}
-        roles={org?.roles ?? []}
-        onClose={() => setMoveMember(null)}
-        onApply={async (teamId, roleId) => {
-          if (moveMember) await place(moveMember, teamId, roleId)
-          setMoveMember(null)
-        }}
-        busy={setPlacement.isPending}
-      />
+      {/* Move popup — single or multi, keyed so it re-seeds per target set. */}
+      {popupTargets && (
+        <MovePopup
+          key={popupTargets.map((t) => t.assignmentId).join(',')}
+          targets={popupTargets}
+          teams={teams}
+          roles={org?.roles ?? []}
+          busy={moveMutation.isPending}
+          onClose={() => setPopupTargets(null)}
+          onApply={(teamId, roleId) => applyMove(popupTargets, teamId, roleId)}
+        />
+      )}
     </div>
   )
 }
 
-// ─── One column (a team, or "Sans équipe") — collapsible; a cell of the responsive grid ───
-function BoardColumn({ col, members, collapsed, onToggle, roles, onRole, onMove }: {
-  col: Column
-  members: OrgMember[]
-  collapsed: boolean
-  onToggle: () => void
-  roles: OrgRole[]
-  onRole: (m: OrgMember, roleId: string) => void
-  onMove: (m: OrgMember) => void
+// ─── One member row (checkbox + drag handle + photo + name + fonction + ⇄) ───
+function MemberRow({ m, checked, onCheck, onMove }: {
+  m: OrgMember
+  checked: boolean
+  onCheck: () => void
+  onMove: () => void
 }) {
-  // The whole box (header included) is the drop target, so you can drop onto a collapsed team's header too.
-  const { setNodeRef, isOver } = useDroppable({ id: `col-${col.id ?? 'none'}`, data: { teamId: col.id } })
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `m-${m.assignmentId}`, data: { member: m } })
+  return (
+    <li ref={setNodeRef} className={cn('flex items-center gap-2 border-t px-3 py-2 first:border-t-0 hover:bg-muted/20', isDragging && 'opacity-40', checked && 'bg-primary/5')}>
+      <input type="checkbox" checked={checked} onChange={onCheck} className="h-4 w-4 shrink-0 rounded border-input accent-primary" aria-label="Sélectionner" />
+      <button type="button" className="cursor-grab touch-none text-muted-foreground/50 hover:text-muted-foreground active:cursor-grabbing" {...listeners} {...attributes} title="Glisser vers le centre">
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <MemberPhoto memberId={m.memberId} name={`${m.firstName} ${m.lastName}`} photoPath={m.photoPath} size={30} />
+      <span className="min-w-0 flex-1 truncate text-sm font-medium">{m.firstName} {m.lastName}</span>
+      <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">· {m.functionalRoleName}</span>
+      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onMove} title="Déplacer">
+        <ArrowRightLeft className="h-4 w-4" />
+      </Button>
+    </li>
+  )
+}
+
+// ─── The center drop target that lights up during a drag ───
+function CenterDropZone({ visible }: { visible: boolean }) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'center-drop' })
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        'flex flex-col self-start rounded-lg border bg-card',
-        col.isMaitrise && 'border-primary/40 bg-primary/5',
-        isOver && 'ring-2 ring-primary/50',
+        'pointer-events-none fixed left-1/2 top-1/2 z-50 flex h-40 w-72 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl border-2 border-dashed text-center text-sm font-medium transition-opacity',
+        visible ? 'opacity-100' : 'opacity-0',
+        isOver ? 'border-primary bg-primary/10 text-primary' : 'border-muted-foreground/40 bg-background/95 text-muted-foreground',
       )}
     >
-      <button type="button" onClick={onToggle} className="flex items-center justify-between gap-2 rounded-t-lg px-3 py-2.5 text-left hover:bg-muted/40">
-        <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
-          {collapsed ? <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />}
-          {col.isMaitrise && <Crown className="h-3.5 w-3.5 shrink-0 text-primary" />}
-          <span className="truncate">{col.name}</span>
-        </span>
-        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground tabular-nums">{members.length}</span>
-      </button>
-      {!collapsed && (
-        <div className="flex min-h-16 flex-col gap-1.5 border-t p-2">
-          {members.length === 0 ? (
-            <p className="px-1 py-3 text-center text-xs text-muted-foreground">Déposez un membre ici</p>
-          ) : (
-            members.map((m) => <MemberCard key={m.assignmentId} m={m} roles={roles} onRole={onRole} onMove={onMove} />)
-          )}
-        </div>
-      )}
+      <span className="flex flex-col items-center gap-1">
+        <ArrowRightLeft className="h-6 w-6" />
+        Déposer ici pour déplacer
+      </span>
     </div>
   )
 }
 
-// ─── One member card (draggable via the grip handle; fonction inline; ⇄ opens the move dialog) ───
-function MemberCard({ m, roles, onRole, onMove }: {
-  m: OrgMember
+// ─── Move popup: pick a team (+ fonction) and apply to all targets ───
+function MovePopup({ targets, teams, roles, busy, onClose, onApply }: {
+  targets: OrgMember[]
+  teams: Team[]
   roles: OrgRole[]
-  onRole: (m: OrgMember, roleId: string) => void
-  onMove: (m: OrgMember) => void
-}) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `m-${m.assignmentId}`, data: { member: m } })
-  // Show the member's current role even if it's archived / not in the active list.
-  const roleOptions = roles.some((r) => r.id === m.functionalRoleId)
-    ? roles
-    : [{ id: m.functionalRoleId, name: `${m.functionalRoleName} (archivée)`, rank: m.roleRank, isMaitrise: false, isDefault: false }, ...roles]
-
-  return (
-    <div ref={setNodeRef} className={cn('rounded-md border bg-background p-1.5', isDragging && 'opacity-40')}>
-      <div className="flex items-center gap-1.5">
-        <button type="button" className="cursor-grab touch-none text-muted-foreground/60 hover:text-muted-foreground active:cursor-grabbing" {...listeners} {...attributes} title="Glisser">
-          <GripVertical className="h-4 w-4" />
-        </button>
-        <MemberPhoto memberId={m.memberId} name={`${m.firstName} ${m.lastName}`} photoPath={m.photoPath} size={30} />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{m.firstName} {m.lastName}</span>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => onMove(m)} title="Déplacer">
-          <ArrowRightLeft className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-      <div className="mt-1.5 pl-6">
-        <Select value={m.functionalRoleId} onValueChange={(rid) => onRole(m, rid)}>
-          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {roleOptions.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-  )
-}
-
-// ─── Mobile / fallback "Déplacer" dialog — pick team + fonction, apply once ───
-function MoveDialog({ member, columns, roles, onClose, onApply, busy }: {
-  member: OrgMember | null
-  columns: Column[]
-  roles: OrgRole[]
+  busy: boolean
   onClose: () => void
   onApply: (teamId: string | null, roleId: string) => void
-  busy: boolean
 }) {
-  // Local selections, seeded from the member each time the dialog opens (keyed remount via `key`).
-  const [teamId, setTeamId] = useState<string | null>(member?.teamId ?? null)
-  const [roleId, setRoleId] = useState<string>(member?.functionalRoleId ?? '')
-  if (!member) return null
+  const multi = targets.length > 1
+  // Seed the team: the shared team if they all match ('none' = Sans équipe); else nothing selected ('').
+  const sameTeam = targets.every((t) => t.teamId === targets[0].teamId)
+  const [teamVal, setTeamVal] = useState<string>(sameTeam ? (targets[0].teamId ?? 'none') : '')
+  // Seed the fonction: shared fonction if they all match; else the unit's default/base role.
+  const sameRole = targets.every((t) => t.functionalRoleId === targets[0].functionalRoleId)
+  const defaultRole = roles.find((r) => r.isDefault)?.id ?? roles[0]?.id ?? ''
+  const [roleId, setRoleId] = useState<string>(sameRole ? targets[0].functionalRoleId : defaultRole)
 
-  const roleOptions = roles.some((r) => r.id === member.functionalRoleId)
-    ? roles
-    : [{ id: member.functionalRoleId, name: `${member.functionalRoleName} (archivée)`, rank: 0, isMaitrise: false, isDefault: false }, ...roles]
+  // Show the current role even if archived / not in the active list (single target).
+  const roleOptions = !multi && !roles.some((r) => r.id === targets[0].functionalRoleId)
+    ? [{ id: targets[0].functionalRoleId, name: `${targets[0].functionalRoleName} (archivée)`, rank: 0, isMaitrise: false, isDefault: false }, ...roles]
+    : roles
+
+  const title = multi ? `Déplacer — ${targets.length} membres` : `Déplacer ${targets[0].firstName} ${targets[0].lastName}`
+  const names = multi ? targets.map((t) => `${t.firstName} ${t.lastName}`).join(', ') : null
 
   return (
-    <Dialog open={!!member} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="max-w-sm">
+    <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Déplacer {member.firstName} {member.lastName}</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {names && <p className="text-xs text-muted-foreground">{names}</p>}
+
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Équipe</label>
-            <Select value={teamId ?? 'none'} onValueChange={(v) => setTeamId(v === 'none' ? null : v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {columns.map((c) => <SelectItem key={c.id ?? 'none'} value={c.id ?? 'none'}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-2 gap-1.5">
+              {teams.map((t) => {
+                const val = t.id ?? 'none'
+                const active = teamVal === val
+                return (
+                  <button key={val} type="button" onClick={() => setTeamVal(val)}
+                    className={cn('flex items-center justify-between rounded-md border px-2.5 py-2 text-left text-sm', active ? 'border-primary bg-primary/10 font-medium' : 'hover:bg-muted/40')}>
+                    <span className="truncate">{t.name}</span>
+                    {active && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                  </button>
+                )
+              })}
+            </div>
           </div>
+
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Fonction</label>
             <Select value={roleId} onValueChange={setRoleId}>
@@ -321,7 +337,9 @@ function MoveDialog({ member, columns, roles, onClose, onApply, busy }: {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={() => onApply(teamId, roleId)} disabled={busy}>Appliquer</Button>
+          <Button disabled={busy || teamVal === '' || !roleId} onClick={() => onApply(teamVal === 'none' ? null : teamVal, roleId)}>
+            <ArrowRightLeft className="mr-1 h-4 w-4" />Déplacer
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
