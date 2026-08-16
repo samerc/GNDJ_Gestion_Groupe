@@ -305,34 +305,64 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<GndjDbContext>();
-    await context.Database.MigrateAsync();
+    var startupLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
 
-    var config = builder.Configuration;
-    var email = config["SuperAdmin:Email"] ?? "admin@gndj.local";
-    var password = config["SuperAdmin:Password"] ?? "Admin123!";
-    var passwordHash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 10);
-    await SeedData.SeedAsync(context, email, passwordHash);
-    await SeedData.SeedMissingPermissionsAsync(context);
-    await SeedData.SeedChefDeGroupeProfileAsync(context);
-    await SeedData.SeedAssistantDeGroupeProfileAsync(context);
-    await SeedData.SeedScoutStructureAsync(context);
-    await SeedData.SeedMissingSettingsAsync(context);
-    await SeedData.SeedDefaultEmailTemplatesAsync(context);
-    await SeedData.SeedDemandeEmailTemplatesAsync(context);
-    await SeedData.SeedContactEmailTemplateAsync(context);
-    await SeedData.SeedMemberEmailTemplatesAsync(context);
-    await SeedData.SeedFunctionalRoleRanksAsync(context);
-    await SeedData.SeedRentreeTemplateAsync(context);
-    await SeedData.SeedRentreeActionKeysAsync(context);
-    await SeedData.SeedRentreeReminderTaskAsync(context);
+    // Serialize startup migrations + seeding ACROSS PROCESSES. IIS overlapped recycling briefly runs two
+    // worker processes at once; without this they run the idempotent "seed-missing" back-fills concurrently
+    // and the loser hits a duplicate-key (23505) — an unhandled startup exception that crash-loops the app
+    // and trips IIS rapid-fail protection (root cause of the 2026-08-16 outage). A Postgres SESSION advisory
+    // lock, held on ONE kept-open connection for the whole init, makes a second worker WAIT; by the time it
+    // proceeds everything is already seeded, so every Seed* is a no-op. The lock auto-releases if the process
+    // dies (session ends), so there is no deadlock risk.
+    const long startupLockKey = 4820260816L;
+    var conn = context.Database.GetDbConnection();
+    await conn.OpenAsync(); // keep this connection open so the session-scoped advisory lock persists across all steps below
+    await context.Database.ExecuteSqlRawAsync("SELECT pg_advisory_lock({0})", startupLockKey);
+    try
+    {
+        await context.Database.MigrateAsync();
 
-    // One-off DATA patches (deploy/patches/*.sql, copied to <ContentRoot>/DataPatches on publish). Applied
-    // exactly once each — tracked in the data_patches table — for data changes the migrations/seeders don't
-    // carry. See deploy/patches/README.md.
-    // AppContext.BaseDirectory (the app's binary folder) is where the .sql files are copied — this matches
-    // both `dotnet run` (bin/…) and a published app (the deploy folder), unlike ContentRootPath.
-    var patchLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DataPatches");
-    await DataPatchRunner.RunAsync(context, Path.Combine(AppContext.BaseDirectory, "DataPatches"), patchLogger);
+        var config = builder.Configuration;
+        var email = config["SuperAdmin:Email"] ?? "admin@gndj.local";
+        var password = config["SuperAdmin:Password"] ?? "Admin123!";
+        var passwordHash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 10);
+        try
+        {
+            await SeedData.SeedAsync(context, email, passwordHash);
+            await SeedData.SeedMissingPermissionsAsync(context);
+            await SeedData.SeedChefDeGroupeProfileAsync(context);
+            await SeedData.SeedAssistantDeGroupeProfileAsync(context);
+            await SeedData.SeedScoutStructureAsync(context);
+            await SeedData.SeedMissingSettingsAsync(context);
+            await SeedData.SeedDefaultEmailTemplatesAsync(context);
+            await SeedData.SeedDemandeEmailTemplatesAsync(context);
+            await SeedData.SeedContactEmailTemplateAsync(context);
+            await SeedData.SeedMemberEmailTemplatesAsync(context);
+            await SeedData.SeedFunctionalRoleRanksAsync(context);
+            await SeedData.SeedRentreeTemplateAsync(context);
+            await SeedData.SeedRentreeActionKeysAsync(context);
+            await SeedData.SeedRentreeReminderTaskAsync(context);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
+        {
+            // Defense-in-depth (the advisory lock should already prevent this): a raced/duplicate seed insert
+            // must NEVER crash the app on startup — the row it was adding already exists. Log and carry on.
+            startupLogger.LogWarning(ex, "Startup seeding hit a duplicate key (already seeded / concurrent start) — continuing.");
+        }
+
+        // One-off DATA patches (deploy/patches/*.sql, copied to <ContentRoot>/DataPatches on publish). Applied
+        // exactly once each — tracked in the data_patches table — for data changes the migrations/seeders don't
+        // carry. See deploy/patches/README.md.
+        // AppContext.BaseDirectory (the app's binary folder) is where the .sql files are copied — this matches
+        // both `dotnet run` (bin/…) and a published app (the deploy folder), unlike ContentRootPath.
+        var patchLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DataPatches");
+        await DataPatchRunner.RunAsync(context, Path.Combine(AppContext.BaseDirectory, "DataPatches"), patchLogger);
+    }
+    finally
+    {
+        // Release the advisory lock (also auto-released on connection close / process exit).
+        await context.Database.ExecuteSqlRawAsync("SELECT pg_advisory_unlock({0})", startupLockKey);
+    }
 }
 
 // Middleware pipeline
