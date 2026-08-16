@@ -238,16 +238,16 @@ function MemberRow({ m, checked, onCheck, onMove }: {
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `m-${m.assignmentId}`, data: { member: m } })
   return (
-    <li ref={setNodeRef} className={cn('flex items-center gap-2 border-t px-3 py-2 first:border-t-0 hover:bg-muted/20', isDragging && 'opacity-40', checked && 'bg-primary/5')}>
-      <input type="checkbox" checked={checked} onChange={onCheck} className="h-4 w-4 shrink-0 rounded border-input accent-primary" aria-label="Sélectionner" />
+    <li ref={setNodeRef} className={cn('flex items-center gap-2.5 border-t px-3 py-3 first:border-t-0 hover:bg-muted/20 sm:gap-2 sm:py-2', isDragging && 'opacity-40', checked && 'bg-primary/5')}>
+      <input type="checkbox" checked={checked} onChange={onCheck} className="h-5 w-5 shrink-0 rounded border-input accent-primary sm:h-4 sm:w-4" aria-label="Sélectionner" />
       <button type="button" className="cursor-grab touch-none text-muted-foreground/50 hover:text-muted-foreground active:cursor-grabbing" {...listeners} {...attributes} title="Glisser vers le centre">
-        <GripVertical className="h-4 w-4" />
+        <GripVertical className="h-5 w-5 sm:h-4 sm:w-4" />
       </button>
-      <MemberPhoto memberId={m.memberId} name={`${m.firstName} ${m.lastName}`} photoPath={m.photoPath} size={30} />
-      <span className="min-w-0 flex-1 truncate text-sm font-medium">{m.firstName} {m.lastName}</span>
+      <MemberPhoto memberId={m.memberId} name={`${m.firstName} ${m.lastName}`} photoPath={m.photoPath} size={34} />
+      <span className="min-w-0 flex-1 truncate text-[15px] font-medium sm:text-sm">{m.firstName} {m.lastName}</span>
       <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">· {m.functionalRoleName}</span>
-      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onMove} title="Déplacer">
-        <ArrowRightLeft className="h-4 w-4" />
+      <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 sm:h-8 sm:w-8" onClick={onMove} title="Déplacer">
+        <ArrowRightLeft className="h-5 w-5 sm:h-4 sm:w-4" />
       </Button>
     </li>
   )
