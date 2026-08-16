@@ -2467,6 +2467,35 @@ SeedMissingSettings on prod startup; verified live end‑to‑end against smtp4d
       work in Excel; design details deferred). Note #6 (late approvals) already works via re‑running "Envoyer les
       réponses" (idempotent). See [[project-demande-inscription]].
 
+### Demande process fine-tuning — batch F–I (2026-08-17)
+The remaining backlog from the CG process review (A–E shipped 2026-08-16). All DEV until deploy; migration +
+new templates/settings auto-apply on prod startup; verified live end-to-end vs smtp4dev.
+- [x] **F — Email attachments (ALL templates).** `EmailTemplate.AttachmentsJson` (`[{name,url}]`, migration
+      `AddEmailTemplateAttachments`); files uploaded via the existing `/content/files` endpoint and attached to
+      every email from that template. `EmailService` parses the JSON into the cached `ResolvedTemplate` and adds
+      each file (resolves `/api/v1/content/files/{f}` → `uploads/content/{f}`, path-traversal guarded, missing file
+      skipped). Editor UI (upload / list / remove) in email-settings. Use case: an official rejection letter PDF on
+      `demande_declined`. Rentrée tasks remind the CG to refresh attachments yearly + draft the refusal letter.
+- [x] **G — Submission reminders (manual, NO scheduler).** `GET /demandes/unsubmitted-count` +
+      `POST /demandes/send-submission-reminders` (demande.manage) email the seeded `demande_submission_reminder`
+      ("soumettez avant {deadline}") to every applicant account with **no submitted demande** this year. Button on
+      the review page ("Relancer les non-soumis (N)"). Reminder B (accepted members who never activated) is the
+      existing "Envoyer les accès → jamais connectés" tool. Rentrée checklist tasks added for both.
+- [x] **H — Archive search UI.** `GET /demandes/archives` (accent/case-insensitive name search via `DbFns.Unaccent`,
+      scout-year filter, paged) over `demande_archives` + page **`/admin/demande-archives`** ("Archives des demandes",
+      sidebar Suivi & demandes, demande.view). Purpose: verify a family's claimed prior submission.
+- [x] **I — Excel decisions round-trip (Maîtrises work in Excel).** `GET /demandes/export-decisions` → `.xlsx`
+      (one row per submitted demande, **names only** — no contact details; a Décision dropdown [Accepté/Refusé] +
+      Unité + Motif columns to fill; a "Unités" reference sheet; the Réf. = demande id is the matching key) and
+      `POST /demandes/import-decisions` (multipart) → **stages** the approve/decline choices (same as the web
+      review; nothing sent until "Envoyer les réponses"; re-import allowed). Per-row validation with an error
+      report (unknown unit / bad decision → clean error, no partial apply); unit matched accent/case-insensitively.
+      `IDemandeSheetService`/`DemandeSheetService` (ClosedXML). Export/Import buttons on the review page toolbar.
+- **Note #6 (late approvals) already works:** re-running "Envoyer les réponses" is idempotent and converts only
+      the newly-approved demandes (a demande re-decided after a batch send has its ResponseSentAt cleared). No build.
+- New rentrée goto-actions: `goto-email` / `goto-send-access` / `goto-demande-archives`; `SeedRentreeExtraTasksAsync`
+      backfills the 4 new checklist tasks (idempotent per title). See [[project-demande-inscription]].
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
