@@ -78,6 +78,16 @@ public class DemandesController : BaseApiController
         return Ok(new { success = true });
     }
 
+    /// <summary>Saves the pre-selected unit for a demande WITHOUT deciding (staged). Requires demande.manage.</summary>
+    [HttpPut("{id:guid}/unit")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> SetUnit(Guid id, [FromBody] SetUnitBody body)
+    {
+        var result = await Mediator.Send(new SetDemandeUnitCommand(id, body.DecidedUnitId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>
     /// Bulk approve/decline (per-item unit), skipping already-sent demandes; returns a per-item result summary.
     /// Requires demande.manage.
@@ -173,4 +183,5 @@ public class DemandesController : BaseApiController
     }
 
     public record DecideBody(string Status, Guid? DecidedUnitId, string? DecisionNotes);
+    public record SetUnitBody(Guid? DecidedUnitId);
 }

@@ -139,6 +139,17 @@ export function useDecideDemande() {
   })
 }
 
+// PUT /demandes/{id}/unit → save the pre-selected unit WITHOUT deciding (staged); status stays as-is.
+// Lets the CG lock in / change "unité d'affectation (si accepté)" and come back later. Invalidates ['demandes'].
+export function useSetDemandeUnit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; decidedUnitId: string | null }) =>
+      apiClient.put(`/demandes/${data.id}/unit`, { decidedUnitId: data.decidedUnitId }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes'] }) },
+  })
+}
+
 // POST /demandes/bulk-decide → decide many at once (per-item unit), skips already-sent. Returns {processed, skipped}; invalidates ['demandes'].
 export function useBulkDecideDemande() {
   const qc = useQueryClient()

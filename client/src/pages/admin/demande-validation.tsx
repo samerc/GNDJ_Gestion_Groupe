@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSettingValue, useSchoolCode } from '@/services/settings-service'
 import {
   useDemandesForReview, useUnitOccupancy, useDecideDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useCloseCampaign,
-  useCampaignStatus, useSetSubmissions,
+  useCampaignStatus, useSetSubmissions, useSetDemandeUnit,
   type DemandeReview, type UnitOccupancy,
 } from '@/services/demande-admin-service'
 import { Button } from '@/components/ui/button'
@@ -31,7 +31,7 @@ import { parseApiError } from '@/lib/error-utils'
 import {
   Inbox, Check, X, Send, Users2, ChevronDown, ChevronRight, ChevronLeft, CheckCircle2, XCircle, Clock,
   AlertTriangle, User, Phone, Mail, MapPin, HeartPulse, GraduationCap, MessageSquare, Tent, ArrowUpDown,
-  Search, Sparkles, Trash2, Link2, Lock, LockOpen,
+  Search, Sparkles, Trash2, Link2, Lock, LockOpen, Save,
 } from 'lucide-react'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -664,6 +664,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, hasPrev,
 }) {
   const locked = !!d.createdMemberId // only a converted demande is locked; a sent-declined one can be re-opened
   const suggested = useMemo(() => suggestUnit(d, occupancy), [d, occupancy])
+  const setUnitMutation = useSetDemandeUnit()
   // Local decision draft: pre-fill unit with the already-decided unit, else the suggestion.
   const [unit, setUnit] = useState(d.decidedUnitId ?? suggested?.unitId ?? '')
   const [note, setNote] = useState(d.status === 'Approved' ? (d.decisionNotes ?? '') : '')
@@ -695,6 +696,17 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, hasPrev,
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [d, unit, note, motif, locked, busy, hasPrev, hasNext, onPrev, onNext, onDecide])
+
+  // Save the chosen unit as a pre-selection WITHOUT deciding — so the CG can lock in / change the unit and come
+  // back later (they don't have to click Accepter, which they might not be ready to do). Shown when the picked
+  // unit differs from what's stored on the demande.
+  const unitDirty = unit !== (d.decidedUnitId ?? '')
+  const saveUnit = async () => {
+    try {
+      await setUnitMutation.mutateAsync({ id: d.id, decidedUnitId: unit || null })
+      toast.success('Unité enregistrée')
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
 
   const addr = [d.addressDetails, d.addressCity, d.addressCountry].filter(Boolean).join(', ')
   const miss = missingInfo(d)
@@ -839,8 +851,16 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, hasPrev,
               <label className="flex items-center gap-2 text-sm font-medium">
                 Unité d'affectation (si accepté)
                 {suggested && unit === suggested.unitId && !d.decidedUnitId && <span className="inline-flex items-center gap-0.5 text-xs font-normal text-primary"><Sparkles className="h-3 w-3" />suggérée</span>}
+                {d.decidedUnitId && !unitDirty && <span className="text-xs font-normal text-emerald-600">· enregistrée</span>}
               </label>
-              <UnitSelect occupancy={occupancy} d={d} value={unit} onChange={setUnit} />
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1"><UnitSelect occupancy={occupancy} d={d} value={unit} onChange={setUnit} /></div>
+                {unitDirty && (
+                  <Button size="sm" variant="outline" className="shrink-0" onClick={saveUnit} disabled={setUnitMutation.isPending}>
+                    <Save className="mr-1 h-4 w-4" />Enregistrer
+                  </Button>
+                )}
+              </div>
               {unit && occByUnit[unit] && <UnitHint u={occByUnit[unit]} d={d} />}
             </div>
             <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optionnel)" />

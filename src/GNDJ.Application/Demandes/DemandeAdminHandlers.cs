@@ -374,6 +374,38 @@ public class DecideDemandeCommandHandler(IApplicationDbContext context, ICurrent
 }
 
 // ============================================================
+// Set the pre-selected unit WITHOUT deciding — lets the CG lock in / change the "unité d'affectation
+// (si accepté)" and come back later, instead of being forced to click Accepter to persist a unit choice.
+// Only touches DecidedUnitId; the status stays as-is (a Submitted demande is still pending). Blocked once
+// a response has been sent (use re-decide for a sent demande). Occupancy's "accepted" count is Approved-only,
+// so a pre-selection on a Submitted demande doesn't inflate it.
+// ============================================================
+public record SetDemandeUnitCommand(Guid Id, Guid? DecidedUnitId) : IRequest<Result<bool>>;
+
+public class SetDemandeUnitCommandValidator : AbstractValidator<SetDemandeUnitCommand>
+{
+    public SetDemandeUnitCommandValidator() => RuleFor(x => x.Id).NotEmpty();
+}
+
+public class SetDemandeUnitCommandHandler(IApplicationDbContext context, IAuditService audit) : IRequestHandler<SetDemandeUnitCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(SetDemandeUnitCommand request, CancellationToken ct)
+    {
+        var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id, ct);
+        if (demande is null) return Result<bool>.Failure("Demande introuvable.");
+        if (demande.ResponseSentAt is not null)
+            return Result<bool>.Failure("La réponse a déjà été envoyée — l'unité ne peut plus être pré-sélectionnée ici.");
+        if (request.DecidedUnitId is not null && !await context.Units.AnyAsync(u => u.Id == request.DecidedUnitId.Value, ct))
+            return Result<bool>.Failure("Unité introuvable.");
+
+        demande.DecidedUnitId = request.DecidedUnitId;
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("SetUnit", "Demande", demande.Id, newValues: new { demande.DecidedUnitId }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
+// ============================================================
 // Bulk decide — stage approve/decline for many demandes at once.
 // Per-item unit so it serves approve-to-one-unit, approve-to-suggested, and decline.
 // ============================================================
