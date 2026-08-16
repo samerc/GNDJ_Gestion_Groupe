@@ -8,7 +8,7 @@ import { parseApiError } from '@/lib/error-utils'
 import {
   useSmtpServers, useCreateSmtpServer, useUpdateSmtpServer, useDeleteSmtpServer, useTestSmtp,
   useEmailTemplates, useCreateEmailTemplate, useUpdateEmailTemplate, useDeleteEmailTemplate,
-  type SmtpServerDto, type EmailTemplateDto,
+  type SmtpServerDto, type EmailTemplateDto, type EmailAttachment,
 } from '@/services/email-service'
 import { RichTextEditor } from '@/components/shared/rich-text-editor'
 import { Button } from '@/components/ui/button'
@@ -23,8 +23,9 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Tip } from '@/components/ui/tooltip'
-import { Plus, Trash2, Pencil, Server, FileText, Send } from 'lucide-react'
+import { Plus, Trash2, Pencil, Server, FileText, Send, Paperclip, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
+import apiClient from '@/lib/api-client'
 
 // -- Module variables --
 // Per-module set of {{placeholders}} the backend will substitute. Keyed by template.module; selecting a
@@ -89,9 +90,9 @@ const defaultSmtpForm: SmtpForm = { name: '', host: '', port: 587, username: '',
 // -- Template form --
 interface TemplateForm {
   name: string; code: string; module: string; subject: string; bodyHtml: string
-  variables: string; smtpServerId: string; isActive: boolean
+  variables: string; smtpServerId: string; isActive: boolean; attachments: EmailAttachment[]
 }
-const defaultTemplateForm: TemplateForm = { name: '', code: '', module: 'auth', subject: '', bodyHtml: '', variables: '', smtpServerId: '', isActive: true }
+const defaultTemplateForm: TemplateForm = { name: '', code: '', module: 'auth', subject: '', bodyHtml: '', variables: '', smtpServerId: '', isActive: true, attachments: [] }
 
 export default function EmailSettingsPage() {
   return (
@@ -378,6 +379,22 @@ function TemplatesTab() {
   const [form, setForm] = useState<TemplateForm>(defaultTemplateForm)
   const [error, setError] = useState('')
   const [deleting, setDeleting] = useState<EmailTemplateDto | null>(null)
+  const [uploading, setUploading] = useState(false)
+
+  // Upload a file (PDF/image) via the content-files endpoint and append it as a template attachment.
+  const handleUploadAttachment = async (file: File) => {
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const { data } = await apiClient.post<{ url: string; name: string }>('/content/files', fd)
+      setForm(f => ({ ...f, attachments: [...f.attachments, { name: data.name, url: data.url }] }))
+    } catch (err) {
+      toast.error(parseApiError(err))
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const openCreate = () => {
     setEditing(null)
@@ -392,7 +409,7 @@ function TemplatesTab() {
       name: tpl.name, code: tpl.code, module: tpl.module,
       subject: tpl.subject, bodyHtml: tpl.bodyHtml,
       variables: tpl.variables ?? '', smtpServerId: tpl.smtpServerId ?? '',
-      isActive: tpl.isActive,
+      isActive: tpl.isActive, attachments: tpl.attachments ?? [],
     })
     setError('')
     setFormOpen(true)
@@ -408,6 +425,7 @@ function TemplatesTab() {
         variables: form.variables || null,
         smtpServerId: form.smtpServerId || null,
         isActive: form.isActive,
+        attachments: form.attachments,
       }
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, ...payload })
@@ -546,6 +564,33 @@ function TemplatesTab() {
                 placeholder="Redigez votre email..."
               />
             </div>
+            {/* Attachments — files added to every email sent from this template (e.g. an official letter). */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Pièces jointes</span>
+              </div>
+              {form.attachments.length > 0 && (
+                <ul className="space-y-1">
+                  {form.attachments.map((a, i) => (
+                    <li key={i} className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-1.5 text-sm">
+                      <a href={a.url} target="_blank" rel="noreferrer" className="truncate hover:underline">{a.name}</a>
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0"
+                        onClick={() => setForm(f => ({ ...f, attachments: f.attachments.filter((_, j) => j !== i) }))}>
+                        <X className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted/50">
+                <Upload className="h-4 w-4" />{uploading ? 'Téléversement…' : 'Ajouter une pièce jointe'}
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" disabled={uploading}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadAttachment(f); e.target.value = '' }} />
+              </label>
+              <p className="text-xs text-muted-foreground">PDF ou image — jointe à chaque envoi. Pensez à la mettre à jour chaque année.</p>
+            </div>
+
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={form.isActive} onChange={(e) => setForm(f => ({ ...f, isActive: e.target.checked }))} />
               Actif

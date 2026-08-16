@@ -2,6 +2,7 @@ using GNDJ.Api.Authorization;
 using GNDJ.Application.Demandes;
 using GNDJ.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace GNDJ.Api.Controllers;
 
@@ -180,6 +181,67 @@ public class DemandesController : BaseApiController
         var result = await Mediator.Send(new VerifyApplicantEmailManuallyCommand(id));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(new { success = true });
+    }
+
+    // ── Reminders (G) ────────────────────────────────────────────────────────────────────────────────
+    /// <summary>Count of applicant accounts with no submitted demande this year (reminder-A audience). demande.view.</summary>
+    [HttpGet("unsubmitted-count")]
+    [HasPermission(Permissions.DemandeView)]
+    public async Task<IActionResult> UnsubmittedCount([FromQuery] string scoutYear)
+    {
+        if (string.IsNullOrWhiteSpace(scoutYear)) return BadRequest(new { error = "L'année scoute est requise." });
+        var result = await Mediator.Send(new GetUnsubmittedCountQuery(scoutYear));
+        return Ok(new { count = result.Value });
+    }
+
+    /// <summary>Emails a "please submit before the deadline" reminder to every account with no submitted demande
+    /// this year. Manual (CG button). Requires demande.manage.</summary>
+    [HttpPost("send-submission-reminders")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> SendSubmissionReminders([FromBody] SendSubmissionRemindersCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { sent = result.Value });
+    }
+
+    // ── Archive browse (H) ───────────────────────────────────────────────────────────────────────────
+    /// <summary>Searches the permanent demande archive (past campaigns) by child name / scout year. demande.view.</summary>
+    [HttpGet("archives")]
+    [HasPermission(Permissions.DemandeView)]
+    public async Task<IActionResult> Archives([FromQuery] string? search, [FromQuery] string? scoutYear, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+    {
+        var result = await Mediator.Send(new GetDemandeArchivesQuery(search, scoutYear, page, pageSize));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    // ── Excel decisions round-trip (I) ───────────────────────────────────────────────────────────────
+    /// <summary>Exports the submitted demandes to an .xlsx (Décision/Unité/Motif columns to fill). demande.view.</summary>
+    [HttpGet("export-decisions")]
+    [HasPermission(Permissions.DemandeView)]
+    public async Task<IActionResult> ExportDecisions([FromQuery] string scoutYear)
+    {
+        if (string.IsNullOrWhiteSpace(scoutYear)) return BadRequest(new { error = "L'année scoute est requise." });
+        var result = await Mediator.Send(new ExportDemandeDecisionsQuery(scoutYear));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return File(result.Value!.Data, result.Value.ContentType, result.Value.FileName);
+    }
+
+    /// <summary>Imports a filled decisions .xlsx and stages the approve/decline choices. Requires demande.manage.</summary>
+    [HttpPost("import-decisions")]
+    [HasPermission(Permissions.DemandeManage)]
+    [EnableRateLimiting("upload")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> ImportDecisions([FromForm] string scoutYear, IFormFile file)
+    {
+        if (string.IsNullOrWhiteSpace(scoutYear)) return BadRequest(new { error = "L'année scoute est requise." });
+        if (file is null || file.Length == 0) return BadRequest(new { error = "Aucun fichier." });
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        var result = await Mediator.Send(new ImportDemandeDecisionsCommand(scoutYear, ms.ToArray()));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
     }
 
     public record DecideBody(string Status, Guid? DecidedUnitId, string? DecisionNotes);

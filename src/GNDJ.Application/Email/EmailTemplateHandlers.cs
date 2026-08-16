@@ -15,8 +15,32 @@ public static class EmailTemplateModules
     public static readonly string[] All = { "auth", "documents", "cotisations", "passage", "demande", "general" };
 }
 
+// An email-template file attachment ([{name,url}] on AttachmentsJson) — the file lives under uploads/content
+// (uploaded via /content/files) and is attached to every email sent from the template.
+public record EmailAttachmentDto(string Name, string Url);
+
+internal static class EmailAttachments
+{
+    public static IReadOnlyList<EmailAttachmentDto> Parse(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try { return System.Text.Json.JsonSerializer.Deserialize<List<EmailAttachmentDto>>(json) ?? []; }
+        catch { return []; }
+    }
+    public static string? Serialize(IReadOnlyList<EmailAttachmentDto>? items)
+    {
+        if (items is null || items.Count == 0) return null;
+        return System.Text.Json.JsonSerializer.Serialize(items.Where(a => !string.IsNullOrWhiteSpace(a.Url))
+            .Select(a => new EmailAttachmentDto(a.Name.Trim(), a.Url.Trim())).ToList());
+    }
+    public static void Rules<T>(AbstractValidator<T> v, System.Func<T, IReadOnlyList<EmailAttachmentDto>?> get)
+    {
+        v.RuleFor(x => get(x)).Must(a => a is null || a.Count <= 10).WithMessage("Trop de pièces jointes (max 10).");
+    }
+}
+
 // DTOs
-public record EmailTemplateDto(Guid Id, string Name, string Code, string Module, string Subject, string BodyHtml, string? Variables, Guid? SmtpServerId, string? SmtpServerName, bool IsActive, DateTime CreatedAt);
+public record EmailTemplateDto(Guid Id, string Name, string Code, string Module, string Subject, string BodyHtml, string? Variables, Guid? SmtpServerId, string? SmtpServerName, bool IsActive, DateTime CreatedAt, IReadOnlyList<EmailAttachmentDto> Attachments);
 
 // GetAll
 public record GetEmailTemplatesQuery() : IRequest<List<EmailTemplateDto>>;
@@ -25,11 +49,12 @@ public class GetEmailTemplatesQueryHandler(IApplicationDbContext context) : IReq
 {
     public async ValueTask<List<EmailTemplateDto>> Handle(GetEmailTemplatesQuery request, CancellationToken ct)
     {
-        return await context.EmailTemplates
+        var rows = await context.EmailTemplates
             .Include(t => t.SmtpServer)
             .OrderBy(t => t.Module).ThenBy(t => t.Name)
-            .Select(t => new EmailTemplateDto(t.Id, t.Name, t.Code, t.Module, t.Subject, t.BodyHtml, t.Variables, t.SmtpServerId, t.SmtpServer != null ? t.SmtpServer.Name : null, t.IsActive, t.CreatedAt))
+            .Select(t => new { t.Id, t.Name, t.Code, t.Module, t.Subject, t.BodyHtml, t.Variables, t.SmtpServerId, SmtpName = t.SmtpServer != null ? t.SmtpServer.Name : null, t.IsActive, t.CreatedAt, t.AttachmentsJson })
             .ToListAsync(ct);
+        return rows.Select(t => new EmailTemplateDto(t.Id, t.Name, t.Code, t.Module, t.Subject, t.BodyHtml, t.Variables, t.SmtpServerId, t.SmtpName, t.IsActive, t.CreatedAt, EmailAttachments.Parse(t.AttachmentsJson))).ToList();
     }
 }
 
@@ -40,16 +65,17 @@ public class GetEmailTemplateByIdQueryHandler(IApplicationDbContext context) : I
 {
     public async ValueTask<EmailTemplateDto?> Handle(GetEmailTemplateByIdQuery request, CancellationToken ct)
     {
-        return await context.EmailTemplates
-            .Include(t => t.SmtpServer)
-            .Where(t => t.Id == request.Id)
-            .Select(t => new EmailTemplateDto(t.Id, t.Name, t.Code, t.Module, t.Subject, t.BodyHtml, t.Variables, t.SmtpServerId, t.SmtpServer != null ? t.SmtpServer.Name : null, t.IsActive, t.CreatedAt))
+        var t = await context.EmailTemplates
+            .Include(x => x.SmtpServer)
+            .Where(x => x.Id == request.Id)
+            .Select(x => new { x.Id, x.Name, x.Code, x.Module, x.Subject, x.BodyHtml, x.Variables, x.SmtpServerId, SmtpName = x.SmtpServer != null ? x.SmtpServer.Name : null, x.IsActive, x.CreatedAt, x.AttachmentsJson })
             .FirstOrDefaultAsync(ct);
+        return t is null ? null : new EmailTemplateDto(t.Id, t.Name, t.Code, t.Module, t.Subject, t.BodyHtml, t.Variables, t.SmtpServerId, t.SmtpName, t.IsActive, t.CreatedAt, EmailAttachments.Parse(t.AttachmentsJson));
     }
 }
 
 // Create
-public record CreateEmailTemplateCommand(string Name, string Code, string Module, string Subject, string BodyHtml, string? Variables, Guid? SmtpServerId, bool IsActive) : IRequest<Result<Guid>>;
+public record CreateEmailTemplateCommand(string Name, string Code, string Module, string Subject, string BodyHtml, string? Variables, Guid? SmtpServerId, bool IsActive, IReadOnlyList<EmailAttachmentDto>? Attachments = null) : IRequest<Result<Guid>>;
 
 public class CreateEmailTemplateCommandValidator : AbstractValidator<CreateEmailTemplateCommand>
 {
@@ -62,6 +88,7 @@ public class CreateEmailTemplateCommandValidator : AbstractValidator<CreateEmail
         RuleFor(x => x.Subject).NotEmpty().WithMessage("Le sujet est requis.").MaximumLength(200);
         RuleFor(x => x.BodyHtml).NotEmpty().WithMessage("Le contenu HTML est requis.").MaximumLength(100000);
         RuleFor(x => x.Variables).MaximumLength(5000);
+        EmailAttachments.Rules(this, x => x.Attachments);
     }
 }
 
@@ -88,6 +115,7 @@ public class CreateEmailTemplateCommandHandler(IApplicationDbContext context, IA
             Subject = request.Subject,
             BodyHtml = request.BodyHtml,
             Variables = request.Variables,
+            AttachmentsJson = EmailAttachments.Serialize(request.Attachments),
             SmtpServerId = request.SmtpServerId,
             IsActive = request.IsActive
         };
@@ -101,7 +129,7 @@ public class CreateEmailTemplateCommandHandler(IApplicationDbContext context, IA
 }
 
 // Update
-public record UpdateEmailTemplateCommand(Guid Id, string Name, string Code, string Module, string Subject, string BodyHtml, string? Variables, Guid? SmtpServerId, bool IsActive) : IRequest<Result<bool>>;
+public record UpdateEmailTemplateCommand(Guid Id, string Name, string Code, string Module, string Subject, string BodyHtml, string? Variables, Guid? SmtpServerId, bool IsActive, IReadOnlyList<EmailAttachmentDto>? Attachments = null) : IRequest<Result<bool>>;
 
 public class UpdateEmailTemplateCommandValidator : AbstractValidator<UpdateEmailTemplateCommand>
 {
@@ -114,6 +142,7 @@ public class UpdateEmailTemplateCommandValidator : AbstractValidator<UpdateEmail
         RuleFor(x => x.Subject).NotEmpty().WithMessage("Le sujet est requis.").MaximumLength(200);
         RuleFor(x => x.BodyHtml).NotEmpty().WithMessage("Le contenu HTML est requis.").MaximumLength(100000);
         RuleFor(x => x.Variables).MaximumLength(5000);
+        EmailAttachments.Rules(this, x => x.Attachments);
     }
 }
 
@@ -144,6 +173,7 @@ public class UpdateEmailTemplateCommandHandler(IApplicationDbContext context, IA
         entity.Subject = request.Subject;
         entity.BodyHtml = request.BodyHtml;
         entity.Variables = request.Variables;
+        entity.AttachmentsJson = EmailAttachments.Serialize(request.Attachments);
         entity.SmtpServerId = request.SmtpServerId;
         entity.IsActive = request.IsActive;
 

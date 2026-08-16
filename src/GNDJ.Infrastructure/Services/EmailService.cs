@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Mail;
+using System.Text.Json;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -33,7 +34,11 @@ public class EmailService : IEmailService
     private sealed record ResolvedTemplate(
         string Subject, string BodyHtml,
         string Host, int Port, string? Username, string? Password, bool UseSsl, string FromEmail, string? FromName,
-        Guid ServerId, int? MaxPerHour);
+        Guid ServerId, int? MaxPerHour, IReadOnlyList<AttachmentRef> Attachments);
+
+    // A template file attachment (stored as [{Name,Url}] on EmailTemplate.AttachmentsJson).
+    private sealed record AttachmentRef(string Name, string Url);
+    private static readonly JsonSerializerOptions AttJson = new() { PropertyNameCaseInsensitive = true };
 
     private static readonly TimeSpan TemplateTtl = TimeSpan.FromSeconds(60); // template/SMTP change rarely
     private static readonly TimeSpan OverrideTtl = TimeSpan.FromSeconds(15); // safety toggle — refresh quickly
@@ -76,7 +81,28 @@ public class EmailService : IEmailService
             IsBodyHtml = true
         };
 
+        // Attach the template's files (e.g. an official rejection letter). Files live under uploads/content; a
+        // missing file is skipped (never fails the send). MailMessage disposes its attachments with `using` above.
+        foreach (var att in resolved.Attachments)
+        {
+            var path = ResolveAttachmentPath(att.Url);
+            if (path is not null && File.Exists(path))
+                message.Attachments.Add(new Attachment(path) { Name = string.IsNullOrWhiteSpace(att.Name) ? Path.GetFileName(path) : att.Name });
+        }
+
         await client.SendMailAsync(message, ct);
+    }
+
+    // Maps a stored attachment URL (/api/v1/content/files/{file}) to its physical path under uploads/content.
+    // Path-traversal guarded (only a bare file name in the uploads/content root is accepted).
+    private static string? ResolveAttachmentPath(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
+        var fileName = Path.GetFileName(url.TrimEnd('/')); // last segment; strips any path/query components
+        if (string.IsNullOrWhiteSpace(fileName)) return null;
+        var root = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "uploads", "content"));
+        var full = Path.GetFullPath(Path.Combine(root, fileName));
+        return full.StartsWith(root) ? full : null;
     }
 
     // Template + SMTP config, cached briefly (missing/inactive templates throw and are NOT cached, so a
@@ -106,9 +132,16 @@ public class EmailService : IEmailService
         if (smtp is null)
             throw new InvalidOperationException("No active SMTP server configured.");
 
+        IReadOnlyList<AttachmentRef> attachments = [];
+        if (!string.IsNullOrWhiteSpace(template.AttachmentsJson))
+        {
+            try { attachments = JsonSerializer.Deserialize<List<AttachmentRef>>(template.AttachmentsJson, AttJson) ?? []; }
+            catch { attachments = []; }
+        }
+
         var resolved = new ResolvedTemplate(template.Subject, template.BodyHtml,
             smtp.Host, smtp.Port, smtp.Username, smtp.Password, smtp.UseSsl, smtp.FromEmail, smtp.FromName,
-            smtp.Id, smtp.MaxPerHour);
+            smtp.Id, smtp.MaxPerHour, attachments);
         _cache.Set($"emailtpl:{templateCode}", resolved, TemplateTtl);
         return resolved;
     }

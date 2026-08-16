@@ -48,10 +48,12 @@ export function useTestSmtp() {
 }
 
 // Email Templates
+export interface EmailAttachment { name: string; url: string }
 export interface EmailTemplateDto {
   id: string; name: string; code: string; module: string; subject: string
   bodyHtml: string; variables: string | null; smtpServerId: string | null
   smtpServerName: string | null; isActive: boolean
+  attachments: EmailAttachment[] // files attached to every email sent from this template
 }
 
 // GET /email/templates → list of all email templates.
@@ -63,7 +65,7 @@ export function useEmailTemplates() {
 export function useCreateEmailTemplate() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; code: string; module: string; subject: string; bodyHtml: string; variables?: string | null; smtpServerId?: string | null; isActive: boolean }) => apiClient.post('/email/templates', data),
+    mutationFn: (data: { name: string; code: string; module: string; subject: string; bodyHtml: string; variables?: string | null; smtpServerId?: string | null; isActive: boolean; attachments?: EmailAttachment[] }) => apiClient.post('/email/templates', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['email-templates'] }),
   })
 }
@@ -72,7 +74,7 @@ export function useCreateEmailTemplate() {
 export function useUpdateEmailTemplate() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name: string; code: string; module: string; subject: string; bodyHtml: string; variables?: string | null; smtpServerId?: string | null; isActive: boolean }) => apiClient.put(`/email/templates/${id}`, { id, ...data }),
+    mutationFn: ({ id, ...data }: { id: string; name: string; code: string; module: string; subject: string; bodyHtml: string; variables?: string | null; smtpServerId?: string | null; isActive: boolean; attachments?: EmailAttachment[] }) => apiClient.put(`/email/templates/${id}`, { id, ...data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['email-templates'] }),
   })
 }

@@ -11,8 +11,10 @@ import { useSettingValue, useSchoolCode } from '@/services/settings-service'
 import {
   useDemandesForReview, useUnitOccupancy, useDecideDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useCloseCampaign,
   useCampaignStatus, useSetSubmissions, useSetDemandeUnit,
-  type DemandeReview, type UnitOccupancy,
+  useExportDecisions, useImportDecisions, useUnsubmittedCount, useSendSubmissionReminders,
+  type DemandeReview, type UnitOccupancy, type ImportDecisionsResult,
 } from '@/services/demande-admin-service'
+import { saveBlob } from '@/lib/download'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -31,7 +33,7 @@ import { parseApiError } from '@/lib/error-utils'
 import {
   Inbox, Check, X, Send, Users2, ChevronDown, ChevronRight, ChevronLeft, CheckCircle2, XCircle, Clock,
   AlertTriangle, User, Phone, Mail, MapPin, HeartPulse, GraduationCap, MessageSquare, Tent, ArrowUpDown,
-  Search, Sparkles, Trash2, Link2, Lock, LockOpen, Save,
+  Search, Sparkles, Trash2, Link2, Lock, LockOpen, Save, Download, Upload, MailWarning,
 } from 'lucide-react'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -125,6 +127,32 @@ export default function DemandeValidationPage() {
   const { data: campaign } = useCampaignStatus()
   const submissionsMutation = useSetSubmissions()
   const [submissionsConfirm, setSubmissionsConfirm] = useState<null | boolean>(null) // target open-state to confirm
+
+  // Excel decisions round-trip (I) + submission reminders (G)
+  const exportMutation = useExportDecisions()
+  const importMutation = useImportDecisions()
+  const remindersMutation = useSendSubmissionReminders()
+  const { data: unsubmittedCount } = useUnsubmittedCount(scoutYear)
+  const [importResult, setImportResult] = useState<ImportDecisionsResult | null>(null)
+  const [reminderConfirm, setReminderConfirm] = useState(false)
+  const importInputRef = useRef<HTMLInputElement>(null)
+
+  const handleExport = async () => {
+    try { const { blob, fileName } = await exportMutation.mutateAsync(scoutYear); saveBlob(blob, fileName) }
+    catch (err) { toast.error(parseApiError(err)) }
+  }
+  const handleImportFile = async (file: File) => {
+    try {
+      const r = await importMutation.mutateAsync({ scoutYear, file })
+      setImportResult(r)
+      toast.success(`${r.applied} décision(s) importée(s)${r.errors.length ? ` · ${r.errors.length} erreur(s)` : ''}`)
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
+  const handleReminders = async () => {
+    try { const r = await remindersMutation.mutateAsync(scoutYear); toast.success(`${r.sent} rappel(s) envoyé(s)`) }
+    catch (err) { toast.error(parseApiError(err)) }
+    finally { setReminderConfirm(false) }
+  }
 
   const [approveTarget, setApproveTarget] = useState<DemandeReview | null>(null)
   const [declineTarget, setDeclineTarget] = useState<DemandeReview | null>(null)
@@ -319,6 +347,24 @@ export default function DemandeValidationPage() {
               Clôturer la campagne
             </Button>
           )}
+        </div>
+      </div>
+
+      {/* Secondary toolbar: work the decisions in Excel (export → fill → import) + remind non-submitters. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-2">
+        <span className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Outils</span>
+        <Button variant="outline" size="sm" disabled={exportMutation.isPending} onClick={handleExport}>
+          <Download className="mr-2 h-4 w-4" />Exporter (Excel)
+        </Button>
+        <Button variant="outline" size="sm" disabled={importMutation.isPending} onClick={() => importInputRef.current?.click()}>
+          <Upload className="mr-2 h-4 w-4" />{importMutation.isPending ? 'Import…' : 'Importer les décisions'}
+        </Button>
+        <input ref={importInputRef} type="file" accept=".xlsx" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.target.value = '' }} />
+        <div className="ml-auto flex items-center gap-2">
+          <Button variant="outline" size="sm" disabled={remindersMutation.isPending || (unsubmittedCount ?? 0) === 0} onClick={() => setReminderConfirm(true)}>
+            <MailWarning className="mr-2 h-4 w-4" />Relancer les non-soumis{unsubmittedCount ? ` (${unsubmittedCount})` : ''}
+          </Button>
         </div>
       </div>
 
@@ -580,6 +626,36 @@ export default function DemandeValidationPage() {
         loading={submissionsMutation.isPending}
         onConfirm={() => handleToggleSubmissions(submissionsConfirm!)}
       />
+
+      {/* Reminder confirm (G) */}
+      <ConfirmDialog
+        open={reminderConfirm} onOpenChange={setReminderConfirm}
+        title="Relancer les non-soumis"
+        description={`Un email de rappel sera envoyé à ${unsubmittedCount ?? 0} compte(s) qui n'ont pas encore soumis de demande pour ${scoutYear}. Continuer ?`}
+        confirmLabel="Envoyer les rappels" loading={remindersMutation.isPending} onConfirm={handleReminders}
+      />
+
+      {/* Import result (I) */}
+      <Dialog open={!!importResult} onOpenChange={(o) => { if (!o) setImportResult(null) }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Import des décisions</DialogTitle></DialogHeader>
+          {importResult && (
+            <div className="space-y-3 text-sm">
+              <div className="flex flex-wrap gap-4">
+                <span className="text-green-700"><strong>{importResult.applied}</strong> appliquée(s)</span>
+                <span className="text-muted-foreground"><strong>{importResult.skipped}</strong> ignorée(s) (sans décision)</span>
+                {importResult.errors.length > 0 && <span className="text-destructive"><strong>{importResult.errors.length}</strong> erreur(s)</span>}
+              </div>
+              {importResult.errors.length > 0 && (
+                <div className="max-h-64 space-y-1 overflow-y-auto rounded-md border bg-destructive/5 p-3 text-xs text-destructive">
+                  {importResult.errors.map((e, i) => <div key={i}>• {e}</div>)}
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter><Button onClick={() => setImportResult(null)}>Fermer</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

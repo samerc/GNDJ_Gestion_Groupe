@@ -342,6 +342,7 @@ using (var scope = app.Services.CreateScope())
             await SeedData.SeedRentreeTemplateAsync(context);
             await SeedData.SeedRentreeActionKeysAsync(context);
             await SeedData.SeedRentreeReminderTaskAsync(context);
+            await SeedData.SeedRentreeExtraTasksAsync(context);
         }
         catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
         {

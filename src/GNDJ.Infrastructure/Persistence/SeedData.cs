@@ -460,6 +460,39 @@ public static class SeedData
         await context.SaveChangesAsync();
     }
 
+    // Idempotent per-title backfill for the demande "fine-tuning" rentrée tasks (attachments refresh, refusal
+    // letter, submission/activation reminders). Inserts each only if absent; requires the base template to exist
+    // (a fresh DB gets the base set from SeedRentreeTemplateAsync first, then these extras). Wired in Program.cs.
+    public static async Task SeedRentreeExtraTasksAsync(GndjDbContext context)
+    {
+        if (!await context.RentreeTaskTemplates.AnyAsync()) return; // fresh DB: base seed runs first, then this
+
+        // title → (phase, deadline label, actionKey)
+        var extras = new (string Title, string Phase, string Deadline, string Action)[]
+        {
+            ("Mettre à jour les pièces jointes des modèles d'email", "Configuration", "4ᵉ sem. septembre", "goto-email"),
+            ("Rédiger la lettre de refus (pièce jointe du modèle « demande refusée »)", "Demandes", "septembre", "goto-email"),
+            ("Relancer les familles qui n'ont pas soumis leur demande", "Demandes", "octobre", "goto-demandes"),
+            ("Relancer les accès non activés", "Dossiers membres", "novembre", "goto-send-access"),
+        };
+
+        var existing = await context.RentreeTaskTemplates.Select(t => t.Title).ToListAsync();
+        var maxOrder = await context.RentreeTaskTemplates.MaxAsync(t => (int?)t.DisplayOrder) ?? 0;
+        var changed = false;
+        foreach (var e in extras)
+        {
+            if (existing.Contains(e.Title)) continue;
+            context.RentreeTaskTemplates.Add(new RentreeTaskTemplate
+            {
+                Title = e.Title, Phase = e.Phase, DisplayOrder = ++maxOrder,
+                AssigneeType = "role", AssigneeRole = "chef-de-groupe", FanOutPerUnit = false,
+                DefaultDeadlineLabel = e.Deadline, ActionKey = e.Action, DependsOnTemplateIds = []
+            });
+            changed = true;
+        }
+        if (changed) await context.SaveChangesAsync();
+    }
+
     public static async Task SeedMissingSettingsAsync(GndjDbContext context)
     {
         var existingKeys = await context.Settings.Select(s => s.Key).ToListAsync();
@@ -630,6 +663,14 @@ public static class SeedData
                 Subject = "Réponse à votre demande d'inscription — GNDJ Scout",
                 BodyHtml = "<h2>Bonjour {{contactName}},</h2><p>Concernant la demande d'inscription de <strong>{{childName}}</strong>, nous sommes au regret de ne pas pouvoir y donner une suite favorable cette année.</p><p>{{reason}}</p><p>Nous vous remercions de votre intérêt et restons à votre disposition.</p><p>— L'équipe GNDJ</p>",
                 Variables = "[{\"key\":\"contactName\",\"label\":\"Nom du contact\"},{\"key\":\"childName\",\"label\":\"Nom de l'enfant\"},{\"key\":\"reason\",\"label\":\"Motif (optionnel)\"}]",
+                IsActive = true
+            },
+            new EmailTemplate
+            {
+                Name = "Rappel — demande non soumise", Code = "demande_submission_reminder", Module = "demande",
+                Subject = "N'oubliez pas de soumettre votre demande — GNDJ Scout",
+                BodyHtml = "<h2>Bonjour {{contactName}},</h2><p>Vous avez créé un compte pour inscrire un enfant au groupe scout GNDJ ({{scoutYear}}), mais votre demande n'a pas encore été <strong>soumise</strong>.</p><p>Merci de la compléter et de la soumettre avant le <strong>{{deadline}}</strong> : <a href=\"{{portalUrl}}\">{{portalUrl}}</a></p><p>Passé ce délai, les demandes non soumises ne pourront plus être traitées.</p><p>— L'équipe GNDJ</p>",
+                Variables = "[{\"key\":\"contactName\",\"label\":\"Nom du contact\"},{\"key\":\"deadline\",\"label\":\"Date limite\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"},{\"key\":\"portalUrl\",\"label\":\"Lien du portail\"}]",
                 IsActive = true
             },
         };

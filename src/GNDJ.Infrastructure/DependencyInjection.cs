@@ -86,6 +86,7 @@ public static class DependencyInjection
         services.AddSingleton<IRosterService, RosterService>();
         services.AddSingleton<ICampReportService, CampReportService>();
         services.AddSingleton<IExportService, ExportService>();
+        services.AddSingleton<IDemandeSheetService, DemandeSheetService>(); // Excel export/import of CG decisions
 
         // JWT Authentication
         // Fail-safe against a weak/default signing key: a forgeable secret = full account takeover, so we

@@ -237,3 +237,68 @@ export function useVerifyAccountEmail() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['demandes', 'accounts'] }),
   })
 }
+
+// ── Reminders (G) ───────────────────────────────────────────────────────────────────────────────────
+// GET /demandes/unsubmitted-count?scoutYear → how many accounts have no submitted demande (reminder audience).
+export function useUnsubmittedCount(scoutYear: string) {
+  return useQuery({
+    queryKey: ['demandes', 'unsubmitted-count', scoutYear],
+    queryFn: () => apiClient.get<{ count: number }>('/demandes/unsubmitted-count', { params: { scoutYear } }).then((r) => r.data.count),
+    enabled: !!scoutYear,
+  })
+}
+
+// POST /demandes/send-submission-reminders → email the "please submit" reminder to those accounts.
+export function useSendSubmissionReminders() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (scoutYear: string) => apiClient.post<{ sent: number }>('/demandes/send-submission-reminders', { scoutYear }).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['demandes', 'unsubmitted-count'] }),
+  })
+}
+
+// ── Archive browse (H) ──────────────────────────────────────────────────────────────────────────────
+export interface DemandeArchive {
+  id: string; scoutYear: string; firstName: string; lastName: string; dateOfBirth: string | null
+  gender: string | null; classe: string | null; school: string | null
+  accountEmail: string | null; contactName: string | null
+  status: string; decidedUnitName: string | null; decisionNotes: string | null; responseSentAt: string | null
+  createdMemberCardNumber: string | null; archivedAt: string
+}
+export interface DemandeArchiveList { items: DemandeArchive[]; total: number; scoutYears: string[] }
+
+// GET /demandes/archives?search&scoutYear&page&pageSize → paged archive of past campaigns.
+export function useDemandeArchives(search: string, scoutYear: string, page: number, pageSize = 50) {
+  return useQuery({
+    queryKey: ['demandes', 'archives', search, scoutYear, page, pageSize],
+    queryFn: () => apiClient.get<DemandeArchiveList>('/demandes/archives', {
+      params: { search: search || undefined, scoutYear: scoutYear || undefined, page, pageSize },
+    }).then((r) => r.data),
+  })
+}
+
+// ── Excel decisions round-trip (I) ──────────────────────────────────────────────────────────────────
+export interface ImportDecisionsResult { applied: number; skipped: number; errors: string[] }
+
+// GET /demandes/export-decisions?scoutYear → returns the .xlsx blob (Décision/Unité/Motif to fill).
+export function useExportDecisions() {
+  return useMutation({
+    mutationFn: (scoutYear: string) =>
+      apiClient.get('/demandes/export-decisions', { params: { scoutYear }, responseType: 'blob' })
+        .then((r) => ({ blob: r.data as Blob, fileName: `Demandes_${scoutYear.replace(/\s/g, '')}.xlsx` })),
+  })
+}
+
+// POST /demandes/import-decisions (multipart) → stage the decisions from a filled sheet; invalidates ['demandes'].
+export function useImportDecisions() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ scoutYear, file }: { scoutYear: string; file: File }) => {
+      const fd = new FormData()
+      fd.append('scoutYear', scoutYear)
+      fd.append('file', file)
+      return apiClient.post<ImportDecisionsResult>('/demandes/import-decisions', fd).then((r) => r.data)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['demandes'] }),
+  })
+}
