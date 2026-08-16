@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { useApplicantProfile, useResendMemberActivation } from '@/services/applicant-service'
+import { useApplicantProfile, useApplicantConfig, useResendMemberActivation } from '@/services/applicant-service'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
@@ -20,6 +20,7 @@ export default function DemandeResultPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { data: profile, isLoading } = useApplicantProfile()
+  const { data: config } = useApplicantConfig()
   const resend = useResendMemberActivation()
 
   const demande = profile?.demandes.find((d) => d.id === id)
@@ -58,9 +59,9 @@ export default function DemandeResultPage() {
                 <p className="text-sm text-muted-foreground">{childName}</p>
               </div>
             </div>
-            <p className="text-sm">
-              Nous sommes au regret de ne pas pouvoir donner une suite favorable à la demande d'inscription de{' '}
-              <strong>{childName}</strong> cette année.
+            <p className="whitespace-pre-line text-sm">
+              {config?.resultTextDeclined ||
+                "Nous sommes au regret de ne pas pouvoir donner une suite favorable à votre demande d'inscription cette année. Nous vous remercions de votre intérêt et restons à votre disposition."}
             </p>
             {demande.decisionNotes && (
               <div className="rounded-lg border bg-muted/40 p-3 text-sm">
@@ -68,7 +69,6 @@ export default function DemandeResultPage() {
                 <p className="whitespace-pre-line">{demande.decisionNotes}</p>
               </div>
             )}
-            <p className="text-sm text-muted-foreground">Nous vous remercions de votre intérêt et restons à votre disposition.</p>
           </CardContent>
         </Card>
       )}
@@ -104,7 +104,7 @@ export default function DemandeResultPage() {
               </div>
             </div>
 
-            <p className="text-sm">Un compte a été créé pour le nouveau membre. Voici les étapes pour accéder à l'espace membre et téléverser les documents. Ces mêmes informations vous ont été envoyées par email.</p>
+            <p className="whitespace-pre-line text-sm">{config?.resultTextAccepted || "Un compte a été créé pour le nouveau membre. Voici les étapes pour accéder à l'espace membre et téléverser les documents. Ces mêmes informations vous ont été envoyées par email."}</p>
 
             {/* Username the parent will use to log in. */}
             {demande.memberUsername && (

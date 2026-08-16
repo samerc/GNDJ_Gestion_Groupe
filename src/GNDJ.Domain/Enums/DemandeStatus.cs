@@ -7,6 +7,7 @@ public static class DemandeStatus
     public const string Submitted = "Submitted"; // submitted, awaiting CG decision (editable until window closes)
     public const string Approved = "Approved";   // CG approved (staged) — member created when the batch is sent
     public const string Declined = "Declined";   // CG declined (staged) — notified when the batch is sent
+    public const string Expired = "Expired";     // DISPLAY-ONLY (never persisted): a draft left unsubmitted past the deadline
 }
 
 // Standing of an applicant's declared scout relation (ApplicantScoutRelation) — helps the CG match families.

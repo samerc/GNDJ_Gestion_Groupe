@@ -588,9 +588,12 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         var unitNames = await context.Units.Where(u => unitIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Name, ct);
         var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct)) ?? "http://localhost:5173").TrimEnd('/');
         var loginUrl = $"{baseUrl}/login";
-        // The acceptance email carries a set-password (activation) link, valid for a long rollout window so a
-        // busy parent has time to click — same model as "Envoyer les accès" (reuses the reset-token fields).
-        const int activationExpiryDays = 30;
+        // The acceptance email carries a set-password (activation) link, valid for a configurable window
+        // (member.activation_link_days, default 30) so a busy parent has time to click — same model as
+        // "Envoyer les accès" (reuses the reset-token fields).
+        var activationExpiryDays = int.TryParse(
+            await context.Settings.Where(s => s.Key == "member.activation_link_days").Select(s => s.Value).FirstOrDefaultAsync(ct),
+            out var actDays) && actDays > 0 ? actDays : 30;
         var activationExpiry = DateTime.UtcNow.AddDays(activationExpiryDays);
 
         // PERF: pre-resolve everything the per-member loop used to query one-by-one INSIDE the advisory lock —
@@ -726,6 +729,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                 ["username"] = username,
                 ["activationLink"] = activationLink,
                 ["loginUrl"] = loginUrl,
+                ["expiryDays"] = activationExpiryDays.ToString(),
             };
             foreach (var to in Recipients(d, acc))
                 emailJobs.Add(("demande_approved", to, approvedVars));

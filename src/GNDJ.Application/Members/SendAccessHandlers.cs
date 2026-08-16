@@ -78,8 +78,6 @@ public class SendAccessEmailsCommandHandler(
     IApplicationDbContext context, ICurrentUserService currentUser, IEmailQueue emailQueue, IAuditService audit)
     : IRequestHandler<SendAccessEmailsCommand, Result<SendAccessResult>>
 {
-    private const int ActivationExpiryDays = 30; // long rollout window so a busy parent has time to click
-
     public async ValueTask<Result<SendAccessResult>> Handle(SendAccessEmailsCommand request, CancellationToken ct)
     {
         // ── Resolve the target member set + enforce unit-scoped access ──
@@ -127,11 +125,14 @@ public class SendAccessEmailsCommandHandler(
         var resolver = await ContactEmailResolver.LoadAsync(context, targetIds, ct);
         var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct))
             ?? "http://localhost:5173").TrimEnd('/');
+        // Activation-link validity is configurable (member.activation_link_days, default 30) — a long rollout
+        // window so a busy parent has time to click.
+        var activationExpiryDays = int.TryParse(await context.Settings.Where(s => s.Key == "member.activation_link_days").Select(s => s.Value).FirstOrDefaultAsync(ct), out var ad) && ad > 0 ? ad : 30;
 
         var details = new List<SendAccessItem>();
         var jobs = new List<EmailJob>();
         int sent = 0, noEmail = 0, noAccount = 0, skipped = 0;
-        var expiry = DateTime.UtcNow.AddDays(ActivationExpiryDays);
+        var expiry = DateTime.UtcNow.AddDays(activationExpiryDays);
 
         foreach (var m in members)
         {
@@ -162,7 +163,7 @@ public class SendAccessEmailsCommandHandler(
                 ["memberName"] = name,
                 ["username"] = user.Email,
                 ["activationLink"] = link,
-                ["expiryDays"] = ActivationExpiryDays.ToString(),
+                ["expiryDays"] = activationExpiryDays.ToString(),
             }));
             sent++; details.Add(new(m.Id, name, "sent", email));
         }

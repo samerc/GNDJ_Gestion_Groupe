@@ -16,6 +16,9 @@ function statusMeta(d: Demande): { border: string; badge: React.ReactNode } {
     return { border: 'border-l-green-500', badge: <Badge className="bg-green-600"><CheckCircle2 className="mr-1 h-3 w-3" />Acceptée</Badge> }
   if (d.responseSentAt && d.status === 'Declined')
     return { border: 'border-l-red-500', badge: <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />Refusée</Badge> }
+  if (d.status === 'Expired')
+    // A draft never submitted before the deadline — discarded (kept until the campaign is archived).
+    return { border: 'border-l-slate-300', badge: <Badge variant="outline" className="text-muted-foreground"><Clock className="mr-1 h-3 w-3" />Expirée</Badge> }
   if (d.status === 'Draft')
     return { border: 'border-l-slate-300', badge: <Badge variant="secondary"><FileEdit className="mr-1 h-3 w-3" />Brouillon</Badge> }
   return { border: 'border-l-amber-500', badge: <Badge className="bg-amber-500"><Clock className="mr-1 h-3 w-3" />Soumise</Badge> }

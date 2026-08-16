@@ -33,7 +33,12 @@ public record ApplicantConfigDto(bool IsOpen, bool SubmissionsOpen, string Scout
     IReadOnlyList<string> Schools, IReadOnlyList<string> Classes, IReadOnlyList<string> Cities, IReadOnlyList<string> Units, int MaxScoutRelations,
     // ExcludedClasse: a grade that cannot enroll (default 6ème) — hidden from the wizard's classe dropdown
     // and rejected at submit. Empty/null = no restriction. Editable via the demande.excluded_classe setting.
-    IReadOnlyList<string> ProfessionDomains, string? Terms, string? ExcludedClasse = null);
+    IReadOnlyList<string> ProfessionDomains, string? Terms, string? ExcludedClasse = null,
+    // SubmissionStart/Deadline (yyyy-MM-dd, or null): the window dates driving IsOpen/SubmissionsOpen above —
+    // exposed so the landing/portal can show "ouvre le …" / "clôture le …". ResultText* = editable result-page
+    // copy. ActivationLinkDays = how long an accepted member's set-password link stays valid.
+    string? SubmissionStart = null, string? SubmissionDeadline = null,
+    string? ResultTextAccepted = null, string? ResultTextDeclined = null, int ActivationLinkDays = 30);
 
 public record ApplicantGuardianDto(Guid? Id, string Relationship, string FirstName, string LastName, string? Profession, string? ProfessionDomain,
     string? PhoneCountryCode, string? PhoneNumber, string? Email, bool IsDeceased, bool IsPrimaryContact, bool IsEmergencyContact);
@@ -98,8 +103,13 @@ static class ApplicantHelpers
     [
         "demande.enabled", "demande.submissions_open", "demande.scout_year", "passage.scout_year", "demande.max_per_account",
         "demande.notes_max_length", "demande.require_email_verification", "demande.intro_text",
-        "demande.max_scout_relations", "demande.terms", "demande.excluded_classe", "member.schools", "member.classes", "member.cities", "member.profession_domains"
+        "demande.max_scout_relations", "demande.terms", "demande.excluded_classe", "member.schools", "member.classes", "member.cities", "member.profession_domains",
+        "demande.submission_start", "demande.submission_deadline", "demande.result_text_accepted", "demande.result_text_declined", "member.activation_link_days"
     ];
+
+    // Parses a yyyy-MM-dd setting into a DateOnly (null if empty/invalid).
+    public static DateOnly? ParseDate(string? raw) =>
+        DateOnly.TryParseExact(raw, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d) ? d : null;
 
     // Absolute safety cap enforced by SaveApplicantHouseholdCommandValidator regardless of the configurable
     // business limit (demande.max_scout_relations, default 3, exposed to the wizard via the config endpoint).
@@ -112,10 +122,20 @@ static class ApplicantHelpers
             .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
         string? Get(string k) => map.TryGetValue(k, out var v) ? v : null;
 
-        var enabled = Get("demande.enabled") == "true";
-        // The submission window defaults OPEN (only "false" closes it) so existing/new campaigns behave as
-        // before until the CG explicitly closes submissions to start the review phase.
-        var submissionsOpen = Get("demande.submissions_open") != "false";
+        // Date-driven window: the portal OPENS on the start date and submissions CLOSE after the deadline,
+        // computed live (no scheduled job). Empty dates = no gate → the manual switches govern alone.
+        var start = ParseDate(Get("demande.submission_start"));
+        var deadline = ParseDate(Get("demande.submission_deadline"));
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var beforeStart = start.HasValue && today < start.Value;
+        var afterDeadline = deadline.HasValue && today > deadline.Value;
+
+        // IsOpen (portal accessible) = the master switch AND on-or-after the start date.
+        var enabled = Get("demande.enabled") == "true" && !beforeStart;
+        // The submission window defaults OPEN (only "false" closes it); the deadline auto-closes it too. So the CG
+        // can still close submissions early (manual review phase), and it closes on its own after the deadline.
+        var submissionsOpen = Get("demande.submissions_open") != "false" && !afterDeadline;
+        var activationDays = int.TryParse(Get("member.activation_link_days"), out var ad) && ad > 0 ? ad : 30;
         var year = Get("demande.scout_year") ?? Get("passage.scout_year") ?? "2026-2027";
         var max = int.TryParse(Get("demande.max_per_account"), out var m) && m > 0 ? m : 3;
         var notesLen = int.TryParse(Get("demande.notes_max_length"), out var n) ? n : 500;
@@ -140,7 +160,8 @@ static class ApplicantHelpers
         // indicate which unit a current-member relative belongs to, easing family matching for the CG.
         var units = await ctx.Units.Where(u => u.IsActive).OrderBy(u => u.Name).Select(u => u.Name).ToListAsync(ct);
 
-        return new ApplicantConfigDto(enabled, submissionsOpen, year, max, notesLen, requireVerify, intro, schools, classes, cities, units, maxRelations, professionDomains, terms, excludedClasse);
+        return new ApplicantConfigDto(enabled, submissionsOpen, year, max, notesLen, requireVerify, intro, schools, classes, cities, units, maxRelations, professionDomains, terms, excludedClasse,
+            Get("demande.submission_start"), Get("demande.submission_deadline"), Get("demande.result_text_accepted"), Get("demande.result_text_declined"), activationDays);
     }
 
     // Returns an error message if the applicant may NOT submit/edit right now (portal closed, or the submission
@@ -152,7 +173,7 @@ static class ApplicantHelpers
         return null;
     }
 
-    public static DemandeDto ToDto(Demande d)
+    public static DemandeDto ToDto(Demande d, bool deadlinePassed = false)
     {
         // The CG's decision is STAGED: an Approved/Declined status and its DecisionNotes must stay hidden from the
         // applicant until the batch response is actually sent (ResponseSentAt). Before that, a decided demande still
@@ -161,6 +182,9 @@ static class ApplicantHelpers
         var sent = d.ResponseSentAt != null;
         var decided = d.Status == DemandeStatus.Approved || d.Status == DemandeStatus.Declined;
         var status = (!sent && decided) ? DemandeStatus.Submitted : d.Status;
+        // A draft never submitted before the deadline is shown as "Expirée" (discarded — it can't be submitted
+        // anymore and is purged at campaign archive). Display-only; the DB row stays Draft.
+        if (status == DemandeStatus.Draft && deadlinePassed) status = DemandeStatus.Expired;
         var notes = sent ? d.DecisionNotes : null;
         return new(
             d.Id, d.ScoutYear, d.FirstName, d.LastName, d.DateOfBirth, d.Gender, d.Nationality, d.School, d.Classe, d.Section,
@@ -475,6 +499,10 @@ public class GetApplicantProfileQueryHandler(IApplicationDbContext context, ICur
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync(ct);
 
+        // A draft left unsubmitted past the submission deadline is shown as "Expirée" (see ToDto).
+        var deadline = ApplicantHelpers.ParseDate(await ApplicantHelpers.Setting(context, "demande.submission_deadline", ct));
+        var deadlinePassed = deadline.HasValue && DateOnly.FromDateTime(DateTime.UtcNow) > deadline.Value;
+
         // For SENT + converted (accepted) demandes, surface what the result page needs: the admitted unit's
         // name, the created member's login username, and whether that member has already logged in (so the
         // portal stops showing onboarding and just links to the member login). Batched — one query each.
@@ -493,7 +521,7 @@ public class GetApplicantProfileQueryHandler(IApplicationDbContext context, ICur
 
         var demandes = demandeEntities.Select(d =>
         {
-            var dto = ApplicantHelpers.ToDto(d);
+            var dto = ApplicantHelpers.ToDto(d, deadlinePassed);
             if (d.ResponseSentAt == null) return dto; // never enrich (or leak) a staged/unsent decision
             var unitName = d.DecidedUnitId != null ? unitNames.GetValueOrDefault(d.DecidedUnitId.Value) : null;
             var converted = d.CreatedMemberId != null;
@@ -520,8 +548,6 @@ public record ResendMemberActivationCommand(Guid DemandeId) : IRequest<Result<bo
 public class ResendMemberActivationCommandHandler(IApplicationDbContext context, ICurrentApplicantService current, IEmailQueue emailQueue)
     : IRequestHandler<ResendMemberActivationCommand, Result<bool>>
 {
-    private const int ActivationExpiryDays = 30;
-
     public async ValueTask<Result<bool>> Handle(ResendMemberActivationCommand request, CancellationToken ct)
     {
         var id = current.ApplicantAccountId;
@@ -535,10 +561,12 @@ public class ResendMemberActivationCommandHandler(IApplicationDbContext context,
         var user = await context.Users.FirstOrDefaultAsync(u => u.MemberId == demande.CreatedMemberId, ct);
         if (user is null || !user.IsActive) return Result<bool>.Failure("Compte membre introuvable.");
 
+        // Activation-link validity is configurable (member.activation_link_days, default 30).
+        var activationDays = int.TryParse(await ApplicantHelpers.Setting(context, "member.activation_link_days", ct), out var ad) && ad > 0 ? ad : 30;
         // Fresh activation token (reuses the reset-token fields, redeemed at /reset-password?...&setup=1).
         var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "").Replace("/", "").Replace("=", "");
         user.PasswordResetToken = token;
-        user.PasswordResetTokenExpiry = DateTime.UtcNow.AddDays(ActivationExpiryDays);
+        user.PasswordResetTokenExpiry = DateTime.UtcNow.AddDays(activationDays);
         await context.SaveChangesAsync(ct);
 
         var baseUrl = (await ApplicantHelpers.Setting(context, "app.base_url", ct) ?? "http://localhost:5173").TrimEnd('/');
@@ -556,7 +584,7 @@ public class ResendMemberActivationCommandHandler(IApplicationDbContext context,
             ["memberName"] = $"{member.FirstName} {member.LastName}".Trim(),
             ["username"] = user.Email,
             ["activationLink"] = link,
-            ["expiryDays"] = ActivationExpiryDays.ToString(),
+            ["expiryDays"] = activationDays.ToString(),
         }), ct);
 
         return Result<bool>.Success(true);
@@ -961,7 +989,7 @@ public class UpdateDemandeCommandHandler(IApplicationDbContext context, ICurrent
 
 public record SubmitDemandeCommand(Guid Id) : IRequest<Result<bool>>;
 
-public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrentApplicantService current) : IRequestHandler<SubmitDemandeCommand, Result<bool>>
+public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrentApplicantService current, IEmailQueue emailQueue) : IRequestHandler<SubmitDemandeCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(SubmitDemandeCommand request, CancellationToken ct)
     {
@@ -1006,9 +1034,22 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
         if (!hasGuardian)
             return Result<bool>.Failure("Veuillez renseigner au moins un parent/tuteur avant de soumettre.");
 
+        // Only send the confirmation on the first Draft → Submitted transition (not on a re-submit).
+        var wasSubmitted = demande.Status == DemandeStatus.Submitted;
         demande.Status = DemandeStatus.Submitted;
         demande.SubmittedAt = DateTime.UtcNow;
         await context.SaveChangesAsync(ct);
+
+        // "We received your demande" confirmation email (configurable template) to the account holder — queued in
+        // the background (best-effort; never fails the submit).
+        if (!wasSubmitted)
+            await emailQueue.EnqueueAsync(new EmailJob("demande_submitted", account.Email, new Dictionary<string, string>
+            {
+                ["contactName"] = account.ContactName ?? "",
+                ["childName"] = $"{demande.FirstName} {demande.LastName}".Trim(),
+                ["scoutYear"] = demande.ScoutYear,
+            }), ct);
+
         return Result<bool>.Success(true);
     }
 }

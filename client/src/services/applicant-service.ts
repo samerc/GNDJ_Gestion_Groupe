@@ -20,6 +20,11 @@ export interface ApplicantConfig {
   professionDomains: string[]
   terms: string | null  // terms & conditions the applicant must accept before submitting (empty = none)
   excludedClasse: string | null  // a grade that cannot enroll (default 6ème): hidden from the classe dropdown + rejected at submit (empty = none)
+  submissionStart: string | null   // yyyy-MM-dd: portal opens on this date (empty = manual)
+  submissionDeadline: string | null // yyyy-MM-dd: submissions close after this date (empty = manual)
+  resultTextAccepted: string | null // editable result-page wording (accepted)
+  resultTextDeclined: string | null // editable result-page wording (declined)
+  activationLinkDays: number        // how long an accepted member's set-password link stays valid
 }
 
 export interface ApplicantGuardian {
