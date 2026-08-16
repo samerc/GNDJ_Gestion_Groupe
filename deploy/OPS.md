@@ -1,13 +1,23 @@
 # GNDJ — Operations: off-server backups + health monitoring
 
-Two Windows scheduled tasks keep the site safe while unattended:
+Windows scheduled tasks keep the site safe while unattended:
 
 - **GNDJ-Backup** — nightly `pg_dump` → local file **+ off-server copy** (OneDrive/Google Drive via
   rclone), pruned to a retention window, with an email summary.
-- **GNDJ-HealthCheck** — pings `/health` every few minutes and emails you **only when the site goes
-  down or recovers** (no spam).
+- **GNDJ-HealthCheck** — pings the **public** `/health` every few minutes and emails you **only when the
+  site goes down or recovers** (no spam). This is the *notifier*.
+- **GNDJ-Watchdog** — the *self-healer*. Probes the **local** `/health`; if it's down after a few retries,
+  it automatically **restarts PostgreSQL (if needed) then the IIS app pool** — which also re-enables a pool
+  that IIS disabled via rapid-fail protection (the 2026-08-16 failure mode) — then emails whether it healed
+  or still needs a human. Skips while a deploy is in progress (`app_offline.htm`).
 
-Everything is driven by one gitignored secrets file: **`deploy\ops-alert.config.json`**.
+Plus **PostgreSQL service recovery** (Windows auto-restarts the DB service if it crashes) and, from
+`tune-apppool.ps1`, the app pool runs **AlwaysRunning** with **overlapping rotation disabled** so a recycle
+can never run two workers (and two concurrent startup seeders) at once.
+
+Everything is driven by one gitignored secrets file: **`deploy\ops-alert.config.json`**. The watchdog reuses
+it; an optional `"watchdog": { "localUrl": "...", "poolName": "gndj", "pgService": "postgresql-x64-18" }`
+block overrides its defaults (all have sane fallbacks, so it works with no config changes).
 
 ---
 
