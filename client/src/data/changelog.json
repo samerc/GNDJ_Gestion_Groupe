@@ -1,5 +1,27 @@
 [
   {
+    "version": "3.2.0",
+    "date": "2026-08-16",
+    "changes": [
+      "Friendly offline page instead of the ASP.NET 500.30 diagnostic page",
+      "watchdog: probe the public /health, not localhost:5000 (prod is in-process IIS)",
+      "Ops: self-healing watchdog + PostgreSQL auto-restart on failure",
+      "tune-apppool.ps1: disallow overlapping rotation + no daily recycle by default",
+      "Startup: serialize migrate+seed with a Postgres advisory lock (fix 500.30 crash-loop)",
+      "Organiser mon unité: responsive + friendlier (grid, collapse, search)",
+      "Organiser mon unité — CU roster board (Mode A: live tidy)",
+      "Go-live checklist: mark 2.5 (force-password-reset) done on prod",
+      "Applicant portal: forgot/reset password flow",
+      "CU documents matrix: inline upload from a missing cell",
+      "Members: delete-photo action + fix Rapports dropdown (Tip/Slot nesting)",
+      "Members filter: scrollable dropdown + Maîtrises option + hide empty units",
+      "docs(go-live): all 3 SMTP providers tested green (Mailgun fixed)",
+      "Email: surface the real SMTP error (flatten InnerException) — admin-only",
+      "security: npm audit fix — 4 vulns (2 high, 2 moderate) to 0",
+      "docs(go-live): v3.1.0 bumped; prod deploy in progress"
+    ]
+  },
+  {
     "version": "3.1.0",
     "date": "2026-08-15",
     "changes": [
