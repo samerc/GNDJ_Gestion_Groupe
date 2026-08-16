@@ -2441,6 +2441,32 @@ converted (declined/submitted/draft) stays viewable; the wizard redirects any se
       the setup=1 link and NO tempPassword; profile returns the enriched fields; resend queues `account_activation`;
       the logged-in flag flips true. Build + tsc + eslint clean. See [[project-email-golive]]. DEV until deploy.
 
+### Demande process fine-tuning — batch A–E (2026-08-16)
+A CG‑driven review of the whole enrollment process (recap in memory [[project-demande-inscription]]) produced a
+prioritized list A–I; this is the first batch (small settings). All DEV until deploy; new settings auto‑seed via
+SeedMissingSettings on prod startup; verified live end‑to‑end against smtp4dev.
+- [x] **A — Submission window DATES.** `demande.submission_start` / `demande.submission_deadline` (date settings).
+      The portal **opens on the start date** and **submissions close after the deadline**, computed live in
+      `BuildConfig` (no scheduler — `IsOpen = enabled && !beforeStart`, `SubmissionsOpen = manual && !afterDeadline`).
+      Both empty = the manual "Inscriptions/Soumissions ouvertes" switches govern alone. Dates exposed to the portal;
+      the `/inscription` landing shows "ouvrira le …" (before start) / "Date limite : …" (when open).
+- [x] **B — Submission‑received email.** `SubmitDemande` queues a configurable **`demande_submitted`** template to
+      the account holder, only on the first Draft→Submitted (guarded against re‑submit).
+- [x] **C — Configurable activation window** (`member.activation_link_days`, default 30). Replaces the hardcoded 30
+      in `SendDemandeResponses` + `ResendMemberActivation` + `SendAccessHandlers`; the acceptance/activation emails
+      carry `{{expiryDays}}` (seed + data patch **006** upgrade the existing `demande_approved` body).
+- [x] **D — Editable result‑page copy.** `demande.result_text_accepted` / `_declined` settings drive the wording on
+      the applicant result page; the functional bits (username, buttons, unit, decline reason) stay in place.
+- [x] **E — Draft expiry.** A draft left unsubmitted past the deadline is shown to the parent as **"Expirée"**
+      (display‑only — `ApplicantHelpers.ToDto(d, deadlinePassed)` maps it; the DB row stays `Draft`; it's purged at
+      campaign archive). New display‑only `DemandeStatus.Expired`.
+- **Still to build (agreed order): F** email attachments per template (+ rentrée tasks: refresh attachments, draft
+      refusal letter) — attachments apply to ALL templates; **G** reminders (manual buttons + checklist tasks:
+      relancer non‑soumis / accès non activés) — decided MANUAL, not a scheduler; **H** archive search UI (verify a
+      claimed prior submission); **I** Excel export+import of CG decisions (names only, answer columns — Maîtrises
+      work in Excel; design details deferred). Note #6 (late approvals) already works via re‑running "Envoyer les
+      réponses" (idempotent). See [[project-demande-inscription]].
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
