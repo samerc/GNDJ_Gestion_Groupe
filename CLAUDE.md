@@ -2417,6 +2417,30 @@ Four fixes to the members-page "Toutes les unités" filter (from a live report):
       Anciens, the filter falls back to "Toutes les unités" (render-phase reset). Export + the export dialog treat
       `maitrises` as a non-unit (disabled, like `all`/`none`). Build + tsc + eslint + vite clean. DEV until deploy.
 
+### Demande result page + set-password link (2026-08-16)
+When a parent opens a demande whose response has been SENT, the portal now shows a proper **result page**
+(`/inscription/portail/demande/:id/resultat`, `demande-result.tsx`) instead of the read-only "déjà traitée"
+wizard. Accepted → congratulations + admitted unit + the **onboarding steps** (activate login → set password →
+sign in → upload documents) + the member's **username** + a **"Renvoyer l'email d'activation"** button + a link
+to the member login; once that member has **already logged in** (`memberHasLoggedIn`), the demande no longer
+opens — the portail button goes straight to `/login`. Declined → the decision + reason. A demande NOT yet
+converted (declined/submitted/draft) stays viewable; the wizard redirects any sent demande to the result page.
+- [x] **Conversion emails a SET-PASSWORD link, not a temp password.** `SendDemandeResponses` now stamps a 30-day
+      activation token on the created User (reuses the reset-token fields, redeemed at `/reset-password?...&setup=1`)
+      and `MustChangePassword` stays **false** (they set their own). The random login password is never shared. The
+      `demande_approved` template + variables switched from `{{tempPassword}}` → `{{activationLink}}` + steps (seed
+      for fresh DBs + **data patch `005_demande_approved_activation_link.sql`** for existing DBs, guarded on the old
+      `{{tempPassword}}` so a CG-edited template is untouched; applied to the dev DB).
+- [x] **Applicant DTO result fields** (`converted` / `decidedUnitName` / `memberUsername` / `memberHasLoggedIn`),
+      populated ONLY once the response is sent (never leaks a staged decision), enriched in `GetApplicantProfile`
+      (batched: unit name + created member's username + last-login). New resend endpoint
+      **`POST /applicant/demandes/{id}/resend-activation`** (own-account, `forms` rate-limited) re-stamps a fresh
+      token + queues `account_activation` to the member's contact email (household primary → account fallback).
+- Verified live end-to-end (isolated year 9999, throwaway account, cleaned up — Lyanna's real 2026-2027 demande
+      untouched): convert → activation token + 30-day expiry + `must_change=false` + `demande_approved` queued with
+      the setup=1 link and NO tempPassword; profile returns the enriched fields; resend queues `account_activation`;
+      the logged-in flag flips true. Build + tsc + eslint clean. See [[project-email-golive]]. DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
