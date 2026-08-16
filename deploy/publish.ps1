@@ -51,6 +51,10 @@ Copy-Item (Join-Path $PSScriptRoot "offline.html") (Join-Path $OutDir "offline.h
 #       startup failures get the friendly page.
 $webConfigPath = Join-Path $OutDir "web.config"
 if (-not (Test-Path $webConfigPath)) { throw "web.config not found in '$OutDir' after publish." }
+# ABSOLUTE path: XmlDocument.Save() is a raw .NET method that resolves relative paths against the PROCESS
+# working dir ([Environment]::CurrentDirectory), which does NOT follow PowerShell's Set-Location — so a relative
+# OutDir would save to the wrong place (or fail). Resolve-Path (uses $PWD) gives the correct absolute path.
+$webConfigPath = (Resolve-Path $webConfigPath).Path
 [xml]$wc = Get-Content $webConfigPath
 $ancm = $wc.SelectSingleNode("//aspNetCore")
 if (-not $ancm) { throw "aspNetCore element not found in generated web.config." }
