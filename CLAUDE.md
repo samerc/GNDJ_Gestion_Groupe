@@ -2496,6 +2496,38 @@ new templates/settings auto-apply on prod startup; verified live end-to-end vs s
 - New rentrée goto-actions: `goto-email` / `goto-send-access` / `goto-demande-archives`; `SeedRentreeExtraTasksAsync`
       backfills the 4 new checklist tasks (idempotent per title). See [[project-demande-inscription]].
 
+### Excel decisions — one Décision column (code) + rejection-reasons list (2026-08-17)
+Reworked batch-I's Excel round-trip from THREE columns (Décision Accepté/Refusé · Unité · Motif) to a SINGLE
+**Décision** column holding a CODE, plus a managed **Motifs de refus** (rejection reasons) list reused by Excel
+AND the web decline. All on main, pushed; DEV until deploy. Verified live end-to-end.
+- **Rejection reasons = managed list** (JSON setting `demande.rejection_reasons`, `value_type "json"`, CG-editable
+      via `demande.manage`). Each reason = `{code, label, text, isDefault}`; exactly one may be default. The picked
+      reason's **text** is stored as the demande's `DecisionNotes` and emailed as `{{reason}}` by the single
+      `demande_declined` template — so the WHOLE decline email pipeline is unchanged; we only add a code→text lookup.
+      `DemandeRejectionReasons` helper (Parse/Serialize/Resolve/TextOf); `Resolve` maps "--"/"-" → the default reason,
+      else an accent/case-insensitive code match. `GetDemandeRejectionReasonsQuery` (demande.view) +
+      `UpdateDemandeRejectionReasonsCommand` (demande.manage, replace-whole-list, validates unique codes / ≤1 default
+      / "--" reserved). Endpoints `GET|PUT /demandes/rejection-reasons`. Seeded one default ("Manque de place").
+      NOTE: `value_type "json"` + added to Settings `HIDDEN_KEYS` on purpose — as a `json_array` the generic Settings
+      string-list editor would FLATTEN the objects (saw it collapse to `["6"]`); the list has its own page instead.
+- **New CG page `/admin/rejection-reasons`** ("Motifs de refus", sidebar Suivi & demandes, gated demande.manage):
+      add/edit/delete reasons, code + libellé + texte, ★ default toggle, save-whole-list. `useRejectionReasons` /
+      `useUpdateRejectionReasons`.
+- **Excel (DemandeSheetService):** the "Demandes" sheet now has ONE `Décision (code unité ou motif)` column; a
+      "Codes" reference sheet lists every valid code (unit code → "Accepter → <unit>", "--" → default reason, each
+      reason code → "Refuser → <label>") and drives an in-cell dropdown. Prefill: staged-approved → the unit CODE;
+      staged-declined → the reason code whose text matches (else "--"). `Export(rows, units:(code,name),
+      reasons:(code,label), defaultReasonLabel)`; `DemandeDecisionRow` collapsed to a single `Decision` cell.
+- **Import (ImportDemandeDecisions):** a non-blank cell resolves as **(1)** a unit code (then unit name) → ACCEPT
+      into that unit, **(2)** else a reason code / "--" → DECLINE with that reason's text, **(3)** else a per-row
+      error ("code inconnu"). **Blank = skip** (leave undecided). Unknown-unit/reason and "--"-with-no-default report
+      clean row errors; no partial apply beyond the valid rows (same staging model — nothing sent until "Envoyer les
+      réponses"). Verified: M2→Approved, 6→Declined+text, --→Declined+default, ZZZ→error, blank→skipped.
+- **Web decline gets the same reasons:** a shared `ReasonPicker` (Select of reasons; picking one fills the free-text
+      motif, still editable) added to the decline dialog, the bulk-decline bar, and the drawer decline. DecideDemande/
+      BulkDecide unchanged (still take the resolved DecisionNotes text). Export button gained a tooltip explaining the
+      single-code column. See [[project-demande-inscription]].
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

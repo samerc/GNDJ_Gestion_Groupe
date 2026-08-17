@@ -244,6 +244,27 @@ public class DemandesController : BaseApiController
         return Ok(result.Value);
     }
 
+    // ── Rejection reasons (managed list) ─────────────────────────────────────────────────────────────
+    /// <summary>Lists the demande rejection reasons (code + libellé + texte). Requires demande.view.</summary>
+    [HttpGet("rejection-reasons")]
+    [HasPermission(Permissions.DemandeView)]
+    public async Task<IActionResult> GetRejectionReasons()
+    {
+        var result = await Mediator.Send(new GetDemandeRejectionReasonsQuery());
+        return Ok(result.Value);
+    }
+
+    /// <summary>Replaces the whole rejection-reasons list. Requires demande.manage.</summary>
+    [HttpPut("rejection-reasons")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> UpdateRejectionReasons([FromBody] UpdateRejectionReasonsBody body)
+    {
+        var result = await Mediator.Send(new UpdateDemandeRejectionReasonsCommand(body.Reasons ?? []));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { updated = true });
+    }
+
     public record DecideBody(string Status, Guid? DecidedUnitId, string? DecisionNotes);
     public record SetUnitBody(Guid? DecidedUnitId);
+    public record UpdateRejectionReasonsBody(IReadOnlyList<DemandeRejectionReasonDto>? Reasons);
 }

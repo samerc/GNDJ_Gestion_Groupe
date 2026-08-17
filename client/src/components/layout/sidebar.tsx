@@ -45,6 +45,7 @@ import {
   AlertTriangle,
   LayoutGrid,
   Archive,
+  Ban,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePendingDemandeCount } from '@/services/demande-admin-service'
@@ -111,6 +112,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/demande-stats', label: 'Statistiques demandes', icon: BarChart3, permission: PERMISSIONS.DEMANDE_VIEW },
       { path: '/admin/demande-accounts', label: "Comptes d'inscription", icon: MailCheck, permission: PERMISSIONS.DEMANDE_VIEW },
       { path: '/admin/demande-archives', label: 'Archives des demandes', icon: Archive, permission: PERMISSIONS.DEMANDE_VIEW },
+      { path: '/admin/rejection-reasons', label: 'Motifs de refus', icon: Ban, permission: PERMISSIONS.DEMANDE_MANAGE },
       { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
       { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },

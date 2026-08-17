@@ -70,6 +70,7 @@ const DocumentRemindersPage = lazy(() => import('@/pages/admin/document-reminder
 const DemandeStatsPage = lazy(() => import('@/pages/admin/demande-stats'))
 const DemandeAccountsPage = lazy(() => import('@/pages/admin/demande-accounts'))
 const DemandeArchivesPage = lazy(() => import('@/pages/admin/demande-archives'))
+const RejectionReasonsPage = lazy(() => import('@/pages/admin/rejection-reasons'))
 const PassageValidationPage = lazy(() => import('@/pages/admin/passage-validation'))
 const CotisationDashboardPage = lazy(() => import('@/pages/admin/cotisation-dashboard'))
 const ProgressionPage = lazy(() => import('@/pages/admin/progression'))
@@ -203,6 +204,9 @@ export default function App() {
               <Route path="/admin/demande-stats" element={<DemandeStatsPage />} />
               <Route path="/admin/demande-accounts" element={<DemandeAccountsPage />} />
               <Route path="/admin/demande-archives" element={<DemandeArchivesPage />} />
+            </Route>
+            <Route element={<PermissionRoute permission={PERMISSIONS.DEMANDE_MANAGE} />}>
+              <Route path="/admin/rejection-reasons" element={<RejectionReasonsPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.PASSAGE_MANAGE} />}>
               <Route path="/admin/passage-validation" element={<PassageValidationPage />} />

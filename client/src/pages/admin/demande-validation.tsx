@@ -11,8 +11,8 @@ import { useSettingValue, useSchoolCode } from '@/services/settings-service'
 import {
   useDemandesForReview, useUnitOccupancy, useDecideDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useCloseCampaign,
   useCampaignStatus, useSetSubmissions, useSetDemandeUnit,
-  useExportDecisions, useImportDecisions, useUnsubmittedCount, useSendSubmissionReminders,
-  type DemandeReview, type UnitOccupancy, type ImportDecisionsResult,
+  useExportDecisions, useImportDecisions, useUnsubmittedCount, useSendSubmissionReminders, useRejectionReasons,
+  type DemandeReview, type UnitOccupancy, type ImportDecisionsResult, type RejectionReason,
 } from '@/services/demande-admin-service'
 import { saveBlob } from '@/lib/download'
 import { Button } from '@/components/ui/button'
@@ -133,6 +133,7 @@ export default function DemandeValidationPage() {
   const importMutation = useImportDecisions()
   const remindersMutation = useSendSubmissionReminders()
   const { data: unsubmittedCount } = useUnsubmittedCount(scoutYear)
+  const { data: rejectionReasons = [] } = useRejectionReasons() // managed motifs for the decline pickers
   const [importResult, setImportResult] = useState<ImportDecisionsResult | null>(null)
   const [reminderConfirm, setReminderConfirm] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -353,9 +354,11 @@ export default function DemandeValidationPage() {
       {/* Secondary toolbar: work the decisions in Excel (export → fill → import) + remind non-submitters. */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-2">
         <span className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Outils</span>
-        <Button variant="outline" size="sm" disabled={exportMutation.isPending} onClick={handleExport}>
-          <Download className="mr-2 h-4 w-4" />Exporter (Excel)
-        </Button>
+        <Tip content="Une seule colonne Décision : saisir le code de l'unité (C2, M2…) pour accepter, ou un code de motif (« -- » = par défaut) pour refuser. La feuille « Codes » liste tout.">
+          <Button variant="outline" size="sm" disabled={exportMutation.isPending} onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />Exporter (Excel)
+          </Button>
+        </Tip>
         <Button variant="outline" size="sm" disabled={importMutation.isPending} onClick={() => importInputRef.current?.click()}>
           <Upload className="mr-2 h-4 w-4" />{importMutation.isPending ? 'Import…' : 'Importer les décisions'}
         </Button>
@@ -445,6 +448,7 @@ export default function DemandeValidationPage() {
           </div>
           <Button size="sm" variant="outline" disabled={busy} onClick={bulkApproveSuggested}><Sparkles className="mr-1 h-4 w-4" />Accepter (unité suggérée)</Button>
           <div className="flex w-full items-center gap-1.5 sm:w-auto">
+            <ReasonPicker reasons={rejectionReasons} onPick={setBulkMotif} className="h-9 w-40" />
             <Input className="h-9 w-full sm:w-48" value={bulkMotif} onChange={(e) => setBulkMotif(e.target.value)} placeholder="Motif de refus (optionnel)" />
             <Button size="sm" variant="destructive" disabled={busy} onClick={bulkDecline}><X className="mr-1 h-4 w-4" />Refuser</Button>
           </div>
@@ -555,6 +559,7 @@ export default function DemandeValidationPage() {
               occByUnit={occByUnit}
               siblingsTogether={siblingsTogether}
               busy={busy}
+              reasons={rejectionReasons}
               hasPrev={detailIndex > 0}
               hasNext={detailIndex < rows.length - 1}
               onPrev={() => detailIndex > 0 && setDetailId(rows[detailIndex - 1].id)}
@@ -593,6 +598,7 @@ export default function DemandeValidationPage() {
           <DialogHeader><DialogTitle>Refuser — {declineTarget?.firstName} {declineTarget?.lastName}</DialogTitle></DialogHeader>
           <div className="space-y-2">
             <label className="text-sm font-medium">Motif (optionnel, inclus dans l'email)</label>
+            <ReasonPicker reasons={rejectionReasons} onPick={setDecisionNote} />
             <Input value={decisionNote} onChange={(e) => setDecisionNote(e.target.value)} placeholder="Ex. : effectif complet" />
           </div>
           <DialogFooter>
@@ -661,6 +667,20 @@ export default function DemandeValidationPage() {
 }
 
 // ── status badge ─────────────────────────────────────────────────────────────
+// Pick a pre-defined rejection reason → fills the free-text motif with the reason's text (still editable).
+// Value stays empty (it's a "pick to fill", not a bound select). Renders nothing if no reasons are configured.
+function ReasonPicker({ reasons, onPick, className }: { reasons: RejectionReason[]; onPick: (text: string) => void; className?: string }) {
+  if (!reasons.length) return null
+  return (
+    <Select value="" onValueChange={(code) => { const r = reasons.find((x) => x.code === code); if (r) onPick((r.text || '').trim() || r.label) }}>
+      <SelectTrigger className={className ?? 'h-9'}><SelectValue placeholder="Motif type…" /></SelectTrigger>
+      <SelectContent>
+        {reasons.map((r) => <SelectItem key={r.code} value={r.code}>{r.label}{r.isDefault ? ' ★' : ''}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  )
+}
+
 function StatusBadge({ d }: { d: DemandeReview }) {
   if (d.responseSentAt) {
     if (d.status === 'Approved') return <Badge className="bg-green-600"><CheckCircle2 className="mr-1 h-3 w-3" />Acceptée (envoyée)</Badge>
@@ -726,12 +746,13 @@ function UnitHint({ u, d }: { u: UnitOccupancy; d: DemandeReview }) {
 }
 
 // ── detail drawer panel ────────────────────────────────────────────────────────
-function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, hasPrev, hasNext, onPrev, onNext, onDecide }: {
+function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons, hasPrev, hasNext, onPrev, onNext, onDecide }: {
   d: DemandeReview
   occupancy: UnitOccupancy[]
   occByUnit: Record<string, UnitOccupancy>
   siblingsTogether: boolean
   busy: boolean
+  reasons: RejectionReason[]
   hasPrev: boolean
   hasNext: boolean
   onPrev: () => void
@@ -941,7 +962,10 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, hasPrev,
             </div>
             <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optionnel)" />
             <Separator />
-            <Input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif de refus (optionnel, inclus dans l'email)" />
+            <div className="flex items-center gap-1.5">
+              <ReasonPicker reasons={reasons} onPick={setMotif} className="h-9 w-40 shrink-0" />
+              <Input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif de refus (optionnel, inclus dans l'email)" />
+            </div>
             <div className="flex gap-2">
               <Button className="flex-1" disabled={busy} onClick={() => onDecide(d, 'Approved', unit, note)}>
                 <Check className="mr-1 h-4 w-4" />{d.status === 'Approved' ? 'Mettre à jour' : 'Accepter'}

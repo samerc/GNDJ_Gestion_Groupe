@@ -302,3 +302,24 @@ export function useImportDecisions() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['demandes'] }),
   })
 }
+
+// ── Rejection reasons (managed list) ────────────────────────────────────────────────────────────────
+// Each reason has a short CODE the Maîtrise types in the Excel Décision column (or picks in the web decline
+// dialog); the picked reason's TEXT is stored on the demande and emailed as {{reason}}. One may be default
+// ("--" in Excel maps to it).
+export interface RejectionReason { code: string; label: string; text: string; isDefault: boolean }
+
+export function useRejectionReasons() {
+  return useQuery({
+    queryKey: ['demandes', 'rejection-reasons'],
+    queryFn: () => apiClient.get<RejectionReason[]>('/demandes/rejection-reasons').then((r) => r.data),
+  })
+}
+
+export function useUpdateRejectionReasons() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (reasons: RejectionReason[]) => apiClient.put('/demandes/rejection-reasons', { reasons }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['demandes', 'rejection-reasons'] }),
+  })
+}
