@@ -5,7 +5,7 @@
 // editors for exchange rates and for keys that have a fixed options list.
 // Each SettingEditor saves its own row; settings with dedicated pages are hidden.
 import { parseApiError } from '@/lib/error-utils'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, lazy, Suspense } from 'react'
 import { useSettings, useUpdateSetting, type SettingDto } from '@/services/settings-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,12 +15,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { NATIONALITY_OPTIONS, PHONE_COUNTRY_CODES, COUNTRY_OPTIONS } from '@/lib/options'
-import { Save, X, Settings2, Search, Plus, Trash2, Landmark, ListPlus, CreditCard, ChevronDown } from 'lucide-react'
-import { Link } from 'react-router'
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
+import { Save, X, Settings2, Search, Plus, Trash2 } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { ManagedListEditor } from '@/components/shared/managed-list-editor'
+
+// The three "set-and-forget" config screens are now tabs inside Paramètres rather than separate pages/routes.
+// Lazy-loaded so their code stays out of the main settings chunk until the tab is opened.
+const AssociationsPage = lazy(() => import('@/pages/admin/associations'))
+const CustomFieldsPage = lazy(() => import('@/pages/admin/custom-fields'))
+const CardDesignerPage = lazy(() => import('@/pages/admin/card-designer'))
+
+// Extra tabs (rendered after the key-value setting categories). Each renders a full config page component;
+// the `cfg:` prefix keeps their tab `value` from colliding with a real setting category.
+const CONFIG_TABS: { key: string; label: string; Component: React.ComponentType }[] = [
+  { key: 'cfg:associations', label: 'Associations', Component: AssociationsPage },
+  { key: 'cfg:custom-fields', label: 'Champs personnalisés', Component: CustomFieldsPage },
+  { key: 'cfg:card', label: 'Carte membre', Component: CardDesignerPage },
+]
 
 // Settings already edited on dedicated pages — hidden from the generic Paramètres page.
 const HIDDEN_KEYS = new Set(['site.content', 'card.config', 'member.cities', 'member.schools', 'member.classes', 'member.profession_domains', 'demande.rejection_reasons', 'ui.role_colors', 'pinned_professions'])
@@ -334,20 +346,6 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold">Paramètres</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* Set-and-forget config pages (Associations / Champs perso / Carte membre) live here rather than
-              cluttering the everyday nav. Grouped in one dropdown to keep the header tidy. */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Settings2 className="mr-1.5 h-4 w-4" />Pages de configuration<ChevronDown className="ml-1.5 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild><Link to="/admin/associations"><Landmark className="mr-2 h-4 w-4" />Associations</Link></DropdownMenuItem>
-              <DropdownMenuItem asChild><Link to="/admin/custom-fields"><ListPlus className="mr-2 h-4 w-4" />Champs personnalisés</Link></DropdownMenuItem>
-              <DropdownMenuItem asChild><Link to="/admin/card-designer"><CreditCard className="mr-2 h-4 w-4" />Carte membre</Link></DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
           <div className="relative w-full max-w-xs">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Rechercher un paramètre..." value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9 pr-8" />
@@ -372,6 +370,8 @@ export default function SettingsPage() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="flex flex-wrap">
             {categories.map(c => <TabsTrigger key={c} value={c}>{CATEGORY_LABELS[c] ?? c}</TabsTrigger>)}
+            {/* Config screens as tabs (Associations / Champs personnalisés / Carte membre). */}
+            {CONFIG_TABS.map(t => <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>)}
           </TabsList>
           {categories.map(c => (
             <TabsContent key={c} value={c}>
@@ -380,6 +380,16 @@ export default function SettingsPage() {
                   {grouped[c].map(s => <SettingEditor key={s.key} setting={s} onSave={handleSave} {...extraProps(s)} />)}
                 </div>
               </div>
+            </TabsContent>
+          ))}
+          {CONFIG_TABS.map(({ key, Component }) => (
+            <TabsContent key={key} value={key}>
+              {/* Each config screen renders its own page (its own heading + CRUD). Only mounted when its tab is active. */}
+              {tab === key && (
+                <Suspense fallback={<LoadingSpinner variant="table" />}>
+                  <Component />
+                </Suspense>
+              )}
             </TabsContent>
           ))}
         </Tabs>

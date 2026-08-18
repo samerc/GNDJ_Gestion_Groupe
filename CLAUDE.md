@@ -2601,6 +2601,21 @@ Two additions to the CG "Comptes d'inscription" page (`/admin/demande-accounts`)
       can change it later via "mot de passe oublié"). Verified live: filter returns only that account's 4 submitted
       demandes (6 total for the year); reset → temp password → applicant login with it → 200.
 
+### Settings consolidation (2026-08-19)
+Three small Paramètres cleanups (frontend + a data patch; DEV until deploy).
+- **Removed `pinned_professions` ("Professions épinglées").** It only floated 5 favourites to the top of the parent
+  **Profession** picker (whose options are a hardcoded constant, not a managed list) — confusingly redundant next
+  to the managed **Domaine** list in *Listes*. Dropped `pinnedValues` from the guardian add/edit forms, hid the key
+  + removed the `SETTING_OPTIONS` entry, removed both seed entries, **data patch `007`** deletes the row from
+  existing DBs (dev row deleted live). The now-empty **Famille** settings tab disappears.
+- **Merged Contact → Email tab.** The *Contact* category held one setting (contact-form recipient); folded into the
+  Email tab via `effectiveCategory` (`contact`→`email`), renamed the tab **"Email & contact"**, dropped the
+  standalone Contact tab.
+- **Pages de configuration are now tabs, not routes.** Associations / Champs personnalisés / Carte membre moved
+  from the "Pages de configuration ▾" header dropdown (and their `/admin/*` routes) INTO Paramètres as three extra
+  **tabs** (`CONFIG_TABS`, lazy-loaded, mounted only when active). Removed the dropdown + the 3 routes/imports from
+  App.tsx (nothing else linked to them). Supersedes the 2026-07-28 "set-and-forget pages behind a dropdown" note.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

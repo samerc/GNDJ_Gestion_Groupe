@@ -84,13 +84,11 @@ const AuditLogsPage = lazy(() => import('@/pages/admin/audit-logs'))
 const ErrorLogPage = lazy(() => import('@/pages/admin/error-log'))
 const EmailOutboxPage = lazy(() => import('@/pages/admin/email-outbox'))
 const ChangelogPage = lazy(() => import('@/pages/admin/changelog'))
-const AssociationsPage = lazy(() => import('@/pages/admin/associations'))
 const UnitTypesPage = lazy(() => import('@/pages/admin/unit-types'))
 const UnitTypeDetailPage = lazy(() => import('@/pages/admin/unit-type-detail'))
 const RolesPage = lazy(() => import('@/pages/admin/roles'))
 const ApiKeysPage = lazy(() => import('@/pages/admin/api-keys'))
-const CustomFieldsPage = lazy(() => import('@/pages/admin/custom-fields'))
-const CardDesignerPage = lazy(() => import('@/pages/admin/card-designer'))
+// Associations / Champs personnalisés / Carte membre are now tabs inside Paramètres (settings.tsx), not routes.
 const EmailSettingsPage = lazy(() => import('@/pages/admin/email-settings'))
 const SettingsPage = lazy(() => import('@/pages/admin/settings'))
 const AppearancePage = lazy(() => import('@/pages/admin/appearance'))
@@ -235,13 +233,10 @@ export default function App() {
             </Route>
             {/* Super-admin only: org structure, roles/permissions, system settings */}
             <Route element={<AdminRoute />}>
-              <Route path="/admin/associations" element={<AssociationsPage />} />
               <Route path="/admin/unit-types" element={<UnitTypesPage />} />
               <Route path="/admin/unit-types/:id" element={<UnitTypeDetailPage />} />
               <Route path="/admin/roles" element={<RolesPage />} />
               <Route path="/admin/api-keys" element={<ApiKeysPage />} />
-              <Route path="/admin/custom-fields" element={<CustomFieldsPage />} />
-              <Route path="/admin/card-designer" element={<CardDesignerPage />} />
               <Route path="/admin/email-settings" element={<EmailSettingsPage />} />
               <Route path="/admin/settings" element={<SettingsPage />} />
               <Route path="/admin/appearance" element={<AppearancePage />} />
