@@ -28,10 +28,10 @@ public class DemandesController : BaseApiController
     [HasPermission(Permissions.DemandeView)]
     public async Task<IActionResult> List([FromQuery] string scoutYear, [FromQuery] string? status,
         [FromQuery] string? gender, [FromQuery] string? classe, [FromQuery] string? school,
-        [FromQuery] int? ageMin, [FromQuery] int? ageMax, [FromQuery] Guid? unitId)
+        [FromQuery] int? ageMin, [FromQuery] int? ageMax, [FromQuery] Guid? unitId, [FromQuery] Guid? accountId)
     {
         if (string.IsNullOrWhiteSpace(scoutYear)) return BadRequest(new { error = "L'année scoute est requise." });
-        var result = await Mediator.Send(new GetDemandesForReviewQuery(scoutYear, status, gender, classe, school, ageMin, ageMax, unitId));
+        var result = await Mediator.Send(new GetDemandesForReviewQuery(scoutYear, status, gender, classe, school, ageMin, ageMax, unitId, accountId));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }
@@ -181,6 +181,17 @@ public class DemandesController : BaseApiController
         var result = await Mediator.Send(new VerifyApplicantEmailManuallyCommand(id));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(new { success = true });
+    }
+
+    /// <summary>Resets an applicant account's portal password to a fresh temp password (shown once for the CG to
+    /// relay) and invalidates any active session. Requires demande.manage.</summary>
+    [HttpPost("accounts/{id:guid}/reset-password")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> ResetAccountPassword(Guid id)
+    {
+        var result = await Mediator.Send(new ResetApplicantPasswordCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
     }
 
     // ── Reminders (G) ────────────────────────────────────────────────────────────────────────────────

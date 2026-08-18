@@ -99,7 +99,7 @@ static class DemandeAdminHelpers
 // ============================================================
 public record GetDemandesForReviewQuery(
     string ScoutYear, string? Status, string? Gender, string? Classe, string? School,
-    int? AgeMin, int? AgeMax, Guid? UnitId) : IRequest<Result<IReadOnlyList<DemandeReviewDto>>>;
+    int? AgeMin, int? AgeMax, Guid? UnitId, Guid? AccountId = null) : IRequest<Result<IReadOnlyList<DemandeReviewDto>>>;
 
 public class GetDemandesForReviewQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetDemandesForReviewQuery, Result<IReadOnlyList<DemandeReviewDto>>>
 {
@@ -119,6 +119,8 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context, ICu
         if (!string.IsNullOrEmpty(request.School)) query = query.Where(d => d.School == request.School);
         if (!string.IsNullOrEmpty(request.Classe)) query = query.Where(d => d.Classe == request.Classe);
         if (request.UnitId.HasValue) query = query.Where(d => d.DecidedUnitId == request.UnitId.Value);
+        // Navigate here from the "Comptes d'inscription" page to see one account's demandes.
+        if (request.AccountId.HasValue) query = query.Where(d => d.ApplicantAccountId == request.AccountId.Value);
 
         var demandes = await query.OrderBy(d => d.LastName).ThenBy(d => d.FirstName).ToListAsync(ct);
 

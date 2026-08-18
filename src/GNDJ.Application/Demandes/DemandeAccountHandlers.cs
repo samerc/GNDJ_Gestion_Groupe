@@ -63,6 +63,45 @@ public class GetDemandeAccountsQueryHandler(IApplicationDbContext context, ICurr
     }
 }
 
+// Returned once so the CG can relay the new portal credentials to the parent.
+public record ResetApplicantPasswordResult(string Email, string TemporaryPassword);
+
+// CG resets an applicant (parent) portal login: sets a fresh temp password and invalidates any active
+// session + pending reset link. Shown once on screen for the CG to relay (there's no forced-change flow
+// for applicants — the parent can change it later via "mot de passe oublié").
+public record ResetApplicantPasswordCommand(Guid AccountId) : IRequest<Result<ResetApplicantPasswordResult>>;
+
+public class ResetApplicantPasswordCommandHandler(
+    IApplicationDbContext context, ICurrentUserService currentUser, IPasswordHasher passwordHasher, IAuditService audit)
+    : IRequestHandler<ResetApplicantPasswordCommand, Result<ResetApplicantPasswordResult>>
+{
+    public async ValueTask<Result<ResetApplicantPasswordResult>> Handle(ResetApplicantPasswordCommand request, CancellationToken ct)
+    {
+        // Same authority as posting decisions / manual-verify — a whole-group manager. (Controller also gates demande.manage.)
+        if (!MemberAccess.IsGroupManager(currentUser))
+            return Result<ResetApplicantPasswordResult>.Failure("Action non autorisée.");
+
+        var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Id == request.AccountId, ct);
+        if (account is null)
+            return Result<ResetApplicantPasswordResult>.Failure("Compte introuvable.");
+
+        // Same temp-password shape as member creation/reset.
+        var tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}";
+        account.PasswordHash = await passwordHasher.HashAsync(tempPassword);
+        // Invalidate any active session + pending reset link so the old credentials can't be replayed.
+        account.RefreshToken = null;
+        account.RefreshTokenExpiry = null;
+        account.PasswordResetToken = null;
+        account.PasswordResetTokenExpiry = null;
+
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("ResetApplicantPassword", "ApplicantAccount", account.Id,
+            newValues: new { account.Email }, cancellationToken: ct);
+
+        return Result<ResetApplicantPasswordResult>.Success(new ResetApplicantPasswordResult(account.Email, tempPassword));
+    }
+}
+
 // Manually mark an applicant account's email as verified (CG safety net when the verification email failed).
 public record VerifyApplicantEmailManuallyCommand(Guid AccountId) : IRequest<Result<bool>>;
 

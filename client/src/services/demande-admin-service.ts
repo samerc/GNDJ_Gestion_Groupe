@@ -68,6 +68,7 @@ export interface DemandeFilters {
   ageMin?: number
   ageMax?: number
   unitId?: string
+  accountId?: string // set when arriving from the "Comptes d'inscription" page to view one account's demandes
 }
 
 export interface CountItem { label: string; count: number }
@@ -235,6 +236,15 @@ export function useVerifyAccountEmail() {
   return useMutation({
     mutationFn: (id: string) => apiClient.post(`/demandes/accounts/${id}/verify-email`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['demandes', 'accounts'] }),
+  })
+}
+
+// POST /demandes/accounts/{id}/reset-password → CG resets the parent's portal password; returns the temp
+// password once (shown on screen for the CG to relay).
+export interface ResetApplicantPasswordResult { email: string; temporaryPassword: string }
+export function useResetAccountPassword() {
+  return useMutation({
+    mutationFn: (id: string) => apiClient.post<ResetApplicantPasswordResult>(`/demandes/accounts/${id}/reset-password`).then((r) => r.data),
   })
 }
 

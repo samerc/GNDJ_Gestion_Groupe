@@ -7,6 +7,7 @@
 // Decisions are staged (Approved/Declined) and only become final/emailed on "Envoyer les réponses",
 // which is gated until every demande in scope is decided (no undecided 'Submitted' left).
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useSettingValue, useSchoolCode } from '@/services/settings-service'
 import {
   useDemandesForReview, useUnitOccupancy, useDecideDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useCloseCampaign,
@@ -110,13 +111,18 @@ export default function DemandeValidationPage() {
   const [sortKey, setSortKey] = useState<SortKey>('name')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
+  // Optional ?account=<id> — set when arriving from the "Comptes d'inscription" page to view one account's demandes.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const accountFilter = searchParams.get('account') || undefined
+
   const filters = useMemo(() => ({
     status: status === 'all' ? undefined : status,
     gender: gender === 'all' ? undefined : gender,
     classe: classe || undefined,
     ageMin: ageMin ? Number(ageMin) : undefined,
     ageMax: ageMax ? Number(ageMax) : undefined,
-  }), [status, gender, classe, ageMin, ageMax])
+    accountId: accountFilter,
+  }), [status, gender, classe, ageMin, ageMax, accountFilter])
 
   const { data: demandes, isLoading } = useDemandesForReview(scoutYear, filters)
   const { data: occupancy } = useUnitOccupancy(scoutYear)
@@ -350,6 +356,21 @@ export default function DemandeValidationPage() {
           )}
         </div>
       </div>
+
+      {/* Account filter banner — arrived from "Comptes d'inscription". Shows only this account's demande(s). */}
+      {accountFilter && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+          <Users2 className="h-4 w-4 text-primary" />
+          <span>
+            Demandes d'un seul compte{all[0]?.contactName || all[0]?.accountEmail ? ` — ${all[0]?.contactName || all[0]?.accountEmail}` : ''}
+            {all.length === 0 && !isLoading ? ' : aucune demande pour ce compte cette année.' : ''}
+          </span>
+          <Button variant="outline" size="sm" className="ml-auto"
+            onClick={() => setSearchParams((p) => { p.delete('account'); return p })}>
+            <X className="mr-1 h-3.5 w-3.5" />Afficher toutes les demandes
+          </Button>
+        </div>
+      )}
 
       {/* Secondary toolbar: work the decisions in Excel (export → fill → import) + remind non-submitters. */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-2">

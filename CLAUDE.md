@@ -2560,6 +2560,22 @@ per request); deploys with the next `update.ps1 -Pull`.
 - **Rentrée:** the "En attente : …" blocked-by line **dedupes** titles (a group task depending on a per-unit
       task listed the same title ~18×).
 
+### Comptes d'inscription — jump-to-demandes + password reset (2026-08-18)
+Two additions to the CG "Comptes d'inscription" page (`/admin/demande-accounts`), all on main; DEV until deploy.
+- **Click a row (or the "Demandes" button) → that account's demande(s).** `GetDemandesForReviewQuery` gained a
+      `Guid? AccountId` filter (+ `?accountId=` on `GET /demandes`); the accounts page navigates to
+      `/admin/demandes?account=<id>` (only when demandeCount>0), and the review page reads `?account=` via
+      `useSearchParams`, folds it into `filters`, and shows a clearable "Demandes d'un seul compte — <contact>"
+      banner (X → removes the param). ScoutYear still applies, so it shows that account's demandes for the current
+      campaign.
+- **Reset the parent's portal password.** New `ResetApplicantPasswordCommand` (IsGroupManager gate) → sets a fresh
+      `Scout{year}!{nnn}` temp password (async bcrypt), invalidates the refresh + reset tokens, audited
+      `ResetApplicantPassword`; `POST /demandes/accounts/{id}/reset-password` (demande.manage) returns
+      `{email, temporaryPassword}` once. The page has a "Mot de passe" button → confirm → one-time credentials
+      dialog (email + temp password, copy buttons) for the CG to relay. No forced-change flow for applicants (they
+      can change it later via "mot de passe oublié"). Verified live: filter returns only that account's 4 submitted
+      demandes (6 total for the year); reset → temp password → applicant login with it → 200.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

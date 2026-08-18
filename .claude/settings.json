@@ -24,10 +24,13 @@
       "PowerShell(git add -A)",
       "PowerShell(git reset -q .claude/settings.json)",
       "PowerShell(git push 2>&1)",
-      "WebSearch"
+      "WebSearch",
+      "Read(//c/Users/Administrator/Documents/old/**)",
+      "Bash(git commit -m ' *)"
     ],
     "additionalDirectories": [
-      "C:\\Users\\Administrator\\Desktop\\BP 2026"
+      "C:\\Users\\Administrator\\Desktop\\BP 2026",
+      "c:\\Users\\Administrator\\.claude\\projects\\c--Users-Administrator-Documents-coding-GNDJ-Gestion-Groupe\\memory"
     ]
   }
 }
