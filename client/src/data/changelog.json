@@ -1,5 +1,24 @@
 [
   {
+    "version": "3.3.0",
+    "date": "2026-08-18",
+    "changes": [
+      "Demande UX: wizard proches rework, other-group flag, menu split, motifs table, wording",
+      "Demande Excel decisions: single Décision column (code) + rejection-reasons list",
+      "docs: CLAUDE.md — demande process fine-tuning batch F-I",
+      "Demande fine-tuning batch F-G-H-I: attachments, reminders, archive UI, Excel decisions",
+      "docs: CLAUDE.md — demande process fine-tuning batch A-E + F-I backlog",
+      "Demande fine-tuning batch A-E: window dates, confirm email, config Y, result text, draft expiry",
+      "docs: CLAUDE.md — demande result page + set-password link (2026-08-16)",
+      "Demande: result page after decision + set-password link (drop temp password)",
+      "REVERT the offline-page web.config patch (took prod down)",
+      "publish.ps1: absolute path for web.config Save (fix deploy failure)",
+      "Organiser: larger, comfier rows on mobile",
+      "Organiser mon unité: rework to a vertical list + move popup + multi-select",
+      "Demandes: save the pre-selected unit without deciding"
+    ]
+  },
+  {
     "version": "3.2.0",
     "date": "2026-08-16",
     "changes": [
