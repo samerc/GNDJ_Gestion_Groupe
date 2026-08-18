@@ -5,7 +5,7 @@
 // "Vérifier manuellement" as a safety net, jump to an account's demande(s), and reset the account's portal
 // password (shown once to relay to the parent).
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { useDemandeAccounts, useVerifyAccountEmail, useResetAccountPassword } from '@/services/demande-admin-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { parseApiError } from '@/lib/error-utils'

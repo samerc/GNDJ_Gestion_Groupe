@@ -7,7 +7,7 @@
 // Decisions are staged (Approved/Declined) and only become final/emailed on "Envoyer les réponses",
 // which is gated until every demande in scope is decided (no undecided 'Submitted' left).
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router'
 import { useSettingValue, useSchoolCode } from '@/services/settings-service'
 import {
   useDemandesForReview, useUnitOccupancy, useDecideDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useCloseCampaign,
