@@ -18,6 +18,7 @@ public class ApplicantScoutRelation : BaseEntity
     public string? LastUnit { get; set; }     // for AncienInGroup entered manually
     public string? LastFunction { get; set; } // for AncienInGroup entered manually
     public string? OtherGroupName { get; set; } // for OtherGroup
+    public bool OtherGroupIsFormer { get; set; } // for OtherGroup: true = ancien de ce groupe, false = membre actuel
 
     public ApplicantAccount ApplicantAccount { get; set; } = null!;
     public Member? RelatedMember { get; set; }

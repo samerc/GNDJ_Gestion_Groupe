@@ -19,7 +19,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
-import { Check, ChevronLeft, ChevronRight, Plus, Trash2, Send, UserRound, Users, Link2 } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Plus, Trash2, Send, UserRound, Users, Link2, Pencil } from 'lucide-react'
 
 // 4-step demande (enrollment request) wizard — the core of the applicant portal.
 // Steps: 0 Enfant (per-child) → 1 Parents + adresse → 2 Proches scouts → 3 Récapitulatif/submit.
@@ -31,7 +31,15 @@ const STEPS = ['Enfant', 'Parents', 'Proches scouts', 'Récapitulatif']
 const GENDERS = ['Masculin', 'Féminin']
 const BLOOD = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 const G_REL = ['Père', 'Mère', 'Tuteur', 'Tutrice', 'Autre']
-const R_REL = ['Frère', 'Sœur', 'Cousin', 'Cousine', 'Oncle', 'Tante', 'Autre']
+const R_REL = ['Père / Mère', 'Frère / Sœur', 'Cousin / Cousine', 'Oncle / Tante']
+// Situation of a "proche scout" (codes are structural — drive conditional fields + auto-link). Labels shown to
+// the parent (dropdown + the summary list). Order = display order in the Select.
+const R_STATUS: { value: string; label: string }[] = [
+  { value: 'CurrentInGroup', label: 'Membre actuel du Groupe Notre-Dame Jamhour' },
+  { value: 'AncienInGroup', label: 'Ancien Membre du Groupe Notre-Dame Jamhour' },
+  { value: 'OtherGroup', label: 'Scout dans un autre groupe' },
+]
+const rStatusLabel = (s: string) => R_STATUS.find((x) => x.value === s)?.label ?? s
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 type Errors = Record<string, string> // field-key → message; guardian errors are keyed `g_<index>_<field>`
@@ -43,6 +51,64 @@ function Field({ label, required, error, children }: { label: string; required?:
       <Label>{label}{required && <span className="text-destructive"> *</span>}</Label>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  )
+}
+
+// Edit form for ONE "proche scout" (master-detail step 2). Situation + names + relationship, plus the
+// status-specific field (current member → unit dropdown; other group → group name; ancien → last unit/function).
+function RelationEditForm({ r, units, onChange, onDone }: {
+  r: ApplicantScoutRelation
+  units: string[]
+  onChange: (patch: Partial<ApplicantScoutRelation>) => void
+  onDone: () => void
+}) {
+  return (
+    <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+      <Field label="Situation">
+        <Select value={r.status} onValueChange={(v) => onChange({ status: v })}>
+          <SelectTrigger className="h-11 text-base"><SelectValue placeholder="Situation" /></SelectTrigger>
+          <SelectContent>{R_STATUS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+        </Select>
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Prénom"><Input value={r.firstName ?? ''} onChange={(e) => onChange({ firstName: e.target.value })} /></Field>
+        <Field label="Nom"><Input value={r.lastName ?? ''} onChange={(e) => onChange({ lastName: e.target.value.toUpperCase() })} /></Field>
+        <Field label="Lien de parenté">
+          <Select value={r.relationship ?? ''} onValueChange={(v) => onChange({ relationship: v })}>
+            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent>{R_REL.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent>
+          </Select>
+        </Field>
+        {r.status === 'CurrentInGroup' && units.length > 0 && (
+          <Field label="Unité actuelle">
+            <Select value={r.lastUnit ?? ''} onValueChange={(v) => onChange({ lastUnit: v })}>
+              <SelectTrigger><SelectValue placeholder="Sélectionner l'unité" /></SelectTrigger>
+              <SelectContent>{units.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+            </Select>
+          </Field>
+        )}
+        {r.status === 'OtherGroup' && (
+          <Field label="Nom du groupe"><Input value={r.otherGroupName ?? ''} onChange={(e) => onChange({ otherGroupName: e.target.value })} /></Field>
+        )}
+        {r.status === 'OtherGroup' && (
+          <div className="flex items-end pb-1.5">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={!!r.otherGroupIsFormer} onChange={(e) => onChange({ otherGroupIsFormer: e.target.checked })} />
+              Ancien de ce groupe (n'en fait plus partie)
+            </label>
+          </div>
+        )}
+        {r.status === 'AncienInGroup' && (
+          <>
+            <Field label="Dernière unité"><Input value={r.lastUnit ?? ''} onChange={(e) => onChange({ lastUnit: e.target.value })} /></Field>
+            <Field label="Dernière fonction"><Input value={r.lastFunction ?? ''} onChange={(e) => onChange({ lastFunction: e.target.value })} /></Field>
+          </>
+        )}
+      </div>
+      <div className="flex justify-end">
+        <Button type="button" size="sm" onClick={onDone}><Check className="mr-1 h-4 w-4" />Terminer</Button>
+      </div>
     </div>
   )
 }
@@ -81,6 +147,7 @@ export default function DemandeWizardPage() {
   const [schoolOther, setSchoolOther] = useState(false) // école "Autre…" → free-text input instead of the managed list
   const [guardians, setGuardians] = useState<ApplicantGuardian[]>([blankGuardian('Père'), blankGuardian('Mère')]) // shared household
   const [relations, setRelations] = useState<ApplicantScoutRelation[]>([]) // shared household
+  const [relEdit, setRelEdit] = useState<number | null>(null) // proche being added/edited (index; null = list view)
   const [address, setAddress] = useState({ country: 'Liban', city: '', details: '' }) // shared household
   const [primaryContactEmail, setPrimaryContactEmail] = useState('') // household primary contact email
   // "Retrouver mes informations" — email-code-gated prefill from an existing member's household.
@@ -145,7 +212,7 @@ export default function DemandeWizardPage() {
       setRelations((prev) => {
         const seen = new Set(prev.map((r) => r.relatedMemberId))
         const added: ApplicantScoutRelation[] = h.members.filter((m) => !seen.has(m.id)).map((m) => ({
-          status: 'CurrentInGroup', relationship: m.gender === 'Féminin' ? 'Sœur' : 'Frère', relatedMemberId: m.id,
+          status: 'CurrentInGroup', relationship: 'Frère / Sœur', relatedMemberId: m.id,
           firstName: m.name.split(' ')[0] ?? '', lastName: m.name.split(' ').slice(1).join(' '), lastUnit: m.unit,
         }))
         return [...prev, ...added]
@@ -246,7 +313,7 @@ export default function DemandeWizardPage() {
           {readonly ? 'Demande' : demandeId === 'new' ? 'Nouvelle demande' : 'Modifier la demande'}
           {child.firstName && ` — ${child.firstName} ${child.lastName}`}
         </h1>
-        <Button variant="ghost" size="sm" onClick={() => navigate('/inscription/portail')}>Retour</Button>
+        <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate('/inscription/portail')}><ChevronLeft className="mr-1 h-4 w-4" />Retour</Button>
       </div>
 
       {readonly && (
@@ -450,51 +517,54 @@ export default function DemandeWizardPage() {
               <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Link2 className="h-4 w-4" />Proches déjà scouts <span className="font-normal">(optionnel, communs à tous vos enfants)</span></div>
               <p className="text-sm text-muted-foreground">Frères, sœurs ou proches qui sont ou ont été scouts. Cela nous aide à regrouper les familles.</p>
               <p className="text-xs text-muted-foreground">{relations.length} / {maxRelations} proches ajoutés (maximum {maxRelations}).</p>
-              {relations.map((r, i) => (
-                <div key={i} className="rounded-lg border p-3 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <Select value={r.status} onValueChange={(v) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, status: v } : x))}>
-                      <SelectTrigger className="h-11 min-w-0 flex-1 text-base sm:max-w-96"><SelectValue placeholder="Situation" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="CurrentInGroup">Scout actuel dans notre groupe</SelectItem>
-                        <SelectItem value="AncienInGroup">Ancien de notre groupe</SelectItem>
-                        <SelectItem value="OtherGroup">Scout dans un autre groupe</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setRelations((arr) => arr.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Prénom"><Input value={r.firstName ?? ''} onChange={(e) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, firstName: e.target.value } : x))} /></Field>
-                    <Field label="Nom"><Input value={r.lastName ?? ''} onChange={(e) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, lastName: e.target.value.toUpperCase() } : x))} /></Field>
-                    <Field label="Lien de parenté">
-                      <Select value={r.relationship ?? ''} onValueChange={(v) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, relationship: v } : x))}>
-                        <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                        <SelectContent>{R_REL.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </Field>
-                    {r.status === 'CurrentInGroup' && (config?.units?.length ?? 0) > 0 && (
-                      <Field label="Unité actuelle">
-                        <Select value={r.lastUnit ?? ''} onValueChange={(v) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, lastUnit: v } : x))}>
-                          <SelectTrigger><SelectValue placeholder="Sélectionner l'unité" /></SelectTrigger>
-                          <SelectContent>{(config?.units ?? []).map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
-                        </Select>
-                      </Field>
-                    )}
-                    {r.status === 'OtherGroup' && (
-                      <Field label="Nom du groupe"><Input value={r.otherGroupName ?? ''} onChange={(e) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, otherGroupName: e.target.value } : x))} /></Field>
-                    )}
-                    {r.status === 'AncienInGroup' && (
-                      <>
-                        <Field label="Dernière unité"><Input value={r.lastUnit ?? ''} onChange={(e) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, lastUnit: e.target.value } : x))} /></Field>
-                        <Field label="Dernière fonction"><Input value={r.lastFunction ?? ''} onChange={(e) => setRelations((arr) => arr.map((x, j) => j === i ? { ...x, lastFunction: e.target.value } : x))} /></Field>
-                      </>
-                    )}
-                  </div>
+              {/* Compact list of added proches — click Modifier to edit one in the form below. */}
+              {relations.length > 0 && (
+                <div className="overflow-x-auto rounded-lg border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Nom</th>
+                        <th className="px-3 py-2 font-medium">Situation</th>
+                        <th className="hidden px-3 py-2 font-medium sm:table-cell">Lien</th>
+                        <th className="px-3 py-2 text-right font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {relations.map((r, i) => (
+                        <tr key={i} className={`border-t ${relEdit === i ? 'bg-primary/5' : ''}`}>
+                          <td className="px-3 py-2 font-medium">{[r.firstName, r.lastName].filter(Boolean).join(' ') || <span className="italic text-muted-foreground">(sans nom)</span>}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{rStatusLabel(r.status)}</td>
+                          <td className="hidden px-3 py-2 text-muted-foreground sm:table-cell">{r.relationship ?? '—'}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex justify-end gap-1">
+                              {!readonly && <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => setRelEdit(i)}><Pencil className="h-4 w-4" /></Button>}
+                              {!readonly && <Button type="button" variant="outline" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setRelations((arr) => arr.filter((_, j) => j !== i)); setRelEdit((cur) => cur === i ? null : (cur != null && cur > i ? cur - 1 : cur)) }}><Trash2 className="h-4 w-4" /></Button>}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
-              {!readonly && (
+              )}
+
+              {/* Edit form for the selected / newly-added proche. */}
+              {!readonly && relEdit !== null && relations[relEdit] && (
+                <RelationEditForm
+                  r={relations[relEdit]}
+                  units={config?.units ?? []}
+                  onChange={(patch) => setRelations((arr) => arr.map((x, j) => j === relEdit ? { ...x, ...patch } : x))}
+                  onDone={() => {
+                    // Drop a proche left without a name when finishing.
+                    setRelations((arr) => arr.filter((x, j) => j !== relEdit || !!(x.firstName?.trim() || x.lastName?.trim())))
+                    setRelEdit(null)
+                  }}
+                />
+              )}
+
+              {!readonly && relEdit === null && (
                 <div className="flex items-center gap-3">
-                  <Button variant="outline" size="sm" disabled={relations.length >= maxRelations} onClick={() => setRelations((arr) => [...arr, { status: 'CurrentInGroup', relationship: null, firstName: '', lastName: '', relatedMemberId: null }])}><Plus className="mr-1 h-4 w-4" />Ajouter un proche</Button>
+                  <Button variant="outline" size="sm" disabled={relations.length >= maxRelations} onClick={() => { setRelations((arr) => [...arr, { status: 'CurrentInGroup', relationship: null, firstName: '', lastName: '', relatedMemberId: null }]); setRelEdit(relations.length) }}><Plus className="mr-1 h-4 w-4" />Ajouter un proche</Button>
                   {relations.length >= maxRelations && <span className="text-xs text-muted-foreground">Maximum de {maxRelations} proches atteint.</span>}
                 </div>
               )}

@@ -119,7 +119,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
       } else {
         // Member: submit a proposal for CU/CG approval.
         await proposeMutation.mutateAsync(payload)
-        toast.success('Proposition envoyée — en attente d\'approbation')
+        toast.success('Proposition envoyée — en attente d\'acceptation')
       }
       setFormOpen(false)
     } catch (err) {
@@ -145,7 +145,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
       {/* A member's pending progression proposals (awaiting CU/CG approval). */}
       {selfPropose && pendingProgressions.length > 0 && (
         <div className="rounded-md border border-amber-300 bg-amber-50/70 p-3 text-sm">
-          <p className="font-medium text-amber-800">En attente d'approbation</p>
+          <p className="font-medium text-amber-800">En attente d'acceptation</p>
           <ul className="mt-1 space-y-0.5 text-amber-800">
             {pendingProgressions.map(r => <li key={r.id}>• {r.summary}</li>)}
           </ul>

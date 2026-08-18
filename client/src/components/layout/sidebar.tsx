@@ -106,13 +106,21 @@ type AdminGroup = {
 // often a manager reaches for them: day-to-day follow-up first, rarely-touched configuration/system last.
 const adminGroups: AdminGroup[] = [
   {
-    label: 'Suivi & demandes',
+    // Everything about the enrollment demandes lives here, in the order of the campaign workflow:
+    // review → stats → applicant accounts → archive → rejection-reason config.
+    label: "Demandes d'inscription",
     items: [
-      { path: '/admin/demandes', label: "Demandes d'inscription", icon: Inbox, permission: PERMISSIONS.DEMANDE_VIEW },
-      { path: '/admin/demande-stats', label: 'Statistiques demandes', icon: BarChart3, permission: PERMISSIONS.DEMANDE_VIEW },
-      { path: '/admin/demande-accounts', label: "Comptes d'inscription", icon: MailCheck, permission: PERMISSIONS.DEMANDE_VIEW },
-      { path: '/admin/demande-archives', label: 'Archives des demandes', icon: Archive, permission: PERMISSIONS.DEMANDE_VIEW },
+      { path: '/admin/demandes', label: 'Demandes', icon: Inbox, permission: PERMISSIONS.DEMANDE_VIEW },
+      { path: '/admin/demande-stats', label: 'Statistiques', icon: BarChart3, permission: PERMISSIONS.DEMANDE_VIEW },
+      { path: '/admin/demande-accounts', label: 'Comptes d\'inscription', icon: MailCheck, permission: PERMISSIONS.DEMANDE_VIEW },
+      { path: '/admin/demande-archives', label: 'Archives', icon: Archive, permission: PERMISSIONS.DEMANDE_VIEW },
       { path: '/admin/rejection-reasons', label: 'Motifs de refus', icon: Ban, permission: PERMISSIONS.DEMANDE_MANAGE },
+    ],
+  },
+  {
+    // Ongoing follow-up that isn't demande-specific (member changes, passages, cotisations, doc reminders).
+    label: 'Suivi',
+    items: [
       { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
       { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },

@@ -171,7 +171,7 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context, ICu
                 {
                     var match = r.RelatedMemberId.HasValue ? relatedMembers.GetValueOrDefault(r.RelatedMemberId.Value) : default;
                     return new ApplicantScoutRelationDto(r.Id, r.Status, r.Relationship, r.RelatedMemberId, r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName,
-                        match.Name, match.Unit);
+                        r.OtherGroupIsFormer, match.Name, match.Unit);
                 }).ToList(),
                 sibs, d.HasPreviousDemande, d.PreviousDemandeYear);
         });

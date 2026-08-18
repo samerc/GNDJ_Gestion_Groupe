@@ -68,7 +68,7 @@ function missingInfo(d: DemandeReview): string[] {
 }
 
 const RELATION_LABEL: Record<string, string> = {
-  CurrentInGroup: 'Dans notre groupe', AncienInGroup: 'Ancien de notre groupe', OtherGroup: 'Autre groupe',
+  CurrentInGroup: 'Membre GNDJ', AncienInGroup: 'Ancien membre GNDJ', OtherGroup: 'Autre groupe',
 }
 
 function genderShort(g: string | null): string {
@@ -892,7 +892,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
                     {r.relationship && <span className="text-xs text-muted-foreground">{r.relationship}</span>}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {r.otherGroupName && <span>Groupe : {r.otherGroupName}. </span>}
+                    {r.otherGroupName && <span>Groupe : {r.otherGroupName}{r.status === 'OtherGroup' ? (r.otherGroupIsFormer ? ' (ancien)' : ' (membre actuel)') : ''}. </span>}
                     {r.lastUnit && <span>Dernière unité : {r.lastUnit}. </span>}
                     {r.lastFunction && <span>Fonction : {r.lastFunction}.</span>}
                   </div>

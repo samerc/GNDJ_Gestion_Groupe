@@ -108,7 +108,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
       if (canPropose) {
         // Member: submit a proposal (unit + team + role) for CU/CG approval.
         await proposeMutation.mutateAsync({ unitId: form.unitId, teamId: form.teamId || null, functionalRoleId: form.functionalRoleId, startDate: form.startDate })
-        toast.success('Proposition envoyée — en attente d\'approbation')
+        toast.success('Proposition envoyée — en attente d\'acceptation')
         setFormOpen(false)
         return
       }
@@ -153,7 +153,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
       {/* A member's pending fonction proposals (awaiting CU/CG approval). */}
       {canPropose && pendingAssignments.length > 0 && (
         <div className="rounded-md border border-amber-300 bg-amber-50/70 p-3 text-sm">
-          <p className="font-medium text-amber-800">En attente d'approbation</p>
+          <p className="font-medium text-amber-800">En attente d'acceptation</p>
           <ul className="mt-1 space-y-0.5 text-amber-800">
             {pendingAssignments.map(r => <li key={r.id}>• {r.summary}</li>)}
           </ul>

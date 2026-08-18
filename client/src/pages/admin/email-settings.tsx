@@ -25,7 +25,7 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { Tip } from '@/components/ui/tooltip'
 import { Plus, Trash2, Pencil, Server, FileText, Send, Paperclip, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
-import apiClient from '@/lib/api-client'
+import { uploadContentFile } from '@/services/content-image-service'
 
 // -- Module variables --
 // Per-module set of {{placeholders}} the backend will substitute. Keyed by template.module; selecting a
@@ -382,12 +382,12 @@ function TemplatesTab() {
   const [uploading, setUploading] = useState(false)
 
   // Upload a file (PDF/image) via the content-files endpoint and append it as a template attachment.
+  // Reuses uploadContentFile — it sets the multipart Content-Type header (the default apiClient JSON
+  // content-type would otherwise make the server reject the upload with 415).
   const handleUploadAttachment = async (file: File) => {
     setUploading(true)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const { data } = await apiClient.post<{ url: string; name: string }>('/content/files', fd)
+      const data = await uploadContentFile(file)
       setForm(f => ({ ...f, attachments: [...f.attachments, { name: data.name, url: data.url }] }))
     } catch (err) {
       toast.error(parseApiError(err))

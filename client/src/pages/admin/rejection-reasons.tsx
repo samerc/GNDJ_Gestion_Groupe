@@ -4,52 +4,66 @@ import { useRejectionReasons, useUpdateRejectionReasons, type RejectionReason } 
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmptyState } from '@/components/shared/empty-state'
 import { Tip } from '@/components/ui/tooltip'
 import { parseApiError } from '@/lib/error-utils'
-import { Ban, Plus, Trash2, Star, Save, Info } from 'lucide-react'
+import { Ban, Plus, Trash2, Star, Save, Info, Pencil, X } from 'lucide-react'
 
-// CG page — manage the demande REJECTION REASONS (code + libellé + texte, one default). The code is what the
-// Maîtrise types in the Excel "Décision" column (or picks in the web decline dialog) to refuse an applicant;
-// the reason's TEXT is emailed as {{reason}} in the single demande_declined template. The literal "--" in Excel
-// always maps to the default reason. Whole list is saved at once (PUT replace).
+// CG page — manage the demande REJECTION REASONS (code + libellé + texte, one default). Master-detail: a table
+// lists the reasons; clicking "Modifier" (or "Ajouter") loads one into an edit form (text fields). Each save
+// persists the WHOLE list (backend PUT replace). The code is what the Maîtrise types in the Excel "Décision"
+// column (or picks in the web decline dialog) to refuse; the reason's TEXT is emailed as {{reason}} in the
+// single demande_declined template. The literal "--" in Excel always maps to the default reason.
+const EMPTY: RejectionReason = { code: '', label: '', text: '', isDefault: false }
+
 export default function RejectionReasonsPage() {
-  const { data, isLoading, dataUpdatedAt } = useRejectionReasons()
+  const { data: reasons = [], isLoading } = useRejectionReasons()
   const update = useUpdateRejectionReasons()
 
-  // Local editable copy; re-sync only when a NEW server fetch lands (dataUpdatedAt changes), so in-progress
-  // edits aren't clobbered between fetches. (Render-phase reset — the codebase's set-state-in-effect-free pattern.)
-  const [rows, setRows] = useState<RejectionReason[]>([])
-  const [syncedAt, setSyncedAt] = useState(0)
-  if (data && dataUpdatedAt !== syncedAt) {
-    setRows(data.map((r) => ({ ...r })))
-    setSyncedAt(dataUpdatedAt)
-  }
+  // Master-detail edit state: draftIndex = -1 for a new reason, >=0 for editing an existing row, null = closed.
+  const [draftIndex, setDraftIndex] = useState<number | null>(null)
+  const [draft, setDraft] = useState<RejectionReason>(EMPTY)
 
-  const dirty = JSON.stringify(rows) !== JSON.stringify(data ?? [])
+  const startAdd = () => { setDraftIndex(-1); setDraft({ ...EMPTY, isDefault: reasons.length === 0 }) }
+  const startEdit = (i: number) => { setDraftIndex(i); setDraft({ ...reasons[i] }) }
+  const cancel = () => { setDraftIndex(null) }
 
-  const setRow = (i: number, patch: Partial<RejectionReason>) =>
-    setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
-  const removeRow = (i: number) => setRows((rs) => rs.filter((_, idx) => idx !== i))
-  const addRow = () => setRows((rs) => [...rs, { code: '', label: '', text: '', isDefault: rs.length === 0 }])
-  // Exactly one default — clicking the star sets this row and clears the others (clicking the current default clears it).
-  const toggleDefault = (i: number) =>
-    setRows((rs) => rs.map((r, idx) => ({ ...r, isDefault: idx === i ? !r.isDefault : false })))
-
-  const save = async () => {
-    // Client-side guards mirroring the server validator (clearer than a round-trip 400).
-    const cleaned = rows.map((r) => ({ ...r, code: r.code.trim(), label: r.label.trim(), text: r.text.trim() }))
-    if (cleaned.some((r) => !r.code)) { toast.error('Chaque motif doit avoir un code.'); return }
-    if (cleaned.some((r) => !r.label)) { toast.error('Chaque motif doit avoir un libellé.'); return }
-    if (cleaned.some((r) => r.code === '--' || r.code === '-')) { toast.error('Le code « -- » est réservé (motif par défaut).'); return }
-    const codes = cleaned.map((r) => r.code.toLowerCase())
-    if (new Set(codes).size !== codes.length) { toast.error('Les codes doivent être uniques.'); return }
+  // Persist the whole list after applying `next` (built by the caller). Enforces exactly one default here.
+  const persist = async (next: RejectionReason[], msg: string) => {
+    // If more than one row is marked default, keep only the last-set one.
+    const defaults = next.filter((r) => r.isDefault)
+    const normalized = defaults.length > 1
+      ? next.map((r) => ({ ...r, isDefault: r === defaults[defaults.length - 1] }))
+      : next
     try {
-      await update.mutateAsync(cleaned)
-      toast.success('Motifs de refus enregistrés.')
+      await update.mutateAsync(normalized)
+      toast.success(msg)
+      setDraftIndex(null)
     } catch (e) {
       toast.error(parseApiError(e))
     }
+  }
+
+  const saveDraft = async () => {
+    const cleaned: RejectionReason = { code: draft.code.trim(), label: draft.label.trim(), text: draft.text.trim(), isDefault: draft.isDefault }
+    if (!cleaned.code) { toast.error('Le code est requis.'); return }
+    if (!cleaned.label) { toast.error('Le libellé est requis.'); return }
+    if (cleaned.code === '--' || cleaned.code === '-') { toast.error('Le code « -- » est réservé (motif par défaut).'); return }
+    // Unique code (accent/case-insensitive) against the OTHER rows.
+    const others = reasons.filter((_, i) => i !== draftIndex)
+    if (others.some((r) => r.code.trim().toLowerCase() === cleaned.code.toLowerCase())) { toast.error('Ce code existe déjà.'); return }
+    // If this one becomes the default, clear the others.
+    const applyDefault = (list: RejectionReason[]) => cleaned.isDefault ? list.map((r) => ({ ...r, isDefault: false })) : list
+    const next = draftIndex === -1
+      ? [...applyDefault(reasons), cleaned]
+      : applyDefault(reasons).map((r, i) => (i === draftIndex ? cleaned : r))
+    await persist(next, 'Motif enregistré.')
+  }
+
+  const removeRow = async (i: number) => {
+    await persist(reasons.filter((_, idx) => idx !== i), 'Motif supprimé.')
   }
 
   return (
@@ -59,9 +73,9 @@ export default function RejectionReasonsPage() {
           <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><Ban className="h-6 w-6" />Motifs de refus</h1>
           <p className="text-sm text-muted-foreground">Motifs réutilisables pour refuser une demande (email + fichier Excel).</p>
         </div>
-        <Button onClick={save} disabled={!dirty || update.isPending}>
-          <Save className="mr-1 h-4 w-4" />Enregistrer
-        </Button>
+        {draftIndex === null && (
+          <Button onClick={startAdd} disabled={isLoading}><Plus className="mr-1 h-4 w-4" />Ajouter un motif</Button>
+        )}
       </div>
 
       <div className="flex items-start gap-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
@@ -73,51 +87,80 @@ export default function RejectionReasonsPage() {
         </div>
       </div>
 
+      {/* Edit form (master-detail): the selected/new reason moves into these text fields. */}
+      {draftIndex !== null && (
+        <div className="space-y-4 rounded-lg border bg-card p-4 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold">{draftIndex === -1 ? 'Nouveau motif' : 'Modifier le motif'}</h2>
+            <Button variant="ghost" size="icon" onClick={cancel}><X className="h-4 w-4" /></Button>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <div className="w-32">
+              <label className="text-xs text-muted-foreground">Code</label>
+              <Input value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value })} placeholder="ex. 6" />
+            </div>
+            <div className="min-w-56 flex-1">
+              <label className="text-xs text-muted-foreground">Libellé</label>
+              <Input value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} placeholder="ex. Manque de place" />
+            </div>
+            <div className="flex items-end pt-4">
+              <Button type="button" variant={draft.isDefault ? 'default' : 'outline'} onClick={() => setDraft({ ...draft, isDefault: !draft.isDefault })}>
+                <Star className={`mr-1 h-4 w-4 ${draft.isDefault ? 'fill-current' : ''}`} />Par défaut
+              </Button>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Texte du motif (inclus dans l'email de refus)</label>
+            <textarea
+              className="mt-1 flex min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={draft.text}
+              onChange={(e) => setDraft({ ...draft, text: e.target.value })}
+              placeholder="Nous sommes au regret de vous informer que…"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">Si vide, le libellé est utilisé dans l'email.</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={cancel} disabled={update.isPending}>Annuler</Button>
+            <Button onClick={saveDraft} disabled={update.isPending}><Save className="mr-1 h-4 w-4" />Enregistrer</Button>
+          </div>
+        </div>
+      )}
+
+      {/* Reasons table (master list). */}
       {isLoading ? (
         <LoadingSpinner variant="table" />
+      ) : reasons.length === 0 ? (
+        <EmptyState icon={Ban} title="Aucun motif" description="Ajoutez un motif type pour pouvoir refuser une demande avec un message prêt à l'emploi." />
       ) : (
-        <div className="space-y-3">
-          {rows.length === 0 && (
-            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-              Aucun motif. Ajoutez-en un pour pouvoir refuser une demande avec un message type.
-            </p>
-          )}
-          {rows.map((r, i) => (
-            <div key={i} className="rounded-lg border p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="w-28">
-                  <label className="text-xs text-muted-foreground">Code</label>
-                  <Input value={r.code} onChange={(e) => setRow(i, { code: e.target.value })} placeholder="ex. 6" />
-                </div>
-                <div className="min-w-48 flex-1">
-                  <label className="text-xs text-muted-foreground">Libellé</label>
-                  <Input value={r.label} onChange={(e) => setRow(i, { label: e.target.value })} placeholder="ex. Manque de place" />
-                </div>
-                <div className="flex items-end gap-1 self-stretch pt-4">
-                  <Tip content={r.isDefault ? 'Motif par défaut (« -- » dans Excel)' : 'Définir comme motif par défaut'}>
-                    <Button type="button" variant={r.isDefault ? 'default' : 'outline'} size="icon" onClick={() => toggleDefault(i)}>
-                      <Star className={`h-4 w-4 ${r.isDefault ? 'fill-current' : ''}`} />
-                    </Button>
-                  </Tip>
-                  <Tip content="Supprimer ce motif">
-                    <Button type="button" variant="outline" size="icon" onClick={() => removeRow(i)}><Trash2 className="h-4 w-4" /></Button>
-                  </Tip>
-                </div>
-                {r.isDefault && <Badge className="ml-auto">Par défaut</Badge>}
-              </div>
-              <div className="mt-2">
-                <label className="text-xs text-muted-foreground">Texte du motif (inclus dans l'email de refus)</label>
-                <textarea
-                  className="mt-1 flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  value={r.text}
-                  onChange={(e) => setRow(i, { text: e.target.value })}
-                  placeholder="Nous sommes au regret de vous informer que…"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">Si vide, le libellé est utilisé dans l'email.</p>
-              </div>
-            </div>
-          ))}
-          <Button type="button" variant="outline" onClick={addRow}><Plus className="mr-1 h-4 w-4" />Ajouter un motif</Button>
+        <div className="overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-32">Code</TableHead>
+                <TableHead>Libellé</TableHead>
+                <TableHead className="hidden md:table-cell">Texte</TableHead>
+                <TableHead className="w-28 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {reasons.map((r, i) => (
+                <TableRow key={i} className={`even:bg-muted/30 ${draftIndex === i ? 'bg-primary/5' : ''}`}>
+                  <TableCell className="font-mono font-medium">
+                    {r.code}
+                    {r.isDefault && <Badge className="ml-2 align-middle"><Star className="mr-1 h-3 w-3 fill-current" />Défaut</Badge>}
+                  </TableCell>
+                  <TableCell>{r.label}</TableCell>
+                  <TableCell className="hidden max-w-md truncate text-muted-foreground md:table-cell">{r.text || <span className="italic">(libellé utilisé)</span>}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Tip content="Modifier"><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => startEdit(i)} disabled={update.isPending}><Pencil className="h-4 w-4" /></Button></Tip>
+                      <Tip content="Supprimer"><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => removeRow(i)} disabled={update.isPending}><Trash2 className="h-4 w-4" /></Button></Tip>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>

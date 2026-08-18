@@ -45,6 +45,8 @@ public record ApplicantGuardianDto(Guid? Id, string Relationship, string FirstNa
 
 public record ApplicantScoutRelationDto(Guid? Id, string Status, string? Relationship, Guid? RelatedMemberId,
     string? FirstName, string? LastName, string? LastUnit, string? LastFunction, string? OtherGroupName,
+    // For OtherGroup: whether the person is a FORMER member of that other group (true) or a current one (false).
+    bool OtherGroupIsFormer = false,
     // CG-only: when RelatedMemberId was auto-matched to a real member, these surface who, so the CG can confirm.
     // Left null in the applicant portal path (privacy — applicants must not learn who is in the group).
     string? RelatedMemberName = null, string? RelatedMemberUnit = null);
@@ -492,7 +494,7 @@ public class GetApplicantProfileQueryHandler(IApplicationDbContext context, ICur
 
         var relations = await context.ApplicantScoutRelations.Where(r => r.ApplicantAccountId == id)
             .Select(r => new ApplicantScoutRelationDto(r.Id, r.Status, r.Relationship, r.RelatedMemberId,
-                r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName))
+                r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName, r.OtherGroupIsFormer))
             .ToListAsync(ct);
 
         var demandeEntities = await context.Demandes.Where(d => d.ApplicantAccountId == id)
@@ -855,6 +857,7 @@ public class SaveApplicantHouseholdCommandHandler(IApplicationDbContext context,
                 LastUnit = r.LastUnit,
                 LastFunction = r.LastFunction,
                 OtherGroupName = r.OtherGroupName,
+                OtherGroupIsFormer = r.OtherGroupIsFormer,
             });
         }
 
