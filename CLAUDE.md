@@ -2560,6 +2560,31 @@ per request); deploys with the next `update.ps1 -Pull`.
 - **Rentrée:** the "En attente : …" blocked-by line **dedupes** titles (a group task depending on a per-unit
       task listed the same title ~18×).
 
+### Unités & Types d'unité — one record page for create + edit (2026-08-18)
+Removed the confusing split where **creating** a unit/type used a popup form but **clicking a row** opened a
+separate detail page. Now the **detail page IS the record page** for both (frontend-only; all fields already on
+the GET/POST/PUT endpoints — no backend/migration change). DEV until deploy.
+- **Types d'unité:** `unit-type-detail.tsx` gained an editable **"Informations"** section (Nom/Code/Description/
+  Nb années/Âge min-max/Couleur/Description publique) — read-only with a **Modifier** button, or the inline form.
+  `id="new"` (route `/admin/unit-types/:id` already matches `new`) = **create mode** (form shown blank; on save →
+  `navigate('/admin/unit-types/<newId>')`). The Fonctions/Étapes/Badges tabs render only for an existing type.
+  The list page (`unit-types.tsx`) dropped the create/edit **Dialog** + the row **pencil**; "Nouveau type" →
+  `/admin/unit-types/new`; row-click → detail; delete stays inline.
+- **Unités:** same treatment in `units/detail.tsx` — an editable **Informations** section (Nom/Code/Association/
+  Type/Description/Statut) + the **Site public** block (publish/slug/date de fondation) inline, plus the existing
+  summary cards + teams list (existing units only). `/units/new` = create mode → on save navigates to `/units/<id>`.
+  `units/index.tsx` dropped the Dialog + pencil; "Nouvelle unité" → `/units/new`; the eye icon (now "Voir /
+  modifier") + delete stay.
+- `useCreateUnit`/`useCreateUnitType` now **return `{ id }`** (POST already returned it) so the page can navigate to
+  the new record. `useTeams` gained an **`enabled`** flag so the teams query doesn't fire in unit create mode
+  (`unitId="new"` isn't a valid guid).
+
+### Demande suggester — no suggestion without a real age match (2026-08-18)
+A 26-year-old (bad data) was suggested unit "F" because that unit had **no age bounds set**, so it matched every
+age and won the tie-break. `suggestUnit` now returns null when the child's **age is unknown**, and only considers
+units that have a **real age range** (ageMin or ageMax set) — a fully-unbounded unit is treated as mis-configured
+for auto-suggest (the manual picker is unchanged). Root data issue (unit age unset) fixed separately.
+
 ### Comptes d'inscription — jump-to-demandes + password reset (2026-08-18)
 Two additions to the CG "Comptes d'inscription" page (`/admin/demande-accounts`), all on main; DEV until deploy.
 - **Click a row (or the "Demandes" button) → that account's demande(s).** `GetDemandesForReviewQuery` gained a

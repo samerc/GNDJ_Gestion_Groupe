@@ -36,11 +36,11 @@ export function useUnitTypes(params: { search?: string; page?: number; pageSize?
   })
 }
 
-// POST /unit-types; invalidates ['unitTypes'].
+// POST /unit-types → returns { id } so the caller can navigate to the new record; invalidates ['unitTypes'].
 export function useCreateUnitType() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: UnitTypeFormData) => apiClient.post('/unit-types', data),
+    mutationFn: (data: UnitTypeFormData) => apiClient.post<{ id: string }>('/unit-types', data).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['unitTypes'] }),
   })
 }

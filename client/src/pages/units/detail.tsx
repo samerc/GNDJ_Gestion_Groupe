@@ -1,8 +1,9 @@
-// Unit detail page (route /units/:id, super-admin). Shows the unit header + summary cards, then the
-// list of teams: each team row is expandable to reveal its members (ranked, via <TeamMembers>).
-// Maîtrise teams are pinned first and tinted; non-Maîtrise teams reorder via up/down arrows
-// (handleMoveTeam swaps displayOrder with its neighbour). Create/edit dialog covers totem, adjective,
-// two colours, and the isMaitrise flag. Team delete is hard (ConfirmDialog).
+// Unit record page (route /units/:id, id="new" to create — super-admin). This is the SINGLE place to
+// create AND edit a unit: the "Informations" section edits the core fields inline (nom, code, association,
+// type, description, statut) plus the "Site public" block (publish/slug/founded date). Below (existing
+// units only) are the summary cards + the list of teams: each team row expands to reveal its members
+// (ranked, via <TeamMembers>); Maîtrise teams are pinned first and tinted; non-Maîtrise teams reorder via
+// up/down arrows. The team create/edit dialog + delete stay local to this page.
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
 import { useFormValidation } from '@/hooks/use-form-validation'
@@ -10,9 +11,13 @@ import { useParams, useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import { useTeams, useCreateTeam, useUpdateTeam, useDeleteTeam, type TeamDto, type TeamFormData } from '@/services/team-service'
+import { useCreateUnit, useUpdateUnit, type UnitFormData } from '@/services/unit-service'
+import { useAssociations } from '@/services/association-service'
+import { useUnitTypes } from '@/services/unit-type-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RequiredLabel } from '@/components/shared/required-label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -27,23 +32,80 @@ interface UnitDetail {
   id: string; name: string; code: string; description: string | null; isActive: boolean
   associationId: string | null; associationName: string | null; unitTypeId: string; unitTypeName: string
   teamCount: number; memberCount: number; createdAt: string; updatedAt: string
+  slug: string | null; isPublished: boolean; foundedDate: string | null
 }
+
+const EMPTY_UNIT: UnitFormData = { name: '', code: '', description: '', associationId: '', unitTypeId: '', isActive: true, slug: '', isPublished: false, foundedDate: null }
+
+// Public-URL slug from the name: lowercase, strip accents, non-alphanumerics → single dashes, trim.
+const slugify = (s: string) =>
+  s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 
 export default function UnitDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const isNew = id === 'new'
 
   const { data: unit, isLoading } = useQuery({
     queryKey: ['units', id],
     queryFn: () => apiClient.get<UnitDetail>(`/units/${id}`).then(r => r.data),
-    enabled: !!id,
+    enabled: !!id && !isNew,
   })
 
-  const { data: teams } = useTeams({ unitId: id, pageSize: 100 })
-  const createMutation = useCreateTeam()
-  const updateMutation = useUpdateTeam()
-  const deleteMutation = useDeleteTeam()
+  const { data: teams } = useTeams({ unitId: id, pageSize: 100, enabled: !isNew })
+  const { data: associations } = useAssociations({ pageSize: 100 })
+  const { data: unitTypes } = useUnitTypes({ pageSize: 100 })
+  const createTeam = useCreateTeam()
+  const updateTeam = useUpdateTeam()
+  const deleteTeam = useDeleteTeam()
+  const createUnit = useCreateUnit()
+  const updateUnit = useUpdateUnit()
 
+  // ── Unit "Informations" edit state (create mode starts in the form) ─────────────────────
+  const unitV = useFormValidation()
+  const [unitEditing, setUnitEditing] = useState(isNew)
+  const [unitForm, setUnitForm] = useState<UnitFormData>(EMPTY_UNIT)
+  const [unitError, setUnitError] = useState('')
+
+  const openEditUnit = () => {
+    if (!unit) return
+    setUnitForm({
+      name: unit.name, code: unit.code, description: unit.description ?? '',
+      associationId: unit.associationId ?? '', unitTypeId: unit.unitTypeId, isActive: unit.isActive,
+      slug: unit.slug ?? '', isPublished: unit.isPublished, foundedDate: unit.foundedDate ?? null,
+    })
+    setUnitError(''); unitV.clearAll()
+    setUnitEditing(true)
+  }
+  const cancelUnit = () => {
+    if (isNew) { navigate('/units'); return }
+    setUnitEditing(false); setUnitError(''); unitV.clearAll()
+  }
+  const saveUnit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setUnitError('')
+    if (!unitV.validate({ name: !unitForm.name, code: !unitForm.code, unitTypeId: !unitForm.unitTypeId })) return
+    // Association is optional (units like Maîtrise de Groupe have none): send null, not ''.
+    const payload = { ...unitForm, associationId: unitForm.associationId || null }
+    try {
+      if (isNew) {
+        const res = await createUnit.mutateAsync(payload)
+        toast.success('Unité créée')
+        setUnitEditing(false)
+        navigate(`/units/${res.id}`, { replace: true })
+      } else {
+        await updateUnit.mutateAsync({ id: id!, ...payload })
+        toast.success('Unité modifiée')
+        setUnitEditing(false)
+      }
+    } catch (err) {
+      setUnitError(parseApiError(err))
+    }
+  }
+  const savingUnit = createUnit.isPending || updateUnit.isPending
+
+  // ── Team state ──────────────────────────────────────────────────────────────────────────
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<TeamDto | null>(null)
@@ -83,10 +145,10 @@ export default function UnitDetailPage() {
         description: form.description || null,
       }
       if (editing) {
-        await updateMutation.mutateAsync({ id: editing.id, ...payload })
+        await updateTeam.mutateAsync({ id: editing.id, ...payload })
         toast.success('Équipe modifiée')
       } else {
-        await createMutation.mutateAsync(payload)
+        await createTeam.mutateAsync(payload)
         toast.success('Équipe créée')
       }
       setFormOpen(false)
@@ -98,7 +160,7 @@ export default function UnitDetailPage() {
   const handleDelete = async () => {
     if (!deleting) return
     // The dialog closes on error, so surface it via a toast (a banner inside the dialog wouldn't be seen).
-    try { await deleteMutation.mutateAsync(deleting.id); toast.success('Équipe supprimée'); setDeleting(null) } catch (err) { toast.error(parseApiError(err)); setDeleting(null) }
+    try { await deleteTeam.mutateAsync(deleting.id); toast.success('Équipe supprimée'); setDeleting(null) } catch (err) { toast.error(parseApiError(err)); setDeleting(null) }
   }
 
   // Reorder a non-Maîtrise team by ±1: swap displayOrder with the adjacent team (two updates).
@@ -113,130 +175,208 @@ export default function UnitDetailPage() {
     try {
       // The two display-order swaps are independent — run them together instead of one-then-the-other.
       await Promise.all([
-        updateMutation.mutateAsync({ id: sorted[idx].id, name: sorted[idx].name, unitId: id!, displayOrder: sorted[swapIdx].displayOrder }),
-        updateMutation.mutateAsync({ id: sorted[swapIdx].id, name: sorted[swapIdx].name, unitId: id!, displayOrder: sorted[idx].displayOrder }),
+        updateTeam.mutateAsync({ id: sorted[idx].id, name: sorted[idx].name, unitId: id!, displayOrder: sorted[swapIdx].displayOrder }),
+        updateTeam.mutateAsync({ id: sorted[swapIdx].id, name: sorted[swapIdx].name, unitId: id!, displayOrder: sorted[idx].displayOrder }),
       ])
     } catch { toast.error('Impossible de réordonner les équipes') /* refresh will show correct order */ }
   }
 
-  const isSaving = createMutation.isPending || updateMutation.isPending
+  const isSaving = createTeam.isPending || updateTeam.isPending
 
-  if (isLoading) return <LoadingSpinner variant="detail" />
-  if (!unit) return <div className="py-12 text-center text-muted-foreground">Unité introuvable.</div>
+  if (!isNew && isLoading) return <LoadingSpinner variant="detail" />
+  if (!isNew && !unit) return <div className="py-12 text-center text-muted-foreground">Unité introuvable.</div>
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <Tip content="Retour"><Button variant="ghost" size="icon" onClick={() => navigate('/units')}><ArrowLeft className="h-5 w-5" /></Button></Tip>
-          <div>
-            <h1 className="text-2xl font-bold">{unit.name}</h1>
-            <p className="text-sm text-muted-foreground">{unit.associationName ?? 'Inter-associations'} — {unit.unitTypeName} — Code: {unit.code}</p>
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold">{isNew ? 'Nouvelle unité' : unit!.name}</h1>
+            {!isNew && !unitEditing && (
+              <p className="text-sm text-muted-foreground">{unit!.associationName ?? 'Inter-associations'} — {unit!.unitTypeName} — Code : {unit!.code}</p>
+            )}
           </div>
         </div>
-        <Badge variant={unit.isActive ? 'default' : 'secondary'}>
-          {unit.isActive ? 'Active' : 'Inactive'}
-        </Badge>
+        {!isNew && !unitEditing && (
+          <Badge variant={unit!.isActive ? 'default' : 'secondary'}>{unit!.isActive ? 'Active' : 'Inactive'}</Badge>
+        )}
       </div>
 
-      {unit.description && (
-        <p className="text-muted-foreground">{unit.description}</p>
-      )}
-
-      {/* Summary cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{unit.memberCount}</div>
-            <p className="text-sm text-muted-foreground">Membres actifs</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{teams?.totalCount ?? 0}</div>
-            <p className="text-sm text-muted-foreground">Équipes</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{unit.unitTypeName}</div>
-            <p className="text-sm text-muted-foreground">Type d'unité</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Teams */}
+      {/* Informations — read-only card with "Modifier", or the inline edit form */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <UsersRound className="h-4 w-4" />
-              Équipes
-            </CardTitle>
-            <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Nouvelle équipe</Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {error && <div className="mb-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-          {!teams || teams.items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune équipe dans cette unité.</p>
-          ) : (
-            <div className="space-y-3">
-              {[...teams.items].sort((a, b) => {
-                // Maîtrise always first
-                if (a.isMaitrise && !b.isMaitrise) return -1
-                if (!a.isMaitrise && b.isMaitrise) return 1
-                return a.displayOrder - b.displayOrder
-              }).map(team => (
-                <div key={team.id} className={`rounded-lg border ${team.isMaitrise ? 'border-amber-300 bg-amber-50/30' : ''}`}>
-                  <div
-                    className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/30 transition-colors"
-                    onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}
-                  >
-                    {!team.isMaitrise && (
-                      <div className="flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
-                        <Tip content="Monter"><button className="text-muted-foreground hover:text-foreground p-0.5" onClick={() => handleMoveTeam(team.id, -1)}><ChevronUp className="h-3.5 w-3.5" /></button></Tip>
-                        <Tip content="Descendre"><button className="text-muted-foreground hover:text-foreground p-0.5" onClick={() => handleMoveTeam(team.id, 1)}><ChevronDown className="h-3.5 w-3.5" /></button></Tip>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      {(team.color1 || team.color2) ? (
-                        <div className="flex gap-0.5">
-                          {team.color1 && <div className="h-5 w-5 rounded-full border" style={{ backgroundColor: team.color1 }} />}
-                          {team.color2 && <div className="h-5 w-5 rounded-full border" style={{ backgroundColor: team.color2 }} />}
-                        </div>
-                      ) : (
-                        <UsersRound className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{team.name}</span>
-                        {team.isMaitrise && <Badge className="bg-amber-600 text-xs">Maîtrise</Badge>}
-                        {team.totem && team.totem !== team.name && <span className="text-sm text-muted-foreground">({team.totem}{team.adjective ? ` ${team.adjective}` : ''})</span>}
-                      </div>
-                      <span className="text-xs text-muted-foreground">{team.memberCount} membre{team.memberCount > 1 ? 's' : ''}</span>
-                    </div>
-                    <div className="flex gap-1 items-center">
-                      {expandedTeam === team.id ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(team) }}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button></Tip>
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setDeleting(team) }}>
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button></Tip>
-                    </div>
-                  </div>
-                  {expandedTeam === team.id && (
-                    <TeamMembers unitId={id!} teamId={team.id} />
-                  )}
+        <CardContent className="pt-6">
+          {unitEditing ? (
+            <form onSubmit={saveUnit} className="space-y-4">
+              {unitError && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{unitError}</div>}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <RequiredLabel htmlFor="uname" required>Nom</RequiredLabel>
+                  <Input id="uname" className={unitV.fieldClass('name')} value={unitForm.name} onChange={(e) => { setUnitForm(f => ({ ...f, name: e.target.value })); unitV.clearField('name') }} required />
                 </div>
-              ))}
+                <div className="space-y-2">
+                  <RequiredLabel htmlFor="ucode" required>Code</RequiredLabel>
+                  <Input id="ucode" className={unitV.fieldClass('code')} value={unitForm.code} onChange={(e) => { setUnitForm(f => ({ ...f, code: e.target.value })); unitV.clearField('code') }} required />
+                </div>
+                <div className="space-y-2">
+                  <RequiredLabel>Association</RequiredLabel>
+                  <Select value={unitForm.associationId || '__none__'} onValueChange={(v) => setUnitForm(f => ({ ...f, associationId: v === '__none__' ? '' : v }))}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Aucune (inter-associations)</SelectItem>
+                      {associations?.items.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <RequiredLabel required>Type d'unité</RequiredLabel>
+                  <Select value={unitForm.unitTypeId} onValueChange={(v) => { setUnitForm(f => ({ ...f, unitTypeId: v })); unitV.clearField('unitTypeId') }}>
+                    <SelectTrigger className={unitV.fieldClass('unitTypeId')}><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                    <SelectContent>
+                      {unitTypes?.items.map(ut => <SelectItem key={ut.id} value={ut.id}>{ut.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <RequiredLabel htmlFor="udesc">Description</RequiredLabel>
+                <Input id="udesc" value={unitForm.description ?? ''} onChange={(e) => setUnitForm(f => ({ ...f, description: e.target.value || null }))} />
+              </div>
+              {!isNew && (
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={!!unitForm.isActive} onChange={(e) => setUnitForm(f => ({ ...f, isActive: e.target.checked }))} className="h-4 w-4 rounded border-gray-300" />
+                  Unité active
+                </label>
+              )}
+
+              {/* Site public */}
+              <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Site public</p>
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input type="checkbox" checked={!!unitForm.isPublished} onChange={(e) => setUnitForm(f => ({ ...f, isPublished: e.target.checked }))} className="h-4 w-4 rounded border-gray-300" />
+                  Afficher cette unité sur le site public
+                </label>
+                <div className="space-y-2">
+                  <label htmlFor="uslug" className="text-sm font-medium">Lien (slug)</label>
+                  <div className="flex gap-2">
+                    <Input id="uslug" placeholder="ex. troupe-2eme-beyrouth" value={unitForm.slug ?? ''} onChange={(e) => setUnitForm(f => ({ ...f, slug: e.target.value }))} />
+                    <Button type="button" variant="outline" onClick={() => setUnitForm(f => ({ ...f, slug: slugify(f.name) }))}>Générer</Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Adresse : /unites/{unitForm.slug || '…'}</p>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="ufounded" className="text-sm font-medium">Date de fondation</label>
+                  <Input id="ufounded" type="date" value={unitForm.foundedDate ?? ''} onChange={(e) => setUnitForm(f => ({ ...f, foundedDate: e.target.value || null }))} className="w-48" />
+                  <p className="text-xs text-muted-foreground">Date réelle de création de l'unité (affichée sur le site public).</p>
+                </div>
+                <p className="text-xs text-muted-foreground">La description publique se définit sur le <strong>type d'unité</strong> (partagée par toutes les unités de la même branche).</p>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" type="button" onClick={cancelUnit}>Annuler</Button>
+                <Button type="submit" disabled={savingUnit}>{savingUnit ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              </div>
+            </form>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <span className="text-lg font-semibold">{unit!.name}</span>
+                <Tip content="Modifier les informations"><Button variant="outline" size="sm" onClick={openEditUnit}><Pencil className="mr-1 h-4 w-4" />Modifier</Button></Tip>
+              </div>
+              <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+                <Info label="Code" value={unit!.code} />
+                <Info label="Type d'unité" value={unit!.unitTypeName} />
+                <Info label="Association" value={unit!.associationName ?? 'Inter-associations'} />
+                <Info label="Statut" value={unit!.isActive ? 'Active' : 'Inactive'} />
+                <Info label="Description" value={unit!.description || '—'} className="sm:col-span-2" />
+                <Info label="Site public" value={unit!.isPublished ? `Publiée — /unites/${unit!.slug ?? ''}` : 'Non publiée'} className="sm:col-span-2" />
+              </dl>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Everything below needs an existing unit. */}
+      {!isNew && (
+        <>
+          {/* Summary cards */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Card><CardContent className="pt-6"><div className="text-2xl font-bold">{unit!.memberCount}</div><p className="text-sm text-muted-foreground">Membres actifs</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><div className="text-2xl font-bold">{teams?.totalCount ?? 0}</div><p className="text-sm text-muted-foreground">Équipes</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><div className="text-2xl font-bold">{unit!.unitTypeName}</div><p className="text-sm text-muted-foreground">Type d'unité</p></CardContent></Card>
+          </div>
+
+          {/* Teams */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2"><UsersRound className="h-4 w-4" />Équipes</CardTitle>
+                <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Nouvelle équipe</Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {error && <div className="mb-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+              {!teams || teams.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Aucune équipe dans cette unité.</p>
+              ) : (
+                <div className="space-y-3">
+                  {[...teams.items].sort((a, b) => {
+                    // Maîtrise always first
+                    if (a.isMaitrise && !b.isMaitrise) return -1
+                    if (!a.isMaitrise && b.isMaitrise) return 1
+                    return a.displayOrder - b.displayOrder
+                  }).map(team => (
+                    <div key={team.id} className={`rounded-lg border ${team.isMaitrise ? 'border-amber-300 bg-amber-50/30' : ''}`}>
+                      <div
+                        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/30 transition-colors"
+                        onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}
+                      >
+                        {!team.isMaitrise && (
+                          <div className="flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
+                            <Tip content="Monter"><button className="text-muted-foreground hover:text-foreground p-0.5" onClick={() => handleMoveTeam(team.id, -1)}><ChevronUp className="h-3.5 w-3.5" /></button></Tip>
+                            <Tip content="Descendre"><button className="text-muted-foreground hover:text-foreground p-0.5" onClick={() => handleMoveTeam(team.id, 1)}><ChevronDown className="h-3.5 w-3.5" /></button></Tip>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          {(team.color1 || team.color2) ? (
+                            <div className="flex gap-0.5">
+                              {team.color1 && <div className="h-5 w-5 rounded-full border" style={{ backgroundColor: team.color1 }} />}
+                              {team.color2 && <div className="h-5 w-5 rounded-full border" style={{ backgroundColor: team.color2 }} />}
+                            </div>
+                          ) : (
+                            <UsersRound className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{team.name}</span>
+                            {team.isMaitrise && <Badge className="bg-amber-600 text-xs">Maîtrise</Badge>}
+                            {team.totem && team.totem !== team.name && <span className="text-sm text-muted-foreground">({team.totem}{team.adjective ? ` ${team.adjective}` : ''})</span>}
+                          </div>
+                          <span className="text-xs text-muted-foreground">{team.memberCount} membre{team.memberCount > 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="flex gap-1 items-center">
+                          {expandedTeam === team.id ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                          <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(team) }}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button></Tip>
+                          <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setDeleting(team) }}>
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button></Tip>
+                        </div>
+                      </div>
+                      {expandedTeam === team.id && (
+                        <TeamMembers unitId={id!} teamId={team.id} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Create / Edit Team Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
@@ -298,9 +438,18 @@ export default function UnitDetailPage() {
         description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ?${deleting?.memberCount ? ` L'affectation de ${deleting.memberCount} membre${deleting.memberCount > 1 ? 's' : ''} sera concernée.` : ''}`}
         confirmLabel="Supprimer"
         variant="destructive"
-        loading={deleteMutation.isPending}
+        loading={deleteTeam.isPending}
         onConfirm={handleDelete}
       />
+    </div>
+  )
+}
+
+function Info({ label, value, className }: { label: string; value: string; className?: string }) {
+  return (
+    <div className={className}>
+      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 whitespace-pre-line">{value}</dd>
     </div>
   )
 }

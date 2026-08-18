@@ -39,10 +39,12 @@ export function teamsForSelect(teams: TeamDto[] | undefined): TeamDto[] {
 }
 
 // Paginated teams list (GET /teams); filter by unitId + search. Keyed ['teams', params].
-export function useTeams(params: { unitId?: string; search?: string; page?: number; pageSize?: number }) {
+export function useTeams(params: { unitId?: string; search?: string; page?: number; pageSize?: number; enabled?: boolean }) {
+  const { enabled, ...query } = params
   return useQuery({
-    queryKey: ['teams', params],
-    queryFn: () => apiClient.get<PaginatedResult<TeamDto>>('/teams', { params }).then(r => r.data),
+    queryKey: ['teams', query],
+    queryFn: () => apiClient.get<PaginatedResult<TeamDto>>('/teams', { params: query }).then(r => r.data),
+    enabled: enabled ?? true,
   })
 }
 

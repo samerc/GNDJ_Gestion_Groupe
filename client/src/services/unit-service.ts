@@ -40,11 +40,11 @@ export function useUnits(params: { search?: string; associationId?: string; unit
   })
 }
 
-// POST /units; invalidates ['units'].
+// POST /units → returns { id } so the caller can navigate to the new record; invalidates ['units'].
 export function useCreateUnit() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: UnitFormData) => apiClient.post('/units', data),
+    mutationFn: (data: UnitFormData) => apiClient.post<{ id: string }>('/units', data).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['units'] }),
   })
 }

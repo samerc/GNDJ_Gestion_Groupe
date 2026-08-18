@@ -1,22 +1,19 @@
-// Admin CRUD screen for Unit Types / branches (super-admin) — e.g. Meute, Troupe, Compagnie.
-// Configures the per-branch attributes used app-wide: numberOfYears (also the Camp BP note multiplier),
-// ageMin/ageMax (passage age hints), a UNIQUE color (used in functions list + diagrams), and the public
-// site description. Rows navigate to the detail page (functions/stages/badges); edit/delete are inline.
+// Admin list screen for Unit Types / branches (super-admin) — e.g. Meute, Troupe, Compagnie.
+// Creating and editing both happen on the detail page (/admin/unit-types/:id, id="new" to create), which
+// is the single record page: it edits the core fields inline and hosts the functions/stages/badges tabs.
+// This screen is just the searchable list + delete.
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
-import { useFormValidation } from '@/hooks/use-form-validation'
-import { useUnitTypes, useCreateUnitType, useUpdateUnitType, useDeleteUnitType, type UnitTypeDto, type UnitTypeFormData } from '@/services/unit-type-service'
+import { useUnitTypes, useDeleteUnitType, type UnitTypeDto } from '@/services/unit-type-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RequiredLabel } from '@/components/shared/required-label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { Plus, Pencil, Trash2, Search, FolderTree, X } from 'lucide-react'
+import { Plus, Trash2, Search, FolderTree, X } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
@@ -25,52 +22,15 @@ export default function UnitTypesPage() {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
   const [page, setPage] = useState(1)
-  const [formOpen, setFormOpen] = useState(false)
-  const [editing, setEditing] = useState<UnitTypeDto | null>(null)
   const [deleting, setDeleting] = useState<UnitTypeDto | null>(null)
-  const [form, setForm] = useState<UnitTypeFormData>({ name: '', code: '' })
-  const [error, setError] = useState('')
-  const { validate, clearField, clearAll, fieldClass } = useFormValidation()
 
   const { data, isLoading } = useUnitTypes({ search: debouncedSearch || undefined, page })
-  const createMutation = useCreateUnitType()
-  const updateMutation = useUpdateUnitType()
   const deleteMutation = useDeleteUnitType()
 
   // Latch so the search box survives a 0-result filter (see associations.tsx).
   const showSearch = !!search || !!(data && data.totalCount > 0)
 
-  const openCreate = () => {
-    setEditing(null)
-    setForm({ name: '', code: '', description: '', numberOfYears: null, ageMin: null, ageMax: null, color: '', publicDescription: '' })
-    setError(''); clearAll()
-    setFormOpen(true)
-  }
-
-  const openEdit = (item: UnitTypeDto) => {
-    setEditing(item)
-    setForm({ name: item.name, code: item.code, description: item.description ?? '', numberOfYears: item.numberOfYears, ageMin: item.ageMin, ageMax: item.ageMax, color: item.color ?? '', publicDescription: item.publicDescription ?? '' })
-    setError(''); clearAll()
-    setFormOpen(true)
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    if (!validate({ name: !form.name, code: !form.code })) return
-    try {
-      if (editing) {
-        await updateMutation.mutateAsync({ id: editing.id, ...form })
-        toast.success('Type d\'unité modifié')
-      } else {
-        await createMutation.mutateAsync(form)
-        toast.success('Type d\'unité créé')
-      }
-      setFormOpen(false)
-    } catch (err) {
-      setError(parseApiError(err))
-    }
-  }
+  const openCreate = () => navigate('/admin/unit-types/new')
 
   const handleDelete = async () => {
     if (!deleting) return
@@ -84,8 +44,6 @@ export default function UnitTypesPage() {
       setDeleting(null)
     }
   }
-
-  const isSaving = createMutation.isPending || updateMutation.isPending
 
   return (
     <div className="space-y-6">
@@ -154,9 +112,6 @@ export default function UnitTypesPage() {
                     <TableCell className="text-center">{item.unitCount}</TableCell>
                     <TableCell>
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button></Tip>
                         <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(item)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button></Tip>
@@ -188,71 +143,6 @@ export default function UnitTypesPage() {
           )}
         </>
       )}
-
-      {/* Create / Edit Dialog */}
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editing ? "Modifier le type d'unité" : "Nouveau type d'unité"}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
-            )}
-            <div className="space-y-2">
-              <RequiredLabel htmlFor="name" required>Nom</RequiredLabel>
-              <Input id="name" className={fieldClass('name')} value={form.name} onChange={(e) => { setForm(f => ({ ...f, name: e.target.value })); clearField('name') }} required />
-            </div>
-            <div className="space-y-2">
-              <RequiredLabel htmlFor="code" required>Code</RequiredLabel>
-              <Input id="code" className={fieldClass('code')} value={form.code} onChange={(e) => { setForm(f => ({ ...f, code: e.target.value })); clearField('code') }} required />
-            </div>
-            <div className="space-y-2">
-              <RequiredLabel htmlFor="description">Description</RequiredLabel>
-              <Input id="description" value={form.description ?? ''} onChange={(e) => setForm(f => ({ ...f, description: e.target.value || null }))} />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <RequiredLabel htmlFor="numberOfYears">Nb d'années</RequiredLabel>
-                <Input id="numberOfYears" type="number" min={1} value={form.numberOfYears ?? ''} onChange={(e) => setForm(f => ({ ...f, numberOfYears: e.target.value ? Number(e.target.value) : null }))} />
-              </div>
-              <div className="space-y-2">
-                <RequiredLabel htmlFor="ageMin">Âge min</RequiredLabel>
-                <Input id="ageMin" type="number" min={0} value={form.ageMin ?? ''} onChange={(e) => setForm(f => ({ ...f, ageMin: e.target.value ? Number(e.target.value) : null }))} />
-              </div>
-              <div className="space-y-2">
-                <RequiredLabel htmlFor="ageMax">Âge max</RequiredLabel>
-                <Input id="ageMax" type="number" min={0} value={form.ageMax ?? ''} onChange={(e) => setForm(f => ({ ...f, ageMax: e.target.value ? Number(e.target.value) : null }))} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <RequiredLabel htmlFor="color">Couleur</RequiredLabel>
-              <div className="flex items-center gap-2">
-                <Input id="color" type="color" value={form.color || '#3B82F6'} onChange={(e) => setForm(f => ({ ...f, color: e.target.value }))} className="h-9 w-14 p-1 cursor-pointer" />
-                <Input value={form.color || ''} onChange={(e) => setForm(f => ({ ...f, color: e.target.value }))} placeholder="#3B82F6" className="flex-1" />
-                {form.color && <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setForm(f => ({ ...f, color: '' }))}>Effacer</button>}
-              </div>
-              <p className="text-xs text-muted-foreground">Chaque type doit avoir une couleur unique.</p>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="publicDescription" className="text-sm font-medium">Description publique (site)</label>
-              <textarea
-                id="publicDescription"
-                value={form.publicDescription ?? ''}
-                onChange={(e) => setForm(f => ({ ...f, publicDescription: e.target.value }))}
-                rows={4}
-                maxLength={4000}
-                placeholder="Présentation de cette branche affichée sur le site public (partagée par toutes les unités de ce type)…"
-                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       <ConfirmDialog
         open={!!deleting}
