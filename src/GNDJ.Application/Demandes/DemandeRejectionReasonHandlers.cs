@@ -73,7 +73,8 @@ public class UpdateDemandeRejectionReasonsCommandValidator : AbstractValidator<U
         RuleForEach(x => x.Reasons).ChildRules(r =>
         {
             r.RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(30).NoHtml()
-                .Must(c => c.Trim() is not ("--" or "-")).WithMessage("Le code « -- » est réservé (motif par défaut).");
+                // null/empty is already reported by NotEmpty; guard here so the analyzer knows Trim() is safe.
+                .Must(c => c is null || c.Trim() is not ("--" or "-")).WithMessage("Le code « -- » est réservé (motif par défaut).");
             r.RuleFor(x => x.Label).NotEmpty().WithMessage("Le libellé est requis.").MaximumLength(150).NoHtml();
             r.RuleFor(x => x.Text).MaximumLength(1000).NoHtml();
         });
