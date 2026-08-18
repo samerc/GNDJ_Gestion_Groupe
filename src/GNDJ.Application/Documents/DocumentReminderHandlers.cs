@@ -21,7 +21,9 @@ namespace GNDJ.Application.Documents;
 // Members whose dossier is complete (every active type Approved & not expired, or only Pending) are skipped.
 
 // Reason keys are stable ("missing" | "rejected" | "expired"); the email builder + frontend map them to French.
-public record DocGapDto(string DocTypeName, string Reason);
+// DocTypeCode is the short code (e.g. "AP", "FM") — the admin table shows it (compact for 6-7 docs); the email
+// keeps the full DocTypeName so parents understand which document.
+public record DocGapDto(string DocTypeName, string DocTypeCode, string Reason);
 public record DocReminderCandidateDto(
     Guid MemberId, string MemberName, string? TeamName, IReadOnlyList<DocGapDto> Gaps, bool HasEmail, string? ContactEmail);
 
@@ -31,23 +33,23 @@ internal static class DocumentGaps
     // A slim view of one member's documents keyed by type (latest per type). Status/ExpiryDate drive the gap.
     internal sealed record DocFacts(Guid DocumentTypeId, string Status, DateOnly? ExpiryDate, DateTime CreatedAt);
 
-    // Given the active doc types (id → name) and a member's documents, return the member's gaps (empty = compliant).
+    // Given the active doc types (id → name/code) and a member's documents, return the member's gaps (empty = compliant).
     public static List<DocGapDto> Compute(
-        IReadOnlyList<(Guid Id, string Name)> activeTypes, IReadOnlyList<DocFacts> memberDocs, DateOnly today)
+        IReadOnlyList<(Guid Id, string Name, string Code)> activeTypes, IReadOnlyList<DocFacts> memberDocs, DateOnly today)
     {
         var gaps = new List<DocGapDto>();
-        foreach (var (typeId, typeName) in activeTypes)
+        foreach (var (typeId, typeName, typeCode) in activeTypes)
         {
             // Most recently uploaded document of this type is the one that counts (mirrors the CU matrix cell).
             var doc = memberDocs.Where(d => d.DocumentTypeId == typeId)
                 .OrderByDescending(d => d.CreatedAt).FirstOrDefault();
 
             if (doc is null)
-                gaps.Add(new DocGapDto(typeName, "missing"));
+                gaps.Add(new DocGapDto(typeName, typeCode, "missing"));
             else if (doc.Status == DocumentStatus.Rejected)
-                gaps.Add(new DocGapDto(typeName, "rejected"));
+                gaps.Add(new DocGapDto(typeName, typeCode, "rejected"));
             else if (doc.Status == DocumentStatus.Approved && doc.ExpiryDate is { } exp && exp < today)
-                gaps.Add(new DocGapDto(typeName, "expired"));
+                gaps.Add(new DocGapDto(typeName, typeCode, "expired"));
             // Approved & not expired → OK; Pending → awaiting the CU, not a member-facing gap.
         }
         return gaps;
@@ -77,10 +79,10 @@ public class GetDocumentReminderSummaryQueryHandler(IApplicationDbContext contex
             return Result<IReadOnlyList<UnitReminderSummaryDto>>.Failure("Accès réservé au Chef de Groupe.");
 
         var activeTypes = await context.DocumentTypes
-            .Where(dt => dt.IsActive).Select(dt => new { dt.Id, dt.Name }).ToListAsync(ct);
+            .Where(dt => dt.IsActive).Select(dt => new { dt.Id, dt.Name, dt.Code }).ToListAsync(ct);
         if (activeTypes.Count == 0)
             return Result<IReadOnlyList<UnitReminderSummaryDto>>.Success(new List<UnitReminderSummaryDto>());
-        var typeList = activeTypes.Select(t => (t.Id, t.Name)).ToList();
+        var typeList = activeTypes.Select(t => (t.Id, t.Name, t.Code)).ToList();
         var typeIds = typeList.Select(t => t.Id).ToList();
 
         // Every active (member, unit) across the group + the unit name.
@@ -149,11 +151,11 @@ public class GetDocumentReminderCandidatesQueryHandler(IApplicationDbContext con
         var activeTypes = await context.DocumentTypes
             .Where(dt => dt.IsActive)
             .OrderBy(dt => dt.DisplayOrder).ThenBy(dt => dt.Name)
-            .Select(dt => new { dt.Id, dt.Name })
+            .Select(dt => new { dt.Id, dt.Name, dt.Code })
             .ToListAsync(ct);
         if (activeTypes.Count == 0)
             return Result<IReadOnlyList<DocReminderCandidateDto>>.Success(new List<DocReminderCandidateDto>());
-        var typeList = activeTypes.Select(t => (t.Id, t.Name)).ToList();
+        var typeList = activeTypes.Select(t => (t.Id, t.Name, t.Code)).ToList();
 
         // Active members of the unit (+ their team, oldest-first order like the matrix).
         var memberAssignments = await context.MemberAssignments
@@ -252,8 +254,8 @@ public class SendDocumentRemindersCommandHandler(
         // Active doc types + these members' documents → recompute gaps server-side (never trust the client list).
         var activeTypes = await context.DocumentTypes
             .Where(dt => dt.IsActive).OrderBy(dt => dt.DisplayOrder).ThenBy(dt => dt.Name)
-            .Select(dt => new { dt.Id, dt.Name }).ToListAsync(ct);
-        var typeList = activeTypes.Select(t => (t.Id, t.Name)).ToList();
+            .Select(dt => new { dt.Id, dt.Name, dt.Code }).ToListAsync(ct);
+        var typeList = activeTypes.Select(t => (t.Id, t.Name, t.Code)).ToList();
         var typeIds = typeList.Select(t => t.Id).ToList();
 
         var members = await context.Members

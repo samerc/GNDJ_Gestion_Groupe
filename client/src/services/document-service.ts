@@ -225,7 +225,8 @@ export function downloadUnitDocumentsZip(unitId: string, docTypeId?: string) {
 
 // ── Relance documents (CU reminder emails) ──
 // One non-compliant member + their gaps. reason: "missing" | "rejected" | "expired".
-export interface DocGap { docTypeName: string; reason: string }
+// docTypeCode = the short code (e.g. "AP", "FM") shown in the admin table; docTypeName = full name (tooltip + email).
+export interface DocGap { docTypeName: string; docTypeCode: string; reason: string }
 export interface DocReminderCandidate {
   memberId: string
   memberName: string

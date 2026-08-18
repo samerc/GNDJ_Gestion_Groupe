@@ -2601,6 +2601,19 @@ Two additions to the CG "Comptes d'inscription" page (`/admin/demande-accounts`)
       can change it later via "mot de passe oublié"). Verified live: filter returns only that account's 4 submitted
       demandes (6 total for the year); reset → temp password → applicant login with it → 200.
 
+### Relance documents — compact codes + single-unit picker (2026-08-19)
+Reworked the CG "Relance documents" page (`/admin/document-reminders`) for readability when members have many
+document gaps. DEV until deploy.
+- **Gaps shown by document CODE, not full name.** `DocGapDto` gained `DocTypeCode` (the doc type's short code,
+  e.g. AUT/FM); `DocumentGaps.Compute` + all 3 active-type selects (summary/candidates/send) now carry the code.
+  The email body still uses the full `DocTypeName` (parents need the readable name). Frontend `DocGap` gained
+  `docTypeCode`; the table shows a compact colour-by-reason **code chip** (missing=red, rejected=orange,
+  expired=amber) with a **hover tooltip = full name — reason**, plus a legend.
+- **One unit at a time via a picker.** Replaced the all-units expandable worklist with a **unit `<Select>`** at the
+  top (options = only units with incomplete dossiers + their count), a **"Relancer l'unité (N)"** one-click button,
+  and the selected unit's incomplete members below (member/équipe/code chips/email/Relancer). Verified live:
+  candidates return `docTypeCode` (AUT, FM) alongside the full name.
+
 ### Settings consolidation (2026-08-19)
 Three small Paramètres cleanups (frontend + a data patch; DEV until deploy).
 - **Removed `pinned_professions` ("Professions épinglées").** It only floated 5 favourites to the top of the parent
