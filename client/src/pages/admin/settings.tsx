@@ -48,24 +48,26 @@ const CATEGORY_LABELS: Record<string, string> = {
   cotisations: 'Cotisations',
   passage: 'Passage',
   demande: 'Inscriptions',
-  contact: 'Contact',
   general: 'Général',
   reports: 'Rapports',
   site: 'Site public',
-  email: 'Email',
+  email: 'Email & contact',
   security: 'Sécurité',
   maintenance: 'Maintenance',
   advanced: 'Avancé',
 }
-const CATEGORY_ORDER = ['members', 'famille', 'documents', 'cotisations', 'passage', 'demande', 'contact', 'email', 'security', 'general', 'reports', 'site', 'maintenance', 'advanced']
+const CATEGORY_ORDER = ['members', 'famille', 'documents', 'cotisations', 'passage', 'demande', 'email', 'security', 'general', 'reports', 'site', 'maintenance', 'advanced']
 
 // Keys pinned to the top of their category tab (rest keep their natural order). The two inscription
 // period switches (portal open + submission window) lead the "Inscriptions" tab so the CG sees them first.
 const PINNED_TOP: Record<string, number> = { 'demande.enabled': 0, 'demande.submissions_open': 1 }
 
-// Tab a setting belongs to: ADVANCED_KEYS are pulled out of their natural category into "Avancé".
+// Tab a setting belongs to: ADVANCED_KEYS are pulled out of their natural category into "Avancé";
+// the lone "Contact" setting (contact form recipient) is folded into the "Email & contact" tab.
 function effectiveCategory(s: SettingDto) {
-  return ADVANCED_KEYS.has(s.key) ? 'advanced' : s.category
+  if (ADVANCED_KEYS.has(s.key)) return 'advanced'
+  if (s.category === 'contact') return 'email'
+  return s.category
 }
 
 // ---- Exchange-rate editor: edits a json object {currencyCode: rate} as add/remove rows ----
