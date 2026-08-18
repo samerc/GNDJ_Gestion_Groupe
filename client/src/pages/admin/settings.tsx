@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { SearchableSelect } from '@/components/shared/searchable-select'
-import { NATIONALITY_OPTIONS, PHONE_COUNTRY_CODES, COUNTRY_OPTIONS, PROFESSION_OPTIONS } from '@/lib/options'
+import { NATIONALITY_OPTIONS, PHONE_COUNTRY_CODES, COUNTRY_OPTIONS } from '@/lib/options'
 import { Save, X, Settings2, Search, Plus, Trash2, Landmark, ListPlus, CreditCard, ChevronDown } from 'lucide-react'
 import { Link } from 'react-router'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
@@ -23,7 +23,7 @@ import { toast } from 'sonner'
 import { ManagedListEditor } from '@/components/shared/managed-list-editor'
 
 // Settings already edited on dedicated pages — hidden from the generic Paramètres page.
-const HIDDEN_KEYS = new Set(['site.content', 'card.config', 'member.cities', 'member.schools', 'member.classes', 'member.profession_domains', 'demande.rejection_reasons', 'ui.role_colors'])
+const HIDDEN_KEYS = new Set(['site.content', 'card.config', 'member.cities', 'member.schools', 'member.classes', 'member.profession_domains', 'demande.rejection_reasons', 'ui.role_colors', 'pinned_professions'])
 // Technical keys moved to an "Avancé" tab.
 const ADVANCED_KEYS = new Set(['app.base_url', 'user_domain'])
 
@@ -33,7 +33,6 @@ const SETTING_OPTIONS: Record<string, { value: string; label: string }[]> = {
   pinned_nationalities: NATIONALITY_OPTIONS,
   default_country_code: PHONE_COUNTRY_CODES,
   default_country: COUNTRY_OPTIONS,
-  pinned_professions: PROFESSION_OPTIONS,
 }
 
 // Optional unit suffix for number settings.

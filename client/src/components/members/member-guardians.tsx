@@ -68,7 +68,6 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
   const deletePhoneMutation = selfService ? deletePhoneS : deletePhoneL
   const deleteEmailMutation = selfService ? deleteEmailS : deleteEmailL
   const defaultCountryCode = useSettingValue('default_country_code')
-  const pinnedProfessions = useSettingArray('pinned_professions')
   const professionDomains = useSettingArray('member.profession_domains')
   const domainOptions = professionDomains.map(d => ({ value: d, label: d }))
 
@@ -364,7 +363,6 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                     value={form.profession}
                     onValueChange={(v) => setForm(f => ({ ...f, profession: v }))}
                     options={PROFESSION_OPTIONS}
-                    pinnedValues={pinnedProfessions}
                     searchPlaceholder="Rechercher une profession..."
                   />
                 </div>
@@ -485,7 +483,6 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                   value={editForm.profession}
                   onValueChange={(v) => setEditForm(f => ({ ...f, profession: v }))}
                   options={PROFESSION_OPTIONS}
-                  pinnedValues={pinnedProfessions}
                   searchPlaceholder="Rechercher une profession..."
                 />
               </div>
