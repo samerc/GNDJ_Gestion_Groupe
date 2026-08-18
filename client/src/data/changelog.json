@@ -1,8 +1,14 @@
 [
   {
     "version": "3.3.0",
-    "date": "2026-08-18",
+    "date": "2026-08-19",
     "changes": [
+      "Relance documents : documents affichés par code (survol = nom complet) + sélecteur d'unité (une unité à la fois)",
+      "Paramètres : Associations / Champs personnalisés / Carte membre déplacés en onglets ; Contact fusionné dans « Email & contact » ; « Professions épinglées » retiré",
+      "Unités & Types d'unité : une seule page pour créer et modifier (bloc « Informations » repliable)",
+      "Comptes d'inscription : ouvrir les demandes d'un compte en un clic + réinitialiser son mot de passe",
+      "Demandes : l'unité suggérée respecte l'âge (pas de suggestion sans âge ou pour une unité sans tranche d'âge)",
+      "Menu : le groupe « Demandes d'inscription » renommé « Demandes »",
       "Navigation: managers get a horizontal top menubar (grouped dropdowns + badges) instead of the left sidebar",
       "Chrome colour-coded by role (member / CU / CG / super-admin) — configurable in Settings → Apparence",
       "Unified account menu (Ma fiche / Mes documents / Trombinoscope / mot de passe / déconnexion)",
