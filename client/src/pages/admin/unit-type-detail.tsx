@@ -12,7 +12,7 @@ import { StagesLadder, BadgesGrid } from '@/pages/admin/progression'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RequiredLabel } from '@/components/shared/required-label'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Tip } from '@/components/ui/tooltip'
@@ -20,7 +20,7 @@ import { useFormValidation } from '@/hooks/use-form-validation'
 import { useCreateUnitType, useUpdateUnitType, type UnitTypeFormData } from '@/services/unit-type-service'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
-import { ArrowLeft, Shield, Star, Award, Pencil } from 'lucide-react'
+import { ArrowLeft, Shield, Star, Award, Pencil, ChevronDown, ChevronRight, Info as InfoIcon } from 'lucide-react'
 
 interface UnitTypeDetail {
   id: string; name: string; code: string; description: string | null
@@ -48,11 +48,14 @@ export default function UnitTypeDetailPage() {
 
   // In create mode we start in the editing form immediately; in edit mode the header shows read-only until "Modifier".
   const [editing, setEditing] = useState(isNew)
+  // The Informations box is collapsed by default for an existing type (open in create mode).
+  const [infoOpen, setInfoOpen] = useState(isNew)
   const [form, setForm] = useState<UnitTypeFormData>(EMPTY)
   const [error, setError] = useState('')
 
   const openEdit = () => {
     if (!unitType) return
+    setInfoOpen(true)
     setForm({
       name: unitType.name, code: unitType.code, description: unitType.description ?? '',
       numberOfYears: unitType.numberOfYears, ageMin: unitType.ageMin, ageMax: unitType.ageMax,
@@ -110,9 +113,17 @@ export default function UnitTypeDetailPage() {
         </div>
       </div>
 
-      {/* Informations — read-only card with "Modifier", or the inline edit form */}
+      {/* Informations — collapsible; read-only card with "Modifier", or the inline edit form */}
       <Card>
-        <CardContent className="pt-6">
+        <CardHeader className="cursor-pointer py-3" onClick={() => setInfoOpen(o => !o)}>
+          <CardTitle className="flex items-center gap-2 text-base">
+            {infoOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            <InfoIcon className="h-4 w-4" />Informations
+            {!infoOpen && !isNew && <span className="ml-1 truncate text-sm font-normal text-muted-foreground">{unitType!.name} · {unitType!.code}</span>}
+          </CardTitle>
+        </CardHeader>
+        {infoOpen && (
+        <CardContent>
           {editing ? (
             <form onSubmit={handleSave} className="space-y-4">
               {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
@@ -190,6 +201,7 @@ export default function UnitTypeDetailPage() {
             </div>
           )}
         </CardContent>
+        )}
       </Card>
 
       {/* Branch-scoped management — only meaningful once the type exists. */}

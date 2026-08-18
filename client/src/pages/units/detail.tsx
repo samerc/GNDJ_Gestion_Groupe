@@ -24,7 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { useMembers } from '@/services/member-service'
-import { ArrowLeft, Plus, Pencil, Trash2, UsersRound, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Plus, Pencil, Trash2, UsersRound, ChevronDown, ChevronUp, ChevronRight, Info as InfoIcon } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
@@ -65,11 +65,14 @@ export default function UnitDetailPage() {
   // ── Unit "Informations" edit state (create mode starts in the form) ─────────────────────
   const unitV = useFormValidation()
   const [unitEditing, setUnitEditing] = useState(isNew)
+  // The Informations box is collapsed by default for an existing unit (open in create mode).
+  const [infoOpen, setInfoOpen] = useState(isNew)
   const [unitForm, setUnitForm] = useState<UnitFormData>(EMPTY_UNIT)
   const [unitError, setUnitError] = useState('')
 
   const openEditUnit = () => {
     if (!unit) return
+    setInfoOpen(true)
     setUnitForm({
       name: unit.name, code: unit.code, description: unit.description ?? '',
       associationId: unit.associationId ?? '', unitTypeId: unit.unitTypeId, isActive: unit.isActive,
@@ -204,9 +207,17 @@ export default function UnitDetailPage() {
         )}
       </div>
 
-      {/* Informations — read-only card with "Modifier", or the inline edit form */}
+      {/* Informations — collapsible; read-only card with "Modifier", or the inline edit form */}
       <Card>
-        <CardContent className="pt-6">
+        <CardHeader className="cursor-pointer py-3" onClick={() => setInfoOpen(o => !o)}>
+          <CardTitle className="flex items-center gap-2 text-base">
+            {infoOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            <InfoIcon className="h-4 w-4" />Informations
+            {!infoOpen && !isNew && <span className="ml-1 truncate text-sm font-normal text-muted-foreground">{unit!.name} · {unit!.code}</span>}
+          </CardTitle>
+        </CardHeader>
+        {infoOpen && (
+        <CardContent>
           {unitEditing ? (
             <form onSubmit={saveUnit} className="space-y-4">
               {unitError && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{unitError}</div>}
@@ -295,6 +306,7 @@ export default function UnitDetailPage() {
             </div>
           )}
         </CardContent>
+        )}
       </Card>
 
       {/* Everything below needs an existing unit. */}
