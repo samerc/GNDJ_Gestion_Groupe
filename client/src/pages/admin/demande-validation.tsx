@@ -51,8 +51,13 @@ function unitFull(u: UnitOccupancy): boolean {
 // Eligible (gender + age fits the unit) AND not over quota, balanced by fewest accepted this round
 // then lowest projected post-passage — spreads newcomers across units. Falls back to any eligible
 // unit if every eligible one is already full.
+// Guards (learned from a bad suggestion): don't suggest when the child's age is unknown, and only
+// suggest units that have a REAL age range configured — a unit with no age bounds matched every age
+// (incl. a 26-year-old) and won the tie-break. A unit with no age bounds is treated as mis-configured
+// for suggestion purposes (the CG can still pick it manually).
 function suggestUnit(d: DemandeReview, occupancy: UnitOccupancy[]): UnitOccupancy | null {
-  const elig = occupancy.filter((u) => eligible(u, d))
+  if (d.age == null) return null // no confident suggestion without the child's age
+  const elig = occupancy.filter((u) => eligible(u, d) && (u.ageMin != null || u.ageMax != null))
   if (!elig.length) return null
   const notFull = elig.filter((u) => !unitFull(u))
   const pool = notFull.length ? notFull : elig
