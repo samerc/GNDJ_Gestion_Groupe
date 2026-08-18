@@ -111,7 +111,7 @@ const adminGroups: AdminGroup[] = [
   {
     // Everything about the enrollment demandes lives here, in the order of the campaign workflow:
     // review → stats → applicant accounts → archive → rejection-reason config.
-    label: "Demandes d'inscription",
+    label: 'Demandes',
     items: [
       { path: '/admin/demandes', label: 'Demandes', icon: Inbox, permission: PERMISSIONS.DEMANDE_VIEW },
       { path: '/admin/demande-stats', label: 'Statistiques', icon: BarChart3, permission: PERMISSIONS.DEMANDE_VIEW },
