@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Navigate } from 'react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import UnitLeaderDashboard from '@/pages/dashboard-unit-leader'
-import { Users, UserCheck, FileX, Receipt, UserMinus } from 'lucide-react'
+import { Users, UserCheck, FileX, Receipt, UserMinus, Calendar } from 'lucide-react'
 
 // ─── Horizontal bar chart ──────────────────
 // One labelled bar; width is value/max as a %. When the bar is too short (≤20%) to hold its
@@ -39,6 +39,17 @@ function AdminDashboard() {
   const [scoutYear, setScoutYear] = useState(currentScoutYear)
   const { data, isLoading } = useAdminDashboard(scoutYear)
 
+  // Year options: the current scout year (labelled "en cours") + the previous 4 — built from the current year
+  // so the list is never stale and the selected value is always present (before, the hardcoded list omitted the
+  // current year, so the dropdown showed blank). If the selected year predates the window, it's added too.
+  const years = useMemo(() => {
+    const start = parseInt(currentScoutYear.slice(0, 4), 10)
+    const list = Number.isNaN(start)
+      ? [currentScoutYear]
+      : Array.from({ length: 5 }, (_, i) => `${start - i}-${start - i + 1}`)
+    return list.includes(scoutYear) ? list : [scoutYear, ...list]
+  }, [currentScoutYear, scoutYear])
+
   if (isLoading) return <LoadingSpinner variant="page" />
   if (!data) return (
     <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-2">
@@ -58,14 +69,17 @@ function AdminDashboard() {
           <h1 className="text-2xl font-bold tracking-tight">Tableau de bord</h1>
           <p className="text-sm text-muted-foreground">Vue d'ensemble du groupe — année {scoutYear}</p>
         </div>
-        <Select value={scoutYear} onValueChange={setScoutYear}>
-          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="2025-2026">2025-2026</SelectItem>
-            <SelectItem value="2024-2025">2024-2025</SelectItem>
-            <SelectItem value="2023-2024">2023-2024</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-muted-foreground">Année scoute</label>
+          <Select value={scoutYear} onValueChange={setScoutYear}>
+            <SelectTrigger className="w-60 gap-2"><Calendar className="h-4 w-4 shrink-0 text-muted-foreground" /><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {years.map((y) => (
+                <SelectItem key={y} value={y}>{y}{y === currentScoutYear ? ' — année en cours' : ''}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Row 1: Key numbers */}

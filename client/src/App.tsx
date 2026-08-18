@@ -93,6 +93,7 @@ const CustomFieldsPage = lazy(() => import('@/pages/admin/custom-fields'))
 const CardDesignerPage = lazy(() => import('@/pages/admin/card-designer'))
 const EmailSettingsPage = lazy(() => import('@/pages/admin/email-settings'))
 const SettingsPage = lazy(() => import('@/pages/admin/settings'))
+const AppearancePage = lazy(() => import('@/pages/admin/appearance'))
 const ReportTemplatesPage = lazy(() => import('@/pages/admin/report-templates'))
 const ProgressionPathPage = lazy(() => import('@/pages/admin/progression-path'))
 
@@ -243,6 +244,7 @@ export default function App() {
               <Route path="/admin/card-designer" element={<CardDesignerPage />} />
               <Route path="/admin/email-settings" element={<EmailSettingsPage />} />
               <Route path="/admin/settings" element={<SettingsPage />} />
+              <Route path="/admin/appearance" element={<AppearancePage />} />
               <Route path="/admin/error-log" element={<ErrorLogPage />} />
               <Route path="/admin/email-outbox" element={<EmailOutboxPage />} />
               <Route path="/admin/changelog" element={<ChangelogPage />} />

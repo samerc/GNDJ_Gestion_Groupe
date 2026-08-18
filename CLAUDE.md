@@ -2528,6 +2528,38 @@ AND the web decline. All on main, pushed; DEV until deploy. Verified live end-to
       BulkDecide unchanged (still take the resolved DecisionNotes text). Export button gained a tooltip explaining the
       single-code column. See [[project-demande-inscription]].
 
+### Navigation redesign — horizontal top bar + role-coloured chrome (2026-08-18)
+Reworked the manager navigation from the long left sidebar into a **horizontal top menubar**, and made the whole
+chrome **colour-coded by the signed-in user's role**. Plus a batch of small UX fixes. On `main` at 3.3.0 (no bump
+per request); deploys with the next `update.ps1 -Pull`.
+- **Horizontal admin nav (`AdminNav` in sidebar.tsx):** managers (super-admin / CG / ACG — `useIsManager` in
+      `lib/use-is-manager.ts`) no longer get the left sidebar; the header IS the nav — brand + pinned links
+      (Tableau de bord / Membres) + one **dropdown per admin group** (pending badges roll up onto the group
+      trigger + show on the item). Active item in a dropdown = filled row + left accent bar + bold primary.
+      Non-managers (CU/youth) keep the left sidebar; everyone's **mobile drawer** (MobileSidebar) is unchanged.
+      `app-layout.tsx` renders `<Sidebar>` only when `!isManager`.
+- **Merged the two account menus into ONE** (`components/layout/user-menu.tsx`, extracted from the header): the
+      old header avatar menu + the nav "Mon espace" dropdown collapsed into a single avatar menu (Ma fiche / Mes
+      documents / Trombinoscope + change-password / sign-out-others / logout + the dialogs). Header is now the
+      single top bar (no second row).
+- **Role-coloured chrome (`useRoleTheme`):** header + CU/member sidebar + mobile drawer are tinted by role
+      (member / CU / CG / super-admin). Nav text/hover/active/badges use **white overlays** so any dark colour
+      reads. Colours are **configurable** — new **`ui.role_colors`** json setting (hex per role, seeded via
+      SeedMissingSettings, category `apparence`, hidden from the generic Settings page) + a new **`/admin/appearance`**
+      page ("Apparence", Système group, associations.manage) with a colour picker + preset palette + live preview
+      per role. Applied **inline** (`style`), NOT a Tailwind class, so runtime hex works (no purge issue). Defaults:
+      member emerald-800 / CU indigo-800 / CG teal-700 / super-admin slate-900.
+- **Progression page:** the inline stage/badge quick-adds → **full "Ajouter" modals** (`StageFormDialog`/
+      `BadgeFormDialog`, create+edit unified; name/description/code[auto if blank]/active). Add button moved to the
+      **top**. Removed the **"Étape avec badge"** switch + the ladder "Badge" tag (flag kept in data, preserved on
+      save, just not shown/editable). Unit-type pills **sorted by parcours order** (`PROG_RANK` by code: MEU→RON→
+      TRO→COM→CLAN→NOY→JEM→FEU→CAR→GRP) instead of alphabetical.
+- **Dashboard year selector fixed:** it showed BLANK (hardcoded 2023–2025 list omitted the current year). Now
+      built dynamically from the current scout year (current labelled "— année en cours" + previous 4), with a
+      "Année scoute" label + calendar icon; never blank.
+- **Rentrée:** the "En attente : …" blocked-by line **dedupes** titles (a group task depending on a per-unit
+      task listed the same title ~18×).
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

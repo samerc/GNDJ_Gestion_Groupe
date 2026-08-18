@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { Toaster } from 'sonner'
 import { Sidebar, MobileSidebar } from './sidebar'
+import { useIsManager } from '@/lib/use-is-manager'
 import { Header } from './header'
 import { SessionWarning } from '@/components/shared/session-warning'
 import { RentreeOverduePopup } from '@/components/rentree/overdue-popup'
@@ -34,6 +35,7 @@ export function AppLayout() {
   // Maintenance kill-switch: when the whole site or the "membres" module is off, everyone but the super-admin
   // (who needs access to turn it back off) sees the maintenance page. The super-admin sees a warning banner.
   const user = useAuthStore((s) => s.user)
+  const isManager = useIsManager()
   const { data: maint } = useMaintenance()
   const inMaintenance = !!maint && (maint.site || maint.membres)
   if (inMaintenance && !user?.isSuperAdmin) return <MaintenancePage message={maint?.message} />
@@ -43,10 +45,13 @@ export function AppLayout() {
   // email link already set their password (flag cleared) and never see this.
   if (user?.mustChangePassword) return <ForcePasswordChange />
 
+  // Managers get a horizontal top menubar (desktop) instead of the long left sidebar — the grouped admin nav
+  // fits better as dropdowns and frees the width for the data-dense tables. Non-managers keep the left sidebar.
+  // On mobile, everyone uses the hamburger drawer (MobileSidebar); AdminTopNav is desktop-only (hidden < lg).
   return (
     <TooltipProvider delayDuration={250} skipDelayDuration={300}>
     <div className="flex h-screen">
-      <Sidebar />
+      {!isManager && <Sidebar />}
       <MobileSidebar />
       <Toaster richColors position="top-center" />
       <SessionWarning />

@@ -12,7 +12,6 @@ import { useUnitTypes as useUnitTypesQuery } from '@/services/unit-type-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
@@ -26,9 +25,16 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
+// Scouting parcours order (by unit-type code) so the pills follow the progression path — youngest branch to
+// oldest, then the cross-branch/group types — instead of alphabetical. Unknown codes fall to the end (by name).
+const PROG_RANK: Record<string, number> = { MEU: 0, RON: 1, TRO: 2, COM: 3, CLA: 4, CLAN: 4, NOY: 5, JEM: 6, FEU: 7, CAR: 8, GRP: 9, G: 9 }
+const progRank = (code?: string) => PROG_RANK[(code ?? '').toUpperCase()] ?? 99
+
 export default function ProgressionPage() {
   const { data: unitTypesData } = useUnitTypesQuery({ pageSize: 100 })
-  const unitTypes = unitTypesData?.items.map(ut => ({ id: ut.id, name: ut.name })) ?? []
+  const unitTypes = (unitTypesData?.items ?? [])
+    .map(ut => ({ id: ut.id, name: ut.name, code: ut.code }))
+    .sort((a, b) => progRank(a.code) - progRank(b.code) || a.name.localeCompare(b.name))
   const [selected, setSelected] = useState('')
 
   // Default to the first unit type once loaded (unit-type-first UX — no all-types jumble). Render-phase
@@ -82,8 +88,8 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
   const deleteMutation = useDeleteScoutStage()
   const reorderMutation = useReorderScoutStages()
   const [editing, setEditing] = useState<ScoutStageDto | null>(null)
+  const [adding, setAdding] = useState(false)
   const [deleting, setDeleting] = useState<ScoutStageDto | null>(null)
-  const [newName, setNewName] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkConfirm, setBulkConfirm] = useState(false)
   const [bulkBusy, setBulkBusy] = useState(false)
@@ -128,18 +134,6 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
-  // Inline quick-add: name only — blank code lets the backend auto-slug a unique code per unit type.
-  const quickAdd = async (e: React.FormEvent) => {
-    e.preventDefault()
-    // Guard on isPending too: the button is disabled while pending but Enter isn't, so a fast
-    // double-Enter would otherwise fire the create twice.
-    if (!newName.trim() || createMutation.isPending) return
-    try {
-      await createMutation.mutateAsync({ unitTypeId, code: '', name: newName.trim(), description: null, displayOrder: stages.length, isActive: true, isBadgeStage: false })
-      setNewName('')
-    } catch (err) { toast.error(parseApiError(err)) }
-  }
-
   const handleDelete = async () => {
     if (!deleting) return
     try { const res = await deleteMutation.mutateAsync(deleting.id); toast.success(res?.archived ? 'Étape désactivée (utilisée par des membres)' : 'Étape supprimée'); setDeleting(null) }
@@ -148,6 +142,9 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
 
   return (
     <div className="mt-4 space-y-4">
+      <div className="flex justify-end">
+        <Button variant="outline" onClick={() => setAdding(true)}><Plus className="mr-1 h-4 w-4" />Ajouter une étape</Button>
+      </div>
       {selected.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5">
           <span className="text-sm text-muted-foreground">{selected.size} sélectionnée(s)</span>
@@ -156,7 +153,7 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
         </div>
       )}
       {isLoading ? <LoadingSpinner variant="table" /> : stages.length === 0 ? (
-        <EmptyState icon={Star} title="Aucune étape" description="Ajoutez la première étape de progression ci-dessous." />
+        <EmptyState icon={Star} title="Aucune étape" description="Ajoutez la première étape de progression avec le bouton ci-dessus." />
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={stages.map(s => s.id)} strategy={verticalListSortingStrategy}>
@@ -171,13 +168,15 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
         </DndContext>
       )}
 
-      {/* Inline quick-add */}
-      <form onSubmit={quickAdd} className="flex gap-2">
-        <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ajouter une étape (ex : 1ère étoile)…" className="max-w-sm" />
-        <Button type="submit" disabled={!newName.trim() || createMutation.isPending}><Plus className="mr-1 h-4 w-4" />Ajouter</Button>
-      </form>
-
-      <StageEditDialog stage={editing} onClose={() => setEditing(null)} onSave={updateMutation} />
+      <StageFormDialog
+        open={adding || !!editing}
+        stage={editing}
+        unitTypeId={unitTypeId}
+        nextOrder={stages.length}
+        createMutation={createMutation}
+        updateMutation={updateMutation}
+        onClose={() => { setAdding(false); setEditing(null) }}
+      />
       <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)}
         title={(deleting?.progressionCount ?? 0) > 0 ? "Désactiver l'étape" : "Supprimer l'étape"}
         description={(deleting?.progressionCount ?? 0) > 0
@@ -206,7 +205,6 @@ function StageCard({ stage, index, busy, checked, onCheck, onEdit, onDelete, onT
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{stage.name}</span>
-          {stage.isBadgeStage && <Badge variant="outline" className="gap-1 text-[10px]"><Award className="h-3 w-3" />Badge</Badge>}
           <span className="text-xs text-muted-foreground">{stage.code}</span>
         </div>
         {stage.description && <p className="truncate text-xs text-muted-foreground">{stage.description}</p>}
@@ -219,44 +217,59 @@ function StageCard({ stage, index, busy, checked, onCheck, onEdit, onDelete, onT
   )
 }
 
-function StageEditDialog({ stage, onClose, onSave }: { stage: ScoutStageDto | null; onClose: () => void; onSave: ReturnType<typeof useUpdateScoutStage> }) {
-  const [form, setForm] = useState({ name: '', code: '', description: '', isActive: true, isBadgeStage: false })
+// Create/edit a stage in one modal. `stage` null = create mode (blank form, code auto-generated if empty).
+function StageFormDialog({ open, stage, unitTypeId, nextOrder, createMutation, updateMutation, onClose }: {
+  open: boolean
+  stage: ScoutStageDto | null
+  unitTypeId: string
+  nextOrder: number
+  createMutation: ReturnType<typeof useCreateScoutStage>
+  updateMutation: ReturnType<typeof useUpdateScoutStage>
+  onClose: () => void
+}) {
+  const blank = { name: '', code: '', description: '', isActive: true, isBadgeStage: false }
+  const [form, setForm] = useState(blank)
   const [error, setError] = useState('')
-  // Hydrate the form when a stage is opened for editing (render-phase reset).
-  const [prevStage, setPrevStage] = useState(stage)
-  if (stage !== prevStage) {
-    setPrevStage(stage)
-    if (stage) setForm({ name: stage.name, code: stage.code, description: stage.description ?? '', isActive: stage.isActive, isBadgeStage: stage.isBadgeStage })
+  // Reset/hydrate the form each time the dialog opens (render-phase; blank for create, the stage for edit).
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) {
+      setError('')
+      setForm(stage ? { name: stage.name, code: stage.code, description: stage.description ?? '', isActive: stage.isActive, isBadgeStage: stage.isBadgeStage } : blank)
+    }
   }
+  const saving = createMutation.isPending || updateMutation.isPending
 
   const handleSave = async () => {
-    if (!stage) return
     if (!form.name.trim()) { setError('Le nom est requis.'); return }
     setError('')
     try {
-      await onSave.mutateAsync({ id: stage.id, unitTypeId: stage.unitTypeId, displayOrder: stage.displayOrder, code: form.code.trim(), name: form.name.trim(), description: form.description.trim() || null, isActive: form.isActive, isBadgeStage: form.isBadgeStage })
-      toast.success('Étape modifiée'); onClose()
+      if (stage) {
+        await updateMutation.mutateAsync({ id: stage.id, unitTypeId: stage.unitTypeId, displayOrder: stage.displayOrder, code: form.code.trim(), name: form.name.trim(), description: form.description.trim() || null, isActive: form.isActive, isBadgeStage: form.isBadgeStage })
+        toast.success('Étape modifiée')
+      } else {
+        await createMutation.mutateAsync({ unitTypeId, code: form.code.trim(), name: form.name.trim(), description: form.description.trim() || null, displayOrder: nextOrder, isActive: form.isActive, isBadgeStage: form.isBadgeStage })
+        toast.success('Étape ajoutée')
+      }
+      onClose()
     } catch (err) { setError(parseApiError(err)) }
   }
 
   return (
-    <Dialog open={!!stage} onOpenChange={(o) => { if (!o) onClose() }}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Modifier l'étape</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{stage ? "Modifier l'étape" : 'Nouvelle étape'}</DialogTitle></DialogHeader>
         <div className="space-y-4">
           {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-          <div className="space-y-2"><label className="text-sm font-medium">Nom</label><Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+          <div className="space-y-2"><label className="text-sm font-medium">Nom</label><Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="ex : 1ère étoile" autoFocus /></div>
           <div className="space-y-2"><label className="text-sm font-medium">Description</label><Input value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} /></div>
-          <div className="space-y-2"><label className="text-xs text-muted-foreground">Code (avancé)</label><Input value={form.code} onChange={(e) => setForm(f => ({ ...f, code: e.target.value }))} className="font-mono text-sm" /></div>
+          <div className="space-y-2"><label className="text-xs text-muted-foreground">Code (avancé)</label><Input value={form.code} onChange={(e) => setForm(f => ({ ...f, code: e.target.value }))} className="font-mono text-sm" placeholder="Laissé vide = généré automatiquement" /></div>
           <label className="flex items-center gap-3 text-sm"><Switch checked={form.isActive} onCheckedChange={(v) => setForm(f => ({ ...f, isActive: v }))} />Active</label>
-          <label className="flex items-start gap-3 text-sm">
-            <Switch checked={form.isBadgeStage} onCheckedChange={(v) => setForm(f => ({ ...f, isBadgeStage: v }))} />
-            <span>Étape avec badge<span className="block text-xs text-muted-foreground">Permet d'attacher un badge lorsqu'un membre atteint cette étape.</span></span>
-          </label>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={handleSave} disabled={onSave.isPending}>Enregistrer</Button>
+          <Button onClick={handleSave} disabled={saving}>{stage ? 'Enregistrer' : 'Ajouter'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -270,8 +283,8 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
   const updateMutation = useUpdateBadge()
   const deleteMutation = useDeleteBadge()
   const [editing, setEditing] = useState<BadgeDto | null>(null)
+  const [adding, setAdding] = useState(false)
   const [deleting, setDeleting] = useState<BadgeDto | null>(null)
-  const [newName, setNewName] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkConfirm, setBulkConfirm] = useState(false)
   const [bulkBusy, setBulkBusy] = useState(false)
@@ -298,18 +311,6 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
-  // Inline quick-add: name only — blank code lets the backend auto-slug a unique code per unit type.
-  const quickAdd = async (e: React.FormEvent) => {
-    e.preventDefault()
-    // Guard on isPending too: the button is disabled while pending but Enter isn't, so a fast
-    // double-Enter would otherwise fire the create twice.
-    if (!newName.trim() || createMutation.isPending) return
-    try {
-      await createMutation.mutateAsync({ unitTypeId, code: '', name: newName.trim(), description: null, displayOrder: badges.length, isActive: true })
-      setNewName('')
-    } catch (err) { toast.error(parseApiError(err)) }
-  }
-
   const handleDelete = async () => {
     if (!deleting) return
     try { const res = await deleteMutation.mutateAsync(deleting.id); toast.success(res?.archived ? 'Badge désactivé (obtenu par des membres)' : 'Badge supprimé'); setDeleting(null) }
@@ -318,6 +319,9 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
 
   return (
     <div className="mt-4 space-y-4">
+      <div className="flex justify-end">
+        <Button variant="outline" onClick={() => setAdding(true)}><Plus className="mr-1 h-4 w-4" />Ajouter un badge</Button>
+      </div>
       {selected.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5">
           <span className="text-sm text-muted-foreground">{selected.size} sélectionné(s)</span>
@@ -326,7 +330,7 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
         </div>
       )}
       {isLoading ? <LoadingSpinner variant="cards" /> : badges.length === 0 ? (
-        <EmptyState icon={Award} title="Aucun badge" description="Ajoutez le premier badge ci-dessous." />
+        <EmptyState icon={Award} title="Aucun badge" description="Ajoutez le premier badge avec le bouton ci-dessus." />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {badges.map(b => (
@@ -347,12 +351,15 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
         </div>
       )}
 
-      <form onSubmit={quickAdd} className="flex gap-2">
-        <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ajouter un badge (ex : Nageur)…" className="max-w-sm" />
-        <Button type="submit" disabled={!newName.trim() || createMutation.isPending}><Plus className="mr-1 h-4 w-4" />Ajouter</Button>
-      </form>
-
-      <BadgeEditDialog badge={editing} onClose={() => setEditing(null)} onSave={updateMutation} />
+      <BadgeFormDialog
+        open={adding || !!editing}
+        badge={editing}
+        unitTypeId={unitTypeId}
+        nextOrder={badges.length}
+        createMutation={createMutation}
+        updateMutation={updateMutation}
+        onClose={() => { setAdding(false); setEditing(null) }}
+      />
       <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)}
         title={(deleting?.progressionCount ?? 0) > 0 ? 'Désactiver le badge' : 'Supprimer le badge'}
         description={(deleting?.progressionCount ?? 0) > 0
@@ -366,40 +373,59 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
   )
 }
 
-function BadgeEditDialog({ badge, onClose, onSave }: { badge: BadgeDto | null; onClose: () => void; onSave: ReturnType<typeof useUpdateBadge> }) {
-  const [form, setForm] = useState({ name: '', code: '', description: '', isActive: true })
+// Create/edit a badge in one modal. `badge` null = create mode (blank form, code auto-generated if empty).
+function BadgeFormDialog({ open, badge, unitTypeId, nextOrder, createMutation, updateMutation, onClose }: {
+  open: boolean
+  badge: BadgeDto | null
+  unitTypeId: string
+  nextOrder: number
+  createMutation: ReturnType<typeof useCreateBadge>
+  updateMutation: ReturnType<typeof useUpdateBadge>
+  onClose: () => void
+}) {
+  const blank = { name: '', code: '', description: '', isActive: true }
+  const [form, setForm] = useState(blank)
   const [error, setError] = useState('')
-  // Hydrate the form when a badge is opened for editing (render-phase reset).
-  const [prevBadge, setPrevBadge] = useState(badge)
-  if (badge !== prevBadge) {
-    setPrevBadge(badge)
-    if (badge) setForm({ name: badge.name, code: badge.code, description: badge.description ?? '', isActive: badge.isActive })
+  // Reset/hydrate the form each time the dialog opens (render-phase; blank for create, the badge for edit).
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) {
+      setError('')
+      setForm(badge ? { name: badge.name, code: badge.code, description: badge.description ?? '', isActive: badge.isActive } : blank)
+    }
   }
+  const saving = createMutation.isPending || updateMutation.isPending
 
   const handleSave = async () => {
-    if (!badge) return
     if (!form.name.trim()) { setError('Le nom est requis.'); return }
     setError('')
     try {
-      await onSave.mutateAsync({ id: badge.id, unitTypeId: badge.unitTypeId, displayOrder: badge.displayOrder, code: form.code.trim(), name: form.name.trim(), description: form.description.trim() || null, isActive: form.isActive })
-      toast.success('Badge modifié'); onClose()
+      if (badge) {
+        await updateMutation.mutateAsync({ id: badge.id, unitTypeId: badge.unitTypeId, displayOrder: badge.displayOrder, code: form.code.trim(), name: form.name.trim(), description: form.description.trim() || null, isActive: form.isActive })
+        toast.success('Badge modifié')
+      } else {
+        await createMutation.mutateAsync({ unitTypeId, code: form.code.trim(), name: form.name.trim(), description: form.description.trim() || null, displayOrder: nextOrder, isActive: form.isActive })
+        toast.success('Badge ajouté')
+      }
+      onClose()
     } catch (err) { setError(parseApiError(err)) }
   }
 
   return (
-    <Dialog open={!!badge} onOpenChange={(o) => { if (!o) onClose() }}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Modifier le badge</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{badge ? 'Modifier le badge' : 'Nouveau badge'}</DialogTitle></DialogHeader>
         <div className="space-y-4">
           {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-          <div className="space-y-2"><label className="text-sm font-medium">Nom</label><Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+          <div className="space-y-2"><label className="text-sm font-medium">Nom</label><Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="ex : Nageur" autoFocus /></div>
           <div className="space-y-2"><label className="text-sm font-medium">Description</label><Input value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} /></div>
-          <div className="space-y-2"><label className="text-xs text-muted-foreground">Code (avancé)</label><Input value={form.code} onChange={(e) => setForm(f => ({ ...f, code: e.target.value }))} className="font-mono text-sm" /></div>
+          <div className="space-y-2"><label className="text-xs text-muted-foreground">Code (avancé)</label><Input value={form.code} onChange={(e) => setForm(f => ({ ...f, code: e.target.value }))} className="font-mono text-sm" placeholder="Laissé vide = généré automatiquement" /></div>
           <label className="flex items-center gap-3 text-sm"><Switch checked={form.isActive} onCheckedChange={(v) => setForm(f => ({ ...f, isActive: v }))} />Actif</label>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={handleSave} disabled={onSave.isPending}>Enregistrer</Button>
+          <Button onClick={handleSave} disabled={saving}>{badge ? 'Enregistrer' : 'Ajouter'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

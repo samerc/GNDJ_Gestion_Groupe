@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
+import { useRoleTheme } from '@/lib/use-is-manager'
 import { useSidebarStore } from '@/stores/sidebar-store'
 import { PERMISSIONS } from '@/lib/constants'
 import {
@@ -46,13 +47,15 @@ import {
   LayoutGrid,
   Archive,
   Ban,
+  Palette,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { usePendingDemandeCount } from '@/services/demande-admin-service'
 import { usePendingChangeRequestsCount } from '@/services/change-request-service'
 import { APP_VERSION, BUILD_COMMIT, BUILD_DATE } from '@/lib/app-version'
 
-function BrandMark({ className }: { className?: string }) {
+export function BrandMark({ className }: { className?: string }) {
   return (
     <div
       className={cn(
@@ -180,6 +183,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/audit-logs', label: 'Journal d\'audit', icon: ScrollText, permission: PERMISSIONS.AUDIT_VIEW },
       { path: '/admin/error-log', label: 'Journal des erreurs', icon: AlertTriangle, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/deleted-members', label: 'Corbeille', icon: Trash2, permission: PERMISSIONS.MEMBERS_DELETE },
+      { path: '/admin/appearance', label: 'Apparence', icon: Palette, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/settings', label: 'Paramètres', icon: Settings2, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
     ],
   },
@@ -236,17 +240,17 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
           'group/nav relative flex items-center rounded-md text-sm transition-all duration-150',
           collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2',
           isActive
-            ? 'bg-sidebar-accent font-semibold text-white shadow-sm before:absolute before:left-0 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-r-full before:bg-accent before:content-[""]'
-            : 'font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-white'
+            ? 'bg-white/15 font-semibold text-white shadow-sm before:absolute before:left-0 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-r-full before:bg-white before:content-[""]'
+            : 'font-medium text-white/70 hover:bg-white/10 hover:text-white'
         )}
       >
-        <Icon className={cn('h-4 w-4 shrink-0 transition-colors', isActive ? 'text-accent' : 'text-sidebar-foreground/60 group-hover/nav:text-white')} />
+        <Icon className={cn('h-4 w-4 shrink-0 transition-colors', isActive ? 'text-white' : 'text-white/60 group-hover/nav:text-white')} />
         {!collapsed && <span>{item.label}</span>}
         {!collapsed && item.path === '/admin/demandes' && (pendingDemandes ?? 0) > 0 && (
-          <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white">{pendingDemandes}</span>
+          <span className="ml-auto rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-900">{pendingDemandes}</span>
         )}
         {!collapsed && item.path === '/change-requests' && (pendingChanges ?? 0) > 0 && (
-          <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white">{pendingChanges}</span>
+          <span className="ml-auto rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-900">{pendingChanges}</span>
         )}
         {collapsed && (
           <span className="pointer-events-none absolute left-full ml-2 rounded-md bg-foreground px-2 py-1 text-xs text-background opacity-0 shadow-md transition-opacity group-hover/nav:opacity-100 whitespace-nowrap z-50">
@@ -273,17 +277,17 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
               <button
                 type="button"
                 onClick={() => toggleGroup(group.label)}
-                className="mt-4 flex w-full items-center gap-1.5 rounded-md px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-sidebar-foreground/45 transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground/70"
+                className="mt-4 flex w-full items-center gap-1.5 rounded-md px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/45 transition-colors hover:bg-white/10 hover:text-white/70"
               >
                 {isOpen ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
                 <span>{group.label}</span>
                 {!isOpen && pending > 0 && (
-                  <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white">{pending}</span>
+                  <span className="ml-auto rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-900">{pending}</span>
                 )}
               </button>
             ) : (
               <div className="pt-3 pb-1">
-                <div className="mx-auto h-px w-6 bg-sidebar-border" />
+                <div className="mx-auto h-px w-6 bg-white/15" />
               </div>
             )}
             {isOpen && group.items.map((item) => renderLink(item, location.pathname === item.path))}
@@ -296,20 +300,22 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
 
 export function Sidebar() {
   const { collapsed, toggle } = useSidebarStore()
+  const theme = useRoleTheme() // chrome colour by role (CU / member here — managers have no sidebar)
   // The version number is a private maintainer entry point to the changelog — shown to the super-admin only.
   const isSuperAdmin = useAuthStore((s) => !!s.user?.isSuperAdmin)
   const showVersion = !collapsed && isSuperAdmin
 
   return (
     <aside
+      style={{ backgroundColor: theme.color }}
       className={cn(
-        'hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200 lg:flex',
+        'hidden shrink-0 flex-col border-r border-white/10 text-white transition-all duration-200 lg:flex',
         collapsed ? 'w-16' : 'w-64'
       )}
     >
       {/* Logo */}
       <div className={cn(
-        'flex h-16 items-center border-b border-sidebar-border',
+        'flex h-16 items-center border-b border-white/10',
         collapsed ? 'justify-center px-2' : 'px-4'
       )}>
         <Link to="/dashboard" className="flex items-center gap-2.5 overflow-hidden">
@@ -317,7 +323,7 @@ export function Sidebar() {
           {!collapsed && (
             <div className="flex flex-col leading-tight">
               <span className="text-[15px] font-bold tracking-tight text-white">GNDJ Scout</span>
-              <span className="text-[11px] font-medium text-sidebar-foreground/55">Gestion de groupe</span>
+              <span className="text-[11px] font-medium text-white/55">Gestion de groupe</span>
             </div>
           )}
         </Link>
@@ -330,14 +336,14 @@ export function Sidebar() {
 
       {/* Version (super-admin only) + collapse toggle */}
       <div className={cn(
-        'flex items-center border-t border-sidebar-border p-2',
+        'flex items-center border-t border-white/10 p-2',
         collapsed ? 'justify-center' : showVersion ? 'justify-between' : 'justify-end'
       )}>
         {showVersion && (
           <Link
             to="/admin/changelog"
             title={`build ${BUILD_COMMIT}${BUILD_DATE ? ` · ${BUILD_DATE}` : ''}`}
-            className="px-2 text-[11px] font-medium text-sidebar-foreground/40 transition-colors hover:text-sidebar-foreground/70"
+            className="px-2 text-[11px] font-medium text-white/40 transition-colors hover:text-white/70"
           >
             v{APP_VERSION}
           </Link>
@@ -346,7 +352,7 @@ export function Sidebar() {
           variant="ghost"
           size="icon"
           onClick={toggle}
-          className="h-8 w-8 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          className="h-8 w-8 text-white/50 hover:text-white hover:bg-white/10"
         >
           {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
         </Button>
@@ -357,6 +363,7 @@ export function Sidebar() {
 
 export function MobileSidebar() {
   const { mobileOpen, setMobileOpen } = useSidebarStore()
+  const theme = useRoleTheme() // drawer colour by role (used by everyone on mobile, incl. managers)
 
   if (!mobileOpen) return null
 
@@ -368,20 +375,20 @@ export function MobileSidebar() {
         onClick={() => setMobileOpen(false)}
       />
       {/* Drawer */}
-      <aside className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-sidebar lg:hidden">
-        <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
+      <aside style={{ backgroundColor: theme.color }} className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col text-white lg:hidden">
+        <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
           <div className="flex items-center gap-2.5">
             <BrandMark className="h-9 w-9" />
             <div className="flex flex-col leading-tight">
               <span className="text-[15px] font-bold tracking-tight text-white">GNDJ Scout</span>
-              <span className="text-[11px] font-medium text-sidebar-foreground/55">Gestion de groupe</span>
+              <span className="text-[11px] font-medium text-white/55">Gestion de groupe</span>
             </div>
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setMobileOpen(false)}
-            className="h-8 w-8 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+            className="h-8 w-8 text-white/50 hover:text-white hover:bg-white/10"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -391,5 +398,80 @@ export function MobileSidebar() {
         </div>
       </aside>
     </>
+  )
+}
+
+// Horizontal admin nav for MANAGERS on desktop — the daily pinned links as direct buttons + one dropdown per
+// admin group (pending badges roll up onto the group trigger). Rendered INSIDE the header (single top bar);
+// hidden below lg (managers use the mobile hamburger drawer = MobileSidebar there). Brand + account menu live
+// in the header around it.
+export function AdminNav() {
+  const location = useLocation()
+  const { hasPermission } = useAuthStore()
+  const { data: pendingDemandes } = usePendingDemandeCount(hasPermission(PERMISSIONS.DEMANDE_VIEW))
+  const { data: pendingChanges } = usePendingChangeRequestsCount(hasPermission(PERMISSIONS.MEMBERS_EDIT))
+
+  const pinned = adminNavItems.filter((i) => !i.permission || hasPermission(i.permission))
+  const groups = adminGroups
+    .map((g) => ({ ...g, items: g.items.filter((i) => !i.permission || hasPermission(i.permission)) }))
+    .filter((g) => g.items.length > 0)
+
+  // Actionable badge count for a nav path (pending demandes / change-requests), and the group's rolled-up total.
+  const badgeFor = (path: string) =>
+    path === '/admin/demandes' ? (pendingDemandes ?? 0) : path === '/change-requests' ? (pendingChanges ?? 0) : 0
+  const groupBadge = (g: AdminGroup) => g.items.reduce((s, i) => s + badgeFor(i.path), 0)
+  const isActive = (path: string) => location.pathname === path
+
+  const badge = (n: number) => n > 0 && <span className="rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold leading-none text-slate-900">{n}</span>
+
+  return (
+    <nav className="hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto lg:flex">
+      {/* Daily pinned links */}
+      {pinned.map((item) => {
+        const Icon = item.icon
+        return (
+          <Link key={item.path} to={item.path}
+            className={cn('flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/40',
+              isActive(item.path) ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white')}>
+            <Icon className="h-4 w-4" />{item.label}
+          </Link>
+        )
+      })}
+
+      {/* One dropdown per admin group */}
+      {groups.map((group) => {
+        const activeInGroup = group.items.some((i) => i.path === location.pathname)
+        return (
+          <DropdownMenu key={group.label}>
+            <DropdownMenuTrigger asChild>
+              <button type="button"
+                className={cn('flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/40 data-[state=open]:bg-white/15',
+                  activeInGroup ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white')}>
+                {group.label}
+                {badge(groupBadge(group))}
+                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-60">
+              {group.items.map((item) => {
+                const Icon = item.icon
+                const active = isActive(item.path)
+                return (
+                  <DropdownMenuItem key={item.path} asChild className={cn(active && 'bg-primary/10 focus:bg-primary/15')}>
+                    <Link to={item.path} className={cn('flex items-center gap-2', active ? 'font-semibold text-primary' : '')}>
+                      {/* Active item gets a left accent bar + filled row so the current page stands out clearly. */}
+                      <span className={cn('h-4 w-1 shrink-0 rounded-full', active ? 'bg-primary' : 'bg-transparent')} />
+                      <Icon className={cn('h-4 w-4', active ? 'text-primary' : 'opacity-70')} />
+                      <span className="flex-1">{item.label}</span>
+                      {badge(badgeFor(item.path))}
+                    </Link>
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )
+      })}
+    </nav>
   )
 }

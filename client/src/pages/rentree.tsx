@@ -119,7 +119,9 @@ function TaskRow({ task, canManage, compact, running, onToggle, onEdit, onDelete
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {!compact && <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{assignee}</span>}
           <Deadline task={task} />
-          {task.isBlocked && <span className="inline-flex items-center gap-1 text-amber-600"><Lock className="h-3 w-3" />En attente : {task.blockedByTitles.join(', ')}</span>}
+          {/* Dedupe titles: a group task can depend on a per-unit prerequisite (one instance per unit), which
+              would otherwise repeat the same title ~18×. Show each distinct blocking task title once. */}
+          {task.isBlocked && <span className="inline-flex items-center gap-1 text-amber-600"><Lock className="h-3 w-3" />En attente : {[...new Set(task.blockedByTitles)].join(', ')}</span>}
           {done && task.completedByName && <span className="text-emerald-600">✓ {task.completedByName}</span>}
         </div>
         <TaskAction task={task} canManage={canManage} running={running} onRun={onRun} />
