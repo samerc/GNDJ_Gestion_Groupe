@@ -3,6 +3,8 @@
     "version": "3.3.0",
     "date": "2026-08-19",
     "changes": [
+      "Champs personnalisés : chaque champ précise qui peut le remplir (Le membre / Chef d'unité / Chef de groupe) — les autres le voient en lecture seule",
+      "Le membre peut désormais renseigner ses propres champs personnalisés ouverts aux membres (ex. instrument de musique) depuis Ma fiche",
       "Demandes de modification : un membre voit sa proposition refusée (avec le motif) sur Ma fiche + peut effacer la notification",
       "Refuser une demande de modification : boutons « Retour » / « Confirmer le refus » (au lieu d'Annuler / Refuser)",
       "Ma fiche : barre « Mes documents » — documents envoyés mais non validés affichés « en attente » (jaune) au lieu de « à envoyer »",

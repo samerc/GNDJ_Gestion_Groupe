@@ -2672,6 +2672,27 @@ Follow-ups (backend + frontend; all on main, pushed at v3.3.0; DEV until deploy)
   when rejected — plus a **« · N en attente »** hint next to the count and a **two-segment bar** (green = accepted,
   amber = uploaded/awaiting). Still « Dossier complet — merci ! » at 100% approved.
 
+### Custom fields — "Rempli par" scope (member / CU / CG) (2026-08-19)
+Each custom field now declares WHO may fill its value (backend + frontend; migration applies on prod startup).
+- **`CustomField.EditableBy`** (migration `AddCustomFieldEditableBy`, `editable_by` varchar default **`UnitLeader`**
+  so existing fields keep the prior behaviour = leaders edit): `Member` (the youth themselves + leaders),
+  `UnitLeader` (chef d'unité + chef de groupe), `GroupLeader` (chef de groupe only). **Reading is unaffected** —
+  only editing is gated. Hierarchy: a higher level can always edit lower-scoped fields.
+- **Backend enforcement** (`CustomFieldHandlers.cs`): the leader endpoint (`PUT /custom-fields/member/{id}/{fieldId}`,
+  members.edit) now rejects a `GroupLeader` field unless the caller is a group manager (`MemberAccess.IsGroupManager`)
+  — a CU with members.edit can't touch it (400 "réservé au chef de groupe"). New **member self-service** endpoints
+  `PUT|DELETE /my-profile/custom-fields/{fieldId}` (auth-only, own member resolved server-side) allow a youth to fill
+  **only `Member`-scoped** fields (`SetMyCustomFieldValueCommand` / `DeleteMyCustomFieldValueCommand`). Create/Update
+  commands + validators carry `EditableBy` (allowed-set `CustomFieldEditableBy.All`); DTOs expose it. Shared
+  `CustomFieldValueOps` (type-validate + upsert) reused by both write paths.
+- **Frontend:** admin *Champs personnalisés* form gained a **« Rempli par »** select (Le membre / Chef d'unité /
+  Chef de groupe) + a table column. `MemberCustomFields` gained `selfService` (Ma fiche passes it) and per-field
+  `canEdit` (group-manager → any; unit-leader → Member+UnitLeader; member → Member only); non-editable fields render
+  **read-only with a « Rempli par … » lock hint**. Self-service uses the `/my-profile/custom-fields` hooks; leaders
+  use the members.edit hooks. Mirrors the server rules so the UI never offers an edit the API would reject.
+- Verified live: member self-sets a `Member` field (204) but is blocked on a `GroupLeader` field (400); admin/leader
+  sets any; bad `editableBy` → 400. Default `UnitLeader` preserves existing fields. dotnet + tsc + eslint clean.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

@@ -13,9 +13,50 @@ namespace GNDJ.Application.CustomFields;
 // Options holds the JSON array of choices for "select"; ShowOnCard surfaces the value on the member card.
 
 // DTOs
-public record CustomFieldDto(Guid Id, string Name, string Code, string FieldType, string? Options, int DisplayOrder, bool IsActive, bool ShowOnCard, int ValueCount);
-public record CustomFieldListDto(Guid Id, string Name, string Code, string FieldType, string? Options, bool ShowOnCard);
+public record CustomFieldDto(Guid Id, string Name, string Code, string FieldType, string? Options, int DisplayOrder, bool IsActive, bool ShowOnCard, string EditableBy, int ValueCount);
+public record CustomFieldListDto(Guid Id, string Name, string Code, string FieldType, string? Options, bool ShowOnCard, string EditableBy);
 public record MemberCustomFieldValueDto(Guid Id, Guid CustomFieldId, string FieldName, string FieldCode, string FieldType, string? FieldOptions, string Value);
+
+// Who may fill a custom field's value (see CustomField.EditableBy). Higher levels can also edit lower-scoped
+// fields: a group leader can edit everything; a unit leader can edit Member + UnitLeader fields; the member
+// themselves can edit only Member fields. Reading is unaffected.
+public static class CustomFieldEditableBy
+{
+    public const string Member = "Member", UnitLeader = "UnitLeader", GroupLeader = "GroupLeader";
+    public static readonly string[] All = [Member, UnitLeader, GroupLeader];
+}
+
+// Shared value handling (type validation + upsert), reused by the leader and self-service write paths.
+static class CustomFieldValueOps
+{
+    // Validate a raw string value against the field's declared type. Returns an error message, or null if OK.
+    public static string? Validate(CustomField field, string value) => field.FieldType switch
+    {
+        "number" when !decimal.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, out _) => "Ce champ attend une valeur numérique.",
+        "boolean" when value is not ("true" or "false") => "Ce champ attend « true » ou « false ».",
+        "select" when !SelectAllows(field, value) => "Valeur non autorisée pour ce champ.",
+        _ => null,
+    };
+
+    static bool SelectAllows(CustomField field, string value)
+    {
+        if (string.IsNullOrWhiteSpace(field.Options)) return true;
+        List<string> allowed = [];
+        try { allowed = System.Text.Json.JsonSerializer.Deserialize<List<string>>(field.Options) ?? []; } catch { /* malformed → no restriction */ }
+        return allowed.Count == 0 || allowed.Contains(value);
+    }
+
+    // Upsert one member's value (access must already be checked). Returns the value id.
+    public static async Task<Guid> UpsertAsync(IApplicationDbContext ctx, Guid memberId, Guid fieldId, string value, CancellationToken ct)
+    {
+        var existing = await ctx.MemberCustomFieldValues.FirstOrDefaultAsync(v => v.MemberId == memberId && v.CustomFieldId == fieldId, ct);
+        if (existing is not null) { existing.Value = value; await ctx.SaveChangesAsync(ct); return existing.Id; }
+        var entity = new MemberCustomFieldValue { MemberId = memberId, CustomFieldId = fieldId, Value = value };
+        ctx.MemberCustomFieldValues.Add(entity);
+        await ctx.SaveChangesAsync(ct);
+        return entity.Id;
+    }
+}
 
 // === Queries ===
 
@@ -29,7 +70,7 @@ public class GetCustomFieldsQueryHandler(IApplicationDbContext context) : IReque
         return await context.CustomFields
             .OrderBy(cf => cf.DisplayOrder).ThenBy(cf => cf.Name)
             .Select(cf => new CustomFieldDto(
-                cf.Id, cf.Name, cf.Code, cf.FieldType, cf.Options, cf.DisplayOrder, cf.IsActive, cf.ShowOnCard,
+                cf.Id, cf.Name, cf.Code, cf.FieldType, cf.Options, cf.DisplayOrder, cf.IsActive, cf.ShowOnCard, cf.EditableBy,
                 cf.Values.Count(v => !v.IsDeleted)
             ))
             .ToListAsync(ct);
@@ -46,7 +87,7 @@ public class GetActiveCustomFieldsQueryHandler(IApplicationDbContext context) : 
         return await context.CustomFields
             .Where(cf => cf.IsActive)
             .OrderBy(cf => cf.DisplayOrder).ThenBy(cf => cf.Name)
-            .Select(cf => new CustomFieldListDto(cf.Id, cf.Name, cf.Code, cf.FieldType, cf.Options, cf.ShowOnCard))
+            .Select(cf => new CustomFieldListDto(cf.Id, cf.Name, cf.Code, cf.FieldType, cf.Options, cf.ShowOnCard, cf.EditableBy))
             .ToListAsync(ct);
     }
 }
@@ -78,7 +119,7 @@ public class GetMemberCustomFieldValuesQueryHandler(IApplicationDbContext contex
 // === Commands ===
 
 // CreateCustomField
-public record CreateCustomFieldCommand(string Name, string Code, string FieldType, string? Options, int DisplayOrder, bool IsActive, bool ShowOnCard) : IRequest<Result<Guid>>;
+public record CreateCustomFieldCommand(string Name, string Code, string FieldType, string? Options, int DisplayOrder, bool IsActive, bool ShowOnCard, string EditableBy) : IRequest<Result<Guid>>;
 
 public class CreateCustomFieldCommandValidator : AbstractValidator<CreateCustomFieldCommand>
 {
@@ -91,6 +132,8 @@ public class CreateCustomFieldCommandValidator : AbstractValidator<CreateCustomF
         RuleFor(x => x.FieldType).NotEmpty().WithMessage("Le type de champ est requis.")
             .Must(t => t is "text" or "number" or "select" or "boolean")
             .WithMessage("Type de champ invalide (text, number, select, boolean).");
+        RuleFor(x => x.EditableBy).Must(e => CustomFieldEditableBy.All.Contains(e))
+            .WithMessage("Rôle de saisie invalide (Member, UnitLeader, GroupLeader).");
     }
 }
 
@@ -110,7 +153,8 @@ public class CreateCustomFieldCommandHandler(IApplicationDbContext context, IAud
             Options = request.Options,
             DisplayOrder = request.DisplayOrder,
             IsActive = request.IsActive,
-            ShowOnCard = request.ShowOnCard
+            ShowOnCard = request.ShowOnCard,
+            EditableBy = request.EditableBy
         };
 
         context.CustomFields.Add(entity);
@@ -122,7 +166,7 @@ public class CreateCustomFieldCommandHandler(IApplicationDbContext context, IAud
 }
 
 // UpdateCustomField
-public record UpdateCustomFieldCommand(Guid Id, string Name, string Code, string FieldType, string? Options, int DisplayOrder, bool IsActive, bool ShowOnCard) : IRequest<Result<bool>>;
+public record UpdateCustomFieldCommand(Guid Id, string Name, string Code, string FieldType, string? Options, int DisplayOrder, bool IsActive, bool ShowOnCard, string EditableBy) : IRequest<Result<bool>>;
 
 public class UpdateCustomFieldCommandValidator : AbstractValidator<UpdateCustomFieldCommand>
 {
@@ -135,6 +179,8 @@ public class UpdateCustomFieldCommandValidator : AbstractValidator<UpdateCustomF
         RuleFor(x => x.FieldType).NotEmpty().WithMessage("Le type de champ est requis.")
             .Must(t => t is "text" or "number" or "select" or "boolean")
             .WithMessage("Type de champ invalide (text, number, select, boolean).");
+        RuleFor(x => x.EditableBy).Must(e => CustomFieldEditableBy.All.Contains(e))
+            .WithMessage("Rôle de saisie invalide (Member, UnitLeader, GroupLeader).");
     }
 }
 
@@ -159,6 +205,7 @@ public class UpdateCustomFieldCommandHandler(IApplicationDbContext context, IAud
         entity.DisplayOrder = request.DisplayOrder;
         entity.IsActive = request.IsActive;
         entity.ShowOnCard = request.ShowOnCard;
+        entity.EditableBy = request.EditableBy;
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Update", "CustomField", entity.Id, oldValues: oldValues, newValues: new { entity.Name, entity.Code, entity.IsActive }, cancellationToken: ct);
@@ -211,10 +258,10 @@ public class SetMemberCustomFieldValueCommandHandler(IApplicationDbContext conte
 {
     public async ValueTask<Result<Guid>> Handle(SetMemberCustomFieldValueCommand request, CancellationToken ct)
     {
-        // Unit-scoped access check
+        // Unit-scoped access check (this endpoint requires members.edit, so the caller is a leader).
         if (!currentUser.IsSuperAdmin)
         {
-            var canAccess = await context.MemberAssignments.AnyAsync(a =>
+            var canAccess = MemberAccess.IsGroupManager(currentUser) || await context.MemberAssignments.AnyAsync(a =>
                 a.MemberId == request.MemberId && a.EndDate == null && currentUser.AuthorizedUnitIds.Contains(a.UnitId), ct);
             if (!canAccess)
                 return Result<Guid>.Failure("Accès non autorisé.");
@@ -226,50 +273,16 @@ public class SetMemberCustomFieldValueCommandHandler(IApplicationDbContext conte
         var field = await context.CustomFields.FirstOrDefaultAsync(cf => cf.Id == request.CustomFieldId, ct);
         if (field is null) return Result<Guid>.Failure("Champ personnalisé introuvable.");
 
-        // Validate the value against the field's declared type.
-        switch (field.FieldType)
-        {
-            case "number":
-                if (!decimal.TryParse(request.Value, System.Globalization.CultureInfo.InvariantCulture, out _))
-                    return Result<Guid>.Failure("Ce champ attend une valeur numérique.");
-                break;
-            case "boolean":
-                if (request.Value is not ("true" or "false"))
-                    return Result<Guid>.Failure("Ce champ attend « true » ou « false ».");
-                break;
-            case "select":
-                var allowed = new List<string>();
-                if (!string.IsNullOrWhiteSpace(field.Options))
-                {
-                    try { allowed = System.Text.Json.JsonSerializer.Deserialize<List<string>>(field.Options) ?? []; } catch { /* ignore malformed options */ }
-                }
-                if (allowed.Count > 0 && !allowed.Contains(request.Value))
-                    return Result<Guid>.Failure("Valeur non autorisée pour ce champ.");
-                break;
-        }
+        // A "GroupLeader"-scoped field may only be filled by a chef de groupe (or super-admin) — a chef d'unité
+        // holds members.edit but must not edit it. Member/UnitLeader fields are fine for any leader here.
+        if (field.EditableBy == CustomFieldEditableBy.GroupLeader && !MemberAccess.IsGroupManager(currentUser))
+            return Result<Guid>.Failure("Ce champ est réservé au chef de groupe.");
 
-        // Upsert: find existing value for this member + field
-        var existing = await context.MemberCustomFieldValues
-            .FirstOrDefaultAsync(v => v.MemberId == request.MemberId && v.CustomFieldId == request.CustomFieldId, ct);
+        var valueError = CustomFieldValueOps.Validate(field, request.Value);
+        if (valueError is not null) return Result<Guid>.Failure(valueError);
 
-        if (existing is not null)
-        {
-            existing.Value = request.Value;
-            await context.SaveChangesAsync(ct);
-            return Result<Guid>.Success(existing.Id);
-        }
-
-        var entity = new MemberCustomFieldValue
-        {
-            MemberId = request.MemberId,
-            CustomFieldId = request.CustomFieldId,
-            Value = request.Value
-        };
-
-        context.MemberCustomFieldValues.Add(entity);
-        await context.SaveChangesAsync(ct);
-
-        return Result<Guid>.Success(entity.Id);
+        var id = await CustomFieldValueOps.UpsertAsync(context, request.MemberId, request.CustomFieldId, request.Value, ct);
+        return Result<Guid>.Success(id);
     }
 }
 
@@ -282,6 +295,7 @@ public class DeleteMemberCustomFieldValueCommandHandler(IApplicationDbContext co
     {
         var entity = await context.MemberCustomFieldValues
             .Include(v => v.Member)
+            .Include(v => v.CustomField)
             .FirstOrDefaultAsync(v => v.Id == request.Id, ct);
 
         if (entity is null)
@@ -290,15 +304,76 @@ public class DeleteMemberCustomFieldValueCommandHandler(IApplicationDbContext co
         // Unit-scoped access check
         if (!currentUser.IsSuperAdmin)
         {
-            var canAccess = await context.MemberAssignments.AnyAsync(a =>
+            var canAccess = MemberAccess.IsGroupManager(currentUser) || await context.MemberAssignments.AnyAsync(a =>
                 a.MemberId == entity.MemberId && a.EndDate == null && currentUser.AuthorizedUnitIds.Contains(a.UnitId), ct);
             if (!canAccess)
                 return Result<bool>.Failure("Accès non autorisé.");
         }
 
+        // A GroupLeader-scoped field may only be cleared by a chef de groupe (mirrors the set path).
+        if (entity.CustomField.EditableBy == CustomFieldEditableBy.GroupLeader && !MemberAccess.IsGroupManager(currentUser))
+            return Result<bool>.Failure("Ce champ est réservé au chef de groupe.");
+
         context.MemberCustomFieldValues.Remove(entity);
         await context.SaveChangesAsync(ct);
 
+        return Result<bool>.Success(true);
+    }
+}
+
+// ── Member self-service: fill one's OWN "Member"-scoped custom fields (Ma fiche) ──────────────────────
+// These resolve the caller's own member id server-side (never a supplied id) and ONLY allow fields whose
+// EditableBy == "Member" — so a youth can maintain the fields the CG opened to members, but not the ones
+// reserved for leaders. Auth-only (no members.edit), like the other /my-profile self-service endpoints.
+public record SetMyCustomFieldValueCommand(Guid CustomFieldId, string Value) : IRequest<Result<Guid>>;
+
+public class SetMyCustomFieldValueValidator : AbstractValidator<SetMyCustomFieldValueCommand>
+{
+    public SetMyCustomFieldValueValidator()
+    {
+        RuleFor(x => x.CustomFieldId).NotEmpty();
+        RuleFor(x => x.Value).NotEmpty().WithMessage("La valeur est requise.").MaximumLength(500);
+    }
+}
+
+public class SetMyCustomFieldValueHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<SetMyCustomFieldValueCommand, Result<Guid>>
+{
+    public async ValueTask<Result<Guid>> Handle(SetMyCustomFieldValueCommand request, CancellationToken ct)
+    {
+        var memberId = currentUser.MemberId;
+        if (memberId is null) return Result<Guid>.Failure("Aucun membre associé à ce compte.");
+
+        var field = await context.CustomFields.FirstOrDefaultAsync(cf => cf.Id == request.CustomFieldId && cf.IsActive, ct);
+        if (field is null) return Result<Guid>.Failure("Champ personnalisé introuvable.");
+        if (field.EditableBy != CustomFieldEditableBy.Member)
+            return Result<Guid>.Failure("Ce champ ne peut pas être modifié par le membre.");
+
+        var valueError = CustomFieldValueOps.Validate(field, request.Value);
+        if (valueError is not null) return Result<Guid>.Failure(valueError);
+
+        var id = await CustomFieldValueOps.UpsertAsync(context, memberId.Value, request.CustomFieldId, request.Value, ct);
+        return Result<Guid>.Success(id);
+    }
+}
+
+public record DeleteMyCustomFieldValueCommand(Guid CustomFieldId) : IRequest<Result<bool>>;
+
+public class DeleteMyCustomFieldValueHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<DeleteMyCustomFieldValueCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(DeleteMyCustomFieldValueCommand request, CancellationToken ct)
+    {
+        var memberId = currentUser.MemberId;
+        if (memberId is null) return Result<bool>.Failure("Aucun membre associé à ce compte.");
+
+        var value = await context.MemberCustomFieldValues
+            .Include(v => v.CustomField)
+            .FirstOrDefaultAsync(v => v.MemberId == memberId && v.CustomFieldId == request.CustomFieldId, ct);
+        if (value is null) return Result<bool>.Success(true); // nothing to clear
+        if (value.CustomField.EditableBy != CustomFieldEditableBy.Member)
+            return Result<bool>.Failure("Ce champ ne peut pas être modifié par le membre.");
+
+        context.MemberCustomFieldValues.Remove(value);
+        await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);
     }
 }

@@ -15,6 +15,7 @@ public class CustomFieldConfiguration : IEntityTypeConfiguration<CustomField>
         builder.Property(e => e.Code).HasMaxLength(50).IsRequired();
         builder.Property(e => e.FieldType).HasMaxLength(20).IsRequired();
         builder.Property(e => e.Options).HasColumnType("text");
+        builder.Property(e => e.EditableBy).HasMaxLength(20).IsRequired().HasDefaultValue("UnitLeader");
 
         builder.HasIndex(e => e.Code).IsUnique().HasFilter("is_deleted = false");
         builder.HasIndex(e => e.DisplayOrder);

@@ -6,7 +6,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useCustomFields, useCreateCustomField, useUpdateCustomField, useDeleteCustomField, type CustomFieldDto } from '@/services/custom-field-service'
+import { useCustomFields, useCreateCustomField, useUpdateCustomField, useDeleteCustomField, type CustomFieldDto, type CustomFieldEditableBy } from '@/services/custom-field-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -29,6 +29,13 @@ const FIELD_TYPE_LABELS: Record<string, string> = {
   boolean: 'Oui/Non',
 }
 
+// Who fills the field's value — label + short help shown in the admin form and the table.
+const EDITABLE_BY_LABELS: Record<CustomFieldEditableBy, string> = {
+  Member: 'Le membre',
+  UnitLeader: "Chef d'unité",
+  GroupLeader: 'Chef de groupe',
+}
+
 interface FormData {
   name: string
   code: string
@@ -37,9 +44,10 @@ interface FormData {
   displayOrder: number
   isActive: boolean
   showOnCard: boolean
+  editableBy: CustomFieldEditableBy
 }
 
-const defaultForm: FormData = { name: '', code: '', fieldType: 'text', options: '', displayOrder: 0, isActive: true, showOnCard: false }
+const defaultForm: FormData = { name: '', code: '', fieldType: 'text', options: '', displayOrder: 0, isActive: true, showOnCard: false, editableBy: 'UnitLeader' }
 
 // Slugify the display name into a stable storage code (lowercase, accents stripped, non-alnum → "_").
 // Auto-applied while typing the name unless the user has manually edited the code field (codeManual).
@@ -78,7 +86,7 @@ export default function CustomFieldsPage() {
     setEditing(item)
     // Stored options are a JSON string array; show them back as the comma-separated text the user typed.
     const opts = item.options ? (() => { try { return (JSON.parse(item.options) as string[]).join(', ') } catch { return '' } })() : ''
-    setForm({ name: item.name, code: item.code, fieldType: item.fieldType, options: opts, displayOrder: item.displayOrder, isActive: item.isActive, showOnCard: item.showOnCard })
+    setForm({ name: item.name, code: item.code, fieldType: item.fieldType, options: opts, displayOrder: item.displayOrder, isActive: item.isActive, showOnCard: item.showOnCard, editableBy: item.editableBy })
     setCodeManual(true) // never auto-rewrite an existing field's code from its name
     setError(''); clearAll()
     setFormOpen(true)
@@ -96,10 +104,10 @@ export default function CustomFieldsPage() {
 
     try {
       if (editing) {
-        await updateMutation.mutateAsync({ id: editing.id, name: form.name, code: form.code, fieldType: form.fieldType, options: optionsJson, displayOrder: form.displayOrder, isActive: form.isActive, showOnCard: form.showOnCard })
+        await updateMutation.mutateAsync({ id: editing.id, name: form.name, code: form.code, fieldType: form.fieldType, options: optionsJson, displayOrder: form.displayOrder, isActive: form.isActive, showOnCard: form.showOnCard, editableBy: form.editableBy })
         toast.success('Champ personnalisé modifié')
       } else {
-        await createMutation.mutateAsync({ name: form.name, code: form.code, fieldType: form.fieldType, options: optionsJson, displayOrder: form.displayOrder, isActive: form.isActive, showOnCard: form.showOnCard })
+        await createMutation.mutateAsync({ name: form.name, code: form.code, fieldType: form.fieldType, options: optionsJson, displayOrder: form.displayOrder, isActive: form.isActive, showOnCard: form.showOnCard, editableBy: form.editableBy })
         toast.success('Champ personnalisé créé')
       }
       setFormOpen(false)
@@ -150,6 +158,7 @@ export default function CustomFieldsPage() {
                 <TableHead>Nom</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Rempli par</TableHead>
                 <TableHead className="text-center">Carte</TableHead>
                 <TableHead className="text-center">Ordre</TableHead>
                 <TableHead className="text-center">Actif</TableHead>
@@ -162,6 +171,7 @@ export default function CustomFieldsPage() {
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell className="text-muted-foreground">{item.code}</TableCell>
                   <TableCell>{FIELD_TYPE_LABELS[item.fieldType] ?? item.fieldType}</TableCell>
+                  <TableCell className="text-muted-foreground">{EDITABLE_BY_LABELS[item.editableBy] ?? item.editableBy}</TableCell>
                   <TableCell className="text-center">
                     {item.showOnCard ? <Badge className="bg-blue-600">Carte</Badge> : <span className="text-muted-foreground">—</span>}
                   </TableCell>
@@ -224,6 +234,20 @@ export default function CustomFieldsPage() {
                 <Input id="cf-options" value={form.options} onChange={(e) => setForm(f => ({ ...f, options: e.target.value }))} placeholder="Option 1, Option 2, Option 3" />
               </div>
             )}
+            <div className="space-y-2">
+              <RequiredLabel htmlFor="cf-editable">Rempli par</RequiredLabel>
+              <Select value={form.editableBy} onValueChange={(v) => setForm(f => ({ ...f, editableBy: v as CustomFieldEditableBy }))}>
+                <SelectTrigger id="cf-editable"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Member">Le membre (et les chefs)</SelectItem>
+                  <SelectItem value="UnitLeader">Chef d'unité (et chef de groupe)</SelectItem>
+                  <SelectItem value="GroupLeader">Chef de groupe uniquement</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Qui peut renseigner ce champ. Un niveau supérieur peut toujours modifier les champs des niveaux inférieurs ; tout le monde peut le consulter.
+              </p>
+            </div>
             <div className="space-y-2">
               <RequiredLabel htmlFor="cf-order">Ordre d'affichage</RequiredLabel>
               <Input id="cf-order" type="number" value={form.displayOrder} onChange={(e) => setForm(f => ({ ...f, displayOrder: parseInt(e.target.value) || 0 }))} />

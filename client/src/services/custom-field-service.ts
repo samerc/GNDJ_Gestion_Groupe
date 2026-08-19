@@ -3,6 +3,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
+// Who may fill a custom field: Member (youth themselves + leaders), UnitLeader (chef d'unité + CG),
+// or GroupLeader (chef de groupe only). Reading is unaffected.
+export type CustomFieldEditableBy = 'Member' | 'UnitLeader' | 'GroupLeader'
+
 export interface CustomFieldDto {
   id: string
   name: string
@@ -12,6 +16,7 @@ export interface CustomFieldDto {
   displayOrder: number
   isActive: boolean
   showOnCard: boolean
+  editableBy: CustomFieldEditableBy
   valueCount: number
 }
 
@@ -22,6 +27,7 @@ export interface CustomFieldListDto {
   fieldType: string
   options: string | null
   showOnCard: boolean
+  editableBy: CustomFieldEditableBy
 }
 
 export interface MemberCustomFieldValueDto {
@@ -63,7 +69,7 @@ export function useMemberCustomFieldValues(memberId: string) {
 export function useCreateCustomField() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; code: string; fieldType: string; options?: string | null; displayOrder: number; isActive: boolean; showOnCard: boolean }) =>
+    mutationFn: (data: { name: string; code: string; fieldType: string; options?: string | null; displayOrder: number; isActive: boolean; showOnCard: boolean; editableBy: CustomFieldEditableBy }) =>
       apiClient.post('/custom-fields', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-fields'] }),
   })
@@ -73,7 +79,7 @@ export function useCreateCustomField() {
 export function useUpdateCustomField() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name: string; code: string; fieldType: string; options?: string | null; displayOrder: number; isActive: boolean; showOnCard: boolean }) =>
+    mutationFn: ({ id, ...data }: { id: string; name: string; code: string; fieldType: string; options?: string | null; displayOrder: number; isActive: boolean; showOnCard: boolean; editableBy: CustomFieldEditableBy }) =>
       apiClient.put(`/custom-fields/${id}`, { id, ...data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-fields'] }),
   })
@@ -103,6 +109,26 @@ export function useDeleteMemberCustomFieldValue(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiClient.delete(`/custom-fields/values/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-fields', 'member', memberId] }),
+  })
+}
+
+// ── Member self-service (Ma fiche): set/clear one's OWN value — server allows only Member-editable fields ──
+// PUT /my-profile/custom-fields/{fieldId} — upsert own value (auth-only, own member resolved server-side).
+export function useSetMyCustomFieldValue(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { customFieldId: string; value: string }) =>
+      apiClient.put(`/my-profile/custom-fields/${data.customFieldId}`, { value: data.value }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-fields', 'member', memberId] }),
+  })
+}
+
+// DELETE /my-profile/custom-fields/{fieldId} — clear own value.
+export function useDeleteMyCustomFieldValue(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (customFieldId: string) => apiClient.delete(`/my-profile/custom-fields/${customFieldId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-fields', 'member', memberId] }),
   })
 }

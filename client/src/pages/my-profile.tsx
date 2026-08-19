@@ -361,7 +361,7 @@ export default function MyProfilePage() {
               )}
             </CardContent>
           </Card>
-          <MemberCustomFields memberId={memberId} />
+          <MemberCustomFields memberId={memberId} selfService />
         </TabsContent>
       </Tabs>
 

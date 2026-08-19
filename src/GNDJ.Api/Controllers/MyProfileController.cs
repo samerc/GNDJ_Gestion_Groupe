@@ -1,3 +1,4 @@
+using GNDJ.Application.CustomFields;
 using GNDJ.Application.Guardians;
 using GNDJ.Application.Members.Commands.MyContacts;
 using GNDJ.Application.Members.Commands.UpdateMyProfile;
@@ -111,6 +112,24 @@ public class MyProfileController : BaseApiController
     /// <summary>Removes an email from one of the caller's own linked guardians.</summary>
     [HttpDelete("guardian-emails/{id:guid}")]
     public async Task<IActionResult> DeleteGuardianEmail(Guid id) => Wrap(await Mediator.Send(new DeleteMyGuardianEmailCommand(id)));
+
+    // ── Infos complémentaires: own custom-field values (only fields the CG opened to members) ──────────
+
+    /// <summary>Sets one of the caller's own custom-field values — only for fields whose EditableBy = Member.</summary>
+    [HttpPut("custom-fields/{customFieldId:guid}")]
+    public async Task<IActionResult> SetCustomFieldValue(Guid customFieldId, [FromBody] SetValueRequest body)
+    {
+        var result = await Mediator.Send(new SetMyCustomFieldValueCommand(customFieldId, body.Value));
+        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+    }
+
+    /// <summary>Clears one of the caller's own custom-field values (Member-editable fields only).</summary>
+    [HttpDelete("custom-fields/{customFieldId:guid}")]
+    public async Task<IActionResult> DeleteCustomFieldValue(Guid customFieldId)
+        => Wrap(await Mediator.Send(new DeleteMyCustomFieldValueCommand(customFieldId)));
+
+    /// <summary>Body for setting a custom-field value.</summary>
+    public record SetValueRequest(string Value);
 
     // ── Trombinoscope: the member views the photo grid of the unit(s) they belong(ed) to, per year ──────
 
