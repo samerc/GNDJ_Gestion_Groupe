@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Tip } from '@/components/ui/tooltip'
-import { Plus, Pencil, Trash2, Phone, Mail, Users2, Search, UserPlus, Link } from 'lucide-react'
+import { Plus, Pencil, Trash2, Phone, Mail, Search, UserPlus, Link } from 'lucide-react'
 
 const RELATIONSHIP_OPTIONS = [
   { value: 'Père', label: 'Père' },
@@ -32,6 +32,11 @@ const RELATIONSHIP_OPTIONS = [
 const normRel = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 function relationshipLabel(value: string): string {
   return RELATIONSHIP_OPTIONS.find(r => normRel(r.value) === normRel(value))?.label ?? value
+}
+
+// Initials for the guardian avatar (first letter of first + last name), uppercased.
+function guardianInitials(firstName: string, lastName: string): string {
+  return `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase() || '?'
 }
 
 // "Famille" tab of the member detail page: parents/tutors (guardians) linked to this member,
@@ -187,18 +192,32 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
         <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">Aucun parent ou tuteur enregistré.</CardContent></Card>
       ) : (
         guardians.map(gl => (
-          <Card key={gl.linkId}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users2 className="h-4 w-4" />
-                  <CardTitle className="text-base">{gl.guardian.firstName} {gl.guardian.lastName}</CardTitle>
-                  <Badge variant="outline">{relationshipLabel(gl.relationshipType)}</Badge>
-                  {gl.guardian.isDeceased && <Badge variant="secondary">Décédé(e)</Badge>}
-                  {gl.isPrimaryContact && <Badge>Contact principal</Badge>}
-                  {gl.isEmergencyContact && <Badge variant="destructive">Urgence</Badge>}
+          <Card key={gl.linkId} className="overflow-hidden">
+            {/* Header: avatar with initials + name, relationship/flag badges, edit/remove actions. */}
+            <CardHeader className="border-b bg-muted/30">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                    {guardianInitials(gl.guardian.firstName, gl.guardian.lastName)}
+                  </div>
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <CardTitle className="text-base leading-tight">{gl.guardian.firstName} {gl.guardian.lastName}</CardTitle>
+                      <Badge variant="outline">{relationshipLabel(gl.relationshipType)}</Badge>
+                      {gl.guardian.isDeceased && <Badge variant="secondary">Décédé(e)</Badge>}
+                      {gl.isPrimaryContact && <Badge>Contact principal</Badge>}
+                      {gl.isEmergencyContact && <Badge variant="destructive">Urgence</Badge>}
+                    </div>
+                    {(gl.guardian.professionDomain || gl.guardian.profession) && (
+                      <p className="text-sm text-muted-foreground">
+                        {gl.guardian.professionDomain && <span>{gl.guardian.professionDomain}</span>}
+                        {gl.guardian.professionDomain && gl.guardian.profession && ' · '}
+                        {gl.guardian.profession && <span>{gl.guardian.profession}</span>}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex shrink-0 gap-1">
                   <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(gl)}>
                     <Pencil className="h-4 w-4" />
                   </Button></Tip>
@@ -207,33 +226,28 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                   </Button></Tip>
                 </div>
               </div>
-              {(gl.guardian.professionDomain || gl.guardian.profession) && (
-                <p className="text-sm text-muted-foreground">
-                  {gl.guardian.professionDomain && <span>{gl.guardian.professionDomain}</span>}
-                  {gl.guardian.professionDomain && gl.guardian.profession && ' · '}
-                  {gl.guardian.profession && <span>{gl.guardian.profession}</span>}
-                </p>
-              )}
             </CardHeader>
-            <CardContent className="space-y-3">
+            {/* Contact blocks: phones + emails side by side on wider screens. */}
+            <CardContent className="grid gap-4 pt-4 sm:grid-cols-2">
               {/* Phones */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium flex items-center gap-1"><Phone className="h-3 w-3" />Téléphones</span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Phone className="h-3.5 w-3.5" />Téléphones</span>
                   <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setPhoneForm({ countryCode: defaultCountryCode ?? '+961', number: '', type: 'Mobile', isPrimary: false }); setPhoneDialog(gl.guardianId) }}>
                     <Plus className="mr-1 h-3 w-3" />Ajouter
                   </Button>
                 </div>
                 {gl.guardian.phones.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Aucun téléphone</p>
+                  <p className="text-xs text-muted-foreground italic">Aucun téléphone</p>
                 ) : (
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     {gl.guardian.phones.map(p => (
-                      <div key={p.id} className="flex items-center gap-2 text-sm">
-                        <span>{p.countryCode} {p.number}</span>
-                        <span className="text-muted-foreground text-xs">{p.type}</span>
-                        {p.isPrimary && <Badge variant="outline" className="text-xs h-5">Principal</Badge>}
-                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8 ml-auto" disabled={deletePhoneMutation.isPending} onClick={() => deletePhoneMutation.mutateAsync(p.id).then(() => toast.success('Téléphone supprimé')).catch(err => toast.error(parseApiError(err)))}>
+                      <div key={p.id} className="group flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-sm">
+                        <Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="font-medium">{p.countryCode} {p.number}</span>
+                        <span className="text-xs text-muted-foreground">{p.type}</span>
+                        {p.isPrimary && <Badge variant="outline" className="h-5 text-xs">Principal</Badge>}
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="ml-auto h-7 w-7 opacity-60 transition-opacity group-hover:opacity-100" disabled={deletePhoneMutation.isPending} onClick={() => deletePhoneMutation.mutateAsync(p.id).then(() => toast.success('Téléphone supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button></Tip>
                       </div>
@@ -242,23 +256,24 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                 )}
               </div>
               {/* Emails */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium flex items-center gap-1"><Mail className="h-3 w-3" />Courriels</span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Mail className="h-3.5 w-3.5" />Courriels</span>
                   <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEmailForm({ address: '', type: 'Personnel', isPrimary: false }); setEmailDialog(gl.guardianId) }}>
                     <Plus className="mr-1 h-3 w-3" />Ajouter
                   </Button>
                 </div>
                 {gl.guardian.emails.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Aucun courriel</p>
+                  <p className="text-xs text-muted-foreground italic">Aucun courriel</p>
                 ) : (
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     {gl.guardian.emails.map(em => (
-                      <div key={em.id} className="flex items-center gap-2 text-sm">
-                        <span>{em.address}</span>
-                        <span className="text-muted-foreground text-xs">{em.type}</span>
-                        {em.isPrimary && <Badge variant="outline" className="text-xs h-5">Principal</Badge>}
-                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8 ml-auto" disabled={deleteEmailMutation.isPending} onClick={() => deleteEmailMutation.mutateAsync(em.id).then(() => toast.success('Courriel supprimé')).catch(err => toast.error(parseApiError(err)))}>
+                      <div key={em.id} className="group flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-sm">
+                        <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate font-medium">{em.address}</span>
+                        <span className="text-xs text-muted-foreground">{em.type}</span>
+                        {em.isPrimary && <Badge variant="outline" className="h-5 text-xs">Principal</Badge>}
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="ml-auto h-7 w-7 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" disabled={deleteEmailMutation.isPending} onClick={() => deleteEmailMutation.mutateAsync(em.id).then(() => toast.success('Courriel supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button></Tip>
                       </div>

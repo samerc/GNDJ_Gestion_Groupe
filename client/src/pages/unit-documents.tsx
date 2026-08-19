@@ -701,7 +701,7 @@ export default function UnitDocumentsPage() {
                 </div>
               ) : (
                 <div className="flex justify-end">
-                  <Button type="button" variant="ghost" size="sm" className="text-slate-600 hover:text-slate-800" disabled={setExempt.isPending}
+                  <Button type="button" variant="outline" size="sm" className="text-slate-600 hover:text-slate-800" disabled={setExempt.isPending}
                     onClick={() => cotisationMember && toggleExempt(cotisationMember, true)}>
                     <Ban className="mr-1 h-3.5 w-3.5" />Ce membre ne paiera pas
                   </Button>

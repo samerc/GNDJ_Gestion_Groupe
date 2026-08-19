@@ -276,8 +276,9 @@ export default function PassagePage() {
     }
   }
 
-  const openBulk = (mode: 'same' | 'move') => {
+  const openBulk = async (mode: 'same' | 'move') => {
     setBulkMode(mode)
+    setDestinations([])
     if (mode === 'same') {
       // For "no change", we'll use the first selected member's current unit
       const firstSelected = memberRows.find(m => selected.has(m.memberId))
@@ -290,6 +291,17 @@ export default function PassagePage() {
       setPropUnitId('')
       setPropTeamId('')
       setPropRoleId('')
+      // Load the parcours destinations so the bulk "Déplacer vers…" picker matches the single-member
+      // dialog (Même branche / Unité supérieure) instead of listing every unit + every function. All
+      // selected members are in the same unit, so they share the same branch/progression targets — fetch
+      // for the first one.
+      const firstSelected = memberRows.find(m => selected.has(m.memberId))
+      if (firstSelected) {
+        try {
+          const { data: dests } = await apiClient.get<PassageDestination[]>(`/unit-type-progressions/destinations/${firstSelected.memberId}`)
+          setDestinations(dests ?? [])
+        } catch { /* destinations are optional — falls back to all units */ }
+      }
     }
     setPropNotes('')
     setFormError('')
@@ -351,7 +363,7 @@ export default function PassagePage() {
       case 'Approved': return <Badge className="bg-green-600">{passage.proposedUnitId === passage.currentUnitId && passage.proposedRoleName === passage.currentRoleName ? 'Pas de changement' : 'Accepté'}</Badge>
       case 'Rejected': return <Badge variant="destructive">Rejeté</Badge>
       case 'Finalized': return <Badge className="bg-blue-600">Finalisé</Badge>
-      default: return <Badge variant="secondary">En attente</Badge>
+      default: return <Badge className="bg-yellow-500 text-white hover:bg-yellow-500">En attente</Badge>
     }
   }
 
@@ -430,6 +442,93 @@ export default function PassagePage() {
       </div>
     )
   }
+
+  // Destination (unité) <Select> shared by the single + bulk propose dialogs. Driven by the member's
+  // parcours scout: "Même branche" (équipe/fonction change) vs "Unité supérieure" (progression target);
+  // falls back to all active units if no parcours is defined. Selecting an "up" unit locks the fonction
+  // to the base youth role of that type.
+  const renderDestinationSelect = () => {
+    const sameUnits = destinations.filter(d => d.kind === 'same')
+    const upUnits = destinations.filter(d => d.kind === 'up')
+    const hasParcours = destinations.length > 0
+    const changeRoleForType = (newType: string | undefined) => {
+      const roleType = roles.find(r => r.id === propRoleId)?.unitTypeId
+      if (roleType != null && roleType !== newType) setPropRoleId('')
+    }
+    return (
+      <Select value={propUnitId} onValueChange={(v) => {
+        setPropUnitId(v); setPropTeamId('')
+        const dest = destinations.find(d => d.unitId === v)
+        const newType = dest?.unitTypeId ?? units.find(u => u.id === v)?.unitTypeId
+        // Moving UP the parcours (unité supérieure): a member always starts at the base youth role
+        // (e.g. Éclaireur) — auto-select it and lock the Fonction picker. Staying in the same branch:
+        // keep the CU's existing choice (unless the type changed).
+        if (dest?.kind === 'up') setPropRoleId(baseRoleForType(newType)?.id ?? '')
+        else changeRoleForType(newType)
+      }}>
+        <SelectTrigger><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
+        <SelectContent>
+          {hasParcours ? (
+            <>
+              {sameUnits.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel>Même branche — changement d'équipe / fonction</SelectLabel>
+                  {sameUnits.map(d => <SelectItem key={d.unitId} value={d.unitId}>{d.unitCode} — {d.unitName}</SelectItem>)}
+                </SelectGroup>
+              )}
+              {upUnits.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel>Unité supérieure (parcours scout)</SelectLabel>
+                  {upUnits.map(d => <SelectItem key={d.unitId} value={d.unitId}>{d.unitCode} — {d.unitName}</SelectItem>)}
+                </SelectGroup>
+              )}
+            </>
+          ) : (
+            units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)
+          )}
+        </SelectContent>
+      </Select>
+    )
+  }
+
+  // Fonction <Select> shared by both dialogs. Offers only the non-archived, non-maîtrise functions of the
+  // destination unit's TYPE (this is a member passage). Moving UP the parcours locks it to the base youth role.
+  const renderFonctionSelect = () => {
+    const destTypeId = destinations.find(d => d.unitId === propUnitId)?.unitTypeId ?? units.find(u => u.id === propUnitId)?.unitTypeId
+    const isUp = destinations.some(d => d.unitId === propUnitId && d.kind === 'up')
+    let fnRoles = roles.filter(r => !r.isArchived && !r.isMaitrise && (destTypeId ? r.unitTypeId === destTypeId : true))
+    if (isUp) {
+      const base = baseRoleForType(destTypeId)
+      fnRoles = base ? [base] : []
+    }
+    return (
+      <Select value={propRoleId} onValueChange={setPropRoleId} disabled={isUp}>
+        <SelectTrigger><SelectValue placeholder="Sélectionner une fonction" /></SelectTrigger>
+        <SelectContent>
+          {fnRoles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    )
+  }
+
+  // Équipe block, shown only when the destination unit == the member's current unit (staying in-unit);
+  // a cross-unit move leaves team assignment to the new CU.
+  const renderTeamBlock = (currentUnitId: string) => (
+    propUnitId === currentUnitId ? (
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Équipe</label>
+        <Select value={propTeamId || '_none'} onValueChange={(v) => setPropTeamId(v === '_none' ? '' : v)}>
+          <SelectTrigger><SelectValue placeholder="Aucune équipe" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_none">Aucune équipe</SelectItem>
+            {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+    ) : propUnitId ? (
+      <p className="text-xs text-muted-foreground rounded-md bg-muted/50 p-2">L'équipe sera assignée par le nouveau chef d'unité après le passage.</p>
+    ) : null
+  )
 
   return (
     <div className="space-y-6">
@@ -609,95 +708,14 @@ export default function PassagePage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Unité de destination</label>
-              {(() => {
-                // Drive the choices from the parcours scout: stay in the SAME unit (team/function change)
-                // or move to a progression target unit (returned by the endpoint even if out of the CU's
-                // scope, e.g. Noyau). Fall back to the CU's own units if no parcours is defined.
-                const sameUnits = destinations.filter(d => d.kind === 'same')
-                const upUnits = destinations.filter(d => d.kind === 'up')
-                const hasParcours = destinations.length > 0
-                const changeRoleForType = (newType: string | undefined) => {
-                  const roleType = roles.find(r => r.id === propRoleId)?.unitTypeId
-                  if (roleType != null && roleType !== newType) setPropRoleId('')
-                }
-                return (
-                  <Select value={propUnitId} onValueChange={(v) => {
-                    setPropUnitId(v); setPropTeamId('')
-                    const dest = destinations.find(d => d.unitId === v)
-                    const newType = dest?.unitTypeId ?? units.find(u => u.id === v)?.unitTypeId
-                    // Moving UP the parcours (unité supérieure): a member always starts at the base youth
-                    // role (e.g. Éclaireur) — auto-select it and lock the Fonction picker below. Staying in
-                    // the same branch: keep the CU's existing choice (unless the type changed).
-                    if (dest?.kind === 'up') setPropRoleId(baseRoleForType(newType)?.id ?? '')
-                    else changeRoleForType(newType)
-                  }}>
-                    <SelectTrigger><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
-                    <SelectContent>
-                      {hasParcours ? (
-                        <>
-                          {sameUnits.length > 0 && (
-                            <SelectGroup>
-                              <SelectLabel>Même branche — changement d'équipe / fonction</SelectLabel>
-                              {sameUnits.map(d => <SelectItem key={d.unitId} value={d.unitId}>{d.unitCode} — {d.unitName}</SelectItem>)}
-                            </SelectGroup>
-                          )}
-                          {upUnits.length > 0 && (
-                            <SelectGroup>
-                              <SelectLabel>Unité supérieure (parcours scout)</SelectLabel>
-                              {upUnits.map(d => <SelectItem key={d.unitId} value={d.unitId}>{d.unitCode} — {d.unitName}</SelectItem>)}
-                            </SelectGroup>
-                          )}
-                        </>
-                      ) : (
-                        units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)
-                      )}
-                    </SelectContent>
-                  </Select>
-                )
-              })()}
+              {renderDestinationSelect()}
             </div>
 
-            {propUnitId === editingMember?.currentUnitId && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Équipe</label>
-                <Select value={propTeamId || '_none'} onValueChange={(v) => setPropTeamId(v === '_none' ? '' : v)}>
-                  <SelectTrigger><SelectValue placeholder="Aucune équipe" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">Aucune équipe</SelectItem>
-                    {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {propUnitId !== editingMember?.currentUnitId && (
-              <p className="text-xs text-muted-foreground rounded-md bg-muted/50 p-2">L'équipe sera assignée par le nouveau chef d'unité après le passage.</p>
-            )}
+            {renderTeamBlock(editingMember?.currentUnitId ?? '')}
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Fonction</label>
-              {(() => {
-                // Only the functions of the selected destination unit's TYPE (e.g. C3 → Compagnie functions,
-                // N → Noyau functions), non-archived. This is a MEMBER passage (the parcours is a member
-                // parcours), so maîtrise (leadership) functions are excluded. The destination may be out of
-                // the CU's scope (e.g. Noyau), so resolve its type from the destinations list first.
-                const destTypeId = destinations.find(d => d.unitId === propUnitId)?.unitTypeId ?? units.find(u => u.id === propUnitId)?.unitTypeId
-                // Moving UP to a higher unit: only the base youth role is offered (a new arrival always starts
-                // at the bottom, e.g. Éclaireur) — the CU can't grant Chef/Second de Patrouille via a passage.
-                const isUp = destinations.some(d => d.unitId === propUnitId && d.kind === 'up')
-                let fnRoles = roles.filter(r => !r.isArchived && !r.isMaitrise && (destTypeId ? r.unitTypeId === destTypeId : true))
-                if (isUp) {
-                  const base = baseRoleForType(destTypeId)
-                  fnRoles = base ? [base] : []
-                }
-                return (
-                  <Select value={propRoleId} onValueChange={setPropRoleId} disabled={isUp}>
-                    <SelectTrigger><SelectValue placeholder="Sélectionner une fonction" /></SelectTrigger>
-                    <SelectContent>
-                      {fnRoles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                )
-              })()}
+              {renderFonctionSelect()}
             </div>
 
             <div className="space-y-2">
@@ -732,39 +750,18 @@ export default function PassagePage() {
 
             {bulkMode === 'move' && (
               <>
+                {/* Same parcours-driven pickers as the single-member dialog (Même branche / Unité
+                    supérieure), not the full unit + function lists. All selected members are in this unit. */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Unite de destination</label>
-                  <Select value={propUnitId} onValueChange={(v) => { setPropUnitId(v); setPropTeamId('') }}>
-                    <SelectTrigger><SelectValue placeholder="Selectionner une unite" /></SelectTrigger>
-                    <SelectContent>
-                      {units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <label className="text-sm font-medium">Unité de destination</label>
+                  {renderDestinationSelect()}
                 </div>
 
-                {propUnitId === unitId ? (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Équipe</label>
-                    <Select value={propTeamId || '_none'} onValueChange={(v) => setPropTeamId(v === '_none' ? '' : v)}>
-                      <SelectTrigger><SelectValue placeholder="Aucune équipe" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="_none">Aucune équipe</SelectItem>
-                        {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : propUnitId && (
-                  <p className="text-xs text-muted-foreground rounded-md bg-muted/50 p-2">L'équipe sera assignée par le nouveau chef d'unité après le passage.</p>
-                )}
+                {renderTeamBlock(unitId)}
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Fonction</label>
-                  <Select value={propRoleId} onValueChange={setPropRoleId}>
-                    <SelectTrigger><SelectValue placeholder="Selectionner une fonction" /></SelectTrigger>
-                    <SelectContent>
-                      {roles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  {renderFonctionSelect()}
                 </div>
               </>
             )}

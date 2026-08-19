@@ -22,10 +22,11 @@ import { useUnits } from '@/services/unit-service'
 import { useTeams, teamsForSelect } from '@/services/team-service'
 import { useFunctionalRoles } from '@/services/role-service'
 import { parseApiError } from '@/lib/error-utils'
+import apiClient from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
@@ -46,6 +47,18 @@ import {
   ToggleRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
+
+// One allowed move target for a member from the parcours scout: kind 'same' = stay in the branch
+// (équipe/fonction change), kind 'up' = a progression target unit (unité supérieure). Mirrors the CU page.
+interface PassageDestination {
+  unitId: string
+  unitCode: string
+  unitName: string
+  unitTypeId: string
+  unitTypeName: string
+  kind: 'same' | 'up'
+  reason: string
+}
 
 export default function PassageValidationPage() {
   const passageScoutYear = useSettingValue('passage.scout_year') ?? '2026-2027'
@@ -74,6 +87,11 @@ export default function PassageValidationPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [editDialog, setEditDialog] = useState<PassageDto | null>(null)
   const [finalizeDialog, setFinalizeDialog] = useState(false)
+  // By default the CG only sees members actually changing unit (or leaving) — the real passages to review.
+  // Toggle on to also show members staying in their unit (no change / équipe change).
+  const [showSameUnit, setShowSameUnit] = useState(false)
+  // Parcours scout destinations for the member being edited (drives the "Unité finale" picker).
+  const [destinations, setDestinations] = useState<PassageDestination[]>([])
   // Passage id currently being quick-approved/rejected — so ONLY that row's buttons disable
   // (a shared reviewMutation.isPending would grey every row while one request is in flight).
   const [pendingId, setPendingId] = useState<string | null>(null)
@@ -93,6 +111,26 @@ export default function PassageValidationPage() {
 
   const isLoading = statusLoading || summaryLoading || passagesLoading
   const passageList = passages ?? []
+  // A true "Pas de changement" = SAME unit AND team AND role (this is what the backend auto-approves).
+  // A member changing ÉQUIPE or fonction within the same unit is NOT a no-change — it stays Pending and
+  // MUST be reviewed/approved by the CG, else finalize (which only processes Approved lines) skips it and
+  // the change is lost. So the default view hides only true no-change members, keeping every real change
+  // (unit move, équipe change, fonction change, leaving) visible.
+  const isNoChange = (p: PassageDto) =>
+    !p.isLeaving
+    && p.proposedUnitId === p.currentUnitId
+    && (p.proposedTeamName ?? null) === (p.currentTeamName ?? null)
+    && p.proposedRoleName === p.currentRoleName
+  const visiblePassages = showSameUnit ? passageList : passageList.filter(p => !isNoChange(p))
+  const noChangeCount = passageList.filter(isNoChange).length
+
+  // The base youth role of a unit type = the fonction a new arrival gets (explicit "défaut pour les
+  // nouveaux membres" role, else the lowest-rank non-archived, non-maîtrise one). Used when a member
+  // moves UP the parcours — they start at the bottom.
+  const baseRoleForType = (type: string | undefined | null) => {
+    const list = roles.filter(r => !r.isArchived && !r.isMaitrise && (type ? r.unitTypeId === type : true))
+    return list.find(r => r.isDefaultForNewMembers) ?? [...list].sort((a, b) => a.rank - b.rank)[0]
+  }
 
   const handleToggle = async () => {
     try {
@@ -114,8 +152,8 @@ export default function PassageValidationPage() {
   }
 
   const toggleAll = () => {
-    if (selected.size === passageList.length) setSelected(new Set())
-    else setSelected(new Set(passageList.map(p => p.id)))
+    if (selected.size === visiblePassages.length) setSelected(new Set())
+    else setSelected(new Set(visiblePassages.map(p => p.id)))
   }
 
   // Approve as-is: accept the CU's proposed unit/team unchanged (role left to the new CU to assign).
@@ -155,14 +193,38 @@ export default function PassageValidationPage() {
   }
 
   // Review-and-modify: open the dialog pre-filled with the final values if already set, else the CU proposal.
-  // finalRole is stored by name on the DTO, so resolve it back to a role id for the Select.
-  const openEditDialog = (passage: PassageDto) => {
+  // finalRole is stored by name on the DTO, so resolve it back to a role id for the Select. Loads the member's
+  // parcours destinations so the CG picks only from the units the member can actually go to (not every unit).
+  const openEditDialog = async (passage: PassageDto) => {
     setEditDialog(passage)
-    setEditFinalUnitId(passage.finalUnitId ?? passage.proposedUnitId)
-    setEditFinalTeamId(passage.finalTeamId ?? passage.proposedTeamId ?? '')
-    setEditFinalRoleId(passage.finalRoleName ? roles.find(r => r.name === passage.finalRoleName)?.id ?? '' : '')
-    setEditCgNotes(passage.cgNotes ?? '')
     setEditError('')
+    setEditCgNotes(passage.cgNotes ?? '')
+    setEditFinalTeamId(passage.finalTeamId ?? passage.proposedTeamId ?? '')
+    const defaultUnit = passage.finalUnitId ?? passage.proposedUnitId
+    setEditFinalUnitId(defaultUnit)
+
+    // Fetch the allowed destinations (current branch + parcours targets) before resolving the role default.
+    setDestinations([])
+    let dests: PassageDestination[] = []
+    try {
+      const { data } = await apiClient.get<PassageDestination[]>(`/unit-type-progressions/destinations/${passage.memberId}`)
+      dests = data ?? []
+      setDestinations(dests)
+    } catch { /* destinations optional — falls back to all units */ }
+
+    // Role default: a final role if the CG already set one, else the CU's proposed role — but if the default
+    // unit is an "up" parcours target, force the base youth role (a new arrival starts at the bottom, locked).
+    const isUp = dests.some(d => d.unitId === defaultUnit && d.kind === 'up')
+    if (isUp) {
+      const typeId = dests.find(d => d.unitId === defaultUnit)?.unitTypeId ?? units.find(u => u.id === defaultUnit)?.unitTypeId
+      setEditFinalRoleId(baseRoleForType(typeId)?.id ?? roles.find(r => r.name === passage.proposedRoleName)?.id ?? '')
+    } else {
+      setEditFinalRoleId(
+        passage.finalRoleName
+          ? roles.find(r => r.name === passage.finalRoleName)?.id ?? ''
+          : roles.find(r => r.name === passage.proposedRoleName)?.id ?? '',
+      )
+    }
   }
 
   const handleEditSubmit = async () => {
@@ -343,6 +405,13 @@ export default function PassageValidationPage() {
             <SelectItem value="Finalized">Finalisé</SelectItem>
           </SelectContent>
         </Select>
+        {/* Default view = every real change (unit move, équipe/fonction change, leaving); toggle to also
+            see the "Pas de changement" members (same unit + équipe + fonction, auto-approved). */}
+        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+          <input type="checkbox" checked={showSameUnit} onChange={e => { setShowSameUnit(e.target.checked); setSelected(new Set()) }} />
+          Afficher les membres sans changement
+          {noChangeCount > 0 && <Badge variant="secondary" className="ml-1">{noChangeCount}</Badge>}
+        </label>
       </div>
 
       {/* Bulk actions */}
@@ -363,8 +432,16 @@ export default function PassageValidationPage() {
       )}
 
       {/* Table */}
-      {passageList.length === 0 ? (
-        <EmptyState icon={ArrowRightLeft} title="Aucun passage" description="Aucune proposition de passage pour cette année scolaire." />
+      {visiblePassages.length === 0 ? (
+        <EmptyState
+          icon={ArrowRightLeft}
+          title="Aucun passage"
+          description={
+            !showSameUnit && noChangeCount > 0
+              ? `Aucun changement à revoir. ${noChangeCount} membre(s) sans changement — cochez la case ci-dessus pour les afficher.`
+              : 'Aucune proposition de passage pour cette année scolaire.'
+          }
+        />
       ) : (
         <div className="rounded-lg border overflow-x-auto">
           <table className="w-full text-sm min-w-[800px]">
@@ -373,7 +450,7 @@ export default function PassageValidationPage() {
                 <th className="px-3 py-2 w-10">
                   <input
                     type="checkbox"
-                    checked={selected.size === passageList.length && passageList.length > 0}
+                    checked={selected.size === visiblePassages.length && visiblePassages.length > 0}
                     onChange={toggleAll}
                   />
                 </th>
@@ -389,7 +466,7 @@ export default function PassageValidationPage() {
               </tr>
             </thead>
             <tbody>
-              {passageList.map((p, idx) => (
+              {visiblePassages.map((p, idx) => (
                 <tr key={p.id} className={`border-b hover:bg-muted/20 ${idx % 2 === 1 ? 'bg-muted/10' : ''}`}>
                   <td className="px-3 py-2">
                     <input
@@ -520,12 +597,57 @@ export default function PassageValidationPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Unité finale</label>
-              <Select value={editFinalUnitId} onValueChange={(v) => { setEditFinalUnitId(v); setEditFinalTeamId('') }}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
-                <SelectContent>
-                  {units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {(() => {
+                // Only the units the member can go to (parcours scout): stay in the SAME branch
+                // (équipe/fonction change) or move to a progression target. The CU's proposed unit is
+                // always kept available even if outside the computed parcours. Falls back to all units.
+                const sameUnits = destinations.filter(d => d.kind === 'same')
+                const upUnits = destinations.filter(d => d.kind === 'up')
+                const hasParcours = destinations.length > 0
+                const proposedInList = destinations.some(d => d.unitId === editDialog?.proposedUnitId)
+                const proposedUnit = units.find(u => u.id === editDialog?.proposedUnitId)
+                return (
+                  <Select value={editFinalUnitId} onValueChange={(v) => {
+                    setEditFinalUnitId(v); setEditFinalTeamId('')
+                    const dest = destinations.find(d => d.unitId === v)
+                    const newType = dest?.unitTypeId ?? units.find(u => u.id === v)?.unitTypeId
+                    // Moving UP → base youth role (locked). Same branch → clear the role only if the type changed.
+                    if (dest?.kind === 'up') setEditFinalRoleId(baseRoleForType(newType)?.id ?? '')
+                    else {
+                      const roleType = roles.find(r => r.id === editFinalRoleId)?.unitTypeId
+                      if (roleType != null && roleType !== newType) setEditFinalRoleId('')
+                    }
+                  }}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
+                    <SelectContent>
+                      {hasParcours ? (
+                        <>
+                          {!proposedInList && proposedUnit && (
+                            <SelectGroup>
+                              <SelectLabel>Proposition CU</SelectLabel>
+                              <SelectItem value={proposedUnit.id}>{proposedUnit.code} — {proposedUnit.name}</SelectItem>
+                            </SelectGroup>
+                          )}
+                          {sameUnits.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>Même branche — changement d'équipe / fonction</SelectLabel>
+                              {sameUnits.map(d => <SelectItem key={d.unitId} value={d.unitId}>{d.unitCode} — {d.unitName}</SelectItem>)}
+                            </SelectGroup>
+                          )}
+                          {upUnits.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>Unité supérieure (parcours scout)</SelectLabel>
+                              {upUnits.map(d => <SelectItem key={d.unitId} value={d.unitId}>{d.unitCode} — {d.unitName}</SelectItem>)}
+                            </SelectGroup>
+                          )}
+                        </>
+                      ) : (
+                        units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)
+                      )}
+                    </SelectContent>
+                  </Select>
+                )
+              })()}
             </div>
 
             <div className="space-y-2">
@@ -541,12 +663,25 @@ export default function PassageValidationPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Fonction finale</label>
-              <Select value={editFinalRoleId} onValueChange={setEditFinalRoleId}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner une fonction" /></SelectTrigger>
-                <SelectContent>
-                  {roles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {(() => {
+                // Only the non-archived, non-maîtrise functions of the destination unit's TYPE (a member
+                // passage). Moving UP the parcours locks it to the base youth role.
+                const destTypeId = destinations.find(d => d.unitId === editFinalUnitId)?.unitTypeId ?? units.find(u => u.id === editFinalUnitId)?.unitTypeId
+                const isUp = destinations.some(d => d.unitId === editFinalUnitId && d.kind === 'up')
+                let fnRoles = roles.filter(r => !r.isArchived && !r.isMaitrise && (destTypeId ? r.unitTypeId === destTypeId : true))
+                if (isUp) {
+                  const base = baseRoleForType(destTypeId)
+                  fnRoles = base ? [base] : []
+                }
+                return (
+                  <Select value={editFinalRoleId} onValueChange={setEditFinalRoleId} disabled={isUp}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner une fonction" /></SelectTrigger>
+                    <SelectContent>
+                      {fnRoles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )
+              })()}
             </div>
 
             <div className="space-y-2">

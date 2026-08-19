@@ -226,7 +226,9 @@ export function MemberCotisations({ memberId, memberName, bare }: Props) {
             // Drop exemption marker rows (no payments) — only show actual paid cotisations.
             const realCotisations = (cotisations ?? []).filter(c => c.payments.length > 0)
             return realCotisations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune cotisation enregistrée.</p>
+            // When the member is exempt ("ne paiera pas"), the status banner already says so —
+            // don't also show the "no cotisation recorded" line (it reads as a contradiction).
+            isExempt ? null : <p className="text-sm text-muted-foreground">Aucune cotisation enregistrée.</p>
           ) : (
             <div className="space-y-3">
               {realCotisations.map(c => (

@@ -2629,6 +2629,32 @@ Three small Paramètres cleanups (frontend + a data patch; DEV until deploy).
   **tabs** (`CONFIG_TABS`, lazy-loaded, mounted only when active). Removed the dropdown + the 3 routes/imports from
   App.tsx (nothing else linked to them). Supersedes the 2026-07-28 "set-and-forget pages behind a dropdown" note.
 
+### Passage UX + Famille/cotisation polish (2026-08-19)
+Frontend-only batch (all on main, pushed at v3.3.0; DEV until deploy).
+- **Passage CG default view = real changes only.** `admin/passage-validation.tsx` now hides **true "Pas de
+  changement"** members by default (same unit AND équipe AND fonction — what the backend auto-approves), keeping
+  every real change visible (unit move, **équipe change**, fonction change, leaving). A checkbox **« Afficher les
+  membres sans changement »** (+ count) reveals them. KEY FIX: an earlier draft hid all same-unit members, which
+  wrongly hid **équipe-changers** — those stay **Pending** and MUST be CG-approved or finalize (only processes
+  `Approved`) silently skips them (the completeness gate only checks a line *exists*, not that it's approved). The
+  no-change detector compares unit id + team **name** + role **name** (the DTO carries names, not team/role ids).
+- **Passage CG « Revue » dialog is parcours-driven.** The « Unité finale » picker now lists **only the units the
+  member can go to** (grouped *Même branche* / *Unité supérieure*, from `GET /unit-type-progressions/destinations/
+  {memberId}`), not every unit; « Fonction finale » scoped to the destination unit's TYPE (non-archived,
+  non-maîtrise), an *up* move auto-selects + locks the base youth role. The CU's proposed unit is always kept
+  selectable (a *Proposition CU* group) even if outside the parcours. Fonction now defaults to the CU's proposed
+  role (was blank); destinations load before the role default is resolved.
+- **Passage CU bulk « Déplacer vers… »** now uses the same parcours-driven pickers as the single-member dialog
+  (extracted `renderDestinationSelect` / `renderFonctionSelect` / `renderTeamBlock` helpers in `passage.tsx`;
+  `openBulk` fetches destinations for the first selected member — all selected are in the same unit). Was listing
+  every unit + every function. The « En attente » status badge is now **yellow** (was grey secondary).
+- **Famille tab redesign** (`member-guardians.tsx`): parent cards get an initials **avatar**, a tinted header band
+  grouping name/relationship/flag badges + profession, and phones/emails as bordered chip rows in a two-column grid
+  (stacked on mobile). Behaviour/dialogs unchanged.
+- **Cotisation:** the « Ce membre ne paiera pas » control is now an outline **button** (was ghost/plain text); on
+  the member Cotisations tab the « Aucune cotisation enregistrée » line is **hidden when the member is exempt** (the
+  exemption banner already states it — the two no longer contradict).
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

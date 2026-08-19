@@ -3,6 +3,11 @@
     "version": "3.3.0",
     "date": "2026-08-19",
     "changes": [
+      "Passage CG : vue par défaut = uniquement les vrais changements (unité / équipe / fonction / départ) ; les « sans changement » masqués, affichables via une case",
+      "Passage CG : la fenêtre « Revue » ne propose que les unités où le membre peut aller (parcours scout) + fonctions de la bonne branche",
+      "Passage CU : « Déplacer vers… » (groupe) utilise le même sélecteur parcours que l'action individuelle ; badge « En attente » en jaune",
+      "Fiche Famille : cartes parents redessinées (avatar initiales, coordonnées en deux colonnes)",
+      "Cotisation : « Ce membre ne paiera pas » stylé en bouton ; ligne « aucune cotisation » masquée quand le membre est exempté",
       "Relance documents : documents affichés par code (survol = nom complet) + sélecteur d'unité (une unité à la fois)",
       "Paramètres : Associations / Champs personnalisés / Carte membre déplacés en onglets ; Contact fusionné dans « Email & contact » ; « Professions épinglées » retiré",
       "Unités & Types d'unité : une seule page pour créer et modifier (bloc « Informations » repliable)",
