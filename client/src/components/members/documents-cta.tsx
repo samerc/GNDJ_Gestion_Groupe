@@ -15,9 +15,22 @@ export function DocumentsCta({ memberId }: { memberId: string }) {
   const latestForType = (docTypeId: string) =>
     documents?.filter((d) => d.documentTypeId === docTypeId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
   const total = docTypes.length
-  const approved = docTypes.filter((dt) => latestForType(dt.id)?.status === 'Approved').length
+  // Per required document type, the status of its latest upload (or "missing" if none).
+  const statuses = docTypes.map((dt) => latestForType(dt.id)?.status ?? 'Missing')
+  const approved = statuses.filter((s) => s === 'Approved').length
+  const pending = statuses.filter((s) => s === 'Pending').length
+  const rejected = statuses.filter((s) => s === 'Rejected').length
+  const missing = statuses.filter((s) => s === 'Missing').length
   const complete = approved === total
-  const pct = Math.round((approved / total) * 100)
+
+  // Sub-label reflects what the member should DO next, so uploaded-but-unapproved docs don't read as "à envoyer".
+  const label = complete
+    ? 'Dossier complet — merci !'
+    : rejected > 0
+      ? `${rejected} document(s) à corriger` + (missing > 0 ? ` · ${missing} à envoyer` : '')
+      : missing > 0
+        ? 'Dossier en cours — envoyez vos documents'
+        : 'Documents envoyés — en attente de validation'
 
   return (
     <Link
@@ -30,13 +43,16 @@ export function DocumentsCta({ memberId }: { memberId: string }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <span className="font-semibold">Mes documents</span>
-          <span className="text-sm font-medium text-muted-foreground">{approved}/{total}</span>
+          {/* Show approved/total, plus a pending hint so "0/2" doesn't look like nothing was submitted. */}
+          <span className="text-sm font-medium text-muted-foreground">
+            {approved}/{total}{pending > 0 && <span className="text-amber-600"> · {pending} en attente</span>}
+          </span>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {complete ? 'Dossier complet — merci !' : 'Dossier en cours — envoyez vos documents'}
-        </p>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div className={`h-full rounded-full transition-all ${complete ? 'bg-green-500' : 'bg-primary'}`} style={{ width: `${pct}%` }} />
+        <p className="text-sm text-muted-foreground">{label}</p>
+        {/* Two-segment bar: green = accepted, amber = uploaded & awaiting validation; grey = missing/à corriger. */}
+        <div className="mt-2 flex h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-full bg-green-500 transition-all" style={{ width: `${(approved / total) * 100}%` }} />
+          <div className="h-full bg-amber-400 transition-all" style={{ width: `${(pending / total) * 100}%` }} />
         </div>
       </div>
       <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />

@@ -171,6 +171,26 @@ public class GetMyChangeRequestsHandler(IApplicationDbContext context, ICurrentU
     }
 }
 
+// ── Dismiss own request (member) ─────────────────────────────────────────────
+// The member acknowledges/clears one of their OWN requests (e.g. a rejected one, so the notice on Ma fiche
+// doesn't linger) — or withdraws a still-pending proposal. Own-record only; soft-deletes the row.
+public record DismissChangeRequestCommand(Guid Id) : IRequest<Result<bool>>;
+
+public class DismissChangeRequestHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<DismissChangeRequestCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(DismissChangeRequestCommand request, CancellationToken ct)
+    {
+        var memberId = currentUser.MemberId;
+        if (memberId is null) return Result<bool>.Failure("Aucun membre associé à ce compte.");
+        var entity = await context.MemberChangeRequests.FindAsync([request.Id], ct);
+        if (entity is null) return Result<bool>.Failure("Demande introuvable.");
+        if (entity.MemberId != memberId) return Result<bool>.Failure("Accès non autorisé à cette demande.");
+        context.MemberChangeRequests.Remove(entity); // soft-delete via interceptor
+        await context.SaveChangesAsync(ct);
+        return Result<bool>.Success(true);
+    }
+}
+
 // ── Pending requests (CU/CG review) ──────────────────────────────────────────
 public record GetPendingChangeRequestsQuery : IRequest<IReadOnlyList<MemberChangeRequestDto>>;
 

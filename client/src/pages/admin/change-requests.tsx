@@ -86,8 +86,9 @@ export default function ChangeRequestsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRejecting(null)}>Annuler</Button>
-            <Button variant="destructive" onClick={confirmReject} disabled={reviewMutation.isPending}>Refuser</Button>
+            {/* "Retour" (dismiss) vs "Confirmer le refus" (the action) — avoids Annuler/Refuser reading as two negatives. */}
+            <Button variant="outline" onClick={() => setRejecting(null)}>Retour</Button>
+            <Button variant="destructive" onClick={confirmReject} disabled={reviewMutation.isPending}>Confirmer le refus</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

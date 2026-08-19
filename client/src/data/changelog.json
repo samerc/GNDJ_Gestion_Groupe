@@ -3,6 +3,9 @@
     "version": "3.3.0",
     "date": "2026-08-19",
     "changes": [
+      "Demandes de modification : un membre voit sa proposition refusée (avec le motif) sur Ma fiche + peut effacer la notification",
+      "Refuser une demande de modification : boutons « Retour » / « Confirmer le refus » (au lieu d'Annuler / Refuser)",
+      "Ma fiche : barre « Mes documents » — documents envoyés mais non validés affichés « en attente » (jaune) au lieu de « à envoyer »",
       "Passage CG : vue par défaut = uniquement les vrais changements (unité / équipe / fonction / départ) ; les « sans changement » masqués, affichables via une case",
       "Passage CG : la fenêtre « Revue » ne propose que les unités où le membre peut aller (parcours scout) + fonctions de la bonne branche",
       "Passage CU : « Déplacer vers… » (groupe) utilise le même sélecteur parcours que l'action individuelle ; badge « En attente » en jaune",

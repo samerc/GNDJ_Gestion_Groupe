@@ -53,6 +53,15 @@ export function useMyChangeRequests(enabled = true) {
   })
 }
 
+// Member dismisses/withdraws one of their OWN requests (clears a rejected notice or a pending proposal).
+export function useDismissChangeRequest() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/change-requests/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['change-requests', 'mine'] }),
+  })
+}
+
 // ── CU/CG: review ────────────────────────────────────────────────────────────
 export function usePendingChangeRequests(enabled = true) {
   return useQuery({

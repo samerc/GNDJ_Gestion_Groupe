@@ -4,7 +4,7 @@ import { useFormValidation } from '@/hooks/use-form-validation'
 import { useAssignments, useCreateAssignment, useUpdateAssignment, useEndAssignment, useDeleteAssignment, useFunctionalRoles, type AssignmentDto, type AssignmentFormData } from '@/services/assignment-service'
 import { useUnits } from '@/services/unit-service'
 import { useTeams, teamsForSelect } from '@/services/team-service'
-import { useProposeAssignment, useMyChangeRequests, useProposableUnits } from '@/services/change-request-service'
+import { useProposeAssignment, useMyChangeRequests, useProposableUnits, useDismissChangeRequest } from '@/services/change-request-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RequiredLabel } from '@/components/shared/required-label'
@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Tip } from '@/components/ui/tooltip'
-import { Plus, Pencil, Trash2, StopCircle, Building2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, StopCircle, Building2, X } from 'lucide-react'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 
@@ -65,7 +65,10 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
   const canPropose = !!(readOnly && selfPropose)
   const proposeMutation = useProposeAssignment()
   const { data: myRequests } = useMyChangeRequests(canPropose)
+  const dismissMutation = useDismissChangeRequest()
   const pendingAssignments = (myRequests ?? []).filter(r => r.kind === 'Assignment' && r.status === 'Pending')
+  // Rejected fonction proposals — shown with the reason so the member gets feedback; dismissible.
+  const rejectedAssignments = (myRequests ?? []).filter(r => r.kind === 'Assignment' && r.status === 'Rejected')
   // When proposing, a member may target ANY active unit (not just their own scoped ones).
   const { data: proposableUnits } = useProposableUnits(canPropose)
 
@@ -156,6 +159,29 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
           <p className="font-medium text-amber-800">En attente d'acceptation</p>
           <ul className="mt-1 space-y-0.5 text-amber-800">
             {pendingAssignments.map(r => <li key={r.id}>• {r.summary}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* A member's REJECTED fonction proposals — shows the decision + reason so they aren't left guessing. */}
+      {canPropose && rejectedAssignments.length > 0 && (
+        <div className="rounded-md border border-red-300 bg-red-50/70 p-3 text-sm">
+          <p className="font-medium text-red-800">Proposition refusée</p>
+          <ul className="mt-1 space-y-1.5">
+            {rejectedAssignments.map(r => (
+              <li key={r.id} className="flex items-start justify-between gap-2 text-red-800">
+                <span>
+                  • {r.summary}
+                  {r.decisionNotes && <span className="mt-0.5 block text-red-700/90">Motif : {r.decisionNotes}</span>}
+                </span>
+                <Tip content="Effacer">
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-red-600 hover:text-red-800" disabled={dismissMutation.isPending}
+                    onClick={() => dismissMutation.mutateAsync(r.id).then(() => toast.success('Notification effacée')).catch(err => toast.error(parseApiError(err)))}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </Tip>
+              </li>
+            ))}
           </ul>
         </div>
       )}

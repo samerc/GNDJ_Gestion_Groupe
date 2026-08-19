@@ -2655,6 +2655,23 @@ Frontend-only batch (all on main, pushed at v3.3.0; DEV until deploy).
   the member Cotisations tab the « Aucune cotisation enregistrée » line is **hidden when the member is exempt** (the
   exemption banner already states it — the two no longer contradict).
 
+### Member feedback on rejected change-requests + small UX (2026-08-19)
+Follow-ups (backend + frontend; all on main, pushed at v3.3.0; DEV until deploy).
+- **A member now sees a REJECTED change-request on Ma fiche (was silent).** `member-progression.tsx` +
+  `member-assignments.tsx` (self-propose mode) only showed **Pending** proposals — once a CU/CG rejected one it
+  became `Rejected` and was filtered out, so the member saw nothing and no reason. Now a **red « Proposition
+  refusée » banner** lists rejected proposals with the **« Motif : … »** (`decisionNotes`), and the member can
+  **dismiss** it (X). New backend `DELETE /change-requests/{id}` (`DismissChangeRequestCommand`, auth-only,
+  own-record only, soft-deletes the row) + `useDismissChangeRequest`. Approved ones need no notice (the real
+  progression/assignment already shows in the list).
+- **Refuse dialog wording** (`change-requests.tsx`): footer was **Annuler / Refuser** (two negatives, confusing)
+  → now **« Retour »** (dismiss) / **« Confirmer le refus »** (the destructive action).
+- **Ma fiche « Mes documents » bar** (`documents-cta.tsx`): counted only Approved, so an uploaded-but-unverified
+  dossier read « 0/2 — envoyez vos documents » (looked like nothing was submitted). Now the sub-label reflects the
+  real state — **« Documents envoyés — en attente de validation »** when all uploaded & pending, « N à corriger »
+  when rejected — plus a **« · N en attente »** hint next to the count and a **two-segment bar** (green = accepted,
+  amber = uploaded/awaiting). Still « Dossier complet — merci ! » at 100% approved.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

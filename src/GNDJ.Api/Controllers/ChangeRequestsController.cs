@@ -36,6 +36,14 @@ public class ChangeRequestsController : BaseApiController
     [HttpGet("mine")]
     public async Task<IActionResult> Mine() => Ok(await Mediator.Send(new GetMyChangeRequestsQuery()));
 
+    /// <summary>Member dismisses/withdraws one of their OWN requests (clears a rejected notice or a pending proposal).</summary>
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Dismiss(Guid id)
+    {
+        var result = await Mediator.Send(new DismissChangeRequestCommand(id));
+        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+    }
+
     /// <summary>All active units a member may target when proposing a fonction (not unit-scoped).</summary>
     [HttpGet("units")]
     public async Task<IActionResult> ProposableUnits() => Ok(await Mediator.Send(new GetProposableUnitsQuery()));

@@ -2,7 +2,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { useState, useMemo } from 'react'
 import { useMemberProgressions, useCreateProgression, useDeleteProgression, useScoutStageList, useBadgeList, type MemberProgressionDto } from '@/services/progression-service'
-import { useProposeProgression, useMyChangeRequests, useProposableUnits } from '@/services/change-request-service'
+import { useProposeProgression, useMyChangeRequests, useProposableUnits, useDismissChangeRequest } from '@/services/change-request-service'
 import { useAssignments } from '@/services/assignment-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Tip } from '@/components/ui/tooltip'
-import { Plus, Trash2, Star, Award, MapPin, Calendar } from 'lucide-react'
+import { Plus, Trash2, Star, Award, MapPin, Calendar, X } from 'lucide-react'
 
 // "Progression" tab of the member detail page / Ma fiche / CU dashboard. Lists the member's
 // recorded progression entries (a scout stage, plus a badge when the stage is a badge-stage,
@@ -41,9 +41,13 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
   const { data: progressions, isLoading } = useMemberProgressions(memberId)
   const proposeMutation = useProposeProgression()
   const { data: myRequests } = useMyChangeRequests(selfPropose)
+  const dismissMutation = useDismissChangeRequest()
   const { data: proposableUnits } = useProposableUnits(proposing)
   // My pending progression proposals (shown to the member while they await approval).
   const pendingProgressions = (myRequests ?? []).filter(r => r.kind === 'Progression' && r.status === 'Pending')
+  // My REJECTED progression proposals — shown so the member gets feedback (with the reason) instead of the
+  // request silently disappearing; a dismiss (X) clears the notice.
+  const rejectedProgressions = (myRequests ?? []).filter(r => r.kind === 'Progression' && r.status === 'Rejected')
 
   // Fetch the member's FULL assignment history so a progression can be recorded against a PREVIOUS unit
   // (e.g. a Meute badge earned before the member moved to Compagnie), not just their current unit.
@@ -148,6 +152,29 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
           <p className="font-medium text-amber-800">En attente d'acceptation</p>
           <ul className="mt-1 space-y-0.5 text-amber-800">
             {pendingProgressions.map(r => <li key={r.id}>• {r.summary}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* A member's REJECTED progression proposals — shows the decision + reason so they aren't left guessing. */}
+      {selfPropose && rejectedProgressions.length > 0 && (
+        <div className="rounded-md border border-red-300 bg-red-50/70 p-3 text-sm">
+          <p className="font-medium text-red-800">Proposition refusée</p>
+          <ul className="mt-1 space-y-1.5">
+            {rejectedProgressions.map(r => (
+              <li key={r.id} className="flex items-start justify-between gap-2 text-red-800">
+                <span>
+                  • {r.summary}
+                  {r.decisionNotes && <span className="mt-0.5 block text-red-700/90">Motif : {r.decisionNotes}</span>}
+                </span>
+                <Tip content="Effacer">
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-red-600 hover:text-red-800" disabled={dismissMutation.isPending}
+                    onClick={() => dismissMutation.mutateAsync(r.id).then(() => toast.success('Notification effacée')).catch(err => toast.error(parseApiError(err)))}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </Tip>
+              </li>
+            ))}
           </ul>
         </div>
       )}
