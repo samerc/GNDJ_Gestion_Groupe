@@ -105,7 +105,9 @@ export default function ApplicantPortalPage() {
       ) : (
         // Table (with a coloured status bar per row) so several children are easy to scan at a glance.
         <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full min-w-[34rem] text-sm">
+          {/* min-width only from sm+ (where the DOB/Soumise columns appear); on phones the 3 visible
+              columns fit full-width with no horizontal scroll. */}
+          <table className="w-full text-sm sm:min-w-[34rem]">
             <thead className="border-b bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-2.5 text-left font-medium">Enfant</th>

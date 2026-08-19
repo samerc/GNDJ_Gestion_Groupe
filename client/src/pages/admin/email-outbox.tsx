@@ -164,7 +164,7 @@ export default function EmailOutboxPage() {
               {data ? `${data.total} email${data.total > 1 ? 's' : ''}` : 'Chargement…'}
             </CardTitle>
             <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1) }}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
                 <SelectItem value="pending">En attente</SelectItem>
@@ -174,7 +174,7 @@ export default function EmailOutboxPage() {
             </Select>
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input className="w-56 pl-8 pr-8" placeholder="Destinataire ou modèle" value={search}
+              <Input className="w-full sm:w-56 pl-8 pr-8" placeholder="Destinataire ou modèle" value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
               {search && (
                 <button onClick={() => { setSearch(''); setPage(1) }} className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground" aria-label="Effacer">

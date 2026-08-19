@@ -67,14 +67,14 @@ export default function UnitsPage() {
           {search && <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => { setSearch(''); setPage(1) }}><X className="h-3.5 w-3.5" /></button>}
         </div>
         <Select value={assocFilter || '_all'} onValueChange={(v) => { setAssocFilter(v === '_all' ? '' : v); setPage(1) }}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Association" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Association" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="_all">Toutes les assoc.</SelectItem>
             {associations?.items.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={utFilter || '_all'} onValueChange={(v) => { setUtFilter(v === '_all' ? '' : v); setPage(1) }}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Type d'unité" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Type d'unité" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="_all">Tous les types</SelectItem>
             {unitTypes?.items.map(ut => <SelectItem key={ut.id} value={ut.id}>{ut.name}</SelectItem>)}

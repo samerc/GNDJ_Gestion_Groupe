@@ -102,7 +102,7 @@ export default function ErrorLogPage() {
             </Select>
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input className="w-56 pl-8 pr-8" placeholder="Rechercher (message, réf.)" value={search}
+              <Input className="w-full sm:w-56 pl-8 pr-8" placeholder="Rechercher (message, réf.)" value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
               {search && (
                 <button onClick={() => { setSearch(''); setPage(1) }} className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground" aria-label="Effacer">

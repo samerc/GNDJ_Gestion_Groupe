@@ -72,7 +72,7 @@ function AdminDashboard() {
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-muted-foreground">Année scoute</label>
           <Select value={scoutYear} onValueChange={setScoutYear}>
-            <SelectTrigger className="w-60 gap-2"><Calendar className="h-4 w-4 shrink-0 text-muted-foreground" /><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-60 gap-2"><Calendar className="h-4 w-4 shrink-0 text-muted-foreground" /><SelectValue /></SelectTrigger>
             <SelectContent>
               {years.map((y) => (
                 <SelectItem key={y} value={y}>{y}{y === currentScoutYear ? ' — année en cours' : ''}</SelectItem>
@@ -198,7 +198,7 @@ function UnitRoster({ units, selectedUnit, setSelectedUnit }: { units: UnitAcces
   return (
     <div className="space-y-4">
       <Select value={unitId} onValueChange={setSelectedUnit}>
-        <SelectTrigger className="w-64"><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
+        <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
         <SelectContent>
           {units.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName} — {u.roleName}</SelectItem>)}
         </SelectContent>
