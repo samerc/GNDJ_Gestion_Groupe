@@ -281,38 +281,43 @@ export default function ProgressionPathPage() {
                 <div className="space-y-2">
                   {progressions.map(p => {
                     const genderColor = p.gender === 'Masculin' ? 'bg-blue-100 text-blue-700' : p.gender === 'Féminin' ? 'bg-pink-100 text-pink-700' : 'bg-gray-100 text-gray-700'
+                    const genderLabel = p.gender === 'Masculin' ? 'Garçons' : p.gender === 'Féminin' ? 'Filles' : 'Tous'
                     return (
-                      <div key={p.id} className="flex items-center gap-3 rounded-lg border p-3">
-                        <div className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${p.pathType === 'leader' ? 'bg-amber-100 text-amber-800' : 'bg-primary/10 text-primary'}`}>
-                          {p.pathType === 'leader' ? 'Chef' : 'Membre'}
+                      // Two-row responsive card: badges + actions on top, the from → to flow (wraps) below.
+                      // Avoids the old single non-wrapping row that broke on narrow screens.
+                      <div key={p.id} className="rounded-lg border p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`rounded px-2 py-0.5 text-xs font-medium ${p.pathType === 'leader' ? 'bg-amber-100 text-amber-800' : 'bg-primary/10 text-primary'}`}>
+                              {p.pathType === 'leader' ? 'Chef' : 'Membre'}
+                            </span>
+                            <Badge className={genderColor}>{genderLabel}</Badge>
+                          </div>
+                          <div className="flex shrink-0 gap-1">
+                            <Tip content="Modifier">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(p)}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            </Tip>
+                            <Tip content="Supprimer">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(p)}>
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                              </Button>
+                            </Tip>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <span className="font-medium text-sm">{p.fromUnitTypeName}</span>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="text-sm font-medium">{p.fromUnitTypeName}</span>
                           {ageLabel(p.fromAgeMin, p.fromAgeMax) && (
                             <span className="text-xs text-muted-foreground">({ageLabel(p.fromAgeMin, p.fromAgeMax)})</span>
                           )}
-                          <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <span className="font-medium text-sm">{p.toUnitTypeName}</span>
+                          <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="text-sm font-medium">{p.toUnitTypeName}</span>
                           {ageLabel(p.toAgeMin, p.toAgeMax) && (
                             <span className="text-xs text-muted-foreground">({ageLabel(p.toAgeMin, p.toAgeMax)})</span>
                           )}
                         </div>
-                        <Badge className={genderColor}>
-                          {p.gender === 'Masculin' ? 'Garçons' : p.gender === 'Féminin' ? 'Filles' : 'Tous'}
-                        </Badge>
-                        {p.notes && <span className="text-xs text-muted-foreground max-w-[150px] truncate">{p.notes}</span>}
-                        <div className="flex gap-1 shrink-0">
-                          <Tip content="Modifier">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(p)}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                          </Tip>
-                          <Tip content="Supprimer">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(p)}>
-                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                            </Button>
-                          </Tip>
-                        </div>
+                        {p.notes && <p className="mt-1 break-words text-xs text-muted-foreground">{p.notes}</p>}
                       </div>
                     )
                   })}
@@ -332,7 +337,7 @@ export default function ProgressionPathPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel required>De (type d'unité)</RequiredLabel>
                 <Select value={form.fromUnitTypeId} onValueChange={v => setForm(f => ({ ...f, fromUnitTypeId: v }))}>
@@ -357,7 +362,7 @@ export default function ProgressionPathPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel required>Genre</RequiredLabel>
                 <Select value={form.gender} onValueChange={v => setForm(f => ({ ...f, gender: v }))}>
