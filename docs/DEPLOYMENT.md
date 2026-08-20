@@ -371,16 +371,59 @@ On the first request after a deploy the app **auto‑runs any new EF migrations*
 
 ## 11. Switching the domain to gndj.org (later)
 
-`new.gndj.org` → `gndj.org` needs **no client rebuild** (relative `/api/v1`):
-1. Point `gndj.org`'s **DNS A record** at this server.
-2. IIS → **GNDJ** → **Bindings…** → **Add** `http:80` host `gndj.org` (and the eventual https).
-3. Get a cert for the new name: `cd C:\win-acme; .\wacs.exe` → certificate for **gndj.org** (adds https +
-   auto‑renew). Or add it to the existing cert so it covers both during cut‑over.
-4. Edit `appsettings.Production.json` → `"AllowedHosts"` = `gndj.org` (or `new.gndj.org;gndj.org` during
-   overlap) → `iisreset`.
-5. App → **Paramètres** → set **`app.base_url`** to `https://gndj.org`.
-6. `Jwt:Issuer/Audience` are the constant `"GNDJ"` — no change. Remove the old `new.gndj.org` bindings once
-   traffic is cut over.
+Goal: make **`gndj.org`** the primary home and turn **`new.gndj.org` into a 301 redirect → `gndj.org`**
+(NOT the other way — a `new.` subdomain reads as temporary, and the public site belongs on the root domain).
+No client rebuild is needed (the SPA calls a relative `/api/v1`). The app is behind **Cloudflare**, in‑process
+IIS at `C:\inetpub\www\gndj`, HTTPS via win‑acme.
+
+> **Do this AFTER launch is fine** — but two rules make the already‑sent Maîtrise activation links survive:
+> keep `new.gndj.org` resolving (as the redirect), and only *add* `gndj.org`, don't remove `new.gndj.org`
+> until well after every 30‑day activation token has been used or expired.
+
+### 11.0 Safety: your email is NOT affected
+Moving the **website** only touches the `A`/`CNAME` record for the host. **Do NOT touch `MX` or the `TXT`
+records** (SPF / DKIM / DMARC) — those are the mail system (Zoho receive + SMTP2GO/Mailgun send, all keyed to
+the `gndj.org` From domain) and are independent of where the site is hosted. Leave them alone and mail keeps
+working. Also confirm what currently lives on `gndj.org` (the old static site?) — pointing the apex at the app
+replaces it; the app already includes the public site that supersedes it.
+
+### 11.1 Cloudflare DNS
+1. Add/point the apex **`@`** (`gndj.org`) and **`www`** — **Proxied (orange cloud)** — at the same origin as
+   `new.gndj.org` (Cloudflare supports CNAME‑flattening at the root, or use an `A` record to the origin IP).
+2. Leave `new.gndj.org` in place (it becomes the redirect source in 11.4).
+
+### 11.2 IIS bindings
+IIS → **GNDJ** → **Bindings…** → **Add** for both `gndj.org` and `www.gndj.org` (http:80 first; https:443 after
+the cert in 11.3). It's one in‑process SPA site, so this is just adding host headers to the existing site.
+
+### 11.3 TLS certificate — pick ONE
+- **win‑acme (Let's Encrypt):** `cd C:\win-acme; .\wacs.exe` → issue/extend a cert covering
+  `gndj.org` + `www.gndj.org` (add them to the existing `new.gndj.org` cert so it covers all during overlap).
+  The app already serves `/.well-known/acme-challenge`, so HTTP‑01 validation works once 11.1/11.2 are in place.
+- **OR Cloudflare Origin Certificate (simplest behind Cloudflare):** create a 15‑year Origin cert for
+  `gndj.org` + `*.gndj.org` in the Cloudflare dashboard, bind it in IIS, and set Cloudflare **SSL mode = Full
+  (strict)**. No renewals to babysit.
+
+### 11.4 Redirect new.gndj.org → gndj.org (keep old links alive)
+Easiest at the edge: a **Cloudflare Redirect Rule / Bulk Redirect** — `new.gndj.org/*` → `https://gndj.org/$1`,
+**301**, preserve path+query. This is what lets a chef click a `new.gndj.org/reset-password?token=…&setup=1`
+link sent before the move and land on the working page. (IIS URL‑Rewrite works too, but the Cloudflare rule is
+simpler and doesn't touch the app.)
+
+### 11.5 App config
+1. `appsettings.Production.json` → `"AllowedHosts"` = `gndj.org;www.gndj.org;new.gndj.org` (keep all during
+   overlap) → `iisreset`. Keep `"Cloudflare": { "Enabled": true }`.
+2. App → **Paramètres** → set **`app.base_url`** to **`https://gndj.org`** — this is the single value every
+   activation / reset / login / verify / onboarding email link is built from. From now on new emails carry the
+   permanent URL; links already sent still work via the 11.4 redirect.
+3. `Jwt:Issuer/Audience` are the constant `"GNDJ"` — no change.
+
+### 11.6 Verify, then tell the leaders
+- Open `https://gndj.org` (login loads), `https://www.gndj.org` (loads/redirects), and click an old
+  `https://new.gndj.org/...` link → confirm it 301s to `gndj.org`.
+- Send the Maîtrise a one‑line "we've moved to gndj.org" so they re‑bookmark; the 301 covers anyone who doesn't.
+- **Do not remove the `new.gndj.org` binding/DNS/redirect** until every 30‑day activation link is spent — retire
+  it later.
 
 ---
 
