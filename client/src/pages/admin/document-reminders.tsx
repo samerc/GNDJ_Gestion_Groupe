@@ -15,6 +15,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { EmptyState } from '@/components/shared/empty-state'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmailDeliveryWarning } from '@/components/shared/email-delivery-warning'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Tip } from '@/components/ui/tooltip'
 import { parseApiError } from '@/lib/error-utils'
@@ -74,6 +75,7 @@ export default function DocumentRemindersPage() {
           membre en particulier. À utiliser après la période de dépôt et de vérification.
         </p>
       </div>
+      <EmailDeliveryWarning />
 
       <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground sm:flex-row sm:items-start">
         <Info className="h-4 w-4 shrink-0 text-primary sm:mt-0.5" />

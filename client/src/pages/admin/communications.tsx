@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { EmailDeliveryWarning } from '@/components/shared/email-delivery-warning'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Send, Users, MailWarning } from 'lucide-react'
 import { toast } from 'sonner'
@@ -76,6 +77,7 @@ export default function CommunicationsPage() {
           chefs ou à tous.
         </p>
       </div>
+      <EmailDeliveryWarning />
 
       {/* Template + segment controls */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

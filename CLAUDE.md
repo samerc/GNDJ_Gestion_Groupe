@@ -2723,6 +2723,16 @@ came back clean (no S1/S2), mobile safe. Fixed the actionable batch (frontend + 
       longer output-cache TTL + edge Cache-Control on public JSON; full social-scraper prerender/SSR;
       keyboard-accessible nav dropdowns + mobile-menu focus trap; foulard regex / date-format-consistency polish.
 
+### Email "mode test" guardrail (2026-08-20)
+- [x] **Bulk email-send pages now warn when delivery is in test mode.** `email.override_recipient` (when set)
+      makes `EmailService` REDIRECT every outgoing email to one test address — so a mass send *looks* successful
+      (counts + "envoyé") but no real recipient gets anything. This silently swallows leader activation links
+      (Envoyer les accès), the chefs broadcast (Message aux chefs), and document reminders (Relance documents). New
+      shared `<EmailDeliveryWarning>` (reads `email.override_recipient` via the auth-only `GET /settings/{key}`, so a
+      CG can see it; the test address itself is not shown) renders a prominent amber banner on those three pages when
+      the override is set. Frontend-only, DEV until deploy — **NOT on the prod build deployed this afternoon**, so
+      the immediate launch protection is still a pilot send (see below).
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

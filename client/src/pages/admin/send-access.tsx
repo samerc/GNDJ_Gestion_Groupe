@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/shared/empty-state'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmailDeliveryWarning } from '@/components/shared/email-delivery-warning'
 import { formatDateLong } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
@@ -67,6 +68,7 @@ export default function SendAccessPage() {
           en commençant par la Maîtrise.
         </p>
       </div>
+      <EmailDeliveryWarning />
 
       <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground sm:flex-row sm:items-start">
         <Info className="h-4 w-4 shrink-0 text-primary sm:mt-0.5" />

@@ -3,6 +3,7 @@
     "version": "3.4.0",
     "date": "2026-08-20",
     "changes": [
+      "Envois d'emails (accès / chefs / relances) : bandeau d'avertissement « mode test » quand les emails sont redirigés vers une adresse de test (évite d'envoyer dans le vide)",
       "Site public : listes, titres, traits et tableaux du contenu éditorial s'affichent correctement (éditeur + rendu)",
       "Site public : images/PJ mises en cache par le navigateur et Cloudflare (chargement plus rapide)",
       "Site public : titre + description par page (SEO), formulaire de contact accessible, dates d'événements sans décalage",
