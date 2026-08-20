@@ -43,6 +43,14 @@ export default function CotisationDashboardPage() {
   const createCotisation = useCreateCotisation('')
   const setExempt = useSetCotisationExempt()
 
+  // Which unit rows are expanded to reveal their "à relancer" (unpaid) follow-up list.
+  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set())
+  const toggleUnit = (name: string) => setExpandedUnits(prev => {
+    const next = new Set(prev)
+    if (next.has(name)) next.delete(name); else next.add(name)
+    return next
+  })
+
   // ── Record-payment dialog state (compact single-line entry; the full multi-line editor lives on the
   //    member file / CU matrix — here the CG just logs "they paid" to clear the follow-up). ──
   const [payFor, setPayFor] = useState<UnpaidCotisationDto | null>(null)
@@ -93,7 +101,8 @@ export default function CotisationDashboardPage() {
     }
   }
 
-  // Group the unpaid members by unit so each CU gets a clear section (backend already orders by unit → name).
+  // Lookup: unit name → its unpaid members, so a unit row in the "Par unité" table can reveal its own
+  // follow-up ("à relancer") list on click (backend already orders by unit → name).
   const unpaidByUnit = useMemo(() => {
     const groups = new Map<string, UnpaidCotisationDto[]>()
     for (const u of unpaid ?? []) {
@@ -101,7 +110,7 @@ export default function CotisationDashboardPage() {
       list.push(u)
       groups.set(u.unitName, list)
     }
-    return [...groups.entries()]
+    return groups
   }, [unpaid])
 
   const exportCsv = () => {
@@ -204,10 +213,22 @@ export default function CotisationDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* By unit breakdown */}
-          <Card>
+          {/* Par unité — stats breakdown; click a unit with impayés to reveal its "à relancer" list inline */}
+          <Card className="print-area">
             <CardHeader>
-              <CardTitle>Par unité</CardTitle>
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <CardTitle>Par unité</CardTitle>
+                {unpaid && unpaid.length > 0 && (
+                  <div className="flex items-center gap-2 no-print">
+                    <Button variant="outline" size="sm" onClick={exportCsv}>
+                      <Download className="mr-1.5 h-4 w-4" /> Exporter (CSV)
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => window.print()}>
+                      <Printer className="mr-1.5 h-4 w-4" /> Imprimer
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {summary.byUnit.length === 0 ? (
@@ -224,129 +245,125 @@ export default function CotisationDashboardPage() {
                         <th className="px-3 py-2 text-right font-medium">Montants perçus</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {summary.byUnit.map((u, idx) => (
-                        <tr key={u.unitName} className={`border-b ${idx % 2 === 1 ? 'bg-muted/10' : ''}`}>
-                          <td className="px-3 py-2 font-medium">{u.unitName}</td>
-                          <td className="px-3 py-2 text-center">{u.totalMembers}</td>
-                          <td className="px-3 py-2 text-center">
-                            <Badge className="bg-green-600">{u.paidMembers}</Badge>
-                          </td>
-                          <td className="px-3 py-2 text-center">
-                            {/* Unpaid = members minus paid minus exempt (exempt shown separately, not as impayés) */}
-                            {u.totalMembers - u.paidMembers - u.exemptMembers > 0 ? (
-                              <Badge variant="destructive">{u.totalMembers - u.paidMembers - u.exemptMembers}</Badge>
-                            ) : (
-                              <Badge variant="outline">0</Badge>
-                            )}
-                            {u.exemptMembers > 0 && <span className="ml-1 text-xs text-slate-500">+{u.exemptMembers} exempté(s)</span>}
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            {u.totals.length > 0 ? (
-                              <div className="space-y-0.5">
-                                {u.totals.map(t => (
-                                  <div key={t.currency} className="text-sm">{formatMoney(t.total, t.currency)}</div>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
+                    {summary.byUnit.map((u, idx) => {
+                      const toRelance = unpaidByUnit.get(u.unitName) ?? []
+                      const impaye = u.totalMembers - u.paidMembers - u.exemptMembers
+                      const canExpand = toRelance.length > 0
+                      const isOpen = expandedUnits.has(u.unitName)
+                      return (
+                        <tbody key={u.unitName}>
+                          <tr
+                            className={`border-b ${idx % 2 === 1 ? 'bg-muted/10' : ''} ${canExpand ? 'cursor-pointer hover:bg-muted/30' : ''}`}
+                            onClick={canExpand ? () => toggleUnit(u.unitName) : undefined}
+                          >
+                            <td className="px-3 py-2 font-medium">
+                              <span className="inline-flex items-center gap-1.5">
+                                {canExpand
+                                  ? <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                                  : <span className="inline-block w-4" />}
+                                {u.unitName}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-center">{u.totalMembers}</td>
+                            <td className="px-3 py-2 text-center">
+                              <Badge className="bg-green-600">{u.paidMembers}</Badge>
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              {/* Unpaid = members minus paid minus exempt (exempt shown separately, not as impayés) */}
+                              {impaye > 0 ? (
+                                <Badge variant="destructive">{impaye}</Badge>
+                              ) : (
+                                <Badge variant="outline">0</Badge>
+                              )}
+                              {u.exemptMembers > 0 && <span className="ml-1 text-xs text-slate-500">+{u.exemptMembers} exempté(s)</span>}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              {u.totals.length > 0 ? (
+                                <div className="space-y-0.5">
+                                  {u.totals.map(t => (
+                                    <div key={t.currency} className="text-sm">{formatMoney(t.total, t.currency)}</div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                          </tr>
+                          {/* Follow-up ("à relancer") rows for this unit. Collapsed on screen until clicked;
+                              always shown when printing so the full chase list comes out on paper. */}
+                          {canExpand && (
+                            <tr className={isOpen ? '' : 'hidden print:table-row'}>
+                              <td colSpan={5} className="bg-muted/5 px-3 pb-4 pt-1">
+                                <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                                  <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
+                                  À relancer — {toRelance.length} membre{toRelance.length > 1 ? 's' : ''} sans cotisation
+                                </div>
+                                <div className="overflow-x-auto rounded-md border bg-background">
+                                  <table className="w-full text-sm min-w-[560px]">
+                                    <thead>
+                                      <tr className="border-b bg-muted/40 text-left">
+                                        <th className="px-3 py-2 font-medium">Membre</th>
+                                        <th className="px-3 py-2 font-medium">Parent</th>
+                                        <th className="px-3 py-2 font-medium">Contact</th>
+                                        <th className="px-3 py-2 font-medium text-right no-print">Actions</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {toRelance.map((m, i2) => (
+                                        <tr key={m.memberId} className={`border-b ${i2 % 2 === 1 ? 'bg-muted/10' : ''}`}>
+                                          {/* Name opens the member file (Documents & cotisations tab) for the full editor. */}
+                                          <td className="px-3 py-2">
+                                            <button
+                                              className="group inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                                              onClick={() => navigate(`/members/${m.memberId}`)}
+                                            >
+                                              {m.memberName}
+                                              <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60 no-print" />
+                                            </button>
+                                          </td>
+                                          <td className="px-3 py-2 text-muted-foreground">{m.parentName ?? '—'}</td>
+                                          <td className="px-3 py-2">
+                                            <div className="flex flex-col gap-0.5">
+                                              {m.contactEmail ? (
+                                                <a href={`mailto:${m.contactEmail}`} className="inline-flex items-center gap-1.5 text-primary hover:underline">
+                                                  <Mail className="h-3.5 w-3.5" /> {m.contactEmail}
+                                                </a>
+                                              ) : null}
+                                              {m.contactPhone ? (
+                                                <a href={`tel:${m.contactPhone.replace(/\s+/g, '')}`} className="inline-flex items-center gap-1.5 text-primary hover:underline">
+                                                  <Phone className="h-3.5 w-3.5" /> {m.contactPhone}
+                                                </a>
+                                              ) : null}
+                                              {!m.contactEmail && !m.contactPhone && <span className="text-xs text-muted-foreground">Aucun contact</span>}
+                                            </div>
+                                          </td>
+                                          <td className="px-3 py-2 text-right no-print">
+                                            <div className="inline-flex gap-1.5">
+                                              <Button variant="outline" size="sm" className="h-8" onClick={() => openPayDialog(m)}>
+                                                <Receipt className="mr-1 h-3.5 w-3.5" /> Paiement
+                                              </Button>
+                                              <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => markExempt(m)} disabled={setExempt.isPending}>
+                                                <Ban className="mr-1 h-3.5 w-3.5" /> Ne paiera pas
+                                              </Button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      )
+                    })}
                   </table>
                 </div>
               )}
             </CardContent>
           </Card>
         </>
-      )}
-
-      {/* Unpaid members — actionable follow-up list, grouped by unit */}
-      {unpaid && unpaid.length > 0 && (
-        <Card className="print-area">
-          <CardHeader>
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-orange-500" />
-                À relancer — {unpaid.length} membre{unpaid.length > 1 ? 's' : ''} sans cotisation ({scoutYear})
-              </CardTitle>
-              <div className="flex items-center gap-2 no-print">
-                <Button variant="outline" size="sm" onClick={exportCsv}>
-                  <Download className="mr-1.5 h-4 w-4" /> Exporter (CSV)
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => window.print()}>
-                  <Printer className="mr-1.5 h-4 w-4" /> Imprimer
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {unpaidByUnit.map(([unitName, members]) => (
-              <div key={unitName}>
-                <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
-                  <span>{unitName}</span>
-                  <Badge variant="secondary">{members.length}</Badge>
-                </div>
-                <div className="overflow-x-auto rounded-md border">
-                  <table className="w-full text-sm min-w-[640px]">
-                    <thead>
-                      <tr className="border-b bg-muted/40 text-left">
-                        <th className="px-3 py-2 font-medium">Membre</th>
-                        <th className="px-3 py-2 font-medium">Parent</th>
-                        <th className="px-3 py-2 font-medium">Contact</th>
-                        <th className="px-3 py-2 font-medium text-right no-print">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {members.map((m, idx) => (
-                        <tr key={m.memberId} className={`border-b ${idx % 2 === 1 ? 'bg-muted/10' : ''}`}>
-                          {/* Name opens the member file (Documents & cotisations tab) for the full editor. */}
-                          <td className="px-3 py-2">
-                            <button
-                              className="group inline-flex items-center gap-1 font-medium text-primary hover:underline"
-                              onClick={() => navigate(`/members/${m.memberId}`)}
-                            >
-                              {m.memberName}
-                              <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60 no-print" />
-                            </button>
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground">{m.parentName ?? '—'}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex flex-col gap-0.5">
-                              {m.contactEmail ? (
-                                <a href={`mailto:${m.contactEmail}`} className="inline-flex items-center gap-1.5 text-primary hover:underline">
-                                  <Mail className="h-3.5 w-3.5" /> {m.contactEmail}
-                                </a>
-                              ) : null}
-                              {m.contactPhone ? (
-                                <a href={`tel:${m.contactPhone.replace(/\s+/g, '')}`} className="inline-flex items-center gap-1.5 text-primary hover:underline">
-                                  <Phone className="h-3.5 w-3.5" /> {m.contactPhone}
-                                </a>
-                              ) : null}
-                              {!m.contactEmail && !m.contactPhone && <span className="text-xs text-muted-foreground">Aucun contact</span>}
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 text-right no-print">
-                            <div className="inline-flex gap-1.5">
-                              <Button variant="outline" size="sm" className="h-8" onClick={() => openPayDialog(m)}>
-                                <Receipt className="mr-1 h-3.5 w-3.5" /> Paiement
-                              </Button>
-                              <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => markExempt(m)} disabled={setExempt.isPending}>
-                                <Ban className="mr-1 h-3.5 w-3.5" /> Ne paiera pas
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
       )}
 
       {/* Compact record-payment dialog */}
