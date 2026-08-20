@@ -30,7 +30,13 @@
       "Unified account menu (Ma fiche / Mes documents / Trombinoscope / mot de passe / déconnexion)",
       "Progression: full Add modal for stages & badges; unit-type pills sorted by parcours order; removed « étape avec badge »",
       "Dashboard: fixed the scout-year selector (was blank) — dynamic years + « année en cours » label",
-      "Rentrée: dedupe the « en attente » blocked-by list (was repeated once per unit)",
+      "Rentrée: dedupe the « en attente » blocked-by list (was repeated once per unit)"
+    ]
+  },
+  {
+    "version": "3.3.0",
+    "date": "2026-08-18",
+    "changes": [
       "Demande UX: wizard proches rework, other-group flag, menu split, motifs table, wording",
       "Demande Excel decisions: single Décision column (code) + rejection-reasons list",
       "docs: CLAUDE.md — demande process fine-tuning batch F-I",
