@@ -4,9 +4,15 @@ import { usePublicUnits, usePublicSiteConfig } from '@/services/public-service'
 import { usePublicNews } from '@/services/news-service'
 import { usePublicEvents } from '@/services/events-service'
 import { formatDateLong as formatDate } from '@/lib/utils'
+import { Seo } from '@/components/public/seo'
 
 // Icons paired positionally with the CMS-defined home.values entries (1st value → Heart, etc.).
 const VALUE_ICONS = [Heart, Tent, Users]
+
+// Event start/end dates are DateOnly (yyyy-MM-dd) — parse the parts directly (like the agenda page) instead
+// of `new Date()`, which would apply the browser timezone and can shift the displayed day by one.
+const EVENT_MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+function formatEventDate(iso: string) { const [y, m, d] = iso.split('-').map(Number); return `${d} ${EVENT_MONTHS[m - 1]} ${y}` }
 
 // Public landing page at `/` — the anonymous visitor's first screen. Mixes CMS-editable copy
 // (hero / values / stats / CTA, all from the `site.content` setting) with LIVE data sections
@@ -26,6 +32,7 @@ export default function PublicHomePage() {
 
   return (
     <>
+      <Seo title="Groupe Notre-Dame de Jamhour" description={home?.heroSubtitle ?? 'Groupe scout Notre-Dame de Jamhour — au service de la jeunesse du Liban depuis 1935.'} />
       {/* ---------- Hero ---------- */}
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary via-primary to-accent" />
@@ -140,7 +147,7 @@ export default function PublicHomePage() {
                     {upcomingEvents.map((ev) => (
                       <Link key={ev.slug} to={`/agenda/${ev.slug}`} className="group flex flex-col rounded-2xl border border-border bg-background p-4 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-elevated">
                         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-                          <CalendarDays className="h-3.5 w-3.5" /> {formatDate(ev.startDate)}{ev.endDate ? ` → ${formatDate(ev.endDate)}` : ''}
+                          <CalendarDays className="h-3.5 w-3.5" /> {formatEventDate(ev.startDate)}{ev.endDate ? ` → ${formatEventDate(ev.endDate)}` : ''}
                         </span>
                         <h4 className="mt-1 font-semibold leading-snug line-clamp-2">{ev.title}</h4>
                         {(ev.timeLabel || ev.location) && (

@@ -2,7 +2,8 @@ import { Link, useParams } from 'react-router'
 import { PageHero } from '@/components/public/page-hero'
 import { RichContent } from '@/components/public/rich-content'
 import { usePublicPage, usePublicPages, type PublicPageNav } from '@/services/page-service'
-import { cn } from '@/lib/utils'
+import { Seo } from '@/components/public/seo'
+import { cn, metaFromHtml } from '@/lib/utils'
 
 // Standalone CMS page at /p/:slug. If the page belongs to a section (top-level page with sub-pages),
 // a side nav of that section is shown.
@@ -27,6 +28,7 @@ export default function PublicStandalonePage() {
 
   return (
     <>
+      <Seo title={page.title} description={metaFromHtml(page.bodyHtml)} />
       <PageHero title={page.title} />
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <div className={cn('grid gap-10', hasSideNav && 'lg:grid-cols-4')}>

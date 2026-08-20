@@ -6,6 +6,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { RequiredLabel } from '@/components/shared/required-label'
+import { Seo } from '@/components/public/seo'
 import { CheckCircle2, Mail, MapPin } from 'lucide-react'
 
 // Public contact page at `/contact` — anonymous. Posts the message to the backend (rate-limited
@@ -36,6 +37,7 @@ export default function PublicContactPage() {
 
   return (
     <>
+      <Seo title="Contact" description="Contactez le Groupe Notre-Dame de Jamhour — un chef du groupe vous répondra." />
       <PageHero title="Contact" subtitle={contact?.intro} />
       <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
         <div className="grid gap-10 lg:grid-cols-3">
@@ -71,21 +73,22 @@ export default function PublicContactPage() {
                 <HoneypotField value={website} onChange={setWebsite} />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <RequiredLabel required>Nom</RequiredLabel>
-                    <Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} maxLength={100} required />
+                    <RequiredLabel htmlFor="contact-name" required>Nom</RequiredLabel>
+                    <Input id="contact-name" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} maxLength={100} required />
                   </div>
                   <div className="space-y-2">
-                    <RequiredLabel required>Email</RequiredLabel>
-                    <Input type="email" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} maxLength={254} required />
+                    <RequiredLabel htmlFor="contact-email" required>Email</RequiredLabel>
+                    <Input id="contact-email" type="email" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} maxLength={254} required />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <RequiredLabel required>Sujet</RequiredLabel>
-                  <Input value={form.subject} onChange={(e) => setForm(f => ({ ...f, subject: e.target.value }))} maxLength={150} required />
+                  <RequiredLabel htmlFor="contact-subject" required>Sujet</RequiredLabel>
+                  <Input id="contact-subject" value={form.subject} onChange={(e) => setForm(f => ({ ...f, subject: e.target.value }))} maxLength={150} required />
                 </div>
                 <div className="space-y-2">
-                  <RequiredLabel required>Message</RequiredLabel>
+                  <RequiredLabel htmlFor="contact-message" required>Message</RequiredLabel>
                   <textarea
+                    id="contact-message"
                     value={form.message}
                     onChange={(e) => setForm(f => ({ ...f, message: e.target.value }))}
                     rows={6}

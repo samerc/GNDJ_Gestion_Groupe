@@ -5,6 +5,7 @@ import { cn, formatDateLong as formatDate } from '@/lib/utils'
 import { PageHero } from '@/components/public/page-hero'
 import { usePublicNews, type NewsFilter, type PublicNewsItem } from '@/services/news-service'
 import { usePublicUnits } from '@/services/public-service'
+import { Seo } from '@/components/public/seo'
 
 // Cover area for a card: the post's image when set, else the branded gradient + icon placeholder.
 function Cover({ post, className }: { post: PublicNewsItem; className?: string }) {
@@ -88,6 +89,7 @@ export default function PublicNewsPage() {
 
   return (
     <>
+      <Seo title="Actualités" description="Les dernières nouvelles et événements du Groupe Notre-Dame de Jamhour." />
       <PageHero title="Actualités" subtitle="Les dernières nouvelles et événements du groupe." />
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         {/* Tag filter (branch / group) */}
@@ -106,7 +108,9 @@ export default function PublicNewsPage() {
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-16 text-center">
             <Newspaper className="h-12 w-12 text-muted-foreground/40" />
-            <p className="text-muted-foreground">Aucune actualité pour cette sélection.</p>
+            <p className="text-muted-foreground">
+              {isActive({}) ? 'Aucune actualité pour le moment. Les premières nouvelles arrivent bientôt !' : 'Aucune actualité pour cette sélection.'}
+            </p>
           </div>
         ) : (
           <>

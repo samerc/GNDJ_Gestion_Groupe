@@ -3,6 +3,10 @@
     "version": "3.4.0",
     "date": "2026-08-20",
     "changes": [
+      "Site public : listes, titres, traits et tableaux du contenu éditorial s'affichent correctement (éditeur + rendu)",
+      "Site public : images/PJ mises en cache par le navigateur et Cloudflare (chargement plus rapide)",
+      "Site public : titre + description par page (SEO), formulaire de contact accessible, dates d'événements sans décalage",
+      "Site public : messages « à venir / bientôt » quand une rubrique est encore vide",
       "Passage CG : une ligne « en attente » n'est jamais masquée par défaut (sécurité — elle doit toujours être revue)",
       "Menu du compte (membre) : retrait des liens déjà présents dans le menu latéral ; « Déconnexion » lisible au survol (blanc sur rouge)",
       "Champs personnalisés : chaque champ précise qui peut le remplir (Le membre / Chef d'unité / Chef de groupe) — les autres le voient en lecture seule",

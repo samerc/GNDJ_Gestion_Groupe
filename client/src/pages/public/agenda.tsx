@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { PageHero } from '@/components/public/page-hero'
 import { usePublicEvents, type EventFilter, type PublicEventItem } from '@/services/events-service'
 import { usePublicUnits } from '@/services/public-service'
+import { Seo } from '@/components/public/seo'
 
 // Parse an ISO yyyy-MM-dd WITHOUT `new Date` to avoid any timezone shift (the agenda cares about the day).
 const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
@@ -73,6 +74,7 @@ export default function PublicAgendaPage() {
 
   return (
     <>
+      <Seo title="Agenda" description="Les prochains rendez-vous du Groupe Notre-Dame de Jamhour : sorties, camps et réunions." />
       <PageHero title="Agenda" subtitle="Les prochains rendez-vous du groupe." />
       <section className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
         <div className="mb-10 flex flex-wrap gap-2">
@@ -90,7 +92,9 @@ export default function PublicAgendaPage() {
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-16 text-center">
             <CalendarDays className="h-12 w-12 text-muted-foreground/40" />
-            <p className="text-muted-foreground">Aucun événement à venir pour cette sélection.</p>
+            <p className="text-muted-foreground">
+              {isActive({}) ? 'Aucun événement à venir pour le moment. Revenez bientôt — le programme arrive !' : 'Aucun événement à venir pour cette sélection.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-10">

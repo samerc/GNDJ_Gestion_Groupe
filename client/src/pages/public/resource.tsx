@@ -3,6 +3,8 @@ import { ArrowLeft, FileText, Download } from 'lucide-react'
 import { PageHero } from '@/components/public/page-hero'
 import { RichContent } from '@/components/public/rich-content'
 import { usePublicResource, categoryLabel } from '@/services/resources-service'
+import { Seo } from '@/components/public/seo'
+import { metaFromHtml } from '@/lib/utils'
 
 function isAudio(url: string) { return /\.mp3($|\?)/i.test(url) }
 
@@ -44,6 +46,7 @@ export default function PublicResourcePage() {
 
   return (
     <>
+      <Seo title={r.title} description={metaFromHtml(r.bodyHtml) ?? `${r.title} — ${categoryLabel(r.category)}, Groupe Notre-Dame de Jamhour.`} />
       <PageHero title={r.title} />
       <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2">

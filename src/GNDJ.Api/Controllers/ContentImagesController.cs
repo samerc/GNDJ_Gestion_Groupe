@@ -79,6 +79,9 @@ public class ContentImagesController : BaseApiController
             "webp" => "image/webp",
             _ => "image/jpeg",
         };
+        // File names are content-addressed GUIDs (never re-used), so the bytes for a given URL never change —
+        // let the browser + Cloudflare edge cache them for a year instead of re-fetching on every page view.
+        Response.Headers.CacheControl = "public, max-age=31536000, immutable";
         return PhysicalFile(full, contentType);
     }
 }

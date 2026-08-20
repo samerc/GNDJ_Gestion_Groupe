@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router'
 import { ArrowLeft, Users, Shield } from 'lucide-react'
 import { PageHero } from '@/components/public/page-hero'
 import { usePublicUnitDetail, usePublicSiteConfig, type PublicLeader } from '@/services/public-service'
+import { Seo } from '@/components/public/seo'
 
 // Format an age range into a French label, tolerating either bound being absent (returns null if both are).
 function ageLabel(min: number | null, max: number | null) {
@@ -67,6 +68,7 @@ export default function PublicUnitDetailPage() {
 
   return (
     <>
+      <Seo title={unit.name} description={unit.publicDescription?.slice(0, 160) || `${unit.name} — ${[unit.unitTypeName, age].filter(Boolean).join(' · ')}, Groupe Notre-Dame de Jamhour.`} />
       <PageHero title={unit.name} subtitle={[unit.unitTypeName, age].filter(Boolean).join(' · ')} />
 
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">

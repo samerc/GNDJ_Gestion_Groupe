@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { useDebounce } from '@/hooks/use-debounce'
 import { PageHero } from '@/components/public/page-hero'
 import { usePublicResources, categoryLabel, RESOURCE_CATEGORIES, type PublicResourceItem } from '@/services/resources-service'
+import { Seo } from '@/components/public/seo'
 
 // One resource card — cover (or a category-tinted placeholder) + title + category + tags.
 function ResourceCard({ r }: { r: PublicResourceItem }) {
@@ -55,6 +56,7 @@ export default function PublicResourcesPage() {
 
   return (
     <>
+      <Seo title="Ressources" description="Chants, techniques, nœuds et mémoire du Groupe Notre-Dame de Jamhour." />
       <PageHero title="Ressources" subtitle="Chants, techniques, nœuds et mémoire du groupe." />
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <div className="mb-6 flex flex-wrap gap-2">
@@ -78,7 +80,9 @@ export default function PublicResourcesPage() {
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-16 text-center">
             <Library className="h-12 w-12 text-muted-foreground/40" />
-            <p className="text-muted-foreground">Aucune ressource pour cette sélection.</p>
+            <p className="text-muted-foreground">
+              {category === null && !debouncedSearch ? 'Les ressources arrivent bientôt — revenez nous voir !' : 'Aucune ressource pour cette sélection.'}
+            </p>
           </div>
         ) : (
           <>

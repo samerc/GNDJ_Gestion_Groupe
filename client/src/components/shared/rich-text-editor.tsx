@@ -179,8 +179,21 @@ export function RichTextEditor({ content, onChange, variables, placeholder, clas
         )}
       </div>
 
-      {/* Editor — capped height with internal scroll so long content never pushes the dialog's actions off-screen */}
-      <EditorContent editor={editor} className="prose prose-sm max-w-none p-3 min-h-[200px] max-h-[45vh] overflow-y-auto focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[180px]" />
+      {/* Editor — capped height with internal scroll so long content never pushes the dialog's actions off-screen.
+          The `prose` classes are inert (no @tailwindcss/typography plugin), so list markers, headings and links
+          are styled explicitly here to MATCH the public renderer (rich-content.tsx) — otherwise a numbered/bulleted
+          list applied in the toolbar shows no markers in the editor even though it renders correctly once published. */}
+      <EditorContent
+        editor={editor}
+        className={cn(
+          'prose prose-sm max-w-none p-3 min-h-[200px] max-h-[45vh] overflow-y-auto focus:outline-none',
+          '[&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[180px]',
+          '[&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-2 [&_li]:my-1',
+          '[&_a]:text-primary [&_a]:underline [&_h1]:text-xl [&_h1]:font-bold [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:font-semibold [&_h4]:font-semibold',
+          '[&_hr]:my-4 [&_hr]:border-t [&_hr]:border-border',
+          '[&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1 [&_th]:font-semibold [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1',
+        )}
+      />
     </div>
   )
 }

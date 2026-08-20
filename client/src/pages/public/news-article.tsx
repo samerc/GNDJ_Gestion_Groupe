@@ -3,7 +3,8 @@ import { ArrowLeft, Calendar, Paperclip, FileText, Download } from 'lucide-react
 import { PageHero } from '@/components/public/page-hero'
 import { RichContent } from '@/components/public/rich-content'
 import { usePublicNewsArticle } from '@/services/news-service'
-import { formatDateLong as formatDate } from '@/lib/utils'
+import { formatDateLong as formatDate, metaFromHtml } from '@/lib/utils'
+import { Seo } from '@/components/public/seo'
 
 // Public single-article page at `/actualites/:slug` — anonymous. Fetches one published post by
 // slug; shows loading/not-found fallbacks, then header (date + tag) and the CMS body.
@@ -38,6 +39,7 @@ export default function PublicNewsArticlePage() {
 
   return (
     <>
+      <Seo title={article.title} description={metaFromHtml(article.bodyHtml)} />
       <PageHero title={article.title} />
       <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2">

@@ -29,3 +29,12 @@ export function formatMoney(amount: number, currency: string): string {
   const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'ل.ل'
   return `${amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} ${symbol}`
 }
+
+// Derive a plain-text meta description from CMS body HTML: strip tags, collapse whitespace, truncate.
+// Not for rendering (that goes through DOMPurify) — only for <meta> text, where tags are inert.
+export function metaFromHtml(html: string | null | undefined, max = 160): string | undefined {
+  if (!html) return undefined
+  const text = html.replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim()
+  if (!text) return undefined
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text
+}

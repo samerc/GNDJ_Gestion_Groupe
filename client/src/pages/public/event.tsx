@@ -3,6 +3,8 @@ import { ArrowLeft, CalendarDays, Clock, MapPin } from 'lucide-react'
 import { PageHero } from '@/components/public/page-hero'
 import { RichContent } from '@/components/public/rich-content'
 import { usePublicEvent } from '@/services/events-service'
+import { Seo } from '@/components/public/seo'
+import { metaFromHtml } from '@/lib/utils'
 
 const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 function longDate(iso: string) { const [y, m, d] = iso.split('-').map(Number); return `${d} ${MONTHS[m - 1]} ${y}` }
@@ -40,6 +42,7 @@ export default function PublicEventPage() {
 
   return (
     <>
+      <Seo title={ev.title} description={metaFromHtml(ev.bodyHtml) ?? `${ev.title} — ${ev.endDate ? `du ${longDate(ev.startDate)} au ${longDate(ev.endDate)}` : longDate(ev.startDate)}.`} />
       <PageHero title={ev.title} />
       <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2">

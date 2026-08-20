@@ -2693,6 +2693,36 @@ Each custom field now declares WHO may fill its value (backend + frontend; migra
 - Verified live: member self-sets a `Member` field (204) but is blocked on a `GroupLeader` field (400); admin/leader
   sets any; bad `editableBy` → 400. Default `UnitLeader` preserves existing fields. dotnet + tsc + eslint clean.
 
+### Public site audit — fix batch (2026-08-20)
+Ran a full public-site audit (4 parallel agents: correctness, security, performance, UI/UX-a11y-SEO). Security
+came back clean (no S1/S2), mobile safe. Fixed the actionable batch (frontend + 2 controllers; DEV until deploy):
+- [x] **Editorial content rendered correctly (root cause of "lists don't apply").** The public renderer
+      (`rich-content.tsx`) + the editor (`rich-text-editor.tsx`) relied on `prose` classes that are **inert** (no
+      `@tailwindcss/typography` plugin installed), so author lists/headings/rules/tables showed no styling in the
+      editor and (for the newly-covered elements) on the site. Both now style every element the TipTap toolbar can
+      produce **explicitly** via `[&_*]` utilities — added `h1`/`h4`/`hr`/`th`/`td` to the existing ul/ol/li/a/h2/h3
+      set. Editor + public render now match.
+- [x] **Content assets edge-cacheable.** `ContentImagesController` + `ContentFilesController` serve endpoints now
+      send `Cache-Control: public, max-age=31536000, immutable` (filenames are content-addressed GUIDs → bytes
+      never change), so the browser + Cloudflare stop re-fetching images/attachments on every page view.
+- [x] **Link hardening + memoized sanitize.** `rich-content.tsx` registers a DOMPurify `afterSanitizeAttributes`
+      hook that adds `rel="noopener noreferrer"` to any `target=_blank`/external anchor (reverse-tabnabbing +
+      referrer leak), and wraps `DOMPurify.sanitize` in `useMemo(html)` so re-renders don't re-sanitize.
+- [x] **SEO (partial).** New `components/public/seo.tsx` (`<Seo title description>`) uses **React 19 native
+      document metadata** (renders `<title>` + `<meta name=description>` + `og:title`/`og:description`, hoisted to
+      `<head>`) — wired into all 10 public pages (home, units, unit-detail, news list+article, agenda list+event,
+      ressources list+resource, standalone page, contact); detail pages derive the description from the CMS body via
+      `metaFromHtml` (strip tags → truncate 160, in `lib/utils.ts`). `index.html` gained a static OG/Twitter floor
+      (site name, locale fr_FR, favicon og:image). NOTE: JS-rendered meta helps browsers + Google but NOT non-JS
+      social scrapers (Facebook/WhatsApp) — full share-card accuracy needs **server-side prerendering** (deferred).
+- [x] **A11y + polish.** Contact form inputs got `id`+`htmlFor` label association; home event dates use the
+      agenda's string-split parser (DateOnly timezone off-by-one fix); softer empty-state copy on agenda/ressources/
+      news ("à venir / bientôt" when nothing's published, vs "pour cette sélection" when a filter returns nothing).
+- **Verified:** frontend `tsc` + `eslint --max-warnings=0` + `vite build` clean; API builds 0 warn; Cache-Control
+      header confirmed live on a served content image. **Deferred follow-ups** (documented, NOT in this batch):
+      longer output-cache TTL + edge Cache-Control on public JSON; full social-scraper prerender/SSR;
+      keyboard-accessible nav dropdowns + mobile-menu focus trap; foulard regex / date-format-consistency polish.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

@@ -3,6 +3,7 @@ import { ArrowRight, Users } from 'lucide-react'
 import { PageHero } from '@/components/public/page-hero'
 import { foulardColors } from '@/components/public/foulard'
 import { usePublicUnits, type PublicUnitListItem } from '@/services/public-service'
+import { Seo } from '@/components/public/seo'
 
 // Format an age range into a French label, tolerating either bound being absent (returns null if both are).
 function ageLabel(min: number | null, max: number | null) {
@@ -49,6 +50,7 @@ export default function PublicUnitsPage() {
 
   return (
     <>
+      <Seo title="Nos unités" description="Découvrez les unités du Groupe Notre-Dame de Jamhour : une branche pour chaque âge, de la jeannette au routier." />
       <PageHero title="Nos unités" subtitle="Une unité pour chaque âge, de la jeannette au routier." />
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
         {isLoading ? (
