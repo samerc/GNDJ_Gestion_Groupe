@@ -531,9 +531,10 @@ internal sealed class UnpaidContactResolver
             .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.IsPrimaryContact).Select(x => x.GuardianId).Distinct().ToList());
         var guardianIds = links.Select(l => l.GuardianId).Distinct().ToList();
 
+        // First name only — the "à relancer" table shows the parent by first name (family name omitted).
         var guardianName = (await ctx.Guardians.Where(g => guardianIds.Contains(g.Id))
-            .Select(g => new { g.Id, g.FirstName, g.LastName }).ToListAsync(ct))
-            .ToDictionary(g => g.Id, g => $"{g.FirstName} {g.LastName}".Trim());
+            .Select(g => new { g.Id, g.FirstName }).ToListAsync(ct))
+            .ToDictionary(g => g.Id, g => (g.FirstName ?? string.Empty).Trim());
 
         var guardianEmail = (await ctx.GuardianEmails.Where(e => guardianIds.Contains(e.GuardianId) && !e.IsDeleted)
             .Select(e => new { e.GuardianId, e.Address, e.IsPrimary }).ToListAsync(ct))

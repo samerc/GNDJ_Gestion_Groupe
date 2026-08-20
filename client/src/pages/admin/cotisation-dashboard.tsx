@@ -115,7 +115,7 @@ export default function CotisationDashboardPage() {
 
   const exportCsv = () => {
     if (!unpaid || unpaid.length === 0) return
-    const header = ['Unité', 'Membre', 'Parent', 'Email', 'Téléphone']
+    const header = ['Unité', 'Membre', 'Père', 'Email', 'Téléphone']
     const escape = (v: string) => `"${(v ?? '').replace(/"/g, '""')}"`
     const lines = unpaid.map(u => [u.unitName, u.memberName, u.parentName ?? '', u.contactEmail ?? '', u.contactPhone ?? ''].map(escape).join(','))
     // UTF-8 BOM so Excel reads accents correctly.
@@ -303,7 +303,7 @@ export default function CotisationDashboardPage() {
                                     <thead>
                                       <tr className="border-b bg-muted/40 text-left">
                                         <th className="px-3 py-2 font-medium">Membre</th>
-                                        <th className="px-3 py-2 font-medium">Parent</th>
+                                        <th className="px-3 py-2 font-medium">Père</th>
                                         <th className="px-3 py-2 font-medium">Contact</th>
                                         <th className="px-3 py-2 font-medium text-right no-print">Actions</th>
                                       </tr>
