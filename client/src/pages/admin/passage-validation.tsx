@@ -116,13 +116,17 @@ export default function PassageValidationPage() {
   // MUST be reviewed/approved by the CG, else finalize (which only processes Approved lines) skips it and
   // the change is lost. So the default view hides only true no-change members, keeping every real change
   // (unit move, équipe change, fonction change, leaving) visible.
+  // isNoChange compares team/role by NAME (the DTO carries names, not ids) — the backend auto-approves by
+  // id. To be safe against a name collision that could misclassify a real change, we ALSO require the line
+  // to be non-Pending before hiding it: a Pending line always needs CG action, so it is never hidden.
   const isNoChange = (p: PassageDto) =>
     !p.isLeaving
     && p.proposedUnitId === p.currentUnitId
     && (p.proposedTeamName ?? null) === (p.currentTeamName ?? null)
     && p.proposedRoleName === p.currentRoleName
-  const visiblePassages = showSameUnit ? passageList : passageList.filter(p => !isNoChange(p))
-  const noChangeCount = passageList.filter(isNoChange).length
+  const isHiddenNoChange = (p: PassageDto) => p.status !== 'Pending' && isNoChange(p)
+  const visiblePassages = showSameUnit ? passageList : passageList.filter(p => !isHiddenNoChange(p))
+  const noChangeCount = passageList.filter(isHiddenNoChange).length
 
   // The base youth role of a unit type = the fonction a new arrival gets (explicit "défaut pour les
   // nouveaux membres" role, else the lowest-rank non-archived, non-maîtrise one). Used when a member

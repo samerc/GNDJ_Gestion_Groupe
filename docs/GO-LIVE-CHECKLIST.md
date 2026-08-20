@@ -7,7 +7,8 @@ comms) · **Me** = Claude (code/config/scripts/verification).
 - **The critical path is Phase 0 → 1 → 2 → 3.** Email (Phase 1) gates almost everything: you can't accept a
   demande, activate an account, or send onboarding/relance mail until real email leaves the building.
 
-Last updated: 2026-08-15.
+Last updated: 2026-08-20 (launching with the Maîtrises). **`main` has advanced well past the deployed prod
+build** — a fresh Phase-0 deploy brings live everything below plus this week's work (see build log).
 
 ---
 
@@ -16,9 +17,9 @@ Everything below is built on `main` but **prod is still on an older build** — 
 
 | # | Task | Owner | Status |
 |---|------|-------|--------|
-| 0.1 | Final `code-review` + `wrap-up` error check on `main` | Me | `[ ]` |
-| 0.2 | Bump version on dev → **v3.1.0** (tagged + pushed) | Me | `[x]` |
-| 0.3 | Deploy to prod: `update.ps1 -Pull` (elevated shell on prod). Migrations auto-apply on startup: `AddEmailThrottle`, `AddMemberDocumentPages`, `AddEmailOutbox` + any others. **Do NOT run `reset-to-import.ps1`** (wipes the SMTP servers/settings added on prod) | You | `[~]` |
+| 0.1 | Final `code-review` + `wrap-up` error check on `main` (also: full build + 4 tests + tsc/eslint/vite + live smoke all green 2026-08-20) | Me | `[x]` |
+| 0.2 | Bump version on dev → **v3.4.0** (tagged + pushed) — was v3.1.0 at last launch prep | Me | `[x]` |
+| 0.3 | Deploy to prod: `update.ps1 -Pull` (elevated shell on prod). Migrations auto-apply on startup incl. `AddCustomFieldEditableBy`, `AddMemberChangeRequests`, `AddEmailThrottle`, `AddMemberDocumentPages`, `AddEmailOutbox`. Data patches (`deploy/patches/*.sql`) auto-run once. **Do NOT run `reset-to-import.ps1`** (wipes the SMTP servers/settings added on prod) | You | `[ ]` |
 | 0.4 | Smoke-test prod: `/health` 200, login, a member detail, one report | You + Me | `[ ]` |
 
 ---
@@ -95,6 +96,7 @@ Everything below is built on `main` but **prod is still on an older build** — 
 - **Outbox send-rate throttle** — per-SMTP `Max emails / heure`; set SendPulse 45.
 - **Relance documents** (CG) — one-click-per-unit reminder emails for incomplete dossiers (missing / à corriger / à renouveler) + individual send + a rentrée checklist task.
 - Multi-page documents, CG-can-reach-any-member, terms gate, manual verify, forced first-login password, configurable password policy, Communications tool, email outbox admin page, error handling + alerts, maintenance kill-switches. (All detailed in `CLAUDE.md`.)
+- **Since 2026-08-15 (this week, all on `main`, DEV until deploy):** custom-field **"Rempli par" scope** (member / CU / CG) + member self-service fill; **passage CG** default-view = real changes only + parcours-driven Revue dialog; **passage CU** bulk "Déplacer vers…" parcours picker; **rejected change-request** now shown to the member on Ma fiche (with motif + dismiss); Famille tab + cotisation "ne paiera pas" polish; **"Mes documents"** bar shows "en attente de validation"; member account menu de-duplicated + logout hover contrast; assorted UX (refuse-dialog wording, "En attente" badge colour). None are launch-blockers — they ship with the deploy.
 
 ## Open decisions / notes
 - **Which member-facing provider carries which template** (Mailgun vs SendPulse per-template binding) — finalize at 1.3.

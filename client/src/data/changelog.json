@@ -1,8 +1,10 @@
 [
   {
-    "version": "3.3.0",
-    "date": "2026-08-19",
+    "version": "3.4.0",
+    "date": "2026-08-20",
     "changes": [
+      "Passage CG : une ligne « en attente » n'est jamais masquée par défaut (sécurité — elle doit toujours être revue)",
+      "Menu du compte (membre) : retrait des liens déjà présents dans le menu latéral ; « Déconnexion » lisible au survol (blanc sur rouge)",
       "Champs personnalisés : chaque champ précise qui peut le remplir (Le membre / Chef d'unité / Chef de groupe) — les autres le voient en lecture seule",
       "Le membre peut désormais renseigner ses propres champs personnalisés ouverts aux membres (ex. instrument de musique) depuis Ma fiche",
       "Demandes de modification : un membre voit sa proposition refusée (avec le motif) sur Ma fiche + peut effacer la notification",

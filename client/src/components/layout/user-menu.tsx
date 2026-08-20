@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
+import { useIsManager } from '@/lib/use-is-manager'
 import { useNavigate } from 'react-router'
 import { useChangePassword, useSignOutOtherDevices } from '@/services/email-service'
 import { parseApiError } from '@/lib/error-utils'
@@ -25,6 +26,9 @@ import { toast } from 'sonner'
 export function UserMenu() {
   const { user, logout, applyTokens } = useAuthStore()
   const navigate = useNavigate()
+  // Managers use the horizontal top nav (no left sidebar), so the personal pages live here for them. Regular
+  // members already have those links in their sidebar/drawer, so we don't duplicate them in this menu.
+  const isManager = useIsManager()
   const [loggingOut, setLoggingOut] = useState(false)
 
   const signOutOthersMutation = useSignOutOtherDevices()
@@ -96,23 +100,27 @@ export function UserMenu() {
             <p className="text-muted-foreground text-xs">{user?.email}</p>
           </div>
           <DropdownMenuSeparator />
-          {/* Personal pages — everyone has them (a CG/ACG is still a member with their own fiche/docs/photos).
-              Managers have no left sidebar, so this menu is their only access to these. */}
-          {user?.memberId && (
-            <DropdownMenuItem onClick={() => navigate('/my-profile')}>
-              <IdCard className="mr-2 h-4 w-4" />
-              Ma fiche
-            </DropdownMenuItem>
+          {/* Personal pages here ONLY for managers — they have no left sidebar (their nav is the horizontal top
+              bar), so this menu is their only access. Regular members already have these in the sidebar/drawer. */}
+          {isManager && (
+            <>
+              {user?.memberId && (
+                <DropdownMenuItem onClick={() => navigate('/my-profile')}>
+                  <IdCard className="mr-2 h-4 w-4" />
+                  Ma fiche
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => navigate('/my-documents')}>
+                <FileText className="mr-2 h-4 w-4" />
+                Mes documents
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/my-trombinoscope')}>
+                <ImageIcon className="mr-2 h-4 w-4" />
+                Trombinoscope
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
           )}
-          <DropdownMenuItem onClick={() => navigate('/my-documents')}>
-            <FileText className="mr-2 h-4 w-4" />
-            Mes documents
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate('/my-trombinoscope')}>
-            <ImageIcon className="mr-2 h-4 w-4" />
-            Trombinoscope
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => { setPasswordError(''); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); setChangePasswordOpen(true) }}>
             <KeyRound className="mr-2 h-4 w-4" />
             Modifier le mot de passe
@@ -122,7 +130,8 @@ export function UserMenu() {
             Déconnecter les autres appareils
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} disabled={loggingOut} className="text-destructive focus:text-destructive">
+          {/* Red at rest; on hover the row gets the accent background, so the text/icon go white for contrast. */}
+          <DropdownMenuItem onClick={handleLogout} disabled={loggingOut} className="text-destructive focus:bg-destructive focus:text-white">
             <LogOut className="mr-2 h-4 w-4" />
             {loggingOut ? 'Déconnexion...' : 'Déconnexion'}
           </DropdownMenuItem>
