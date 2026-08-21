@@ -1,7 +1,7 @@
 [
   {
     "version": "3.4.0",
-    "date": "2026-08-20",
+    "date": "2026-08-21",
     "changes": [
       "Message aux chefs : page refondue — destinataires clairs (Toutes les maîtrises / Une unité + interrupteur « Nouveaux chefs uniquement »), bouton Envoyer remonté en haut, aperçu de l'email, correction d'un blocage (le CG ne voyait aucun modèle)",
       "Message aux chefs : l'email d'accueil de rentrée contient maintenant le lien d'activation (identifiant + « Activer mon compte ») + un lien vers la liste des tâches (rubrique « Rentrée ») — un seul email au lieu de deux ; formulation « plateforme mise à jour en remplacement de l'ancien système »",
