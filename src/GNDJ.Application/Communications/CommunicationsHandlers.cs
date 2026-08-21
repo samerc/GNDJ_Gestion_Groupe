@@ -1,6 +1,8 @@
+using System.Security.Cryptography;
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
@@ -82,8 +84,10 @@ public class GetLeaderRecipientsQueryHandler(IApplicationDbContext context, ICur
     }
 }
 
-// Result of a send: how many were queued + who had no email (so the CG can chase them another way).
-public record SendLeaderMessageResult(int Sent, int NoEmail, IReadOnlyList<string> NoEmailNames);
+// Result of a send: how many were queued, who had no email, and (for an activation-link template) who has no
+// login account yet — so the CG can chase those another way (an activation-link email is useless without an account).
+public record SendLeaderMessageResult(
+    int Sent, int NoEmail, IReadOnlyList<string> NoEmailNames, int NoAccount, IReadOnlyList<string> NoAccountNames);
 
 // Send the given template to the selected leaders (by member id). Each recipient gets their own resolved
 // contact email + per-recipient variables ({{leaderName}}, {{unitName}}, {{scoutYear}}, {{loginUrl}}).
@@ -123,8 +127,28 @@ public class SendLeaderMessageCommandHandler(
         var memberIds = rows.Select(r => r.MemberId).Distinct().ToList();
         var resolver = await ContactEmailResolver.LoadAsync(context, memberIds, ct);
 
+        // If the chosen template embeds the activation link (e.g. the rentrée onboarding email), we ALSO stamp a
+        // set-password token per recipient and provide {{username}}/{{activationLink}}/{{expiryDays}} — so ONE
+        // email both onboards the chef AND lets them set their password (no separate "Envoyer les accès" pass).
+        // A plain announcement template (no {{activationLink}}) behaves as before: no tokens, sent to anyone with
+        // an email. A recipient with no active login account can't be given a link → reported as "no account".
+        var needsActivation = template.BodyHtml.Contains("{{activationLink}}", StringComparison.OrdinalIgnoreCase)
+            || template.Subject.Contains("{{activationLink}}", StringComparison.OrdinalIgnoreCase);
+
+        Dictionary<Guid, User> userByMember = new();
+        var activationExpiryDays = 30;
+        DateTime expiry = default;
+        if (needsActivation)
+        {
+            userByMember = (await context.Users.Where(u => memberIds.Contains(u.MemberId)).ToListAsync(ct))
+                .ToDictionary(u => u.MemberId);
+            activationExpiryDays = int.TryParse(await context.Settings.Where(s => s.Key == "member.activation_link_days").Select(s => s.Value).FirstOrDefaultAsync(ct), out var ad) && ad > 0 ? ad : 30;
+            expiry = DateTime.UtcNow.AddDays(activationExpiryDays);
+        }
+
         var jobs = new List<EmailJob>();
         var noEmailNames = new List<string>();
+        var noAccountNames = new List<string>();
         foreach (var g in rows.GroupBy(r => r.MemberId))
         {
             var first = g.First();
@@ -132,19 +156,39 @@ public class SendLeaderMessageCommandHandler(
             var email = resolver.Resolve(first.MemberId, first.PrimaryContactEmail);
             if (string.IsNullOrWhiteSpace(email)) { noEmailNames.Add(name); continue; }
             var units = string.Join(", ", g.Select(x => x.UnitName).Distinct().OrderBy(x => x));
-            jobs.Add(new EmailJob(request.TemplateCode, email!, new Dictionary<string, string>
+            var vars = new Dictionary<string, string>
             {
                 ["leaderName"] = name,
                 ["unitName"] = units,
                 ["scoutYear"] = scoutYear,
                 ["loginUrl"] = loginUrl,
-            }));
+            };
+
+            if (needsActivation)
+            {
+                if (!userByMember.TryGetValue(first.MemberId, out var user) || !user.IsActive)
+                {
+                    noAccountNames.Add(name); continue; // can't hand out a set-password link without an account
+                }
+                // Reuse the reset-token fields (raw in DB, compared on redemption at /reset-password?setup=1).
+                var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "").Replace("/", "").Replace("=", "");
+                user.PasswordResetToken = token;
+                user.PasswordResetTokenExpiry = expiry;
+                vars["username"] = user.Email;
+                vars["activationLink"] = $"{loginUrl}/reset-password?token={token}&email={Uri.EscapeDataString(user.Email)}&setup=1";
+                vars["expiryDays"] = activationExpiryDays.ToString();
+            }
+
+            jobs.Add(new EmailJob(request.TemplateCode, email!, vars));
         }
 
+        // Persist the stamped tokens BEFORE queuing the mail, so a token always exists when the link is clicked.
+        if (needsActivation) await context.SaveChangesAsync(ct);
         await emailQueue.EnqueueManyAsync(jobs, ct);
         await audit.LogAsync("SendLeaderMessage", "EmailTemplate", template.Id,
-            newValues: new { template.Code, Sent = jobs.Count, NoEmail = noEmailNames.Count }, cancellationToken: ct);
+            newValues: new { template.Code, Sent = jobs.Count, NoEmail = noEmailNames.Count, NoAccount = noAccountNames.Count }, cancellationToken: ct);
 
-        return Result<SendLeaderMessageResult>.Success(new SendLeaderMessageResult(jobs.Count, noEmailNames.Count, noEmailNames));
+        return Result<SendLeaderMessageResult>.Success(new SendLeaderMessageResult(
+            jobs.Count, noEmailNames.Count, noEmailNames, noAccountNames.Count, noAccountNames));
     }
 }

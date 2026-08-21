@@ -16,6 +16,9 @@ export interface SendLeaderMessageResult {
   sent: number
   noEmail: number
   noEmailNames: string[]
+  // Only relevant for an activation-link template: recipients with no login account (can't get a set-password link).
+  noAccount: number
+  noAccountNames: string[]
 }
 
 // GET /communications/leaders → leaders (active maîtrise assignment), optional unit + never-logged-in filters.

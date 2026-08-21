@@ -22,16 +22,26 @@ Voici tout ce dont vous avez besoin pour démarrer.
 
 ## 1. Activez votre compte
 
-Vous allez recevoir (ou avez reçu) un **email d'activation** séparé intitulé
-« *Activez votre compte* ». Cliquez sur le lien qu'il contient pour **choisir votre mot de passe**.
+Cet email contient **directement votre lien d'activation** (bouton « *Activer mon compte* ») —
+cliquez dessus pour **choisir votre mot de passe**. Un seul email, pas d'envoi séparé.
 
 - Votre identifiant de connexion est : **[prenom.nom@scouts.gndj]**
 - Adresse du site : **https://new.gndj.org**
 - Le lien d'activation est valable **30 jours**.
-- Si vous ne trouvez pas l'email, vérifiez vos courriers indésirables (spam), ou utilisez le
+- Si vous ne trouvez pas cet email, vérifiez vos courriers indésirables (spam), ou utilisez le
   lien « **Identifiant oublié ?** » sur la page de connexion.
 
-> À la première connexion, il vous sera demandé de définir un nouveau mot de passe personnel.
+> Implémentation : la page **Message aux chefs** (Communications) envoie les modèles
+> `cu_rentree` / `cu_rentree_nouveau`, qui incluent désormais le lien d'activation
+> ({{activationLink}} + {{username}}). L'envoi tamponne un jeton de mot de passe par
+> destinataire **uniquement si le corps du modèle contient `{{activationLink}}`** — donc ce
+> seul email fait aussi office d'« Envoyer les accès ».
+>
+> **Années suivantes :** les chefs déjà en poste sont déjà membres avec un compte — ils n'ont
+> PAS besoin d'activer. Il suffira alors de **retirer le bloc « Votre accès » (le
+> `{{activationLink}}`) du modèle `cu_rentree`** : l'email redevient de simples instructions
+> (aucun jeton tamponné), et l'on garde `cu_rentree_nouveau` (avec le lien) pour les chefs
+> réellement nouveaux. Aucun changement de code : le comportement suit le contenu du modèle.
 
 ## 2. Vérifiez et ajustez votre unité
 

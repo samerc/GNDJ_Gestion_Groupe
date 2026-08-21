@@ -2733,6 +2733,26 @@ came back clean (no S1/S2), mobile safe. Fixed the actionable batch (frontend + 
       the override is set. Frontend-only, DEV until deploy — **NOT on the prod build deployed this afternoon**, so
       the immediate launch protection is still a pilot send (see below).
 
+### Onboarding email carries the activation link — one email (2026-08-20)
+- [x] **The rentrée onboarding email now contains the set-password link** (no separate "Envoyer les accès" pass).
+      `SendLeaderMessageCommandHandler` (Message aux chefs): if the chosen template's body/subject contains
+      `{{activationLink}}`, it stamps a set-password token per recipient (reusing the reset-token fields, configurable
+      `member.activation_link_days` expiry, default 30) and provides `{{username}}`/`{{activationLink}}`/`{{expiryDays}}`
+      — mirroring SendAccess. Tokens saved BEFORE enqueue; a recipient with no active login account is reported as
+      `NoAccount` (can't get a link). A plain announcement template (no `{{activationLink}}`) behaves as before (no
+      tokens, sent to anyone with an email). `SendLeaderMessageResult` gained `NoAccount`/`NoAccountNames` (surfaced
+      in the toast). Both seeded templates `cu_rentree` + `cu_rentree_nouveau` now embed a "Votre accès" block
+      ({{username}} + "Activer mon compte" {{activationLink}} valid {{expiryDays}} jours); `SeedMemberEmailTemplatesAsync`
+      also **upgrades existing DBs in place** (guarded on the old seeded signature "identifiant habituel" /
+      "qui vous a été communiqué", so a CG-customized body is left alone; idempotent). Frontend `general` module
+      variable list gained the onboarding + activation vars so a CG can insert them.
+- **Future (next year):** returning chefs are already members with accounts — no activation needed. The mechanism
+      is template-driven, so next year just **remove the `{{activationLink}}` block from `cu_rentree`** → it becomes
+      instructions-only (no token stamped), while `cu_rentree_nouveau` (genuinely new chefs) keeps the link. No code
+      change. Documented in `docs/emails/cu_onboarding.md`. Verified live: send to an account+email leader stamped a
+      token (expiry = today+30) + queued a `cu_rentree_nouveau` outbox row; a no-email leader reported, no delivery
+      (dev SMTP off). Backend+frontend, DEV until deploy (seeder upgrade applies on prod startup).
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

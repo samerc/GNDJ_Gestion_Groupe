@@ -67,6 +67,15 @@ const MODULE_VARIABLES: Record<string, { key: string; label: string }[]> = {
     { key: 'senderEmail', label: "Email de l'expéditeur" },
     { key: 'subject', label: 'Sujet' },
     { key: 'message', label: 'Message' },
+    // Rentrée onboarding (Message aux chefs) — resolved per recipient at send time.
+    { key: 'leaderName', label: 'Nom du chef' },
+    { key: 'unitName', label: 'Unité' },
+    { key: 'scoutYear', label: 'Année scoute' },
+    { key: 'username', label: 'Identifiant' },
+    // Adding {{activationLink}} makes the send stamp a set-password token per recipient (one-email onboarding).
+    { key: 'activationLink', label: "Lien d'activation (définir le mot de passe)" },
+    { key: 'expiryDays', label: 'Validité du lien (jours)' },
+    { key: 'loginUrl', label: 'Lien de connexion' },
   ],
 }
 
