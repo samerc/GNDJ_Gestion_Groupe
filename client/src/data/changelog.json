@@ -3,7 +3,7 @@
     "version": "3.4.0",
     "date": "2026-08-20",
     "changes": [
-      "Message aux chefs : l'email d'accueil de rentrée contient maintenant le lien d'activation (identifiant + « Activer mon compte ») + un lien vers la liste des tâches (rubrique « Rentrée ») — un seul email au lieu de deux",
+      "Message aux chefs : l'email d'accueil de rentrée contient maintenant le lien d'activation (identifiant + « Activer mon compte ») + un lien vers la liste des tâches (rubrique « Rentrée ») — un seul email au lieu de deux ; formulation « plateforme mise à jour en remplacement de l'ancien système »",
       "Cotisations : les deux tableaux « par unité » fusionnés — cliquez une unité pour voir sa liste « à relancer » (impayés) sur place",
       "Cotisations « à relancer » : colonne « Parent » renommée « Père » et affichée par prénom (sans le nom de famille)",
       "Envois d'emails (accès / chefs / relances) : bandeau d'avertissement « mode test » quand les emails sont redirigés vers une adresse de test (évite d'envoyer dans le vide)",
