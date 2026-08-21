@@ -84,6 +84,30 @@ public class GetLeaderRecipientsQueryHandler(IApplicationDbContext context, ICur
     }
 }
 
+// A sendable email template for the Communications page — enough to list + PREVIEW it (subject/body). Exposed
+// on a maitrise.manage endpoint so a Chef de Groupe can pick + preview a template WITHOUT the super-admin-only
+// /email/templates admin API (which needs associations.manage). Read-only: editing templates stays super-admin.
+public record LeaderMessageTemplateDto(Guid Id, string Name, string Code, string Subject, string BodyHtml, string? Variables);
+
+public record GetLeaderMessageTemplatesQuery() : IRequest<Result<IReadOnlyList<LeaderMessageTemplateDto>>>;
+
+public class GetLeaderMessageTemplatesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetLeaderMessageTemplatesQuery, Result<IReadOnlyList<LeaderMessageTemplateDto>>>
+{
+    public async ValueTask<Result<IReadOnlyList<LeaderMessageTemplateDto>>> Handle(GetLeaderMessageTemplatesQuery request, CancellationToken ct)
+    {
+        if (!MemberAccess.IsGroupManager(currentUser))
+            return Result<IReadOnlyList<LeaderMessageTemplateDto>>.Success([]);
+
+        var list = await context.EmailTemplates
+            .Where(t => t.IsActive)
+            .OrderBy(t => t.Name)
+            .Select(t => new LeaderMessageTemplateDto(t.Id, t.Name, t.Code, t.Subject, t.BodyHtml, t.Variables))
+            .ToListAsync(ct);
+        return Result<IReadOnlyList<LeaderMessageTemplateDto>>.Success(list);
+    }
+}
+
 // Result of a send: how many were queued, who had no email, and (for an activation-link template) who has no
 // login account yet — so the CG can chase those another way (an activation-link email is useless without an account).
 public record SendLeaderMessageResult(

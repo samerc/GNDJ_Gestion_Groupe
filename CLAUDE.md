@@ -2753,6 +2753,27 @@ came back clean (no S1/S2), mobile safe. Fixed the actionable batch (frontend + 
       token (expiry = today+30) + queued a `cu_rentree_nouveau` outbox row; a no-email leader reported, no delivery
       (dev SMTP off). Backend+frontend, DEV until deploy (seeder upgrade applies on prod startup).
 
+### "Message aux chefs" (Communications) page redesign (2026-08-21)
+- [x] **Clearer audience + send-up + preview + a latent CG 403 fix.** The page mixed a unit dropdown + a
+      "nouveaux chefs" toggle + per-member checkboxes with no hierarchy, the send button sat below a long table,
+      and there was no way to see the email. Reworked: **audience = segmented "Toutes les maîtrises / Une unité"**
+      (unit picker only for "Une unité") **+ a Switch "Nouveaux chefs uniquement"** (never-logged-in, combines with
+      the audience) **+ checkboxes to fine-tune** (with a caption); the **Envoyer bar moved to the top** (above the
+      list, with a live "à N chef(s) de <audience>" summary); a **live preview** (subject + body rendered via
+      RichContent, `{{variables}}` filled with sample values, only shown once a template is picked) + an activation-
+      link note when the body has `{{activationLink}}` + a "Modifier le modèle" link (super-admin only).
+- [x] **Fixed: a real CG saw NO templates.** The page listed templates via `useEmailTemplates` (`GET /email/templates`,
+      **associations.manage** = super-admin only) → a CG (maitrise.manage) got 403 and an empty dropdown. New
+      CG-accessible **`GET /communications/templates`** (`GetLeaderMessageTemplatesQuery`, IsGroupManager gate,
+      returns active templates' id/name/code/subject/body/variables — read-only; editing stays super-admin) +
+      `useLeaderMessageTemplates`. `useLeaderRecipients` gained an `enabled` flag (holds the fetch on "Une unité"
+      until a unit is chosen). Verified: endpoint returns 15 active templates. Build clean (dotnet + tsc + eslint +
+      vite). DEV until deploy.
+- **NOT done (offered):** true per-send content editing (one-off tweak of subject/body before sending) — the email
+      pipeline is fully template-code-driven (EmailJob/outbox store only the template code + variables; EmailService
+      renders from the saved template), so an override needs new nullable outbox columns (migration) + an
+      EmailService override path. Deferred; "adjust" today = edit the saved template (super-admin) or preview then send.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
