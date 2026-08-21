@@ -7,6 +7,7 @@
       "Message aux chefs : l'email d'accueil de rentrée contient maintenant le lien d'activation (identifiant + « Activer mon compte ») + un lien vers la liste des tâches (rubrique « Rentrée ») — un seul email au lieu de deux ; formulation « plateforme mise à jour en remplacement de l'ancien système »",
       "Cotisations : les deux tableaux « par unité » fusionnés — cliquez une unité pour voir sa liste « à relancer » (impayés) sur place",
       "Cotisations « à relancer » : colonne « Parent » renommée « Père » et affichée par prénom (sans le nom de famille)",
+      "Cotisations : la fenêtre « Enregistrer un paiement » accepte plusieurs lignes de paiement (montant/devise/méthode) sous une même date, avec total",
       "Envois d'emails (accès / chefs / relances) : bandeau d'avertissement « mode test » quand les emails sont redirigés vers une adresse de test (évite d'envoyer dans le vide)",
       "Site public : listes, titres, traits et tableaux du contenu éditorial s'affichent correctement (éditeur + rendu)",
       "Site public : images/PJ mises en cache par le navigateur et Cloudflare (chargement plus rapide)",

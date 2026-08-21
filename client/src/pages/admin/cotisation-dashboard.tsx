@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { Receipt, Users, AlertTriangle, CheckCircle, Mail, Phone, Ban, Printer, Download, ChevronRight } from 'lucide-react'
+import { Receipt, Users, AlertTriangle, CheckCircle, Mail, Phone, Ban, Printer, Download, ChevronRight, Trash2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 
 
@@ -51,21 +51,29 @@ export default function CotisationDashboardPage() {
     return next
   })
 
-  // ── Record-payment dialog state (compact single-line entry; the full multi-line editor lives on the
-  //    member file / CU matrix — here the CG just logs "they paid" to clear the follow-up). ──
+  // ── Record-payment dialog state. Supports MULTIPLE payment lines (amount + currency + method) under one
+  //    date — same shape the backend/member-file editor uses — so the CG can log a split payment here. ──
+  type PayLine = { amount: string; currency: string; paymentMethod: string }
   const [payFor, setPayFor] = useState<UnpaidCotisationDto | null>(null)
-  const [payAmount, setPayAmount] = useState('')
-  const [payCurrency, setPayCurrency] = useState('USD')
-  const [payMethod, setPayMethod] = useState('Cash')
   const [payDate, setPayDate] = useState('')
+  const [payLines, setPayLines] = useState<PayLine[]>([])
 
   const openPayDialog = (m: UnpaidCotisationDto) => {
     setPayFor(m)
-    setPayAmount(defaultAmount ?? '100')
-    setPayCurrency('USD')
-    setPayMethod('Cash')
     setPayDate(new Date().toISOString().split('T')[0])
+    setPayLines([{ amount: defaultAmount ?? '100', currency: 'USD', paymentMethod: 'Cash' }])
   }
+  const addPayLine = () => setPayLines(ls => [...ls, { amount: '', currency: 'USD', paymentMethod: 'Cash' }])
+  const removePayLine = (i: number) => setPayLines(ls => ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls)
+  const updatePayLine = (i: number, patch: Partial<PayLine>) =>
+    setPayLines(ls => ls.map((l, idx) => idx === i ? { ...l, ...patch } : l))
+
+  // Totals per currency for the dialog footer (multi-currency, not converted).
+  const payTotals = payLines.reduce<Record<string, number>>((acc, l) => {
+    const n = parseFloat(l.amount)
+    if (n > 0) acc[l.currency] = (acc[l.currency] ?? 0) + n
+    return acc
+  }, {})
 
   const refreshCotisations = () => {
     qc.invalidateQueries({ queryKey: ['cotisations', 'unpaid', scoutYear] })
@@ -74,14 +82,16 @@ export default function CotisationDashboardPage() {
 
   const submitPayment = async () => {
     if (!payFor) return
-    const amount = parseFloat(payAmount)
-    if (!(amount > 0)) { toast.error('Le montant doit être supérieur à 0.'); return }
+    const payments = payLines.map(l => ({ amount: parseFloat(l.amount), currency: l.currency, paymentMethod: l.paymentMethod }))
+    if (payments.length === 0 || payments.some(p => !(p.amount > 0))) {
+      toast.error('Chaque ligne doit avoir un montant supérieur à 0.'); return
+    }
     try {
       await createCotisation.mutateAsync({
         memberId: payFor.memberId,
         scoutYear,
         paymentDate: payDate,
-        payments: [{ amount, currency: payCurrency, paymentMethod: payMethod }],
+        payments,
       })
       toast.success(`Paiement enregistré — ${payFor.memberName}`)
       setPayFor(null)
@@ -366,44 +376,67 @@ export default function CotisationDashboardPage() {
         </>
       )}
 
-      {/* Compact record-payment dialog */}
+      {/* Record-payment dialog — one date, one or more payment lines (amount + currency + method) */}
       <Dialog open={!!payFor} onOpenChange={(o) => !o && setPayFor(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Enregistrer un paiement{payFor ? ` — ${payFor.memberName}` : ''}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Montant</label>
-                <Input type="number" min={0} step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Devise</label>
-                <Select value={payCurrency} onValueChange={setPayCurrency}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USD">USD ($)</SelectItem>
-                    <SelectItem value="EUR">EUR (€)</SelectItem>
-                    <SelectItem value="LBP">LBP (ل.ل)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Méthode</label>
-                <Select value={payMethod} onValueChange={setPayMethod}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_METHOD_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Date</label>
-                <Input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Date</label>
+              <Input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="w-full sm:w-48" />
             </div>
-            <p className="text-xs text-muted-foreground">Un reçu est généré automatiquement. Pour plusieurs lignes de paiement, ouvrez la fiche du membre.</p>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Lignes de paiement</label>
+              {payLines.map((line, i) => (
+                <div key={i} className="flex items-end gap-2">
+                  <div className="flex-1 space-y-1">
+                    {i === 0 && <span className="text-xs text-muted-foreground">Montant</span>}
+                    <Input type="number" min={0} step="0.01" value={line.amount}
+                      onChange={e => updatePayLine(i, { amount: e.target.value })} placeholder="0.00" />
+                  </div>
+                  <div className="w-28 space-y-1">
+                    {i === 0 && <span className="text-xs text-muted-foreground">Devise</span>}
+                    <Select value={line.currency} onValueChange={v => updatePayLine(i, { currency: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="LBP">LBP (ل.ل)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="w-36 space-y-1">
+                    {i === 0 && <span className="text-xs text-muted-foreground">Méthode</span>}
+                    <Select value={line.paymentMethod} onValueChange={v => updatePayLine(i, { paymentMethod: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_METHOD_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-muted-foreground"
+                    onClick={() => removePayLine(i)} disabled={payLines.length === 1} aria-label="Retirer la ligne">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={addPayLine}>
+                <Plus className="mr-1.5 h-4 w-4" /> Ajouter une ligne
+              </Button>
+            </div>
+
+            {Object.keys(payTotals).length > 0 && (
+              <div className="flex flex-wrap gap-x-4 gap-y-1 border-t pt-2 text-sm">
+                <span className="text-muted-foreground">Total :</span>
+                {Object.entries(payTotals).map(([cur, tot]) => (
+                  <span key={cur} className="font-medium">{formatMoney(tot, cur)}</span>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">Un reçu est généré automatiquement.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPayFor(null)}>Annuler</Button>
