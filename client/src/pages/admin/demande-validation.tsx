@@ -885,6 +885,9 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
         </Section>
 
         <Section icon={Users2} title={`Parents / Tuteurs (${d.guardians.length})`}>
+          {d.parentsSituation && (
+            <p className="mb-2 text-sm"><span className="text-muted-foreground">Situation des parents :</span> <span className="font-medium">{d.parentsSituation}</span></p>
+          )}
           {d.guardians.length === 0 ? <Muted /> : (
             <div className="space-y-2">
               {d.guardians.map((g, i) => (

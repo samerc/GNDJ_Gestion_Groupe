@@ -69,7 +69,9 @@ public record ApplicantProfileDto(Guid AccountId, string Email, bool EmailVerifi
     // True once the applicant has accepted the T&C (now a separate post-login step, not part of registration).
     bool TermsAccepted = false,
     // Household primary contact email (one per family) — chosen in the wizard, copied to each member on conversion.
-    string? PrimaryContactEmail = null);
+    string? PrimaryContactEmail = null,
+    // Parents' relationship status (Unis / Séparés / Divorcés).
+    string? ParentsSituation = null);
 
 // Shared child-field payload for create/update (the per-child part of a demande; the household part
 // lives on the account and is saved separately via SaveApplicantHousehold).
@@ -535,7 +537,8 @@ public class GetApplicantProfileQueryHandler(IApplicationDbContext context, ICur
         return Result<ApplicantProfileDto>.Success(new ApplicantProfileDto(
             account.Id, account.Email, account.EmailVerified, account.ContactName,
             account.AddressCountry, account.AddressCity, account.AddressDetails,
-            guardians, relations, demandes, account.TermsAcceptedAt != null, account.PrimaryContactEmail));
+            guardians, relations, demandes, account.TermsAcceptedAt != null, account.PrimaryContactEmail,
+            account.ParentsSituation));
     }
 }
 
@@ -764,7 +767,7 @@ public class VerifyHouseholdLookupCommandHandler(IApplicationDbContext context, 
 public record SaveApplicantHouseholdCommand(
     string? ContactName, string? AddressCountry, string? AddressCity, string? AddressDetails,
     List<ApplicantGuardianDto> Guardians, List<ApplicantScoutRelationDto> ScoutRelations,
-    string? PrimaryContactEmail = null) : IRequest<Result<bool>>;
+    string? PrimaryContactEmail = null, string? ParentsSituation = null) : IRequest<Result<bool>>;
 
 public class SaveApplicantHouseholdCommandHandler(IApplicationDbContext context, ICurrentApplicantService current) : IRequestHandler<SaveApplicantHouseholdCommand, Result<bool>>
 {
@@ -792,6 +795,7 @@ public class SaveApplicantHouseholdCommandHandler(IApplicationDbContext context,
         account.AddressCity = request.AddressCity;
         account.AddressDetails = request.AddressDetails;
         account.PrimaryContactEmail = string.IsNullOrWhiteSpace(request.PrimaryContactEmail) ? null : request.PrimaryContactEmail.Trim();
+        account.ParentsSituation = string.IsNullOrWhiteSpace(request.ParentsSituation) ? null : request.ParentsSituation.Trim();
 
         // Replace guardians + relations (small shared sets)
         var existingGuardians = await context.ApplicantGuardians.Where(g => g.ApplicantAccountId == id).ToListAsync(ct);
@@ -938,6 +942,9 @@ public class SaveApplicantHouseholdCommandValidator : AbstractValidator<SaveAppl
         RuleFor(x => x.AddressDetails).MaximumLength(500).Must(NoHtml);
         RuleFor(x => x.PrimaryContactEmail).MaximumLength(254).EmailAddress()
             .When(x => !string.IsNullOrWhiteSpace(x.PrimaryContactEmail));
+        RuleFor(x => x.ParentsSituation).Must(s => s is "Unis" or "Séparés" or "Divorcés")
+            .When(x => !string.IsNullOrWhiteSpace(x.ParentsSituation))
+            .WithMessage("Situation des parents invalide.");
     }
 }
 
@@ -1033,9 +1040,15 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
             string.Equals(demande.Classe?.Trim(), config.ExcludedClasse.Trim(), StringComparison.OrdinalIgnoreCase))
             return Result<bool>.Failure($"Un enfant en {config.ExcludedClasse} ne peut pas s'inscrire.");
 
-        var hasGuardian = await context.ApplicantGuardians.AnyAsync(g => g.ApplicantAccountId == id, ct);
-        if (!hasGuardian)
+        var guardians = await context.ApplicantGuardians.Where(g => g.ApplicantAccountId == id).ToListAsync(ct);
+        if (guardians.Count == 0)
             return Result<bool>.Failure("Veuillez renseigner au moins un parent/tuteur avant de soumettre.");
+        // #3 — every living parent/tuteur must have a phone number.
+        if (guardians.Any(g => !g.IsDeceased && string.IsNullOrWhiteSpace(g.PhoneNumber)))
+            return Result<bool>.Failure("Le numéro de téléphone de chaque parent/tuteur est obligatoire.");
+        // #4 — the parents' situation (unis / séparés / divorcés) is required.
+        if (string.IsNullOrWhiteSpace(account.ParentsSituation))
+            return Result<bool>.Failure("Veuillez préciser la situation des parents (unis / séparés / divorcés).");
 
         // Only send the confirmation on the first Draft → Submitted transition (not on a re-submit).
         var wasSubmitted = demande.Status == DemandeStatus.Submitted;

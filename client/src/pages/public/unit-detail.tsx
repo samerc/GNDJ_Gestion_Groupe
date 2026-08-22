@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router'
-import { ArrowLeft, Users, Shield } from 'lucide-react'
+import { ArrowLeft, Users, Shield, Phone } from 'lucide-react'
 import { PageHero } from '@/components/public/page-hero'
 import { usePublicUnitDetail, usePublicSiteConfig, type PublicLeader } from '@/services/public-service'
 import { Seo } from '@/components/public/seo'
@@ -27,6 +27,11 @@ function LeaderCard({ leader }: { leader: PublicLeader }) {
       <div className="min-w-0">
         <p className="truncate font-medium">{leader.name}</p>
         <p className="truncate text-sm text-muted-foreground">{leader.roleName}</p>
+        {leader.phone && (
+          <a href={`tel:${leader.phone.replace(/\s+/g, '')}`} className="mt-0.5 inline-flex items-center gap-1 text-sm text-primary hover:underline">
+            <Phone className="h-3.5 w-3.5" /> {leader.phone}
+          </a>
+        )}
       </div>
     </div>
   )

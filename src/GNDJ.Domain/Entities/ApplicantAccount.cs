@@ -33,6 +33,9 @@ public class ApplicantAccount : BaseEntity
     // member's PrimaryContactEmail so member-facing mail has a designated address.
     public string? PrimaryContactEmail { get; set; }
 
+    // Parents' relationship status (Unis / Séparés / Divorcés) — captured in the wizard, shown to the CG in review.
+    public string? ParentsSituation { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     // When the account holder accepted the inscription terms & conditions (at registration). Null = not

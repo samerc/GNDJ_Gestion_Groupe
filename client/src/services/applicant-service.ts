@@ -98,6 +98,7 @@ export interface ApplicantProfile {
   addressCity?: string | null
   addressDetails?: string | null
   primaryContactEmail?: string | null // household primary contact (one per family), chosen in the wizard
+  parentsSituation?: string | null // Unis / Séparés / Divorcés
   guardians: ApplicantGuardian[]
   scoutRelations: ApplicantScoutRelation[]
   demandes: Demande[]
@@ -133,6 +134,7 @@ export function useSaveHousehold() {
       addressCity?: string | null
       addressDetails?: string | null
       primaryContactEmail?: string | null
+      parentsSituation?: string | null
       guardians: ApplicantGuardian[]
       scoutRelations: ApplicantScoutRelation[]
     }) => applicantApi.put('/applicant/household', data),

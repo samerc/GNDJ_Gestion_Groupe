@@ -35,7 +35,8 @@ public record DemandeReviewDto(
     string? AddressCountry, string? AddressCity, string? AddressDetails,
     IReadOnlyList<ApplicantGuardianDto> Guardians, IReadOnlyList<ApplicantScoutRelationDto> ScoutRelations,
     IReadOnlyList<SiblingDto> Siblings,
-    bool HasPreviousDemande = false, string? PreviousDemandeYear = null);
+    bool HasPreviousDemande = false, string? PreviousDemandeYear = null,
+    string? ParentsSituation = null);
 
 // Per-unit capacity card for the CG: current active members, Projected (after applying this year's
 // passage moves in/out), the editable intake Quota, and how many demandes are already Accepted into it.
@@ -175,7 +176,7 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context, ICu
                     return new ApplicantScoutRelationDto(r.Id, r.Status, r.Relationship, r.RelatedMemberId, r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName,
                         r.OtherGroupIsFormer, match.Name, match.Unit);
                 }).ToList(),
-                sibs, d.HasPreviousDemande, d.PreviousDemandeYear);
+                sibs, d.HasPreviousDemande, d.PreviousDemandeYear, acc?.ParentsSituation);
         });
 
         // Age filter (computed) in-memory

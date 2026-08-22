@@ -40,6 +40,7 @@ export interface DemandeReview {
   addressCountry: string | null
   addressCity: string | null
   addressDetails: string | null
+  parentsSituation: string | null // Unis / Séparés / Divorcés
   guardians: ApplicantGuardian[]
   scoutRelations: ApplicantScoutRelation[]
   siblings: Sibling[]

@@ -50,6 +50,7 @@ export function usePublicSiteConfig() {
 export interface PublicLeader {
   name: string
   roleName: string
+  phone: string | null // the leader's own (personal) phone, when on file
 }
 
 export interface PublicTeam {

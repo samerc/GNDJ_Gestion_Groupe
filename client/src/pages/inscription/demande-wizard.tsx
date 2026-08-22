@@ -150,6 +150,7 @@ export default function DemandeWizardPage() {
   const [relEdit, setRelEdit] = useState<number | null>(null) // proche being added/edited (index; null = list view)
   const [address, setAddress] = useState({ country: 'Liban', city: '', details: '' }) // shared household
   const [primaryContactEmail, setPrimaryContactEmail] = useState('') // household primary contact email
+  const [parentsSituation, setParentsSituation] = useState('') // Unis / Séparés / Divorcés (required at submit)
   // "Retrouver mes informations" — email-code-gated prefill from an existing member's household.
   const [lookupEmail, setLookupEmail] = useState('')
   const [lookupCodeSent, setLookupCodeSent] = useState(false)
@@ -178,6 +179,7 @@ export default function DemandeWizardPage() {
     if (profile.scoutRelations.length) setRelations(profile.scoutRelations)
     setAddress({ country: profile.addressCountry ?? 'Liban', city: profile.addressCity ?? '', details: profile.addressDetails ?? '' })
     setPrimaryContactEmail(profile.primaryContactEmail ?? '')
+    setParentsSituation(profile.parentsSituation ?? '')
     if (existing) {
       // Strip server-managed/metadata fields off the demande so `rest` is exactly the editable
       // DemandeInput shape for the child form. (void = silence unused-var lint on the discards.)
@@ -239,11 +241,15 @@ export default function DemandeWizardPage() {
     if (s === 1) {
       const filled = guardians.filter((g) => g.firstName.trim() || g.lastName.trim())
       if (filled.length === 0) e.guardians = 'Renseignez au moins un parent / tuteur.'
-      filled.forEach((g, i) => {
+      // Match the guardians state indices so the error shows on the right row.
+      guardians.forEach((g, i) => {
+        if (!(g.firstName.trim() || g.lastName.trim())) return
         if (!g.firstName.trim()) e[`g_${i}_first`] = 'Requis'
         if (!g.lastName.trim()) e[`g_${i}_last`] = 'Requis'
+        if (!g.isDeceased && !g.phoneNumber?.trim()) e[`g_${i}_phone`] = 'Téléphone requis' // #3
         if (g.email && !emailRe.test(g.email)) e[`g_${i}_email`] = 'Email invalide'
       })
+      if (!parentsSituation) e.parentsSituation = 'Requis' // #4
     }
     return e
   }
@@ -258,6 +264,7 @@ export default function DemandeWizardPage() {
       contactName: profile?.contactName ?? null,
       addressCountry: address.country, addressCity: address.city, addressDetails: address.details,
       primaryContactEmail: primaryContactEmail || null,
+      parentsSituation: parentsSituation || null,
       guardians: guardians.filter((g) => g.firstName.trim() || g.lastName.trim()),
       scoutRelations: relations.filter((r) => r.firstName?.trim() || r.lastName?.trim() || r.relatedMemberId),
     })
@@ -473,7 +480,9 @@ export default function DemandeWizardPage() {
                     <Field label="Profession (texte libre)">
                       <Input value={g.profession ?? ''} maxLength={150} placeholder="Profession (ex. Ingénieure)" onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, profession: e.target.value } : x))} />
                     </Field>
-                    <Field label="Téléphone"><Input value={g.phoneNumber ?? ''} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, phoneNumber: e.target.value } : x))} /></Field>
+                    <Field label="Téléphone" required={!g.isDeceased} error={errors[`g_${i}_phone`]}>
+                      <Input value={g.phoneNumber ?? ''} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, phoneNumber: e.target.value } : x))} className={errors[`g_${i}_phone`] ? 'border-destructive' : ''} />
+                    </Field>
                     <Field label="Email" error={errors[`g_${i}_email`]}>
                       <Input type="email" value={g.email ?? ''} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, email: e.target.value } : x))} className={errors[`g_${i}_email`] ? 'border-destructive' : ''} />
                     </Field>
@@ -486,6 +495,19 @@ export default function DemandeWizardPage() {
                 </div>
               ))}
               {!readonly && <Button variant="outline" size="sm" onClick={() => setGuardians((arr) => [...arr, blankGuardian('Tuteur')])}><Plus className="mr-1 h-4 w-4" />Ajouter un parent / tuteur</Button>}
+
+              <div className="pt-2 sm:max-w-xs">
+                <Field label="Situation des parents" required error={errors.parentsSituation}>
+                  <Select value={parentsSituation || undefined} onValueChange={setParentsSituation}>
+                    <SelectTrigger className={errors.parentsSituation ? 'border-destructive' : ''}><SelectValue placeholder="Choisir..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Unis">Unis</SelectItem>
+                      <SelectItem value="Séparés">Séparés</SelectItem>
+                      <SelectItem value="Divorcés">Divorcés</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
 
               <div className="pt-2">
                 <div className="text-sm font-semibold text-muted-foreground mb-2">Adresse du domicile</div>
@@ -585,6 +607,7 @@ export default function DemandeWizardPage() {
                 {guardians.filter((g) => g.firstName || g.lastName).map((g, i) => (
                   <p key={i}>{g.relationship} : {g.firstName} {g.lastName}{g.phoneNumber ? ` · ${g.phoneNumber}` : ''}{g.email ? ` · ${g.email}` : ''}</p>
                 ))}
+                {parentsSituation && <p className="text-muted-foreground mt-1">Situation des parents : {parentsSituation}</p>}
                 <p className="text-muted-foreground mt-1">{[address.details, address.city, address.country].filter(Boolean).join(', ')}</p>
               </div>
               {relations.filter((r) => r.firstName || r.lastName).length > 0 && (

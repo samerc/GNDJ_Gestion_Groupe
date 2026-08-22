@@ -15,7 +15,7 @@ public record PublicUnitListItemDto(string Slug, string Name, string UnitTypeNam
 public record PublicUnitGroupDto(Guid UnitTypeId, string UnitTypeName, string? Color, int? AgeMin, int? AgeMax,
     string? Description, IReadOnlyList<PublicUnitListItemDto> Units);
 
-public record PublicLeaderDto(string Name, string RoleName);
+public record PublicLeaderDto(string Name, string RoleName, string? Phone);
 public record PublicTeamDto(string Name, int YouthCount);
 
 public record PublicUnitDetailDto(string Slug, string Name, string UnitTypeName, string? Gender,
@@ -106,13 +106,25 @@ public class GetPublicUnitDetailQueryHandler(IApplicationDbContext context)
 
         if (unit is null) return null;
 
-        // Maîtrise (leaders): members on a leadership team, name + role only, ordered by role rank.
-        var leaders = await context.MemberAssignments
+        // Maîtrise (leaders): members on a leadership team, ordered by role rank. Public shows name + role +
+        // the leader's OWN (personal) primary phone — a guardian's number is never used here. A leader with no
+        // phone on file simply shows none (effectively opt-in).
+        var leaderRows = await context.MemberAssignments
             .Where(a => a.UnitId == unit.Id && a.EndDate == null && a.Team != null && a.Team.IsMaitrise)
             .OrderByDescending(a => a.FunctionalRole.Rank)
             .ThenBy(a => a.Member.LastName).ThenBy(a => a.Member.FirstName)
-            .Select(a => new PublicLeaderDto(a.Member.FirstName + " " + a.Member.LastName, a.FunctionalRole.Name))
+            .Select(a => new { a.MemberId, Name = a.Member.FirstName + " " + a.Member.LastName, Role = a.FunctionalRole.Name })
             .ToListAsync(ct);
+        var leaderIds = leaderRows.Select(r => r.MemberId).ToList();
+        var leaderPhones = (await context.MemberPhones
+            .Where(p => leaderIds.Contains(p.MemberId) && !p.IsDeleted)
+            .Select(p => new { p.MemberId, p.CountryCode, p.Number, p.IsPrimary }).ToListAsync(ct))
+            .GroupBy(p => p.MemberId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.IsPrimary).First());
+        string? LeaderPhone(Guid mid) => leaderPhones.TryGetValue(mid, out var p)
+            ? (string.IsNullOrWhiteSpace(p.CountryCode) ? p.Number?.Trim() : $"{p.CountryCode} {p.Number}".Trim())
+            : null;
+        var leaders = leaderRows.Select(r => new PublicLeaderDto(r.Name, r.Role, LeaderPhone(r.MemberId))).ToList();
 
         // Teams (non-leadership): name + active youth count only.
         var teams = await context.Teams

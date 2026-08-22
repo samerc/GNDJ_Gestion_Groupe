@@ -3,6 +3,9 @@
     "version": "3.4.0",
     "date": "2026-08-21",
     "changes": [
+      "Site public (unités) : le téléphone personnel de chaque chef de la maîtrise est affiché (quand renseigné)",
+      "Demande d'inscription : le téléphone de chaque parent/tuteur est obligatoire",
+      "Demande d'inscription : nouveau champ « Situation des parents » (Unis / Séparés / Divorcés), visible par le chef de groupe",
       "Inscription : la création du mot de passe affiche toutes les exigences en même temps (liste qui se coche au fur et à mesure) au lieu d'une erreur à la fois",
       "Documents : glisser-déposer un fichier sur la ligne pour l'envoyer + bouton appareil photo (mobile) pour photographier le document",
       "Message aux chefs : page refondue — destinataires clairs (Toutes les maîtrises / Une unité + interrupteur « Nouveaux chefs uniquement »), bouton Envoyer remonté en haut, aperçu de l'email, correction d'un blocage (le CG ne voyait aucun modèle)",
