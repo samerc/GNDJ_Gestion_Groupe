@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { HoneypotField } from '@/components/shared/honeypot-field'
+import { PasswordRules } from '@/components/auth/password-rules'
+import { usePasswordPolicy, passwordMeetsPolicy } from '@/lib/password-policy'
 import { parseApiError } from '@/lib/error-utils'
 
 // Account-creation screen for the applicant portal (parent or future member).
@@ -24,15 +26,16 @@ export default function ApplicantRegisterPage() {
   const [loading, setLoading] = useState(false)
 
   // Live field checks drive the inline red borders below; re-checked on submit before the API call.
+  const { data: policy } = usePasswordPolicy() // the same complexity policy the server enforces
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  const pwdValid = password.length >= 8
+  const pwdValid = passwordMeetsPolicy(password, policy)
   const match = password === confirm
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!emailValid) return setError('Adresse email invalide.')
-    if (!pwdValid) return setError('Le mot de passe doit contenir au moins 8 caractères.')
+    if (!pwdValid) return setError('Le mot de passe ne respecte pas toutes les exigences.')
     if (!match) return setError('Les mots de passe ne correspondent pas.')
     setLoading(true)
     try {
@@ -70,7 +73,8 @@ export default function ApplicantRegisterPage() {
               <Label htmlFor="password">Mot de passe</Label>
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password"
                 className={password && !pwdValid ? 'border-destructive' : ''} />
-              {password && !pwdValid && <p className="text-xs text-destructive">Au moins 8 caractères.</p>}
+              {/* All requirements shown up-front as a live checklist (ticks green as they're met) */}
+              <PasswordRules password={password} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm">Confirmer le mot de passe</Label>

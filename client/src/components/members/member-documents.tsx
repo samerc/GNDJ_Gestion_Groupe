@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Tip } from '@/components/ui/tooltip'
-import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus, Files, Plus } from 'lucide-react'
+import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus, Files, Plus, Camera } from 'lucide-react'
 
 // Status badge for a doc. Expiry overrides the workflow status (an expired doc reads "Expiré"
 // regardless of approval). Workflow: upload → "En attente" → "Accepté" / "Refusé".
@@ -66,7 +66,10 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const [uploadingDocTypeId, setUploadingDocTypeId] = useState<string | null>(null)
   const [expiryDate, setExpiryDate] = useState('')
   const [pagesDoc, setPagesDoc] = useState<MemberDocumentDto | null>(null) // "pages" viewer for a multi-file doc
+  const [dragOverId, setDragOverId] = useState<string | null>(null) // doc-type row currently under a file drag
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]) // files dropped on a requires-expiry row, awaiting the date
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null) // mobile: capture="environment" opens the camera
   const addPageRef = useRef<HTMLInputElement>(null)
 
   // Client-side guard (matches the server) so a bad file gets an instant, readable message. Returns an error or null.
@@ -100,9 +103,26 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
       setUploadProgress(null)
       setUploadingDocTypeId(null)
       setExpiryDate('')
+      setPendingFiles([])
     } catch (err) {
       setUploadProgress(null)
       toast.error(parseApiError(err))
+    }
+  }
+
+  // Drag-and-drop files onto a doc-type row. A type that requires an expiry stashes the files and opens the
+  // date dialog first (then "Envoyer" uploads them); otherwise it uploads immediately.
+  const handleRowDrop = (dt: DocumentTypeListDto, e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOverId(null)
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length === 0) return
+    if (dt.requiresExpiry && !expiryDate) {
+      setUploadingDocTypeId(dt.id)
+      setExpiryDate('')
+      setPendingFiles(files)
+    } else {
+      handleUploadForType(dt, files)
     }
   }
 
@@ -253,8 +273,14 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
         <div className="space-y-3">
           {docTypes.map(dt => {
             const doc = getDocForType(dt.id)
+            // A row accepts dropped files when the user may upload AND the doc isn't a still-valid approved one.
+            const uploadable = canUpload && (!doc || doc.status !== 'Approved' || doc.isExpired)
             return (
-              <div key={dt.id} className={`flex items-center gap-4 rounded-lg border border-l-4 ${statusColor(doc)} ${statusBg(doc)} p-4`}>
+              <div key={dt.id}
+                onDragOver={uploadable ? (e) => { e.preventDefault(); setDragOverId(dt.id) } : undefined}
+                onDragLeave={uploadable ? () => setDragOverId(prev => prev === dt.id ? null : prev) : undefined}
+                onDrop={uploadable ? (e) => handleRowDrop(dt, e) : undefined}
+                className={`flex items-center gap-4 rounded-lg border border-l-4 ${statusColor(doc)} ${statusBg(doc)} p-4 ${dragOverId === dt.id ? 'ring-2 ring-primary ring-offset-1' : ''}`}>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm">{dt.name}</span>
@@ -310,26 +336,40 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       can (re)send a missing / pending / rejected / expired doc themselves ("Renvoyer") — an
                       APPROVED and still-valid doc is locked (only a leader can change it). Fixes members being
                       stuck on a mistaken pending upload they can't delete. */}
-                  {canUpload && (!doc || doc.status !== 'Approved' || doc.isExpired) && (
-                    <Button
-                      variant={doc ? 'outline' : 'default'}
-                      size="sm"
-                      onClick={() => {
-                        // Doc types that require an expiry first open a dialog to capture the date;
-                        // the rest jump straight to the file picker (timeout lets state settle first).
-                        if (dt.requiresExpiry) {
-                          setUploadingDocTypeId(dt.id)
-                          setExpiryDate('')
-                        } else {
-                          setUploadingDocTypeId(dt.id)
-                          setTimeout(() => fileInputRef.current?.click(), 50)
-                        }
-                      }}
-                      disabled={uploadMutation.isPending}
-                    >
-                      <Upload className="mr-1.5 h-4 w-4" />
-                      {doc ? 'Renvoyer' : 'Envoyer'}
-                    </Button>
+                  {uploadable && (
+                    <>
+                      <Button
+                        variant={doc ? 'outline' : 'default'}
+                        size="sm"
+                        onClick={() => {
+                          // Doc types that require an expiry first open a dialog to capture the date;
+                          // the rest jump straight to the file picker (timeout lets state settle first).
+                          if (dt.requiresExpiry) {
+                            setUploadingDocTypeId(dt.id)
+                            setExpiryDate('')
+                          } else {
+                            setUploadingDocTypeId(dt.id)
+                            setTimeout(() => fileInputRef.current?.click(), 50)
+                          }
+                        }}
+                        disabled={uploadMutation.isPending}
+                      >
+                        <Upload className="mr-1.5 h-4 w-4" />
+                        {doc ? 'Renvoyer' : 'Envoyer'}
+                      </Button>
+                      {/* Mobile: opens the camera to photograph the document (capture="environment"). On desktop
+                          it just opens an image picker — harmless. Requires-expiry types go via the date dialog. */}
+                      <Tip content="Prendre une photo">
+                        <Button variant="ghost" size="icon" className="h-8 w-8"
+                          onClick={() => {
+                            if (dt.requiresExpiry) { setUploadingDocTypeId(dt.id); setExpiryDate('') }
+                            else { setUploadingDocTypeId(dt.id); setTimeout(() => cameraInputRef.current?.click(), 50) }
+                          }}
+                          disabled={uploadMutation.isPending}>
+                          <Camera className="h-4 w-4" />
+                        </Button>
+                      </Tip>
+                    </>
                   )}
                 </div>
               </div>
@@ -346,7 +386,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground">Formats : {formatsLabel} — Max {maxSizeMb} Mo. Astuce : sélectionnez plusieurs fichiers pour un document à plusieurs pages (recto/verso d'une carte, etc.).</p>
+      <p className="text-xs text-muted-foreground">Formats : {formatsLabel} — Max {maxSizeMb} Mo. Astuce : glissez-déposez un fichier sur la ligne, ou sélectionnez plusieurs fichiers pour un document à plusieurs pages (recto/verso). Sur mobile, l'icône appareil photo prend une photo du document.</p>
 
       {/* Hidden file input for direct upload (multiple = one document with several pages, e.g. ID front + back) */}
       <input
@@ -354,6 +394,22 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
         type="file"
         accept={acceptAttr}
         multiple
+        className="hidden"
+        onChange={(e) => {
+          const files = e.target.files ? Array.from(e.target.files) : []
+          if (files.length > 0 && uploadingDocTypeId) {
+            const dt = docTypes?.find(d => d.id === uploadingDocTypeId)
+            if (dt) handleUploadForType(dt, files)
+          }
+          e.target.value = ''
+        }}
+      />
+      {/* Hidden camera input — capture="environment" opens the rear camera on mobile to photograph the document */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
         className="hidden"
         onChange={(e) => {
           const files = e.target.files ? Array.from(e.target.files) : []
@@ -379,22 +435,40 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
       />
 
       {/* Expiry date dialog (for doc types that require it) */}
-      <Dialog open={!!uploadingDocTypeId && !!docTypes?.find(d => d.id === uploadingDocTypeId)?.requiresExpiry} onOpenChange={() => setUploadingDocTypeId(null)}>
+      <Dialog open={!!uploadingDocTypeId && !!docTypes?.find(d => d.id === uploadingDocTypeId)?.requiresExpiry}
+        onOpenChange={() => { setUploadingDocTypeId(null); setPendingFiles([]) }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Date d'expiration requise</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Ce document nécessite une date d'expiration. Veuillez la saisir avant d'envoyer le fichier.
+              {pendingFiles.length > 0
+                ? `Ce document nécessite une date d'expiration. Saisissez-la puis envoyez (${pendingFiles.length} fichier${pendingFiles.length > 1 ? 's' : ''}).`
+                : "Ce document nécessite une date d'expiration. Veuillez la saisir avant d'envoyer le fichier."}
             </p>
             <div className="space-y-2">
               <RequiredLabel required>Date d'expiration</RequiredLabel>
               <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setUploadingDocTypeId(null)}>Annuler</Button>
-              <Button disabled={!expiryDate || uploadMutation.isPending} onClick={() => fileInputRef.current?.click()}>
-                <Upload className="mr-1 h-4 w-4" />Choisir le fichier
-              </Button>
+              <Button variant="outline" onClick={() => { setUploadingDocTypeId(null); setPendingFiles([]) }}>Annuler</Button>
+              {pendingFiles.length > 0 ? (
+                // Files were drag-dropped onto the row — upload them once the date is set.
+                <Button disabled={!expiryDate || uploadMutation.isPending} onClick={() => {
+                  const dt = docTypes?.find(d => d.id === uploadingDocTypeId)
+                  if (dt) handleUploadForType(dt, pendingFiles)
+                }}>
+                  <Upload className="mr-1 h-4 w-4" />Envoyer
+                </Button>
+              ) : (
+                <>
+                  <Button variant="outline" disabled={!expiryDate || uploadMutation.isPending} onClick={() => cameraInputRef.current?.click()}>
+                    <Camera className="mr-1 h-4 w-4" />Photo
+                  </Button>
+                  <Button disabled={!expiryDate || uploadMutation.isPending} onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="mr-1 h-4 w-4" />Choisir le fichier
+                  </Button>
+                </>
+              )}
             </DialogFooter>
           </div>
         </DialogContent>
