@@ -247,6 +247,59 @@ public class CreateMeetingCommandHandler(IApplicationDbContext context, ICurrent
     }
 }
 
+// CU/CG edits a séance's details (type/title/date/range/scope). Managers only (attendance.manage + unit).
+public record UpdateMeetingCommand(Guid Id, Guid? TeamId, string Type, string? Title, DateOnly Date, DateOnly? EndDate, string? Notes)
+    : IRequest<Result<bool>>;
+
+public class UpdateMeetingCommandValidator : AbstractValidator<UpdateMeetingCommand>
+{
+    public UpdateMeetingCommandValidator()
+    {
+        RuleFor(x => x.Type).Must(t => MeetingTypes.All.Contains(t)).WithMessage("Type de séance invalide.");
+        RuleFor(x => x.Title).MaximumLength(150);
+        RuleFor(x => x.Notes).MaximumLength(1000);
+        RuleFor(x => x.EndDate).GreaterThanOrEqualTo(x => x.Date).When(x => x.EndDate.HasValue)
+            .WithMessage("La date de fin doit être après la date de début.");
+    }
+}
+
+public class UpdateMeetingCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<UpdateMeetingCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(UpdateMeetingCommand request, CancellationToken ct)
+    {
+        var m = await context.Meetings.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+        if (m is null) return Result<bool>.Failure("Séance introuvable.");
+        // Only a CU/CG (manager of the unit) may edit a séance's details.
+        if (!AttendanceAccess.CanManageUnit(currentUser, m.UnitId))
+            return Result<bool>.Failure("Seul le chef d'unité peut modifier une séance.");
+
+        // If a team is set, it must belong to the séance's unit.
+        if (request.TeamId is Guid tid)
+        {
+            var okTeam = await context.Teams.AnyAsync(t => t.Id == tid && t.UnitId == m.UnitId, ct);
+            if (!okTeam) return Result<bool>.Failure("Équipe invalide pour cette unité.");
+        }
+
+        m.TeamId = request.TeamId;
+        m.Type = request.Type;
+        m.Title = string.IsNullOrWhiteSpace(request.Title) ? null : request.Title.Trim();
+        m.Date = request.Date;
+        m.EndDate = request.Type == MeetingTypes.Camp ? request.EndDate : null; // only camps span dates
+        m.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
+
+        // Changing the scope (team ↔ whole unit) changes the roster: drop any absence for a member no longer
+        // in the new roster so the counts stay consistent.
+        var rosterIds = (await GetMeetingsQueryHandler.RosterQuery(context, m.UnitId, m.TeamId)
+            .Select(a => a.MemberId).Distinct().ToListAsync(ct)).ToHashSet();
+        var stale = await context.MeetingAbsences.Where(a => a.MeetingId == m.Id && !rosterIds.Contains(a.MemberId)).ToListAsync(ct);
+        if (stale.Count > 0) context.MeetingAbsences.RemoveRange(stale);
+
+        await context.SaveChangesAsync(ct);
+        return Result<bool>.Success(true);
+    }
+}
+
 // CU approves (or the creator/CU deletes) a séance.
 public record ApproveMeetingCommand(Guid Id) : IRequest<Result<bool>>;
 

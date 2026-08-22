@@ -107,6 +107,16 @@ export function useCreateMeeting() {
   })
 }
 
+// PUT /meetings/{id} → CU/CG edits a séance's details (type/title/date/range/scope). Invalidates ['meetings'].
+export function useUpdateMeeting() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; teamId: string | null; type: string; title: string | null; date: string; endDate: string | null; notes: string | null }) =>
+      apiClient.put(`/meetings/${id}`, { id, ...data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['meetings'] }),
+  })
+}
+
 // POST /meetings/{id}/approve → CU approves a pending (chef-d'équipe-created) séance. Invalidates ['meetings'].
 export function useApproveMeeting() {
   const qc = useQueryClient()

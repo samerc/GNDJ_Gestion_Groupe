@@ -5,7 +5,7 @@ import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { useTeams } from '@/services/team-service'
 import {
   useAttendanceScope, useMeetings, useMeetingAttendance,
-  useCreateMeeting, useApproveMeeting, useDeleteMeeting, useSaveMeetingAttendance,
+  useCreateMeeting, useUpdateMeeting, useApproveMeeting, useDeleteMeeting, useSaveMeetingAttendance,
   MEETING_TYPES, MEETING_TYPE_LABELS,
   type MeetingDto, type AttendanceRosterRow,
 } from '@/services/meeting-service'
@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { EmptyState } from '@/components/shared/empty-state'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { CalendarCheck, Plus, Trash2, CheckCircle2, Clock, ClipboardList } from 'lucide-react'
+import { CalendarCheck, Plus, Pencil, Trash2, CheckCircle2, Clock, ClipboardList } from 'lucide-react'
 
 // Séances / Absences — the CU (and chef d'équipe) attendance screen. Pick a unit → list its séances
 // (réunions / sorties / camps), create new ones (unit-wide or for a team), approve pending chef-d'équipe
@@ -31,9 +31,10 @@ function frDate(iso: string) {
 }
 
 // One séance card in the list.
-function MeetingCard({ meeting, onOpen, onApprove, onDelete, busy }: {
+function MeetingCard({ meeting, onOpen, onEdit, onApprove, onDelete, busy }: {
   meeting: MeetingDto
   onOpen: () => void
+  onEdit: () => void
   onApprove: () => void
   onDelete: () => void
   busy: boolean
@@ -72,7 +73,12 @@ function MeetingCard({ meeting, onOpen, onApprove, onDelete, busy }: {
           )}
           <Button size="sm" onClick={onOpen}><ClipboardList className="mr-1 h-4 w-4" />Présences</Button>
           {meeting.canManage && (
-            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={onDelete} disabled={busy}>
+            <Button size="sm" variant="ghost" onClick={onEdit} disabled={busy} title="Modifier la séance">
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
+          {meeting.canManage && (
+            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={onDelete} disabled={busy} title="Supprimer la séance">
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
@@ -165,15 +171,19 @@ function AttendanceDialog({ meetingId, onClose }: { meetingId: string; onClose: 
   )
 }
 
-// The create-séance dialog. A CU can target the whole unit or any team; a chef d'équipe is restricted to
-// the team(s) they lead in this unit (no "whole unit" option).
-function CreateMeetingDialog({ unitId, canManage, ledTeamIds, onClose }: {
+// The séance create/edit dialog. A CU can target the whole unit or any team; a chef d'équipe is restricted
+// to the team(s) they lead in this unit (no "whole unit" option). Pass `meeting` to edit an existing séance
+// (editing is manager-only — the caller only shows the edit button when canManage).
+function MeetingFormDialog({ unitId, canManage, ledTeamIds, meeting, onClose }: {
   unitId: string
   canManage: boolean
   ledTeamIds: string[]
+  meeting?: MeetingDto
   onClose: () => void
 }) {
   const create = useCreateMeeting()
+  const update = useUpdateMeeting()
+  const editing = !!meeting
   // CU picks from all the unit's teams; a chef d'équipe only from their led teams (fetched, then filtered).
   const { data: teamsData } = useTeams({ unitId, pageSize: 100 })
   const teams = useMemo(() => {
@@ -181,11 +191,12 @@ function CreateMeetingDialog({ unitId, canManage, ledTeamIds, onClose }: {
     return canManage ? all : all.filter(t => ledTeamIds.includes(t.id))
   }, [teamsData, canManage, ledTeamIds])
 
-  const [type, setType] = useState<string>('Reunion')
-  const [scope, setScope] = useState<string>(canManage ? '__unit__' : '') // '__unit__' = whole unit, else teamId
-  const [title, setTitle] = useState('')
-  const [date, setDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const [type, setType] = useState<string>(meeting?.type ?? 'Reunion')
+  // '__unit__' = whole unit, else teamId. Edit prefills from the séance; create defaults to whole unit for a CU.
+  const [scope, setScope] = useState<string>(meeting ? (meeting.teamId ?? '__unit__') : (canManage ? '__unit__' : ''))
+  const [title, setTitle] = useState(meeting?.title ?? '')
+  const [date, setDate] = useState(meeting?.date ?? '')
+  const [endDate, setEndDate] = useState(meeting?.endDate ?? '')
   const [error, setError] = useState('')
 
   const submit = async (e: React.FormEvent) => {
@@ -193,27 +204,34 @@ function CreateMeetingDialog({ unitId, canManage, ledTeamIds, onClose }: {
     setError('')
     if (!date) { setError('La date est requise.'); return }
     if (!scope) { setError('Choisissez une équipe.'); return }
+    const payload = {
+      teamId: scope === '__unit__' ? null : scope,
+      type,
+      title: title.trim() || null,
+      date,
+      endDate: type === 'Camp' && endDate ? endDate : null,
+      notes: null,
+    }
     try {
-      await create.mutateAsync({
-        unitId,
-        teamId: scope === '__unit__' ? null : scope,
-        type,
-        title: title.trim() || null,
-        date,
-        endDate: type === 'Camp' && endDate ? endDate : null,
-        notes: null,
-      })
-      toast.success(canManage ? 'Séance créée' : 'Séance créée — en attente d\'approbation du chef d\'unité')
+      if (editing) {
+        await update.mutateAsync({ id: meeting!.id, ...payload })
+        toast.success('Séance modifiée')
+      } else {
+        await create.mutateAsync({ unitId, ...payload })
+        toast.success(canManage ? 'Séance créée' : 'Séance créée — en attente d\'approbation du chef d\'unité')
+      }
       onClose()
     } catch (err) {
       setError(parseApiError(err))
     }
   }
 
+  const saving = create.isPending || update.isPending
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Nouvelle séance</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{editing ? 'Modifier la séance' : 'Nouvelle séance'}</DialogTitle></DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
           <div className="space-y-2">
@@ -252,7 +270,7 @@ function CreateMeetingDialog({ unitId, canManage, ledTeamIds, onClose }: {
           </div>
           <DialogFooter>
             <Button variant="outline" type="button" onClick={onClose}>Annuler</Button>
-            <Button type="submit" disabled={create.isPending}>{create.isPending ? 'Création…' : 'Créer'}</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Enregistrement…' : (editing ? 'Enregistrer' : 'Créer')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -286,6 +304,7 @@ export default function AttendancePage() {
   const { data: meetings, isLoading: meetingsLoading } = useMeetings(unitId || undefined)
 
   const [createOpen, setCreateOpen] = useState(false)
+  const [editMeeting, setEditMeeting] = useState<MeetingDto | null>(null)
   const [attendanceId, setAttendanceId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
@@ -341,6 +360,7 @@ export default function AttendancePage() {
           {meetings.map(m => (
             <MeetingCard key={m.id} meeting={m}
               onOpen={() => setAttendanceId(m.id)}
+              onEdit={() => setEditMeeting(m)}
               onApprove={() => handleApprove(m.id)}
               onDelete={() => setDeleteId(m.id)}
               busy={approve.isPending || del.isPending} />
@@ -349,7 +369,10 @@ export default function AttendancePage() {
       )}
 
       {createOpen && unitId && (
-        <CreateMeetingDialog unitId={unitId} canManage={canManageUnit} ledTeamIds={ledTeamIds} onClose={() => setCreateOpen(false)} />
+        <MeetingFormDialog unitId={unitId} canManage={canManageUnit} ledTeamIds={ledTeamIds} onClose={() => setCreateOpen(false)} />
+      )}
+      {editMeeting && (
+        <MeetingFormDialog unitId={editMeeting.unitId} canManage={canManageUnit} ledTeamIds={ledTeamIds} meeting={editMeeting} onClose={() => setEditMeeting(null)} />
       )}
       {attendanceId && <AttendanceDialog meetingId={attendanceId} onClose={() => setAttendanceId(null)} />}
       <ConfirmDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}

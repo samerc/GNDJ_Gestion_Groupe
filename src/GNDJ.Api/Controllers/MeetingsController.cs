@@ -47,6 +47,15 @@ public class MeetingsController : BaseApiController
         return r.IsSuccess ? Ok(new { id = r.Value }) : BadRequest(new { error = r.Error });
     }
 
+    /// <summary>CU/CG edits a séance's details (type/title/date/range/scope).</summary>
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateMeetingCommand command)
+    {
+        if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
+        var r = await Mediator.Send(command);
+        return r.IsSuccess ? NoContent() : BadRequest(new { error = r.Error });
+    }
+
     /// <summary>CU approves a pending (chef-d'équipe-created) séance.</summary>
     [HttpPost("{id:guid}/approve")]
     public async Task<IActionResult> Approve(Guid id)
