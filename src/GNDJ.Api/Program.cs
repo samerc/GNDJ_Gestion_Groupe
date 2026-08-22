@@ -339,6 +339,7 @@ using (var scope = app.Services.CreateScope())
             await SeedData.SeedContactEmailTemplateAsync(context);
             await SeedData.SeedMemberEmailTemplatesAsync(context);
             await SeedData.SeedFunctionalRoleRanksAsync(context);
+            await SeedData.SeedFunctionalRoleTeamLeaderAsync(context);
             await SeedData.SeedRentreeTemplateAsync(context);
             await SeedData.SeedRentreeActionKeysAsync(context);
             await SeedData.SeedRentreeReminderTaskAsync(context);

@@ -93,7 +93,8 @@ public static class SeedData
             Permissions.DocumentsView, Permissions.DocumentsCreate, Permissions.DocumentsEdit, Permissions.DocumentsDelete, Permissions.DocumentsApprove,
             Permissions.CotisationsView, Permissions.CotisationsCreate, Permissions.CotisationsEdit, Permissions.CotisationsDelete,
             Permissions.PassageView, Permissions.PassagePropose,
-            Permissions.CampGrade
+            Permissions.CampGrade,
+            Permissions.AttendanceManage
         ]);
         var chefEquipeProfile = CreateProfile("Chef d'équipe", "chef-equipe", "Gestion d'une équipe",
         [
@@ -192,7 +193,8 @@ public static class SeedData
                 Permissions.DocumentTypesView,
                 Permissions.ProgressionView, Permissions.ProgressionManage,
                 Permissions.PassageView, Permissions.PassagePropose,
-                Permissions.CampGrade
+                Permissions.CampGrade,
+                Permissions.AttendanceManage
             ],
             ["chef-equipe"] = [Permissions.DocumentsView, Permissions.CotisationsView, Permissions.ProgressionView, Permissions.PassageView],
             ["read-only"] = ReadOnlyPermissions(),
@@ -975,6 +977,34 @@ public static class SeedData
             else r.Rank = 10; // base youth member
         }
         await context.SaveChangesAsync();
+    }
+
+    // Marks the primary team-leader roles (chef d'équipe / sizenier / chef de patrouille) as IsTeamLeader so their
+    // holders can fill their team's séances/absences. Idempotent: runs only while NO role is flagged yet, so a CG's
+    // later edits are never overridden. Assistants/seconds are intentionally NOT flagged (the CG can toggle in the UI).
+    public static async Task SeedFunctionalRoleTeamLeaderAsync(GndjDbContext context)
+    {
+        if (await context.FunctionalRoles.AnyAsync(r => r.IsTeamLeader)) return;
+
+        static string Norm(string s) => s.ToLowerInvariant()
+            .Replace('é', 'e').Replace('è', 'e').Replace('ê', 'e').Replace('à', 'a').Replace('â', 'a')
+            .Replace('î', 'i').Replace('ï', 'i').Replace('ô', 'o').Replace('û', 'u').Replace('ç', 'c')
+            .Replace('\'', ' ').Replace('’', ' ');
+        // The primary youth leader OF a team (not their assistant/second).
+        var leaderKeywords = new[] { "sizenier", "chef d equipe", "chef d equipes", "chef de patrouille", "chef de sizaine", "meneur" };
+
+        var roles = await context.FunctionalRoles.Where(r => r.UnitTypeId != null && !r.IsMaitrise).ToListAsync();
+        var changed = false;
+        foreach (var r in roles)
+        {
+            var n = Norm(r.Name);
+            if ((leaderKeywords.Any(k => n.Contains(k)) || string.Equals(r.Code, "CE", StringComparison.OrdinalIgnoreCase))
+                && !n.Contains("second") && !n.Contains("assistant"))
+            {
+                r.IsTeamLeader = true; changed = true;
+            }
+        }
+        if (changed) await context.SaveChangesAsync();
     }
 
     private static SecurityProfile CreateProfile(string name, string code, string description, string[] permissions)

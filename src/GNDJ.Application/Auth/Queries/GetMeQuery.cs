@@ -45,6 +45,12 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
                 a.FunctionalRole.SecurityProfile.IsGroupLevel))
             .ToListAsync(cancellationToken);
 
+        // Does this member lead a team (active assignment on a team with an IsTeamLeader role)? Drives the
+        // "Séances" nav for a chef d'équipe who has no admin permission otherwise.
+        var leadsTeam = await _context.MemberAssignments.AnyAsync(a =>
+            a.MemberId == user.MemberId && a.EndDate == null && a.TeamId != null && a.FunctionalRole.IsTeamLeader,
+            cancellationToken);
+
         return Result<MeResponse>.Success(new MeResponse(
             user.Id,
             user.MemberId,
@@ -54,7 +60,8 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
             user.IsSuperAdmin,
             _currentUser.Permissions,
             unitAccess,
-            user.MustChangePassword
+            user.MustChangePassword,
+            leadsTeam
         ));
     }
 }
