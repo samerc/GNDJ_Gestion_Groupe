@@ -22,6 +22,9 @@ export interface MeResponse {
   // True when the user must set a new password before using the app (temp/imported/reset password). The app
   // shell shows a blocking change-password screen until it's cleared.
   mustChangePassword?: boolean
+  // True when the member leads at least one team (active chef d'équipe assignment) — drives the "Séances" nav
+  // for a chef d'équipe who otherwise has no admin permission.
+  leadsTeam?: boolean
 }
 
 export interface UnitAccess {

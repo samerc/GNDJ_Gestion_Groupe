@@ -263,6 +263,13 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
         if (!await MemberAccess.CanAccessMemberAsync(_context, _currentUser, request.Id, cancellationToken))
             return null;
 
+        // Absence-count window (Oct-1 boundary) — uses the app's configured scout year (passage.scout_year),
+        // the single source of truth used by the dashboards/roster badges, so the fiche count matches them
+        // (falls back to today-derived when the setting is empty).
+        var scoutYear = await _context.Settings.Where(s => s.Key == "passage.scout_year")
+            .Select(s => s.Value).FirstOrDefaultAsync(cancellationToken);
+        var (syStart, syEnd) = ScoutYearHelper.Window(scoutYear);
+
         return await _context.Members
             .Where(m => m.Id == request.Id)
             .Select(m => new MemberDetailDto(
@@ -291,7 +298,10 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
                     m.Assignments.Count(a => !a.IsDeleted),
                     m.Documents.Count(d => !d.IsDeleted),
                     m.Cotisations.Count(c => !c.IsDeleted),
-                    m.Progressions.Count(p => !p.IsDeleted))
+                    m.Progressions.Count(p => !p.IsDeleted)),
+                // Absences on APPROVED séances within the current scout year (Séances feature).
+                _context.MeetingAbsences.Count(a => !a.IsDeleted && a.MemberId == m.Id
+                    && a.Meeting.Status == "Approved" && a.Meeting.Date >= syStart && a.Meeting.Date < syEnd)
             ))
             .FirstOrDefaultAsync(cancellationToken);
     }

@@ -50,7 +50,8 @@ public record MemberDetailDto(
     string? Username, // login of the linked user account (null if the member has no account)
     string? PrimaryContactEmail, // designated recipient for member-facing mail (null = auto)
     IReadOnlyList<string> GuardianEmails, // distinct guardian emails available as contact options
-    MemberTabCountsDto Counts // per-tab badge counts, so the detail panel needs no extra count queries
+    MemberTabCountsDto Counts, // per-tab badge counts, so the detail panel needs no extra count queries
+    int AbsencesThisYear // count of the member's absences on approved séances in the current scout year
 );
 
 // Counts shown as tab badges on the member detail panel — folded into the detail query so opening a member

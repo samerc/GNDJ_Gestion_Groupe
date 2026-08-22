@@ -11,7 +11,8 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Roles.Commands;
 
 // Create — rank is auto-assigned (new functions go to the senior end, never the default); reorder by drag.
-public record CreateFunctionalRoleCommand(string Name, string Code, string? Description, Guid SecurityProfileId, Guid? UnitTypeId, bool IsMaitrise = false) : IRequest<Result<Guid>>;
+// IsTeamLeader = a chef d'équipe role (like IsMaitrise), which grants attendance access for the member's team.
+public record CreateFunctionalRoleCommand(string Name, string Code, string? Description, Guid SecurityProfileId, Guid? UnitTypeId, bool IsMaitrise = false, bool IsTeamLeader = false) : IRequest<Result<Guid>>;
 
 public class CreateFunctionalRoleCommandValidator : AbstractValidator<CreateFunctionalRoleCommand>
 {
@@ -55,6 +56,7 @@ public class CreateFunctionalRoleCommandHandler : IRequestHandler<CreateFunction
             SecurityProfileId = request.SecurityProfileId,
             UnitTypeId = request.UnitTypeId,
             IsMaitrise = request.IsMaitrise,
+            IsTeamLeader = request.IsTeamLeader,
             Rank = maxRank + 1
         };
 
@@ -67,7 +69,7 @@ public class CreateFunctionalRoleCommandHandler : IRequestHandler<CreateFunction
 }
 
 // Update — rank/default are managed separately (drag-reorder + set-default), not via this command.
-public record UpdateFunctionalRoleCommand(Guid Id, string Name, string Code, string? Description, Guid SecurityProfileId, Guid? UnitTypeId, bool IsMaitrise = false) : IRequest<Result<bool>>;
+public record UpdateFunctionalRoleCommand(Guid Id, string Name, string Code, string? Description, Guid SecurityProfileId, Guid? UnitTypeId, bool IsMaitrise = false, bool IsTeamLeader = false) : IRequest<Result<bool>>;
 
 public class UpdateFunctionalRoleCommandValidator : AbstractValidator<UpdateFunctionalRoleCommand>
 {
@@ -108,6 +110,7 @@ public class UpdateFunctionalRoleCommandHandler : IRequestHandler<UpdateFunction
         entity.SecurityProfileId = request.SecurityProfileId;
         entity.UnitTypeId = request.UnitTypeId;
         entity.IsMaitrise = request.IsMaitrise;
+        entity.IsTeamLeader = request.IsTeamLeader;
 
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Update", "FunctionalRole", entity.Id, oldValues: oldValues, newValues: new { entity.Name, entity.Code }, cancellationToken: cancellationToken);

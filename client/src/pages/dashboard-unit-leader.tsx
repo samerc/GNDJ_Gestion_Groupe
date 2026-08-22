@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
 import { saveBlob } from '@/lib/download'
 import { useNavigate } from 'react-router'
 import { useUnitDashboard, type RosterMemberDto } from '@/services/dashboard-service'
@@ -28,13 +28,14 @@ import { toast } from 'sonner'
 import { useReportTemplates } from '@/services/report-template-service'
 import { generateRoster, generateExport } from '@/services/report-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
+import { useUnitAbsenceCounts } from '@/services/meeting-service'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, FileText, ArrowLeft } from 'lucide-react'
+import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, FileText, ArrowLeft, CalendarCheck } from 'lucide-react'
 
 interface Props { unitId: string }
 
@@ -247,6 +248,14 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const currentScoutYear = useCurrentScoutYear()
   const [generatingReport, setGeneratingReport] = useState<string | null>(null)
 
+  // Per-member absence counts (current scout year) → a small badge in the roster list.
+  const { data: absenceCountsRaw } = useUnitAbsenceCounts(unitId, currentScoutYear)
+  const absenceCounts = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const a of absenceCountsRaw ?? []) m.set(a.memberId, a.count)
+    return m
+  }, [absenceCountsRaw])
+
   // Run a CG-defined report template (roster PDF or data export) for this unit and trigger a download.
   const handleCustomReport = async (template: { id: string; name: string; reportType: string; format: string; columnsJson: string }) => {
     setGeneratingReport(template.id)
@@ -448,6 +457,13 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
                       <p className="text-sm font-medium truncate">{m.lastName} {m.firstName}</p>
                       <p className="text-xs text-muted-foreground truncate">{m.functionalRoleName}</p>
                     </div>
+                    {absenceCounts.get(m.memberId) ? (
+                      <Tip content="Absences aux séances cette année">
+                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                          <CalendarCheck className="h-3 w-3" />{absenceCounts.get(m.memberId)}
+                        </span>
+                      </Tip>
+                    ) : null}
                   </div>
                 ))}
               </div>

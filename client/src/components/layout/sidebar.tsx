@@ -32,6 +32,7 @@ import {
   Send,
   Newspaper,
   CalendarDays,
+  CalendarCheck,
   Library,
   BarChart3,
   MailCheck,
@@ -91,6 +92,7 @@ const leaderNavItems = [
   { path: '/organiser', label: 'Organiser mon unité', icon: LayoutGrid, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/unit-documents', label: 'Documents', icon: FileText, permission: PERMISSIONS.DOCUMENTS_APPROVE },
+  { path: '/attendance', label: 'Séances', icon: CalendarCheck, permission: PERMISSIONS.ATTENDANCE_MANAGE },
   { path: '/passage', label: 'Passage des membres', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_PROPOSE },
   { path: '/photo-session', label: 'Session photo', icon: Camera, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/camp', label: 'Camp BP', icon: Tent, permission: PERMISSIONS.CAMP_GRADE },
@@ -126,6 +128,7 @@ const adminGroups: AdminGroup[] = [
     items: [
       { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
+      { path: '/attendance', label: 'Séances & absences', icon: CalendarCheck, permission: PERMISSIONS.ATTENDANCE_MANAGE },
       { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },
       { path: '/admin/document-reminders', label: 'Relance documents', icon: FileWarning, permission: PERMISSIONS.MAITRISE_MANAGE },
     ],
@@ -210,6 +213,11 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   // Personal links first (Ma fiche / Mes documents / Trombinoscope) for EVERYONE, then the role-specific nav.
   const navItems = [...personalNavItems, ...(isManager ? adminNavItems : leaderNavItems)]
   const visibleNav = navItems.filter((item) => !item.permission || hasPermission(item.permission))
+  // A chef d'équipe (leads a team) who is otherwise a read-only youth has no attendance.manage permission, so
+  // the "Séances" link above is filtered out — add it explicitly so they can fill their team's présences.
+  if (user?.leadsTeam && !visibleNav.some((i) => i.path === '/attendance')) {
+    visibleNav.push({ path: '/attendance', label: 'Séances', icon: CalendarCheck, permission: null })
+  }
   const visibleAdminGroups = isManager
     ? adminGroups
         .map((group) => ({

@@ -1,5 +1,15 @@
 [
   {
+    "version": "3.5.0",
+    "date": "2026-08-22",
+    "changes": [
+      "Séances & absences : nouvelle page pour suivre les présences aux réunions, sorties et camps (au niveau de l'unité ou d'une équipe)",
+      "Séances : le chef d'unité crée une séance (approuvée aussitôt) pour toute l'unité ou une équipe, coche les absents et note un motif ; les présents sont cochés par défaut",
+      "Séances : nouveau rôle « Chef d'équipe » (à activer sur une fonction) — le chef d'équipe voit son équipe, crée une séance pour elle (en attente d'approbation du chef d'unité) et remplit les présences",
+      "Absences : le nombre d'absences de l'année apparaît sur la fiche du membre, dans la liste de l'unité (chef d'unité) et dans la liste des membres (chef de groupe)"
+    ]
+  },
+  {
     "version": "3.4.0",
     "date": "2026-08-21",
     "changes": [

@@ -7,7 +7,7 @@
 // Route param :id deep-links a member into the right panel.
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { saveBlob } from '@/lib/download'
-import { useState, useRef, useCallback, type ReactNode, type ComponentType } from 'react'
+import { useState, useRef, useCallback, useMemo, type ReactNode, type ComponentType } from 'react'
 import { useParams } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
@@ -44,8 +44,10 @@ import { MemberCustomFields } from '@/components/members/member-custom-fields'
 import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
+import { useCurrentScoutYear } from '@/hooks/use-scout-year'
+import { useUnitAbsenceCounts } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck } from 'lucide-react'
 import { toast } from 'sonner'
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
@@ -349,6 +351,13 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                   {member.gender && <Chip icon={User}>{member.gender}</Chip>}
                   {member.nationality && <Chip icon={Flag}>{member.nationality}</Chip>}
                   {member.bloodType && <Chip icon={Droplet}>{member.bloodType}</Chip>}
+                  {member.absencesThisYear > 0 && (
+                    <Tip content="Absences aux séances cette année scoute">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                        <CalendarCheck className="h-3.5 w-3.5" />{member.absencesThisYear} absence{member.absencesThisYear > 1 ? 's' : ''}
+                      </span>
+                    </Tip>
+                  )}
                 </div>
               </div>
             </div>
@@ -802,6 +811,15 @@ export default function MembersPage() {
 
   const createMutation = useCreateMember()
 
+  // Absence counts for the selected unit (active view only, current scout year) → a small badge per row.
+  const scoutYear = useCurrentScoutYear()
+  const { data: absenceCountsRaw } = useUnitAbsenceCounts(unitId, scoutYear, !!unitId && !showAlumni)
+  const absenceCounts = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const a of absenceCountsRaw ?? []) m.set(a.memberId, a.count)
+    return m
+  }, [absenceCountsRaw])
+
   const openCreate = () => {
     setForm({ firstName: '', lastName: '', dateOfBirth: '', gender: '', bloodType: '', nationality: '', school: defaultSchool ?? '', classe: '', section: '', externalCardNumber: '', fatherName: '', motherName: '', motherMaidenName: '', unitId: '' })
     setError(''); clearAll()
@@ -932,6 +950,13 @@ export default function MembersPage() {
                       <p className="text-sm font-medium truncate">{m.lastName} {m.firstName}</p>
                       {m.dateOfBirth && <p className="text-[11px] text-muted-foreground">{new Date(m.dateOfBirth).toLocaleDateString('fr-FR')}</p>}
                     </div>
+                    {absenceCounts.get(m.id) ? (
+                      <Tip content="Absences aux séances cette année">
+                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                          <CalendarCheck className="h-3 w-3" />{absenceCounts.get(m.id)}
+                        </span>
+                      </Tip>
+                    ) : null}
                     <div className="shrink-0"><ComplianceDot docsComplete={m.docsComplete} cotisationOk={m.cotisationOk} /></div>
                     <div className="w-12 shrink-0 text-[11px] text-muted-foreground text-center">{m.unitName ?? '—'}</div>
                   </div>

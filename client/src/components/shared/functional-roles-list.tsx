@@ -118,14 +118,14 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', code: '', description: '', securityProfileId: '', unitTypeId: unitTypeId ?? '', isMaitrise: false })
+    setForm({ name: '', code: '', description: '', securityProfileId: '', unitTypeId: unitTypeId ?? '', isMaitrise: false, isTeamLeader: false })
     setError(''); clearAll()
     setFormOpen(true)
   }
 
   const openEdit = (item: FunctionalRoleDto) => {
     setEditing(item)
-    setForm({ name: item.name, code: item.code, description: item.description ?? '', securityProfileId: item.securityProfileId, unitTypeId: item.unitTypeId ?? '', isMaitrise: item.isMaitrise })
+    setForm({ name: item.name, code: item.code, description: item.description ?? '', securityProfileId: item.securityProfileId, unitTypeId: item.unitTypeId ?? '', isMaitrise: item.isMaitrise, isTeamLeader: item.isTeamLeader })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -338,6 +338,13 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
                 <p className="text-xs text-muted-foreground">Apparaît sur la page Maîtrises (chef/assistant/aumônier…)</p>
               </div>
               <Switch checked={!!form.isMaitrise} onCheckedChange={(v) => setForm(f => ({ ...f, isMaitrise: v }))} />
+            </div>
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <p className="text-sm font-medium">Chef d'équipe</p>
+                <p className="text-xs text-muted-foreground">Le membre peut voir son équipe et remplir les présences de ses séances</p>
+              </div>
+              <Switch checked={!!form.isTeamLeader} onCheckedChange={(v) => setForm(f => ({ ...f, isTeamLeader: v }))} />
             </div>
             {showUnitTypeField && (
               <div className="space-y-2">

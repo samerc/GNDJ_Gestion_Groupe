@@ -18,6 +18,7 @@ export interface FunctionalRoleDto {
   isArchived: boolean
   isDefaultForNewMembers: boolean
   isMaitrise: boolean
+  isTeamLeader: boolean
 }
 
 export interface FunctionalRoleFormData {
@@ -27,6 +28,7 @@ export interface FunctionalRoleFormData {
   securityProfileId: string
   unitTypeId?: string | null
   isMaitrise?: boolean
+  isTeamLeader?: boolean
 }
 
 export interface ProfileMemberDto {
