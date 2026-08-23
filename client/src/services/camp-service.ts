@@ -38,8 +38,9 @@ export interface CampGameDto { id: string; name: string; description: string | n
 export interface EtapisteCandidateDto { memberId: string; firstName: string; lastName: string; unitName: string | null; roleName: string | null }
 
 // ── Camps ──
-// GET /camps → list of camp editions.
-export const useCamps = () => useQuery({ queryKey: ['camps'], queryFn: () => apiClient.get<CampListDto[]>('/camps').then(r => r.data) })
+// GET /camps → list of camp editions. `enabled` lets callers without camp permission (e.g. the sidebar
+// deciding whether to show the CU "Camp BP" link) skip the fetch instead of getting a 403.
+export const useCamps = (enabled = true) => useQuery({ queryKey: ['camps'], queryFn: () => apiClient.get<CampListDto[]>('/camps').then(r => r.data), enabled })
 // GET /camps/{id} → one camp incl. note formula coefs + counts; disabled until id is set.
 export const useCamp = (id?: string) => useQuery({ queryKey: ['camp', id], queryFn: () => apiClient.get<CampDto>(`/camps/${id}`).then(r => r.data), enabled: !!id })
 

@@ -54,6 +54,7 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { usePendingDemandeCount } from '@/services/demande-admin-service'
 import { usePendingChangeRequestsCount } from '@/services/change-request-service'
+import { useCamps } from '@/services/camp-service'
 import { APP_VERSION, BUILD_COMMIT, BUILD_DATE } from '@/lib/app-version'
 
 export function BrandMark({ className }: { className?: string }) {
@@ -214,7 +215,13 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   const isManager = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.MAITRISE_MANAGE) || !!user?.unitAccess.some(u => u.isGroupLevel)
   // Personal links first (Ma fiche / Mes documents / Trombinoscope) for EVERYONE, then the role-specific nav.
   const navItems = [...personalNavItems, ...(isManager ? adminNavItems : leaderNavItems)]
-  const visibleNav = navItems.filter((item) => !item.permission || hasPermission(item.permission))
+  // Hide the CU "Camp BP" grading link until a camp edition actually exists (a non-archived camp). Only fetched
+  // for a non-manager who can grade (managers reach camps via the admin nav; youth lack camp.grade). While the
+  // list loads, the link stays hidden (shows once a live camp is found).
+  const { data: campList } = useCamps(!isManager && hasPermission(PERMISSIONS.CAMP_GRADE))
+  const hasLiveCamp = !!campList?.some((c) => !c.isArchived)
+  const visibleNav = navItems.filter((item) =>
+    (!item.permission || hasPermission(item.permission)) && !(item.path === '/camp' && !hasLiveCamp))
   // A chef d'équipe (leads a team) who is otherwise a read-only youth has no attendance.manage permission, so
   // the "Séances" link above is filtered out — add it explicitly so they can fill their team's présences.
   if (user?.leadsTeam && !visibleNav.some((i) => i.path === '/attendance')) {
