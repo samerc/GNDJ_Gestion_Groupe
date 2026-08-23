@@ -13,6 +13,7 @@
       "Rentrée (modèle) : chaque tâche type peut recevoir une date de référence + un suivi automatique ; les dépendances circulaires sont bloquées",
       "Rentrée (modèle) : page réorganisée — tâches groupées par phase, formulaire en sections (Tâche / Responsable / Échéance / Suivi & action / Dépendances) ; le lien passe dans « Configuration » et reste accessible depuis la liste de rentrée",
       "Menu : le lien « Camp BP » n'apparaît pour un chef d'unité que lorsqu'un camp est défini pour l'année (masqué tant qu'aucun camp n'existe)",
+      "Menu (rangement) : « Accès maîtrise » déplacé dans Système, « Rentrée scoute » dans Suivi, « Camp BP » dans Configuration (le groupe « Camp & rentrée » disparaît)",
       "Séances & absences : nouvelle page pour suivre les présences aux réunions, sorties et camps (au niveau de l'unité ou d'une équipe)",
       "Séances : le chef d'unité crée une séance (approuvée aussitôt) pour toute l'unité ou une équipe, coche les absents et note un motif ; les présents sont cochés par défaut",
       "Séances : le chef d'unité / de groupe peut modifier une séance (type, titre, date, période du camp, équipe concernée)",

@@ -127,6 +127,7 @@ const adminGroups: AdminGroup[] = [
     // Ongoing follow-up that isn't demande-specific (member changes, passages, cotisations, doc reminders).
     label: 'Suivi',
     items: [
+      { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: null },
       { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
       { path: '/attendance', label: 'Séances & absences', icon: CalendarCheck, permission: PERMISSIONS.ATTENDANCE_MANAGE },
@@ -141,16 +142,8 @@ const adminGroups: AdminGroup[] = [
       { path: '/units', label: 'Unités', icon: Building2, permission: PERMISSIONS.UNITS_VIEW },
       { path: '/organiser', label: 'Organiser une unité', icon: LayoutGrid, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/maitrises', label: 'Maîtrises', icon: Crown, permission: PERMISSIONS.MAITRISE_MANAGE },
-      { path: '/admin/group-access', label: 'Accès maîtrise', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE_GROUP },
       { path: '/admin/send-access', label: 'Envoyer les accès', icon: Key, permission: PERMISSIONS.MEMBERS_RESET_PASSWORD },
       { path: '/admin/communications', label: 'Message aux chefs', icon: Megaphone, permission: PERMISSIONS.MAITRISE_MANAGE },
-    ],
-  },
-  {
-    label: 'Camp & rentrée',
-    items: [
-      { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: null },
-      { path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: PERMISSIONS.CAMP_MANAGE },
     ],
   },
   {
@@ -167,6 +160,9 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/lists', label: 'Listes', icon: List, permission: PERMISSIONS.MAITRISE_MANAGE },
       // Champs personnalisés + Carte membre are set-and-forget → moved to the Paramètres page (see settings.tsx).
       { path: '/admin/report-templates', label: 'Rapports', icon: FileText, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+      // Camp BP management (create/organize the camp). Always available to camp.manage so a camp can be created;
+      // the CU grading link (/camp) appears separately once a camp is active.
+      { path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: PERMISSIONS.CAMP_MANAGE },
     ],
   },
   {
@@ -183,6 +179,7 @@ const adminGroups: AdminGroup[] = [
     label: 'Système',
     items: [
       { path: '/admin/security-profiles', label: 'Profils de sécurité', icon: ShieldCheck, permission: PERMISSIONS.ROLES_VIEW },
+      { path: '/admin/group-access', label: 'Accès maîtrise', icon: ShieldCheck, permission: PERMISSIONS.ROLES_MANAGE_GROUP },
       { path: '/admin/email-settings', label: 'Email / SMTP', icon: Mail, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/email-outbox', label: 'File d\'emails', icon: Send, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/api-keys', label: 'Clés API', icon: Key, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
