@@ -4,9 +4,12 @@ import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import {
   useRentreeYears, useRentreeTasks, useCompleteRentreeTask, useGenerateRentree,
-  useUpdateRentreeTask, useDeleteRentreeTask, useRunRentreeTaskAction, useCreateRentreeTask, type RentreeTask,
+  useUpdateRentreeTask, useDeleteRentreeTask, useRunRentreeTaskAction, useCreateRentreeTask,
+  useRefreshRentreeAssignees, type RentreeTask,
 } from '@/services/rentree-service'
 import { getRentreeAction, RENTREE_ACTION_OPTIONS } from '@/lib/rentree-actions'
+import { RENTREE_ANCHOR_OPTIONS, anchorLabel } from '@/lib/rentree-anchors'
+import { RENTREE_PROGRESS_OPTIONS } from '@/lib/rentree-progress'
 import { useMembers } from '@/services/member-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Button } from '@/components/ui/button'
@@ -16,9 +19,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { RequiredLabel } from '@/components/shared/required-label'
+import { Tip } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
-import { Check, Lock, CalendarClock, Users, Settings2, Sparkles, Pencil, Trash2, ListChecks, ChevronRight, Play, ArrowRight, Plus, X } from 'lucide-react'
+import { Check, Lock, CalendarClock, Users, Settings2, Sparkles, Pencil, Trash2, ListChecks, ChevronRight, Play, ArrowRight, Plus, X, Activity, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 const ROLE_LABELS: Record<string, string> = {
@@ -38,16 +42,34 @@ type AddForm = {
   title: string; description: string; phase: string
   assigneeType: string; assigneeRole: string; fanOutPerUnit: boolean
   assigneeMemberIds: string[]; assigneeMemberNames: string[]
-  deadlineLabel: string; dueDate: string; actionKey: string
+  deadlineLabel: string; dueDate: string; deadlineAnchor: string; progressKey: string; actionKey: string
 }
 const blankAdd: AddForm = {
   title: '', description: '', phase: '', assigneeType: 'role', assigneeRole: 'chef-unite', fanOutPerUnit: true,
-  assigneeMemberIds: [], assigneeMemberNames: [], deadlineLabel: '', dueDate: '', actionKey: '',
+  assigneeMemberIds: [], assigneeMemberNames: [], deadlineLabel: '', dueDate: '', deadlineAnchor: '', progressKey: '', actionKey: '',
 }
 
-// Round check / lock indicator shared by single and per-unit rows.
+// A task is coming up soon (amber) if it has a real due date within two weeks and isn't done/overdue.
+function isUpcoming(task: RentreeTask): boolean {
+  if (task.isDone || task.isOverdue || !task.dueDate) return false
+  const due = new Date(task.dueDate).getTime()
+  const now = Date.now()
+  return due >= now && due <= now + 14 * 86400000
+}
+
+// Round check / lock / auto indicator shared by single and per-unit rows. Auto-tracked tasks (progressKey)
+// aren't clickable — their state comes from the module; a manual task shows a clickable checkbox.
 function CheckDot({ task, canManage, onToggle }: { task: RentreeTask; canManage: boolean; onToggle: (t: RentreeTask) => void }) {
-  const done = task.status === 'done'
+  const done = task.isDone
+  if (task.progressKey) {
+    // Auto-tracked: reflects live module state, not manually checked.
+    return (
+      <span title="Suivi automatiquement" className={cn('mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
+        done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-amber-400 text-amber-500')}>
+        {done ? <Check className="h-3 w-3" /> : <Activity className="h-2.5 w-2.5" />}
+      </span>
+    )
+  }
   const canTick = (task.isMine || canManage) && !task.isBlocked
   return (
     <button type="button" disabled={!canTick} onClick={() => onToggle(task)}
@@ -61,11 +83,13 @@ function CheckDot({ task, canManage, onToggle }: { task: RentreeTask; canManage:
   )
 }
 
-// Deadline chip: fixed dueDate (formatted) takes precedence over the fuzzy text label; turns red if overdue.
+// Deadline chip: the EFFECTIVE due date (anchor-resolved server-side) takes precedence over the fuzzy text
+// label. Colour by urgency — red overdue, amber if within two weeks, muted otherwise. Hidden once done.
 function Deadline({ task }: { task: RentreeTask }) {
-  if (!task.deadlineLabel && !task.dueDate) return null
+  if (task.isDone || (!task.deadlineLabel && !task.dueDate)) return null
+  const tone = task.isOverdue ? 'font-medium text-destructive' : isUpcoming(task) ? 'text-amber-600' : 'text-muted-foreground'
   return (
-    <span className={cn('inline-flex items-center gap-1', task.isOverdue && 'font-medium text-destructive')}>
+    <span className={cn('inline-flex items-center gap-1', tone)}>
       <CalendarClock className="h-3 w-3" />
       {task.dueDate ? new Date(task.dueDate).toLocaleDateString('fr-FR') : task.deadlineLabel}
       {task.isOverdue && ' — en retard'}
@@ -73,13 +97,33 @@ function Deadline({ task }: { task: RentreeTask }) {
   )
 }
 
+// Live progress chip: the task's module-state signal (a count/bool). Emerald when complete (auto-satisfied),
+// amber while there's work left. A mini bar shows current/total when available.
+function ProgressChip({ task }: { task: RentreeTask }) {
+  if (!task.progressKey || !task.progressLabel) return null
+  const done = task.progressComplete
+  const hasBar = task.progressCurrent != null && task.progressTotal != null && task.progressTotal > 0
+  const pct = hasBar ? Math.round((task.progressCurrent! / task.progressTotal!) * 100) : done ? 100 : 0
+  return (
+    <span className={cn('inline-flex items-center gap-1.5', done ? 'text-emerald-600' : 'text-amber-600')}>
+      <Activity className="h-3 w-3" />
+      {hasBar && (
+        <span className="inline-block h-1.5 w-12 overflow-hidden rounded-full bg-muted align-middle">
+          <span className={cn('block h-full rounded-full', done ? 'bg-emerald-500' : 'bg-amber-500')} style={{ width: `${pct}%` }} />
+        </span>
+      )}
+      <span className="tabular-nums">{task.progressLabel}</span>
+    </span>
+  )
+}
+
 // The built-in action attached to a task, if any: a "do" action (run it here, CG only) or a "goto" shortcut.
-// Shown only while the task is pending — once done, the row is muted and needs no action.
+// Shown only while the task is not done.
 function TaskAction({ task, canManage, running, onRun }: {
   task: RentreeTask; canManage: boolean; running: boolean; onRun: (t: RentreeTask) => void
 }) {
   const action = getRentreeAction(task.actionKey)
-  if (!action || task.status === 'done') return null
+  if (!action || task.isDone) return null
   if (action.kind === 'do') {
     if (!canManage) return null // running a "do" action needs rentree.manage
     return (
@@ -100,7 +144,7 @@ function TaskRow({ task, canManage, compact, running, onToggle, onEdit, onDelete
   task: RentreeTask; canManage: boolean; compact?: boolean; running: boolean
   onToggle: (t: RentreeTask) => void; onEdit: (t: RentreeTask) => void; onDelete: (t: RentreeTask) => void; onRun: (t: RentreeTask) => void
 }) {
-  const done = task.status === 'done'
+  const done = task.isDone
   const assignee = compact
     ? (task.unitName ?? '') + (task.assigneeNames.length ? ` — ${task.assigneeNames.join(', ')}` : '')
     : task.assigneeNames.length > 0 ? task.assigneeNames.join(', ') : roleLabel(task.assigneeRole)
@@ -118,6 +162,7 @@ function TaskRow({ task, canManage, compact, running, onToggle, onEdit, onDelete
         {!compact && task.description && <p className="mt-0.5 text-xs text-muted-foreground">{task.description}</p>}
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {!compact && <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{assignee}</span>}
+          <ProgressChip task={task} />
           <Deadline task={task} />
           {/* Dedupe titles: a group task can depend on a per-unit prerequisite (one instance per unit), which
               would otherwise repeat the same title ~18×. Show each distinct blocking task title once. */}
@@ -128,8 +173,8 @@ function TaskRow({ task, canManage, compact, running, onToggle, onEdit, onDelete
       </div>
       {canManage && (
         <div className="flex shrink-0 gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(task)}><Pencil className="h-3.5 w-3.5" /></Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onDelete(task)}><Trash2 className="h-3.5 w-3.5" /></Button>
+          <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(task)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
+          <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onDelete(task)}><Trash2 className="h-3.5 w-3.5" /></Button></Tip>
         </div>
       )}
     </div>
@@ -138,6 +183,9 @@ function TaskRow({ task, canManage, compact, running, onToggle, onEdit, onDelete
 
 type Rollup = { kind: 'rollup'; key: string; title: string; description: string | null; sample: RentreeTask; units: RentreeTask[]; done: number; blocked: number }
 type Item = { kind: 'single'; task: RentreeTask } | Rollup
+
+const itemKey = (it: Item) => it.kind === 'single' ? it.task.id : it.key
+const itemOrder = (it: Item) => it.kind === 'single' ? it.task.displayOrder : it.sample.displayOrder
 
 // One collapsed row standing in for a per-unit task across all units.
 function RollupRow({ r, expanded, onExpand, canManage, runningId, onToggle, onEdit, onDelete, onRun }: {
@@ -157,6 +205,7 @@ function RollupRow({ r, expanded, onExpand, canManage, runningId, onToggle, onEd
             <p className={cn('text-sm font-medium leading-snug', allDone && 'text-muted-foreground')}>{r.title}</p>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{roleLabel(r.sample.assigneeRole)} · par unité</span>
+              {r.sample.progressKey && <span className="inline-flex items-center gap-1 text-muted-foreground"><Activity className="h-3 w-3" />suivi auto</span>}
               <Deadline task={r.sample} />
               {r.blocked > 0 && <span className="inline-flex items-center gap-1 text-amber-600"><Lock className="h-3 w-3" />{r.blocked} en attente</span>}
             </div>
@@ -176,11 +225,60 @@ function RollupRow({ r, expanded, onExpand, canManage, runningId, onToggle, onEd
   )
 }
 
+// Arrange a phase's items into a dependency FOREST: each item nests under its closest same-phase prerequisite
+// (the dep with the highest display order), so "do this, then this" reads as an indented tree. Cross-phase
+// dependencies don't nest (the prerequisite lives in another phase) — they still show via the "En attente" hint.
+// Returns a flattened pre-order list with a depth per item. Guards against cycles (already prevented server-side).
+function buildForest(items: Item[]): { item: Item; depth: number }[] {
+  const byKey = new Map(items.map(it => [itemKey(it), it]))
+  // task id → the item key it belongs to (a rollup owns all its per-unit task ids).
+  const taskToKey = new Map<string, string>()
+  for (const it of items) {
+    if (it.kind === 'single') taskToKey.set(it.task.id, itemKey(it))
+    else for (const u of it.units) taskToKey.set(u.id, itemKey(it))
+  }
+  const depKeysOf = (it: Item): string[] => {
+    const taskDeps = it.kind === 'single' ? it.task.dependsOnTaskIds : it.sample.dependsOnTaskIds
+    const keys = new Set<string>()
+    for (const d of taskDeps) { const k = taskToKey.get(d); if (k && k !== itemKey(it)) keys.add(k) }
+    return [...keys]
+  }
+  const parentOf = new Map<string, string | null>()
+  for (const it of items) {
+    const cands = depKeysOf(it).map(k => byKey.get(k)).filter((x): x is Item => !!x)
+    const parent = cands.length ? cands.reduce((a, b) => (itemOrder(b) > itemOrder(a) ? b : a)) : null
+    parentOf.set(itemKey(it), parent ? itemKey(parent) : null)
+  }
+  const children = new Map<string, Item[]>()
+  const roots: Item[] = []
+  for (const it of items) {
+    const p = parentOf.get(itemKey(it))
+    if (p && byKey.has(p)) {
+      const list = children.get(p) ?? []
+      list.push(it)
+      children.set(p, list)
+    } else roots.push(it)
+  }
+  const out: { item: Item; depth: number }[] = []
+  const seen = new Set<string>()
+  const visit = (it: Item, depth: number) => {
+    const k = itemKey(it)
+    if (seen.has(k)) return
+    seen.add(k)
+    out.push({ item: it, depth })
+    for (const c of (children.get(k) ?? []).sort((a, b) => itemOrder(a) - itemOrder(b))) visit(c, depth + 1)
+  }
+  for (const r of roots.sort((a, b) => itemOrder(a) - itemOrder(b))) visit(r, 0)
+  // Safety: append any item never visited (shouldn't happen without a cycle) at depth 0.
+  for (const it of items) if (!seen.has(itemKey(it))) out.push({ item: it, depth: 0 })
+  return out
+}
+
 // "Rentrée scoute" — scout-year startup checklist, visible to ALL members. Each member sees the tasks
-// assigned to them (round-check to complete; locked while a prerequisite is unfinished). Managers (CG /
-// super-admin, canManage) additionally get: the whole-group view, a per-unit filter, edit/delete per task,
-// generate-from-template, and the "Modèle" editor link. In the whole-group view, per-unit task instances
-// (one per active unit) collapse into a single RollupRow with an X/N progress bar.
+// assigned to them (round-check to complete; locked while a prerequisite is unfinished; some tasks track
+// module state automatically). Managers (CG / super-admin, canManage) additionally get: the whole-group view,
+// a per-unit filter, edit/delete per task, generate-from-template, refresh-assignees, and the "Modèle" editor.
+// Within a phase, tasks nest under their prerequisites; per-unit instances collapse into a RollupRow.
 export default function RentreePage() {
   const { user, hasPermission } = useAuthStore()
   const canManage = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.RENTREE_MANAGE)
@@ -201,12 +299,13 @@ export default function RentreePage() {
   const updateTask = useUpdateRentreeTask()
   const deleteTask = useDeleteRentreeTask()
   const createTask = useCreateRentreeTask()
+  const refreshAssignees = useRefreshRentreeAssignees()
 
   const [genOpen, setGenOpen] = useState(false)
   const [confirmRegen, setConfirmRegen] = useState(false)
   const [genYear, setGenYear] = useState('2026-2027')
   const [editing, setEditing] = useState<RentreeTask | null>(null)
-  const [editForm, setEditForm] = useState({ title: '', description: '', deadlineLabel: '', dueDate: '' })
+  const [editForm, setEditForm] = useState({ title: '', description: '', deadlineLabel: '', dueDate: '', deadlineAnchor: '', progressKey: '' })
   const [deleting, setDeleting] = useState<RentreeTask | null>(null)
   // One-off "add a task to this year" dialog + member picker (for assigneeType === 'members').
   const [addOpen, setAddOpen] = useState(false)
@@ -227,9 +326,10 @@ export default function RentreePage() {
   // single-unit filter show flat rows.
   const rollupMode = !mineOnly && unitFilter === 'all'
 
-  // Build phase → items (preserving first-seen phase order). In rollup mode, per-unit tasks sharing a
-  // templateId collapse into one Rollup (with done/blocked counts); group tasks stay 'single'. A phase's
-  // done count treats a rollup as done only when all its units are done.
+  // Build phase → forest rows (preserving first-seen phase order). In rollup mode, per-unit tasks sharing a
+  // templateId collapse into one Rollup (with done/blocked counts); group tasks stay 'single'. Each phase's
+  // items are then arranged into a dependency tree (buildForest). "Done" uses the EFFECTIVE done (isDone) so
+  // auto-tracked tasks count too; a rollup is done when all its units are done.
   const phases = useMemo(() => {
     let source = tasks ?? []
     if (!mineOnly && unitFilter !== 'all') source = source.filter(t => t.unitId === unitFilter)
@@ -254,24 +354,25 @@ export default function RentreePage() {
           if (!ts[0].unitId) return { kind: 'single', task: ts[0] }
           return {
             kind: 'rollup', key, title: ts[0].title, description: ts[0].description, sample: ts[0], units: ts,
-            done: ts.filter(t => t.status === 'done').length, blocked: ts.filter(t => t.isBlocked).length,
+            done: ts.filter(t => t.isDone).length, blocked: ts.filter(t => t.isBlocked).length,
           }
         })
       } else {
         items = phaseTasks.map(t => ({ kind: 'single', task: t }))
       }
+      const rows = buildForest(items)
       const total = items.length
-      const done = items.filter(it => it.kind === 'single' ? it.task.status === 'done' : it.done === it.units.length).length
-      return { phase, items, done, total }
+      const done = items.filter(it => it.kind === 'single' ? it.task.isDone : it.done === it.units.length).length
+      return { phase, rows, done, total }
     })
   }, [tasks, mineOnly, unitFilter, rollupMode])
 
   const total = tasks?.length ?? 0
-  const doneCount = tasks?.filter(t => t.status === 'done').length ?? 0
+  const doneCount = tasks?.filter(t => t.isDone).length ?? 0
   const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0
 
   const toggle = async (t: RentreeTask) => {
-    try { await complete.mutateAsync({ id: t.id, done: t.status !== 'done' }) }
+    try { await complete.mutateAsync({ id: t.id, done: !t.isDone }) }
     catch (err) { toast.error(parseApiError(err)) }
   }
   // Run a task's built-in "do" action (open inscriptions / passage) directly from the list.
@@ -282,7 +383,7 @@ export default function RentreePage() {
   }
   const openEdit = (t: RentreeTask) => {
     setEditing(t)
-    setEditForm({ title: t.title, description: t.description ?? '', deadlineLabel: t.deadlineLabel ?? '', dueDate: t.dueDate ?? '' })
+    setEditForm({ title: t.title, description: t.description ?? '', deadlineLabel: t.deadlineLabel ?? '', dueDate: t.dueDate ?? '', deadlineAnchor: t.deadlineAnchor ?? '', progressKey: t.progressKey ?? '' })
   }
   const saveEdit = async () => {
     if (!editing) return
@@ -290,6 +391,7 @@ export default function RentreePage() {
       await updateTask.mutateAsync({
         id: editing.id, title: editForm.title, description: editForm.description || null,
         deadlineLabel: editForm.deadlineLabel || null, dueDate: editForm.dueDate || null,
+        deadlineAnchor: editForm.deadlineAnchor || null, progressKey: editForm.progressKey || null,
         assigneeMemberIds: editing.assigneeMemberIds,
       })
       toast.success('Tâche modifiée'); setEditing(null)
@@ -301,12 +403,18 @@ export default function RentreePage() {
       toast.success(`${r.created} tâche(s) générée(s)`); setGenOpen(false); setYear(genYear.trim())
     } catch (err) { toast.error(parseApiError(err)) }
   }
-  // Non-destructive: add template tasks missing from an existing year (keeps progress).
+  // Non-destructive: add template tasks missing from an existing year + refresh template-derived fields (keeps progress).
   const doAddNew = async () => {
     try {
       const r = await generate.mutateAsync({ scoutYear: genYear.trim(), overwrite: false, addOnly: true })
-      toast.success(r.created > 0 ? `${r.created} nouvelle(s) tâche(s) ajoutée(s)` : 'Le modèle est déjà à jour dans cette liste.')
+      toast.success(r.created > 0 ? `${r.created} nouvelle(s) tâche(s) ajoutée(s)` : 'Modèle synchronisé (aucune nouvelle tâche).')
       setGenOpen(false); setYear(genYear.trim())
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
+  const doRefreshAssignees = async () => {
+    try {
+      const r = await refreshAssignees.mutateAsync(year)
+      toast.success(r.changed > 0 ? `Responsables mis à jour (${r.changed} tâche(s)).` : 'Responsables déjà à jour.')
     } catch (err) { toast.error(parseApiError(err)) }
   }
   const openAdd = () => { setAddForm({ ...blankAdd, phase: yearPhases[0] ?? 'Configuration' }); setMemberSearch(''); setAddOpen(true) }
@@ -318,7 +426,8 @@ export default function RentreePage() {
         assigneeType: addForm.assigneeType, assigneeRole: addForm.assigneeType === 'role' ? addForm.assigneeRole : null,
         fanOutPerUnit: addForm.assigneeType === 'role' && addForm.fanOutPerUnit,
         assigneeMemberIds: addForm.assigneeType === 'members' ? addForm.assigneeMemberIds : [],
-        deadlineLabel: addForm.deadlineLabel || null, dueDate: addForm.dueDate || null, actionKey: addForm.actionKey || null,
+        deadlineLabel: addForm.deadlineLabel || null, dueDate: addForm.dueDate || null,
+        deadlineAnchor: addForm.deadlineAnchor || null, progressKey: addForm.progressKey || null, actionKey: addForm.actionKey || null,
       })
       toast.success(`${r.created} tâche(s) ajoutée(s)`); setAddOpen(false)
     } catch (err) { toast.error(parseApiError(err)) }
@@ -362,6 +471,7 @@ export default function RentreePage() {
           )}
           {canManage && (
             <>
+              {!noYears && <Tip content="Ré-attribue les tâches de rôle aux responsables actuels (ex. un CU confirmé après la génération)."><Button variant="outline" size="sm" onClick={doRefreshAssignees} disabled={refreshAssignees.isPending}><RefreshCw className={cn('mr-1 h-4 w-4', refreshAssignees.isPending && 'animate-spin')} />Responsables</Button></Tip>}
               {!noYears && <Button variant="outline" size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" />Ajouter une tâche</Button>}
               <Button variant="outline" size="sm" asChild><Link to="/admin/rentree-template"><Settings2 className="mr-1 h-4 w-4" />Modèle</Link></Button>
               <Button size="sm" onClick={() => setGenOpen(true)}><Sparkles className="mr-1 h-4 w-4" />Générer</Button>
@@ -387,7 +497,7 @@ export default function RentreePage() {
 
           {isLoading ? <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div> :
            total === 0 ? <p className="py-10 text-center text-sm text-muted-foreground">{mineOnly ? "Vous n'avez aucune tâche assignée." : 'Aucune tâche.'}</p> :
-           phases.map(({ phase, items, done, total }) => {
+           phases.map(({ phase, rows, done, total }) => {
             const collapsed = collapsedPhases.has(phase)
             return (
               <div key={phase} className="space-y-2">
@@ -398,10 +508,15 @@ export default function RentreePage() {
                 </button>
                 {!collapsed && (
                   <div className="space-y-2">
-                    {items.map(it => it.kind === 'single'
-                      ? <TaskRow key={it.task.id} task={it.task} canManage={canManage} running={runningId === it.task.id} onToggle={toggle} onEdit={openEdit} onDelete={setDeleting} onRun={doRunAction} />
-                      : <RollupRow key={it.key} r={it} expanded={expandedRollups.has(it.key)} onExpand={() => toggleRollup(it.key)} canManage={canManage} runningId={runningId} onToggle={toggle} onEdit={openEdit} onDelete={setDeleting} onRun={doRunAction} />
-                    )}
+                    {rows.map(({ item: it, depth }) => (
+                      // Nested tasks are indented under their prerequisite, with a left guide line.
+                      <div key={itemKey(it)} style={{ marginLeft: depth ? depth * 20 : 0 }}
+                        className={cn(depth > 0 && 'border-l-2 border-muted pl-3')}>
+                        {it.kind === 'single'
+                          ? <TaskRow task={it.task} canManage={canManage} running={runningId === it.task.id} onToggle={toggle} onEdit={openEdit} onDelete={setDeleting} onRun={doRunAction} />
+                          : <RollupRow r={it} expanded={expandedRollups.has(it.key)} onExpand={() => toggleRollup(it.key)} canManage={canManage} runningId={runningId} onToggle={toggle} onEdit={openEdit} onDelete={setDeleting} onRun={doRunAction} />}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -419,7 +534,7 @@ export default function RentreePage() {
             <Input value={genYear} onChange={e => setGenYear(e.target.value)} placeholder="2026-2027" />
             <p className="text-xs text-muted-foreground">Crée une tâche par élément du modèle. Les tâches « par unité » sont dupliquées pour chaque unité active.</p>
             {years?.includes(genYear.trim()) && (
-              <p className="text-xs text-muted-foreground">Une liste existe déjà pour {genYear.trim()}. <b>Ajouter les nouvelles tâches</b> insère uniquement les tâches du modèle absentes de cette liste (progression conservée) ; <b className="text-amber-600">Tout régénérer</b> efface la progression et recrée tout.</p>
+              <p className="text-xs text-muted-foreground">Une liste existe déjà pour {genYear.trim()}. <b>Ajouter les nouvelles tâches</b> insère les tâches du modèle absentes et met à jour les libellés / échéances / suivis depuis le modèle (progression conservée) ; <b className="text-amber-600">Tout régénérer</b> efface la progression et recrée tout.</p>
             )}
           </div>
           <DialogFooter className="flex-col gap-2 sm:flex-row">
@@ -445,7 +560,7 @@ export default function RentreePage() {
 
       {/* Edit task dialog */}
       <Dialog open={!!editing} onOpenChange={() => setEditing(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Modifier la tâche{editing?.unitName ? ` — ${editing.unitName}` : ''}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1"><RequiredLabel required>Titre</RequiredLabel><Input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} /></div>
@@ -453,6 +568,19 @@ export default function RentreePage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><RequiredLabel>Échéance (texte)</RequiredLabel><Input value={editForm.deadlineLabel} onChange={e => setEditForm(f => ({ ...f, deadlineLabel: e.target.value }))} placeholder="1ʳᵉ sem. octobre" /></div>
               <div className="space-y-1"><RequiredLabel>Date limite</RequiredLabel><Input type="date" value={editForm.dueDate} onChange={e => setEditForm(f => ({ ...f, dueDate: e.target.value }))} /></div>
+            </div>
+            <div className="space-y-1"><RequiredLabel>Échéance basée sur une date</RequiredLabel>
+              <Select value={editForm.deadlineAnchor || 'none'} onValueChange={v => setEditForm(f => ({ ...f, deadlineAnchor: v === 'none' ? '' : v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{RENTREE_ANCHOR_OPTIONS.map(o => <SelectItem key={o.value || 'none'} value={o.value || 'none'}>{o.label}</SelectItem>)}</SelectContent>
+              </Select>
+              {editForm.deadlineAnchor && <p className="text-xs text-muted-foreground">L'échéance suit la date « {anchorLabel(editForm.deadlineAnchor)} » (Paramètres).</p>}
+            </div>
+            <div className="space-y-1"><RequiredLabel>Suivi automatique</RequiredLabel>
+              <Select value={editForm.progressKey || 'none'} onValueChange={v => setEditForm(f => ({ ...f, progressKey: v === 'none' ? '' : v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{RENTREE_PROGRESS_OPTIONS.map(o => <SelectItem key={o.value || 'none'} value={o.value || 'none'}>{o.label}</SelectItem>)}</SelectContent>
+              </Select>
             </div>
             {editing && editing.assigneeNames.length > 0 && <p className="text-xs text-muted-foreground">Responsable(s) : {editing.assigneeNames.join(', ')}</p>}
             <p className="text-xs text-muted-foreground">Une date limite dépassée déclenche un rappel à la connexion du responsable.</p>
@@ -478,7 +606,22 @@ export default function RentreePage() {
               </div>
               <div className="space-y-1"><RequiredLabel>Échéance (texte)</RequiredLabel><Input value={addForm.deadlineLabel} onChange={e => setAddForm(f => ({ ...f, deadlineLabel: e.target.value }))} placeholder="1ʳᵉ sem. octobre" /></div>
             </div>
-            <div className="space-y-1"><RequiredLabel>Date limite</RequiredLabel><Input type="date" value={addForm.dueDate} onChange={e => setAddForm(f => ({ ...f, dueDate: e.target.value }))} /></div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1"><RequiredLabel>Date limite</RequiredLabel><Input type="date" value={addForm.dueDate} onChange={e => setAddForm(f => ({ ...f, dueDate: e.target.value }))} /></div>
+              <div className="space-y-1"><RequiredLabel>Échéance basée sur</RequiredLabel>
+                <Select value={addForm.deadlineAnchor || 'none'} onValueChange={v => setAddForm(f => ({ ...f, deadlineAnchor: v === 'none' ? '' : v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{RENTREE_ANCHOR_OPTIONS.map(o => <SelectItem key={o.value || 'none'} value={o.value || 'none'}>{o.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1"><RequiredLabel>Suivi automatique</RequiredLabel>
+              <Select value={addForm.progressKey || 'none'} onValueChange={v => setAddForm(f => ({ ...f, progressKey: v === 'none' ? '' : v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{RENTREE_PROGRESS_OPTIONS.map(o => <SelectItem key={o.value || 'none'} value={o.value || 'none'}>{o.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-1"><RequiredLabel>Action</RequiredLabel>
               <Select value={addForm.actionKey || 'none'} onValueChange={v => setAddForm(f => ({ ...f, actionKey: v === 'none' ? '' : v }))}>

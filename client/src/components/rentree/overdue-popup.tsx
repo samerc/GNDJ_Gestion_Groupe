@@ -7,15 +7,21 @@ import { CalendarClock } from 'lucide-react'
 
 const SEEN_KEY = 'rentree-overdue-seen'
 
-// Reminds the assignee, once per session, of their overdue rentrée tasks (those past a fixed due date).
+// A stable signature of the current overdue set (sorted task ids). Stored on dismiss so the popup RE-surfaces
+// when the set changes (a new task falls overdue), instead of hiding forever after the first dismissal.
+const signatureOf = (ids: string[]) => [...ids].sort().join(',')
+
+// Reminds the assignee of their overdue rentrée tasks (past a fixed/anchored due date). Shows once per distinct
+// overdue set — dismissing hides it until the set of overdue tasks changes.
 export function RentreeOverduePopup() {
   const { data } = useMyOverdueRentree()
   const navigate = useNavigate()
-  // Show once per session (until dismissed) when there are overdue tasks — derived, no effect needed.
-  const [dismissed, setDismissed] = useState(() => !!sessionStorage.getItem(SEEN_KEY))
-  const open = !!(data && data.length > 0) && !dismissed
+  const signature = signatureOf((data ?? []).map((t) => t.id))
+  // Derived (no effect): dismissed only if the SAME set was already dismissed this session.
+  const [seenSig, setSeenSig] = useState(() => sessionStorage.getItem(SEEN_KEY) ?? '')
+  const open = !!(data && data.length > 0) && seenSig !== signature
 
-  const dismiss = () => { sessionStorage.setItem(SEEN_KEY, '1'); setDismissed(true) }
+  const dismiss = () => { sessionStorage.setItem(SEEN_KEY, signature); setSeenSig(signature) }
 
   if (!data || data.length === 0) return null
 

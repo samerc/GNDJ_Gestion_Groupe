@@ -18,7 +18,8 @@ export interface RentreeTask {
   assigneeMemberIds: string[]
   assigneeNames: string[]
   deadlineLabel: string | null
-  dueDate: string | null
+  dueDate: string | null // EFFECTIVE due date (anchor-resolved on the server), drives overdue + the chip
+  deadlineAnchor: string | null
   status: string
   completedByName: string | null
   completedAt: string | null
@@ -28,6 +29,14 @@ export interface RentreeTask {
   isMine: boolean
   isOverdue: boolean
   actionKey: string | null
+  // Live progress signal (module state): a task auto-satisfies when progressComplete. isDone = effective done
+  // (manually completed OR progress complete) — use it, not status, to render "done".
+  progressKey: string | null
+  progressLabel: string | null
+  progressCurrent: number | null
+  progressTotal: number | null
+  progressComplete: boolean
+  isDone: boolean
 }
 
 export interface RentreeTemplate {
@@ -42,6 +51,8 @@ export interface RentreeTemplate {
   assigneeMemberIds: string[]
   assigneeMemberNames: string[]
   defaultDeadlineLabel: string | null
+  deadlineAnchor: string | null
+  progressKey: string | null
   dependsOnTemplateIds: string[]
   actionKey: string | null
 }
@@ -108,7 +119,18 @@ export function useCreateRentreeTask() {
       scoutYear: string; title: string; description: string | null; phase: string
       assigneeType: string; assigneeRole: string | null; fanOutPerUnit: boolean
       assigneeMemberIds: string[]; deadlineLabel: string | null; dueDate: string | null; actionKey: string | null
+      deadlineAnchor: string | null; progressKey: string | null
     }) => apiClient.post<{ created: number }>('/rentree/tasks', data).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rentree'] }),
+  })
+}
+
+// POST /rentree/refresh-assignees → re-resolve every role task's assignees for a year from the CURRENT holders
+// (fixes assignees frozen at generate time, e.g. a CU confirmed after the checklist was generated). Invalidates ['rentree'].
+export function useRefreshRentreeAssignees() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (scoutYear: string) => apiClient.post<{ changed: number }>('/rentree/refresh-assignees', { scoutYear }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rentree'] }),
   })
 }
@@ -117,7 +139,7 @@ export function useCreateRentreeTask() {
 export function useUpdateRentreeTask() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { id: string; title: string; description: string | null; deadlineLabel: string | null; dueDate: string | null; assigneeMemberIds: string[] }) =>
+    mutationFn: (data: { id: string; title: string; description: string | null; deadlineLabel: string | null; dueDate: string | null; assigneeMemberIds: string[]; deadlineAnchor: string | null; progressKey: string | null }) =>
       apiClient.put(`/rentree/tasks/${data.id}`, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rentree'] }),
   })
@@ -146,7 +168,7 @@ export function useSaveRentreeTemplate() {
       id: string | null; title: string; description: string | null; phase: string
       assigneeType: string; assigneeRole: string | null; fanOutPerUnit: boolean
       assigneeMemberIds: string[]; defaultDeadlineLabel: string | null; dependsOnTemplateIds: string[]
-      actionKey: string | null
+      actionKey: string | null; deadlineAnchor: string | null; progressKey: string | null
     }) => apiClient.post('/rentree/templates', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rentree'] }),
   })

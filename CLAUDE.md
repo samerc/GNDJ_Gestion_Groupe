@@ -2810,6 +2810,45 @@ came back clean (no S1/S2), mobile safe. Fixed the actionable batch (frontend + 
       after ForcePasswordChange. Verified live (super-admin exempt; CU prompted → verify → cleared).
 - Version bumped to **3.5.0** (all three features); DEV until deploy.
 
+### Rentrée checklist — "make it live" + readability (2026-08-23)
+Reworked the scout-year startup checklist from a static, manually-ticked list into a live one wired to the app's
+real state, plus a readability pass. All on main (v3.5.0, DEV until deploy). Two new nullable columns
+`RentreeTaskTemplate`/`RentreeTask` — `DeadlineAnchor` + `ProgressKey` (migration `AddRentreeAnchorAndProgress`).
+- **Deadline anchors (`RentreeAnchors`):** a template/task can hang its due date on a real date-typed SETTING
+      (`passage.date`, `demande.submission_start`/`_deadline`, `demande.member_start_date`, `documents.*`). The
+      EFFECTIVE due date is resolved LIVE at read time (`ResolveDueDatesAsync`) from that setting's value → the
+      checklist tracks the year's actual calendar and "overdue" fires (verified: setting submission_deadline to a
+      past date made "Réviser les demandes" due+overdue). Falls back to the manual DueDate then the fuzzy label.
+- **Live progress (`RentreeProgress.ComputeAsync`):** a task can reflect module state instead of a manual tick —
+      `demandes-open`/`passage-open` (bool from settings), `passage-proposed`/`documents-verified`/`photos-done`/
+      `cotisations-paid` (per-unit X/N), `passage-finalized`/`demandes-reviewed`/`demandes-sent` (group counts). The
+      DTO carries `progressKey/Label/Current/Total/Complete`; **`IsDone` = effective done (Status==done OR progress
+      complete)**. Auto-satisfied tasks unblock dependents + count toward phase progress. Verified live (real
+      per-unit counts, e.g. passages proposés 6/75; documents "Rien en attente" auto-done).
+- **Blocking honors effective-done** (`RentreeBlocking.HasOpenPrerequisiteAsync`): Complete + RunAction gates
+      treat a progress-complete prereq as done. Verified: "Envoyer les réponses" blocked by not-yet-reviewed
+      demandes; "Réviser" NOT blocked (its prereq "Ouvrir les inscriptions" is auto-done).
+- **Readability:** each phase renders as a dependency FOREST (`buildForest`) — a task nests (indented + left
+      guide line) under its closest same-phase prerequisite; cross-phase deps show via the "En attente" hint. Live
+      progress chip (emerald complete / amber remaining, mini bar) + colored deadline chip (red overdue / amber
+      within 14 days). Auto-tracked tasks show a non-clickable Activity indicator (not a manual checkbox).
+- **Authoring fixes:** `RefreshRentreeAssigneesCommand` (`POST /rentree/refresh-assignees`, "Responsables" button)
+      re-resolves role tasks' assignees from CURRENT holders — fixes the bootstrap gap (a CU confirmed AFTER
+      generate had an empty "Mes tâches"). Add-only generate now also SYNCS template-derived fields (title/desc/
+      phase/order/label/anchor/progress/action) onto existing tasks, keeping progress. Dependency CYCLE guard in
+      SaveRentreeTemplate (verified → 400 "Dépendance circulaire").
+- **Weekly reminder digest** (`RentreeReminders` + `RentreeReminderBackgroundService`, 12h tick, weekly cadence
+      via `rentree.reminder_last_sent` marker, master switch `rentree.reminders_enabled`): one email per assignee
+      listing their overdue/upcoming (≤7d) not-done tasks, via the durable outbox (seeded template
+      `rentree_task_reminder`). Overdue login popup fixed to RE-surface when the overdue set changes (signature in
+      sessionStorage, not a one-shot boolean) and honors anchored/auto-done tasks.
+- **Template editor + one-off add** gained "Échéance basée sur une date" + "Suivi automatique" dropdowns
+      (`client/src/lib/rentree-anchors.ts` + `rentree-progress.ts` mirror the backend catalogs). Default templates
+      backfilled with anchors/progress by title (`SeedRentreeAnchorsAndProgressAsync`, idempotent, fills nulls on
+      templates AND generated tasks — existing years light up without a regenerate). **"Modèle de rentrée"
+      (`/admin/rentree-template`) is still the master template editor — kept, now with the two new fields.**
+- Build clean (dotnet 0/0, tsc+eslint+vite). See memory [[project-rentree-actionable]].
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

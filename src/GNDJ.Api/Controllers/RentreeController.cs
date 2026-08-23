@@ -102,6 +102,15 @@ public class RentreeController : BaseApiController
         return result.IsSuccess ? Ok(new { created = result.Value }) : BadRequest(new { error = result.Error });
     }
 
+    /// <summary>Re-resolves every role task's assignees for a year from the current holders (fixes assignees frozen at generate time). Requires rentree.manage.</summary>
+    [HttpPost("refresh-assignees")]
+    [HasPermission(Permissions.RentreeManage)]
+    public async Task<IActionResult> RefreshAssignees([FromBody] RefreshRentreeAssigneesCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return result.IsSuccess ? Ok(new { changed = result.Value }) : BadRequest(new { error = result.Error });
+    }
+
     /// <summary>Edits a generated task (title/description/deadline). Requires rentree.manage.</summary>
     [HttpPut("tasks/{id:guid}")]
     [HasPermission(Permissions.RentreeManage)]

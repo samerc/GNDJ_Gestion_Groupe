@@ -21,7 +21,13 @@ public class RentreeTask : BaseEntity
     public Guid[] AssigneeMemberIds { get; set; } = [];  // resolved assignees
 
     public string? DeadlineLabel { get; set; }           // fuzzy deadline text
-    public DateOnly? DueDate { get; set; }               // fixed deadline (drives the overdue login popup)
+    public DateOnly? DueDate { get; set; }               // fixed manual deadline (drives the overdue login popup)
+
+    // Copied from the template. DeadlineAnchor → the real due date is resolved LIVE from that date-setting at
+    // read time (tracks the year's calendar; drives overdue). ProgressKey → the row shows live module state
+    // and auto-satisfies when complete. See RentreeAnchors / RentreeProgress.
+    public string? DeadlineAnchor { get; set; }
+    public string? ProgressKey { get; set; }
 
     public string? ActionKey { get; set; }               // built-in action from the catalog (copied from the template)
 

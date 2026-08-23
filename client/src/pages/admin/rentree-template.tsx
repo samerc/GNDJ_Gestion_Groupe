@@ -21,9 +21,11 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { cn } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ArrowLeft, X, Users, Zap } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ArrowLeft, X, Users, Zap, CalendarClock, Activity } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { RENTREE_ACTION_OPTIONS, getRentreeAction } from '@/lib/rentree-actions'
+import { RENTREE_ANCHOR_OPTIONS, anchorLabel } from '@/lib/rentree-anchors'
+import { RENTREE_PROGRESS_OPTIONS, getRentreeProgress } from '@/lib/rentree-progress'
 import { toast } from 'sonner'
 
 const ROLES = [
@@ -38,11 +40,12 @@ type Form = {
   id: string | null; title: string; description: string; phase: string
   assigneeType: string; assigneeRole: string; fanOutPerUnit: boolean
   assigneeMemberIds: string[]; assigneeMemberNames: string[]
-  defaultDeadlineLabel: string; dependsOnTemplateIds: string[]; actionKey: string
+  defaultDeadlineLabel: string; deadlineAnchor: string; progressKey: string; dependsOnTemplateIds: string[]; actionKey: string
 }
 const blank: Form = {
   id: null, title: '', description: '', phase: '', assigneeType: 'role', assigneeRole: 'chef-unite',
-  fanOutPerUnit: true, assigneeMemberIds: [], assigneeMemberNames: [], defaultDeadlineLabel: '', dependsOnTemplateIds: [], actionKey: '',
+  fanOutPerUnit: true, assigneeMemberIds: [], assigneeMemberNames: [], defaultDeadlineLabel: '',
+  deadlineAnchor: '', progressKey: '', dependsOnTemplateIds: [], actionKey: '',
 }
 
 export default function RentreeTemplatePage() {
@@ -64,8 +67,8 @@ export default function RentreeTemplatePage() {
     id: t.id, title: t.title, description: t.description ?? '', phase: t.phase,
     assigneeType: t.assigneeType, assigneeRole: t.assigneeRole ?? 'chef-unite', fanOutPerUnit: t.fanOutPerUnit,
     assigneeMemberIds: t.assigneeMemberIds, assigneeMemberNames: t.assigneeMemberNames,
-    defaultDeadlineLabel: t.defaultDeadlineLabel ?? '', dependsOnTemplateIds: t.dependsOnTemplateIds,
-    actionKey: t.actionKey ?? '',
+    defaultDeadlineLabel: t.defaultDeadlineLabel ?? '', deadlineAnchor: t.deadlineAnchor ?? '', progressKey: t.progressKey ?? '',
+    dependsOnTemplateIds: t.dependsOnTemplateIds, actionKey: t.actionKey ?? '',
   })
 
   const submit = async () => {
@@ -80,6 +83,7 @@ export default function RentreeTemplatePage() {
         assigneeMemberIds: form.assigneeType === 'members' ? form.assigneeMemberIds : [],
         defaultDeadlineLabel: form.defaultDeadlineLabel || null, dependsOnTemplateIds: form.dependsOnTemplateIds,
         actionKey: form.actionKey || null,
+        deadlineAnchor: form.deadlineAnchor || null, progressKey: form.progressKey || null,
       })
       toast.success('Modèle enregistré'); setForm(null)
     } catch (err) { toast.error(parseApiError(err)) }
@@ -127,6 +131,8 @@ export default function RentreeTemplatePage() {
               <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
                 <span>{t.assigneeType === 'members' ? (t.assigneeMemberNames.join(', ') || 'Membres') : ROLE_LABEL(t.assigneeRole)}{t.fanOutPerUnit && ' · par unité'}</span>
                 {t.defaultDeadlineLabel && <span>· {t.defaultDeadlineLabel}</span>}
+                {t.deadlineAnchor && <span className="inline-flex items-center gap-0.5 text-primary">· <CalendarClock className="h-3 w-3" />{anchorLabel(t.deadlineAnchor)}</span>}
+                {getRentreeProgress(t.progressKey) && <span className="inline-flex items-center gap-0.5 text-emerald-600">· <Activity className="h-3 w-3" />{getRentreeProgress(t.progressKey)!.label}</span>}
                 {t.dependsOnTemplateIds.length > 0 && <span>· {t.dependsOnTemplateIds.length} dépendance(s)</span>}
                 {getRentreeAction(t.actionKey) && <span className="inline-flex items-center gap-0.5 text-primary">· <Zap className="h-3 w-3" />{getRentreeAction(t.actionKey)!.label}</span>}
               </div>
@@ -152,6 +158,36 @@ export default function RentreeTemplatePage() {
                   <datalist id="phases">{phases.map(p => <option key={p} value={p} />)}</datalist>
                 </div>
                 <div className="space-y-1"><RequiredLabel>Échéance (texte)</RequiredLabel><Input value={form.defaultDeadlineLabel} onChange={e => setForm({ ...form, defaultDeadlineLabel: e.target.value })} placeholder="1ʳᵉ sem. octobre" /></div>
+              </div>
+
+              {/* Deadline anchor: hang the real due date on a date-setting so the checklist tracks the year's
+                  actual calendar (and "en retard" fires). Falls back to the fuzzy text above when the date is unset. */}
+              <div className="space-y-1"><RequiredLabel>Échéance basée sur une date</RequiredLabel>
+                <Select value={form.deadlineAnchor || 'none'} onValueChange={v => setForm({ ...form, deadlineAnchor: v === 'none' ? '' : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{RENTREE_ANCHOR_OPTIONS.map(o => <SelectItem key={o.value || 'none'} value={o.value || 'none'}>{o.label}</SelectItem>)}</SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {form.deadlineAnchor
+                    ? `L'échéance suivra automatiquement la date « ${anchorLabel(form.deadlineAnchor)} » (Paramètres). Le texte ci-dessus sert de repli si la date n'est pas renseignée.`
+                    : 'Sinon, l\'échéance reste le texte indicatif ci-dessus (ne déclenche pas de rappel « en retard »).'}
+                </p>
+              </div>
+
+              {/* Live progress: reflect module state (a count/bool) instead of a manual checkbox; the task
+                  auto-se-coche when the underlying work is complete. Per-unit signals need "une tâche par unité". */}
+              <div className="space-y-1"><RequiredLabel>Suivi automatique (progression)</RequiredLabel>
+                <Select value={form.progressKey || 'none'} onValueChange={v => setForm({ ...form, progressKey: v === 'none' ? '' : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{RENTREE_PROGRESS_OPTIONS.map(o => <SelectItem key={o.value || 'none'} value={o.value || 'none'}>{o.label}</SelectItem>)}</SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {!form.progressKey
+                    ? 'Aucun : la tâche se coche à la main.'
+                    : getRentreeProgress(form.progressKey)?.perUnit
+                      ? 'La tâche affichera l\'avancement réel par unité (ex. 8/18) et se cochera seule quand tout est fait. Activez « Une tâche par unité ».'
+                      : 'La tâche affichera l\'état réel et se cochera seule quand l\'action est effectuée.'}
+                </p>
               </div>
 
               {/* Optional built-in action: adds a one-click button/shortcut on the checklist. Most tasks

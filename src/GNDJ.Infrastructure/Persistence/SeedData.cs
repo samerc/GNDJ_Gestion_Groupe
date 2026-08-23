@@ -494,6 +494,49 @@ public static class SeedData
         if (changed) await context.SaveChangesAsync();
     }
 
+    // Backfill the deadline ANCHOR (a date-setting key → live due date) + live PROGRESS signal on the default
+    // rentrée tasks, by exact title. Fills BOTH templates and already-generated task instances, and only where
+    // the field is still null (idempotent; never overwrites a CG's choice) so a fresh DB (seeded moments earlier)
+    // AND existing years both light up without a regenerate. Wired in Program.cs after the other rentrée seeders.
+    public static async Task SeedRentreeAnchorsAndProgressAsync(GndjDbContext context)
+    {
+        // title → (deadline anchor setting key | null, live progress key | null)
+        var byTitle = new Dictionary<string, (string? Anchor, string? Progress)>
+        {
+            ["Ouvrir le passage"] = (null, "passage-open"),
+            ["Proposer les passages de chaque membre (ou « Pas de changement »)"] = (null, "passage-proposed"),
+            ["Finaliser les passages (création des nouvelles affectations)"] = ("passage.date", "passage-finalized"),
+            ["Ouvrir les inscriptions"] = ("demande.submission_start", "demandes-open"),
+            ["Réviser les demandes d'inscription (accepter/refuser + unité)"] = ("demande.submission_deadline", "demandes-reviewed"),
+            ["Envoyer les réponses aux demandes (conversion en membres)"] = ("demande.member_start_date", "demandes-sent"),
+            ["Vérifier et approuver les documents des membres"] = ("documents.deposit_deadline", "documents-verified"),
+            ["Suivre et enregistrer les cotisations"] = ("documents.deposit_deadline", "cotisations-paid"),
+            ["Organiser la séance photo"] = (null, "photos-done"),
+        };
+
+        var changed = false;
+
+        var templates = await context.RentreeTaskTemplates.ToListAsync();
+        foreach (var t in templates)
+            if (byTitle.TryGetValue(t.Title, out var m))
+            {
+                if (t.DeadlineAnchor == null && m.Anchor != null) { t.DeadlineAnchor = m.Anchor; changed = true; }
+                if (t.ProgressKey == null && m.Progress != null) { t.ProgressKey = m.Progress; changed = true; }
+            }
+
+        // Also backfill generated task instances so existing year checklists get anchors/progress without a
+        // full regenerate (which would wipe progress). Only fills null (never overwrites).
+        var tasks = await context.RentreeTasks.ToListAsync();
+        foreach (var t in tasks)
+            if (byTitle.TryGetValue(t.Title, out var m))
+            {
+                if (t.DeadlineAnchor == null && m.Anchor != null) { t.DeadlineAnchor = m.Anchor; changed = true; }
+                if (t.ProgressKey == null && m.Progress != null) { t.ProgressKey = m.Progress; changed = true; }
+            }
+
+        if (changed) await context.SaveChangesAsync();
+    }
+
     public static async Task SeedMissingSettingsAsync(GndjDbContext context)
     {
         var existingKeys = await context.Settings.Select(s => s.Key).ToListAsync();
@@ -504,6 +547,8 @@ public static class SeedData
             new() { Key = "default_country_code", Value = "+961", Category = "members", Label = "Indicatif téléphonique par défaut", Description = "Indicatif pays utilisé par défaut pour les nouveaux téléphones", ValueType = "string" },
             new() { Key = "default_country", Value = "Liban", Category = "members", Label = "Pays par défaut", Description = "Pays utilisé par défaut pour les nouvelles adresses", ValueType = "string" },
             new() { Key = "user_domain", Value = "scouts.gndj", Category = "general", Label = "Domaine utilisateur", Description = "Domaine utilisé pour générer les noms d'utilisateur (ex: prenom.nom@domaine)", ValueType = "string" },
+            // Rentrée reminders: the weekly digest email of overdue/upcoming checklist tasks to each assignee.
+            new() { Key = "rentree.reminders_enabled", Value = "true", Category = "rentree", Label = "Rappels de rentrée par email", Description = "Envoie chaque semaine aux responsables un récapitulatif de leurs tâches de rentrée en retard ou à venir.", ValueType = "boolean" },
             new() { Key = "documents.max_file_size_mb", Value = "5", Category = "documents", Label = "Taille maximale de fichier (Mo)", Description = "Taille maximale autorisée pour les documents téléchargés, en mégaoctets", ValueType = "number" },
             new() { Key = "documents.allowed_file_types", Value = "[\"pdf\",\"jpg\",\"jpeg\",\"png\"]", Category = "documents", Label = "Types de fichiers autorisés", Description = "Extensions de fichiers autorisées pour les documents", ValueType = "json_array" },
             // Document-verification campaign (group-wide, date-driven). When enabled + the 5 dates are set in
@@ -949,6 +994,19 @@ public static class SeedData
                 Subject = "Vérification des documents non terminée — {{phase}}",
                 BodyHtml = "<h2>Vérification non terminée</h2><p>Nous sommes arrivés à une étape clé de la campagne de vérification des documents (<strong>{{phase}}</strong>), mais certains chefs d'unité n'ont pas encore terminé la vérification de leurs dossiers. L'étape automatique (envoi des emails / mise en attente) n'a donc <strong>pas</strong> été déclenchée.</p><p>Unités avec des documents encore à vérifier :</p><div style=\"white-space:pre-line;background:#f6f8fa;border:1px solid #e5e7eb;border-radius:6px;padding:12px 16px;margin:12px 0;\">{{unitsList}}</div><p>Merci de demander aux chefs concernés de terminer la vérification, puis de lancer l'étape manuellement depuis la page « Vérification des documents » :</p><p><a href=\"{{appUrl}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Vérification des documents</a></p><p>— GNDJ</p>",
                 Variables = "[{\"key\":\"phase\",\"label\":\"Étape\"},{\"key\":\"unitsList\",\"label\":\"Unités concernées\"},{\"key\":\"appUrl\",\"label\":\"Lien vers la page\"}]",
+                IsActive = true
+            });
+
+        // Rentrée reminder digest: the weekly email listing an assignee's overdue / upcoming checklist tasks.
+        // {{tasksList}} is a plain-text bulleted list (one task per line) rendered in a white-space:pre-line block
+        // — the newlines survive EmailService's HTML-encoding of substituted values (XSS defense at the sink).
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "rentree_task_reminder"))
+            toAdd.Add(new EmailTemplate
+            {
+                Name = "Rappel des tâches de rentrée", Code = "rentree_task_reminder", Module = "general",
+                Subject = "Vos tâches de rentrée — {{taskCount}} à suivre",
+                BodyHtml = "<h2>Bonjour {{memberName}},</h2><p>Voici vos tâches de la rentrée scoute à faire prochainement ou déjà en retard ({{overdueCount}} en retard) :</p><div style=\"white-space:pre-line;background:#f6f8fa;border:1px solid #e5e7eb;border-radius:6px;padding:12px 16px;margin:12px 0;\">{{tasksList}}</div><p>Retrouvez la liste complète (dans l'ordre, avec les dépendances) dans l'application :</p><p><a href=\"{{rentreeUrl}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Voir mes tâches</a></p><p>Merci pour votre engagement et bonne rentrée scoute !<br>— La Maîtrise de Groupe GNDJ</p>",
+                Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du responsable\"},{\"key\":\"tasksList\",\"label\":\"Liste des tâches\"},{\"key\":\"overdueCount\",\"label\":\"Nombre en retard\"},{\"key\":\"taskCount\",\"label\":\"Nombre de tâches\"},{\"key\":\"rentreeUrl\",\"label\":\"Lien vers la rentrée\"}]",
                 IsActive = true
             });
 

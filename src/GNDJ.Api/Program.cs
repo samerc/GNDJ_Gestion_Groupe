@@ -83,6 +83,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<GNDJ.Api.Services.OutboxSenderBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.MemberPurgeBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.DocumentCampaignBackgroundService>();
+builder.Services.AddHostedService<GNDJ.Api.Services.RentreeReminderBackgroundService>();
 
 // Performance: Response compression (gzip + brotli)
 builder.Services.AddResponseCompression(options =>
@@ -345,6 +346,7 @@ using (var scope = app.Services.CreateScope())
             await SeedData.SeedRentreeActionKeysAsync(context);
             await SeedData.SeedRentreeReminderTaskAsync(context);
             await SeedData.SeedRentreeExtraTasksAsync(context);
+            await SeedData.SeedRentreeAnchorsAndProgressAsync(context);
         }
         catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
         {

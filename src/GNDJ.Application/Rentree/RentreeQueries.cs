@@ -10,19 +10,27 @@ public record RentreeTemplateDto(
     Guid Id, string Title, string? Description, string Phase, int DisplayOrder,
     string AssigneeType, string? AssigneeRole, bool FanOutPerUnit,
     IReadOnlyList<Guid> AssigneeMemberIds, IReadOnlyList<string> AssigneeMemberNames,
-    string? DefaultDeadlineLabel, IReadOnlyList<Guid> DependsOnTemplateIds, string? ActionKey);
+    string? DefaultDeadlineLabel, string? DeadlineAnchor, string? ProgressKey,
+    IReadOnlyList<Guid> DependsOnTemplateIds, string? ActionKey);
 
 // One task instance. The frontend rolls up per-unit instances sharing a TemplateId into one row.
-// Computed fields: IsBlocked (a dependency isn't done yet, with BlockedByTitles), IsMine (caller is an
-// assignee), IsOverdue (not done + past a FIXED DueDate; fuzzy DeadlineLabel never counts as overdue).
+// Computed fields:
+//   DueDate     — the EFFECTIVE due date: the anchored date-setting value if the task has a DeadlineAnchor,
+//                 else the stored manual DueDate. Drives IsOverdue + the deadline chip.
+//   ProgressKey/ProgressLabel/ProgressCurrent/ProgressTotal/ProgressComplete — the live module-state signal
+//                 (a task auto-satisfies when ProgressComplete).
+//   IsDone      — EFFECTIVE done: Status=="done" OR ProgressComplete (used for blocking + phase counts).
+//   IsBlocked   — a dependency isn't effectively done yet (with BlockedByTitles).
+//   IsMine      — the caller is an assignee. IsOverdue — not done + past the effective due date.
 public record RentreeTaskDto(
     Guid Id, Guid? TemplateId, string ScoutYear, string Title, string? Description, string Phase, int DisplayOrder,
     string AssigneeType, string? AssigneeRole, Guid? UnitId, string? UnitName,
     IReadOnlyList<Guid> AssigneeMemberIds, IReadOnlyList<string> AssigneeNames,
-    string? DeadlineLabel, DateOnly? DueDate,
+    string? DeadlineLabel, DateOnly? DueDate, string? DeadlineAnchor,
     string Status, string? CompletedByName, DateTime? CompletedAt,
     IReadOnlyList<Guid> DependsOnTaskIds, bool IsBlocked, IReadOnlyList<string> BlockedByTitles,
-    bool IsMine, bool IsOverdue, string? ActionKey);
+    bool IsMine, bool IsOverdue, string? ActionKey,
+    string? ProgressKey, string? ProgressLabel, int? ProgressCurrent, int? ProgressTotal, bool ProgressComplete, bool IsDone);
 
 // ── Templates ────────────────────────────────────────────────────────────────
 public record GetRentreeTemplatesQuery : IRequest<IReadOnlyList<RentreeTemplateDto>>;
@@ -40,7 +48,7 @@ public class GetRentreeTemplatesQueryHandler(IApplicationDbContext context)
         return templates.Select(t => new RentreeTemplateDto(
             t.Id, t.Title, t.Description, t.Phase, t.DisplayOrder, t.AssigneeType, t.AssigneeRole, t.FanOutPerUnit,
             t.AssigneeMemberIds, t.AssigneeMemberIds.Select(id => names.GetValueOrDefault(id, "?")).ToList(),
-            t.DefaultDeadlineLabel, t.DependsOnTemplateIds, t.ActionKey)).ToList();
+            t.DefaultDeadlineLabel, t.DeadlineAnchor, t.ProgressKey, t.DependsOnTemplateIds, t.ActionKey)).ToList();
     }
 }
 
@@ -75,7 +83,14 @@ public class GetRentreeTasksQueryHandler(IApplicationDbContext context, ICurrent
         var memberNames = await context.Members.Where(m => memberIds.Contains(m.Id))
             .Select(m => new { m.Id, Name = m.FirstName + " " + m.LastName }).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
 
-        var doneIds = tasks.Where(t => t.Status == "done").Select(t => t.Id).ToHashSet();
+        // Effective due dates (anchor-resolved) + live progress (module state). Both drive "done"/"overdue".
+        var dueByTask = await RentreeAnchors.ResolveDueDatesAsync(context, tasks, ct);
+        var progress = await RentreeProgress.ComputeAsync(context, tasks, request.ScoutYear, ct);
+
+        // Effective done = manually completed OR its progress signal reports complete (auto-satisfied).
+        bool EffectiveDone(Domain.Entities.RentreeTask t) =>
+            t.Status == "done" || (progress.TryGetValue(t.Id, out var p) && p.Complete);
+        var doneIds = tasks.Where(EffectiveDone).Select(t => t.Id).ToHashSet();
         var titleById = tasks.ToDictionary(t => t.Id, t => t.Title);
         var myMemberId = currentUser.MemberId;
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -84,13 +99,17 @@ public class GetRentreeTasksQueryHandler(IApplicationDbContext context, ICurrent
         {
             var blockedBy = t.DependsOnTaskIds.Where(d => !doneIds.Contains(d)).ToList();
             var isMine = myMemberId.HasValue && t.AssigneeMemberIds.Contains(myMemberId.Value);
+            var due = dueByTask.GetValueOrDefault(t.Id);
+            var prog = progress.GetValueOrDefault(t.Id);
+            var isDone = EffectiveDone(t);
             return new RentreeTaskDto(
                 t.Id, t.TemplateId, t.ScoutYear, t.Title, t.Description, t.Phase, t.DisplayOrder,
                 t.AssigneeType, t.AssigneeRole, t.UnitId, t.UnitId.HasValue ? unitNames.GetValueOrDefault(t.UnitId.Value) : null,
                 t.AssigneeMemberIds, t.AssigneeMemberIds.Select(id => memberNames.GetValueOrDefault(id, "?")).ToList(),
-                t.DeadlineLabel, t.DueDate, t.Status, t.CompletedByName, t.CompletedAt,
+                t.DeadlineLabel, due, t.DeadlineAnchor, t.Status, t.CompletedByName, t.CompletedAt,
                 t.DependsOnTaskIds, blockedBy.Count > 0, blockedBy.Select(d => titleById.GetValueOrDefault(d, "?")).ToList(),
-                isMine, t.Status != "done" && t.DueDate.HasValue && t.DueDate.Value < today, t.ActionKey);
+                isMine, !isDone && due.HasValue && due.Value < today, t.ActionKey,
+                t.ProgressKey, prog?.Label, prog?.Current, prog?.Total, prog?.Complete ?? false, isDone);
         });
 
         // Managers (super-admin / rentree.manage = CG) can see everyone's tasks; everyone else
@@ -115,14 +134,32 @@ public class GetMyOverdueRentreeTasksQueryHandler(IApplicationDbContext context,
         var myId = currentUser.MemberId.Value;
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
+        // Candidates: my not-yet-completed tasks that carry SOME deadline (a fixed date or a live anchor).
         var tasks = await context.RentreeTasks
-            .Where(t => t.Status != "done" && t.DueDate != null && t.DueDate < today && t.AssigneeMemberIds.Contains(myId))
-            .OrderBy(t => t.DueDate)
+            .Where(t => t.Status != "done" && t.AssigneeMemberIds.Contains(myId)
+                        && (t.DueDate != null || t.DeadlineAnchor != null))
             .ToListAsync(ct);
+        if (tasks.Count == 0) return [];
 
-        return tasks.Select(t => new RentreeTaskDto(
+        // Resolve effective due dates + progress (per year, since tasks may span years) to skip auto-satisfied ones.
+        var dueByTask = await RentreeAnchors.ResolveDueDatesAsync(context, tasks, ct);
+        var progressComplete = new HashSet<Guid>();
+        foreach (var grp in tasks.GroupBy(t => t.ScoutYear))
+        {
+            var p = await RentreeProgress.ComputeAsync(context, grp.ToList(), grp.Key, ct);
+            foreach (var kv in p) if (kv.Value.Complete) progressComplete.Add(kv.Key);
+        }
+
+        var overdue = tasks
+            .Where(t => !progressComplete.Contains(t.Id)
+                        && dueByTask.GetValueOrDefault(t.Id) is { } due && due < today)
+            .OrderBy(t => dueByTask.GetValueOrDefault(t.Id))
+            .ToList();
+
+        return overdue.Select(t => new RentreeTaskDto(
             t.Id, t.TemplateId, t.ScoutYear, t.Title, t.Description, t.Phase, t.DisplayOrder, t.AssigneeType, t.AssigneeRole,
-            t.UnitId, null, t.AssigneeMemberIds, [], t.DeadlineLabel, t.DueDate, t.Status, null, null,
-            t.DependsOnTaskIds, false, [], true, true, t.ActionKey)).ToList();
+            t.UnitId, null, t.AssigneeMemberIds, [], t.DeadlineLabel, dueByTask.GetValueOrDefault(t.Id), t.DeadlineAnchor,
+            t.Status, null, null, t.DependsOnTaskIds, false, [], true, true, t.ActionKey,
+            t.ProgressKey, null, null, null, false, false)).ToList();
     }
 }

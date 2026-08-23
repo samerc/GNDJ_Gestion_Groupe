@@ -19,6 +19,16 @@ public class RentreeTaskTemplate : BaseEntity
 
     public string? DefaultDeadlineLabel { get; set; }     // fuzzy deadline, e.g. "1ère sem. octobre"
 
+    // Optional deadline ANCHOR: a date-setting key (e.g. "passage.date", "demande.submission_deadline")
+    // from RentreeAnchors. When set, the task's real due date is resolved LIVE from that setting's value
+    // (so it tracks the year's actual calendar and drives "overdue"); DefaultDeadlineLabel is the fallback.
+    public string? DeadlineAnchor { get; set; }
+
+    // Optional live-progress SIGNAL: a key from RentreeProgress (e.g. "documents-verified", "demandes-open").
+    // When set, the task row reflects module state (a count/bool) instead of a manual checkbox, and
+    // auto-satisfies when the underlying work is complete.
+    public string? ProgressKey { get; set; }
+
     // Optional built-in action attached to the task (from a fixed catalog): "do" actions run an
     // operation from the checklist (e.g. "open-demandes" opens the inscriptions), "goto-*" actions are
     // a one-click shortcut to the relevant page. Chosen in the template editor; copied to each RentreeTask.
