@@ -2799,7 +2799,16 @@ came back clean (no S1/S2), mobile safe. Fixed the actionable batch (frontend + 
       on-hold list/reactivate), `CampaignPhaseBanner` on the unit-documents matrix, member "dépôt fermé/suspendu"
       banners disabling upload. Live-verified end-to-end. **Demande auto-close by date already existed** (demande.
       submission_start/deadline) — reused, not rebuilt. NEXT (user): improve the to-do list (rentrée) next.
-- Version bumped to **3.5.0** (both features); DEV until deploy.
+- **Leader first-login contact verification** (main @ 42fb9bf): when a member becomes a leader, on first login
+      (AFTER the forced password step) a one-time blocking screen asks them to confirm their PERSONAL email +
+      phone (many were youth with a parent's on file) — confirm in one click or correct. `Member.ContactVerifiedAt`
+      (migration AddMemberContactVerified); `GetMe.needsContactVerification` (real leader = holds a leadership/
+      group-level role, NOT super-admin-by-flag, ContactVerifiedAt null) + `suggestedEmail`/`suggestedPhone*`
+      prefill from the member's OWN email/phone (never a guardian's). `POST /my-profile/verify-contact`
+      (`VerifyMyContactCommand`, auth/own): sets PrimaryContactEmail, adds email+phone to own contacts if missing,
+      stamps ContactVerifiedAt (email required, phone optional). Frontend `LeaderContactVerification` in AppLayout
+      after ForcePasswordChange. Verified live (super-admin exempt; CU prompted → verify → cleared).
+- Version bumped to **3.5.0** (all three features); DEV until deploy.
 
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
