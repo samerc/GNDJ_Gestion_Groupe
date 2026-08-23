@@ -2774,6 +2774,33 @@ came back clean (no S1/S2), mobile safe. Fixed the actionable batch (frontend + 
       renders from the saved template), so an override needs new nullable outbox columns (migration) + an
       EmailService override path. Deferred; "adjust" today = edit the saved template (super-admin) or preview then send.
 
+### Séances & absences + document-verification campaign (2026-08-22/23, v3.5.0)
+- **Séances / absences** (main @ cfd5fee/befe329/1db5618): `Meeting` + `MeetingAbsence` + `FunctionalRole.IsTeamLeader`
+      (migration AddMeetings). A séance = unit-wide OR team-scoped (Réunion/Sortie/Camp w/ date range); attendance =
+      an absentee list (present by default). CU (attendance.manage + unit) manages all; a **chef d'équipe** (member
+      holding an IsTeamLeader role on a team — `GetMe.leadsTeam`) creates a PENDING séance for their team + fills it.
+      Page `/attendance` (create/approve/delete/edit + roster with absent+reason), `MeetingHandlers` + `MeetingsController`.
+      **YEAR MODEL:** absence badges (member fiche `AbsencesThisYear`, CU roster, CG list) use the scout year that
+      CONTAINS TODAY (calendar, `ScoutYearHelper.Window(null)`), NOT `passage.scout_year` (set ahead) — so séances
+      logged pre-season (Aug–Sep) count immediately; the Séances page has a year picker (both years in parallel).
+      `IsTeamLeader` toggle on the fonction editor. See memory [[project-absences-feature]].
+- **Document-verification campaign** (main @ fd616d4): group-wide yearly schedule the CG sets with 5 dates
+      (documents.* settings) → member upload opens/closes automatically per phase (Dépôt → Vérif 1 → Correction →
+      Vérif 2 → Terminé, computed on read via `DocumentCampaign.LoadAsync`; leaders [members.edit] bypass). A daily
+      **`DocumentCampaignBackgroundService`** runs the 2 steps when verification is done (= zero docs Pending
+      group-wide), else alerts the CG (email) who runs them by hand: at correction_start → email each incomplete
+      member their gap list (reuses `document_reminder`); at final_deadline → put still-incomplete dossiers **on hold**
+      + email. **On hold** = `Member.IsOnHold` (migration AddMemberOnHold): member can log in but doc upload disabled
+      + "compte suspendu — contactez la maîtrise" banner; CG reactivates. `DocumentCampaign`/`DocumentCampaignActions`
+      (shared send/hold/alert, idempotency markers stamped w/ scout year) / `DocumentCampaignHandlers`; endpoints
+      `/documents/campaign*` + `/documents/on-hold*` (maitrise.manage; status auth-only); upload gate in
+      DocumentHandlers; `GetMe.isOnHold`. Seeded 2 templates (membership_on_hold, document_verification_incomplete).
+      Frontend: CG page `/admin/document-verification` (schedule + phase + per-unit completion + manual buttons +
+      on-hold list/reactivate), `CampaignPhaseBanner` on the unit-documents matrix, member "dépôt fermé/suspendu"
+      banners disabling upload. Live-verified end-to-end. **Demande auto-close by date already existed** (demande.
+      submission_start/deadline) — reused, not rebuilt. NEXT (user): improve the to-do list (rentrée) next.
+- Version bumped to **3.5.0** (both features); DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
