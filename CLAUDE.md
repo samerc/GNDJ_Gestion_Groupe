@@ -2849,6 +2849,29 @@ real state, plus a readability pass. All on main (v3.5.0, DEV until deploy). Two
       (`/admin/rentree-template`) is still the master template editor — kept, now with the two new fields.**
 - Build clean (dotnet 0/0, tsc+eslint+vite). See memory [[project-rentree-actionable]].
 
+### Menu reorganization + page merges (2026-08-23, frontend-only, DEV until deploy)
+Follow-up sidebar tidy after the rentrée work (all on main, pushed; tsc+eslint+vite clean each commit).
+- **Rentrée: "Modèle de rentrée" page reorganized** (rentree-template.tsx) — task list grouped by PHASE headers
+      (phases are contiguous in display order; up/down arrows still reorder across the whole list), cleaner rows
+      with icons; edit/add FORM split into sections (Tâche / Responsable / Échéance / Suivi & action /
+      Dépendances) in a logical order with inline help. Header explains model-vs-yearly-list + links to /rentree;
+      the /rentree page keeps a clearer "Modèle de rentrée" button. **The template page is KEPT** (it's the master
+      template the yearly list is generated from).
+- **Sidebar moves:** "Modèle de rentrée" → Configuration; "Rentrée scoute" → Suivi; "Accès maîtrise" → Système;
+      the now-empty "Camp & rentrée" group removed. (Camp BP handled dynamically, below.)
+- **Camp BP dynamic placement** (sidebar `NavContent`): while NO camp is active it lives in the **Configuration**
+      group (so a `camp.manage` CG can create one); as soon as a **non-archived camp exists** it's PROMOTED to the
+      **main menu** for everyone with access — the manager link `/admin/camps` (camp.manage) and the CU grading link
+      `/camp` (camp.grade). Never shown in both places at once. `useCamps(enabled)` gained a flag so the sidebar
+      only fetches the camp list for users holding camp.grade/camp.manage (no 403s for youth). Verified: dev has 0
+      camps → CG sees Camp BP under Configuration.
+- **Merged "Profils de sécurité" + "Accès maîtrise" → one page `/admin/roles-access` ("Profils & accès").** New
+      `pages/admin/roles-access.tsx` hosts both as **permission-gated tabs**: Profils de sécurité (roles.view) +
+      Accès maîtrise (roles.manage_group). The two child pages gained an `embedded` prop (suppresses their own
+      header) and render unchanged inside the tabs — no logic rewritten, gates preserved (super-admin/CG see both;
+      roles.view-only sees just Profils, no tab bar). Single Système sidebar entry; old `/admin/security-profiles`
+      + `/admin/group-access` routes redirect (Navigate) for back-compat. Orphan scan of pages/ = none.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
