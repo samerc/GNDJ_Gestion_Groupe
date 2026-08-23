@@ -5,6 +5,7 @@ import { useState, useRef } from 'react'
 import { useMemberDocuments, useUploadDocument, useReviewDocument, useDeleteDocument, useAddDocumentPages, useDeleteDocumentPage, downloadDocument, downloadDocumentPage, type MemberDocumentDto, type DocumentPageDto } from '@/services/document-service'
 import { useDocumentTypeList, type DocumentTypeListDto } from '@/services/document-type-service'
 import { useSettingValue, useSettingArray } from '@/services/settings-service'
+import { useDocumentCampaign } from '@/services/documents-campaign-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
@@ -41,6 +42,9 @@ interface Props {
 
 export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const { hasPermission } = useAuthStore()
+  // Campaign gate inputs (hooks must run before any early return): the member's on-hold flag + the campaign status.
+  const onHold = useAuthStore((s) => s.user?.isOnHold)
+  const { data: campaign } = useDocumentCampaign()
   const { data: documents, isLoading } = useMemberDocuments(memberId)
   const { data: docTypes } = useDocumentTypeList()
   const uploadMutation = useUploadDocument(memberId)
@@ -208,8 +212,19 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const getDocForType = (docTypeId: string) =>
     documents?.filter(d => d.documentTypeId === docTypeId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
 
-  // A member may always upload to their own dossier; otherwise it requires the create permission.
-  const canUpload = isOwnProfile || hasPermission(PERMISSIONS.DOCUMENTS_CREATE)
+  // Document-verification campaign gate — applies ONLY to a member acting on their OWN dossier who is not a
+  // leader (leaders bypass, server-side too). A member is blocked from uploading when their membership is on
+  // hold, or when the deposit window is currently closed. Leaders (members.edit) are never blocked here.
+  const isLeaderBypass = hasPermission(PERMISSIONS.MEMBERS_EDIT)
+  const memberBlock: { kind: 'hold' | 'closed'; reopensOn?: string | null } | null =
+    isOwnProfile && !isLeaderBypass
+      ? onHold ? { kind: 'hold' }
+      : (campaign?.enabled && !campaign.uploadOpen) ? { kind: 'closed', reopensOn: campaign.uploadReopensOn }
+      : null
+      : null
+
+  // A member may upload to their own dossier (unless campaign-blocked); otherwise it requires the create permission.
+  const canUpload = (isOwnProfile || hasPermission(PERMISSIONS.DOCUMENTS_CREATE)) && !memberBlock
 
   // Compute progress stats
   const docStats = docTypes ? {
@@ -242,6 +257,20 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Campaign gate banner (member's own view only): suspended, or deposit window closed. */}
+      {memberBlock?.kind === 'hold' && (
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span><strong>Compte suspendu.</strong> Votre dossier est incomplet : le dépôt de documents est désactivé. Contactez la <strong>maîtrise de groupe</strong> pour réactiver votre compte.</span>
+        </div>
+      )}
+      {memberBlock?.kind === 'closed' && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Le dépôt des documents est actuellement <strong>fermé</strong>.{memberBlock.reopensOn ? ` Réouverture le ${new Date(memberBlock.reopensOn).toLocaleDateString('fr-FR')}.` : ''}</span>
+        </div>
+      )}
+
       {/* Progress summary */}
       {docStats && docStats.total > 0 && (
         <div className="flex flex-wrap items-center gap-4 rounded-lg border bg-card p-4">

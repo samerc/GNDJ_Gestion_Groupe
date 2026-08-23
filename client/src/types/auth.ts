@@ -25,6 +25,9 @@ export interface MeResponse {
   // True when the member leads at least one team (active chef d'équipe assignment) — drives the "Séances" nav
   // for a chef d'équipe who otherwise has no admin permission.
   leadsTeam?: boolean
+  // True when the member's dossier was put on hold at the end of the document-verification campaign — Ma fiche /
+  // Mes documents show a suspended banner and disable the member's document upload until the CG reactivates them.
+  isOnHold?: boolean
 }
 
 export interface UnitAccess {

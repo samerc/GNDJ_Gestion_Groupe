@@ -61,7 +61,8 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
             _currentUser.Permissions,
             unitAccess,
             user.MustChangePassword,
-            leadsTeam
+            leadsTeam,
+            user.Member.IsOnHold
         ));
     }
 }

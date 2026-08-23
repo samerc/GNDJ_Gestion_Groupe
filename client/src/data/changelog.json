@@ -8,6 +8,10 @@
       "Séances : le chef d'unité / de groupe peut modifier une séance (type, titre, date, période du camp, équipe concernée)",
       "Séances : sélecteur d'année scoute (les deux années tournent en parallèle pendant la transition) — les séances de septembre à octobre sont enregistrées dans l'année en cours",
       "Absences : les compteurs (fiche, liste d'unité, liste des membres) suivent l'année scoute en cours (celle du calendrier), pour que les séances enregistrées avant octobre soient bien comptées",
+      "Vérification des documents : nouvelle campagne annuelle pilotée par des dates (Chef de Groupe) — le dépôt des documents s'ouvre/ferme automatiquement selon les phases (Dépôt → Vérification → Correction → Vérification → Terminé)",
+      "Vérification des documents : à la fin de la vérification, les emails d'erreur partent automatiquement (ou le CG les envoie d'un bouton) ; à la date finale, les dossiers encore incomplets sont mis « en attente » (email au membre) ; si la vérification n'est pas finie, le CG est alerté par email",
+      "Membre « en attente » : le membre peut se connecter mais le dépôt de documents est désactivé et un bandeau l'invite à contacter la maîtrise de groupe ; le CG réactive depuis la page « Vérification documents »",
+      "Documents : bandeau d'étape sur la page Documents de l'unité (chef d'unité) + bandeau « dépôt fermé / compte suspendu » côté membre",
       "Séances : nouveau rôle « Chef d'équipe » (à activer sur une fonction) — le chef d'équipe voit son équipe, crée une séance pour elle (en attente d'approbation du chef d'unité) et remplit les présences",
       "Absences : le nombre d'absences de l'année apparaît sur la fiche du membre, dans la liste de l'unité (chef d'unité) et dans la liste des membres (chef de groupe)"
     ]

@@ -130,6 +130,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
       { path: '/attendance', label: 'Séances & absences', icon: CalendarCheck, permission: PERMISSIONS.ATTENDANCE_MANAGE },
       { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },
+      { path: '/admin/document-verification', label: 'Vérification documents', icon: FileWarning, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/document-reminders', label: 'Relance documents', icon: FileWarning, permission: PERMISSIONS.MAITRISE_MANAGE },
     ],
   },

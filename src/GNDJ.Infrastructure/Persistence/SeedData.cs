@@ -506,6 +506,17 @@ public static class SeedData
             new() { Key = "user_domain", Value = "scouts.gndj", Category = "general", Label = "Domaine utilisateur", Description = "Domaine utilisé pour générer les noms d'utilisateur (ex: prenom.nom@domaine)", ValueType = "string" },
             new() { Key = "documents.max_file_size_mb", Value = "5", Category = "documents", Label = "Taille maximale de fichier (Mo)", Description = "Taille maximale autorisée pour les documents téléchargés, en mégaoctets", ValueType = "number" },
             new() { Key = "documents.allowed_file_types", Value = "[\"pdf\",\"jpg\",\"jpeg\",\"png\"]", Category = "documents", Label = "Types de fichiers autorisés", Description = "Extensions de fichiers autorisées pour les documents", ValueType = "json_array" },
+            // Document-verification campaign (group-wide, date-driven). When enabled + the 5 dates are set in
+            // order, member document upload opens/closes automatically per phase (Dépôt → Vérif 1 → Correction →
+            // Vérif 2 → Terminé) and a daily job runs the error-emails / on-hold steps. Managed from the CG
+            // "Vérification des documents" page (endpoints), not the generic Settings screen. Empty/disabled by default.
+            new() { Key = "documents.campaign_enabled", Value = "false", Category = "documents", Label = "Campagne de vérification des documents", Description = "Active la campagne de vérification des documents (ouverture/fermeture automatique du dépôt selon les dates).", ValueType = "boolean" },
+            new() { Key = "documents.scout_year", Value = "", Category = "documents", Label = "Année scoute (campagne documents)", Description = "Année scoute de la campagne de vérification des documents.", ValueType = "string" },
+            new() { Key = "documents.deposit_start", Value = "", Category = "documents", Label = "Ouverture du dépôt", Description = "Date d'ouverture du dépôt des documents par les membres.", ValueType = "date" },
+            new() { Key = "documents.deposit_deadline", Value = "", Category = "documents", Label = "Date limite de dépôt", Description = "Fin du dépôt ; le dépôt se ferme et la vérification par les chefs d'unité commence.", ValueType = "date" },
+            new() { Key = "documents.correction_start", Value = "", Category = "documents", Label = "Ouverture de la correction", Description = "Réouverture du dépôt pour corriger ; les emails d'erreur partent à cette date (si la vérification est terminée).", ValueType = "date" },
+            new() { Key = "documents.correction_deadline", Value = "", Category = "documents", Label = "Date limite de correction", Description = "Fin de la correction ; le dépôt se referme et la re-vérification commence.", ValueType = "date" },
+            new() { Key = "documents.final_deadline", Value = "", Category = "documents", Label = "Date finale", Description = "Les dossiers encore incomplets sont mis en attente à cette date (si la vérification est terminée).", ValueType = "date" },
             new() { Key = "cotisation.default_amount", Value = "100", Category = "cotisations", Label = "Montant de cotisation par défaut", Description = "Montant par défaut pour les nouvelles cotisations (en USD)", ValueType = "number" },
             // NOTE: the cotisation "année scoute en cours" now follows passage.scout_year (single source of
             // truth — the year the CG opens). The old cotisation.current_scout_year setting was retired.
@@ -914,6 +925,30 @@ public static class SeedData
                 Subject = "Documents à compléter — {{memberName}}",
                 BodyHtml = "<h2>Bonjour,</h2><p>Il manque un ou plusieurs documents dans le dossier scout de <strong>{{memberName}}</strong> (unité {{unitName}}). Merci de les compléter dès que possible :</p><div style=\"white-space:pre-line;background:#f6f8fa;border:1px solid #e5e7eb;border-radius:6px;padding:12px 16px;margin:12px 0;\">{{documentsList}}</div><p>Vous pouvez téléverser les documents manquants ou corrigés depuis votre espace personnel, rubrique « Mes documents » :</p><p><a href=\"{{documentsUrl}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Mes documents</a></p><p>Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br><span style=\"font-size:12px;color:#555;\">{{documentsUrl}}</span></p><p>Merci pour votre réactivité !<br>— La Maîtrise GNDJ</p>",
                 Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"documentsList\",\"label\":\"Liste des documents\"},{\"key\":\"documentsUrl\",\"label\":\"Lien Mes documents\"}]",
+                IsActive = true
+            });
+
+        // Document-verification campaign — final step: the member's dossier is still incomplete after the
+        // correction window, so their membership is put on hold. Sent to the resolved contact email.
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "membership_on_hold"))
+            toAdd.Add(new EmailTemplate
+            {
+                Name = "Adhésion en attente (documents incomplets)", Code = "membership_on_hold", Module = "documents",
+                Subject = "Adhésion en attente — {{memberName}}",
+                BodyHtml = "<h2>Bonjour,</h2><p>Malgré nos rappels, le dossier scout de <strong>{{memberName}}</strong> (unité {{unitName}}) est toujours incomplet à la fin de la période de correction.</p><p>Son adhésion est donc <strong>mise en attente</strong> : le dépôt de documents est momentanément désactivé.</p><p>Pour régulariser la situation et réactiver le compte, merci de <strong>contacter la maîtrise de groupe</strong> dès que possible.</p><p>— La Maîtrise de Groupe GNDJ</p>",
+                Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"unitName\",\"label\":\"Unité\"}]",
+                IsActive = true
+            });
+
+        // Document-verification campaign — CG alert: at a transition date the verification isn't finished (some
+        // units still have documents to review), so the automated step didn't run. The CG is asked to finish + act.
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "document_verification_incomplete"))
+            toAdd.Add(new EmailTemplate
+            {
+                Name = "Vérification documents non terminée (alerte CG)", Code = "document_verification_incomplete", Module = "documents",
+                Subject = "Vérification des documents non terminée — {{phase}}",
+                BodyHtml = "<h2>Vérification non terminée</h2><p>Nous sommes arrivés à une étape clé de la campagne de vérification des documents (<strong>{{phase}}</strong>), mais certains chefs d'unité n'ont pas encore terminé la vérification de leurs dossiers. L'étape automatique (envoi des emails / mise en attente) n'a donc <strong>pas</strong> été déclenchée.</p><p>Unités avec des documents encore à vérifier :</p><div style=\"white-space:pre-line;background:#f6f8fa;border:1px solid #e5e7eb;border-radius:6px;padding:12px 16px;margin:12px 0;\">{{unitsList}}</div><p>Merci de demander aux chefs concernés de terminer la vérification, puis de lancer l'étape manuellement depuis la page « Vérification des documents » :</p><p><a href=\"{{appUrl}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Vérification des documents</a></p><p>— GNDJ</p>",
+                Variables = "[{\"key\":\"phase\",\"label\":\"Étape\"},{\"key\":\"unitsList\",\"label\":\"Unités concernées\"},{\"key\":\"appUrl\",\"label\":\"Lien vers la page\"}]",
                 IsActive = true
             });
 

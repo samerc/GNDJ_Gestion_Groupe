@@ -82,6 +82,7 @@ builder.Services.AddSingleton<ICurrentUserAccessor, HttpContextCurrentUserAccess
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<GNDJ.Api.Services.OutboxSenderBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.MemberPurgeBackgroundService>();
+builder.Services.AddHostedService<GNDJ.Api.Services.DocumentCampaignBackgroundService>();
 
 // Performance: Response compression (gzip + brotli)
 builder.Services.AddResponseCompression(options =>

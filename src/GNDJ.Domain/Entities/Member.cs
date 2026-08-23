@@ -28,6 +28,12 @@ public class Member : BaseEntity
     // member's own emails or a guardian's; null = auto-resolve (member's own email first, else a guardian's).
     public string? PrimaryContactEmail { get; set; }
 
+    // Membership "on hold" — set at the end of the document-verification campaign for members whose dossier is
+    // still incomplete. The member can still log in but their document upload is disabled and a suspended banner
+    // is shown ("contactez la maîtrise de groupe"); the CG clears it (reactivates) from the verification page.
+    public bool IsOnHold { get; set; }
+    public DateTime? OnHoldAt { get; set; }
+
     public User? User { get; set; }
     public ICollection<MemberPhone> Phones { get; set; } = [];
     public ICollection<MemberEmail> Emails { get; set; } = [];

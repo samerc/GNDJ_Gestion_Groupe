@@ -29,7 +29,10 @@ public record MeResponse(
     bool MustChangePassword = false,
     // True when the member leads at least one team (active IsTeamLeader assignment) — drives the "Séances" nav
     // for a chef d'équipe who otherwise has no admin permission.
-    bool LeadsTeam = false
+    bool LeadsTeam = false,
+    // True when the member's dossier was put on hold at the end of the document-verification campaign — the app
+    // shows a suspended banner and disables their document upload until the CG reactivates them.
+    bool IsOnHold = false
 );
 
 public record UnitAccessDto(

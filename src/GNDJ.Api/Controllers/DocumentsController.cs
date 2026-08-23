@@ -377,4 +377,68 @@ public class DocumentsController : BaseApiController
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }
+
+    // ══════════════ Document-verification campaign ══════════════
+    // A group-wide, date-driven schedule that opens/closes member uploads automatically and runs the two
+    // verification steps (error emails, then on-hold for still-incomplete dossiers) — auto when verification is
+    // done, else the CG is alerted and presses the buttons. See DocumentCampaign / DocumentCampaignActions.
+
+    /// <summary>Current campaign status (phase + upload open/closed + dates). Auth-only — drives member/CU banners.</summary>
+    [HttpGet("campaign")]
+    public async Task<IActionResult> GetCampaign()
+        => Ok((await Mediator.Send(new GetDocumentCampaignStatusQuery())).Value);
+
+    /// <summary>CG dashboard: status + per-unit pending/incomplete + completion + step markers. Requires maitrise.manage.</summary>
+    [HttpGet("campaign/admin")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> GetCampaignAdmin()
+    {
+        var r = await Mediator.Send(new GetDocumentCampaignAdminQuery());
+        return r.IsSuccess ? Ok(r.Value) : BadRequest(new { error = r.Error });
+    }
+
+    /// <summary>Sets the campaign schedule (enabled + the 5 dates + scout year). Requires maitrise.manage.</summary>
+    [HttpPut("campaign")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> UpdateCampaign([FromBody] UpdateDocumentCampaignCommand command)
+    {
+        var r = await Mediator.Send(command);
+        return r.IsSuccess ? NoContent() : BadRequest(new { error = r.Error });
+    }
+
+    /// <summary>Manually send the error emails to all incomplete members now. Requires maitrise.manage.</summary>
+    [HttpPost("campaign/send-errors")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> SendCampaignErrors()
+    {
+        var r = await Mediator.Send(new SendDocumentCampaignErrorsCommand());
+        return r.IsSuccess ? Ok(r.Value) : BadRequest(new { error = r.Error });
+    }
+
+    /// <summary>Manually put every still-incomplete dossier on hold now + email them. Requires maitrise.manage.</summary>
+    [HttpPost("campaign/apply-hold")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> ApplyCampaignHold()
+    {
+        var r = await Mediator.Send(new ApplyDocumentCampaignHoldCommand());
+        return r.IsSuccess ? Ok(r.Value) : BadRequest(new { error = r.Error });
+    }
+
+    /// <summary>Lists members currently on hold (for reactivation). Requires maitrise.manage.</summary>
+    [HttpGet("on-hold")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> GetOnHold()
+    {
+        var r = await Mediator.Send(new GetOnHoldMembersQuery());
+        return r.IsSuccess ? Ok(r.Value) : BadRequest(new { error = r.Error });
+    }
+
+    /// <summary>Reactivates a member (clears the on-hold flag). Requires maitrise.manage.</summary>
+    [HttpPost("on-hold/{memberId:guid}/reactivate")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> Reactivate(Guid memberId)
+    {
+        var r = await Mediator.Send(new ReactivateMemberCommand(memberId));
+        return r.IsSuccess ? NoContent() : BadRequest(new { error = r.Error });
+    }
 }

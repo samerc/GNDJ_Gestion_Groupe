@@ -60,6 +60,21 @@ static class DocumentAccessHelper
     // Leader-level access to a whole unit's document views (compliance matrix / zip export).
     public static bool IsUnitLeaderFor(ICurrentUserService currentUser, Guid unitId)
         => MemberAccess.CanLeadUnit(currentUser, unitId);
+
+    // Gate a MEMBER's own document upload by the campaign window + on-hold flag; returns an error message to
+    // block, or null to allow. Leaders (super-admin / CU / CG — hold members.edit) always bypass, so they can
+    // upload/fix a document for a member even when the deposit window is closed or the member is on hold.
+    public static async Task<string?> MemberUploadBlockReasonAsync(
+        IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
+    {
+        if (currentUser.IsSuperAdmin || currentUser.Permissions.Contains(Permissions.MembersEdit)) return null;
+        var onHold = await context.Members.Where(m => m.Id == memberId).Select(m => m.IsOnHold).FirstOrDefaultAsync(ct);
+        if (onHold) return "Votre compte est suspendu. Contactez la maîtrise de groupe pour réactiver le dépôt de vos documents.";
+        var campaign = await DocumentCampaign.LoadAsync(context, ct);
+        if (campaign.Enabled && !campaign.UploadOpen)
+            return "Le dépôt des documents est actuellement fermé. Vous pourrez téléverser vos documents pendant la prochaine période.";
+        return null;
+    }
 }
 
 // Get documents for a member
@@ -125,6 +140,11 @@ public class UploadMemberDocumentCommandHandler(IApplicationDbContext context, I
     {
         if (!await DocumentAccessHelper.CanAccessMember(context, currentUser, request.MemberId, ct))
             return Result<Guid>.Failure("Accès non autorisé à ce membre.");
+
+        // Campaign gate: a member uploading their OWN document is subject to the deposit window + on-hold flag
+        // (leaders bypass). Keeps members from changing docs mid-verification or after they're put on hold.
+        var block = await DocumentAccessHelper.MemberUploadBlockReasonAsync(context, currentUser, request.MemberId, ct);
+        if (block is not null) return Result<Guid>.Failure(block);
 
         var docType = await context.DocumentTypes.FindAsync([request.DocumentTypeId], ct);
         if (docType is null)
@@ -283,6 +303,9 @@ public class AddDocumentPagesCommandHandler(IApplicationDbContext context, ICurr
         if (doc is null) return Result<Guid>.Failure("Document introuvable.");
         if (!await DocumentAccessHelper.CanAccessMember(context, currentUser, doc.MemberId, ct))
             return Result<Guid>.Failure("Accès non autorisé.");
+        // Same campaign/on-hold gate as a fresh upload (adding a page is a member-facing upload).
+        var block = await DocumentAccessHelper.MemberUploadBlockReasonAsync(context, currentUser, doc.MemberId, ct);
+        if (block is not null) return Result<Guid>.Failure(block);
 
         await DocumentPageMapper.AppendPagesAsync(context, doc.Id, request.Files, DateTime.UtcNow, ct);
 

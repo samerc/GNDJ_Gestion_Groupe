@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingValue, useSettingArray } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
+import { CampaignPhaseBanner } from '@/components/shared/campaign-phase-banner'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
 import { PERMISSIONS } from '@/lib/constants'
 import {
@@ -383,6 +384,8 @@ export default function UnitDocumentsPage() {
 
   return (
     <div className="space-y-4">
+      {/* Document-verification campaign phase + deadlines (only when a campaign is active). */}
+      <CampaignPhaseBanner />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Documents & Cotisations</h1>
