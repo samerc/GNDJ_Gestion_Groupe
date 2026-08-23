@@ -85,6 +85,8 @@ const personalNavItems = [
 const adminNavItems = [
   { path: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard, permission: null },
   { path: '/members', label: 'Membres', icon: Users, permission: PERMISSIONS.MEMBERS_VIEW },
+  // Camp BP is placed dynamically in NavContent: in the Configuration group when no camp is active (where the
+  // CG sets one up), and promoted to the main menu — for everyone with access — once a camp is active.
 ]
 
 // Unit leader nav — "Mon unité" and "Documents" only visible to CU (members.edit permission)
@@ -160,9 +162,6 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/lists', label: 'Listes', icon: List, permission: PERMISSIONS.MAITRISE_MANAGE },
       // Champs personnalisés + Carte membre are set-and-forget → moved to the Paramètres page (see settings.tsx).
       { path: '/admin/report-templates', label: 'Rapports', icon: FileText, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-      // Camp BP management (create/organize the camp). Always available to camp.manage so a camp can be created;
-      // the CU grading link (/camp) appears separately once a camp is active.
-      { path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: PERMISSIONS.CAMP_MANAGE },
     ],
   },
   {
@@ -212,25 +211,38 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   const isManager = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.MAITRISE_MANAGE) || !!user?.unitAccess.some(u => u.isGroupLevel)
   // Personal links first (Ma fiche / Mes documents / Trombinoscope) for EVERYONE, then the role-specific nav.
   const navItems = [...personalNavItems, ...(isManager ? adminNavItems : leaderNavItems)]
-  // Hide the CU "Camp BP" grading link until a camp edition actually exists (a non-archived camp). Only fetched
-  // for a non-manager who can grade (managers reach camps via the admin nav; youth lack camp.grade). While the
-  // list loads, the link stays hidden (shows once a live camp is found).
-  const { data: campList } = useCamps(!isManager && hasPermission(PERMISSIONS.CAMP_GRADE))
+
+  // Camp BP placement is DYNAMIC (see below): fetched for anyone who can reach a camp (grade = CU viewer,
+  // manage = CG). While the list loads it counts as no live camp.
+  const canGradeCamp = hasPermission(PERMISSIONS.CAMP_GRADE)
+  const canManageCamp = hasPermission(PERMISSIONS.CAMP_MANAGE)
+  const { data: campList } = useCamps(canGradeCamp || canManageCamp)
   const hasLiveCamp = !!campList?.some((c) => !c.isArchived)
+
   const visibleNav = navItems.filter((item) =>
+    // The CU main-menu "Camp BP" grading link (/camp) shows only once a camp is active.
     (!item.permission || hasPermission(item.permission)) && !(item.path === '/camp' && !hasLiveCamp))
   // A chef d'équipe (leads a team) who is otherwise a read-only youth has no attendance.manage permission, so
   // the "Séances" link above is filtered out — add it explicitly so they can fill their team's présences.
   if (user?.leadsTeam && !visibleNav.some((i) => i.path === '/attendance')) {
     visibleNav.push({ path: '/attendance', label: 'Séances', icon: CalendarCheck, permission: null })
   }
+  // Camp BP for a manager (camp.manage): once a camp is ACTIVE it's promoted to the main menu for quick access;
+  // while there's no camp it lives in the Configuration group instead (below), where the CG creates one.
+  if (isManager && canManageCamp && hasLiveCamp && !visibleNav.some((i) => i.path === '/admin/camps')) {
+    visibleNav.push({ path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: null })
+  }
+
   const visibleAdminGroups = isManager
     ? adminGroups
-        .map((group) => ({
-          ...group,
-          // null permission = visible to every manager (e.g. Rentrée scoute checklist).
-          items: group.items.filter((item) => !item.permission || hasPermission(item.permission)),
-        }))
+        .map((group) => {
+          const items = group.items.filter((item) => !item.permission || hasPermission(item.permission))
+          // No active camp → surface Camp BP under Configuration so a manager can set one up (it moves to the
+          // main menu once a camp is active, so don't show it here then, to avoid duplicating it).
+          if (group.label === 'Configuration' && canManageCamp && !hasLiveCamp)
+            items.push({ path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: null })
+          return { ...group, items }
+        })
         .filter((group) => group.items.length > 0)
     : []
 
