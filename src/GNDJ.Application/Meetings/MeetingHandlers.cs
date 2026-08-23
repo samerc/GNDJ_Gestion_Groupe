@@ -113,14 +113,21 @@ public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUser
                 AbsentCount = m.Absences.Count(a => !a.IsDeleted),
             }).ToListAsync(ct);
 
-        // Roster size per meeting (unit-wide = active unit members; team = active team members).
-        var result = new List<MeetingDto>();
-        foreach (var m in meetings)
-        {
-            var rosterCount = await RosterQuery(context, m.UnitId, m.TeamId).CountAsync(ct);
-            result.Add(new MeetingDto(m.Id, m.UnitId, m.UnitName, m.TeamId, m.TeamName, m.Type, m.Title,
-                m.Date, m.EndDate, m.Status, rosterCount, m.AbsentCount, canManage));
-        }
+        // Roster size per meeting, BATCHED (avoids a COUNT per meeting = an N+1 on the séances list): one
+        // whole-unit active count + one grouped per-team active count, then each meeting looks up its scope
+        // (team-wide vs unit-wide) from the dictionary.
+        var unitRosterCount = await context.MemberAssignments
+            .CountAsync(a => a.UnitId == request.UnitId && a.EndDate == null, ct);
+        var teamRosterCount = (await context.MemberAssignments
+                .Where(a => a.UnitId == request.UnitId && a.EndDate == null && a.TeamId != null)
+                .GroupBy(a => a.TeamId!.Value)
+                .Select(g => new { TeamId = g.Key, Count = g.Count() })
+                .ToListAsync(ct))
+            .ToDictionary(x => x.TeamId, x => x.Count);
+        var result = meetings.Select(m => new MeetingDto(m.Id, m.UnitId, m.UnitName, m.TeamId, m.TeamName, m.Type, m.Title,
+            m.Date, m.EndDate, m.Status,
+            m.TeamId is null ? unitRosterCount : teamRosterCount.GetValueOrDefault(m.TeamId.Value),
+            m.AbsentCount, canManage)).ToList();
         return Result<IReadOnlyList<MeetingDto>>.Success(result);
     }
 
@@ -175,10 +182,14 @@ public class GetUnitAbsenceCountsQueryHandler(IApplicationDbContext context, ICu
 {
     public async ValueTask<Result<IReadOnlyList<MemberAbsenceCount>>> Handle(GetUnitAbsenceCountsQuery request, CancellationToken ct)
     {
-        // Any leader who can see the unit's members can see the absence counts.
-        if (!AttendanceAccess.CanManageUnit(currentUser, request.UnitId)
-            && !currentUser.Permissions.Contains(Permissions.MembersEdit))
-            return Result<IReadOnlyList<MemberAbsenceCount>>.Success([]);
+        // Any leader who can see THIS unit's members can see the absence counts. The members.edit branch MUST be
+        // unit-scoped (super-admin / CG-all-units / a CU's own units) — otherwise any CU could read another unit's
+        // per-member absence counts just by passing its id.
+        var canView = AttendanceAccess.CanManageUnit(currentUser, request.UnitId)
+            || currentUser.IsSuperAdmin
+            || (currentUser.Permissions.Contains(Permissions.MembersEdit)
+                && currentUser.AuthorizedUnitIds.Contains(request.UnitId));
+        if (!canView) return Result<IReadOnlyList<MemberAbsenceCount>>.Success([]);
 
         var (start, end) = ScoutYearHelper.Window(request.ScoutYear);
         // Count absences on APPROVED séances of this unit within the scout-year window.

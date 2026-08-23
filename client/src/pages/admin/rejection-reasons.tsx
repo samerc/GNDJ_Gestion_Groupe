@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Tip } from '@/components/ui/tooltip'
 import { parseApiError } from '@/lib/error-utils'
 import { Ban, Plus, Trash2, Star, Save, Info, Pencil, X } from 'lucide-react'
@@ -25,6 +26,9 @@ export default function RejectionReasonsPage() {
   // Master-detail edit state: draftIndex = -1 for a new reason, >=0 for editing an existing row, null = closed.
   const [draftIndex, setDraftIndex] = useState<number | null>(null)
   const [draft, setDraft] = useState<RejectionReason>(EMPTY)
+  // Index of the reason pending delete-confirmation (null = no confirm open). Deletion is destructive
+  // (persists the whole list minus that reason), so it goes through a confirm like every other admin list.
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
 
   const startAdd = () => { setDraftIndex(-1); setDraft({ ...EMPTY, isDefault: reasons.length === 0 }) }
   const startEdit = (i: number) => { setDraftIndex(i); setDraft({ ...reasons[i] }) }
@@ -64,6 +68,7 @@ export default function RejectionReasonsPage() {
 
   const removeRow = async (i: number) => {
     await persist(reasons.filter((_, idx) => idx !== i), 'Motif supprimé.')
+    setConfirmDelete(null)
   }
 
   return (
@@ -154,7 +159,7 @@ export default function RejectionReasonsPage() {
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Tip content="Modifier"><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => startEdit(i)} disabled={update.isPending}><Pencil className="h-4 w-4" /></Button></Tip>
-                      <Tip content="Supprimer"><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => removeRow(i)} disabled={update.isPending}><Trash2 className="h-4 w-4" /></Button></Tip>
+                      <Tip content="Supprimer"><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setConfirmDelete(i)} disabled={update.isPending}><Trash2 className="h-4 w-4" /></Button></Tip>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -163,6 +168,21 @@ export default function RejectionReasonsPage() {
           </Table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        onOpenChange={(o) => { if (!o) setConfirmDelete(null) }}
+        title="Supprimer ce motif"
+        variant="destructive"
+        description={
+          confirmDelete !== null && reasons[confirmDelete]?.isDefault
+            ? `Supprimer « ${reasons[confirmDelete]?.label} » ? C'est le motif par défaut (★) — il ne sera plus appliqué pour « -- » dans le fichier Excel.`
+            : `Supprimer le motif « ${confirmDelete !== null ? reasons[confirmDelete]?.label : ''} » ?`
+        }
+        confirmLabel="Supprimer"
+        loading={update.isPending}
+        onConfirm={() => { if (confirmDelete !== null) removeRow(confirmDelete) }}
+      />
     </div>
   )
 }

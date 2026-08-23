@@ -91,7 +91,7 @@ export default function RentreeTemplatePage() {
 
   // Swap a template with its neighbour and persist the full reordered id list (server rewrites order).
   const move = async (idx: number, dir: -1 | 1) => {
-    if (!templates) return
+    if (!templates || reorder.isPending) return // guard: rapid arrow-clicks could send overlapping reorders
     const arr = [...templates]
     const j = idx + dir
     if (j < 0 || j >= arr.length) return

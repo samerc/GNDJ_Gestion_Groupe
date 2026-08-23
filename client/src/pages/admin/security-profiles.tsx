@@ -315,7 +315,11 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
       toast.success('Profil supprimé')
       setDeleteOpen(false)
       onDeleted()
-    } catch (err) { setError(parseApiError(err)); setDeleteOpen(false) }
+    } catch (err) {
+      // A blocked delete (profile still used by a function → 400) must surface a visible toast, not a banner
+      // in the just-closed dialog.
+      toast.error(parseApiError(err)); setDeleteOpen(false)
+    }
   }
 
   if (isLoading) return <LoadingSpinner />

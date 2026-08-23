@@ -2872,6 +2872,43 @@ Follow-up sidebar tidy after the rentrée work (all on main, pushed; tsc+eslint+
       roles.view-only sees just Profils, no tab bar). Single Système sidebar entry; old `/admin/security-profiles`
       + `/admin/group-access` routes redirect (Navigate) for back-compat. Orphan scan of pages/ = none.
 
+### Pre-launch full audit + fixes (2026-08-23, v3.5.0, DEV until deploy)
+"Last push before launch" — ran a full-app audit: objective baselines + 5 parallel review agents (security/authz,
+correctness/logic, French language, UX/robustness, performance), then verified each finding against the code and
+fixed the clear-cut ones.
+- **Baselines ALL GREEN:** dotnet build Release (0 warn), frontend tsc+vite build, `dotnet test` (all projects),
+      `eslint --max-warnings=0`. French user-facing text swept across all recent screens + email templates = **clean**
+      (no accent/grammar/mojibake errors). Authz audit found the app's IDOR class properly closed on the new features
+      (self-service `/my-profile/*` resolve own id server-side; cross-member/unit reads go through `MemberAccess`;
+      read-only youth stripped of aggregate `.view` perms).
+- **FIXED — Perf N+1 (Séances list):** `GetMeetingsQuery` ran one `CountAsync` PER meeting for the roster size (40–80
+      sequential round-trips mid-season). Now batched: one whole-unit active count + one grouped per-team count, looked
+      up per meeting. `MeetingHandlers.cs`.
+- **FIXED — Rentrée empty-unit permanent blocker:** a fanned-out per-unit progress task for an EMPTY unit (0 active
+      members, e.g. a "(Non affectés)" placeholder) had `Complete = total > 0 && …` → never complete → never auto-done
+      → **permanently blocked** any dependent group task (e.g. "Finaliser les passages") and dragged phase progress,
+      and (being an auto/progress task) couldn't be manually ticked. Now `total == 0` counts as complete (nothing to
+      do). `RentreeProgress.cs` (all 4 per-unit signals: passage-proposed / documents-verified / photos-done /
+      cotisations-paid).
+- **FIXED — Security (cross-unit leak):** `GetUnitAbsenceCountsQuery`'s `members.edit` branch was NOT unit-scoped —
+      any CU could pass another unit's id and read its per-member absence counts (GUIDs+ints, no names, but still
+      cross-unit). Now scoped to super-admin / `AuthorizedUnitIds.Contains(unitId)`. `MeetingHandlers.cs`.
+- **FIXED — UX:** rejection-reasons delete now goes through a `ConfirmDialog` (was one-click destructive; warns if
+      it's the ★ default); security-profiles delete failure now surfaces a `toast.error` (was `setError` into the
+      just-closed dialog); rentrée-template reorder `move()` guarded against overlapping in-flight reorders. (The
+      template Save button already had `disabled={save.isPending}` — that agent finding was a false positive.)
+- **Verified live:** séances list + absence-counts endpoints → 200 (batched GroupBy translates); builds+tests+eslint
+      clean; API restarted on :5000.
+- **Flagged, NOT fixed (judgment calls / low-risk, for a decision):** (1) date windows use `DateOnly.FromDateTime(
+      DateTime.UtcNow)` app-wide — at a deadline day boundary Lebanon (UTC+2/+3) flips a few hours late (document
+      campaign phase, demande submission window, rentrée overdue); real but broad, pre-existing (would need a
+      local-clock abstraction). (2) Document-campaign auto step (12h job) + the CG manual button share marker-based
+      idempotency with NO advisory lock — a rare same-window race could double-send reminder emails (duplicate mail,
+      not data corruption). (3) Outbox throttle over-defers a full hour ONLY if a server's MaxPerHour is set below the
+      batch size (20) — harmless at the planned caps (~45). (4) Marker date parses use `DateOnly.TryParse`
+      (current-culture) vs invariant write — ISO parses fine under normal server cultures. (5) MeetingAbsence has no
+      partial unique index → re-saving attendance leaves soft-deleted rows (bloat, not a failure). None block launch.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

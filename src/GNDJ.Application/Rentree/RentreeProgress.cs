@@ -116,7 +116,9 @@ public static class RentreeProgress
                 foreach (var u in unitIds)
                 {
                     int total = UnitMembers(u).Count, cur = proposed.GetValueOrDefault(u);
-                    passageProposed[u] = new State(cur, total, total > 0 && cur >= total, $"{cur}/{total}");
+                    // total == 0 (empty/placeholder unit) → nothing to do → complete, so it never permanently
+                    // blocks a dependent group task (e.g. "Finaliser les passages") or drags phase progress.
+                    passageProposed[u] = new State(cur, total, cur >= total, $"{cur}/{total}");
                 }
             }
 
@@ -132,7 +134,8 @@ public static class RentreeProgress
                 {
                     var members = UnitMembers(u);
                     var pend = members.Count(m => pendingMembers.Contains(m)); // members with a doc still awaiting the CU
-                    documentsVerified[u] = new State(members.Count - pend, members.Count, pend == 0 && members.Count > 0,
+                    // pend == 0 → complete (an empty unit has nothing pending, so it doesn't block dependents).
+                    documentsVerified[u] = new State(members.Count - pend, members.Count, pend == 0,
                         pend > 0 ? $"{pend} à vérifier" : members.Count > 0 ? "Rien en attente" : "0");
                 }
             }
@@ -147,7 +150,7 @@ public static class RentreeProgress
                 {
                     var members = UnitMembers(u);
                     var cur = members.Count(m => withPhoto.Contains(m));
-                    photosDone[u] = new State(cur, members.Count, members.Count > 0 && cur >= members.Count, $"{cur}/{members.Count}");
+                    photosDone[u] = new State(cur, members.Count, cur >= members.Count, $"{cur}/{members.Count}");
                 }
             }
 
@@ -163,7 +166,7 @@ public static class RentreeProgress
                 {
                     var members = UnitMembers(u);
                     var cur = members.Count(m => paidMembers.Contains(m));
-                    cotisationsPaid[u] = new State(cur, members.Count, members.Count > 0 && cur >= members.Count, $"{cur}/{members.Count}");
+                    cotisationsPaid[u] = new State(cur, members.Count, cur >= members.Count, $"{cur}/{members.Count}");
                 }
             }
         }

@@ -3,6 +3,11 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Séances : la liste se charge plus vite (le nombre de membres par séance est calculé en une seule fois au lieu d'une requête par séance)",
+      "Rentrée : une unité vide (sans membre) ne bloque plus les tâches qui en dépendent — elle est considérée comme terminée (rien à faire)",
+      "Correction de sécurité : les compteurs d'absences d'une unité ne sont plus lisibles par un chef d'une autre unité",
+      "Motifs de refus : la suppression d'un motif demande maintenant une confirmation (avec un avertissement si c'est le motif par défaut)",
+      "Profils de sécurité : si la suppression d'un profil échoue (profil encore utilisé), le message d'erreur s'affiche bien en notification",
       "Rentrée : la liste est maintenant hiérarchique — une tâche qui en attend une autre est indentée sous sa tâche préalable (« fais ceci, puis cela »)",
       "Rentrée : suivi automatique — certaines tâches affichent l'avancement réel (inscriptions ouvertes, passages proposés 8/18, demandes à réviser, documents vérifiés par unité, photos, cotisations…) et se cochent seules quand c'est fait, au lieu d'une case manuelle",
       "Rentrée : une échéance peut suivre une vraie date des Paramètres (date du passage, dates des inscriptions / des documents) — l'échéance et le rappel « en retard » se mettent à jour automatiquement",
