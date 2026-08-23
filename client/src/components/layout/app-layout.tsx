@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useMaintenance } from '@/services/maintenance-service'
 import { MaintenancePage } from '@/components/shared/maintenance-page'
 import { ForcePasswordChange } from '@/components/auth/force-password-change'
+import { LeaderContactVerification } from '@/components/auth/leader-contact-verification'
 
 // ROLE: authenticated app shell — sidebar + header around the routed <Outlet>.
 // Used as the layout route wrapping every signed-in page. Mounts the global
@@ -44,6 +45,10 @@ export function AppLayout() {
   // password. Applies to temp/imported/leader-reset accounts (mustChangePassword); those who activated via the
   // email link already set their password (flag cleared) and never see this.
   if (user?.mustChangePassword) return <ForcePasswordChange />
+
+  // Leader first-login step (AFTER the password): confirm your personal contact details (email + phone). Many
+  // leaders were youth with a parent's on file; block the app once until they confirm/correct them.
+  if (user?.needsContactVerification) return <LeaderContactVerification />
 
   // Managers get a horizontal top menubar (desktop) instead of the long left sidebar — the grouped admin nav
   // fits better as dropdowns and frees the width for the data-dense tables. Non-managers keep the left sidebar.

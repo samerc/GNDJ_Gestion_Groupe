@@ -138,6 +138,61 @@ public class DeleteMyEmailHandler(IApplicationDbContext context, ICurrentUserSer
     }
 }
 
+// ── Verify personal contact details (leader first-login prompt) ───────────────
+// A member who became a leader confirms/corrects their PERSONAL email + phone (many still had a parent's on
+// file). Sets the email as the member's primary contact email (added to their own emails), adds the phone to
+// their own phones, and stamps ContactVerifiedAt so the one-time "verify your details" screen stops showing.
+// Phone is optional; email is required.
+public record VerifyMyContactCommand(string Email, string? CountryCode, string? Phone) : IRequest<Result<bool>>;
+
+public class VerifyMyContactValidator : AbstractValidator<VerifyMyContactCommand>
+{
+    public VerifyMyContactValidator()
+    {
+        RuleFor(x => x.Email).NotEmpty().WithMessage("L'adresse courriel est requise.").EmailAddress().MaximumLength(150).NoHtml();
+        RuleFor(x => x.CountryCode).MaximumLength(10).NoHtml();
+        RuleFor(x => x.Phone).MaximumLength(30).NoHtml();
+    }
+}
+
+public class VerifyMyContactHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<VerifyMyContactCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(VerifyMyContactCommand request, CancellationToken ct)
+    {
+        var memberId = MyContactAccess.OwnMemberId(currentUser);
+        if (memberId is null) return Result<bool>.Failure("Aucun membre associé à ce compte.");
+        var member = await context.Members.FindAsync([memberId.Value], ct);
+        if (member is null) return Result<bool>.Failure("Membre introuvable.");
+
+        var email = request.Email.Trim();
+        member.PrimaryContactEmail = email;
+        member.ContactVerifiedAt = DateTime.UtcNow;
+
+        // Ensure the confirmed address is one of the member's OWN emails (a real personal email on file), adding
+        // it if missing. Case-insensitive match against existing rows.
+        var emailExists = await context.MemberEmails
+            .AnyAsync(e => e.MemberId == memberId.Value && !e.IsDeleted && e.Address.ToLower() == email.ToLower(), ct);
+        if (!emailExists)
+            context.MemberEmails.Add(new MemberEmail { MemberId = memberId.Value, Address = email, Type = "Personnel", IsPrimary = true, IsEmergency = false });
+
+        // Personal phone (optional): add it to the member's own phones if a matching number isn't already there.
+        var phone = request.Phone?.Trim();
+        if (!string.IsNullOrWhiteSpace(phone))
+        {
+            var cc = string.IsNullOrWhiteSpace(request.CountryCode) ? "+961" : request.CountryCode!.Trim();
+            var phoneExists = await context.MemberPhones
+                .AnyAsync(p => p.MemberId == memberId.Value && !p.IsDeleted && p.Number == phone, ct);
+            if (!phoneExists)
+                context.MemberPhones.Add(new MemberPhone { MemberId = memberId.Value, CountryCode = cc, Number = phone, Type = "Mobile", IsPrimary = true, IsEmergency = false });
+        }
+
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("VerifyContact", "Member", member.Id, newValues: new { email, phone }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
 // ── Addresses ───────────────────────────────────────────────────────────────
 public record AddMyAddressCommand(string Type, string Country, string City, string? Details, bool IsPrimary) : IRequest<Result<Guid>>;
 public record UpdateMyAddressCommand(Guid Id, string Type, string Country, string City, string? Details, bool IsPrimary) : IRequest<Result<bool>>;

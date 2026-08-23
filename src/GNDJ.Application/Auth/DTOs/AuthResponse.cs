@@ -32,7 +32,14 @@ public record MeResponse(
     bool LeadsTeam = false,
     // True when the member's dossier was put on hold at the end of the document-verification campaign — the app
     // shows a suspended banner and disables their document upload until the CG reactivates them.
-    bool IsOnHold = false
+    bool IsOnHold = false,
+    // True when the caller is a leader who hasn't yet confirmed their PERSONAL contact details — the app shows a
+    // one-time blocking "verify your email + phone" screen (many leaders still had a parent's on file).
+    bool NeedsContactVerification = false,
+    // The member's own email/phone to prefill that screen (their own, never a guardian's; empty if none).
+    string? SuggestedEmail = null,
+    string? SuggestedPhoneCountry = null,
+    string? SuggestedPhone = null
 );
 
 public record UnitAccessDto(

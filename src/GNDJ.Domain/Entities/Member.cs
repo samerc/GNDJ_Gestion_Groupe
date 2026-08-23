@@ -34,6 +34,11 @@ public class Member : BaseEntity
     public bool IsOnHold { get; set; }
     public DateTime? OnHoldAt { get; set; }
 
+    // When a member becomes a leader (CU/CG…), they're asked once on login to confirm their PERSONAL contact
+    // details — email + phone (many still had a parent's on file). Set when they confirm/correct them; null =
+    // not yet confirmed → the app shows a one-time blocking "verify your contact details" screen to leaders.
+    public DateTime? ContactVerifiedAt { get; set; }
+
     public User? User { get; set; }
     public ICollection<MemberPhone> Phones { get; set; } = [];
     public ICollection<MemberEmail> Emails { get; set; } = [];

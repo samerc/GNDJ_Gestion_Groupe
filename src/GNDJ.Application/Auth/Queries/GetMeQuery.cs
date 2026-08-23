@@ -51,6 +51,24 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
             a.MemberId == user.MemberId && a.EndDate == null && a.TeamId != null && a.FunctionalRole.IsTeamLeader,
             cancellationToken);
 
+        // Leader first-login contact check: a real leader (holds a leadership OR group-level role — NOT a
+        // super-admin by flag) who hasn't confirmed their personal email + phone is prompted once to verify them.
+        var isLeader = unitAccess.Any(u => u.IsLeader || u.IsGroupLevel);
+        var needsContactVerification = isLeader && !user.IsSuperAdmin && user.Member.ContactVerifiedAt is null;
+        // Prefill = the member's OWN email/phone (primary first), never a guardian's — so we don't invite them to
+        // "confirm" a parent's; empty means they must type their personal one.
+        string? suggestedEmail = null, suggestedPhoneCountry = null, suggestedPhone = null;
+        if (needsContactVerification)
+        {
+            suggestedEmail = await _context.MemberEmails.Where(e => e.MemberId == user.MemberId && !e.IsDeleted)
+                .OrderByDescending(e => e.IsPrimary).ThenBy(e => e.CreatedAt).Select(e => e.Address).FirstOrDefaultAsync(cancellationToken);
+            var phone = await _context.MemberPhones.Where(p => p.MemberId == user.MemberId && !p.IsDeleted)
+                .OrderByDescending(p => p.IsPrimary).ThenBy(p => p.CreatedAt)
+                .Select(p => new { p.CountryCode, p.Number }).FirstOrDefaultAsync(cancellationToken);
+            suggestedPhoneCountry = phone?.CountryCode;
+            suggestedPhone = phone?.Number;
+        }
+
         return Result<MeResponse>.Success(new MeResponse(
             user.Id,
             user.MemberId,
@@ -62,7 +80,11 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
             unitAccess,
             user.MustChangePassword,
             leadsTeam,
-            user.Member.IsOnHold
+            user.Member.IsOnHold,
+            needsContactVerification,
+            suggestedEmail,
+            suggestedPhoneCountry,
+            suggestedPhone
         ));
     }
 }

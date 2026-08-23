@@ -29,6 +29,11 @@ public class MyProfileController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Leader first-login step: confirm/correct the caller's own PERSONAL email + phone (sets the email
+    /// as primary contact, adds the phone, marks it verified so the one-time prompt stops).</summary>
+    [HttpPost("verify-contact")]
+    public async Task<IActionResult> VerifyContact([FromBody] VerifyMyContactCommand command) => Wrap(await Mediator.Send(command));
+
     // ── Coordonnées: own phones / emails / addresses (add / edit / remove) ──────────────────────────
     // Each command is strictly own-scoped server-side (never a supplied member id), so no members.edit.
 

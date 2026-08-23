@@ -29,6 +29,14 @@ export function useUpdateMyProfile(memberId: string) {
   })
 }
 
+// POST /my-profile/verify-contact → the leader confirms/corrects their personal email + phone (first-login prompt).
+// The caller reloads the user afterward (which clears needsContactVerification), so no query invalidation here.
+export function useVerifyMyContact() {
+  return useMutation({
+    mutationFn: (data: { email: string; countryCode: string; phone: string }) => apiClient.post('/my-profile/verify-contact', data),
+  })
+}
+
 // ── Coordonnées: own phones / emails / addresses (self-service, no approval) ──
 // Call signatures mirror the leader-facing member-service hooks so "Ma fiche" can swap to them directly.
 const invalidateMe = (qc: ReturnType<typeof useQueryClient>, memberId: string) =>
