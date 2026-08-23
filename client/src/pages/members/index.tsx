@@ -44,7 +44,7 @@ import { MemberCustomFields } from '@/components/members/member-custom-fields'
 import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
-import { useCurrentScoutYear } from '@/hooks/use-scout-year'
+import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
 import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck } from 'lucide-react'
@@ -811,9 +811,8 @@ export default function MembersPage() {
 
   const createMutation = useCreateMember()
 
-  // Absence counts for the selected unit (active view only, current scout year) → a small badge per row.
-  const scoutYear = useCurrentScoutYear()
-  const { data: absenceCountsRaw } = useUnitAbsenceCounts(unitId, scoutYear, !!unitId && !showAlumni)
+  // Absence counts for the selected unit (active view only, running calendar scout year) → a small badge per row.
+  const { data: absenceCountsRaw } = useUnitAbsenceCounts(unitId, calendarScoutYear(), !!unitId && !showAlumni)
   const absenceCounts = useMemo(() => {
     const m = new Map<string, number>()
     for (const a of absenceCountsRaw ?? []) m.set(a.memberId, a.count)

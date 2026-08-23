@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
-import { useCurrentScoutYear } from '@/hooks/use-scout-year'
+import { calendarScoutYear, recentScoutYears } from '@/hooks/use-scout-year'
 import { useTeams } from '@/services/team-service'
 import {
   useAttendanceScope, useMeetings, useMeetingAttendance,
@@ -174,11 +174,12 @@ function AttendanceDialog({ meetingId, onClose }: { meetingId: string; onClose: 
 // The séance create/edit dialog. A CU can target the whole unit or any team; a chef d'équipe is restricted
 // to the team(s) they lead in this unit (no "whole unit" option). Pass `meeting` to edit an existing séance
 // (editing is manager-only — the caller only shows the edit button when canManage).
-function MeetingFormDialog({ unitId, canManage, ledTeamIds, meeting, onClose }: {
+function MeetingFormDialog({ unitId, canManage, ledTeamIds, meeting, defaultDate, onClose }: {
   unitId: string
   canManage: boolean
   ledTeamIds: string[]
   meeting?: MeetingDto
+  defaultDate?: string // pre-fills the date for a NEW séance (within the selected scout year)
   onClose: () => void
 }) {
   const create = useCreateMeeting()
@@ -195,7 +196,7 @@ function MeetingFormDialog({ unitId, canManage, ledTeamIds, meeting, onClose }: 
   // '__unit__' = whole unit, else teamId. Edit prefills from the séance; create defaults to whole unit for a CU.
   const [scope, setScope] = useState<string>(meeting ? (meeting.teamId ?? '__unit__') : (canManage ? '__unit__' : ''))
   const [title, setTitle] = useState(meeting?.title ?? '')
-  const [date, setDate] = useState(meeting?.date ?? '')
+  const [date, setDate] = useState(meeting?.date ?? defaultDate ?? '')
   const [endDate, setEndDate] = useState(meeting?.endDate ?? '')
   const [error, setError] = useState('')
 
@@ -279,7 +280,10 @@ function MeetingFormDialog({ unitId, canManage, ledTeamIds, meeting, onClose }: 
 }
 
 export default function AttendancePage() {
-  const scoutYear = useCurrentScoutYear()
+  // Year context: default to the year that CONTAINS TODAY (the running year), not the configured passage year.
+  // A picker lets a leader switch to the next (pre-season) year so both run in parallel through the changeover.
+  const yearOptions = useMemo(() => recentScoutYears(4), [])
+  const [year, setYear] = useState<string>(() => calendarScoutYear())
   const { data: scope, isLoading: scopeLoading } = useAttendanceScope()
   const approve = useApproveMeeting()
   const del = useDeleteMeeting()
@@ -301,7 +305,18 @@ export default function AttendancePage() {
   const canManageUnit = !!scope?.units.some(u => u.unitId === unitId)
   const ledTeamIds = useMemo(() => (scope?.teams ?? []).filter(t => t.unitId === unitId).map(t => t.teamId), [scope, unitId])
 
-  const { data: meetings, isLoading: meetingsLoading } = useMeetings(unitId || undefined)
+  const { data: meetings, isLoading: meetingsLoading } = useMeetings(unitId || undefined, year)
+
+  // Default date for a NEW séance: today if it's within the selected year, else that year's Oct-1 start — so a
+  // séance created while a year is selected lands in that year's window.
+  const defaultDate = useMemo(() => {
+    const startYear = Number(year.split('-')[0])
+    const start = new Date(startYear, 9, 1) // Oct 1
+    const end = new Date(startYear + 1, 9, 1)
+    const today = new Date()
+    const pick = today >= start && today < end ? today : start
+    return `${pick.getFullYear()}-${String(pick.getMonth() + 1).padStart(2, '0')}-${String(pick.getDate()).padStart(2, '0')}`
+  }, [year])
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editMeeting, setEditMeeting] = useState<MeetingDto | null>(null)
@@ -335,20 +350,28 @@ export default function AttendancePage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Séances &amp; absences</h1>
-          <p className="text-sm text-muted-foreground">Réunions, sorties et camps — suivez les présences. Année {scoutYear}.</p>
+          <p className="text-sm text-muted-foreground">Réunions, sorties et camps — suivez les présences.</p>
         </div>
         <Button onClick={() => setCreateOpen(true)} disabled={!unitId}><Plus className="mr-1 h-4 w-4" />Nouvelle séance</Button>
       </div>
 
-      {/* Unit picker (a CU usually has one; a CG / multi-unit chef sees several). */}
-      {unitOptions.length > 1 && (
-        <Select value={unitId} onValueChange={setUnitId}>
-          <SelectTrigger className="w-full sm:w-72"><SelectValue /></SelectTrigger>
+      {/* Unit + scout-year pickers. The year lets a leader view/log two years in parallel during the changeover. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {unitOptions.length > 1 && (
+          <Select value={unitId} onValueChange={setUnitId}>
+            <SelectTrigger className="w-full sm:w-72"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {unitOptions.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+        <Select value={year} onValueChange={setYear}>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {unitOptions.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}</SelectItem>)}
+            {yearOptions.map(y => <SelectItem key={y} value={y}>Année {y}</SelectItem>)}
           </SelectContent>
         </Select>
-      )}
+      </div>
 
       {meetingsLoading ? (
         <LoadingSpinner variant="table" />
@@ -369,7 +392,7 @@ export default function AttendancePage() {
       )}
 
       {createOpen && unitId && (
-        <MeetingFormDialog unitId={unitId} canManage={canManageUnit} ledTeamIds={ledTeamIds} onClose={() => setCreateOpen(false)} />
+        <MeetingFormDialog unitId={unitId} canManage={canManageUnit} ledTeamIds={ledTeamIds} defaultDate={defaultDate} onClose={() => setCreateOpen(false)} />
       )}
       {editMeeting && (
         <MeetingFormDialog unitId={editMeeting.unitId} canManage={canManageUnit} ledTeamIds={ledTeamIds} meeting={editMeeting} onClose={() => setEditMeeting(null)} />

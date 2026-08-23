@@ -81,7 +81,8 @@ public class GetAttendanceScopeQueryHandler(IApplicationDbContext context, ICurr
 }
 
 // Séances for a unit the caller manages, OR (for a chef d'équipe) their team's séances in that unit.
-public record GetMeetingsQuery(Guid UnitId) : IRequest<Result<IReadOnlyList<MeetingDto>>>;
+// ScoutYear (optional) filters to that year's Oct-1 window so two years can be viewed in parallel.
+public record GetMeetingsQuery(Guid UnitId, string? ScoutYear = null) : IRequest<Result<IReadOnlyList<MeetingDto>>>;
 
 public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
     : IRequestHandler<GetMeetingsQuery, Result<IReadOnlyList<MeetingDto>>>
@@ -97,6 +98,12 @@ public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUser
         var q = context.Meetings.Where(m => m.UnitId == request.UnitId);
         // A team leader only sees their own team's séances (CU sees all).
         if (!canManage) q = q.Where(m => m.TeamId != null && ledInThisUnit.Contains(m.TeamId.Value));
+        // Optional scout-year filter (Oct-1 window) so a leader can view/log either year during the transition.
+        if (!string.IsNullOrWhiteSpace(request.ScoutYear))
+        {
+            var (start, end) = ScoutYearHelper.Window(request.ScoutYear);
+            q = q.Where(m => m.Date >= start && m.Date < end);
+        }
 
         var meetings = await q.OrderByDescending(m => m.Date).ThenByDescending(m => m.CreatedAt)
             .Select(m => new

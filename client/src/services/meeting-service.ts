@@ -70,11 +70,12 @@ export function useAttendanceScope() {
   })
 }
 
-// GET /meetings?unitId → séances for a unit (CU: all; chef d'équipe: their team's only). Disabled until unitId.
-export function useMeetings(unitId: string | undefined) {
+// GET /meetings?unitId&scoutYear → séances for a unit (CU: all; chef d'équipe: their team's only), optionally
+// filtered to a scout year. Disabled until unitId.
+export function useMeetings(unitId: string | undefined, scoutYear?: string) {
   return useQuery({
-    queryKey: ['meetings', 'list', unitId],
-    queryFn: () => apiClient.get<MeetingDto[]>('/meetings', { params: { unitId } }).then(r => r.data),
+    queryKey: ['meetings', 'list', unitId, scoutYear],
+    queryFn: () => apiClient.get<MeetingDto[]>('/meetings', { params: { unitId, scoutYear } }).then(r => r.data),
     enabled: !!unitId,
   })
 }

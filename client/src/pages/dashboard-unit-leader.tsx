@@ -27,7 +27,7 @@ import { parseBlobError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { useReportTemplates } from '@/services/report-template-service'
 import { generateRoster, generateExport } from '@/services/report-service'
-import { useCurrentScoutYear } from '@/hooks/use-scout-year'
+import { useCurrentScoutYear, calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
 import {
   DropdownMenu,
@@ -248,8 +248,8 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const currentScoutYear = useCurrentScoutYear()
   const [generatingReport, setGeneratingReport] = useState<string | null>(null)
 
-  // Per-member absence counts (current scout year) → a small badge in the roster list.
-  const { data: absenceCountsRaw } = useUnitAbsenceCounts(unitId, currentScoutYear)
+  // Per-member absence counts (the running calendar scout year, so pre-season séances count) → roster badge.
+  const { data: absenceCountsRaw } = useUnitAbsenceCounts(unitId, calendarScoutYear())
   const absenceCounts = useMemo(() => {
     const m = new Map<string, number>()
     for (const a of absenceCountsRaw ?? []) m.set(a.memberId, a.count)
