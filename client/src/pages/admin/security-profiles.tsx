@@ -152,7 +152,9 @@ const PERMISSION_GROUPS: { label: string; permissions: { value: string; label: s
   },
 ]
 
-export default function SecurityProfilesPage() {
+// `embedded` = rendered inside the merged "Profils & accès" page (its title/tabs own the header), so we
+// suppress this page's standalone header/title but keep the "Nouveau profil" action.
+export default function SecurityProfilesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { data: profiles, isLoading } = useSecurityProfiles()
   const { hasPermission } = useAuthStore()
   const canManage = hasPermission(PERMISSIONS.ROLES_MANAGE)
@@ -163,13 +165,17 @@ export default function SecurityProfilesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Profils de sécurité</h1>
-          {!canManage && <p className="text-sm text-muted-foreground">Consultez les membres de chaque profil.</p>}
+      {embedded ? (
+        canManage && <div className="flex justify-end"><Button onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Nouveau profil</Button></div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Profils de sécurité</h1>
+            {!canManage && <p className="text-sm text-muted-foreground">Consultez les membres de chaque profil.</p>}
+          </div>
+          {canManage && <Button onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Nouveau profil</Button>}
         </div>
-        {canManage && <Button onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Nouveau profil</Button>}
-      </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
         {/* Profile list */}

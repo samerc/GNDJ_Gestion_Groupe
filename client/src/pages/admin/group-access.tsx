@@ -20,7 +20,9 @@ const LEVELS = [
   { value: 'complet', label: 'Complet' },
 ]
 
-export default function GroupAccessPage() {
+// `embedded` = rendered inside the merged "Profils & accès" page (its own title/tabs own the header), so we
+// suppress this page's standalone header.
+export default function GroupAccessPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { data: functions, isLoading } = useGroupFunctionAccess()
   // Track which function cards have unsaved edits so we can warn before the page is unloaded.
   const [dirtyCards, setDirtyCards] = useState<Set<string>>(new Set())
@@ -44,13 +46,15 @@ export default function GroupAccessPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Accès de la maîtrise de groupe</h1>
-        <p className="text-sm text-muted-foreground">
-          Définissez, pour chaque fonction de la maîtrise de groupe, le niveau d'accès par domaine
-          (Aucun · Lecture · Complet). Le Chef de Groupe garde l'accès complet.
-        </p>
-      </div>
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-bold">Accès de la maîtrise de groupe</h1>
+          <p className="text-sm text-muted-foreground">
+            Définissez, pour chaque fonction de la maîtrise de groupe, le niveau d'accès par domaine
+            (Aucun · Lecture · Complet). Le Chef de Groupe garde l'accès complet.
+          </p>
+        </div>
+      )}
 
       {(!functions || functions.length === 0) && (
         <Card><CardContent className="py-16 text-center text-muted-foreground">Aucune fonction de maîtrise de groupe.</CardContent></Card>

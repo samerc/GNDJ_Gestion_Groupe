@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { AdminRoute } from '@/components/auth/admin-route'
 import { PermissionRoute } from '@/components/auth/permission-route'
@@ -60,8 +60,7 @@ const ManagedListsPage = lazy(() => import('@/pages/admin/managed-lists'))
 const CampPage = lazy(() => import('@/pages/camp'))
 const CampsAdminPage = lazy(() => import('@/pages/admin/camps'))
 const CampDetailPage = lazy(() => import('@/pages/admin/camp-detail'))
-const GroupAccessPage = lazy(() => import('@/pages/admin/group-access'))
-const SecurityProfilesPage = lazy(() => import('@/pages/admin/security-profiles'))
+const RolesAccessPage = lazy(() => import('@/pages/admin/roles-access'))
 const DemandeValidationPage = lazy(() => import('@/pages/admin/demande-validation'))
 const ChangeRequestsPage = lazy(() => import('@/pages/admin/change-requests'))
 const OrganizeUnitPage = lazy(() => import('@/pages/organize-unit'))
@@ -199,10 +198,11 @@ export default function App() {
               <Route path="/admin/camps/:id" element={<CampDetailPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.ROLES_VIEW} />}>
-              <Route path="/admin/security-profiles" element={<SecurityProfilesPage />} />
-            </Route>
-            <Route element={<PermissionRoute permission={PERMISSIONS.ROLES_MANAGE_GROUP} />}>
-              <Route path="/admin/group-access" element={<GroupAccessPage />} />
+              {/* Merged "Profils & accès" page (security profiles + group-access delegation, each a permission-gated tab). */}
+              <Route path="/admin/roles-access" element={<RolesAccessPage />} />
+              {/* Back-compat redirects for the two former routes/bookmarks. */}
+              <Route path="/admin/security-profiles" element={<Navigate to="/admin/roles-access" replace />} />
+              <Route path="/admin/group-access" element={<Navigate to="/admin/roles-access" replace />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.DEMANDE_VIEW} />}>
               <Route path="/admin/demandes" element={<DemandeValidationPage />} />
