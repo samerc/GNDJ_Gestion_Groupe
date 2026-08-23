@@ -87,7 +87,7 @@ public class GetMemberDocumentsQueryHandler(IApplicationDbContext context, ICurr
         if (!await DocumentAccessHelper.CanAccessMember(context, currentUser, request.MemberId, ct))
             return Result<IReadOnlyList<MemberDocumentDto>>.Failure("Accès non autorisé à ce membre.");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
         // Materialize with the child pages, then map in memory (the page list is assembled from the inline
         // file + child rows, which EF can't build inside a single projection).
         var docs = await context.MemberDocuments
@@ -438,7 +438,7 @@ public class GetUnitDocumentsMatrixQueryHandler(IApplicationDbContext context, I
             .Include(c => c.Payments.Where(p => !p.IsDeleted))
             .ToListAsync(ct);
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
 
         // Build matrix
         var rows = memberAssignments
@@ -542,7 +542,7 @@ public class GetExpiringDocumentsQueryHandler(IApplicationDbContext context, ICu
 {
     public async ValueTask<IReadOnlyList<ExpiringDocumentDto>> Handle(GetExpiringDocumentsQuery request, CancellationToken ct)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
         var cutoff = today.AddDays(request.DaysAhead);
 
         var query = context.MemberDocuments

@@ -5,6 +5,7 @@ using GNDJ.Domain.Entities;
 using GNDJ.Domain.Enums;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using GNDJ.Application.Common;
 
 namespace GNDJ.Application.Passages;
 
@@ -82,7 +83,7 @@ public class GetPassagesByUnitQueryHandler(IApplicationDbContext context, ICurre
         if (!await PassageAccessHelper.CanAccessUnit(context, currentUser, request.UnitId, ct))
             return Result<IReadOnlyList<PassageDto>>.Failure("Accès non autorisé à cette unité.");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
 
         var items = await context.Passages
             .Where(p => p.CurrentUnitId == request.UnitId && p.ScoutYear == request.ScoutYear)
@@ -124,7 +125,7 @@ public class GetAllPassagesQueryHandler(IApplicationDbContext context, ICurrentU
         if (!currentUser.IsSuperAdmin)
             return Result<IReadOnlyList<PassageDto>>.Failure("Accès réservé aux super administrateurs.");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
 
         var query = context.Passages
             .Where(p => p.ScoutYear == request.ScoutYear);
@@ -689,7 +690,7 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
         if (!currentUser.IsSuperAdmin)
             return Result<int>.Failure("Accès réservé aux super administrateurs.");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
         // "Date du passage" setting drives the effective date: old assignments end on it and the new
         // ones start on it. Empty/unset → today.
         var passageDateRaw = await context.Settings.Where(s => s.Key == "passage.date").Select(s => s.Value).FirstOrDefaultAsync(ct);

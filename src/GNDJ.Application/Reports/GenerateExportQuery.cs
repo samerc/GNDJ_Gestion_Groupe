@@ -3,6 +3,7 @@ using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using GNDJ.Application.Common;
 
 namespace GNDJ.Application.Reports;
 
@@ -91,7 +92,7 @@ public class GenerateExportQueryHandler(
             .GroupBy(v => v.MemberId)
             .ToDictionary(g => g.Key, g => g.Select(v => new MemberCardCustomField(v.Name, v.Value)).ToList());
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
         var title = request.TeamId.HasValue
             ? $"{unit} \u2014 {assignments.FirstOrDefault()?.TeamName ?? "\u00c9quipe"}"
             : unit;

@@ -239,7 +239,7 @@ public class SetCotisationExemptCommandHandler(IApplicationDbContext context, IC
             {
                 MemberId = request.MemberId,
                 ScoutYear = request.ScoutYear,
-                PaymentDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                PaymentDate = LebanonClock.Today,
                 ReceiptNumber = string.Empty,
                 WillNotPay = true
             };

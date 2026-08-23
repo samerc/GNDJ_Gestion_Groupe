@@ -7,7 +7,7 @@ public static class ScoutYearHelper
     // The [start, end) window for a "YYYY-YYYY" scout year; falls back to the current year's window when blank/invalid.
     public static (DateOnly Start, DateOnly End) Window(string? scoutYear)
     {
-        var now = DateTime.UtcNow;
+        var now = LebanonClock.Now; // scout-year boundary (Oct 1) is a Lebanon calendar date, not UTC
         var startYear = now.Month >= 10 ? now.Year : now.Year - 1;
         if (!string.IsNullOrWhiteSpace(scoutYear))
         {

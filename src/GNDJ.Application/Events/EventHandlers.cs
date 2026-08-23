@@ -6,6 +6,7 @@ using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using GNDJ.Application.Common;
 
 namespace GNDJ.Application.Events;
 
@@ -194,7 +195,7 @@ public class GetPublicEventsQueryHandler(IApplicationDbContext context) : IReque
 {
     public async ValueTask<PaginatedList<PublicEventListItemDto>> Handle(GetPublicEventsQuery request, CancellationToken ct)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
         var filtered = context.Events.Where(e => e.IsPublished && (e.EndDate ?? e.StartDate) >= today);
         if (request.GroupOnly)
             filtered = filtered.Where(e => e.TagType == EventTagTypes.Group);

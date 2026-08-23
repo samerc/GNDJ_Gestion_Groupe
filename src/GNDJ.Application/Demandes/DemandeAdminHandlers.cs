@@ -111,7 +111,7 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context, ICu
         if (!MemberAccess.IsGroupManager(currentUser))
             return Result<IReadOnlyList<DemandeReviewDto>>.Failure("Accès refusé.");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
 
         // Only show submitted / decided demandes (never drafts).
         var query = context.Demandes.Where(d => d.ScoutYear == request.ScoutYear && d.Status != DemandeStatus.Draft);
@@ -267,7 +267,7 @@ public class GetDemandeStatisticsQueryHandler(IApplicationDbContext context, ICu
         if (!MemberAccess.IsGroupManager(currentUser))
             return Result<DemandeStatisticsDto>.Failure("Accès refusé.");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
 
         var drafts = await context.Demandes.CountAsync(d => d.ScoutYear == request.ScoutYear && d.Status == DemandeStatus.Draft, ct);
 
@@ -520,7 +520,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
 {
     public async ValueTask<Result<SendDemandeResponsesResult>> Handle(SendDemandeResponsesCommand request, CancellationToken ct)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
         // "Date de début des nouveaux membres" setting → assignment start date for admitted members.
         // Empty/unset → today.
         var startDateRaw = await context.Settings.Where(s => s.Key == "demande.member_start_date").Select(s => s.Value).FirstOrDefaultAsync(ct);

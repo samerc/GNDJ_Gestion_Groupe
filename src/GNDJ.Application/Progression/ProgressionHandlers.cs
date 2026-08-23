@@ -425,7 +425,7 @@ public class CreateMemberProgressionCommandValidator : AbstractValidator<CreateM
         RuleFor(x => x.ScoutStageId).NotEmpty().WithMessage("L'étape est requise.");
         RuleFor(x => x.Location).MaximumLength(200).NoHtml();
         RuleFor(x => x.Notes).MaximumLength(2000).NoHtml();
-        RuleFor(x => x.Date).LessThanOrEqualTo(_ => DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1))
+        RuleFor(x => x.Date).LessThanOrEqualTo(_ => LebanonClock.Today.AddDays(1))
             .WithMessage("La date ne peut pas être dans le futur.");
     }
 }

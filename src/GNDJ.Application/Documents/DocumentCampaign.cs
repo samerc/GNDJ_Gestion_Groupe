@@ -1,5 +1,6 @@
 using GNDJ.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using GNDJ.Application.Common;
 
 namespace GNDJ.Application.Documents;
 
@@ -67,8 +68,10 @@ public static class DocumentCampaign
             .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
 
         string? Get(string k) => settings.TryGetValue(k, out var v) ? v : null;
+        // Settings store dates as yyyy-MM-dd → parse with an EXACT invariant format (culture-independent, so it
+        // can't misparse under a non-invariant server culture).
         static DateOnly? ParseDate(string? v) =>
-            DateOnly.TryParse(v, out var d) ? d : (DateOnly?)null;
+            DateOnly.TryParseExact(v, "yyyy-MM-dd", out var d) ? d : (DateOnly?)null;
 
         var enabled = string.Equals(Get(DocumentCampaignKeys.Enabled), "true", StringComparison.OrdinalIgnoreCase);
         var scoutYear = Get(DocumentCampaignKeys.ScoutYear);
@@ -85,7 +88,7 @@ public static class DocumentCampaign
             return new DocumentCampaignStatus(enabled, DocumentCampaignPhases.Inactive, true,
                 d1, d2, d3, d4, d5, null, null, scoutYear);
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
         string phase; bool open; DateOnly? reopensOn = null, closesOn = null;
         if (today < d1!.Value) { phase = DocumentCampaignPhases.Before; open = false; reopensOn = d1; }
         else if (today < d2!.Value) { phase = DocumentCampaignPhases.Deposit; open = true; closesOn = d2; }

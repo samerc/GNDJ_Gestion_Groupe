@@ -16,6 +16,13 @@ public record UnitPending(Guid UnitId, string UnitName, int PendingCount, int In
 
 public static class DocumentCampaignActions
 {
+    // Process-wide guard: the 12h background job and a CG's manual button run the SAME two steps below. Without
+    // this, both could pass their "marker != year" check at the same instant and double-send the emails / double-
+    // apply the hold. Cross-process overlap is already prevented (startup advisory lock + disallowOverlappingRotation);
+    // this serializes the two in-process callers, and each step RE-CHECKS the (committed) marker after acquiring the
+    // gate so the loser becomes a no-op.
+    private static readonly SemaphoreSlim _stepGate = new(1, 1);
+
     // Active (member → unit) rows across the group (a member may appear once per active unit).
     private static async Task<List<(Guid MemberId, string FirstName, string LastName, Guid UnitId, string UnitName)>>
         ActiveMembersAsync(IApplicationDbContext ctx, CancellationToken ct) =>
@@ -50,7 +57,7 @@ public static class DocumentCampaignActions
         var docsByMember = docs.GroupBy(d => d.MemberId)
             .ToDictionary(g => g.Key, g => g.Select(d => new DocumentGaps.DocFacts(d.DocumentTypeId, d.Status, d.ExpiryDate, d.CreatedAt)).ToList());
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
         var firstUnitByMember = actives.GroupBy(a => a.MemberId).ToDictionary(g => g.Key, g => g.First());
 
         var result = new List<IncompleteMember>();
@@ -106,10 +113,18 @@ public static class DocumentCampaignActions
     public static async Task<CampaignSendReport> RunSendErrorsAsync(
         IApplicationDbContext ctx, IEmailQueue emailQueue, string? scoutYear, CancellationToken ct)
     {
-        var incomplete = await LoadIncompleteAsync(ctx, ct);
-        var report = await SendGapEmailsAsync(ctx, emailQueue, incomplete, ct);
-        await SetMarkerAsync(ctx, DocumentCampaignKeys.ErrorsSentFor, scoutYear, ct);
-        return report;
+        await _stepGate.WaitAsync(ct);
+        try
+        {
+            // A concurrent caller (auto job vs manual button) may have already sent for this year while we waited.
+            if (await GetSettingAsync(ctx, DocumentCampaignKeys.ErrorsSentFor, ct) == scoutYear)
+                return new CampaignSendReport(0, 0);
+            var incomplete = await LoadIncompleteAsync(ctx, ct);
+            var report = await SendGapEmailsAsync(ctx, emailQueue, incomplete, ct);
+            await SetMarkerAsync(ctx, DocumentCampaignKeys.ErrorsSentFor, scoutYear, ct);
+            return report;
+        }
+        finally { _stepGate.Release(); }
     }
 
     private static async Task<CampaignSendReport> SendGapEmailsAsync(
@@ -144,6 +159,12 @@ public static class DocumentCampaignActions
     public static async Task<CampaignHoldReport> RunApplyHoldAsync(
         IApplicationDbContext ctx, IEmailQueue emailQueue, string? scoutYear, CancellationToken ct)
     {
+        await _stepGate.WaitAsync(ct);
+        try
+        {
+        // A concurrent caller may have already applied the hold for this year while we waited.
+        if (await GetSettingAsync(ctx, DocumentCampaignKeys.HoldAppliedFor, ct) == scoutYear)
+            return new CampaignHoldReport(0, 0, 0);
         var incomplete = await LoadIncompleteAsync(ctx, ct);
         if (incomplete.Count == 0) { await SetMarkerAsync(ctx, DocumentCampaignKeys.HoldAppliedFor, scoutYear, ct); return new CampaignHoldReport(0, 0, 0); }
 
@@ -174,6 +195,8 @@ public static class DocumentCampaignActions
         await emailQueue.EnqueueManyAsync(jobs, ct);
         await SetMarkerAsync(ctx, DocumentCampaignKeys.HoldAppliedFor, scoutYear, ct);
         return new CampaignHoldReport(incomplete.Count, emailed, noEmail);
+        }
+        finally { _stepGate.Release(); }
     }
 
     // ── CG alert: verification not finished at the transition date ──

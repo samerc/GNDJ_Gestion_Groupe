@@ -6,6 +6,7 @@ using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using GNDJ.Application.Common;
 
 namespace GNDJ.Application.ChangeRequests;
 
@@ -46,7 +47,7 @@ public class ProposeProgressionValidator : AbstractValidator<ProposeProgressionC
     {
         RuleFor(x => x.UnitId).NotEmpty();
         RuleFor(x => x.ScoutStageId).NotEmpty();
-        RuleFor(x => x.Date).LessThanOrEqualTo(_ => DateOnly.FromDateTime(DateTime.UtcNow)).WithMessage("La date ne peut pas être dans le futur.");
+        RuleFor(x => x.Date).LessThanOrEqualTo(_ => LebanonClock.Today).WithMessage("La date ne peut pas être dans le futur.");
         RuleFor(x => x.Location).MaximumLength(200).NoHtml();
         RuleFor(x => x.Notes).MaximumLength(2000).NoHtml();
     }
@@ -145,7 +146,7 @@ public class ProposeAssignmentHandler(IApplicationDbContext context, ICurrentUse
         }
 
         var summary = $"Fonction : {role.Name} — {unit.Name}{(teamName is null ? "" : $" · {teamName}")}";
-        var start = request.StartDate == default ? DateOnly.FromDateTime(DateTime.UtcNow) : request.StartDate;
+        var start = request.StartDate == default ? LebanonClock.Today : request.StartDate;
         var payload = JsonSerializer.Serialize(new AssignmentPayload(request.UnitId, request.TeamId, request.FunctionalRoleId, start));
         var entity = new MemberChangeRequest { MemberId = memberId.Value, Kind = ChangeRequestKinds.Assignment, PayloadJson = payload, Summary = summary, Status = ChangeRequestStatus.Pending };
         context.MemberChangeRequests.Add(entity);

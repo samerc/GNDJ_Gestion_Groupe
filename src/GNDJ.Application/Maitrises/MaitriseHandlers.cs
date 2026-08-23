@@ -4,6 +4,7 @@ using GNDJ.Application.Common.Models;
 using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using GNDJ.Application.Common;
 
 namespace GNDJ.Application.Maitrises;
 
@@ -60,7 +61,7 @@ public class RemoveFromMaitriseCommandHandler(IApplicationDbContext context, IAu
         var assignment = await context.MemberAssignments.FirstOrDefaultAsync(a => a.Id == request.AssignmentId && a.EndDate == null, ct);
         if (assignment is null) return Result<bool>.Failure("Affectation introuvable ou déjà clôturée.");
 
-        assignment.EndDate = DateOnly.FromDateTime(DateTime.Today);
+        assignment.EndDate = LebanonClock.Today;
         await context.SaveChangesAsync(ct);
         await audit.LogAsync("EndAssignment", "MemberAssignment", assignment.Id,
             newValues: new { Reason = "Retrait de la maîtrise", assignment.EndDate }, cancellationToken: ct);
@@ -98,7 +99,7 @@ public class TransferMaitriseCommandHandler(IApplicationDbContext context, IAudi
         if (role.UnitTypeId != null && role.UnitTypeId != unit.UnitTypeId)
             return Result<bool>.Failure("Cette fonction n'appartient pas au type de l'unité de destination.");
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = LebanonClock.Today;
 
         // Already a leader in that unit+function? Avoid a duplicate active line.
         var dup = await context.MemberAssignments.AnyAsync(a => a.MemberId == assignment.MemberId

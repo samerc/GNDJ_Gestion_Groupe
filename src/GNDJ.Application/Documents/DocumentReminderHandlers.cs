@@ -106,7 +106,7 @@ public class GetDocumentReminderSummaryQueryHandler(IApplicationDbContext contex
             .Where(m => memberIds.Contains(m.Id))
             .Select(m => new { m.Id, m.PrimaryContactEmail })
             .ToDictionaryAsync(m => m.Id, m => m.PrimaryContactEmail, ct);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
 
         // Which members are incomplete (gaps > 0) + whether they have a contact email — computed once per member.
         var incomplete = new HashSet<Guid>();
@@ -180,7 +180,7 @@ public class GetDocumentReminderCandidatesQueryHandler(IApplicationDbContext con
             .Where(m => memberIds.Contains(m.Id))
             .Select(m => new { m.Id, m.PrimaryContactEmail })
             .ToDictionaryAsync(m => m.Id, m => m.PrimaryContactEmail, ct);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
 
         var list = memberAssignments
             .GroupBy(a => a.MemberId)
@@ -281,7 +281,7 @@ public class SendDocumentRemindersCommandHandler(
         var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct))
             ?? "http://localhost:5173").TrimEnd('/');
         var documentsUrl = $"{baseUrl}/my-documents";
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
 
         var details = new List<DocReminderItem>();
         var jobs = new List<EmailJob>();

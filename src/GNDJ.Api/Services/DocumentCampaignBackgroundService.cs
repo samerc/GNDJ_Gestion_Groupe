@@ -2,6 +2,7 @@ using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Documents;
 using GNDJ.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using GNDJ.Application.Common;
 
 namespace GNDJ.Api.Services;
 
@@ -55,7 +56,7 @@ public class DocumentCampaignBackgroundService : BackgroundService
         if (!status.Enabled || status.Phase == DocumentCampaignPhases.Inactive || string.IsNullOrWhiteSpace(status.ScoutYear))
             return;
         var year = status.ScoutYear;
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
 
         // ── Step 1 (correction_start): error emails ──
         if (status.CorrectionStart is { } cs && today >= cs)

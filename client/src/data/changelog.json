@@ -3,6 +3,8 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Dates et heure : toute l'application utilise désormais l'heure du Liban (fuseau Beyrouth) au lieu de l'heure universelle — plus de décalage d'un jour tard le soir pour les dates limites, l'année scoute, les absences, les paiements, etc.",
+      "Campagne de vérification des documents : les emails automatiques ne peuvent plus être envoyés en double si un bouton manuel est cliqué au même moment que la tâche automatique.",
       "Séances : la liste se charge plus vite (le nombre de membres par séance est calculé en une seule fois au lieu d'une requête par séance)",
       "Rentrée : une unité vide (sans membre) ne bloque plus les tâches qui en dépendent — elle est considérée comme terminée (rien à faire)",
       "Correction de sécurité : les compteurs d'absences d'une unité ne sont plus lisibles par un chef d'une autre unité",

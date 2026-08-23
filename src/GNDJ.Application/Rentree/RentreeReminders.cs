@@ -22,9 +22,9 @@ public static class RentreeReminders
         var enabled = await context.Settings.Where(s => s.Key == EnabledKey).Select(s => s.Value).FirstOrDefaultAsync(ct);
         if (enabled == "false") return 0; // default (unset) = enabled
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
         var last = await context.Settings.Where(s => s.Key == LastSentKey).Select(s => s.Value).FirstOrDefaultAsync(ct);
-        if (DateOnly.TryParse(last, out var lastDate) && today.DayNumber - lastDate.DayNumber < CadenceDays)
+        if (DateOnly.TryParseExact(last, "yyyy-MM-dd", out var lastDate) && today.DayNumber - lastDate.DayNumber < CadenceDays)
             return 0; // sent recently
 
         var sent = await SendDigestAsync(context, queue, today, ct);

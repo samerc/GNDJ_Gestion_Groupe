@@ -28,7 +28,7 @@ public class UpdateMemberCommandValidator : AbstractValidator<UpdateMemberComman
             .MaximumLength(100).WithMessage("Le nom ne doit pas dépasser 100 caractères.")
             .Must(n => n == null || !n.Contains('<') && !n.Contains('>')).WithMessage("Le nom contient des caractères invalides.");
         RuleFor(x => x.DateOfBirth).NotEmpty().WithMessage("La date de naissance est requise.")
-            .LessThanOrEqualTo(DateOnly.FromDateTime(DateTime.UtcNow))
+            .LessThanOrEqualTo(LebanonClock.Today)
             .When(x => x.DateOfBirth.HasValue)
             .WithMessage("La date de naissance ne peut pas être dans le futur.");
         RuleFor(x => x.Gender).NotEmpty().WithMessage("Le genre est requis.")

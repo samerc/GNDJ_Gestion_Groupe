@@ -2,6 +2,7 @@ using GNDJ.Application.Common.Interfaces;
 using GNDJ.Domain.Enums;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using GNDJ.Application.Common;
 
 namespace GNDJ.Application.Rentree;
 
@@ -93,7 +94,7 @@ public class GetRentreeTasksQueryHandler(IApplicationDbContext context, ICurrent
         var doneIds = tasks.Where(EffectiveDone).Select(t => t.Id).ToHashSet();
         var titleById = tasks.ToDictionary(t => t.Id, t => t.Title);
         var myMemberId = currentUser.MemberId;
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
 
         var result = tasks.Select(t =>
         {
@@ -132,7 +133,7 @@ public class GetMyOverdueRentreeTasksQueryHandler(IApplicationDbContext context,
     {
         if (!currentUser.MemberId.HasValue) return [];
         var myId = currentUser.MemberId.Value;
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
 
         // Candidates: my not-yet-completed tasks that carry SOME deadline (a fixed date or a live anchor).
         var tasks = await context.RentreeTasks

@@ -130,7 +130,7 @@ static class ApplicantHelpers
         // computed live (no scheduled job). Empty dates = no gate → the manual switches govern alone.
         var start = ParseDate(Get("demande.submission_start"));
         var deadline = ParseDate(Get("demande.submission_deadline"));
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
         var beforeStart = start.HasValue && today < start.Value;
         var afterDeadline = deadline.HasValue && today > deadline.Value;
 
@@ -505,7 +505,7 @@ public class GetApplicantProfileQueryHandler(IApplicationDbContext context, ICur
 
         // A draft left unsubmitted past the submission deadline is shown as "Expirée" (see ToDto).
         var deadline = ApplicantHelpers.ParseDate(await ApplicantHelpers.Setting(context, "demande.submission_deadline", ct));
-        var deadlinePassed = deadline.HasValue && DateOnly.FromDateTime(DateTime.UtcNow) > deadline.Value;
+        var deadlinePassed = deadline.HasValue && LebanonClock.Today > deadline.Value;
 
         // For SENT + converted (accepted) demandes, surface what the result page needs: the admitted unit's
         // name, the created member's login username, and whether that member has already logged in (so the
@@ -891,7 +891,7 @@ public class DemandeInputValidator : AbstractValidator<DemandeInput>
         RuleFor(x => x.Allergies).MaximumLength(2000);
         RuleFor(x => x.ParentNotes).MaximumLength(2000);
         RuleFor(x => x.PreviousDemandeYear).MaximumLength(20).Must(NoHtml);
-        RuleFor(x => x.DateOfBirth).Must(d => d == null || d.Value <= DateOnly.FromDateTime(DateTime.UtcNow))
+        RuleFor(x => x.DateOfBirth).Must(d => d == null || d.Value <= LebanonClock.Today)
             .WithMessage("La date de naissance ne peut pas être dans le futur.");
         RuleFor(x => x.Gender).Must(g => string.IsNullOrEmpty(g) || g == "Masculin" || g == "Féminin")
             .WithMessage("Genre invalide.");

@@ -177,7 +177,7 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
         // overstates the live roster. So: current/future year → a point-in-time "today" snapshot (members
         // whose assignment is still open now); a past year → the overlap window (who was active during it).
         // Both count DISTINCT members, never assignment rows (a member with >1 assignment in a unit counts once).
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
         var yearInProgress = windowEnd > today;
         var membersInYear = yearInProgress
             ? _context.Members.Where(m => m.Assignments.Any(a => a.EndDate == null && a.StartDate <= today))

@@ -6,6 +6,7 @@ using GNDJ.Domain.Entities;
 using GNDJ.Domain.Enums;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using GNDJ.Application.Common;
 
 namespace GNDJ.Application.Camps;
 
@@ -101,7 +102,7 @@ public class SetCampAttendanceCommandHandler(IApplicationDbContext context, ICur
             .Where(a => !a.IsDeleted && memberIds.Contains(a.MemberId))
             .Select(a => new { a.MemberId, a.UnitId, a.StartDate, a.EndDate })
             .ToListAsync(ct);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
         static int Sy(DateOnly d) => d.Month >= 9 ? d.Year : d.Year - 1; // scout year starts ~Oct (Sept = new year)
         int AnneeInUnit(Guid memberId, Guid unitId, int maxYears)
         {
@@ -176,7 +177,7 @@ public class GetCampGradingQueryHandler(IApplicationDbContext context, ICurrentU
         var allAssigns = await context.MemberAssignments
             .Where(a => !a.IsDeleted && memberIds.Contains(a.MemberId))
             .Select(a => new { a.MemberId, a.UnitId, a.StartDate, a.EndDate }).ToListAsync(ct);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
         static int Sy(DateOnly d) => d.Month >= 9 ? d.Year : d.Year - 1;
         int AnneeInUnit(Guid memberId, Guid unitId, int maxYears)
         {
@@ -254,7 +255,7 @@ public class SaveCampGradesCommandHandler(IApplicationDbContext context, ICurren
         var allAssigns = await context.MemberAssignments
             .Where(a => !a.IsDeleted && memberIds.Contains(a.MemberId))
             .Select(a => new { a.MemberId, a.UnitId, a.StartDate, a.EndDate }).ToListAsync(ct);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = LebanonClock.Today;
         static int Sy(DateOnly d) => d.Month >= 9 ? d.Year : d.Year - 1;
         int AnneeInUnit(Guid memberId, Guid unitId, int maxYears)
         {

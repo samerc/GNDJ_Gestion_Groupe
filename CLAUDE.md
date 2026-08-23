@@ -2899,15 +2899,31 @@ fixed the clear-cut ones.
       template Save button already had `disabled={save.isPending}` — that agent finding was a false positive.)
 - **Verified live:** séances list + absence-counts endpoints → 200 (batched GroupBy translates); builds+tests+eslint
       clean; API restarted on :5000.
-- **Flagged, NOT fixed (judgment calls / low-risk, for a decision):** (1) date windows use `DateOnly.FromDateTime(
-      DateTime.UtcNow)` app-wide — at a deadline day boundary Lebanon (UTC+2/+3) flips a few hours late (document
-      campaign phase, demande submission window, rentrée overdue); real but broad, pre-existing (would need a
-      local-clock abstraction). (2) Document-campaign auto step (12h job) + the CG manual button share marker-based
-      idempotency with NO advisory lock — a rare same-window race could double-send reminder emails (duplicate mail,
-      not data corruption). (3) Outbox throttle over-defers a full hour ONLY if a server's MaxPerHour is set below the
-      batch size (20) — harmless at the planned caps (~45). (4) Marker date parses use `DateOnly.TryParse`
-      (current-culture) vs invariant write — ISO parses fine under normal server cultures. (5) MeetingAbsence has no
-      partial unique index → re-saving attendance leaves soft-deleted rows (bloat, not a failure). None block launch.
+- **Follow-up fixes (2026-08-23/24, same audit) — the flagged items, now resolved:**
+  - **Timezone → Lebanon (app-wide):** new `Application/Common/LebanonClock.cs` (`Today`/`Now`; resolves
+      "Asia/Beirut" then Windows "Middle East Standard Time", falls back to UTC). Replaced ALL ~34
+      `DateOnly.FromDateTime(DateTime.UtcNow)` + the 2 `DateTime.Today` (MaitriseHandlers) + `ScoutYearHelper`'s UTC
+      `now` with `LebanonClock`. So every calendar-date decision (scout year, passage/demande/document deadlines,
+      overdue, absence windows, payment/assignment dates, DOB "not future" validators, dashboard ages) is Lebanon
+      local. **Real instants (audit/token/outbox timestamps) stay `DateTime.UtcNow`.** Verified on this box: it's
+      currently UTC+3 (DST) — Beirut date was already the NEXT day vs UTC at ~21:00 UTC, exactly the off-by-a-day the
+      fix removes. (PDF "Généré le" footers left on server-local `DateTime.Now` — cosmetic.) Client overdue is
+      server-computed, so no frontend tz change needed.
+  - **Document-campaign duplicate-email race:** `DocumentCampaignActions` now guards the two shared steps
+      (`RunSendErrorsAsync` / `RunApplyHoldAsync`) with a process-wide `SemaphoreSlim` + a re-check of the
+      (committed) marker after acquiring it → the 12h auto job and a CG's manual button can't both run the same step
+      (loser is a no-op). Cross-process overlap was already prevented (startup advisory lock).
+  - **Marker date parses → invariant** `DateOnly.TryParseExact(v, "yyyy-MM-dd", …)` in DocumentCampaign(.Handlers)
+      + RentreeReminders (culture-independent).
+  - **Not changed (verified fine):** outbox `MaxPerHour` throttle correctly defers the excess ~1h when a cap is
+      consumed in a sweep (that IS the per-hour semantics; cap 50 ≫ batch 20 anyway); MeetingAbsence soft-delete
+      row-bloat on re-save is cosmetic (correctness holds via `!IsDeleted`).
+- **DATA finding (Q5, for the user):** 4 "(Non affectés)" migration-placeholder units exist. Meute/Ronde/Troupe
+      ones are inactive + empty. **Compagnie (Non affectés) [CO] is still `is_active=true` and holds 1 active member —
+      Naia TUFENKJI (F-0629), Guide, since 2025-10-01.** It's not published (hidden from public site) but IS active,
+      so it shows in unit pickers / dashboard / rentrée fan-out. Recommend: move Naia to her real Compagnie unit,
+      then set all 4 placeholders `is_active=false` so they drop out. (The empty-unit rentrée blocker fix above means
+      the 3 empty ones no longer stall dependents in the meantime.)
 
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear

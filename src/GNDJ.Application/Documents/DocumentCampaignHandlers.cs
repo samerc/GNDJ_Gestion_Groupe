@@ -67,7 +67,7 @@ public class UpdateDocumentCampaignCommandHandler(IApplicationDbContext context,
         if (!MemberAccess.IsGroupManager(currentUser))
             return Result<bool>.Failure("Accès réservé au Chef de Groupe.");
 
-        static DateOnly? Parse(string? v) => DateOnly.TryParse(v, out var d) ? d : (DateOnly?)null;
+        static DateOnly? Parse(string? v) => DateOnly.TryParseExact(v, "yyyy-MM-dd", out var d) ? d : (DateOnly?)null;
         // When enabling, require the 5 dates present + strictly increasing + a scout year.
         if (request.Enabled)
         {
