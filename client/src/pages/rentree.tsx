@@ -473,7 +473,7 @@ export default function RentreePage() {
             <>
               {!noYears && <Tip content="Ré-attribue les tâches de rôle aux responsables actuels (ex. un CU confirmé après la génération)."><Button variant="outline" size="sm" onClick={doRefreshAssignees} disabled={refreshAssignees.isPending}><RefreshCw className={cn('mr-1 h-4 w-4', refreshAssignees.isPending && 'animate-spin')} />Responsables</Button></Tip>}
               {!noYears && <Button variant="outline" size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" />Ajouter une tâche</Button>}
-              <Button variant="outline" size="sm" asChild><Link to="/admin/rentree-template"><Settings2 className="mr-1 h-4 w-4" />Modèle</Link></Button>
+              <Tip content="Modifier les tâches type recopiées chaque année"><Button variant="outline" size="sm" asChild><Link to="/admin/rentree-template"><Settings2 className="mr-1 h-4 w-4" />Modèle de rentrée</Link></Button></Tip>
               <Button size="sm" onClick={() => setGenOpen(true)}><Sparkles className="mr-1 h-4 w-4" />Générer</Button>
             </>
           )}

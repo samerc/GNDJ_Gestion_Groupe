@@ -21,7 +21,7 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { cn } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ArrowLeft, X, Users, Zap, CalendarClock, Activity } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ArrowLeft, X, Users, Zap, CalendarClock, Activity, Link2 } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { RENTREE_ACTION_OPTIONS, getRentreeAction } from '@/lib/rentree-actions'
 import { RENTREE_ANCHOR_OPTIONS, anchorLabel } from '@/lib/rentree-anchors'
@@ -108,39 +108,48 @@ export default function RentreeTemplatePage() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-bold">Modèle de rentrée</h1>
-          <p className="text-sm text-muted-foreground">Les tâches type générées chaque année. Définissez responsables, échéances et dépendances.</p>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Le <b>modèle</b> = les tâches type recopiées dans la liste de chaque année (bouton « Générer »).
+            Modifiez-le ici ; la liste d'une année se remplit et se coche dans <Link to="/rentree" className="font-medium text-primary hover:underline">Rentrée scoute</Link>.
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" asChild><Link to="/rentree"><ArrowLeft className="mr-1 h-4 w-4" />Liste</Link></Button>
-          <Button size="sm" onClick={openNew}><Plus className="mr-1 h-4 w-4" />Ajouter</Button>
+          <Button variant="outline" size="sm" asChild><Link to="/rentree"><ArrowLeft className="mr-1 h-4 w-4" />Liste de rentrée</Link></Button>
+          <Button size="sm" onClick={openNew}><Plus className="mr-1 h-4 w-4" />Ajouter une tâche</Button>
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        {(templates ?? []).map((t, idx) => (
-          <div key={t.id} className="flex items-center gap-2 rounded-lg border p-2.5">
-            <div className="flex flex-col">
-              <Tip content="Monter"><button className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={idx === 0} onClick={() => move(idx, -1)}><ChevronUp className="h-3.5 w-3.5" /></button></Tip>
-              <Tip content="Descendre"><button className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={idx === (templates!.length - 1)} onClick={() => move(idx, 1)}><ChevronDown className="h-3.5 w-3.5" /></button></Tip>
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase text-muted-foreground">{t.phase}</span>
-                <p className="truncate text-sm font-medium">{t.title}</p>
+      {/* Ordered task list, grouped under a header per phase (phases are contiguous in the order). The up/down
+          arrows still reorder across the whole list; a task moved past a phase boundary changes phase group. */}
+      <div className="space-y-1">
+        {(templates ?? []).map((t, idx) => {
+          const showPhase = idx === 0 || templates![idx - 1].phase !== t.phase
+          return (
+            <div key={t.id}>
+              {showPhase && (
+                <h2 className={cn('px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground', idx > 0 && 'pt-4')}>{t.phase}</h2>
+              )}
+              <div className="flex items-center gap-2 rounded-lg border p-2.5">
+                <div className="flex flex-col">
+                  <Tip content="Monter"><button className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={idx === 0} onClick={() => move(idx, -1)}><ChevronUp className="h-3.5 w-3.5" /></button></Tip>
+                  <Tip content="Descendre"><button className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={idx === (templates!.length - 1)} onClick={() => move(idx, 1)}><ChevronDown className="h-3.5 w-3.5" /></button></Tip>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{t.title}</p>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{t.assigneeType === 'members' ? (t.assigneeMemberNames.join(', ') || 'Membres') : ROLE_LABEL(t.assigneeRole)}{t.fanOutPerUnit && ' · par unité'}</span>
+                    {(t.defaultDeadlineLabel || t.deadlineAnchor) && <span className="inline-flex items-center gap-1"><CalendarClock className="h-3 w-3" />{t.deadlineAnchor ? anchorLabel(t.deadlineAnchor) : t.defaultDeadlineLabel}</span>}
+                    {getRentreeProgress(t.progressKey) && <span className="inline-flex items-center gap-1 text-emerald-600"><Activity className="h-3 w-3" />{getRentreeProgress(t.progressKey)!.label}</span>}
+                    {getRentreeAction(t.actionKey) && <span className="inline-flex items-center gap-1 text-primary"><Zap className="h-3 w-3" />{getRentreeAction(t.actionKey)!.label}</span>}
+                    {t.dependsOnTemplateIds.length > 0 && <span className="inline-flex items-center gap-1"><Link2 className="h-3 w-3" />{t.dependsOnTemplateIds.length} préalable(s)</span>}
+                  </div>
+                </div>
+                <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
+                <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleting(t)}><Trash2 className="h-3.5 w-3.5" /></Button></Tip>
               </div>
-              <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                <span>{t.assigneeType === 'members' ? (t.assigneeMemberNames.join(', ') || 'Membres') : ROLE_LABEL(t.assigneeRole)}{t.fanOutPerUnit && ' · par unité'}</span>
-                {t.defaultDeadlineLabel && <span>· {t.defaultDeadlineLabel}</span>}
-                {t.deadlineAnchor && <span className="inline-flex items-center gap-0.5 text-primary">· <CalendarClock className="h-3 w-3" />{anchorLabel(t.deadlineAnchor)}</span>}
-                {getRentreeProgress(t.progressKey) && <span className="inline-flex items-center gap-0.5 text-emerald-600">· <Activity className="h-3 w-3" />{getRentreeProgress(t.progressKey)!.label}</span>}
-                {t.dependsOnTemplateIds.length > 0 && <span>· {t.dependsOnTemplateIds.length} dépendance(s)</span>}
-                {getRentreeAction(t.actionKey) && <span className="inline-flex items-center gap-0.5 text-primary">· <Zap className="h-3 w-3" />{getRentreeAction(t.actionKey)!.label}</span>}
-              </div>
             </div>
-            <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
-            <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleting(t)}><Trash2 className="h-3.5 w-3.5" /></Button></Tip>
-          </div>
-        ))}
+          )
+        })}
         {(templates ?? []).length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">Aucune tâche dans le modèle.</p>}
       </div>
 
@@ -149,108 +158,117 @@ export default function RentreeTemplatePage() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{form?.id ? 'Modifier la tâche' : 'Nouvelle tâche'}</DialogTitle></DialogHeader>
           {form && (
-            <div className="min-w-0 space-y-3">
-              <div className="space-y-1"><RequiredLabel required>Titre</RequiredLabel><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
-              <div className="space-y-1"><RequiredLabel>Description</RequiredLabel><Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="min-w-0 space-y-4">
+              {/* ── La tâche ── */}
+              <div className="space-y-3">
+                <div className="space-y-1"><RequiredLabel required>Titre</RequiredLabel><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
+                <div className="space-y-1"><RequiredLabel>Description</RequiredLabel><Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Précisions facultatives…" /></div>
                 <div className="space-y-1"><RequiredLabel required>Phase</RequiredLabel>
                   <Input list="phases" value={form.phase} onChange={e => setForm({ ...form, phase: e.target.value })} placeholder="Configuration…" />
                   <datalist id="phases">{phases.map(p => <option key={p} value={p} />)}</datalist>
+                  <p className="text-xs text-muted-foreground">Regroupe la tâche dans la liste (ex. Configuration, Passage, Demandes…).</p>
                 </div>
-                <div className="space-y-1"><RequiredLabel>Échéance (texte)</RequiredLabel><Input value={form.defaultDeadlineLabel} onChange={e => setForm({ ...form, defaultDeadlineLabel: e.target.value })} placeholder="1ʳᵉ sem. octobre" /></div>
               </div>
 
-              {/* Deadline anchor: hang the real due date on a date-setting so the checklist tracks the year's
-                  actual calendar (and "en retard" fires). Falls back to the fuzzy text above when the date is unset. */}
-              <div className="space-y-1"><RequiredLabel>Échéance basée sur une date</RequiredLabel>
-                <Select value={form.deadlineAnchor || 'none'} onValueChange={v => setForm({ ...form, deadlineAnchor: v === 'none' ? '' : v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{RENTREE_ANCHOR_OPTIONS.map(o => <SelectItem key={o.value || 'none'} value={o.value || 'none'}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  {form.deadlineAnchor
-                    ? `L'échéance suivra automatiquement la date « ${anchorLabel(form.deadlineAnchor)} » (Paramètres). Le texte ci-dessus sert de repli si la date n'est pas renseignée.`
-                    : 'Sinon, l\'échéance reste le texte indicatif ci-dessus (ne déclenche pas de rappel « en retard »).'}
-                </p>
-              </div>
-
-              {/* Live progress: reflect module state (a count/bool) instead of a manual checkbox; the task
-                  auto-se-coche when the underlying work is complete. Per-unit signals need "une tâche par unité". */}
-              <div className="space-y-1"><RequiredLabel>Suivi automatique (progression)</RequiredLabel>
-                <Select value={form.progressKey || 'none'} onValueChange={v => setForm({ ...form, progressKey: v === 'none' ? '' : v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{RENTREE_PROGRESS_OPTIONS.map(o => <SelectItem key={o.value || 'none'} value={o.value || 'none'}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  {!form.progressKey
-                    ? 'Aucun : la tâche se coche à la main.'
-                    : getRentreeProgress(form.progressKey)?.perUnit
-                      ? 'La tâche affichera l\'avancement réel par unité (ex. 8/18) et se cochera seule quand tout est fait. Activez « Une tâche par unité ».'
-                      : 'La tâche affichera l\'état réel et se cochera seule quand l\'action est effectuée.'}
-                </p>
-              </div>
-
-              {/* Optional built-in action: adds a one-click button/shortcut on the checklist. Most tasks
-                  stay "Aucune action" (a physical/manual task = just a checkbox). */}
-              <div className="space-y-1"><RequiredLabel>Action</RequiredLabel>
-                <Select value={form.actionKey || 'none'} onValueChange={v => setForm({ ...form, actionKey: v === 'none' ? '' : v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{RENTREE_ACTION_OPTIONS.map(o => <SelectItem key={o.value || 'none'} value={o.value || 'none'}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  {!selectedAction
-                    ? 'Aucune action : la tâche se coche simplement à la main.'
-                    : selectedAction.kind === 'do'
-                      ? `Un bouton « ${selectedAction.label} » apparaîtra sur la tâche : un clic exécute l'action et coche la tâche. Rien d'autre à configurer.`
-                      : `Un raccourci « ${selectedAction.label} » vers la page apparaîtra sur la tâche. Rien d'autre à configurer.`}
-                </p>
-              </div>
-
-              <div className="space-y-1"><RequiredLabel required>Responsable</RequiredLabel>
-                <Select value={form.assigneeType} onValueChange={v => setForm({ ...form, assigneeType: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="role">Un rôle</SelectItem><SelectItem value="members">Des membres précis</SelectItem></SelectContent>
-                </Select>
-              </div>
-
-              {form.assigneeType === 'role' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 items-end gap-3">
-                  <div className="space-y-1"><RequiredLabel>Rôle</RequiredLabel>
-                    <Select value={form.assigneeRole} onValueChange={v => setForm({ ...form, assigneeRole: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{ROLES.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" checked={form.fanOutPerUnit} onChange={e => setForm({ ...form, fanOutPerUnit: e.target.checked })} />Une tâche par unité</label>
-                </div>
-              ) : (
+              {/* ── Responsable ── */}
+              <div className="space-y-3 border-t pt-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Responsable</p>
                 <div className="space-y-1">
-                  <RequiredLabel>Membres</RequiredLabel>
-                  <div className="flex flex-wrap gap-1.5">
-                    {form.assigneeMemberIds.map((id, i) => (
-                      <span key={id} className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs">
-                        {form.assigneeMemberNames[i] ?? '?'}
-                        <Tip content="Retirer"><button onClick={() => setForm({ ...form, assigneeMemberIds: form.assigneeMemberIds.filter(x => x !== id), assigneeMemberNames: form.assigneeMemberNames.filter((_, j) => j !== i) })}><X className="h-3 w-3" /></button></Tip>
-                      </span>
-                    ))}
+                  <Select value={form.assigneeType} onValueChange={v => setForm({ ...form, assigneeType: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="role">Un rôle</SelectItem><SelectItem value="members">Des membres précis</SelectItem></SelectContent>
+                  </Select>
+                </div>
+                {form.assigneeType === 'role' ? (
+                  <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
+                    <div className="space-y-1"><RequiredLabel>Rôle</RequiredLabel>
+                      <Select value={form.assigneeRole} onValueChange={v => setForm({ ...form, assigneeRole: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>{ROLES.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" checked={form.fanOutPerUnit} onChange={e => setForm({ ...form, fanOutPerUnit: e.target.checked })} />Une tâche par unité</label>
                   </div>
-                  <Input value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Rechercher un membre…" />
-                  {debounced && memberResults && (
-                    <div className="max-h-40 overflow-y-auto rounded-md border text-sm">
-                      {memberResults.items.filter(m => !form.assigneeMemberIds.includes(m.id)).map(m => (
-                        <button key={m.id} className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-muted"
-                          onClick={() => { setForm({ ...form, assigneeMemberIds: [...form.assigneeMemberIds, m.id], assigneeMemberNames: [...form.assigneeMemberNames, `${m.firstName} ${m.lastName}`] }); setMemberSearch('') }}>
-                          <Users className="h-3.5 w-3.5 text-muted-foreground" />{m.lastName} {m.firstName}
-                        </button>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap gap-1.5">
+                      {form.assigneeMemberIds.map((id, i) => (
+                        <span key={id} className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs">
+                          {form.assigneeMemberNames[i] ?? '?'}
+                          <Tip content="Retirer"><button onClick={() => setForm({ ...form, assigneeMemberIds: form.assigneeMemberIds.filter(x => x !== id), assigneeMemberNames: form.assigneeMemberNames.filter((_, j) => j !== i) })}><X className="h-3 w-3" /></button></Tip>
+                        </span>
                       ))}
                     </div>
-                  )}
-                </div>
-              )}
+                    <Input value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Rechercher un membre…" />
+                    {debounced && memberResults && (
+                      <div className="max-h-40 overflow-y-auto rounded-md border text-sm">
+                        {memberResults.items.filter(m => !form.assigneeMemberIds.includes(m.id)).map(m => (
+                          <button key={m.id} className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-muted"
+                            onClick={() => { setForm({ ...form, assigneeMemberIds: [...form.assigneeMemberIds, m.id], assigneeMemberNames: [...form.assigneeMemberNames, `${m.firstName} ${m.lastName}`] }); setMemberSearch('') }}>
+                            <Users className="h-3.5 w-3.5 text-muted-foreground" />{m.lastName} {m.firstName}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
-              {/* Dependencies */}
-              <div className="space-y-1">
-                <RequiredLabel>Dépend de (tâches préalables)</RequiredLabel>
+              {/* ── Échéance ── */}
+              <div className="space-y-3 border-t pt-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Échéance</p>
+                <div className="space-y-1"><RequiredLabel>Échéance basée sur une date</RequiredLabel>
+                  <Select value={form.deadlineAnchor || 'none'} onValueChange={v => setForm({ ...form, deadlineAnchor: v === 'none' ? '' : v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{RENTREE_ANCHOR_OPTIONS.map(o => <SelectItem key={o.value || 'none'} value={o.value || 'none'}>{o.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {form.deadlineAnchor
+                      ? `L'échéance suit automatiquement la date « ${anchorLabel(form.deadlineAnchor)} » (Paramètres) et déclenche le rappel « en retard ».`
+                      : 'Choisissez une date des Paramètres pour une échéance réelle, ou laissez « Aucune » et utilisez un texte indicatif ci-dessous.'}
+                  </p>
+                </div>
+                <div className="space-y-1"><RequiredLabel>Échéance indicative (texte)</RequiredLabel>
+                  <Input value={form.defaultDeadlineLabel} onChange={e => setForm({ ...form, defaultDeadlineLabel: e.target.value })} placeholder="1ʳᵉ sem. octobre" />
+                  <p className="text-xs text-muted-foreground">Repère affiché s'il n'y a pas de date de référence (ne déclenche pas de rappel).</p>
+                </div>
+              </div>
+
+              {/* ── Suivi automatique & action ── */}
+              <div className="space-y-3 border-t pt-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Suivi & action</p>
+                <div className="space-y-1"><RequiredLabel>Suivi automatique</RequiredLabel>
+                  <Select value={form.progressKey || 'none'} onValueChange={v => setForm({ ...form, progressKey: v === 'none' ? '' : v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{RENTREE_PROGRESS_OPTIONS.map(o => <SelectItem key={o.value || 'none'} value={o.value || 'none'}>{o.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {!form.progressKey
+                      ? 'Aucun : la tâche se coche à la main.'
+                      : getRentreeProgress(form.progressKey)?.perUnit
+                        ? 'Affiche l\'avancement réel par unité (ex. 8/18) et se coche seule quand tout est fait. Activez « Une tâche par unité ».'
+                        : 'Affiche l\'état réel et se coche seule quand c\'est fait.'}
+                  </p>
+                </div>
+                <div className="space-y-1"><RequiredLabel>Action / raccourci</RequiredLabel>
+                  <Select value={form.actionKey || 'none'} onValueChange={v => setForm({ ...form, actionKey: v === 'none' ? '' : v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{RENTREE_ACTION_OPTIONS.map(o => <SelectItem key={o.value || 'none'} value={o.value || 'none'}>{o.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {!selectedAction
+                      ? 'Aucune : la tâche se coche simplement à la main.'
+                      : selectedAction.kind === 'do'
+                        ? `Bouton « ${selectedAction.label} » sur la tâche : un clic exécute l'action et coche la tâche.`
+                        : `Raccourci « ${selectedAction.label} » vers la page concernée.`}
+                  </p>
+                </div>
+              </div>
+
+              {/* ── Dépendances ── */}
+              <div className="space-y-2 border-t pt-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dépend de (tâches préalables)</p>
+                <p className="text-xs text-muted-foreground">La tâche reste bloquée tant que les tâches cochées ne sont pas terminées.</p>
                 <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-2">
                   {(templates ?? []).filter(t => t.id !== form.id).map(t => (
                     <label key={t.id} className="flex min-w-0 items-center gap-2 text-sm">

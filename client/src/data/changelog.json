@@ -11,6 +11,7 @@
       "Rentrée : « Ajouter les nouvelles tâches » met aussi à jour les libellés / échéances / suivis depuis le modèle, sans effacer la progression",
       "Rentrée : rappel hebdomadaire par email — chaque responsable reçoit le récapitulatif de ses tâches en retard ou à venir (activable dans les Paramètres)",
       "Rentrée (modèle) : chaque tâche type peut recevoir une date de référence + un suivi automatique ; les dépendances circulaires sont bloquées",
+      "Rentrée (modèle) : page réorganisée — tâches groupées par phase, formulaire en sections (Tâche / Responsable / Échéance / Suivi & action / Dépendances) ; le lien passe dans « Configuration » et reste accessible depuis la liste de rentrée",
       "Séances & absences : nouvelle page pour suivre les présences aux réunions, sorties et camps (au niveau de l'unité ou d'une équipe)",
       "Séances : le chef d'unité crée une séance (approuvée aussitôt) pour toute l'unité ou une équipe, coche les absents et note un motif ; les présents sont cochés par défaut",
       "Séances : le chef d'unité / de groupe peut modifier une séance (type, titre, date, période du camp, équipe concernée)",
