@@ -347,6 +347,17 @@ export default function DemandeWizardPage() {
           {/* STEP 0 — child */}
           {step === 0 && (
             <fieldset disabled={readonly} className="space-y-4">
+              {/* Surfaced at the very START (was buried on step 2): the household prefill is the biggest
+                  time-saver for a returning family (a sibling already a member). Shown until parents are filled. */}
+              {!readonly && guardians.every(g => !g.firstName?.trim()) && (
+                <div className="flex flex-col gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                  <span className="flex items-start gap-2">
+                    <Users className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    Un membre de votre famille est déjà au groupe&nbsp;? Retrouvez vos informations (parents, adresse, proches) pour gagner du temps.
+                  </span>
+                  <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setStep(1)}>Retrouver mes informations</Button>
+                </div>
+              )}
               <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><UserRound className="h-4 w-4" />Informations de l'enfant</div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Prénom" required error={errors.firstName}>
