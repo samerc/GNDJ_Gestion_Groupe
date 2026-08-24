@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import apiClient from '@/lib/api-client'
+import { queryClient } from '@/lib/query-client'
 import type { AuthResponse, LoginRequest, MeResponse, RegisterRequest, UnitAccess } from '@/types/auth'
 
 interface AuthState {
@@ -27,6 +28,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { data: response } = await apiClient.post<AuthResponse>('/auth/login', data)
     localStorage.setItem('accessToken', response.accessToken)
     localStorage.setItem('refreshToken', response.refreshToken)
+    // Drop any cached data from a previous session so one account never sees another's data (defense-in-depth
+    // alongside the logout clear — covers a direct account switch without an intervening logout).
+    queryClient.clear()
     set({ isAuthenticated: true })
     await get().loadUser()
   },
@@ -35,6 +39,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { data: response } = await apiClient.post<AuthResponse>('/auth/register', data)
     localStorage.setItem('accessToken', response.accessToken)
     localStorage.setItem('refreshToken', response.refreshToken)
+    queryClient.clear()
     set({ isAuthenticated: true })
     await get().loadUser()
   },
@@ -55,6 +60,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
+    // Wipe the TanStack Query cache so the NEXT user in this tab never sees the previous user's data (SPA
+    // login/logout doesn't reload the page, so the cache would otherwise persist across accounts).
+    queryClient.clear()
     set({ user: null, isAuthenticated: false })
   },
 

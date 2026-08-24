@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import applicantApi, { APPLICANT_ACCESS_KEY, APPLICANT_REFRESH_KEY } from '@/lib/applicant-api-client'
+import { queryClient } from '@/lib/query-client'
 
 interface ApplicantAuthResponse {
   accountId: string
@@ -36,18 +37,21 @@ export const useApplicantStore = create<ApplicantState>((set) => ({
   login: async (email, password, website) => {
     const { data } = await applicantApi.post<ApplicantAuthResponse>('/applicant/login', { email, password, website })
     persist(data)
+    queryClient.clear() // drop any prior session's cache (shared query client with the member realm)
     set({ isAuthenticated: true, email: data.email, emailVerified: data.emailVerified })
   },
 
   register: async (email, password, contactName, website, acceptedTerms) => {
     const { data } = await applicantApi.post<ApplicantAuthResponse>('/applicant/register', { email, password, contactName, website, acceptedTerms })
     persist(data)
+    queryClient.clear()
     set({ isAuthenticated: true, email: data.email, emailVerified: data.emailVerified })
   },
 
   logout: () => {
     localStorage.removeItem(APPLICANT_ACCESS_KEY)
     localStorage.removeItem(APPLICANT_REFRESH_KEY)
+    queryClient.clear() // wipe cache so the next account in this tab sees none of the previous one's data
     set({ isAuthenticated: false, email: null, emailVerified: false })
   },
 

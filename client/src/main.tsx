@@ -1,24 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import '@fontsource-variable/inter/index.css'
 import './index.css'
 import App from './App'
 import { ErrorBoundary } from '@/components/shared/error-boundary'
 import { reportClientError, isBenignError } from '@/lib/error-report'
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000,
-      retry: 1,
-      // This is a CRUD admin app, not a live feed — data is refreshed explicitly via mutation
-      // invalidation. Refetching everything on every tab refocus (the library default) just adds
-      // load with no real freshness benefit.
-      refetchOnWindowFocus: false,
-    },
-  },
-})
+import { queryClient } from '@/lib/query-client'
 
 // Safety net for errors OUTSIDE React's render tree (async callbacks, event handlers, unhandled promise
 // rejections) — the ErrorBoundary only catches render crashes. Benign/handled cases are filtered out so the

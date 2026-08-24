@@ -3,6 +3,7 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Correction (confidentialité) : en changeant de compte dans le même navigateur (déconnexion puis reconnexion), les données du compte précédent pouvaient rester affichées. Le cache est désormais vidé à la connexion et à la déconnexion.",
       "Correction d'unité : un chef de groupe peut corriger une mauvaise affectation (membre placé ou passé dans la mauvaise unité) — l'affectation est déplacée vers la bonne unité sans conserver l'ancienne, l'équipe est réinitialisée et la fonction adaptée à la nouvelle unité.",
       "Dates et heure : toute l'application utilise désormais l'heure du Liban (fuseau Beyrouth) au lieu de l'heure universelle — plus de décalage d'un jour tard le soir pour les dates limites, l'année scoute, les absences, les paiements, etc.",
       "Campagne de vérification des documents : les emails automatiques ne peuvent plus être envoyés en double si un bouton manuel est cliqué au même moment que la tâche automatique.",
