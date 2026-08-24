@@ -7,6 +7,8 @@ import { CameraCapture } from '@/components/shared/camera-capture'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useLeaderUnits } from '@/hooks/use-leader-units'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Check, ArrowLeft, Camera, Users } from 'lucide-react'
@@ -52,8 +54,13 @@ function PhotoUploader({ memberId, memberName, onDone }: { memberId: string; mem
 export default function PhotoSessionPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const unitId = user?.unitAccess[0]?.unitId ?? ''
-  const unitName = user?.unitAccess[0]?.unitName ?? ''
+  // Units this leader runs (CU/ACU). A CU leading >1 unit gets a picker in the header; before, the page was
+  // hardcoded to unitAccess[0] so a multi-unit CU could only ever photograph their first unit.
+  const leaderUnits = useLeaderUnits()
+  const [selectedUnit, setSelectedUnit] = useState('')
+  const unitId = selectedUnit || leaderUnits[0]?.unitId || user?.unitAccess[0]?.unitId || ''
+  const unitName = leaderUnits.find(u => u.unitId === unitId)?.unitName
+    ?? user?.unitAccess.find(u => u.unitId === unitId)?.unitName ?? ''
 
   const { data: membersData, isLoading } = useMembers({ unitId, pageSize: 500 })
   const members = useMemo(() => membersData?.items ?? [], [membersData])
@@ -107,7 +114,19 @@ export default function PhotoSessionPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-xl font-bold">Session photo — {unitName}</h1>
+            {leaderUnits.length > 1 ? (
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold">Session photo —</h1>
+                <Select value={unitId} onValueChange={(v) => { setSelectedUnit(v); setSelectedMemberId(null) }}>
+                  <SelectTrigger className="h-8 w-56"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {leaderUnits.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <h1 className="text-xl font-bold">Session photo — {unitName}</h1>
+            )}
           </div>
         </div>
         {/* Progress bar */}

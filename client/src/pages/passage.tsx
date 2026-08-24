@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useLeaderUnits } from '@/hooks/use-leader-units'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
@@ -75,8 +76,13 @@ function rowState(row: MemberRow): string {
 export default function PassagePage() {
   const { user } = useAuthStore()
   const passageScoutYear = useSettingValue('passage.scout_year') ?? '2026-2027'
-  const unitId = user?.unitAccess[0]?.unitId ?? ''
-  const unitName = user?.unitAccess[0]?.unitName ?? ''
+  // Units this leader runs (CU/ACU). A CU leading >1 unit gets a picker below; before, the page was hardcoded
+  // to unitAccess[0] so a multi-unit CU could only ever act on their first unit.
+  const leaderUnits = useLeaderUnits()
+  const [selectedUnit, setSelectedUnit] = useState('')
+  const unitId = selectedUnit || leaderUnits[0]?.unitId || user?.unitAccess[0]?.unitId || ''
+  const unitName = leaderUnits.find(u => u.unitId === unitId)?.unitName
+    ?? user?.unitAccess.find(u => u.unitId === unitId)?.unitName ?? ''
 
   const { data: passageStatus, isLoading: statusLoading } = usePassageStatus(passageScoutYear)
   const { data: passages, isLoading: passagesLoading } = usePassagesByUnit(unitId, passageScoutYear)
@@ -535,7 +541,16 @@ export default function PassagePage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold">Passage annuel — {passageScoutYear}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{unitName}</p>
+          {leaderUnits.length > 1 ? (
+            <Select value={unitId} onValueChange={setSelectedUnit}>
+              <SelectTrigger className="mt-1 h-8 w-64"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {leaderUnits.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p className="text-sm text-muted-foreground mt-1">{unitName}</p>
+          )}
         </div>
         <Badge className="bg-green-600 text-sm">Passage ouvert</Badge>
       </div>
