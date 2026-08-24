@@ -19,5 +19,11 @@ public class MemberDocumentPageConfiguration : IEntityTypeConfiguration<MemberDo
             .HasForeignKey(e => e.MemberDocumentId).OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(e => e.MemberDocumentId);
+
+        // The parent MemberDocument (a BaseEntity) carries a global soft-delete query filter; this child is a
+        // plain entity with a REQUIRED parent, so EF warns the filters are inconsistent (a soft-deleted parent
+        // could leave its pages visible). Mirror the parent's filter so pages of a soft-deleted document are
+        // excluded too — same pattern as SecurityProfilePermission → SecurityProfile. Silences the startup warning.
+        builder.HasQueryFilter(e => !e.MemberDocument.IsDeleted);
     }
 }
