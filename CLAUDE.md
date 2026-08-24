@@ -2994,6 +2994,10 @@ self-heals on the next deploy/startup.
       and recorded them in `data_patches`. **Lesson: patch files are verbatim trusted SQL — never route them through
       `ExecuteSqlRaw`** (any bare `{` in JSON/template content breaks it). Also fixed the marker-date parse elsewhere
       is separate.
+- [x] **Dev "WebRootPath not found (wwwroot)" warning silenced.** In Development the SPA is served by Vite (:5173)
+      and the API has no `wwwroot`, but it still registered `UseDefaultFiles`/`UseStaticFiles` + `MapFallbackToFile`
+      → a framework Warning on every startup, flooding the dev Journal des erreurs. Guarded all three behind
+      `!app.Environment.IsDevelopment()` (dev API is API-only). Prod unchanged. (2026-08-25)
 - [x] **`MemberDocumentPage` query-filter Warning silenced.** The page (plain child) has a REQUIRED parent
       `MemberDocument` (BaseEntity w/ global soft-delete filter) → EF logged a Warning on every startup (inconsistent
       filters on a required relationship), persisted to `application_logs`. Added a matching child filter

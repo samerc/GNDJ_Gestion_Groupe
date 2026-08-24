@@ -430,23 +430,29 @@ if (!app.Environment.IsDevelopment())
 
 // Serve the React build (copied into wwwroot at publish time) so the API and SPA share one origin.
 // API routes are matched by controllers first; everything else falls back to the SPA shell below.
-app.UseDefaultFiles();
-app.UseStaticFiles(new StaticFileOptions
+// In Development the SPA is served by the Vite dev server (port 5173) and there is NO wwwroot, so skip static
+// serving + the SPA fallback — the dev API is API-only. This also avoids the framework's per-startup
+// "The WebRootPath was not found … Static files may be unavailable" warning polluting the dev error log.
+if (!app.Environment.IsDevelopment())
 {
-    // Cache policy for the SPA build. Vite emits content-hashed filenames under /assets
-    // (app.<hash>.js, etc.) which can never change content, so cache them for a year and mark
-    // them immutable — this is what lets the browser AND Cloudflare's edge skip revalidation.
-    // Everything else (index.html, favicon, manifest) must be revalidated so a new deploy is
-    // picked up immediately rather than being served from a stale cache.
-    OnPrepareResponse = ctx =>
+    app.UseDefaultFiles();
+    app.UseStaticFiles(new StaticFileOptions
     {
-        var path = ctx.Context.Request.Path.Value ?? string.Empty;
-        ctx.Context.Response.Headers.CacheControl =
-            path.StartsWith("/assets/", StringComparison.OrdinalIgnoreCase)
-                ? "public, max-age=31536000, immutable"
-                : "no-cache";
-    },
-});
+        // Cache policy for the SPA build. Vite emits content-hashed filenames under /assets
+        // (app.<hash>.js, etc.) which can never change content, so cache them for a year and mark
+        // them immutable — this is what lets the browser AND Cloudflare's edge skip revalidation.
+        // Everything else (index.html, favicon, manifest) must be revalidated so a new deploy is
+        // picked up immediately rather than being served from a stale cache.
+        OnPrepareResponse = ctx =>
+        {
+            var path = ctx.Context.Request.Path.Value ?? string.Empty;
+            ctx.Context.Response.Headers.CacheControl =
+                path.StartsWith("/assets/", StringComparison.OrdinalIgnoreCase)
+                    ? "public, max-age=31536000, immutable"
+                    : "no-cache";
+        },
+    });
+}
 
 // ACME HTTP-01 challenge (Let's Encrypt / win-acme): serve the extensionless token files written to the
 // site root's .well-known/acme-challenge. Without this, the SPA fallback below returns index.html for the
@@ -519,8 +525,10 @@ app.UseMiddleware<AbuseDetectionMiddleware>();
 app.MapHealthChecks("/health");
 app.MapControllers();
 
-// SPA client-side routing: any non-API, non-file request returns index.html.
-app.MapFallbackToFile("index.html");
+// SPA client-side routing: any non-API, non-file request returns index.html (prod only — in dev the SPA is
+// served by Vite on :5173 and there's no wwwroot/index.html to fall back to).
+if (!app.Environment.IsDevelopment())
+    app.MapFallbackToFile("index.html");
 
 Log.Information("GNDJ API started on {Urls}", string.Join(", ", app.Urls));
 Console.WriteLine($"GNDJ API listening on: {string.Join(", ", app.Urls)}");
