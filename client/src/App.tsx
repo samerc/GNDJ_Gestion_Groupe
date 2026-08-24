@@ -56,7 +56,7 @@ const RentreePage = lazy(() => import('@/pages/rentree'))
 const AttendancePage = lazy(() => import('@/pages/attendance/index'))
 const RentreeTemplatePage = lazy(() => import('@/pages/admin/rentree-template'))
 const MaitrisesPage = lazy(() => import('@/pages/maitrises'))
-const CommunicationsPage = lazy(() => import('@/pages/admin/communications'))
+const CommunicationsAccesPage = lazy(() => import('@/pages/admin/communications-acces'))
 const ManagedListsPage = lazy(() => import('@/pages/admin/managed-lists'))
 const CampPage = lazy(() => import('@/pages/camp'))
 const CampsAdminPage = lazy(() => import('@/pages/admin/camps'))
@@ -66,7 +66,6 @@ const DemandeValidationPage = lazy(() => import('@/pages/admin/demande-validatio
 const ChangeRequestsPage = lazy(() => import('@/pages/admin/change-requests'))
 const OrganizeUnitPage = lazy(() => import('@/pages/organize-unit'))
 const DeletedMembersPage = lazy(() => import('@/pages/admin/deleted-members'))
-const SendAccessPage = lazy(() => import('@/pages/admin/send-access'))
 const DocumentsSuiviPage = lazy(() => import('@/pages/admin/documents-suivi'))
 const DemandeStatsPage = lazy(() => import('@/pages/admin/demande-stats'))
 const DemandeAccountsPage = lazy(() => import('@/pages/admin/demande-accounts'))
@@ -177,7 +176,10 @@ export default function App() {
               <Route path="/admin/deleted-members" element={<DeletedMembersPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.MEMBERS_RESET_PASSWORD} />}>
-              <Route path="/admin/send-access" element={<SendAccessPage />} />
+              <Route path="/admin/communications-acces" element={<CommunicationsAccesPage />} />
+              {/* Back-compat: "Envoyer les accès" + "Message aux chefs" merged into "Communications & accès". */}
+              <Route path="/admin/send-access" element={<Navigate to="/admin/communications-acces?tab=acces" replace />} />
+              <Route path="/admin/communications" element={<Navigate to="/admin/communications-acces?tab=chefs" replace />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
               <Route path="/admin/documents-suivi" element={<DocumentsSuiviPage />} />
@@ -193,7 +195,6 @@ export default function App() {
             <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
               <Route path="/maitrises" element={<MaitrisesPage />} />
               <Route path="/admin/lists" element={<ManagedListsPage />} />
-              <Route path="/admin/communications" element={<CommunicationsPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.CAMP_GRADE} />}>
               <Route path="/camp" element={<CampPage />} />

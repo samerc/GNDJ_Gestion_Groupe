@@ -18,7 +18,8 @@ import { formatDateLong } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 
-export default function SendAccessPage() {
+// `embedded` = rendered as a tab inside the merged "Communications & accès" page (its title/tabs own the header).
+export default function SendAccessPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { data: units } = useUnits({ pageSize: 100, isActive: true })
   const [unitId, setUnitId] = useState<string>('')
   const [onlyNever, setOnlyNever] = useState(true)
@@ -61,13 +62,15 @@ export default function SendAccessPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="flex items-center gap-2 text-xl font-bold"><Key className="h-5 w-5 text-primary" />Envoyer les accès</h1>
-        <p className="text-sm text-muted-foreground">
-          Envoyez à chaque membre son identifiant et un lien pour choisir son mot de passe. Procédez unité par unité,
-          en commençant par la Maîtrise.
-        </p>
-      </div>
+      {!embedded && (
+        <div>
+          <h1 className="flex items-center gap-2 text-xl font-bold"><Key className="h-5 w-5 text-primary" />Envoyer les accès</h1>
+          <p className="text-sm text-muted-foreground">
+            Envoyez à chaque membre son identifiant et un lien pour choisir son mot de passe. Procédez unité par unité,
+            en commençant par la Maîtrise.
+          </p>
+        </div>
+      )}
       <EmailDeliveryWarning />
 
       <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground sm:flex-row sm:items-start">

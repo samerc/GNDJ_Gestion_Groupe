@@ -3,6 +3,7 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Menu : « Envoyer les accès » et « Message aux chefs » sont réunis en une seule page « Communications & accès » (onglets Emails aux chefs / Envoyer les accès).",
       "Formulaire d'inscription : le raccourci « Retrouver mes informations » (pré-remplissage pour une famille déjà au groupe) est mis en avant dès la première étape.",
       "Portail d'inscription (parents) : parcours simplifié — l'accueil est directement la page de connexion (avec un bouton « Créer un compte »); la vérification de l'adresse email (par lien) est demandée dès le départ lorsqu'elle est activée; après connexion, si aucune demande n'existe encore, le formulaire d'inscription s'ouvre directement (plus d'écran vide).",
       "Fiche membre : les actions (Envoyer l'accès, Réinitialiser le mot de passe, Carte, Supprimer) sont regroupées dans un menu « Actions » avec libellés clairs (au lieu d'icônes seules). Passage : le bouton « Modifier le choix » est désormais bien visible.",

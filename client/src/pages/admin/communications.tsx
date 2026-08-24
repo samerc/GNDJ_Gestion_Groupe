@@ -27,7 +27,8 @@ import { toast } from 'sonner'
 
 type Audience = 'all' | 'unit'
 
-export default function CommunicationsPage() {
+// `embedded` = rendered as a tab inside the merged "Communications & accès" page (its title/tabs own the header).
+export default function CommunicationsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [templateCode, setTemplateCode] = useState('')
   const [audience, setAudience] = useState<Audience>('all')
   const [unitId, setUnitId] = useState('') // only used when audience === 'unit'
@@ -112,13 +113,15 @@ export default function CommunicationsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Envoyer un message aux chefs</h1>
-        <p className="text-sm text-muted-foreground">
-          Choisissez un modèle et les destinataires, prévisualisez, puis envoyez. Par exemple l'email d'accueil de
-          rentrée. Les chefs sans email de contact sont ignorés.
-        </p>
-      </div>
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-bold">Envoyer un message aux chefs</h1>
+          <p className="text-sm text-muted-foreground">
+            Choisissez un modèle et les destinataires, prévisualisez, puis envoyez. Par exemple l'email d'accueil de
+            rentrée. Les chefs sans email de contact sont ignorés.
+          </p>
+        </div>
+      )}
       <EmailDeliveryWarning />
 
       {/* Step 1 — template + step 2 — audience */}
