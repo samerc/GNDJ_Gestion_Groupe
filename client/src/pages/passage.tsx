@@ -422,8 +422,10 @@ export default function PassagePage() {
           <div className="flex items-center gap-2">
             {statusBadge(row.passage!)}
             {editable && (
-              <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => startEditRow(row.memberId)}>
-                <Pencil className="mr-1 h-3 w-3" />Modifier
+              // Visible outline button (was a low-contrast ghost that CUs missed) — re-opens the three choices
+              // so a CU can change an already-made proposal until the CG finalizes it.
+              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => startEditRow(row.memberId)}>
+                <Pencil className="mr-1 h-3 w-3" />Modifier le choix
               </Button>
             )}
           </div>

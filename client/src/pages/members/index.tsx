@@ -47,7 +47,8 @@ import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPT
 import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown } from 'lucide-react'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
@@ -287,25 +288,37 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
             </p>
           </div>
           <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
-            {!editing && canResetPassword && member.username && (
-              <Tip content="Envoyer l'accès (identifiant + lien mot de passe) à l'email de contact">
-                <Button variant="outline" size="sm" onClick={handleResendAccess} disabled={sendAccess.isPending}><Send className="h-4 w-4" /></Button>
-              </Tip>
-            )}
-            {!editing && canResetPassword && member.username && (
-              <Tip content="Réinitialiser le mot de passe">
-                <Button variant="outline" size="sm" onClick={() => setResetConfirmOpen(true)}><KeyRound className="h-4 w-4" /></Button>
-              </Tip>
-            )}
+            {/* Member actions as a single LABELLED menu (was four hover-only, unlabelled icon buttons — invisible
+                on touch and ambiguous). Reset-password is a top support task, so it deserves a readable label. */}
             {!editing && (
-              <Tip content="Télécharger la carte de membre">
-                <Button variant="outline" size="sm" onClick={downloadCard}><CreditCard className="h-4 w-4" /></Button>
-              </Tip>
-            )}
-            {!editing && canDelete && (
-              <Tip content="Supprimer le membre">
-                <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteConfirmOpen(true)}><Trash2 className="h-4 w-4" /></Button>
-              </Tip>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">Actions<ChevronDown className="ml-1 h-4 w-4" /></Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {canResetPassword && member.username && (
+                    <DropdownMenuItem onClick={handleResendAccess} disabled={sendAccess.isPending}>
+                      <Send className="mr-2 h-4 w-4" />Envoyer l'accès (identifiant + lien)
+                    </DropdownMenuItem>
+                  )}
+                  {canResetPassword && member.username && (
+                    <DropdownMenuItem onClick={() => setResetConfirmOpen(true)}>
+                      <KeyRound className="mr-2 h-4 w-4" />Réinitialiser le mot de passe
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={downloadCard}>
+                    <CreditCard className="mr-2 h-4 w-4" />Télécharger la carte de membre
+                  </DropdownMenuItem>
+                  {canDelete && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setDeleteConfirmOpen(true)} className="text-destructive focus:text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />Supprimer le membre
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             {canEdit && isFormTab && (editing ? (
               <>
