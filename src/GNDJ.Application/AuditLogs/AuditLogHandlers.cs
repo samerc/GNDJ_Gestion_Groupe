@@ -64,3 +64,30 @@ public class GetAuditFilterOptionsQueryHandler(IApplicationDbContext context) : 
         return new AuditFilterOptionsDto(entityTypes, actions);
     }
 }
+
+// Clear the audit trail — SUPER-ADMIN ONLY (the audit trail is sensitive; wiping it is a serious action, so it's
+// restricted beyond the audit.view viewers, mirroring the error-log "Vider le journal"). Optional Before keeps
+// newer entries. Hard delete (AuditLog is a plain, append-only entity — no soft-delete).
+public record PurgeAuditLogsCommand(DateTime? Before) : IRequest<int>;
+
+public class PurgeAuditLogsCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<PurgeAuditLogsCommand, int>
+{
+    public async ValueTask<int> Handle(PurgeAuditLogsCommand request, CancellationToken ct)
+    {
+        if (!currentUser.IsSuperAdmin)
+            throw new UnauthorizedAccessException("Vider le journal d'audit est réservé au super-administrateur.");
+
+        var query = context.AuditLogs.AsQueryable();
+        if (request.Before is DateTime before)
+        {
+            // timestamp is a timestamptz column; Npgsql only accepts UTC DateTimes. A date bound off the query
+            // string arrives as Kind=Unspecified → treat it as UTC (else Npgsql throws).
+            var beforeUtc = before.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(before, DateTimeKind.Utc)
+                : before.ToUniversalTime();
+            query = query.Where(a => a.Timestamp < beforeUtc);
+        }
+        return await query.ExecuteDeleteAsync(ct);
+    }
+}

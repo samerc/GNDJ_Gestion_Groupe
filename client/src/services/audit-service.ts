@@ -1,5 +1,5 @@
 // Audit log resource: read-only viewer of mutation history (super-admin). Queries key on ['audit-logs', ...].
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { PaginatedResult } from '@/types/api'
 
@@ -37,5 +37,16 @@ export function useAuditFilterOptions() {
   return useQuery({
     queryKey: ['audit-logs', 'filters'],
     queryFn: () => apiClient.get<AuditFilterOptionsDto>('/audit-logs/filters').then(r => r.data),
+  })
+}
+
+// DELETE /audit-logs — clear the audit trail (super-admin only, enforced server-side). Optional `before` keeps
+// newer entries. Returns the number of rows deleted.
+export function useClearAuditLogs() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (before?: string) =>
+      apiClient.delete<{ deleted: number }>('/audit-logs', { params: { before } }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['audit-logs'] }),
   })
 }

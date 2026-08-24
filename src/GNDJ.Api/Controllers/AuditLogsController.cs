@@ -41,4 +41,15 @@ public class AuditLogsController : BaseApiController
         var result = await Mediator.Send(new GetAuditFilterOptionsQuery());
         return Ok(result);
     }
+
+    /// <summary>Clears the audit trail. SUPER-ADMIN only (enforced in the handler). Optional ?before= keeps newer entries.</summary>
+    /// <response code="200">Number of rows deleted.</response>
+    /// <response code="403">Not a super-admin.</response>
+    [HttpDelete]
+    [HasPermission(Permissions.AuditView)]
+    public async Task<IActionResult> Clear([FromQuery] DateTime? before)
+    {
+        var deleted = await Mediator.Send(new PurgeAuditLogsCommand(before));
+        return Ok(new { deleted });
+    }
 }

@@ -2,7 +2,11 @@
 // Paged, filterable by entity/action/date range; row click opens a detail dialog
 // that renders the old/new JSON snapshots as a friendly key-value table.
 import { useState } from 'react'
-import { useAuditLogs, useAuditFilterOptions, type AuditLogDto } from '@/services/audit-service'
+import { useAuditLogs, useAuditFilterOptions, useClearAuditLogs, type AuditLogDto } from '@/services/audit-service'
+import { useAuthStore } from '@/stores/auth-store'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { parseApiError } from '@/lib/error-utils'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -11,7 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { ScrollText, Eye } from 'lucide-react'
+import { ScrollText, Eye, Trash2 } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 
 const ACTION_LABELS: Record<string, { label: string; color: string }> = {
@@ -93,6 +97,16 @@ export default function AuditLogsPage() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [detail, setDetail] = useState<AuditLogDto | null>(null)
+  const [confirmClear, setConfirmClear] = useState(false)
+
+  const isSuperAdmin = useAuthStore((s) => s.user?.isSuperAdmin ?? false)
+  const clearLogs = useClearAuditLogs()
+  const handleClear = () => {
+    clearLogs.mutate(undefined, {
+      onSuccess: (r) => { toast.success(`Journal vidé (${r.deleted} entrée${r.deleted > 1 ? 's' : ''})`); setConfirmClear(false); setPage(1) },
+      onError: (e) => toast.error(parseApiError(e)),
+    })
+  }
 
   const { data: filters } = useAuditFilterOptions()
   const { data, isLoading } = useAuditLogs({
@@ -114,7 +128,16 @@ export default function AuditLogsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Journal d'audit</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Journal d'audit</h1>
+        {isSuperAdmin && (
+          <Button variant="outline" size="sm" className="text-destructive hover:text-destructive"
+            disabled={!data || data.totalCount === 0 || clearLogs.isPending}
+            onClick={() => setConfirmClear(true)}>
+            <Trash2 className="mr-1.5 h-4 w-4" /> Vider le journal
+          </Button>
+        )}
+      </div>
 
       {/* Filters */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
@@ -254,6 +277,17 @@ export default function AuditLogsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmClear}
+        onOpenChange={setConfirmClear}
+        title="Vider le journal d'audit ?"
+        description="Toutes les entrées d'audit seront définitivement supprimées. Cette action est irréversible."
+        confirmLabel="Vider"
+        variant="destructive"
+        loading={clearLogs.isPending}
+        onConfirm={handleClear}
+      />
     </div>
   )
 }
