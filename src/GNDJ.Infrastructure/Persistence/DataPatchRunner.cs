@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 
 namespace GNDJ.Infrastructure.Persistence;
@@ -50,7 +51,20 @@ public static class DataPatchRunner
             await using var tx = await context.Database.BeginTransactionAsync();
             try
             {
-                await context.Database.ExecuteSqlRawAsync(sql);
+                // IMPORTANT: execute the patch body via a plain ADO.NET command, NOT ExecuteSqlRawAsync. EF's
+                // RawSqlCommandBuilder treats `{n}` as String.Format placeholders and parses the SQL as a
+                // composite format string — so any bare `{` (e.g. a JSON literal like [{"key":...}] in an email
+                // template UPDATE) throws FormatException "Expected an ASCII digit". Patch files are verbatim,
+                // trusted SQL and must be sent to Postgres unmodified. The command enlists in the ambient
+                // transaction so it still commits atomically with the tracking row below.
+                var connection = context.Database.GetDbConnection();
+                await using (var cmd = connection.CreateCommand())
+                {
+                    cmd.CommandText = sql;
+                    cmd.Transaction = tx.GetDbTransaction();
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                // The tracking row is a fixed, brace-free statement, so ExecuteSqlRaw's parameter binding is fine here.
                 await context.Database.ExecuteSqlRawAsync(
                     "INSERT INTO data_patches (filename) VALUES ({0}) ON CONFLICT (filename) DO NOTHING", name);
                 await tx.CommitAsync();
