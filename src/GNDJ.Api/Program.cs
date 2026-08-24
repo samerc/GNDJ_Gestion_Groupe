@@ -107,10 +107,13 @@ builder.Services.AddOutputCache(options =>
 // Performance: Memory cache for general use
 builder.Services.AddMemoryCache();
 
-// Liveness endpoint (anonymous) — used by the IIS Application Initialization warm-up probe so the app
-// is hot before the first real user, and by uptime monitoring. The EF model is already built during
-// startup (migrate + seed), so this stays a cheap liveness check.
-builder.Services.AddHealthChecks();
+// Readiness + warm-up endpoint (anonymous) — used by the IIS Application Initialization warm-up probe so the
+// app is hot before the first real user, and by uptime monitoring. The DatabaseHealthCheck does a cheap
+// `SELECT 1`, which (a) reports Unhealthy if Postgres is down and (b) crucially WARMS the Npgsql/EF data path
+// so an AppInit probe after a recycle primes the DB before the first authenticated request — killing the
+// post-recycle cold window. (See GNDJ.Api.Health.DatabaseHealthCheck.)
+builder.Services.AddHealthChecks()
+    .AddCheck<GNDJ.Api.Health.DatabaseHealthCheck>("database");
 
 // MediatR + FluentValidation
 builder.Services.AddMediator(options => options.ServiceLifetime = ServiceLifetime.Scoped);

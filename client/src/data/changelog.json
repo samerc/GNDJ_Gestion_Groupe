@@ -3,6 +3,7 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Performance : après un redémarrage du serveur, l'application se « réchauffe » toute seule (y compris la connexion à la base de données) avant la première visite — plus de lenteur passagère au premier chargement.",
       "Correction (démarrage) : un correctif de données bloquait le démarrage (erreur de format sur un modèle d'email contenant des accolades) et empêchait l'application des correctifs suivants. Les correctifs de données sont désormais exécutés tels quels, sans interprétation des accolades.",
       "Menu : « Envoyer les accès » et « Message aux chefs » sont réunis en une seule page « Communications & accès » (onglets Emails aux chefs / Envoyer les accès).",
       "Formulaire d'inscription : le raccourci « Retrouver mes informations » (pré-remplissage pour une famille déjà au groupe) est mis en avant dès la première étape.",

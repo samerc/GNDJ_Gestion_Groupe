@@ -3000,6 +3000,34 @@ self-heals on the next deploy/startup.
       `!e.MemberDocument.IsDeleted` (same pattern as SecurityProfilePermission → SecurityProfile). Verified: no new
       occurrence after restart. Query-filter only, no migration.
 
+### Prod cold-start / warm-up hardening (2026-08-24)
+Diagnosed a "site is very slow" report (prod, single user). NOT idle-spindown — the gndj app pool is already
+tuned (AlwaysRunning, idleTimeout 0, no periodic recycle, AppInit installed, site preloadEnabled). Root cause via
+the Windows System event log: a **single ANCM "unhealthy condition" recycle (event 5078) ~11 min prior** →
+the fresh worker cold-started and the ~1–2 min cold window is what was felt. Prod is a **SHARED IIS box** (~10
+other sites: echoes, snoozer-v2, carolinerizk.com, construct-box.com, DefaultAppPool, *.fancyshark.com — all on
+the default 20-min idle timeout, constantly cold-starting), so contention can briefly starve gndj's health check
+and trigger an unhealthy recycle. Warm reads are fast (~0.18s through Cloudflare); the issue is only the
+post-recycle cold window. Mitigations:
+- **Ops (done on server):** `GNDJ-HealthCheck` scheduled task interval tightened **5min → 2min** (worst-case
+      cold window after a recycle halves; idleTimeout is already 0 so it never goes cold otherwise).
+- **Code (this repo, ships next deploy):** the old `/health` was a pure liveness check that never touched the DB,
+      so pinging it warmed the pipeline but NOT the Npgsql/EF data path (connection pool + provider) — the first
+      authenticated call still paid that cost. Added **`Api/Health/DatabaseHealthCheck`** (a cheap `SELECT 1`
+      via a scoped `GndjDbContext`); `AddHealthChecks().AddCheck<DatabaseHealthCheck>("database")`. Now `/health`
+      also reports Unhealthy (503) if Postgres is down (better monitoring) AND warms the DB path.
+- **Code — self-warm after every recycle:** added a **project `src/GNDJ.Api/web.config`** (the SUPPORTED way to
+      customize ANCM — `dotnet publish` transforms only the `<aspNetCore>` process attrs and PRESERVES the rest;
+      verified via a temp publish). It (a) raises ANCM **`startupTimeLimit` 120→240s** + `shutdownTimeLimit` 30s so
+      a slow startup on the contended box isn't killed → recycled (attacks the 5078 trigger), and (b) adds
+      **`<applicationInitialization doAppInitAfterRestart="true"><add initializationPage="/health"/>`** so IIS
+      auto-warms the app — now including the DB path — after EVERY recycle/reboot, before the first user.
+      Deliberately NO `<httpErrors>` (that patch caused the 2026-08-16 outage; `publish.ps1` documents "never patch
+      web.config from publish.ps1" — this is a PROJECT web.config, the supported route, not a publish-time patch).
+- Verified live: build clean, `/health` → Healthy (DB SELECT 1 runs), published web.config keeps
+      startupTimeLimit=240 + the AppInit block. DEV until deploy. Prod DB memory for peak season is handled
+      separately by `pg-profile.ps1 -Profile High`.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
