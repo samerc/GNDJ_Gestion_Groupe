@@ -66,7 +66,7 @@ function AdminDashboard() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tableau de bord</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Statistiques</h1>
           <p className="text-sm text-muted-foreground">Vue d'ensemble du groupe — année {scoutYear}</p>
         </div>
         <div className="flex flex-col gap-1">

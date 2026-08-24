@@ -7,7 +7,6 @@ import { PERMISSIONS } from '@/lib/constants'
 import {
   Users,
   Building2,
-  LayoutDashboard,
   Shield,
   ShieldCheck,
   FolderTree,
@@ -83,7 +82,11 @@ const personalNavItems = [
 // Ungrouped, pinned at the very top for managers — the handful of pages opened daily. Everything else lives
 // in a collapsible group below (accordion), so the sidebar opens as a short list instead of a ~39-link wall.
 const adminNavItems = [
-  { path: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard, permission: null },
+  // The group overview is now labelled "Statistiques" (it's the year-aware stats/charts page). The Rentrée
+  // checklist — the app's guided startup workflow that launches every other tool — is PROMOTED to a pinned
+  // top item (previously buried in the "Suivi" group) so a manager lands next to their actual to-do list.
+  { path: '/dashboard', label: 'Statistiques', icon: BarChart3, permission: null },
+  { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: null },
   { path: '/members', label: 'Membres', icon: Users, permission: PERMISSIONS.MEMBERS_VIEW },
   // Camp BP is placed dynamically in NavContent: in the Configuration group when no camp is active (where the
   // CG sets one up), and promoted to the main menu — for everyone with access — once a camp is active.
@@ -129,7 +132,7 @@ const adminGroups: AdminGroup[] = [
     // Ongoing follow-up that isn't demande-specific (member changes, passages, cotisations, doc reminders).
     label: 'Suivi',
     items: [
-      { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: null },
+      // Rentrée scoute promoted to the pinned top nav (see adminNavItems) — no longer listed here.
       { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
       { path: '/attendance', label: 'Séances & absences', icon: CalendarCheck, permission: PERMISSIONS.ATTENDANCE_MANAGE },
