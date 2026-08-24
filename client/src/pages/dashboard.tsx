@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, lazy, Suspense } from 'react'
 import { Navigate } from 'react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
@@ -8,7 +8,11 @@ import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import UnitLeaderDashboard from '@/pages/dashboard-unit-leader'
+// Lazy-loaded: the unit-leader dashboard pulls in the whole member-detail panel + trombinoscope/roster/export
+// dialogs + report-service. Loading it eagerly would bundle all of that into the dashboard LANDING chunk — dead
+// weight for a super-admin/CG who only sees the group overview. Split it out so it loads only when a unit leader
+// actually opens their roster.
+const UnitLeaderDashboard = lazy(() => import('@/pages/dashboard-unit-leader'))
 import { Users, UserCheck, FileX, Receipt, UserMinus, Calendar } from 'lucide-react'
 
 // ─── Horizontal bar chart ──────────────────
@@ -194,17 +198,22 @@ function dedupeByUnit(units: UnitAccess[]): UnitAccess[] {
 function UnitRoster({ units, selectedUnit, setSelectedUnit }: { units: UnitAccess[]; selectedUnit: string; setSelectedUnit: (v: string) => void }) {
   const unitId = selectedUnit || units[0]?.unitId
   if (!unitId) return <Navigate to="/my-profile" replace />
-  if (units.length === 1) return <UnitLeaderDashboard unitId={units[0].unitId} />
   return (
-    <div className="space-y-4">
-      <Select value={unitId} onValueChange={setSelectedUnit}>
-        <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
-        <SelectContent>
-          {units.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName} — {u.roleName}</SelectItem>)}
-        </SelectContent>
-      </Select>
-      <UnitLeaderDashboard unitId={unitId} />
-    </div>
+    <Suspense fallback={<LoadingSpinner variant="page" />}>
+      {units.length === 1 ? (
+        <UnitLeaderDashboard unitId={units[0].unitId} />
+      ) : (
+        <div className="space-y-4">
+          <Select value={unitId} onValueChange={setSelectedUnit}>
+            <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder="Sélectionner une unité" /></SelectTrigger>
+            <SelectContent>
+              {units.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName} — {u.roleName}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <UnitLeaderDashboard unitId={unitId} />
+        </div>
+      )}
+    </Suspense>
   )
 }
 
