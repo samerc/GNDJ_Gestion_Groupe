@@ -2980,6 +2980,26 @@ approved. All on main, pushed, DEV until deploy. Plus two bugs found while testi
       verification by the user. NEXT (user-requested, deferred): a way to explicitly **link brothers & sisters**
       (beyond implicit shared-guardian detection) — see memory [[project-link-siblings]].
 
+### Startup fixes — DataPatchRunner crash + EF warning (2026-08-24)
+Two prod startup issues surfaced on the Journal des erreurs (new.gndj.org). Both fixed on main, pushed; prod
+self-heals on the next deploy/startup.
+- [x] **DataPatchRunner crash blocked all pending patches (the real error).** `DataPatchRunner` ran each patch
+      body via EF `ExecuteSqlRawAsync`, whose `RawSqlCommandBuilder` parses the SQL as a `String.Format` composite
+      string to find `{n}` placeholders. Patches **005/006** UPDATE the `demande_approved` email template and set a
+      `variables` JSON literal `[{"key":...}]`; the bare `{` threw `FormatException: Expected an ASCII digit` (offset
+      1983), rolled the patch back, and — because it logs *"Skipping remaining patches"* — **005/006/007 never ran on
+      any DB** (dev was stuck at 004 too). Fix: execute the patch body through a **plain ADO.NET `DbCommand`** enlisted
+      in the ambient transaction (verbatim SQL, no format parsing); the brace-free tracking-row INSERT keeps its
+      `{0}` parameter binding. **Verified live:** dev was stuck at 004 → after the fix a restart applied 005/006/007
+      and recorded them in `data_patches`. **Lesson: patch files are verbatim trusted SQL — never route them through
+      `ExecuteSqlRaw`** (any bare `{` in JSON/template content breaks it). Also fixed the marker-date parse elsewhere
+      is separate.
+- [x] **`MemberDocumentPage` query-filter Warning silenced.** The page (plain child) has a REQUIRED parent
+      `MemberDocument` (BaseEntity w/ global soft-delete filter) → EF logged a Warning on every startup (inconsistent
+      filters on a required relationship), persisted to `application_logs`. Added a matching child filter
+      `!e.MemberDocument.IsDeleted` (same pattern as SecurityProfilePermission → SecurityProfile). Verified: no new
+      occurrence after restart. Query-filter only, no migration.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
