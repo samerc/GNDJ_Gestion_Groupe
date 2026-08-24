@@ -3,6 +3,7 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Menu : intitulés plus clairs — « Demandes de modification » → « Modifications à valider », « Listes » → « Listes (écoles, classes, villes…) », « Rapports » → « Modèles de rapports », « Textes du site » → « Accueil & pied de page ».",
       "Menu : « Vérification documents » et « Relance documents » sont réunis en une seule page « Suivi des documents » (onglets Campagne / Relances). « Modèle de rentrée » quitte le menu — il s'ouvre depuis le bouton « Modèle de rentrée » sur la page Rentrée.",
       "Passage et Session photo : un responsable qui dirige plusieurs unités (chef ou assistant) peut désormais choisir l'unité concernée — auparavant, seule la première unité était accessible.",
       "Menu (responsables) : le tableau de bord de groupe est renommé « Statistiques », et la « Rentrée scoute » (votre liste de tâches de démarrage) est désormais épinglée en haut du menu pour la retrouver facilement.",

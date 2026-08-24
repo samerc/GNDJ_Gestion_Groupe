@@ -96,7 +96,7 @@ const adminNavItems = [
 const leaderNavItems = [
   { path: '/dashboard', label: 'Mon unité', icon: Building2, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/organiser', label: 'Organiser mon unité', icon: LayoutGrid, permission: PERMISSIONS.MEMBERS_EDIT },
-  { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
+  { path: '/change-requests', label: 'Modifications à valider', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/unit-documents', label: 'Documents', icon: FileText, permission: PERMISSIONS.DOCUMENTS_APPROVE },
   { path: '/attendance', label: 'Séances', icon: CalendarCheck, permission: PERMISSIONS.ATTENDANCE_MANAGE },
   { path: '/passage', label: 'Passage des membres', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_PROPOSE },
@@ -133,7 +133,7 @@ const adminGroups: AdminGroup[] = [
     label: 'Suivi',
     items: [
       // Rentrée scoute promoted to the pinned top nav (see adminNavItems) — no longer listed here.
-      { path: '/change-requests', label: 'Demandes de modification', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
+      { path: '/change-requests', label: 'Modifications à valider', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
       { path: '/attendance', label: 'Séances & absences', icon: CalendarCheck, permission: PERMISSIONS.ATTENDANCE_MANAGE },
       { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },
@@ -161,9 +161,9 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/progression-path', label: 'Parcours scouts', icon: Route, permission: PERMISSIONS.UNIT_TYPES_MANAGE },
       { path: '/admin/progression', label: 'Progression scoute', icon: Star, permission: PERMISSIONS.PROGRESSION_MANAGE },
       { path: '/admin/document-types', label: 'Types de documents', icon: FileText, permission: PERMISSIONS.DOCUMENT_TYPES_VIEW },
-      { path: '/admin/lists', label: 'Listes', icon: List, permission: PERMISSIONS.MAITRISE_MANAGE },
+      { path: '/admin/lists', label: 'Listes (écoles, classes, villes…)', icon: List, permission: PERMISSIONS.MAITRISE_MANAGE },
       // Champs personnalisés + Carte membre are set-and-forget → moved to the Paramètres page (see settings.tsx).
-      { path: '/admin/report-templates', label: 'Rapports', icon: FileText, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+      { path: '/admin/report-templates', label: 'Modèles de rapports', icon: FileText, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
     ],
   },
   {
@@ -173,7 +173,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/events', label: 'Agenda', icon: CalendarDays, permission: PERMISSIONS.CONTENT_MANAGE },
       { path: '/admin/resources', label: 'Ressources', icon: Library, permission: PERMISSIONS.CONTENT_MANAGE },
       { path: '/admin/pages', label: 'Pages', icon: FileText, permission: PERMISSIONS.CONTENT_MANAGE },
-      { path: '/admin/site-texts', label: 'Textes du site', icon: FileText, permission: PERMISSIONS.CONTENT_MANAGE },
+      { path: '/admin/site-texts', label: 'Accueil & pied de page', icon: FileText, permission: PERMISSIONS.CONTENT_MANAGE },
     ],
   },
   {

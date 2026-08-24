@@ -37,7 +37,7 @@ export default function ChangeRequestsPage() {
       <div className="flex items-center gap-3">
         <ClipboardList className="h-6 w-6 text-muted-foreground" />
         <div>
-          <h1 className="text-2xl font-bold">Demandes de modification</h1>
+          <h1 className="text-2xl font-bold">Modifications à valider</h1>
           <p className="text-sm text-muted-foreground">Progression et fonctions proposées par les membres, en attente de votre validation.</p>
         </div>
       </div>
