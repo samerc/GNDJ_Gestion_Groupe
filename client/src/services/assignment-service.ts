@@ -74,6 +74,17 @@ export function useUpdateAssignment() {
   })
 }
 
+// PUT /assignments/:id/correct-unit — CORRECTS a wrong placement: repoints the active assignment to the right
+// unit in place (team reset, role kept/defaulted, start date kept) so the wrong unit leaves no trace. CG/super-admin.
+export function useCorrectMemberUnit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, newUnitId }: { id: string; newUnitId: string }) =>
+      apiClient.put(`/assignments/${id}/correct-unit`, { newUnitId }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['assignments'] }); qc.invalidateQueries({ queryKey: ['members'] }); qc.invalidateQueries({ queryKey: ['units'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }) },
+  })
+}
+
 // PUT /assignments/:id/end — closes an assignment with an endDate (member leaves). Invalidates ['assignments'] + ['members'].
 export function useEndAssignment() {
   const qc = useQueryClient()

@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useAssignments, useCreateAssignment, useUpdateAssignment, useEndAssignment, useDeleteAssignment, useFunctionalRoles, type AssignmentDto, type AssignmentFormData } from '@/services/assignment-service'
+import { useAssignments, useCreateAssignment, useUpdateAssignment, useEndAssignment, useDeleteAssignment, useCorrectMemberUnit, useFunctionalRoles, type AssignmentDto, type AssignmentFormData } from '@/services/assignment-service'
+import { useAuthStore } from '@/stores/auth-store'
+import { PERMISSIONS } from '@/lib/constants'
 import { useUnits } from '@/services/unit-service'
 import { useTeams, teamsForSelect } from '@/services/team-service'
 import { useProposeAssignment, useMyChangeRequests, useProposableUnits, useDismissChangeRequest } from '@/services/change-request-service'
@@ -14,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Tip } from '@/components/ui/tooltip'
-import { Plus, Pencil, Trash2, StopCircle, Building2, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, StopCircle, Building2, X, ArrowRightLeft } from 'lucide-react'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 
@@ -60,6 +62,10 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
   const updateMutation = useUpdateAssignment()
   const endMutation = useEndAssignment()
   const deleteMutation = useDeleteAssignment()
+  const correctMutation = useCorrectMemberUnit()
+  const { hasPermission } = useAuthStore()
+  // Correcting a WRONG placement (repoint the active assignment in place) is a group-level action (CG/super-admin).
+  const canCorrect = !readOnly && hasPermission(PERMISSIONS.MAITRISE_MANAGE)
   // Member self-propose (Ma fiche): propose a fonction for CU/CG approval. Enabled only when the viewer
   // can't manage assignments directly (readOnly).
   const canPropose = !!(readOnly && selfPropose)
@@ -76,6 +82,9 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
   const [editing, setEditing] = useState<AssignmentDto | null>(null)
   const [form, setForm] = useState<AssignmentFormData>({ memberId, unitId: '', functionalRoleId: '', startDate: '' })
   const [deleting, setDeleting] = useState<AssignmentDto | null>(null)
+  // "Corriger l'unité" (wrong placement fix): the active assignment being corrected + the chosen new unit.
+  const [correcting, setCorrecting] = useState<AssignmentDto | null>(null)
+  const [correctUnitId, setCorrectUnitId] = useState('')
   const [error, setError] = useState('')
   const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
 
@@ -133,6 +142,18 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
   const handleDelete = async () => {
     if (!deleting) return
     try { await deleteMutation.mutateAsync(deleting.id); toast.success('Affectation supprimée'); setDeleting(null) } catch (err) { setError(parseApiError(err)); setDeleting(null) }
+  }
+
+  const openCorrect = (a: AssignmentDto) => { setCorrecting(a); setCorrectUnitId('') }
+  const handleCorrect = async () => {
+    if (!correcting || !correctUnitId) return
+    try {
+      await correctMutation.mutateAsync({ id: correcting.id, newUnitId: correctUnitId })
+      toast.success('Unité corrigée')
+      setCorrecting(null)
+    } catch (err) {
+      toast.error(parseApiError(err))
+    }
   }
 
   // Split into current posts vs. history; history is newest-first then bucketed per start year.
@@ -222,6 +243,12 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
                       <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(a)}>
                         <Pencil className="h-4 w-4" />
                       </Button></Tip>
+                      {/* Correct a WRONG placement: repoint to the right unit in place (no history for the wrong unit). CG only. */}
+                      {canCorrect && (
+                        <Tip content="Corriger l'unité (mauvaise affectation)"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openCorrect(a)}>
+                          <ArrowRightLeft className="h-4 w-4 text-blue-600" />
+                        </Button></Tip>
+                      )}
                       {/* One-click "end today": closes the post with endDate = today (moves it to history). */}
                       <Tip content="Terminer aujourd'hui"><Button variant="ghost" size="icon" className="h-8 w-8" disabled={endMutation.isPending} onClick={async () => { try { await endMutation.mutateAsync({ id: a.id, endDate: new Date().toISOString().split('T')[0] }); toast.success('Affectation terminée') } catch (err) { toast.error(parseApiError(err)) } }}>
                         <StopCircle className="h-4 w-4 text-orange-500" />
@@ -383,6 +410,44 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
         </DialogContent>
       </Dialog>
 
+
+      {/* Correct a wrong placement (CG/super-admin): repoint the active assignment to the right unit IN PLACE —
+          the wrong unit is not kept, the team is reset, the role adapts to the new unit type, the start date stays. */}
+      <Dialog open={!!correcting} onOpenChange={(o) => { if (!o) setCorrecting(null) }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Corriger l'unité</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-md border border-blue-200 bg-blue-50/70 p-3 text-sm text-blue-900">
+              À utiliser pour une <strong>mauvaise affectation</strong> (membre accepté ou passé dans la mauvaise
+              unité). L'affectation actuelle est <strong>déplacée</strong> vers la bonne unité — l'ancienne unité
+              n'est <strong>pas conservée</strong> dans l'historique. L'équipe est réinitialisée et la fonction est
+              adaptée à la nouvelle unité. Pour un vrai changement d'unité qui garde l'historique, utilisez le passage.
+            </div>
+            <div className="rounded-md bg-muted p-3 text-sm">
+              Unité actuelle : <strong>{correcting?.unitName}</strong>
+              {correcting?.teamName && <span className="text-muted-foreground"> / {correcting.teamName}</span>}
+              {' · '}<span className="text-muted-foreground">{correcting?.functionalRoleName}</span>
+            </div>
+            <div className="space-y-2">
+              <RequiredLabel required>Nouvelle unité</RequiredLabel>
+              <Select value={correctUnitId} onValueChange={setCorrectUnitId}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner la bonne unité..." /></SelectTrigger>
+                <SelectContent>
+                  {(units?.items ?? [])
+                    .filter(u => u.isActive !== false && u.id !== correcting?.unitId)
+                    .map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => setCorrecting(null)}>Annuler</Button>
+            <Button type="button" disabled={!correctUnitId || correctMutation.isPending} onClick={handleCorrect}>
+              Corriger
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={!!deleting}

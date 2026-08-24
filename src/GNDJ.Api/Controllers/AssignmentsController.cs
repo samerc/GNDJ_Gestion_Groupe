@@ -1,5 +1,6 @@
 using GNDJ.Api.Authorization;
 using GNDJ.Application.Assignments.Commands.CreateAssignment;
+using GNDJ.Application.Assignments.Commands.CorrectMemberUnit;
 using GNDJ.Application.Assignments.Commands.DeleteAssignment;
 using GNDJ.Application.Assignments.Commands.EndAssignment;
 using GNDJ.Application.Assignments.Commands.UpdateAssignment;
@@ -67,6 +68,22 @@ public class AssignmentsController : BaseApiController
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return NoContent();
     }
+
+    /// <summary>
+    /// Corrects a WRONG placement: repoints the active assignment to the right unit IN PLACE (team reset,
+    /// role kept or defaulted, start date kept) so the wrong unit leaves no trace. CG/super-admin only
+    /// (requires maitrise.manage).
+    /// </summary>
+    [HttpPut("{id:guid}/correct-unit")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> CorrectUnit(Guid id, [FromBody] CorrectUnitRequest body)
+    {
+        var result = await Mediator.Send(new CorrectMemberUnitCommand(id, body.NewUnitId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    public record CorrectUnitRequest(Guid NewUnitId);
 
     /// <summary>Deletes an assignment. Requires assignments.delete.</summary>
     [HttpDelete("{id:guid}")]

@@ -2925,6 +2925,25 @@ fixed the clear-cut ones.
       then set all 4 placeholders `is_active=false` so they drop out. (The empty-unit rentrée blocker fix above means
       the 3 empty ones no longer stall dependents in the meantime.)
 
+### Fix a member's unit — "Corriger l'unité" (2026-08-24)
+For a WRONG placement (member accepted into / passage-sent to the wrong unit) where the wrong assignment must
+NOT be kept. Distinct from PASSAGE (which ends the old assignment + creates a new one, preserving history): a
+**correction repoints the CURRENT active assignment IN PLACE** so the wrong unit leaves no trace.
+- **Backend** `Assignments/Commands/CorrectMemberUnit/CorrectMemberUnitCommand.cs` (`PUT /assignments/{id}/
+  correct-unit {newUnitId}`): keeps the original StartDate; **resets the team** to none (old team belonged to the
+  old unit; receiving CU assigns later); **role** is kept when the unit TYPE is unchanged, else replaced by the new
+  type's **default** youth role (`FunctionalRoleQueries.ResolveBaseRoleIdAsync`); **CG/super-admin only**
+  (`MaitriseManage` on the controller + `MemberAccess.IsGroupManager` in the handler); guards (active assignment
+  only, new unit exists+active, not same unit). Any **Passage** that finalized the member INTO the old unit is
+  KEPT with an appended CgNotes note `[Unité corrigée le … : old → new]` (case 2); audited `CorrectUnit`.
+- **Frontend** `member-assignments.tsx`: an "↔ Corriger l'unité" action on each active post (shown only with
+  `maitrise.manage`) → dialog explaining it's for a mauvaise affectation (moved in place, old unit not kept, team
+  reset, role adapted) + a new-unit picker (active units, current excluded). `useCorrectMemberUnit` hook.
+- **Verified live:** same-type keeps the role; cross-type (Compagnie→Meute) switches to the Meute default
+  (Louveteau); team reset + start date preserved; a CU (members.edit, no maitrise.manage) → 403, super-admin → 204.
+  Backend+frontend, DEV until deploy. NOTE: Naia F-0629's C1 placement is still an ASSUMPTION to verify
+  ([[project-fix-member-unit]]) — she's the first real use case for this tool.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
