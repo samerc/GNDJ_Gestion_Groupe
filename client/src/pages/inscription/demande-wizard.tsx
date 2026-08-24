@@ -348,12 +348,14 @@ export default function DemandeWizardPage() {
           {step === 0 && (
             <fieldset disabled={readonly} className="space-y-4">
               {/* Surfaced at the very START (was buried on step 2): the household prefill is the biggest
-                  time-saver for a returning family (a sibling already a member). Shown until parents are filled. */}
+                  time-saver when a SIBLING is already a member — the family (parents/address) is already on
+                  file. Shown only until the parents are filled, i.e. effectively on the first child; the next
+                  child inherits the same household automatically. */}
               {!readonly && guardians.every(g => !g.firstName?.trim()) && (
                 <div className="flex flex-col gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                   <span className="flex items-start gap-2">
                     <Users className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    Un membre de votre famille est déjà au groupe&nbsp;? Retrouvez vos informations (parents, adresse, proches) pour gagner du temps.
+                    Un frère ou une sœur est déjà membre du groupe&nbsp;? Retrouvez les informations de votre famille (parents, adresse) déjà enregistrées, pour ne pas les ressaisir.
                   </span>
                   <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setStep(1)}>Retrouver mes informations</Button>
                 </div>
@@ -443,9 +445,11 @@ export default function DemandeWizardPage() {
           {/* STEP 1 — parents */}
           {step === 1 && (
             <fieldset disabled={readonly} className="space-y-4">
-              {/* Prefill from an existing member's household (email-code gated). */}
+              {/* Prefill from an existing member's household (email-code gated). Only on the FIRST child (parents
+                  not filled yet) — the next child inherits the same household automatically. */}
+              {!readonly && guardians.every(g => !g.firstName?.trim()) && (
               <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
-                <div className="text-sm font-semibold">Vous ou un enfant êtes déjà au groupe&nbsp;?</div>
+                <div className="text-sm font-semibold">Un frère ou une sœur est déjà membre du groupe&nbsp;?</div>
                 <p className="text-xs text-muted-foreground">Recevez un code par email pour retrouver et pré-remplir les informations de votre famille (parents, adresse, frères et sœurs). Utilisez votre email ou celui d'un parent déjà connu du groupe.</p>
                 {!lookupCodeSent ? (
                   <div className="flex flex-wrap items-center gap-2">
@@ -464,6 +468,7 @@ export default function DemandeWizardPage() {
                   </div>
                 )}
               </div>
+              )}
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Users className="h-4 w-4" />Parents / tuteurs <span className="font-normal">(communs à tous vos enfants)</span></div>
