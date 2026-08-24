@@ -2944,6 +2944,42 @@ NOT be kept. Distinct from PASSAGE (which ends the old assignment + creates a ne
   Backend+frontend, DEV until deploy. NOTE: Naia F-0629's C1 placement is still an ASSUMPTION to verify
   ([[project-fix-member-unit]]) — she's the first real use case for this tool.
 
+### Flow-simplification / discoverability pass A–F (2026-08-24)
+A review of "lots of features, many hidden" → journey audits (CU/CG/member/applicant) → a themed plan the user
+approved. All on main, pushed, DEV until deploy. Plus two bugs found while testing.
+- **BUG (cross-user data leak, fixed):** logout cleared tokens+auth store but NOT the TanStack Query cache, and
+      login/logout are SPA nav (no reload) with 5-min staleTime + no refetch-on-focus → the previous user's cached
+      data (rentrée/members/…) stayed visible to the next account in the same tab. Fix: `lib/query-client.ts` singleton
+      + `queryClient.clear()` on login/register/logout in BOTH the member and applicant stores.
+- **BUG (multi-unit leader, fixed):** Passage + Session photo hardcoded `unitAccess[0]` → a CU/ACU leading >1 unit
+      could only act on their first. New `hooks/use-leader-units.ts` (units where the role grants members.edit,
+      excluding the group-Maîtrise assignment) drives a unit picker shown when >1. ACU roles use the `chef-unite`
+      profile (members.edit) so an ACU-in-X + CU-in-Y sees both units automatically (no ACU/CU special-casing).
+- **A** — CG group dashboard renamed **"Statistiques"** (nav + heading); the **Rentrée** checklist promoted from
+      the "Suivi" dropdown to a **pinned top-nav** item (the guided startup workflow is the manager's to-do list).
+      CU nav unchanged (their menu is already beside them).
+- **B** — merged **"Vérification documents" + "Relance documents" → one "Suivi des documents"** page (Campagne /
+      Relances tabs, embedded prop, old routes redirect, `?tab=relances` deep-link). Removed **"Modèle de rentrée"**
+      from the menu (reached via the button on the /rentree page). Progression left as-is (Parcours scouts is
+      administrative; only 2 items).
+- **C** — clearer labels: "Demandes de modification"→**"Modifications à valider"**, "Listes"→**"Listes (écoles,
+      classes, villes…)"**, "Rapports"→**"Modèles de rapports"**, "Textes du site"→**"Accueil & pied de page"**.
+- **D** — the member panel's four hover-only unlabelled icons (Envoyer l'accès / Réinitialiser le mot de passe /
+      Carte / Supprimer) → one labelled **"Actions ▾"** dropdown. Passage: the low-contrast ghost "Modifier" CUs
+      missed → a visible outline **"Modifier le choix"** button (kept the flow, avoided a risky rewrite).
+- **E** — parent portal streamlined: removed the `/inscription` **landing** (open → straight to **login**, which
+      now has a full "Créer un compte" button); new **`ApplicantVerifyGate`** enforces email verification (LINK-based)
+      **up front** when `demande.require_email_verification` is on (verify page gained an "awaiting / resend" state);
+      after login+verify+terms a family with **no demande opens the wizard directly** (skip the empty portail); the
+      **"Retrouver mes informations"** household prefill is surfaced at the **wizard start**, reworded for **siblings**
+      (brother/sœur already a member) and shown only on the FIRST child (the next inherits the household). Route order
+      ProtectedRoute > VerifyGate > TermsGate > portal.
+- **F** — merged **"Envoyer les accès" + "Message aux chefs" → one "Communications & accès"** page (Emails aux chefs
+      / Envoyer les accès tabs, permission-gated, old routes redirect, rentrée goto-actions updated).
+- Each theme built + tsc/eslint/vite-clean + committed separately. Frontend routing/UX changes need browser
+      verification by the user. NEXT (user-requested, deferred): a way to explicitly **link brothers & sisters**
+      (beyond implicit shared-guardian detection) — see memory [[project-link-siblings]].
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
