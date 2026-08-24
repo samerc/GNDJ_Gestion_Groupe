@@ -10,6 +10,7 @@ import { ApplicantProtectedRoute } from '@/components/applicant/applicant-protec
 import { ApplicantOpenRoute } from '@/components/applicant/applicant-open-route'
 import { ApplicantMaintenanceGate } from '@/components/applicant/applicant-maintenance-gate'
 import { ApplicantTermsGate } from '@/components/applicant/applicant-terms-gate'
+import { ApplicantVerifyGate } from '@/components/applicant/applicant-verify-gate'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 
 // Pages are lazy-loaded so each route is its own chunk. This keeps heavy, rarely-reached deps
@@ -137,13 +138,16 @@ export default function App() {
             <Route path="/inscription/register" element={<ApplicantRegisterPage />} />
           </Route>
           <Route element={<ApplicantProtectedRoute />}>
-            {/* T&C acceptance lives OUTSIDE the terms gate (no redirect loop); the portal routes are gated. */}
-            <Route path="/inscription/conditions" element={<ApplicantConditionsPage />} />
-            <Route element={<ApplicantTermsGate />}>
-              <Route path="/inscription/portail" element={<ApplicantPortalPage />} />
-              {/* Result page for a demande whose response has been sent (accepted → steps / declined → reason). */}
-              <Route path="/inscription/portail/demande/:id/resultat" element={<DemandeResultPage />} />
-              <Route path="/inscription/portail/demande/:id" element={<DemandeWizardPage />} />
+            {/* Enforce email verification (when required) FIRST, then T&C, before the portal/wizard. /verify
+                (anonymous route above) and /conditions sit outside their own gate to avoid a redirect loop. */}
+            <Route element={<ApplicantVerifyGate />}>
+              <Route path="/inscription/conditions" element={<ApplicantConditionsPage />} />
+              <Route element={<ApplicantTermsGate />}>
+                <Route path="/inscription/portail" element={<ApplicantPortalPage />} />
+                {/* Result page for a demande whose response has been sent (accepted → steps / declined → reason). */}
+                <Route path="/inscription/portail/demande/:id/resultat" element={<DemandeResultPage />} />
+                <Route path="/inscription/portail/demande/:id" element={<DemandeWizardPage />} />
+              </Route>
             </Route>
           </Route>
         </Route>

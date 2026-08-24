@@ -1,31 +1,63 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { useVerifyEmail } from '@/services/applicant-service'
+import { toast } from 'sonner'
+import { useVerifyEmail, useResendVerification } from '@/services/applicant-service'
 import { useApplicantStore } from '@/stores/applicant-store'
 import { ApplicantAuthShell } from '@/components/applicant/applicant-auth-shell'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, XCircle } from 'lucide-react'
+import { parseApiError } from '@/lib/error-utils'
+import { CheckCircle2, XCircle, MailCheck } from 'lucide-react'
 
-// Landing target of the email-verification link (/inscription/verify?token=…). Auto-fires the
-// verify mutation once on mount and shows ok / error; on success flips the store's emailVerified
-// flag so the portail drops its "vérifiez votre email" banner.
+// Two roles:
+//  • WITH ?token=… → the landing target of the email-verification LINK: auto-fires the verify mutation once and
+//    shows ok / error; on success flips the store's emailVerified flag.
+//  • WITHOUT a token → the "awaiting verification" screen the verify GATE sends an unverified applicant to
+//    (when email verification is required): tells them to click the link in their inbox + lets them resend it.
 export default function ApplicantVerifyPage() {
   const [params] = useSearchParams()
   const token = params.get('token') ?? ''
   const verify = useVerifyEmail()
+  const resend = useResendVerification()
+  const email = useApplicantStore((s) => s.email)
   const setEmailVerified = useApplicantStore((s) => s.setEmailVerified)
   const [state, setState] = useState<'pending' | 'ok' | 'error'>('pending')
-  const ran = useRef(false) // guard: ensures we POST the token exactly once (StrictMode double-mount / re-renders)
+  const ran = useRef(false) // guard: POST the token exactly once (StrictMode double-mount / re-renders)
 
   useEffect(() => {
-    if (ran.current) return
+    if (ran.current || !token) return
     ran.current = true
-    // Genuine one-shot side-effect: POST the verification token exactly once and reflect the outcome.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!token) { setState('error'); return }
+    // Genuine one-shot side-effect: POST the verification token exactly once and reflect the outcome
+    // (state is set asynchronously in .then/.catch, not synchronously in the effect body).
     verify.mutateAsync(token).then(() => { setEmailVerified(true); setState('ok') }).catch(() => setState('error'))
   }, [token, verify, setEmailVerified])
+
+  // Awaiting-verification screen (no token in the URL).
+  if (!token) {
+    return (
+      <ApplicantAuthShell subtitle="Vérifiez votre email">
+        <Card className="shadow-elevated">
+          <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+            <MailCheck className="h-12 w-12 text-primary" />
+            <p className="text-lg font-medium">Vérifiez votre adresse email</p>
+            <p className="text-sm text-muted-foreground">
+              Nous avons envoyé un lien de vérification{email ? <> à <strong>{email}</strong></> : ''}. Cliquez sur
+              ce lien pour activer votre compte, puis revenez ici. Pensez à vérifier vos courriers indésirables.
+            </p>
+            <Button
+              variant="outline"
+              disabled={resend.isPending}
+              onClick={() => resend.mutateAsync()
+                .then(() => toast.success('Email de vérification renvoyé.'))
+                .catch((e) => toast.error(parseApiError(e)))}
+            >
+              Renvoyer l'email de vérification
+            </Button>
+          </CardContent>
+        </Card>
+      </ApplicantAuthShell>
+    )
+  }
 
   return (
     <ApplicantAuthShell subtitle="Vérification de l'email">

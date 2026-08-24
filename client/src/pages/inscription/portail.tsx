@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router'
+import { useNavigate, Navigate } from 'react-router'
 import { useApplicantConfig, useApplicantProfile, useDeleteDemande, useResendVerification, type Demande } from '@/services/applicant-service'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -45,6 +45,11 @@ export default function ApplicantPortalPage() {
   const reviewPhase = open && !(config?.submissionsOpen ?? false)
   const reachedMax = demandes.length >= max
   const needsVerify = config?.requireEmailVerification && !profile.emailVerified
+
+  // Skip the empty portail (user request): a family with no demande yet, while the submission window is open,
+  // goes STRAIGHT into the wizard to start their first child's application. During the review phase (submissions
+  // closed) we keep the portail so they can still view existing demandes.
+  if (demandes.length === 0 && canSubmit) return <Navigate to="/inscription/portail/demande/new" replace />
 
   const handleDelete = async (d: Demande) => {
     if (!confirm(`Supprimer la demande de ${d.firstName} ${d.lastName} ?`)) return

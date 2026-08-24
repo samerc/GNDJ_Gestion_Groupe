@@ -59,11 +59,13 @@ export default function ApplicantLoginPage() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Connexion...' : 'Se connecter'}
             </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              Pas encore de compte ?{' '}
-              <Link to="/inscription/register" className="text-primary hover:underline font-medium">Créer un compte</Link>
-            </p>
           </form>
+          {/* Login is now the portal's first page, so "Créer un compte" is a full, obvious button (not a small
+              link) — a new family lands here and needs an unmissable way to start. */}
+          <div className="mt-5 border-t pt-4 text-center">
+            <p className="mb-2 text-sm text-muted-foreground">Première demande d'inscription ?</p>
+            <Button asChild variant="outline" className="w-full"><Link to="/inscription/register">Créer un compte</Link></Button>
+          </div>
         </CardContent>
       </Card>
     </ApplicantAuthShell>

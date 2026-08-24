@@ -2,7 +2,6 @@ import { Link, Navigate } from 'react-router'
 import { useApplicantStore } from '@/stores/applicant-store'
 import { useApplicantConfig } from '@/services/applicant-service'
 import { ApplicantAuthShell } from '@/components/applicant/applicant-auth-shell'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { CalendarClock } from 'lucide-react'
@@ -24,40 +23,29 @@ export default function InscriptionLandingPage() {
   // Skip the landing for a returning applicant who still has a valid session.
   if (isAuthenticated) return <Navigate to="/inscription/portail" replace />
 
+  // No more separate "choose an option" landing (user request): when inscriptions are OPEN, /inscription goes
+  // straight to the login page (which carries the "Créer un compte" button). Only the CLOSED state keeps a
+  // notice here (login itself is behind ApplicantOpenRoute, which bounces back here when closed → no loop).
+  if (isLoading) {
+    return <ApplicantAuthShell><Card className="shadow-elevated"><CardContent className="py-10"><LoadingSpinner /></CardContent></Card></ApplicantAuthShell>
+  }
+  if (config?.isOpen) return <Navigate to="/inscription/login" replace />
+
   const opensOn = frDate(config?.submissionStart)   // shown when the portal isn't open yet (future start date)
-  const deadline = frDate(config?.submissionDeadline)
 
   return (
     <ApplicantAuthShell>
       <Card className="shadow-elevated">
         <CardContent className="space-y-5 pt-6">
-          {isLoading ? (
-            <LoadingSpinner />
-          ) : !config?.isOpen ? (
-            <div className="flex flex-col items-center gap-3 py-6 text-center">
-              <CalendarClock className="h-12 w-12 text-muted-foreground/40" />
-              <p className="text-lg font-medium">Les inscriptions sont fermées</p>
-              <p className="text-sm text-muted-foreground">
-                {opensOn
-                  ? <>Les inscriptions ouvriront le <strong>{opensOn}</strong>. Merci de revenir à cette date.</>
-                  : "La période d'inscription n'est pas ouverte pour le moment. Merci de revenir plus tard."}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="space-y-2 text-sm text-muted-foreground whitespace-pre-line">
-                {config.introText || "Bienvenue ! Créez un compte pour présenter une demande d'inscription au mouvement scout. Vous pourrez inscrire un ou plusieurs enfants."}
-              </div>
-              <div className="rounded-md bg-muted/40 p-3 text-sm">
-                Année scoute : <strong>{config.scoutYear}</strong>
-                {deadline && <div className="mt-1 text-muted-foreground">Date limite de soumission : <strong>{deadline}</strong></div>}
-              </div>
-              <div className="flex flex-col gap-2">
-                <Button asChild className="w-full"><Link to="/inscription/register">Créer un compte</Link></Button>
-                <Button asChild variant="outline" className="w-full"><Link to="/inscription/login">Se connecter</Link></Button>
-              </div>
-            </>
-          )}
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <CalendarClock className="h-12 w-12 text-muted-foreground/40" />
+            <p className="text-lg font-medium">Les inscriptions sont fermées</p>
+            <p className="text-sm text-muted-foreground">
+              {opensOn
+                ? <>Les inscriptions ouvriront le <strong>{opensOn}</strong>. Merci de revenir à cette date.</>
+                : "La période d'inscription n'est pas ouverte pour le moment. Merci de revenir plus tard."}
+            </p>
+          </div>
           <p className="text-center text-xs text-muted-foreground">
             <Link to="/login" className="hover:underline">Espace membres</Link>
           </p>
