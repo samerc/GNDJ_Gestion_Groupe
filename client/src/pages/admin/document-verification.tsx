@@ -45,7 +45,9 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
   )
 }
 
-export default function DocumentVerificationPage() {
+// `embedded` = rendered inside the merged "Suivi des documents" page (whose title/tabs own the header), so the
+// page's own h1 + description are suppressed to avoid a double header.
+export default function DocumentVerificationPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { data, isLoading } = useDocumentCampaignAdmin()
   const update = useUpdateDocumentCampaign()
   const sendErrors = useSendCampaignErrors()
@@ -108,13 +110,15 @@ export default function DocumentVerificationPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Vérification des documents</h1>
-        <p className="text-sm text-muted-foreground">
-          Campagne annuelle : le dépôt ouvre/ferme automatiquement selon les dates ; les emails d'erreur et la mise en attente
-          partent automatiquement quand la vérification est terminée, sinon vous êtes alerté et lancez l'étape ci-dessous.
-        </p>
-      </div>
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-bold">Vérification des documents</h1>
+          <p className="text-sm text-muted-foreground">
+            Campagne annuelle : le dépôt ouvre/ferme automatiquement selon les dates ; les emails d'erreur et la mise en attente
+            partent automatiquement quand la vérification est terminée, sinon vous êtes alerté et lancez l'étape ci-dessous.
+          </p>
+        </div>
+      )}
 
       {/* Current phase + progress */}
       <Card>

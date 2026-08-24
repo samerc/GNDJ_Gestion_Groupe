@@ -137,8 +137,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
       { path: '/attendance', label: 'Séances & absences', icon: CalendarCheck, permission: PERMISSIONS.ATTENDANCE_MANAGE },
       { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },
-      { path: '/admin/document-verification', label: 'Vérification documents', icon: FileWarning, permission: PERMISSIONS.MAITRISE_MANAGE },
-      { path: '/admin/document-reminders', label: 'Relance documents', icon: FileWarning, permission: PERMISSIONS.MAITRISE_MANAGE },
+      { path: '/admin/documents-suivi', label: 'Suivi documents', icon: FileWarning, permission: PERMISSIONS.MAITRISE_MANAGE },
     ],
   },
   {
@@ -156,8 +155,8 @@ const adminGroups: AdminGroup[] = [
     items: [
       // Associations are set-and-forget (they never change) → not in the nav; reachable from the Paramètres page.
       { path: '/admin/unit-types', label: "Types d'unité", icon: FolderTree, permission: PERMISSIONS.UNIT_TYPES_MANAGE },
-      // "Modèle de rentrée" is a set-and-forget template (the yearly list is edited on /rentree) → lives in Configuration.
-      { path: '/admin/rentree-template', label: 'Modèle de rentrée', icon: ListChecks, permission: PERMISSIONS.RENTREE_MANAGE },
+      // "Modèle de rentrée" removed from the nav — it's reached via the "Modèle de rentrée" button ON the /rentree
+      // page (the yearly checklist), so the template editor sits next to the list it generates.
       { path: '/admin/roles', label: 'Fonctions', icon: Shield, permission: PERMISSIONS.ROLES_MANAGE },
       { path: '/admin/progression-path', label: 'Parcours scouts', icon: Route, permission: PERMISSIONS.UNIT_TYPES_MANAGE },
       { path: '/admin/progression', label: 'Progression scoute', icon: Star, permission: PERMISSIONS.PROGRESSION_MANAGE },

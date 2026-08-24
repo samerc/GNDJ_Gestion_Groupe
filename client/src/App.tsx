@@ -66,8 +66,7 @@ const ChangeRequestsPage = lazy(() => import('@/pages/admin/change-requests'))
 const OrganizeUnitPage = lazy(() => import('@/pages/organize-unit'))
 const DeletedMembersPage = lazy(() => import('@/pages/admin/deleted-members'))
 const SendAccessPage = lazy(() => import('@/pages/admin/send-access'))
-const DocumentRemindersPage = lazy(() => import('@/pages/admin/document-reminders'))
-const DocumentVerificationPage = lazy(() => import('@/pages/admin/document-verification'))
+const DocumentsSuiviPage = lazy(() => import('@/pages/admin/documents-suivi'))
 const DemandeStatsPage = lazy(() => import('@/pages/admin/demande-stats'))
 const DemandeAccountsPage = lazy(() => import('@/pages/admin/demande-accounts'))
 const DemandeArchivesPage = lazy(() => import('@/pages/admin/demande-archives'))
@@ -177,8 +176,10 @@ export default function App() {
               <Route path="/admin/send-access" element={<SendAccessPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
-              <Route path="/admin/document-reminders" element={<DocumentRemindersPage />} />
-              <Route path="/admin/document-verification" element={<DocumentVerificationPage />} />
+              <Route path="/admin/documents-suivi" element={<DocumentsSuiviPage />} />
+              {/* Back-compat: the two pages were merged into "Suivi des documents". */}
+              <Route path="/admin/document-verification" element={<Navigate to="/admin/documents-suivi" replace />} />
+              <Route path="/admin/document-reminders" element={<Navigate to="/admin/documents-suivi" replace />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.RENTREE_MANAGE} />}>
               <Route path="/admin/rentree-template" element={<RentreeTemplatePage />} />

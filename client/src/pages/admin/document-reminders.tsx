@@ -28,7 +28,8 @@ const REASON: Record<string, { label: string; cls: string }> = {
   expired: { label: 'À renouveler', cls: 'bg-amber-100 text-amber-700' },
 }
 
-export default function DocumentRemindersPage() {
+// `embedded` = rendered as a tab inside the merged "Suivi des documents" page; suppress the page's own header.
+export default function DocumentRemindersPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { data: summary, isLoading } = useDocumentReminderSummary()
   const send = useSendDocumentReminders()
   const [selectedUnitId, setSelectedUnitId] = useState('')
@@ -68,13 +69,15 @@ export default function DocumentRemindersPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="flex items-center gap-2 text-xl font-bold"><FileWarning className="h-5 w-5 text-primary" />Relance documents</h1>
-        <p className="text-sm text-muted-foreground">
-          Choisissez une unité, puis relancez-la en un clic (documents manquants ou à corriger) ou relancez un
-          membre en particulier. À utiliser après la période de dépôt et de vérification.
-        </p>
-      </div>
+      {!embedded && (
+        <div>
+          <h1 className="flex items-center gap-2 text-xl font-bold"><FileWarning className="h-5 w-5 text-primary" />Relance documents</h1>
+          <p className="text-sm text-muted-foreground">
+            Choisissez une unité, puis relancez-la en un clic (documents manquants ou à corriger) ou relancez un
+            membre en particulier. À utiliser après la période de dépôt et de vérification.
+          </p>
+        </div>
+      )}
       <EmailDeliveryWarning />
 
       <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground sm:flex-row sm:items-start">

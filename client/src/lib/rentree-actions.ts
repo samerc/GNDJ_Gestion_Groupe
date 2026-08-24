@@ -25,7 +25,7 @@ export const RENTREE_ACTIONS: Record<string, RentreeActionDef> = {
   'goto-my-unit': { label: 'Mon unité', kind: 'goto', route: '/dashboard' },
   'goto-progression': { label: 'Étapes & badges', kind: 'goto', route: '/admin/progression' },
   'goto-communications': { label: 'Envoyer un message aux chefs', kind: 'goto', route: '/admin/communications' },
-  'goto-document-reminders': { label: 'Relancer les documents manquants', kind: 'goto', route: '/admin/document-reminders' },
+  'goto-document-reminders': { label: 'Relancer les documents manquants', kind: 'goto', route: '/admin/documents-suivi?tab=relances' },
   'goto-email': { label: 'Modèles d\'email / pièces jointes', kind: 'goto', route: '/admin/email-settings' },
   'goto-send-access': { label: 'Envoyer les accès', kind: 'goto', route: '/admin/send-access' },
   'goto-demande-archives': { label: 'Archives des demandes', kind: 'goto', route: '/admin/demande-archives' },
