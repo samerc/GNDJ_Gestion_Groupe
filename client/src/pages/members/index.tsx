@@ -36,6 +36,7 @@ import { CitySelect } from '@/components/shared/city-select'
 import { useSettingArray, useSettingValue, matchSchool, useCities } from '@/services/settings-service'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
+import { MemberSiblings } from '@/components/members/member-siblings'
 import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
@@ -110,6 +111,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
   const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
   const canDelete = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_DELETE))
+  const canManageSiblings = useAuthStore((s) => s.hasPermission(PERMISSIONS.MAITRISE_MANAGE)) // CG/super-admin: link/unlink fratries
 
   // Tab item counts come from the member detail payload itself (folded into GET /members/{id}), so opening
   // a member is ONE request — no more firing five secondary list queries just to render these badges.
@@ -516,8 +518,9 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
             </Section>
           </TabsContent>
 
-          <TabsContent value="famille" className="mt-0">
+          <TabsContent value="famille" className="mt-0 space-y-4">
             <MemberGuardians memberId={memberId} />
+            <MemberSiblings memberId={memberId} canManage={canManageSiblings} linkable />
           </TabsContent>
 
           <TabsContent value="unites" className="mt-0">

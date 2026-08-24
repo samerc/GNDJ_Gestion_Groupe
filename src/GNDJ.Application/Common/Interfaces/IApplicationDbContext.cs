@@ -66,6 +66,8 @@ public interface IApplicationDbContext
     DbSet<OutboxEmail> OutboxEmails { get; }
     DbSet<Meeting> Meetings { get; }
     DbSet<MeetingAbsence> MeetingAbsences { get; }
+    DbSet<SiblingGroup> SiblingGroups { get; }
+    DbSet<SiblingRejection> SiblingRejections { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

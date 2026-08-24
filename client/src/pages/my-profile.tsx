@@ -17,6 +17,7 @@ import { SearchableSelect } from '@/components/shared/searchable-select'
 import { CitySelect } from '@/components/shared/city-select'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
+import { MemberSiblings } from '@/components/members/member-siblings'
 import { DocumentsCta } from '@/components/members/documents-cta'
 import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
@@ -336,7 +337,7 @@ export default function MyProfilePage() {
         {/* A regular member can't edit their own assignments (leaders assign them); a leader
             (assignments.create) can manage them from here too. */}
         <TabsContent value="assignments"><MemberAssignments memberId={memberId} memberName={`${member.firstName} ${member.lastName}`} readOnly={!canManageOwnAssignments} selfPropose /></TabsContent>
-        <TabsContent value="famille"><MemberGuardians memberId={memberId} selfService /></TabsContent>
+        <TabsContent value="famille" className="space-y-4"><MemberGuardians memberId={memberId} selfService /><MemberSiblings memberId={memberId} /></TabsContent>
 
         <TabsContent value="progression">
           <MemberProgression memberId={memberId} selfPropose />

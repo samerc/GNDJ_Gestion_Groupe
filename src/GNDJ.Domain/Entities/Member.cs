@@ -39,6 +39,11 @@ public class Member : BaseEntity
     // not yet confirmed → the app shows a one-time blocking "verify your contact details" screen to leaders.
     public DateTime? ContactVerifiedAt { get; set; }
 
+    // Confirmed fratrie: members sharing a SiblingGroupId are brothers/sisters (set by the CG on the Fratries
+    // page). Null = not (yet) grouped. See SiblingGroup.
+    public Guid? SiblingGroupId { get; set; }
+    public SiblingGroup? SiblingGroup { get; set; }
+
     public User? User { get; set; }
     public ICollection<MemberPhone> Phones { get; set; } = [];
     public ICollection<MemberEmail> Emails { get; set; } = [];

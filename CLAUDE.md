@@ -3028,6 +3028,38 @@ post-recycle cold window. Mitigations:
       startupTimeLimit=240 + the AppInit block. DEV until deploy. Prod DB memory for peak season is handled
       separately by `pg-profile.ps1 -Profile High`.
 
+### Fratries — sibling reconciliation (2026-08-24, v3.5.0, DEV until deploy)
+A CG tool to IDENTIFY siblings (the import left duplicate/inconsistent parent records) → approve/reject → and on
+approve RECONCILE the family data. Design decisions (user): explicit **sibling group** + reconcile **parents +
+address + contacts**. Full plan in memory [[project-link-siblings]].
+- **Domain:** `SiblingGroup` (a fratrie; `Member.SiblingGroupId` FK, SetNull) + `SiblingRejection` (tombstone of a
+      rejected pair, unique on normalized (A,B)). Migration `AddSiblingGroups`.
+- **Suggestion engine** (`GetSiblingSuggestionsQuery`, gated maitrise.manage): builds candidate PAIRS (edges) from
+      4 signals — shared guardian record / guardians sharing a phone / sharing an email (all **Élevée** — the phone &
+      email ones catch DUPLICATE parent records) / same last name + same street (**Moyenne**) — drops rejected pairs
+      + pairs already in one confirmed group, then **union-find** into families (edge-level filtering means a rejected
+      pair splits a family). Buckets size-capped (guardian/contact 15, address 12) to avoid bogus mega-families;
+      ≤200 suggestions. Verified live: 200 families with real evidence, incl. cross-spelling catches (MOAWAD/MOUAWAD
+      via shared parent email).
+- **Reconcile** (`ApproveSiblingGroupCommand`, transactional): create/merge the group + set it on all selected
+      members; for the CG-chosen canonical **père/mère**, re-point every sibling's parent link to it, **merge the
+      duplicate parents' phones/emails onto the canonical** (deduped) and soft-delete the orphaned duplicate
+      guardians; copy the chosen **address** to all siblings; drop tombstones among them. GOTCHA (same as multi-page
+      docs): insert child contacts via the DbSet with the FK, NEVER mutate the tracked parent's nav collection (that
+      throws DbUpdateConcurrencyException). Verified live end-to-end on the GHORAYEB family (3 mother spellings →
+      1 canonical, links repointed, contacts merged) then **restored dev to baseline** via a timestamp marker.
+- **Reject** = tombstone each pair. **Link/Unlink** (manual, from a member fiche): group two members / remove one
+      (dissolves a <2 group). **GetMemberSiblingsQuery** (gated by MemberAccess) powers the fiche section + Ma fiche.
+- **API** `SiblingsController` (api/v1/siblings): suggestions, groups, reconcile-data, approve, reject, link,
+      unlink (maitrise.manage) + member/{id} (member-access). Endpoints validated live (suggestions 200/0.27s,
+      link/unlink/reconcile/approve all correct). Fixed a `DateOnly.MaxValue` OrderBy that EF couldn't translate
+      (materialize then sort in memory).
+- **Frontend:** `sibling-service.ts` + page **`/admin/siblings` "Fratries"** (sidebar Unités & maîtrise,
+      maitrise.manage) — Suggestions tab (evidence chips + confidence + Réviser/Rejeter; the Réviser reconcile dialog
+      picks canonical père/mère/adresse, defaults to the record covering the most siblings) + Fratries confirmées tab
+      (search + per-member unlink). `MemberSiblings` component on the member fiche Famille tab (CG: link/unlink,
+      clickable to the sibling) + on Ma fiche (display-only). tsc + eslint + vite clean.
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
