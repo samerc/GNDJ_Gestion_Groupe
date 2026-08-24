@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { Users, Check, X, Search, Sparkles, ChevronRight } from 'lucide-react'
+import { Users, Check, X, Search, Sparkles, ChevronRight, Phone, Mail, MapPin, UserRound, ArrowRight } from 'lucide-react'
 import {
   useSiblingSuggestions, useSiblingGroups, useReconcileData,
   useApproveSiblingGroup, useRejectSiblingSuggestion, useUnlinkSibling,
@@ -43,6 +43,14 @@ export default function SiblingsPage() {
   )
 }
 
+// Categorize an evidence string into an icon so "what they have in common" reads at a glance.
+function evidenceIcon(e: string) {
+  if (e.startsWith('Parent commun')) return UserRound
+  if (e.startsWith('Même téléphone')) return Phone
+  if (e.startsWith('Même email')) return Mail
+  return MapPin
+}
+
 // ── Suggestions ──
 function SuggestionsTab() {
   const { data: suggestions, isLoading } = useSiblingSuggestions()
@@ -68,33 +76,54 @@ function SuggestionsTab() {
       <p className="mb-3 text-sm text-muted-foreground">{suggestions.length} famille(s) probable(s) à examiner.</p>
       <div className="space-y-3">
         {suggestions.map((s, i) => (
-          <Card key={i}>
-            <CardContent className="p-4">
-              <div className="mb-2 flex items-center gap-2">
-                <Badge variant={s.confidence === 'Élevée' ? 'default' : 'secondary'}
-                  className={s.confidence === 'Élevée' ? 'bg-emerald-600' : 'bg-amber-500 text-white'}>
-                  Confiance {s.confidence.toLowerCase()}
-                </Badge>
-                <span className="text-xs text-muted-foreground">{s.members.length} membres</span>
+          <Card key={i} className="overflow-hidden">
+            <CardContent className="p-0">
+              <div className="grid md:grid-cols-[1fr_auto]">
+                {/* Left: the children of this family */}
+                <div className="p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Badge variant={s.confidence === 'Élevée' ? 'default' : 'secondary'}
+                      className={s.confidence === 'Élevée' ? 'bg-emerald-600' : 'bg-amber-500 text-white'}>
+                      Confiance {s.confidence.toLowerCase()}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">{s.members.length} enfants probables</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {s.members.map((m) => {
+                      const age = computeAge(m.dateOfBirth)
+                      return (
+                        <span key={m.memberId} className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 py-1 pl-1 pr-2.5 text-sm">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
+                            {(m.firstName[0] ?? '').toUpperCase()}
+                          </span>
+                          <span className="font-medium">{m.firstName} {m.lastName}</span>
+                          <span className="text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}{age != null ? ` · ${age} ans` : ''}</span>
+                          {m.siblingGroupId && <span className="text-xs text-emerald-600">(déjà en fratrie)</span>}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+                {/* Right: what they have in common (the reason) */}
+                <div className="border-t bg-muted/20 p-4 md:min-w-[260px] md:border-l md:border-t-0">
+                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">En commun</p>
+                  <ul className="space-y-1">
+                    {s.evidence.map((e, j) => {
+                      const Icon = evidenceIcon(e)
+                      // Split "Label : value" so the value stands out.
+                      const [label, ...rest] = e.split(' : ')
+                      const value = rest.join(' : ')
+                      return (
+                        <li key={j} className="flex items-start gap-2 text-xs">
+                          <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/70" />
+                          <span><span className="text-muted-foreground">{label}{value ? ' : ' : ''}</span>{value && <span className="font-medium">{value}</span>}</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
               </div>
-              <div className="mb-3 flex flex-wrap gap-2">
-                {s.members.map((m) => {
-                  const age = computeAge(m.dateOfBirth)
-                  return (
-                    <span key={m.memberId} className="rounded-full border bg-muted/40 px-2.5 py-1 text-sm">
-                      <span className="font-medium">{m.firstName} {m.lastName}</span>
-                      <span className="text-xs text-muted-foreground"> · {m.unitName ?? 'Sans unité'}{age != null ? ` · ${age} ans` : ''}</span>
-                      {m.siblingGroupId && <span className="ml-1 text-xs text-emerald-600">(déjà en fratrie)</span>}
-                    </span>
-                  )
-                })}
-              </div>
-              <div className="mb-3 flex flex-wrap gap-1.5">
-                {s.evidence.map((e, j) => (
-                  <span key={j} className="rounded bg-primary/5 px-2 py-0.5 text-xs text-muted-foreground">{e}</span>
-                ))}
-              </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 border-t bg-background p-3">
                 <Button size="sm" onClick={() => setReviewing(s)}><Check className="mr-1 h-4 w-4" />Réviser et confirmer</Button>
                 <Button size="sm" variant="outline" onClick={() => setRejecting(s)}><X className="mr-1 h-4 w-4" />Rejeter</Button>
               </div>
@@ -165,42 +194,79 @@ function ReconcileDialog({ suggestion, onClose }: { suggestion: SiblingSuggestio
   }
 
   const nameOf = (id: string) => { const m = suggestion.members.find((x) => x.memberId === id); return m ? `${m.firstName} ${m.lastName}` : '' }
-  const addrLabel = (a: SiblingAddress) => [a.details, a.city, a.country].filter(Boolean).join(', ') + ` — ${nameOf(a.memberId)}`
+  const addrLabel = (a: SiblingAddress) => [a.details, a.city].filter(Boolean).join(', ')
+  const guardianName = (gs: SiblingGuardian[], id: string) => { const g = gs.find((x) => x.guardianId === id); return g ? `${g.firstName} ${g.lastName}` : null }
+
+  const chosenFather = data && father !== NONE ? guardianName(data.fathers, father) : null
+  const chosenMother = data && mother !== NONE ? guardianName(data.mothers, mother) : null
+  const chosenAddr = data && address !== NONE ? addrLabel(data.addresses.find((a) => a.addressId === address)!) : null
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="max-w-lg" onOpenAutoFocus={load}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" onOpenAutoFocus={load}>
         <DialogHeader><DialogTitle>Confirmer la fratrie</DialogTitle></DialogHeader>
         {!data ? <LoadingSpinner /> : (
-          <div className="space-y-4">
-            <div>
-              <p className="mb-1.5 text-sm font-medium">Membres de la fratrie</p>
-              <div className="space-y-1">
-                {data.members.map((m) => (
-                  <label key={m.memberId} className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
-                    <input type="checkbox" checked={selected.has(m.memberId)} onChange={() => toggle(m.memberId)} className="h-4 w-4" />
-                    <span className="font-medium">{m.firstName} {m.lastName}</span>
-                    <span className="text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}</span>
-                    {m.siblingGroupId && <span className="ml-auto text-xs text-emerald-600">déjà en fratrie</span>}
-                  </label>
-                ))}
+          <div className="space-y-5">
+            {/* Result preview — the unified family after confirmation */}
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">Après confirmation</p>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4 text-primary" /><span className="font-semibold">{selected.size}</span> enfants regroupés</span>
+                {chosenFather && <span className="inline-flex items-center gap-1.5"><UserRound className="h-4 w-4 text-muted-foreground" />Père : <span className="font-medium">{chosenFather}</span></span>}
+                {chosenMother && <span className="inline-flex items-center gap-1.5"><UserRound className="h-4 w-4 text-muted-foreground" />Mère : <span className="font-medium">{chosenMother}</span></span>}
+                {chosenAddr && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4 text-muted-foreground" /><span className="font-medium">{chosenAddr}</span></span>}
               </div>
             </div>
 
-            <ReconcilePicker label="Père (parent commun)" options={data.fathers} value={father} onChange={setFather} />
-            <ReconcilePicker label="Mère (parent commun)" options={data.mothers} value={mother} onChange={setMother} />
+            {/* Children */}
+            <section>
+              <p className="mb-2 text-sm font-semibold">Enfants de la fratrie <span className="font-normal text-muted-foreground">— décochez ceux à exclure</span></p>
+              <div className="grid gap-1.5 sm:grid-cols-2">
+                {data.members.map((m) => {
+                  const on = selected.has(m.memberId)
+                  return (
+                    <label key={m.memberId} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${on ? 'border-primary/40 bg-primary/5' : 'opacity-60'}`}>
+                      <input type="checkbox" checked={on} onChange={() => toggle(m.memberId)} className="h-4 w-4" />
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">{(m.firstName[0] ?? '').toUpperCase()}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{m.firstName} {m.lastName}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}</span>
+                      </span>
+                      {m.siblingGroupId && <span className="shrink-0 text-xs text-emerald-600">en fratrie</span>}
+                    </label>
+                  )
+                })}
+              </div>
+            </section>
 
-            <div>
-              <p className="mb-1.5 text-sm font-medium">Adresse commune</p>
-              <select value={address} onChange={(e) => setAddress(e.target.value)}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm">
-                <option value={NONE}>Ne pas modifier les adresses</option>
-                {data.addresses.map((a) => <option key={a.addressId} value={a.addressId}>{addrLabel(a)}</option>)}
-              </select>
-            </div>
+            <ParentSection role="Père" options={data.fathers} value={father} onChange={setFather} />
+            <ParentSection role="Mère" options={data.mothers} value={mother} onChange={setMother} />
+
+            {/* Address */}
+            {data.addresses.length > 0 && (
+              <section>
+                <p className="mb-2 text-sm font-semibold">Adresse commune</p>
+                <div className="space-y-1.5">
+                  {data.addresses.map((a) => {
+                    const on = address === a.addressId
+                    return (
+                      <label key={a.addressId} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${on ? 'border-primary/50 bg-primary/5' : ''}`}>
+                        <input type="radio" checked={on} onChange={() => setAddress(a.addressId)} className="h-4 w-4" />
+                        <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="min-w-0 flex-1 truncate">{addrLabel(a) || a.country}<span className="text-xs text-muted-foreground"> — {nameOf(a.memberId)}</span></span>
+                      </label>
+                    )
+                  })}
+                  <label className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${address === NONE ? 'border-primary/50 bg-primary/5' : ''}`}>
+                    <input type="radio" checked={address === NONE} onChange={() => setAddress(NONE)} className="h-4 w-4" />
+                    <span className="text-muted-foreground">Ne pas modifier les adresses</span>
+                  </label>
+                </div>
+              </section>
+            )}
 
             <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-              Les parents/adresse choisis seront partagés par tous les membres sélectionnés; les doublons de parents seront fusionnés (contacts regroupés).
+              Les parents et l'adresse choisis seront partagés par tous les enfants sélectionnés; les fiches de parents en double sont fusionnées (contacts regroupés) et les doublons supprimés.
             </p>
           </div>
         )}
@@ -215,28 +281,49 @@ function ReconcileDialog({ suggestion, onClose }: { suggestion: SiblingSuggestio
   )
 }
 
-// Radio-style picker for the canonical père / mère (with a "don't touch" option).
-function ReconcilePicker({ label, options, value, onChange }: { label: string; options: SiblingGuardian[]; value: string; onChange: (v: string) => void }) {
+// A père/mère section: the candidate parent records as comparison cards. When there are several (duplicates),
+// the header explains they'll be merged; the selected one is "Principale", the others "Sera fusionné".
+function ParentSection({ role, options, value, onChange }: { role: string; options: SiblingGuardian[]; value: string; onChange: (v: string) => void }) {
   if (options.length === 0) return null
+  const many = options.length > 1
   return (
-    <div>
-      <p className="mb-1.5 text-sm font-medium">{label}</p>
-      <div className="space-y-1">
-        <label className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
+    <section>
+      <p className="mb-1 text-sm font-semibold">{role}</p>
+      {many && (
+        <p className="mb-2 flex items-center gap-1.5 text-xs text-amber-600">
+          <ArrowRight className="h-3.5 w-3.5" />{options.length} fiches semblent être la même personne — choisissez la principale, les autres seront fusionnées.
+        </p>
+      )}
+      <div className="space-y-1.5">
+        {options.map((g) => {
+          const on = value === g.guardianId
+          return (
+            <label key={g.guardianId} className={`flex cursor-pointer gap-2.5 rounded-md border p-3 text-sm transition-colors ${on ? 'border-primary/50 bg-primary/5' : ''}`}>
+              <input type="radio" checked={on} onChange={() => onChange(g.guardianId)} className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{g.firstName} {g.lastName}</span>
+                  <span className="text-xs text-muted-foreground">· {g.linkedMemberIds.length} enfant(s)</span>
+                  {many && (on
+                    ? <Badge className="ml-auto bg-emerald-600 text-[10px]">Principale</Badge>
+                    : <span className="ml-auto text-[10px] text-muted-foreground">Sera fusionné</span>)}
+                </div>
+                {(g.phones.length > 0 || g.emails.length > 0) && (
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                    {g.phones.map((p, i) => <span key={`p${i}`} className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{p}</span>)}
+                    {g.emails.map((e, i) => <span key={`e${i}`} className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{e}</span>)}
+                  </div>
+                )}
+              </div>
+            </label>
+          )
+        })}
+        <label className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${value === NONE ? 'border-primary/50 bg-primary/5' : ''}`}>
           <input type="radio" checked={value === NONE} onChange={() => onChange(NONE)} className="h-4 w-4" />
           <span className="text-muted-foreground">Ne pas modifier</span>
         </label>
-        {options.map((g) => (
-          <label key={g.guardianId} className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
-            <input type="radio" checked={value === g.guardianId} onChange={() => onChange(g.guardianId)} className="h-4 w-4" />
-            <span className="font-medium">{g.firstName} {g.lastName}</span>
-            <span className="text-xs text-muted-foreground">
-              {g.linkedMemberIds.length} enfant(s){g.emails.length ? ` · ${g.emails[0]}` : ''}{g.phones.length ? ` · ${g.phones[0]}` : ''}
-            </span>
-          </label>
-        ))}
       </div>
-    </div>
+    </section>
   )
 }
 
