@@ -71,7 +71,6 @@ const DocumentsSuiviPage = lazy(() => import('@/pages/admin/documents-suivi'))
 const DemandeStatsPage = lazy(() => import('@/pages/admin/demande-stats'))
 const DemandeAccountsPage = lazy(() => import('@/pages/admin/demande-accounts'))
 const DemandeArchivesPage = lazy(() => import('@/pages/admin/demande-archives'))
-const RejectionReasonsPage = lazy(() => import('@/pages/admin/rejection-reasons'))
 const PassageValidationPage = lazy(() => import('@/pages/admin/passage-validation'))
 const CotisationDashboardPage = lazy(() => import('@/pages/admin/cotisation-dashboard'))
 const ProgressionPage = lazy(() => import('@/pages/admin/progression'))
@@ -218,9 +217,8 @@ export default function App() {
               <Route path="/admin/demande-accounts" element={<DemandeAccountsPage />} />
               <Route path="/admin/demande-archives" element={<DemandeArchivesPage />} />
             </Route>
-            <Route element={<PermissionRoute permission={PERMISSIONS.DEMANDE_MANAGE} />}>
-              <Route path="/admin/rejection-reasons" element={<RejectionReasonsPage />} />
-            </Route>
+            {/* Rejection motifs moved into Paramètres → Inscriptions tab; keep the old route as a redirect. */}
+            <Route path="/admin/rejection-reasons" element={<Navigate to="/admin/settings" replace />} />
             <Route element={<PermissionRoute permission={PERMISSIONS.PASSAGE_MANAGE} />}>
               <Route path="/admin/passage-validation" element={<PassageValidationPage />} />
             </Route>
@@ -231,6 +229,11 @@ export default function App() {
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.PROGRESSION_MANAGE} />}>
               <Route path="/admin/progression" element={<ProgressionPage />} />
+            </Route>
+            {/* Paramètres is CG-reachable: the page + backend filter it to the operational categories a
+                Chef de Groupe may edit (super-admin sees every category + the admin-only config tabs). */}
+            <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
+              <Route path="/admin/settings" element={<SettingsPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.DOCUMENT_TYPES_VIEW} />}>
               <Route path="/admin/document-types" element={<DocumentTypesPage />} />
@@ -252,7 +255,6 @@ export default function App() {
               <Route path="/admin/roles" element={<RolesPage />} />
               <Route path="/admin/api-keys" element={<ApiKeysPage />} />
               <Route path="/admin/email-settings" element={<EmailSettingsPage />} />
-              <Route path="/admin/settings" element={<SettingsPage />} />
               <Route path="/admin/appearance" element={<AppearancePage />} />
               <Route path="/admin/error-log" element={<ErrorLogPage />} />
               <Route path="/admin/email-outbox" element={<EmailOutboxPage />} />

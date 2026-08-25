@@ -10,20 +10,28 @@ namespace GNDJ.Application.Settings;
 // read/write rows; consumers resolve values per-key at use time (no central cache to invalidate).
 public record SettingDto(string Key, string Value, string Category, string Label, string? Description, string ValueType);
 
-// Get all settings
+// Get all settings — filtered by the caller's access: a full admin sees every setting, a Chef de Groupe
+// sees only the operational categories they may edit (SettingsAccess), anyone else is denied.
 public record GetSettingsQuery : IRequest<IReadOnlyList<SettingDto>>;
 
-public class GetSettingsQueryHandler : IRequestHandler<GetSettingsQuery, IReadOnlyList<SettingDto>>
+public class GetSettingsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetSettingsQuery, IReadOnlyList<SettingDto>>
 {
-    private readonly IApplicationDbContext _context;
-    public GetSettingsQueryHandler(IApplicationDbContext context) => _context = context;
-
     public async ValueTask<IReadOnlyList<SettingDto>> Handle(GetSettingsQuery request, CancellationToken cancellationToken)
     {
-        return await _context.Settings
+        if (!SettingsAccess.CanViewAny(currentUser))
+            throw new UnauthorizedAccessException("Accès refusé.");
+
+        // The settings table is tiny (~50 rows), so load then filter categories in memory (avoids an
+        // EF IN-clause over a static set and keeps the access rule in one place).
+        var all = await context.Settings
             .OrderBy(s => s.Category).ThenBy(s => s.Label)
             .Select(s => new SettingDto(s.Key, s.Value, s.Category, s.Label, s.Description, s.ValueType))
             .ToListAsync(cancellationToken);
+
+        return SettingsAccess.IsAdmin(currentUser)
+            ? all
+            : all.Where(s => SettingsAccess.IsCgCategory(s.Category)).ToList();
     }
 }
 
@@ -52,11 +60,13 @@ public class UpdateSettingCommandHandler : IRequestHandler<UpdateSettingCommand,
 {
     private readonly IApplicationDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly ICurrentUserService _currentUser;
 
-    public UpdateSettingCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    public UpdateSettingCommandHandler(IApplicationDbContext context, IAuditService auditService, ICurrentUserService currentUser)
     {
         _context = context;
         _auditService = auditService;
+        _currentUser = currentUser;
     }
 
     public async ValueTask<Result<bool>> Handle(UpdateSettingCommand request, CancellationToken cancellationToken)
@@ -64,6 +74,11 @@ public class UpdateSettingCommandHandler : IRequestHandler<UpdateSettingCommand,
         var entity = await _context.Settings.FindAsync([request.Key], cancellationToken);
         if (entity is null)
             return Result<bool>.Failure("Paramètre introuvable.");
+
+        // Per-category access: super-admin/associations.manage edit anything; a Chef de Groupe only the
+        // operational categories (throws 403 on a crafted cross-category write — the UI never offers it).
+        if (!SettingsAccess.CanEdit(entity.Category, _currentUser))
+            throw new UnauthorizedAccessException("Vous n'avez pas l'autorisation de modifier ce paramètre.");
 
         var value = request.Value ?? string.Empty;
         if (value.Length > 10000)

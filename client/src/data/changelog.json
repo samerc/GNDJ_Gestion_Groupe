@@ -3,6 +3,8 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Paramètres accessibles au chef de groupe : la page Paramètres s'ouvre désormais au chef de groupe, qui peut modifier les catégories opérationnelles (Inscriptions, Documents, Cotisations, Passage, Membres, Rapports). Les réglages sensibles (Email, Sécurité, Maintenance, Site public, Général, Avancé) restent réservés au super-administrateur.",
+      "Motifs de refus : gérés directement dans Paramètres → onglet Inscriptions (la page séparée « Motifs de refus » a été retirée du menu).",
       "Progression : le chef de groupe / chef d'unité peut désormais modifier une progression existante (étape, badge, date, lieu, remarques), en plus de l'ajouter ou la supprimer.",
       "Correction : une affectation dont l'unité ou la fonction aurait été supprimée n'est plus masquée sur la fiche du membre (elle s'affiche avec une mention à la place de disparaître).",
       "Affectations : le chef de groupe / chef d'unité peut désormais modifier directement l'unité, l'équipe et la fonction d'une affectation existante (auparavant seule la date était modifiable). Pour un vrai changement de branche qui conserve l'historique, utilisez le passage.",

@@ -19,7 +19,9 @@ import { Ban, Plus, Trash2, Star, Save, Info, Pencil, X } from 'lucide-react'
 // single demande_declined template. The literal "--" in Excel always maps to the default reason.
 const EMPTY: RejectionReason = { code: '', label: '', text: '', isDefault: false }
 
-export default function RejectionReasonsPage() {
+// `embedded` = rendered inside the Paramètres → Inscriptions tab (its own page header is suppressed;
+// the surrounding settings tab already titles the section).
+export default function RejectionReasonsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { data: reasons = [], isLoading } = useRejectionReasons()
   const update = useUpdateRejectionReasons()
 
@@ -75,7 +77,11 @@ export default function RejectionReasonsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><Ban className="h-6 w-6" />Motifs de refus</h1>
+          {embedded ? (
+            <h2 className="flex items-center gap-2 text-lg font-semibold"><Ban className="h-5 w-5" />Motifs de refus</h2>
+          ) : (
+            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><Ban className="h-6 w-6" />Motifs de refus</h1>
+          )}
           <p className="text-sm text-muted-foreground">Motifs réutilisables pour refuser une demande (email + fichier Excel).</p>
         </div>
         {draftIndex === null && (

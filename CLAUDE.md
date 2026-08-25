@@ -3094,6 +3094,37 @@ A batch from live CU/CG testing on dev. All on main, pushed; build (dotnet+tsc+e
       is file logs + `application_logs` in PG + the `ErrorAlerts:Smtp` email alert (config in prod appsettings) —
       NOT a public error page (would leak PII). Set `ErrorAlerts:Smtp` at go-live. (see [[project-email-golive]])
 
+### Settings opened to CG (per-category) + rejection motifs moved into Paramètres (2026-08-25)
+Reworked settings access so a **Chef de Groupe reaches Paramètres** and edits the operational categories, while
+sensitive config stays super-admin only; and folded the standalone "Motifs de refus" page into the Inscriptions
+settings tab (a CG suggestion: "in settings we have a tab for demandes, so add the rejection motifs there").
+All on main, pushed; DEV until deploy.
+- **Per-category access model** (`Application/Settings/SettingsAccess.cs`): CG-editable categories (agreed with
+      the user) = **demande, documents, cotisations, passage, members, reports**. Admin-only by omission = **email**
+      (could redirect all outgoing mail via `email.override_recipient`), **security** (password policy),
+      **maintenance** (site kill-switches), **site** (public content), **general/advanced** (plumbing), plus
+      apparence/camp/rentree/contact. `CanEdit(category,user)` = admin (super-admin OR associations.manage) OR
+      (maitrise.manage AND category ∈ CG set); `CanViewAny` = admin OR maitrise.manage.
+- **Backend gates:** `GetSettingsQuery` now injects `ICurrentUserService` — throws 403 if not CanViewAny, returns
+      ALL settings for an admin, else only the CG categories (in-memory filter; table is ~50 rows). `GET /settings`
+      lost its `[HasPermission(AssociationsManage)]` (any authed user hits it, handler filters) AND its `[OutputCache]`
+      (the response now varies by user — caching would leak the admin's full list to a CG). `UpdateSettingCommand`
+      injects `ICurrentUserService` and throws 403 (`UnauthorizedAccessException`) on a cross-category write; `PUT
+      /settings/{key}` lost its permission attribute (per-category enforced in the handler). The managed member-data
+      list endpoints were already maitrise.manage.
+- **Frontend:** `/admin/settings` route moved from `<AdminRoute>` (super-admin) to `PermissionRoute
+      MAITRISE_MANAGE`; sidebar "Paramètres" perm ASSOCIATIONS_MANAGE→MAITRISE_MANAGE. The Settings page hides the
+      admin-only config tabs (Associations / Champs personnalisés / Carte membre) unless the user has
+      associations.manage; tabs otherwise auto-filter to whatever `GET /settings` returns (so a CG sees only the 6
+      operational category tabs). **Rejection motifs** (`RejectionReasonsPage`, gated demande.manage) gained an
+      `embedded` prop and renders inside the **Inscriptions** tab; standalone `/admin/rejection-reasons` route →
+      redirect to `/admin/settings`, sidebar link removed.
+- **Verified live:** super-admin = 66 settings / all categories + can write email (204); CG (giorgio.rizk) = 46
+      settings / exactly {cotisations, demande, documents, members, passage, reports}, writes demande (204),
+      **blocked from email + security (403)**, rejection-reasons 200; a chef-unité (non-manager) → GET/PUT settings
+      403; `email.override_recipient` untouched. Test accounts' password hashes reset for testing then restored
+      exactly (backups). Build clean (dotnet 0/0, tsc 0, eslint 0).
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety

@@ -10,17 +10,19 @@ namespace GNDJ.Api.Controllers;
 
 /// <summary>
 /// Key-value application settings. Base route api/v1/settings. Requires authentication (JWT or API key).
-/// Most reads/writes need associations.manage (admin); GetByKey is open to any authenticated user.
-/// UpdateSetting validates Value against the setting's ValueType and busts the settings + output caches.
-/// The cities list is an exception, editable with maitrise.manage so a Chef de Groupe can curate it.
+/// Access is per-category (see SettingsAccess): a full admin (associations.manage) reads/writes every
+/// setting; a Chef de Groupe (maitrise.manage) reads/writes only the operational categories. GetByKey is
+/// open to any authenticated user. UpdateSetting validates Value against the setting's ValueType and busts
+/// the settings + output caches. The managed member-data lists are editable with maitrise.manage too.
 /// </summary>
 [Authorize]
 public class SettingsController : BaseApiController
 {
-    /// <summary>Lists all settings. Requires associations.manage.</summary>
+    /// <summary>
+    /// Lists settings the caller may edit: a full admin (associations.manage) sees everything; a Chef de
+    /// Groupe (maitrise.manage) sees only the operational categories. Not output-cached (varies by user).
+    /// </summary>
     [HttpGet]
-    [HasPermission(Permissions.AssociationsManage)]
-    [OutputCache(PolicyName = "LookupData")]
     public async Task<IActionResult> GetAll()
     {
         var result = await Mediator.Send(new GetSettingsQuery());
@@ -42,10 +44,10 @@ public class SettingsController : BaseApiController
 
     /// <summary>
     /// Updates a setting's value (validated against its ValueType) and busts the caches; the route key must match
-    /// the command body's Key. Requires associations.manage.
+    /// the command body's Key. Per-category access is enforced in the handler: admins edit anything, a Chef de
+    /// Groupe only the operational categories (403 otherwise).
     /// </summary>
     [HttpPut("{key}")]
-    [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Update(string key, [FromBody] UpdateSettingCommand command,
         [FromServices] IOutputCacheStore outputCache)
     {

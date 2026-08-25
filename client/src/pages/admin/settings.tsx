@@ -19,12 +19,16 @@ import { Save, X, Settings2, Search, Plus, Trash2 } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { ManagedListEditor } from '@/components/shared/managed-list-editor'
+import { useAuthStore } from '@/stores/auth-store'
+import { PERMISSIONS } from '@/lib/constants'
 
 // The three "set-and-forget" config screens are now tabs inside Paramètres rather than separate pages/routes.
 // Lazy-loaded so their code stays out of the main settings chunk until the tab is opened.
 const AssociationsPage = lazy(() => import('@/pages/admin/associations'))
 const CustomFieldsPage = lazy(() => import('@/pages/admin/custom-fields'))
 const CardDesignerPage = lazy(() => import('@/pages/admin/card-designer'))
+// Rejection motifs (demande refusal reasons) — embedded inside the Inscriptions tab (CG-editable).
+const RejectionReasonsEditor = lazy(() => import('@/pages/admin/rejection-reasons'))
 
 // Extra tabs (rendered after the key-value setting categories). Each renders a full config page component;
 // the `cfg:` prefix keeps their tab `value` from colliding with a real setting category.
@@ -300,6 +304,10 @@ export default function SettingsPage() {
   const updateMutation = useUpdateSetting()
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
+  // The config-page tabs (Associations / Champs personnalisés / Carte membre) are super-admin-only; a Chef
+  // de Groupe reaching Paramètres sees only the operational setting categories the backend returns for them.
+  const isAdmin = useAuthStore((s) => (s.user?.isSuperAdmin || s.user?.permissions.includes(PERMISSIONS.ASSOCIATIONS_MANAGE)) ?? false)
+  const configTabs = isAdmin ? CONFIG_TABS : []
 
   const handleSave = async (key: string, value: string) => {
     setError('')
@@ -370,8 +378,8 @@ export default function SettingsPage() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="flex flex-wrap">
             {categories.map(c => <TabsTrigger key={c} value={c}>{CATEGORY_LABELS[c] ?? c}</TabsTrigger>)}
-            {/* Config screens as tabs (Associations / Champs personnalisés / Carte membre). */}
-            {CONFIG_TABS.map(t => <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>)}
+            {/* Config screens as tabs (Associations / Champs personnalisés / Carte membre) — super-admin only. */}
+            {configTabs.map(t => <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>)}
           </TabsList>
           {categories.map(c => (
             <TabsContent key={c} value={c}>
@@ -380,9 +388,17 @@ export default function SettingsPage() {
                   {grouped[c].map(s => <SettingEditor key={s.key} setting={s} onSave={handleSave} {...extraProps(s)} />)}
                 </div>
               </div>
+              {/* The Inscriptions tab also hosts the demande rejection-motifs editor (own CRUD, CG-accessible). */}
+              {c === 'demande' && (
+                <div className="mt-6 rounded-xl border border-border bg-card p-5 shadow-card">
+                  <Suspense fallback={<LoadingSpinner variant="table" />}>
+                    <RejectionReasonsEditor embedded />
+                  </Suspense>
+                </div>
+              )}
             </TabsContent>
           ))}
-          {CONFIG_TABS.map(({ key, Component }) => (
+          {configTabs.map(({ key, Component }) => (
             <TabsContent key={key} value={key}>
               {/* Each config screen renders its own page (its own heading + CRUD). Only mounted when its tab is active. */}
               {tab === key && (

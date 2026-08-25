@@ -46,7 +46,6 @@ import {
   AlertTriangle,
   LayoutGrid,
   Archive,
-  Ban,
   Palette,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -125,7 +124,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/demande-stats', label: 'Statistiques', icon: BarChart3, permission: PERMISSIONS.DEMANDE_VIEW },
       { path: '/admin/demande-accounts', label: 'Comptes d\'inscription', icon: MailCheck, permission: PERMISSIONS.DEMANDE_VIEW },
       { path: '/admin/demande-archives', label: 'Archives', icon: Archive, permission: PERMISSIONS.DEMANDE_VIEW },
-      { path: '/admin/rejection-reasons', label: 'Motifs de refus', icon: Ban, permission: PERMISSIONS.DEMANDE_MANAGE },
+      // Motifs de refus moved into Paramètres → Inscriptions tab (CG-editable there).
     ],
   },
   {
@@ -187,7 +186,8 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/error-log', label: 'Journal des erreurs', icon: AlertTriangle, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/deleted-members', label: 'Corbeille', icon: Trash2, permission: PERMISSIONS.MEMBERS_DELETE },
       { path: '/admin/appearance', label: 'Apparence', icon: Palette, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-      { path: '/admin/settings', label: 'Paramètres', icon: Settings2, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+      // Paramètres is CG-reachable (page + backend filter it to the operational categories a CG may edit).
+      { path: '/admin/settings', label: 'Paramètres', icon: Settings2, permission: PERMISSIONS.MAITRISE_MANAGE },
     ],
   },
 ]
