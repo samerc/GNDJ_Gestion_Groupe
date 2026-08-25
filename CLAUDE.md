@@ -3125,7 +3125,39 @@ All on main, pushed; DEV until deploy.
       403; `email.override_recipient` untouched. Test accounts' password hashes reset for testing then restored
       exactly (backups). Build clean (dotnet 0/0, tsc 0, eslint 0).
 
+### Rentrée master template rework (2026-08-25)
+Reworked the **Rentrée checklist master template** (`rentree_task_templates`) from a CU/CG review (the user
+edited an Excel export of the 2026-2027 tasks; I reconciled it against the live template, which had drifted +5
+tasks past the snapshot the user saw). Live dev DB + the seed code; 2026-2027 regenerated.
+- **Template 24 → 31 tasks.** Added: *Vérifier les textes des emails*, *Arranger le document des tenues et le
+      mettre en ligne* (Config); *Collecter les coordonnées des membres qui quittent au passage* (Passage, par-unité);
+      *Ouvrir la période de réinscription (dépôt des documents)*, *Vérifier les documents — 2ème vérification*,
+      *Bloquer les membres dont les dossiers sont incomplets* (Dossiers). Restored 2 canonical seed tasks the live
+      template had lost to drift (*Envoyer l'email d'accueil aux chefs*, *Mettre à jour les conditions d'inscription*).
+      Deleted *Imprimer les cartes membres*. Repurposed the junk *"photo"* task → *Les chefs mettent à jour les
+      membres (badges, étapes…)*.
+- **Doc verification split + made MANUAL.** *Vérifier les documents* → *1ère vérification* + *2ème vérification*,
+      both **manual** (dropped the `documents-verified` auto `progress_key`) with campaign-date deadlines
+      (`documents.deposit_deadline` / `documents.correction_deadline`). Root cause of the "lots of tasks show
+      complete but aren't" the user reported: the per-unit auto-tracking read "0 documents en attente" as done
+      before anyone uploaded. The new upload/verif steps are date-anchored to the document campaign
+      (deposit_start / deposit_deadline / correction_start / correction_deadline / final_deadline).
+- **Re-phased** (quotas → Passage, séance photo → Organisation, étapes/badges → Configuration; Progression phase
+      now empty) and re-wired dependencies. Kept the auto-tracking on passage/demandes/cotisations/photos (accurate).
+- **Applied to:** the live dev DB template (rebuilt via generated SQL — `tools/gen_rentree_template_sql.py`, no FK
+      references it, wipe+reinsert+dep-by-title), then **regenerated 2026-2027** (`POST /rentree/generate
+      overwrite=true` → 175 tasks, ALL reset to pending so statuses reflect reality). Updated the C# seed
+      `SeedData.SeedRentreeTemplateAsync` to the 31-task list (extended its `Add()` helper to set progressKey +
+      anchor directly) so fresh installs match. Prod picks it up via the go-live dump. Verified: 175 pending, phase
+      counts balanced, doc verifs manual, Imprimer-les-cartes gone. Build clean.
+- **Excel exports** (`tools/gen_rentree_xlsx.py` grouped, `gen_todo_xlsx.py` full CLAUDE.md list) on the Desktop
+      for reference/planning — one-way (editing the sheet doesn't write back).
+
 ### Remaining / Next
+- [ ] **Feature idea (from the rentrée review): capture leavers' contacts at passage.** When a CU marks a member
+      *Quitte le groupe*, pop a dialog to capture/confirm the member's PERSONAL email + phone (approve / edit /
+      dismiss, editable later) so the group can re-contact them next year. Currently a manual checklist task
+      (*Collecter les coordonnées des membres qui quittent au passage*); this would make it a real in-app step.
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
       net now BUILT); run `deploy/golive/force-password-reset.sql` when activating accounts; login identity stays

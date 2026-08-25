@@ -347,12 +347,16 @@ public static class SeedData
         var tasks = new List<RentreeTaskTemplate>();
         // actionKey attaches a built-in action from the catalog (RentreeActions): "open-*" run from the list,
         // "goto-*" are page shortcuts, null = no action (a physical/manual task, just a checkbox).
-        RentreeTaskTemplate Add(string title, string phase, string role, bool fanOut, string? deadline, string? actionKey, params RentreeTaskTemplate[] deps)
+        // progressKey (RentreeProgress) auto-tracks the task from module state; anchor (RentreeAnchors) hangs its
+        // deadline on a date-typed setting. Both null = a plain manual task with a fuzzy deadline label.
+        RentreeTaskTemplate Add(string title, string phase, string role, bool fanOut, string? deadline,
+            string? actionKey, string? progressKey, string? anchor, params RentreeTaskTemplate[] deps)
         {
             var t = new RentreeTaskTemplate
             {
                 Title = title, Phase = phase, DisplayOrder = order++, AssigneeType = "role", AssigneeRole = role,
                 FanOutPerUnit = fanOut, DefaultDeadlineLabel = deadline, ActionKey = actionKey,
+                ProgressKey = progressKey, DeadlineAnchor = anchor,
                 DependsOnTemplateIds = deps.Select(d => d.Id).ToArray()
             };
             tasks.Add(t);
@@ -360,32 +364,42 @@ public static class SeedData
         }
 
         // ① Configuration
-        var cfgYear = Add("Définir la nouvelle année scoute et les dates", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-settings");
-        var cfgUnits = Add("Vérifier les unités, types et équipes (créer les nouvelles sizaines)", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-units");
-        var cfgMaitrises = Add("Confirmer les maîtrises (CU/ACU de chaque unité)", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-maitrises");
-        Add("Envoyer l'email d'accueil aux chefs", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-communications", cfgMaitrises);
-        var cfgQuotas = Add("Définir les quotas d'accueil par unité", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-demandes", cfgUnits);
+        var cfgYear = Add("Définir la nouvelle année scoute et les dates", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-settings", null, null);
+        var cfgUnits = Add("Vérifier les unités, types et équipes (créer les nouvelles sizaines)", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-units", null, null);
+        var cfgMaitrises = Add("Confirmer les maîtrises (CU/ACU de chaque unité)", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-maitrises", null, null);
+        Add("Envoyer l'email d'accueil aux chefs", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-communications", null, null, cfgMaitrises);
+        Add("Vérifier les textes des emails", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-email", null, null);
+        var emailAttach = Add("Mettre à jour les pièces jointes des modèles d'email", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-email", null, null);
+        Add("Arranger le document des tenues et le mettre en ligne", "Configuration", CG, false, "septembre", null, null, null);
+        Add("Confirmer les étapes et badges de l'année", "Configuration", CG, false, "octobre", "goto-progression", null, null);
         // ② Passage
-        var pasOpen = Add("Ouvrir le passage", "Passage", CG, false, "1ʳᵉ sem. octobre", "open-passage", cfgYear);
-        var pasPropose = Add("Proposer les passages de chaque membre (ou « Pas de changement »)", "Passage", CU, true, "1ʳᵉ sem. octobre", "goto-passage", pasOpen);
-        var pasReview = Add("Réviser et approuver les propositions de passage", "Passage", CG, false, "2ᵉ sem. octobre", "goto-passage-review", pasPropose);
-        var pasFinalize = Add("Finaliser les passages (création des nouvelles affectations)", "Passage", CG, false, "2ᵉ sem. octobre", "goto-passage-review", pasReview);
+        var pasOpen = Add("Ouvrir le passage", "Passage", CG, false, "1ʳᵉ sem. octobre", "open-passage", "passage-open", null, cfgYear);
+        var cfgQuotas = Add("Définir les quotas d'accueil par unité", "Passage", CG, false, "1ʳᵉ sem. octobre", "goto-demandes", null, null, cfgUnits);
+        var pasPropose = Add("Proposer les passages de chaque membre (ou « Pas de changement »)", "Passage", CU, true, "1ʳᵉ sem. octobre", "goto-passage", "passage-proposed", null, pasOpen);
+        var pasReview = Add("Réviser et approuver les propositions de passage", "Passage", CG, false, "2ᵉ sem. octobre", "goto-passage-review", null, null, pasPropose);
+        var pasFinalize = Add("Finaliser les passages (création des nouvelles affectations)", "Passage", CG, false, "2ᵉ sem. octobre", "goto-passage-review", "passage-finalized", "passage.date", pasReview);
+        Add("Collecter les coordonnées des membres qui quittent au passage", "Passage", CU, true, "1ʳᵉ sem. octobre", "goto-passage", null, null, pasPropose);
         // ③ Demandes
-        var demTerms = Add("Mettre à jour les conditions d'inscription (texte d'acceptation des demandes)", "Demandes", CG, false, "septembre", "goto-settings", cfgYear);
-        var demOpen = Add("Ouvrir les inscriptions", "Demandes", CG, false, "septembre", "open-demandes", cfgYear, cfgQuotas, demTerms);
-        var demReview = Add("Réviser les demandes d'inscription (accepter/refuser + unité)", "Demandes", CG, false, "octobre", "goto-demandes", demOpen);
-        Add("Envoyer les réponses aux demandes (conversion en membres)", "Demandes", CG, false, "octobre", "goto-demandes", demReview);
-        // ④ Dossiers membres
-        var docVerify = Add("Vérifier et approuver les documents des membres", "Dossiers membres", CU, true, "octobre – novembre", "goto-documents", pasFinalize);
-        Add("Suivre et enregistrer les cotisations", "Dossiers membres", CU, true, "octobre – novembre", "goto-documents", pasFinalize);
-        // CG follow-up once the CUs have reviewed: email the families whose dossier is still incomplete.
-        Add("Relancer les familles avec des documents manquants", "Dossiers membres", CG, false, "novembre", "goto-document-reminders", docVerify);
-        var photo = Add("Organiser la séance photo", "Dossiers membres", CU, true, "octobre", "goto-photo", pasFinalize);
+        var demTerms = Add("Mettre à jour les conditions d'inscription (texte d'acceptation des demandes)", "Demandes", CG, false, "septembre", "goto-settings", null, null, cfgYear);
+        Add("Rédiger la lettre de refus (pièce jointe du modèle « demande refusée »)", "Demandes", CG, false, "septembre", "goto-email", null, null, emailAttach);
+        var demOpen = Add("Ouvrir les inscriptions", "Demandes", CG, false, "septembre", "open-demandes", "demandes-open", "demande.submission_start", cfgYear, cfgQuotas, demTerms);
+        var demReview = Add("Réviser les demandes d'inscription (accepter/refuser + unité)", "Demandes", CG, false, "octobre", "goto-demandes", "demandes-reviewed", "demande.submission_deadline", demOpen);
+        Add("Relancer les familles qui n'ont pas soumis leur demande", "Demandes", CG, false, "octobre", "goto-demandes", null, null, demOpen);
+        var demSend = Add("Envoyer les réponses aux demandes (conversion en membres)", "Demandes", CG, false, "octobre", "goto-demandes", "demandes-sent", "demande.member_start_date", demReview);
+        // ④ Dossiers membres — the document campaign is date-driven (upload opens/closes by the documents.* dates);
+        // the two verifications are MANUAL (each with its own campaign-date deadline), not auto-tracked.
+        var docOpen = Add("Ouvrir la période de réinscription (dépôt des documents)", "Dossiers membres", CG, false, "octobre", "goto-documents", null, "documents.deposit_start", pasFinalize);
+        var docVerify1 = Add("Vérifier les documents — 1ère vérification", "Dossiers membres", CU, true, "octobre", "goto-documents", null, "documents.deposit_deadline", docOpen);
+        var docRelance = Add("Relancer les familles avec des documents manquants", "Dossiers membres", CG, false, "novembre", "goto-document-reminders", null, "documents.correction_start", docVerify1);
+        var docVerify2 = Add("Vérifier les documents — 2ème vérification", "Dossiers membres", CU, true, "novembre", "goto-documents", null, "documents.correction_deadline", docRelance);
+        Add("Bloquer les membres dont les dossiers sont incomplets", "Dossiers membres", CG, false, "novembre", "goto-documents", null, "documents.final_deadline", docVerify2);
+        Add("Suivre et enregistrer les cotisations", "Dossiers membres", CU, true, "octobre – novembre", "goto-documents", "cotisations-paid", "documents.deposit_deadline", pasFinalize);
+        Add("Relancer les accès non activés", "Dossiers membres", CG, false, "novembre", "goto-send-access", null, null, demSend);
+        Add("Les chefs mettent à jour les membres (badges, étapes…)", "Dossiers membres", CU, true, "novembre", "goto-progression", null, null, pasFinalize);
         // ⑤ Organisation
-        var orgTeams = Add("Répartir les membres en sizaines / équipes", "Organisation", CU, true, "octobre", "goto-my-unit", pasFinalize);
-        Add("Vérifier le trombinoscope / la liste", "Organisation", CU, true, "octobre", "goto-my-unit", orgTeams);
-        Add("Imprimer les cartes membres", "Organisation", CU, true, "octobre", "goto-my-unit", photo, orgTeams);
-        Add("Confirmer les étapes et badges de l'année", "Progression", CG, false, "octobre", "goto-progression");
+        Add("Organiser la séance photo", "Organisation", CU, true, "octobre", "goto-photo", "photos-done", null, pasFinalize);
+        var orgTeams = Add("Répartir les membres en sizaines / équipes", "Organisation", CU, true, "octobre", "goto-my-unit", null, null, pasFinalize);
+        Add("Vérifier le trombinoscope / la liste", "Organisation", CU, true, "octobre", "goto-my-unit", null, null, orgTeams);
 
         context.RentreeTaskTemplates.AddRange(tasks);
         await context.SaveChangesAsync();
