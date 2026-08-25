@@ -3064,6 +3064,36 @@ address + contacts**. Full plan in memory [[project-link-siblings]].
       (search + per-member unlink). `MemberSiblings` component on the member fiche Famille tab (CG: link/unlink,
       clickable to the sibling) + on Ma fiche (display-only). tsc + eslint + vite clean.
 
+### Member editing + admin-log clears + dashboard/startup fixes (2026-08-25, DEV until deploy)
+A batch from live CU/CG testing on dev. All on main, pushed; build (dotnet+tsc+eslint+vite) clean; live-verified.
+- **Fratries redesign:** the sibling reconcile dialog now shows a family-comparison view — "Après confirmation"
+      summary (résulting unified family), children as a checkable grid, and père/mère as comparison CARDS with full
+      contacts + "Principale"/"Sera fusionné" tags when duplicates exist. Suggestion cards split into children +
+      an "En commun" panel (typed evidence w/ icons). (see [[project-link-siblings]])
+- **Edit unités/fonctions:** the assignment edit dialog USED to lock unit/team/fonction (dates only). Unlocked —
+      the Pencil (Modifier) on any post now edits unité/équipe/fonction + dates (CG/CU). Backend UpdateAssignment
+      already accepted it (frontend-only). For a real branch move that keeps history, still use the passage.
+- **Edit progressions:** new `UpdateMemberProgressionCommand` + `PUT /progressions/{id}` (progression.manage,
+      same access model as create/delete) + a "Modifier" action on each progression entry (was add/delete only).
+- **"Active member with no unité/fonction" mystery (dev): NOT a data bug.** All 1080 active members have a valid
+      unit+role. The empty "Postes actuels" panel a CG saw was a TRANSIENT stale result — the API was restarted
+      several times during the session, so a panel request that landed mid-restart cached an empty list. Reload
+      fixes it. BUT it surfaced a real latent bug (fixed): `GetAssignmentsQuery` projected `a.Unit.Name`/
+      `a.FunctionalRole.Name` as required navs → INNER JOIN, so a SOFT-DELETED unit/role would silently DROP the
+      whole assignment row (member looks "active with no post"). Made null-safe (LEFT JOIN) → shows "(unité/
+      fonction supprimée)" instead of dropping. 0 members affected today; defensive.
+- **Audit log "Vider le journal":** `DELETE /audit-logs` (`PurgeAuditLogsCommand`, super-admin only via handler
+      throw, optional `?before=` normalized to UTC for the timestamptz column) + a super-admin button on the Journal
+      d'audit page (mirrors the error-log clear).
+- **Dashboard load:** `dashboard.tsx` statically imported `UnitLeaderDashboard` (which pulls the whole member-
+      detail panel + report/export dialogs), bloating the group-dashboard LANDING chunk. Lazy-loaded it → landing
+      chunk ~33kB→11kB, unit-leader split to its own ~22kB chunk loaded only when a leader opens their roster (also
+      removes the heavy dev on-demand compile an admin hit on the dashboard). Backend /dashboard/admin was ~0.12s.
+- **Dev "WebRootPath not found (wwwroot)" warning** silenced (dev API is API-only; guarded SPA static + fallback
+      behind !IsDevelopment). **Error alerts / go-live:** to see errors when the site is down, the out-of-band path
+      is file logs + `application_logs` in PG + the `ErrorAlerts:Smtp` email alert (config in prod appsettings) —
+      NOT a public error page (would leak PII). Set `ErrorAlerts:Smtp` at go-live. (see [[project-email-golive]])
+
 ### Remaining / Next
 - [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
       `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
