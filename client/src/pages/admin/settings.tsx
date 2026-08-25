@@ -376,7 +376,9 @@ export default function SettingsPage() {
         </div>
       ) : (
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="flex flex-wrap">
+          {/* h-auto + gap so the many category tabs can wrap onto several rows on mobile without being
+              clipped by the base TabsList's fixed h-10 height. */}
+          <TabsList className="flex h-auto flex-wrap justify-start gap-1">
             {categories.map(c => <TabsTrigger key={c} value={c}>{CATEGORY_LABELS[c] ?? c}</TabsTrigger>)}
             {/* Config screens as tabs (Associations / Champs personnalisés / Carte membre) — super-admin only. */}
             {configTabs.map(t => <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>)}
