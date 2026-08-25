@@ -22,8 +22,8 @@ import { toast } from 'sonner'
 
 // "Affectations" tab of the member detail page (also reused read-only on Ma fiche for youth).
 // Shows the member's current posts (unit / team / functional role) + a year-grouped history
-// timeline. Create assigns a new post; edit keeps unit/team/function fixed and only adjusts
-// dates; "Terminer aujourd'hui" closes a post by stamping endDate = today (active → history).
+// timeline. Create assigns a new post; edit lets a manager change the unit/team/fonction AND the
+// dates (to correct a post); "Terminer aujourd'hui" closes a post by stamping endDate = today.
 // readOnly hides all mutation controls (used when the viewer can't manage assignments).
 // selfPropose = the member on Ma fiche: instead of editing directly they PROPOSE a new fonction
 // (unit + team + role) that their CU/CG approves. Only meaningful alongside readOnly.
@@ -323,44 +323,34 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
             <FormFieldErrors show={hasErrors} />
-            {editing ? (
-              /* Edit mode: unit/team/function are read-only */
-              <div className="rounded-md bg-muted p-3 space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{editing.unitName}</span>
-                  {editing.teamName && <span className="text-sm text-muted-foreground">/ {editing.teamName}</span>}
-                </div>
-                <Badge variant="outline" className="text-xs">{editing.functionalRoleName}</Badge>
-              </div>
-            ) : (
-              /* Create mode: all fields editable */
-              <>
-                <div className="space-y-2">
-                  <RequiredLabel required>Unité</RequiredLabel>
-                  <Select value={form.unitId} onValueChange={(v) => { setForm(f => ({ ...f, unitId: v, teamId: '', functionalRoleId: '' })); clearField('unitId') }}>
-                    <SelectTrigger className={fieldClass('unitId')}><SelectValue placeholder="Sélectionner une unité..." /></SelectTrigger>
-                    <SelectContent>{unitOptions.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <RequiredLabel>Équipe</RequiredLabel>
-                  <Select value={form.teamId ?? ''} onValueChange={(v) => setForm(f => ({ ...f, teamId: v === 'none' ? '' : v }))}>
-                    <SelectTrigger><SelectValue placeholder="Aucune équipe" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Aucune équipe</SelectItem>
-                      {teamsForSelect(teams?.items).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <RequiredLabel required>Fonction</RequiredLabel>
-                  <Select value={form.functionalRoleId} onValueChange={(v) => { setForm(f => ({ ...f, functionalRoleId: v })); clearField('functionalRoleId') }} disabled={!form.unitId}>
-                    <SelectTrigger className={fieldClass('functionalRoleId')}><SelectValue placeholder={form.unitId ? 'Sélectionner une fonction...' : "Choisir d'abord une unité"} /></SelectTrigger>
-                    <SelectContent>{roles?.filter(r => !r.isArchived || r.id === form.functionalRoleId).map(r => <SelectItem key={r.id} value={r.id}>{r.name}{r.isArchived ? ' (archivée)' : ''}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              </>
-            )}
+            {/* Unité / Équipe / Fonction — editable in BOTH create and edit. Editing an existing post lets a
+                manager (CG/CU) correct the unit, team or fonction directly (e.g. a wrong role). Changing the unit
+                resets team + fonction (they belong to the unit). For a real branch change that keeps history,
+                use the passage instead. (Members proposing on Ma fiche pick from all active units.) */}
+            <div className="space-y-2">
+              <RequiredLabel required>Unité</RequiredLabel>
+              <Select value={form.unitId} onValueChange={(v) => { setForm(f => ({ ...f, unitId: v, teamId: '', functionalRoleId: '' })); clearField('unitId') }}>
+                <SelectTrigger className={fieldClass('unitId')}><SelectValue placeholder="Sélectionner une unité..." /></SelectTrigger>
+                <SelectContent>{unitOptions.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <RequiredLabel>Équipe</RequiredLabel>
+              <Select value={form.teamId ?? ''} onValueChange={(v) => setForm(f => ({ ...f, teamId: v === 'none' ? '' : v }))}>
+                <SelectTrigger><SelectValue placeholder="Aucune équipe" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune équipe</SelectItem>
+                  {teamsForSelect(teams?.items).map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <RequiredLabel required>Fonction</RequiredLabel>
+              <Select value={form.functionalRoleId} onValueChange={(v) => { setForm(f => ({ ...f, functionalRoleId: v })); clearField('functionalRoleId') }} disabled={!form.unitId}>
+                <SelectTrigger className={fieldClass('functionalRoleId')}><SelectValue placeholder={form.unitId ? 'Sélectionner une fonction...' : "Choisir d'abord une unité"} /></SelectTrigger>
+                <SelectContent>{roles?.filter(r => !r.isArchived || r.id === form.functionalRoleId).map(r => <SelectItem key={r.id} value={r.id}>{r.name}{r.isArchived ? ' (archivée)' : ''}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <RequiredLabel required>Date de début</RequiredLabel>

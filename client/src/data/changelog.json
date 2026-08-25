@@ -3,6 +3,7 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Affectations : le chef de groupe / chef d'unité peut désormais modifier directement l'unité, l'équipe et la fonction d'une affectation existante (auparavant seule la date était modifiable). Pour un vrai changement de branche qui conserve l'historique, utilisez le passage.",
       "Journal d'audit : un bouton « Vider le journal » (super-administrateur) permet d'effacer les entrées d'audit, comme pour le journal des erreurs.",
       "Performance : le tableau de bord de groupe (Statistiques) se charge plus vite — le code du tableau de bord d'unité (lourd : fiches, documents, rapports) n'est plus chargé pour les chefs de groupe et super-admins qui ne l'utilisent pas.",
       "Fratries : nouvelle page « Fratries » (chef de groupe) qui détecte automatiquement les frères et sœurs (parent, téléphone, email ou nom + adresse en commun). Le CG confirme une fratrie — ce qui harmonise au passage les informations de la famille (parents en double fusionnés, adresse et contacts partagés) — ou la rejette. Lien/retrait manuel et section « Frères et sœurs » sur la fiche de chaque membre.",
