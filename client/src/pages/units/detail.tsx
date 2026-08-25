@@ -405,7 +405,7 @@ export default function UnitDetailPage() {
               <RequiredLabel htmlFor="description">Description</RequiredLabel>
               <Input id="description" value={form.description ?? ''} onChange={(e) => setForm(f => ({ ...f, description: e.target.value || null }))} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel htmlFor="totem">Totem</RequiredLabel>
                 <Input id="totem" value={form.totem ?? ''} onChange={(e) => setForm(f => ({ ...f, totem: e.target.value || null }))} />
@@ -415,7 +415,7 @@ export default function UnitDetailPage() {
                 <Input id="adjective" value={form.adjective ?? ''} onChange={(e) => setForm(f => ({ ...f, adjective: e.target.value || null }))} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel htmlFor="color1">Couleur 1</RequiredLabel>
                 <div className="flex items-center gap-2">

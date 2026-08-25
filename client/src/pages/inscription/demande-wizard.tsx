@@ -453,14 +453,14 @@ export default function DemandeWizardPage() {
                 <p className="text-xs text-muted-foreground">Recevez un code par email pour retrouver et pré-remplir les informations de votre famille (parents, adresse, frères et sœurs). Utilisez votre email ou celui d'un parent déjà connu du groupe.</p>
                 {!lookupCodeSent ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <Input type="email" placeholder="Votre email ou celui d'un parent" value={lookupEmail} onChange={(e) => setLookupEmail(e.target.value)} className="max-w-xs" />
+                    <Input type="email" placeholder="Votre email ou celui d'un parent" value={lookupEmail} onChange={(e) => setLookupEmail(e.target.value)} className="w-full sm:max-w-xs" />
                     <Button type="button" variant="outline" size="sm" disabled={!lookupEmail.trim() || requestLookup.isPending} onClick={sendLookupCode}>
                       {requestLookup.isPending ? 'Envoi...' : 'Envoyer le code'}
                     </Button>
                   </div>
                 ) : (
                   <div className="flex flex-wrap items-center gap-2">
-                    <Input placeholder="Code reçu par email" value={lookupCode} onChange={(e) => setLookupCode(e.target.value)} className="max-w-[12rem]" />
+                    <Input placeholder="Code reçu par email" value={lookupCode} onChange={(e) => setLookupCode(e.target.value)} className="w-full sm:max-w-[12rem]" />
                     <Button type="button" size="sm" disabled={!lookupCode.trim() || verifyLookup.isPending} onClick={verifyLookupCode}>
                       {verifyLookup.isPending ? 'Vérification...' : 'Vérifier et pré-remplir'}
                     </Button>

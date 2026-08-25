@@ -3,6 +3,7 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Affichage mobile : correction de la barre d'onglets (Paramètres et autres pages) qui pouvait être coupée sur téléphone, et plusieurs formulaires (création d'un membre, équipe d'une unité, motifs de refus, tâche de rentrée, formulaire d'inscription) qui s'empilent désormais proprement sur petit écran au lieu d'être serrés sur deux colonnes.",
       "Paramètres accessibles au chef de groupe : la page Paramètres s'ouvre désormais au chef de groupe, qui peut modifier les catégories opérationnelles (Inscriptions, Documents, Cotisations, Passage, Membres, Rapports). Les réglages sensibles (Email, Sécurité, Maintenance, Site public, Général, Avancé) restent réservés au super-administrateur.",
       "Motifs de refus : gérés directement dans Paramètres → onglet Inscriptions (la page séparée « Motifs de refus » a été retirée du menu).",
       "Progression : le chef de groupe / chef d'unité peut désormais modifier une progression existante (étape, badge, date, lieu, remarques), en plus de l'ajouter ou la supprimer.",

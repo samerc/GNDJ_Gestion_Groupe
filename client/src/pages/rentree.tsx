@@ -565,7 +565,7 @@ export default function RentreePage() {
           <div className="space-y-3">
             <div className="space-y-1"><RequiredLabel required>Titre</RequiredLabel><Input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} /></div>
             <div className="space-y-1"><RequiredLabel>Description</RequiredLabel><Input value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} /></div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1"><RequiredLabel>Échéance (texte)</RequiredLabel><Input value={editForm.deadlineLabel} onChange={e => setEditForm(f => ({ ...f, deadlineLabel: e.target.value }))} placeholder="1ʳᵉ sem. octobre" /></div>
               <div className="space-y-1"><RequiredLabel>Date limite</RequiredLabel><Input type="date" value={editForm.dueDate} onChange={e => setEditForm(f => ({ ...f, dueDate: e.target.value }))} /></div>
             </div>

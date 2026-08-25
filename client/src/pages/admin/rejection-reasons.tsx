@@ -106,11 +106,11 @@ export default function RejectionReasonsPage({ embedded = false }: { embedded?: 
             <Button variant="ghost" size="icon" onClick={cancel}><X className="h-4 w-4" /></Button>
           </div>
           <div className="flex flex-wrap gap-3">
-            <div className="w-32">
+            <div className="w-full sm:w-32">
               <label className="text-xs text-muted-foreground">Code</label>
               <Input value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value })} placeholder="ex. 6" />
             </div>
-            <div className="min-w-56 flex-1">
+            <div className="w-full sm:min-w-56 sm:flex-1">
               <label className="text-xs text-muted-foreground">Libellé</label>
               <Input value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} placeholder="ex. Manque de place" />
             </div>

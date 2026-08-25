@@ -1025,7 +1025,7 @@ export default function MembersPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
             <FormFieldErrors show={hasErrors} />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel htmlFor="firstName" required>Prénom</RequiredLabel>
                 <Input id="firstName" className={fieldClass('firstName')} value={form.firstName} onChange={(e) => { setForm(f => ({ ...f, firstName: e.target.value })); clearField('firstName') }} required />
@@ -1035,7 +1035,7 @@ export default function MembersPage() {
                 <Input id="lastName" className={fieldClass('lastName')} value={form.lastName} onChange={(e) => { setForm(f => ({ ...f, lastName: e.target.value.toUpperCase() })); clearField('lastName') }} required />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel htmlFor="dateOfBirth" required>Date de naissance</RequiredLabel>
                 <Input id="dateOfBirth" type="date" value={form.dateOfBirth ?? ''} onChange={(e) => setForm(f => ({ ...f, dateOfBirth: e.target.value || null }))} />
@@ -1051,7 +1051,7 @@ export default function MembersPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel required>Nationalité</RequiredLabel>
                 <div className="flex items-center gap-1">
@@ -1078,7 +1078,7 @@ export default function MembersPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel required>École</RequiredLabel>
                 {(() => {
@@ -1116,7 +1116,7 @@ export default function MembersPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel>Section</RequiredLabel>
                 <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} />
@@ -1143,7 +1143,7 @@ export default function MembersPage() {
                 disambiguates a duplicate username. */}
             <div className="space-y-4 rounded-lg border border-border/60 bg-muted/30 p-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Parents (facultatif)</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <RequiredLabel>Nom du père</RequiredLabel>
                   <Input value={form.fatherName || ''} onChange={(e) => setForm(f => ({ ...f, fatherName: e.target.value }))} placeholder="Prénom du père" maxLength={100} />
@@ -1153,7 +1153,7 @@ export default function MembersPage() {
                   <Input value={form.motherName || ''} onChange={(e) => setForm(f => ({ ...f, motherName: e.target.value }))} placeholder="Prénom de la mère" maxLength={100} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <RequiredLabel>Nom de jeune fille (mère)</RequiredLabel>
                   <Input value={form.motherMaidenName || ''} onChange={(e) => setForm(f => ({ ...f, motherMaidenName: e.target.value.toUpperCase() }))} placeholder="Nom de famille de la mère" maxLength={100} />
