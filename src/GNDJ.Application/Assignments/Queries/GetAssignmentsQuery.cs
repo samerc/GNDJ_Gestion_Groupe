@@ -26,12 +26,11 @@ public class GetAssignmentsQueryHandler : IRequestHandler<GetAssignmentsQuery, P
 
     public async ValueTask<PaginatedList<AssignmentDto>> Handle(GetAssignmentsQuery request, CancellationToken cancellationToken)
     {
-        var query = _context.MemberAssignments
-            .Include(a => a.Member)
-            .Include(a => a.Unit)
-            .Include(a => a.Team)
-            .Include(a => a.FunctionalRole)
-            .AsQueryable();
+        // No Include() — a projection (.Select) follows, so EF loads only the projected columns. The nav
+        // accesses below are null-safe (a.Unit != null ? …) so a soft-deleted unit/role produces a LEFT JOIN
+        // and the row is KEPT with a placeholder, rather than an INNER JOIN silently dropping the whole
+        // assignment (which made a member look "active with no post" on their fiche).
+        var query = _context.MemberAssignments.AsQueryable();
 
         // Unit-scoping for non-super-admins. EXCEPTION: when viewing ONE member you're already allowed to
         // see (your own record, or a member currently active in one of your units — same rule as the member
@@ -82,9 +81,9 @@ public class GetAssignmentsQueryHandler : IRequestHandler<GetAssignmentsQuery, P
             .ThenByDescending(a => a.StartDate)
             .Select(a => new AssignmentDto(
                 a.Id, a.MemberId, a.Member.FirstName, a.Member.LastName,
-                a.UnitId, a.Unit.Name, a.Unit.UnitTypeId,
+                a.UnitId, a.Unit != null ? a.Unit.Name : "(unité supprimée)", a.Unit != null ? a.Unit.UnitTypeId : Guid.Empty,
                 a.TeamId, a.Team != null ? a.Team.Name : null,
-                a.FunctionalRoleId, a.FunctionalRole.Name,
+                a.FunctionalRoleId, a.FunctionalRole != null ? a.FunctionalRole.Name : "(fonction supprimée)",
                 a.StartDate, a.EndDate, a.Notes,
                 a.EndDate == null
             ));

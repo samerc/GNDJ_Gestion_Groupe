@@ -1,7 +1,7 @@
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { useState, useMemo } from 'react'
-import { useMemberProgressions, useCreateProgression, useDeleteProgression, useScoutStageList, useBadgeList, type MemberProgressionDto } from '@/services/progression-service'
+import { useMemberProgressions, useCreateProgression, useUpdateProgression, useDeleteProgression, useScoutStageList, useBadgeList, type MemberProgressionDto } from '@/services/progression-service'
 import { useProposeProgression, useMyChangeRequests, useProposableUnits, useDismissChangeRequest } from '@/services/change-request-service'
 import { useAssignments } from '@/services/assignment-service'
 import { useAuthStore } from '@/stores/auth-store'
@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Tip } from '@/components/ui/tooltip'
-import { Plus, Trash2, Star, Award, MapPin, Calendar, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Star, Award, MapPin, Calendar, X } from 'lucide-react'
 
 // "Progression" tab of the member detail page / Ma fiche / CU dashboard. Lists the member's
 // recorded progression entries (a scout stage, plus a badge when the stage is a badge-stage,
@@ -68,9 +68,11 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
   }, [assignmentsData])
 
   const createMutation = useCreateProgression(memberId)
+  const updateMutation = useUpdateProgression(memberId)
   const deleteMutation = useDeleteProgression(memberId)
 
   const [formOpen, setFormOpen] = useState(false)
+  const [editing, setEditing] = useState<MemberProgressionDto | null>(null)
   const [deleting, setDeleting] = useState<MemberProgressionDto | null>(null)
   const [error, setError] = useState('')
 
@@ -92,9 +94,21 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
   const { data: badges } = useBadgeList(selectedStage?.isBadgeStage ? (selectedUnitTypeId ?? '') : '')
 
   const openCreate = () => {
+    setEditing(null)
     // Default to the member's current unit (else the first/most-recent unit in their history).
     const defaultUnitId = propUnitId ?? activeAssignment?.unitId ?? unitPickerOptions[0]?.unitId ?? ''
     setForm({ unitId: defaultUnitId, scoutStageId: '', badgeId: '', date: new Date().toISOString().split('T')[0], location: '', notes: '' })
+    setError('')
+    setFormOpen(true)
+  }
+
+  // Edit an existing progression (manager only) — prefill the form from the record.
+  const openEdit = (p: MemberProgressionDto) => {
+    setEditing(p)
+    setForm({
+      unitId: p.unitId, scoutStageId: p.scoutStageId, badgeId: p.badgeId ?? '',
+      date: p.date.split('T')[0], location: p.location ?? '', notes: p.notes ?? '',
+    })
     setError('')
     setFormOpen(true)
   }
@@ -116,7 +130,11 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
       notes: form.notes || null,
     }
     try {
-      if (hasPermission(PERMISSIONS.PROGRESSION_MANAGE)) {
+      if (editing && canManage) {
+        // Manager: edit the existing entry in place.
+        await updateMutation.mutateAsync({ id: editing.id, memberId, ...payload })
+        toast.success('Progression modifiée')
+      } else if (hasPermission(PERMISSIONS.PROGRESSION_MANAGE)) {
         // Manager: record it directly.
         await createMutation.mutateAsync({ memberId, ...payload })
         toast.success('Progression ajoutée')
@@ -213,9 +231,14 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
                     {p.notes && <p className="mt-1 text-xs text-muted-foreground">{p.notes}</p>}
                   </div>
                   {canManage && (
-                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setDeleting(p)}>
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button></Tip>
+                    <div className="flex shrink-0 gap-1">
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(p)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button></Tip>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(p)}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button></Tip>
+                    </div>
                   )}
                 </div>
               ))}
@@ -227,7 +250,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
       {/* Create Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{canManage ? 'Nouvelle progression' : 'Proposer une progression'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? 'Modifier la progression' : canManage ? 'Nouvelle progression' : 'Proposer une progression'}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
@@ -285,7 +308,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
 
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={createMutation.isPending || proposeMutation.isPending}>{canManage ? 'Enregistrer' : 'Proposer'}</Button>
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending || proposeMutation.isPending}>{canManage ? 'Enregistrer' : 'Proposer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

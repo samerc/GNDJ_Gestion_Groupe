@@ -147,6 +147,15 @@ export function useCreateProgression(memberId: string) {
   })
 }
 
+// PUT /progressions/{id} — edit an existing progression (unit/stage/badge/date/location/notes).
+export function useUpdateProgression(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: CreateProgressionData & { id: string }) => apiClient.put(`/progressions/${id}`, { id, ...data }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['progressions', memberId] }); qc.invalidateQueries({ queryKey: ['members', memberId] }) },
+  })
+}
+
 // DELETE /progressions/{id}.
 export function useDeleteProgression(memberId: string) {
   const qc = useQueryClient()

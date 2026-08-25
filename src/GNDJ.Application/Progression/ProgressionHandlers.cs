@@ -505,3 +505,59 @@ public class DeleteMemberProgressionCommandHandler(IApplicationDbContext context
         return Result<bool>.Success(true);
     }
 }
+
+// Update progression — lets a manager correct an existing entry (unit / stage / badge / date / location / notes)
+// instead of delete-and-recreate. Same access model as create/delete.
+public record UpdateMemberProgressionCommand(Guid Id, Guid UnitId, Guid ScoutStageId, Guid? BadgeId, DateOnly Date, string? Location, string? Notes) : IRequest<Result<bool>>;
+
+public class UpdateMemberProgressionCommandValidator : AbstractValidator<UpdateMemberProgressionCommand>
+{
+    public UpdateMemberProgressionCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.UnitId).NotEmpty().WithMessage("L'unité est requise.");
+        RuleFor(x => x.ScoutStageId).NotEmpty().WithMessage("L'étape est requise.");
+        RuleFor(x => x.Location).MaximumLength(200).NoHtml();
+        RuleFor(x => x.Notes).MaximumLength(2000).NoHtml();
+        RuleFor(x => x.Date).LessThanOrEqualTo(_ => LebanonClock.Today.AddDays(1))
+            .WithMessage("La date ne peut pas être dans le futur.");
+    }
+}
+
+public class UpdateMemberProgressionCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<UpdateMemberProgressionCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(UpdateMemberProgressionCommand request, CancellationToken ct)
+    {
+        var entity = await context.MemberProgressions.FindAsync([request.Id], ct);
+        if (entity is null) return Result<bool>.Failure("Progression introuvable.");
+
+        // Same model as create/delete: a leader who MANAGES the member (member active in one of the caller's
+        // units), and the target unit must be one the member belonged to (current or past).
+        if (!currentUser.IsSuperAdmin)
+        {
+            var canManageMember = await context.MemberAssignments.AnyAsync(a =>
+                a.MemberId == entity.MemberId && a.EndDate == null && !a.IsDeleted && currentUser.AuthorizedUnitIds.Contains(a.UnitId), ct);
+            if (!canManageMember) return Result<bool>.Failure("Accès non autorisé.");
+
+            var memberInUnit = await context.MemberAssignments.AnyAsync(a =>
+                a.MemberId == entity.MemberId && a.UnitId == request.UnitId && !a.IsDeleted, ct);
+            if (!memberInUnit) return Result<bool>.Failure("Ce membre n'appartient pas à cette unité.");
+        }
+
+        var stage = await context.ScoutStages.FindAsync([request.ScoutStageId], ct);
+        if (stage is null) return Result<bool>.Failure("Étape introuvable.");
+        if (stage.IsBadgeStage && request.BadgeId is null)
+            return Result<bool>.Failure("Un badge est requis pour cette étape.");
+
+        entity.UnitId = request.UnitId;
+        entity.ScoutStageId = request.ScoutStageId;
+        entity.BadgeId = stage.IsBadgeStage ? request.BadgeId : null;
+        entity.Date = request.Date;
+        entity.Location = request.Location;
+        entity.Notes = request.Notes;
+
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("Update", "MemberProgression", entity.Id, newValues: new { Stage = stage.Name, entity.Date }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}

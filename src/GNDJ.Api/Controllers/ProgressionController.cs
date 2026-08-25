@@ -185,6 +185,17 @@ public class ProgressionsController : BaseApiController
         return Created($"/api/v1/progressions/{result.Value}", new { id = result.Value });
     }
 
+    /// <summary>Edits a member progression record (unit/stage/badge/date/location/notes). Requires progression.manage.</summary>
+    [HttpPut("{id:guid}")]
+    [HasPermission(Permissions.ProgressionManage)]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateMemberProgressionCommand command)
+    {
+        if (id != command.Id) return BadRequest(new { error = "Identifiant incohérent." });
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>Deletes a member progression record. Requires progression.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.ProgressionManage)]

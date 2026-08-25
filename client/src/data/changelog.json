@@ -3,6 +3,8 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Progression : le chef de groupe / chef d'unité peut désormais modifier une progression existante (étape, badge, date, lieu, remarques), en plus de l'ajouter ou la supprimer.",
+      "Correction : une affectation dont l'unité ou la fonction aurait été supprimée n'est plus masquée sur la fiche du membre (elle s'affiche avec une mention à la place de disparaître).",
       "Affectations : le chef de groupe / chef d'unité peut désormais modifier directement l'unité, l'équipe et la fonction d'une affectation existante (auparavant seule la date était modifiable). Pour un vrai changement de branche qui conserve l'historique, utilisez le passage.",
       "Journal d'audit : un bouton « Vider le journal » (super-administrateur) permet d'effacer les entrées d'audit, comme pour le journal des erreurs.",
       "Performance : le tableau de bord de groupe (Statistiques) se charge plus vite — le code du tableau de bord d'unité (lourd : fiches, documents, rapports) n'est plus chargé pour les chefs de groupe et super-admins qui ne l'utilisent pas.",
