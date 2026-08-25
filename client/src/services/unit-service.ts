@@ -33,10 +33,12 @@ export interface UnitFormData {
 }
 
 // Paginated units list (GET /units); filter by association/unitType/isActive + search. Keyed ['units', params].
-export function useUnits(params: { search?: string; associationId?: string; unitTypeId?: string; isActive?: boolean; page?: number; pageSize?: number }) {
+// `enabled` gates the fetch (e.g. only load the full list for a manager who needs the all-units picker).
+export function useUnits(params: { search?: string; associationId?: string; unitTypeId?: string; isActive?: boolean; page?: number; pageSize?: number }, enabled = true) {
   return useQuery({
     queryKey: ['units', params],
     queryFn: () => apiClient.get<PaginatedResult<UnitDto>>('/units', { params }).then(r => r.data),
+    enabled,
   })
 }
 

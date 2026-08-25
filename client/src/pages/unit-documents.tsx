@@ -14,6 +14,7 @@ import {
 } from '@/services/document-service'
 import apiClient from '@/lib/api-client'
 import { useCreateCotisation, useUpdateCotisation, useSetCotisationExempt } from '@/services/cotisation-service'
+import { useUnits } from '@/services/unit-service'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -68,10 +69,19 @@ export default function UnitDocumentsPage() {
   const user = useAuthStore((s) => s.user)
   const currentScoutYear = useCurrentScoutYear()
   const defaultAmount = useSettingValue('cotisation.default_amount')
-  const [selectedUnit, setSelectedUnit] = useState<string>(user?.unitAccess[0]?.unitId ?? '')
+  // A group manager (super-admin / Chef de Groupe) can review ANY unit's documents via a full unit picker;
+  // a chef d'unité is limited to their own authorized unit(s) (user.unitAccess). The backend matrix endpoint
+  // already allows a manager on any unit (members.edit + all units granted), so this is a UI-only widening.
+  const isManager = (user?.isSuperAdmin || user?.permissions.includes(PERMISSIONS.MAITRISE_MANAGE)) ?? false
+  const { data: allUnitsData } = useUnits({ isActive: true, pageSize: 200 }, isManager)
+  const managerUnits = useMemo(() => (allUnitsData?.items ?? []).map(u => ({ unitId: u.id, unitName: u.name })), [allUnitsData])
+  // Units offered in the picker: all active units for a manager, else the leader's own units.
+  const pickerUnits = isManager ? managerUnits : (user?.unitAccess ?? [])
+  // A manager starts with no unit chosen (explicit pick); a CU defaults to their first unit.
+  const [selectedUnit, setSelectedUnit] = useState<string>(isManager ? '' : (user?.unitAccess[0]?.unitId ?? ''))
 
-  // Effective unit = explicit pick, else the CU's first authorized unit.
-  const unitId = selectedUnit || user?.unitAccess[0]?.unitId || ''
+  // Effective unit = explicit pick, else (for a CU) their first authorized unit; a manager stays empty until picked.
+  const unitId = selectedUnit || (isManager ? '' : (user?.unitAccess[0]?.unitId ?? ''))
   const { data: matrix, isLoading } = useUnitDocumentsMatrix(unitId, currentScoutYear)
   const reviewMutation = useReviewDocumentMatrix(unitId)
   const hasPermission = useAuthStore((s) => s.hasPermission)
@@ -392,23 +402,28 @@ export default function UnitDocumentsPage() {
           <p className="text-sm text-muted-foreground">Année scoute {currentScoutYear}</p>
         </div>
         <div className="flex items-center gap-2">
-          {user.unitAccess.length > 1 && (
-            <Select value={unitId} onValueChange={setSelectedUnit}>
-              <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+          {/* Manager → full unit picker (all active units); CU → only when they lead >1 unit. */}
+          {(isManager || pickerUnits.length > 1) && (
+            <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+              <SelectTrigger className="w-56"><SelectValue placeholder="Choisir une unité…" /></SelectTrigger>
               <SelectContent>
-                {user.unitAccess.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}</SelectItem>)}
+                {pickerUnits.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}</SelectItem>)}
               </SelectContent>
             </Select>
           )}
-          <Button variant="outline" size="sm" onClick={() => handleDownloadZip()} disabled={downloading}>
-            <FileArchive className="mr-1 h-4 w-4" />{downloading ? '...' : 'ZIP'}
-          </Button>
+          {unitId && (
+            <Button variant="outline" size="sm" onClick={() => handleDownloadZip()} disabled={downloading}>
+              <FileArchive className="mr-1 h-4 w-4" />{downloading ? '...' : 'ZIP'}
+            </Button>
+          )}
         </div>
       </div>
 
       {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
-      {isLoading ? <LoadingSpinner variant="table" /> : !matrix || matrix.members.length === 0 ? (
+      {!unitId ? (
+        <p className="text-muted-foreground py-12 text-center">Sélectionnez une unité pour afficher ses documents.</p>
+      ) : isLoading ? <LoadingSpinner variant="table" /> : !matrix || matrix.members.length === 0 ? (
         <p className="text-muted-foreground py-12 text-center">Aucun membre actif dans cette unité.</p>
       ) : (
         <>

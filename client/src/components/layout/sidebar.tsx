@@ -137,6 +137,8 @@ const adminGroups: AdminGroup[] = [
       { path: '/attendance', label: 'Réunions & absences', icon: CalendarCheck, permission: PERMISSIONS.ATTENDANCE_MANAGE },
       { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },
       { path: '/admin/documents-suivi', label: 'Suivi documents', icon: FileWarning, permission: PERMISSIONS.MAITRISE_MANAGE },
+      // Per-unit document matrix (same grid as a CU's "Documents", with a unit picker) for the CG/super-admin.
+      { path: '/unit-documents', label: 'Documents par unité', icon: FileText, permission: PERMISSIONS.MAITRISE_MANAGE },
     ],
   },
   {
