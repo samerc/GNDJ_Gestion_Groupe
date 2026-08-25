@@ -342,7 +342,7 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
                 <p className="text-sm font-medium">Chef d'équipe</p>
-                <p className="text-xs text-muted-foreground">Le membre peut voir son équipe et remplir les présences de ses séances</p>
+                <p className="text-xs text-muted-foreground">Le membre peut voir son équipe et remplir les présences de ses réunions</p>
               </div>
               <Switch checked={!!form.isTeamLeader} onCheckedChange={(v) => setForm(f => ({ ...f, isTeamLeader: v }))} />
             </div>

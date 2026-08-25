@@ -248,7 +248,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const currentScoutYear = useCurrentScoutYear()
   const [generatingReport, setGeneratingReport] = useState<string | null>(null)
 
-  // Per-member absence counts (the running calendar scout year, so pre-season séances count) → roster badge.
+  // Per-member absence counts (the running calendar scout year, so pre-season réunions count) → roster badge.
   const { data: absenceCountsRaw } = useUnitAbsenceCounts(unitId, calendarScoutYear())
   const absenceCounts = useMemo(() => {
     const m = new Map<string, number>()
@@ -458,7 +458,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
                       <p className="text-xs text-muted-foreground truncate">{m.functionalRoleName}</p>
                     </div>
                     {absenceCounts.get(m.memberId) ? (
-                      <Tip content="Absences aux séances cette année">
+                      <Tip content="Absences aux réunions cette année">
                         <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
                           <CalendarCheck className="h-3 w-3" />{absenceCounts.get(m.memberId)}
                         </span>

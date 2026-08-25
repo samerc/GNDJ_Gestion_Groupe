@@ -74,7 +74,7 @@ public static class Permissions
     public const string CampManage = "camp.manage"; // CG/super-admin: Camp BP — camp, draft, familles, games
     public const string CampGrade = "camp.grade";   // CU: grade own unit's members for the camp
 
-    public const string AttendanceManage = "attendance.manage"; // CU/CG: manage séances + absences for their units
+    public const string AttendanceManage = "attendance.manage"; // CU/CG: manage réunions + absences for their units
 
     public const string AuditView = "audit.view";
     public const string AdminHardDelete = "admin.hard_delete";

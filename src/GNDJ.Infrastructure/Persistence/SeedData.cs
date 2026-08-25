@@ -1087,7 +1087,7 @@ public static class SeedData
     }
 
     // Marks the primary team-leader roles (chef d'équipe / sizenier / chef de patrouille) as IsTeamLeader so their
-    // holders can fill their team's séances/absences. Idempotent: runs only while NO role is flagged yet, so a CG's
+    // holders can fill their team's réunions/absences. Idempotent: runs only while NO role is flagged yet, so a CG's
     // later edits are never overridden. Assistants/seconds are intentionally NOT flagged (the CG can toggle in the UI).
     public static async Task SeedFunctionalRoleTeamLeaderAsync(GndjDbContext context)
     {

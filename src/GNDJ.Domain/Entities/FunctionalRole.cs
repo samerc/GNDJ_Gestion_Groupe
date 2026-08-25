@@ -12,7 +12,7 @@ public class FunctionalRole : BaseEntity
     public int Rank { get; set; } // display ordering within a unit type (higher = more senior; set by drag)
     public bool IsArchived { get; set; } // hidden from pickers but kept (still shown on members who hold it)
     public bool IsMaitrise { get; set; } // leadership function — its holders appear on the Maîtrises page
-    public bool IsTeamLeader { get; set; } // chef d'équipe — its holder leads their team (fills its séances/absences)
+    public bool IsTeamLeader { get; set; } // chef d'équipe — its holder leads their team (fills its réunions/absences)
     public bool IsDefaultForNewMembers { get; set; } // the role auto-assigned to members admitted from a demande (one per unit type)
     public Guid SecurityProfileId { get; set; }
     public Guid? UnitTypeId { get; set; }

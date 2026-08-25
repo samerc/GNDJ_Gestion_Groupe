@@ -265,7 +265,7 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
 
         // Absence-count window (Oct-1 boundary) — uses the scout year that CONTAINS TODAY (the calendar year),
         // NOT the configured passage year (which is set ahead for the upcoming year). During the pre-season
-        // (Aug–Sep), the running year and the configured year differ, so this keeps séances logged now visible
+        // (Aug–Sep), the running year and the configured year differ, so this keeps réunions logged now visible
         // and matches the roster/CG-list badges (also calendar-based).
         var (syStart, syEnd) = ScoutYearHelper.Window(null);
 
@@ -298,7 +298,7 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
                     m.Documents.Count(d => !d.IsDeleted),
                     m.Cotisations.Count(c => !c.IsDeleted),
                     m.Progressions.Count(p => !p.IsDeleted)),
-                // Absences on APPROVED séances within the current scout year (Séances feature).
+                // Absences on APPROVED réunions within the current scout year (Réunions feature).
                 _context.MeetingAbsences.Count(a => !a.IsDeleted && a.MemberId == m.Id
                     && a.Meeting.Status == "Approved" && a.Meeting.Date >= syStart && a.Meeting.Date < syEnd)
             ))

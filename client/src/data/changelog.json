@@ -3,6 +3,7 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Terminologie : « Séances » est renommé « Réunions » partout dans l'application (page, menu, boutons, messages). La « séance photo » (session photo) n'est pas concernée.",
       "Rentrée : la liste de tâches type a été revue (31 tâches). Les deux vérifications de documents (1ère et 2ème) sont désormais des tâches manuelles avec échéance — ce qui corrige les tâches qui apparaissaient « terminées » alors qu'elles ne l'étaient pas. Ajout de l'ouverture de la période de dépôt des documents, du blocage des dossiers incomplets, de la collecte des coordonnées des membres qui quittent, de la vérification des textes des emails, et du document des tenues ; « Imprimer les cartes » retirée.",
       "Affichage mobile : correction de la barre d'onglets (Paramètres et autres pages) qui pouvait être coupée sur téléphone, et plusieurs formulaires (création d'un membre, équipe d'une unité, motifs de refus, tâche de rentrée, formulaire d'inscription) qui s'empilent désormais proprement sur petit écran au lieu d'être serrés sur deux colonnes.",
       "Paramètres accessibles au chef de groupe : la page Paramètres s'ouvre désormais au chef de groupe, qui peut modifier les catégories opérationnelles (Inscriptions, Documents, Cotisations, Passage, Membres, Rapports). Les réglages sensibles (Email, Sécurité, Maintenance, Site public, Général, Avancé) restent réservés au super-administrateur.",

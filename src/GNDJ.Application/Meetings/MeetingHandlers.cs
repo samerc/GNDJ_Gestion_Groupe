@@ -9,15 +9,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Meetings;
 
-// Séances / absences. A séance is a unit-wide OR team-scoped meeting/outing/camp; attendance is an absentee list
+// Réunions / absences. A réunion is a unit-wide OR team-scoped meeting/outing/camp; attendance is an absentee list
 // (present by default). A CU (attendance.manage + unit) manages everything in their units; a chef d'équipe (a
-// member holding an IsTeamLeader role on a team) can create a PENDING séance for their team and fill its
+// member holding an IsTeamLeader role on a team) can create a PENDING réunion for their team and fill its
 // attendance. Absence counts (per member) surface on the CU roster, CG list, and member fiche.
 
 // ── Shared authorization helpers ───────────────────────────────────────────────
 public static class AttendanceAccess
 {
-    // A CU/CG manages a unit's séances when they hold attendance.manage AND the unit is in scope (CG = all units).
+    // A CU/CG manages a unit's réunions when they hold attendance.manage AND the unit is in scope (CG = all units).
     public static bool CanManageUnit(ICurrentUserService u, Guid unitId) =>
         u.IsSuperAdmin || (u.Permissions.Contains(Permissions.AttendanceManage) && u.AuthorizedUnitIds.Contains(unitId));
 
@@ -38,7 +38,7 @@ public record MeetingDto(
     string Type, string? Title, DateOnly Date, DateOnly? EndDate, string Status,
     int RosterCount, int AbsentCount, bool CanManage);
 
-// The caller's manageable units + led teams — drives the page (which unit/team to create/fill séances for).
+// The caller's manageable units + led teams — drives the page (which unit/team to create/fill réunions for).
 public record AttendanceScopeDto(IReadOnlyList<ScopeUnit> Units, IReadOnlyList<ScopeTeam> Teams);
 public record ScopeUnit(Guid UnitId, string UnitName);
 public record ScopeTeam(Guid TeamId, string TeamName, Guid UnitId, string UnitName);
@@ -80,7 +80,7 @@ public class GetAttendanceScopeQueryHandler(IApplicationDbContext context, ICurr
     }
 }
 
-// Séances for a unit the caller manages, OR (for a chef d'équipe) their team's séances in that unit.
+// Réunions for a unit the caller manages, OR (for a chef d'équipe) their team's réunions in that unit.
 // ScoutYear (optional) filters to that year's Oct-1 window so two years can be viewed in parallel.
 public record GetMeetingsQuery(Guid UnitId, string? ScoutYear = null) : IRequest<Result<IReadOnlyList<MeetingDto>>>;
 
@@ -96,7 +96,7 @@ public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUser
             return Result<IReadOnlyList<MeetingDto>>.Failure("Accès non autorisé à cette unité.");
 
         var q = context.Meetings.Where(m => m.UnitId == request.UnitId);
-        // A team leader only sees their own team's séances (CU sees all).
+        // A team leader only sees their own team's réunions (CU sees all).
         if (!canManage) q = q.Where(m => m.TeamId != null && ledInThisUnit.Contains(m.TeamId.Value));
         // Optional scout-year filter (Oct-1 window) so a leader can view/log either year during the transition.
         if (!string.IsNullOrWhiteSpace(request.ScoutYear))
@@ -113,7 +113,7 @@ public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUser
                 AbsentCount = m.Absences.Count(a => !a.IsDeleted),
             }).ToListAsync(ct);
 
-        // Roster size per meeting, BATCHED (avoids a COUNT per meeting = an N+1 on the séances list): one
+        // Roster size per meeting, BATCHED (avoids a COUNT per meeting = an N+1 on the réunions list): one
         // whole-unit active count + one grouped per-team active count, then each meeting looks up its scope
         // (team-wide vs unit-wide) from the dictionary.
         var unitRosterCount = await context.MemberAssignments
@@ -131,14 +131,14 @@ public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUser
         return Result<IReadOnlyList<MeetingDto>>.Success(result);
     }
 
-    // Active members in scope of a séance: the whole unit (teamId null) or one team.
+    // Active members in scope of a réunion: the whole unit (teamId null) or one team.
     internal static IQueryable<MemberAssignment> RosterQuery(IApplicationDbContext ctx, Guid unitId, Guid? teamId) =>
         teamId is null
             ? ctx.MemberAssignments.Where(a => a.UnitId == unitId && a.EndDate == null)
             : ctx.MemberAssignments.Where(a => a.UnitId == unitId && a.EndDate == null && a.TeamId == teamId);
 }
 
-// The roster + current absentees for one séance (to fill attendance).
+// The roster + current absentees for one réunion (to fill attendance).
 public record GetMeetingAttendanceQuery(Guid Id) : IRequest<Result<MeetingAttendanceDto>>;
 
 public class GetMeetingAttendanceQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
@@ -148,12 +148,12 @@ public class GetMeetingAttendanceQueryHandler(IApplicationDbContext context, ICu
     {
         var m = await context.Meetings.Include(x => x.Unit).Include(x => x.Team)
             .FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-        if (m is null) return Result<MeetingAttendanceDto>.Failure("Séance introuvable.");
+        if (m is null) return Result<MeetingAttendanceDto>.Failure("Réunion introuvable.");
 
         var canManage = AttendanceAccess.CanManageUnit(currentUser, m.UnitId);
         var ledTeamIds = await AttendanceAccess.LeadTeamIdsAsync(context, currentUser.MemberId, ct);
         var canFill = canManage || (m.TeamId != null && ledTeamIds.Contains(m.TeamId.Value));
-        if (!canFill) return Result<MeetingAttendanceDto>.Failure("Accès non autorisé à cette séance.");
+        if (!canFill) return Result<MeetingAttendanceDto>.Failure("Accès non autorisé à cette réunion.");
 
         var roster = await GetMeetingsQueryHandler.RosterQuery(context, m.UnitId, m.TeamId)
             .Select(a => new { a.MemberId, a.Member.FirstName, a.Member.LastName, TeamName = a.Team != null ? a.Team.Name : null })
@@ -192,7 +192,7 @@ public class GetUnitAbsenceCountsQueryHandler(IApplicationDbContext context, ICu
         if (!canView) return Result<IReadOnlyList<MemberAbsenceCount>>.Success([]);
 
         var (start, end) = ScoutYearHelper.Window(request.ScoutYear);
-        // Count absences on APPROVED séances of this unit within the scout-year window.
+        // Count absences on APPROVED réunions of this unit within the scout-year window.
         var rows = await context.MeetingAbsences
             .Where(a => !a.IsDeleted && a.Meeting.UnitId == request.UnitId && a.Meeting.Status == MeetingStatuses.Approved
                         && a.Meeting.Date >= start && a.Meeting.Date < end)
@@ -212,7 +212,7 @@ public class CreateMeetingCommandValidator : AbstractValidator<CreateMeetingComm
 {
     public CreateMeetingCommandValidator()
     {
-        RuleFor(x => x.Type).Must(t => MeetingTypes.All.Contains(t)).WithMessage("Type de séance invalide.");
+        RuleFor(x => x.Type).Must(t => MeetingTypes.All.Contains(t)).WithMessage("Type de réunion invalide.");
         RuleFor(x => x.Title).MaximumLength(150);
         RuleFor(x => x.Notes).MaximumLength(1000);
         RuleFor(x => x.EndDate).GreaterThanOrEqualTo(x => x.Date).When(x => x.EndDate.HasValue)
@@ -236,14 +236,14 @@ public class CreateMeetingCommandHandler(IApplicationDbContext context, ICurrent
         string status;
         if (canManage)
         {
-            status = MeetingStatuses.Approved; // CU/CG séances are approved immediately
+            status = MeetingStatuses.Approved; // CU/CG réunions are approved immediately
         }
         else
         {
-            // A chef d'équipe may create a séance ONLY for a team they lead — pending CU approval.
+            // A chef d'équipe may create a réunion ONLY for a team they lead — pending CU approval.
             var ledTeamIds = await AttendanceAccess.LeadTeamIdsAsync(context, currentUser.MemberId, ct);
             if (request.TeamId is null || !ledTeamIds.Contains(request.TeamId.Value))
-                return Result<Guid>.Failure("Vous ne pouvez créer une séance que pour votre équipe.");
+                return Result<Guid>.Failure("Vous ne pouvez créer une réunion que pour votre équipe.");
             status = MeetingStatuses.Pending;
         }
 
@@ -265,7 +265,7 @@ public class CreateMeetingCommandHandler(IApplicationDbContext context, ICurrent
     }
 }
 
-// CU/CG edits a séance's details (type/title/date/range/scope). Managers only (attendance.manage + unit).
+// CU/CG edits a réunion's details (type/title/date/range/scope). Managers only (attendance.manage + unit).
 public record UpdateMeetingCommand(Guid Id, Guid? TeamId, string Type, string? Title, DateOnly Date, DateOnly? EndDate, string? Notes)
     : IRequest<Result<bool>>;
 
@@ -273,7 +273,7 @@ public class UpdateMeetingCommandValidator : AbstractValidator<UpdateMeetingComm
 {
     public UpdateMeetingCommandValidator()
     {
-        RuleFor(x => x.Type).Must(t => MeetingTypes.All.Contains(t)).WithMessage("Type de séance invalide.");
+        RuleFor(x => x.Type).Must(t => MeetingTypes.All.Contains(t)).WithMessage("Type de réunion invalide.");
         RuleFor(x => x.Title).MaximumLength(150);
         RuleFor(x => x.Notes).MaximumLength(1000);
         RuleFor(x => x.EndDate).GreaterThanOrEqualTo(x => x.Date).When(x => x.EndDate.HasValue)
@@ -287,12 +287,12 @@ public class UpdateMeetingCommandHandler(IApplicationDbContext context, ICurrent
     public async ValueTask<Result<bool>> Handle(UpdateMeetingCommand request, CancellationToken ct)
     {
         var m = await context.Meetings.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-        if (m is null) return Result<bool>.Failure("Séance introuvable.");
-        // Only a CU/CG (manager of the unit) may edit a séance's details.
+        if (m is null) return Result<bool>.Failure("Réunion introuvable.");
+        // Only a CU/CG (manager of the unit) may edit a réunion's details.
         if (!AttendanceAccess.CanManageUnit(currentUser, m.UnitId))
-            return Result<bool>.Failure("Seul le chef d'unité peut modifier une séance.");
+            return Result<bool>.Failure("Seul le chef d'unité peut modifier une réunion.");
 
-        // If a team is set, it must belong to the séance's unit.
+        // If a team is set, it must belong to the réunion's unit.
         if (request.TeamId is Guid tid)
         {
             var okTeam = await context.Teams.AnyAsync(t => t.Id == tid && t.UnitId == m.UnitId, ct);
@@ -318,7 +318,7 @@ public class UpdateMeetingCommandHandler(IApplicationDbContext context, ICurrent
     }
 }
 
-// CU approves (or the creator/CU deletes) a séance.
+// CU approves (or the creator/CU deletes) a réunion.
 public record ApproveMeetingCommand(Guid Id) : IRequest<Result<bool>>;
 
 public class ApproveMeetingCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
@@ -327,9 +327,9 @@ public class ApproveMeetingCommandHandler(IApplicationDbContext context, ICurren
     public async ValueTask<Result<bool>> Handle(ApproveMeetingCommand request, CancellationToken ct)
     {
         var m = await context.Meetings.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-        if (m is null) return Result<bool>.Failure("Séance introuvable.");
+        if (m is null) return Result<bool>.Failure("Réunion introuvable.");
         if (!AttendanceAccess.CanManageUnit(currentUser, m.UnitId))
-            return Result<bool>.Failure("Seul le chef d'unité peut approuver une séance.");
+            return Result<bool>.Failure("Seul le chef d'unité peut approuver une réunion.");
         m.Status = MeetingStatuses.Approved;
         await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);
@@ -344,9 +344,9 @@ public class DeleteMeetingCommandHandler(IApplicationDbContext context, ICurrent
     public async ValueTask<Result<bool>> Handle(DeleteMeetingCommand request, CancellationToken ct)
     {
         var m = await context.Meetings.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-        if (m is null) return Result<bool>.Failure("Séance introuvable.");
+        if (m is null) return Result<bool>.Failure("Réunion introuvable.");
         var canManage = AttendanceAccess.CanManageUnit(currentUser, m.UnitId);
-        // A team leader may delete their OWN still-pending séance.
+        // A team leader may delete their OWN still-pending réunion.
         var ownPending = m.Status == MeetingStatuses.Pending && m.CreatedByMemberId == currentUser.MemberId;
         if (!canManage && !ownPending) return Result<bool>.Failure("Accès non autorisé.");
         context.Meetings.Remove(m);
@@ -355,7 +355,7 @@ public class DeleteMeetingCommandHandler(IApplicationDbContext context, ICurrent
     }
 }
 
-// Replace the absentee list for a séance (present = not in the list).
+// Replace the absentee list for a réunion (present = not in the list).
 public record AbsenceInput(Guid MemberId, string? Reason);
 public record SaveMeetingAttendanceCommand(Guid MeetingId, List<AbsenceInput> Absences) : IRequest<Result<bool>>;
 
@@ -374,14 +374,14 @@ public class SaveMeetingAttendanceCommandHandler(IApplicationDbContext context, 
     public async ValueTask<Result<bool>> Handle(SaveMeetingAttendanceCommand request, CancellationToken ct)
     {
         var m = await context.Meetings.FirstOrDefaultAsync(x => x.Id == request.MeetingId, ct);
-        if (m is null) return Result<bool>.Failure("Séance introuvable.");
+        if (m is null) return Result<bool>.Failure("Réunion introuvable.");
 
         var canManage = AttendanceAccess.CanManageUnit(currentUser, m.UnitId);
         var ledTeamIds = await AttendanceAccess.LeadTeamIdsAsync(context, currentUser.MemberId, ct);
         var canFill = canManage || (m.TeamId != null && ledTeamIds.Contains(m.TeamId.Value));
-        if (!canFill) return Result<bool>.Failure("Accès non autorisé à cette séance.");
+        if (!canFill) return Result<bool>.Failure("Accès non autorisé à cette réunion.");
 
-        // Only members actually in the séance's roster may be marked absent (ignore anything else).
+        // Only members actually in the réunion's roster may be marked absent (ignore anything else).
         var rosterIds = (await GetMeetingsQueryHandler.RosterQuery(context, m.UnitId, m.TeamId)
             .Select(a => a.MemberId).Distinct().ToListAsync(ct)).ToHashSet();
 

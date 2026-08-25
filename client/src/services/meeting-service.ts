@@ -1,14 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
-// Séances / absences. A séance is a unit-wide OR team-scoped meeting/outing/camp; attendance is an absentee
+// Réunions / absences. A réunion is a unit-wide OR team-scoped meeting/outing/camp; attendance is an absentee
 // list (present by default). A CU (attendance.manage + unit) manages everything in their units; a chef d'équipe
-// (a member holding an IsTeamLeader role on a team) creates a PENDING séance for their team and fills it.
+// (a member holding an IsTeamLeader role on a team) creates a PENDING réunion for their team and fills it.
 // Queries key on ['meetings', ...].
 
 export const MEETING_TYPES = ['Reunion', 'Sortie', 'Camp'] as const
 export type MeetingType = (typeof MEETING_TYPES)[number]
-// French labels for the séance types (Reunion=réunion, Sortie=sortie/outing, Camp=camp w/ date range).
+// French labels for the réunion types (Reunion=réunion, Sortie=sortie/outing, Camp=camp w/ date range).
 export const MEETING_TYPE_LABELS: Record<string, string> = { Reunion: 'Réunion', Sortie: 'Sortie', Camp: 'Camp' }
 export const MEETING_STATUS_LABELS: Record<string, string> = { Approved: 'Approuvée', Pending: 'En attente' }
 
@@ -28,7 +28,7 @@ export interface MeetingDto {
   canManage: boolean // the caller can approve/delete (CU/CG) vs. only fill (chef d'équipe)
 }
 
-// The caller's manageable units + led teams — drives which unit/team to create/fill séances for.
+// The caller's manageable units + led teams — drives which unit/team to create/fill réunions for.
 export interface AttendanceScopeDto {
   units: { unitId: string; unitName: string }[]
   teams: { teamId: string; teamName: string; unitId: string; unitName: string }[]
@@ -70,7 +70,7 @@ export function useAttendanceScope() {
   })
 }
 
-// GET /meetings?unitId&scoutYear → séances for a unit (CU: all; chef d'équipe: their team's only), optionally
+// GET /meetings?unitId&scoutYear → réunions for a unit (CU: all; chef d'équipe: their team's only), optionally
 // filtered to a scout year. Disabled until unitId.
 export function useMeetings(unitId: string | undefined, scoutYear?: string) {
   return useQuery({
@@ -80,7 +80,7 @@ export function useMeetings(unitId: string | undefined, scoutYear?: string) {
   })
 }
 
-// GET /meetings/{id}/attendance → roster + current absentees for one séance. Disabled until id.
+// GET /meetings/{id}/attendance → roster + current absentees for one réunion. Disabled until id.
 export function useMeetingAttendance(id: string | undefined) {
   return useQuery({
     queryKey: ['meetings', 'attendance', id],
@@ -98,7 +98,7 @@ export function useUnitAbsenceCounts(unitId: string | undefined, scoutYear: stri
   })
 }
 
-// POST /meetings → create a séance (CU: approved; chef d'équipe for their team: pending). Invalidates ['meetings'].
+// POST /meetings → create a réunion (CU: approved; chef d'équipe for their team: pending). Invalidates ['meetings'].
 export function useCreateMeeting() {
   const qc = useQueryClient()
   return useMutation({
@@ -108,7 +108,7 @@ export function useCreateMeeting() {
   })
 }
 
-// PUT /meetings/{id} → CU/CG edits a séance's details (type/title/date/range/scope). Invalidates ['meetings'].
+// PUT /meetings/{id} → CU/CG edits a réunion's details (type/title/date/range/scope). Invalidates ['meetings'].
 export function useUpdateMeeting() {
   const qc = useQueryClient()
   return useMutation({
@@ -118,7 +118,7 @@ export function useUpdateMeeting() {
   })
 }
 
-// POST /meetings/{id}/approve → CU approves a pending (chef-d'équipe-created) séance. Invalidates ['meetings'].
+// POST /meetings/{id}/approve → CU approves a pending (chef-d'équipe-created) réunion. Invalidates ['meetings'].
 export function useApproveMeeting() {
   const qc = useQueryClient()
   return useMutation({
@@ -127,7 +127,7 @@ export function useApproveMeeting() {
   })
 }
 
-// DELETE /meetings/{id} → delete a séance (CU, or the creator while pending). Invalidates ['meetings'].
+// DELETE /meetings/{id} → delete a réunion (CU, or the creator while pending). Invalidates ['meetings'].
 export function useDeleteMeeting() {
   const qc = useQueryClient()
   return useMutation({

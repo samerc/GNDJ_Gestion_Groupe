@@ -165,7 +165,7 @@ export default function App() {
             <Route path="/passage" element={<PassagePage />} />
             <Route path="/photo-session" element={<PhotoSessionPage />} />
             <Route path="/rentree" element={<RentreePage />} />
-            {/* Séances / absences — authenticated-only (a chef d'équipe has no permission; the page shows an
+            {/* Réunions / absences — authenticated-only (a chef d'équipe has no permission; the page shows an
                 empty scope if the caller manages nothing). Backend enforces per-unit/per-team access. */}
             <Route path="/attendance" element={<AttendancePage />} />
             <Route element={<PermissionRoute permission={PERMISSIONS.MEMBERS_EDIT} />}>

@@ -22,7 +22,7 @@ export interface MeResponse {
   // True when the user must set a new password before using the app (temp/imported/reset password). The app
   // shell shows a blocking change-password screen until it's cleared.
   mustChangePassword?: boolean
-  // True when the member leads at least one team (active chef d'équipe assignment) — drives the "Séances" nav
+  // True when the member leads at least one team (active chef d'équipe assignment) — drives the "Réunions" nav
   // for a chef d'équipe who otherwise has no admin permission.
   leadsTeam?: boolean
   // True when the member's dossier was put on hold at the end of the document-verification campaign — Ma fiche /

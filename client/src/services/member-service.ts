@@ -50,7 +50,7 @@ export interface MemberDetailDto {
   primaryContactEmail: string | null // designated recipient for member-facing mail (null = auto)
   guardianEmails: string[] // distinct guardian emails, available as contact-email options
   counts: MemberTabCounts // per-tab badge counts (folded in so the panel needs no extra count queries)
-  absencesThisYear: number // count of absences on approved séances this scout year (Séances feature)
+  absencesThisYear: number // count of absences on approved réunions this scout year (Réunions feature)
 }
 
 // Tab badge counts returned with the member detail (famille / unités / documents / cotisations / progression).

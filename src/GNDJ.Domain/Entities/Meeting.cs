@@ -2,7 +2,7 @@ using GNDJ.Domain.Common;
 
 namespace GNDJ.Domain.Entities;
 
-// A "séance" — a unit meeting, outing or camp — against which member attendance is recorded. Scope is either
+// A "réunion" — a unit meeting, outing or camp — against which member attendance is recorded. Scope is either
 // the whole unit (TeamId null) or one team within it. A camp spans a date range (EndDate). Created by a CU
 // (Approved immediately) or by a chef d'équipe for their own team (Pending until the CU approves it).
 public class Meeting : BaseEntity
@@ -24,7 +24,7 @@ public class Meeting : BaseEntity
     public ICollection<MeetingAbsence> Absences { get; set; } = [];
 }
 
-// One ABSENT member for a séance (present is the default → no row). Optional reason.
+// One ABSENT member for a réunion (present is the default → no row). Optional reason.
 public class MeetingAbsence : BaseEntity
 {
     public Guid MeetingId { get; set; }
@@ -46,7 +46,7 @@ public static class MeetingTypes
 
 public static class MeetingStatuses
 {
-    public const string Approved = "Approved"; // CU-created, or a chef-équipe séance the CU approved
+    public const string Approved = "Approved"; // CU-created, or a chef-équipe réunion the CU approved
     public const string Pending = "Pending";   // chef-équipe-created, awaiting CU approval
     public static readonly string[] All = { Approved, Pending };
 }

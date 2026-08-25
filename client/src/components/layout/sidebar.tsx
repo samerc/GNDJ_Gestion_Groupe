@@ -97,7 +97,7 @@ const leaderNavItems = [
   { path: '/organiser', label: 'Organiser mon unité', icon: LayoutGrid, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/change-requests', label: 'Modifications à valider', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/unit-documents', label: 'Documents', icon: FileText, permission: PERMISSIONS.DOCUMENTS_APPROVE },
-  { path: '/attendance', label: 'Séances', icon: CalendarCheck, permission: PERMISSIONS.ATTENDANCE_MANAGE },
+  { path: '/attendance', label: 'Réunions', icon: CalendarCheck, permission: PERMISSIONS.ATTENDANCE_MANAGE },
   { path: '/passage', label: 'Passage des membres', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_PROPOSE },
   { path: '/photo-session', label: 'Session photo', icon: Camera, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/camp', label: 'Camp BP', icon: Tent, permission: PERMISSIONS.CAMP_GRADE },
@@ -134,7 +134,7 @@ const adminGroups: AdminGroup[] = [
       // Rentrée scoute promoted to the pinned top nav (see adminNavItems) — no longer listed here.
       { path: '/change-requests', label: 'Modifications à valider', icon: ClipboardList, permission: PERMISSIONS.MEMBERS_EDIT },
       { path: '/admin/passage-validation', label: 'Validation passages', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_MANAGE },
-      { path: '/attendance', label: 'Séances & absences', icon: CalendarCheck, permission: PERMISSIONS.ATTENDANCE_MANAGE },
+      { path: '/attendance', label: 'Réunions & absences', icon: CalendarCheck, permission: PERMISSIONS.ATTENDANCE_MANAGE },
       { path: '/admin/cotisations', label: 'Cotisations', icon: Receipt, permission: PERMISSIONS.COTISATIONS_VIEW },
       { path: '/admin/documents-suivi', label: 'Suivi documents', icon: FileWarning, permission: PERMISSIONS.MAITRISE_MANAGE },
     ],
@@ -224,9 +224,9 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
     // The CU main-menu "Camp BP" grading link (/camp) shows only once a camp is active.
     (!item.permission || hasPermission(item.permission)) && !(item.path === '/camp' && !hasLiveCamp))
   // A chef d'équipe (leads a team) who is otherwise a read-only youth has no attendance.manage permission, so
-  // the "Séances" link above is filtered out — add it explicitly so they can fill their team's présences.
+  // the "Réunions" link above is filtered out — add it explicitly so they can fill their team's présences.
   if (user?.leadsTeam && !visibleNav.some((i) => i.path === '/attendance')) {
-    visibleNav.push({ path: '/attendance', label: 'Séances', icon: CalendarCheck, permission: null })
+    visibleNav.push({ path: '/attendance', label: 'Réunions', icon: CalendarCheck, permission: null })
   }
   // Camp BP for a manager (camp.manage): once a camp is ACTIVE it's promoted to the main menu for quick access;
   // while there's no camp it lives in the Configuration group instead (below), where the CG creates one.

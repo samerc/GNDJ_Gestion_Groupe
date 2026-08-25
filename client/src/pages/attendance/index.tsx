@@ -21,16 +21,16 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { CalendarCheck, Plus, Pencil, Trash2, CheckCircle2, Clock, ClipboardList } from 'lucide-react'
 
-// Séances / Absences — the CU (and chef d'équipe) attendance screen. Pick a unit → list its séances
+// Réunions / Absences — the CU (and chef d'équipe) attendance screen. Pick a unit → list its réunions
 // (réunions / sorties / camps), create new ones (unit-wide or for a team), approve pending chef-d'équipe
-// séances, and open a séance to fill the absentee list (present by default). A chef d'équipe only sees /
-// creates séances for their own team (server-enforced); their new séances are pending until the CU approves.
+// réunions, and open a réunion to fill the absentee list (present by default). A chef d'équipe only sees /
+// creates réunions for their own team (server-enforced); their new réunions are pending until the CU approves.
 
 function frDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-// One séance card in the list.
+// One réunion card in the list.
 function MeetingCard({ meeting, onOpen, onEdit, onApprove, onDelete, busy }: {
   meeting: MeetingDto
   onOpen: () => void
@@ -46,7 +46,7 @@ function MeetingCard({ meeting, onOpen, onEdit, onApprove, onDelete, busy }: {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary" className="text-xs">{MEETING_TYPE_LABELS[meeting.type] ?? meeting.type}</Badge>
-            <span className="font-medium">{meeting.title || MEETING_TYPE_LABELS[meeting.type] || 'Séance'}</span>
+            <span className="font-medium">{meeting.title || MEETING_TYPE_LABELS[meeting.type] || 'Réunion'}</span>
             {meeting.status === 'Pending' && (
               <Badge className="gap-1 border-amber-200 bg-amber-50 text-amber-700"><Clock className="h-3 w-3" />En attente</Badge>
             )}
@@ -73,12 +73,12 @@ function MeetingCard({ meeting, onOpen, onEdit, onApprove, onDelete, busy }: {
           )}
           <Button size="sm" onClick={onOpen}><ClipboardList className="mr-1 h-4 w-4" />Présences</Button>
           {meeting.canManage && (
-            <Button size="sm" variant="ghost" onClick={onEdit} disabled={busy} title="Modifier la séance">
+            <Button size="sm" variant="ghost" onClick={onEdit} disabled={busy} title="Modifier la réunion">
               <Pencil className="h-4 w-4" />
             </Button>
           )}
           {meeting.canManage && (
-            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={onDelete} disabled={busy} title="Supprimer la séance">
+            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={onDelete} disabled={busy} title="Supprimer la réunion">
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
@@ -88,7 +88,7 @@ function MeetingCard({ meeting, onOpen, onEdit, onApprove, onDelete, busy }: {
   )
 }
 
-// The attendance dialog: the séance's roster with a "Présent / Absent" toggle + reason per member.
+// The attendance dialog: the réunion's roster with a "Présent / Absent" toggle + reason per member.
 function AttendanceDialog({ meetingId, onClose }: { meetingId: string; onClose: () => void }) {
   const { data, isLoading } = useMeetingAttendance(meetingId)
   const save = useSaveMeetingAttendance()
@@ -133,7 +133,7 @@ function AttendanceDialog({ meetingId, onClose }: { meetingId: string; onClose: 
         {isLoading || !data ? (
           <div className="py-10"><LoadingSpinner /></div>
         ) : data.roster.length === 0 ? (
-          <p className="py-6 text-sm text-muted-foreground">Aucun membre dans cette séance.</p>
+          <p className="py-6 text-sm text-muted-foreground">Aucun membre dans cette réunion.</p>
         ) : (
           <>
             <p className="text-sm text-muted-foreground">
@@ -171,15 +171,15 @@ function AttendanceDialog({ meetingId, onClose }: { meetingId: string; onClose: 
   )
 }
 
-// The séance create/edit dialog. A CU can target the whole unit or any team; a chef d'équipe is restricted
-// to the team(s) they lead in this unit (no "whole unit" option). Pass `meeting` to edit an existing séance
+// The réunion create/edit dialog. A CU can target the whole unit or any team; a chef d'équipe is restricted
+// to the team(s) they lead in this unit (no "whole unit" option). Pass `meeting` to edit an existing réunion
 // (editing is manager-only — the caller only shows the edit button when canManage).
 function MeetingFormDialog({ unitId, canManage, ledTeamIds, meeting, defaultDate, onClose }: {
   unitId: string
   canManage: boolean
   ledTeamIds: string[]
   meeting?: MeetingDto
-  defaultDate?: string // pre-fills the date for a NEW séance (within the selected scout year)
+  defaultDate?: string // pre-fills the date for a NEW réunion (within the selected scout year)
   onClose: () => void
 }) {
   const create = useCreateMeeting()
@@ -193,7 +193,7 @@ function MeetingFormDialog({ unitId, canManage, ledTeamIds, meeting, defaultDate
   }, [teamsData, canManage, ledTeamIds])
 
   const [type, setType] = useState<string>(meeting?.type ?? 'Reunion')
-  // '__unit__' = whole unit, else teamId. Edit prefills from the séance; create defaults to whole unit for a CU.
+  // '__unit__' = whole unit, else teamId. Edit prefills from the réunion; create defaults to whole unit for a CU.
   const [scope, setScope] = useState<string>(meeting ? (meeting.teamId ?? '__unit__') : (canManage ? '__unit__' : ''))
   const [title, setTitle] = useState(meeting?.title ?? '')
   const [date, setDate] = useState(meeting?.date ?? defaultDate ?? '')
@@ -216,10 +216,10 @@ function MeetingFormDialog({ unitId, canManage, ledTeamIds, meeting, defaultDate
     try {
       if (editing) {
         await update.mutateAsync({ id: meeting!.id, ...payload })
-        toast.success('Séance modifiée')
+        toast.success('Réunion modifiée')
       } else {
         await create.mutateAsync({ unitId, ...payload })
-        toast.success(canManage ? 'Séance créée' : 'Séance créée — en attente d\'approbation du chef d\'unité')
+        toast.success(canManage ? 'Réunion créée' : 'Réunion créée — en attente d\'approbation du chef d\'unité')
       }
       onClose()
     } catch (err) {
@@ -232,7 +232,7 @@ function MeetingFormDialog({ unitId, canManage, ledTeamIds, meeting, defaultDate
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{editing ? 'Modifier la séance' : 'Nouvelle séance'}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{editing ? 'Modifier la réunion' : 'Nouvelle réunion'}</DialogTitle></DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
           <div className="space-y-2">
@@ -307,8 +307,8 @@ export default function AttendancePage() {
 
   const { data: meetings, isLoading: meetingsLoading } = useMeetings(unitId || undefined, year)
 
-  // Default date for a NEW séance: today if it's within the selected year, else that year's Oct-1 start — so a
-  // séance created while a year is selected lands in that year's window.
+  // Default date for a NEW réunion: today if it's within the selected year, else that year's Oct-1 start — so a
+  // réunion created while a year is selected lands in that year's window.
   const defaultDate = useMemo(() => {
     const startYear = Number(year.split('-')[0])
     const start = new Date(startYear, 9, 1) // Oct 1
@@ -324,12 +324,12 @@ export default function AttendancePage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const handleApprove = async (id: string) => {
-    try { await approve.mutateAsync(id); toast.success('Séance approuvée') }
+    try { await approve.mutateAsync(id); toast.success('Réunion approuvée') }
     catch (err) { toast.error(parseApiError(err)) }
   }
   const handleDelete = async () => {
     if (!deleteId) return
-    try { await del.mutateAsync(deleteId); toast.success('Séance supprimée'); setDeleteId(null) }
+    try { await del.mutateAsync(deleteId); toast.success('Réunion supprimée'); setDeleteId(null) }
     catch (err) { toast.error(parseApiError(err)); setDeleteId(null) }
   }
 
@@ -338,9 +338,9 @@ export default function AttendancePage() {
   if (unitOptions.length === 0) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Séances &amp; absences</h1>
+        <h1 className="text-2xl font-bold">Réunions &amp; absences</h1>
         <EmptyState icon={CalendarCheck} title="Aucune unité"
-          description="Vous ne gérez aucune unité et ne dirigez aucune équipe. Les séances sont créées par le chef d'unité." />
+          description="Vous ne gérez aucune unité et ne dirigez aucune équipe. Les réunions sont créées par le chef d'unité." />
       </div>
     )
   }
@@ -349,10 +349,10 @@ export default function AttendancePage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Séances &amp; absences</h1>
+          <h1 className="text-2xl font-bold">Réunions &amp; absences</h1>
           <p className="text-sm text-muted-foreground">Réunions, sorties et camps — suivez les présences.</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} disabled={!unitId}><Plus className="mr-1 h-4 w-4" />Nouvelle séance</Button>
+        <Button onClick={() => setCreateOpen(true)} disabled={!unitId}><Plus className="mr-1 h-4 w-4" />Nouvelle réunion</Button>
       </div>
 
       {/* Unit + scout-year pickers. The year lets a leader view/log two years in parallel during the changeover. */}
@@ -376,7 +376,7 @@ export default function AttendancePage() {
       {meetingsLoading ? (
         <LoadingSpinner variant="table" />
       ) : !meetings || meetings.length === 0 ? (
-        <EmptyState icon={CalendarCheck} title="Aucune séance"
+        <EmptyState icon={CalendarCheck} title="Aucune réunion"
           description="Créez une réunion, une sortie ou un camp pour commencer à suivre les présences." />
       ) : (
         <div className="space-y-3">
@@ -399,7 +399,7 @@ export default function AttendancePage() {
       )}
       {attendanceId && <AttendanceDialog meetingId={attendanceId} onClose={() => setAttendanceId(null)} />}
       <ConfirmDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}
-        title="Supprimer la séance" description="Cette séance et ses présences seront supprimées. Continuer ?"
+        title="Supprimer la réunion" description="Cette réunion et ses présences seront supprimées. Continuer ?"
         confirmLabel="Supprimer" variant="destructive" loading={del.isPending} onConfirm={handleDelete} />
     </div>
   )

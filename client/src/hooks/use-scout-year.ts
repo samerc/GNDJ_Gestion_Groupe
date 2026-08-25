@@ -9,7 +9,7 @@ export function useCurrentScoutYear(): string {
 
 // The scout year that CONTAINS TODAY (Oct-1 boundary) — the year currently "running" on the calendar. Differs
 // from useCurrentScoutYear() during the pre-season (Aug–Sep), when the configured year is already the NEXT one.
-// Used by the absence badges + the Séances page so activity logged now (before October) is attributed to the
+// Used by the absence badges + the Réunions page so activity logged now (before October) is attributed to the
 // running year and stays visible, letting the two years run in parallel through the changeover.
 export function calendarScoutYear(date: Date = new Date()): string {
   const y = date.getFullYear()

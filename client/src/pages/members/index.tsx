@@ -367,7 +367,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                   {member.nationality && <Chip icon={Flag}>{member.nationality}</Chip>}
                   {member.bloodType && <Chip icon={Droplet}>{member.bloodType}</Chip>}
                   {member.absencesThisYear > 0 && (
-                    <Tip content="Absences aux séances cette année scoute">
+                    <Tip content="Absences aux réunions cette année scoute">
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
                         <CalendarCheck className="h-3.5 w-3.5" />{member.absencesThisYear} absence{member.absencesThisYear > 1 ? 's' : ''}
                       </span>
@@ -966,7 +966,7 @@ export default function MembersPage() {
                       {m.dateOfBirth && <p className="text-[11px] text-muted-foreground">{new Date(m.dateOfBirth).toLocaleDateString('fr-FR')}</p>}
                     </div>
                     {absenceCounts.get(m.id) ? (
-                      <Tip content="Absences aux séances cette année">
+                      <Tip content="Absences aux réunions cette année">
                         <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
                           <CalendarCheck className="h-3 w-3" />{absenceCounts.get(m.id)}
                         </span>
