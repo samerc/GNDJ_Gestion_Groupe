@@ -37,6 +37,14 @@ export function useVerifyMyContact() {
   })
 }
 
+// POST /my-profile/onboarding-seen → mark the first-login welcome tour as seen (server flag, so it doesn't
+// re-show on another device). Fire-and-forget; the component hides the tour optimistically regardless.
+export function useMarkOnboardingSeen() {
+  return useMutation({
+    mutationFn: () => apiClient.post('/my-profile/onboarding-seen'),
+  })
+}
+
 // ── Coordonnées: own phones / emails / addresses (self-service, no approval) ──
 // Call signatures mirror the leader-facing member-service hooks so "Ma fiche" can swap to them directly.
 const invalidateMe = (qc: ReturnType<typeof useQueryClient>, memberId: string) =>

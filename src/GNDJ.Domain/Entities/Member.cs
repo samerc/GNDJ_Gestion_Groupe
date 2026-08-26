@@ -39,6 +39,11 @@ public class Member : BaseEntity
     // not yet confirmed → the app shows a one-time blocking "verify your contact details" screen to leaders.
     public DateTime? ContactVerifiedAt { get; set; }
 
+    // First-login welcome tour: set when the member dismisses/finishes the onboarding carousel, so it never
+    // shows again (server-side, not localStorage — survives switching device/browser). Null = not yet seen.
+    // Only shown to regular members (not chefs — they get the printed guide).
+    public DateTime? OnboardingSeenAt { get; set; }
+
     // Confirmed fratrie: members sharing a SiblingGroupId are brothers/sisters (set by the CG on the Fratries
     // page). Null = not (yet) grouped. See SiblingGroup.
     public Guid? SiblingGroupId { get; set; }

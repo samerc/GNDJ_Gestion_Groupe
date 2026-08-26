@@ -34,6 +34,9 @@ export interface MeResponse {
   suggestedEmail?: string | null
   suggestedPhoneCountry?: string | null
   suggestedPhone?: string | null
+  // True once the member has seen the first-login welcome tour (server flag). The client shows the carousel to
+  // regular members (not chefs) while this is false. Set optimistically after the tour is dismissed/finished.
+  hasSeenOnboarding?: boolean
 }
 
 export interface UnitAccess {

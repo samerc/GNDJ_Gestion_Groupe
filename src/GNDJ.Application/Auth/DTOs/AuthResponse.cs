@@ -39,7 +39,10 @@ public record MeResponse(
     // The member's own email/phone to prefill that screen (their own, never a guardian's; empty if none).
     string? SuggestedEmail = null,
     string? SuggestedPhoneCountry = null,
-    string? SuggestedPhone = null
+    string? SuggestedPhone = null,
+    // True once the member has seen the first-login welcome tour (server flag). The client shows the carousel
+    // to regular members (not chefs) while this is false; chefs get the printed guide instead.
+    bool HasSeenOnboarding = false
 );
 
 public record UnitAccessDto(

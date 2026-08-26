@@ -12,6 +12,7 @@ import { useMaintenance } from '@/services/maintenance-service'
 import { MaintenancePage } from '@/components/shared/maintenance-page'
 import { ForcePasswordChange } from '@/components/auth/force-password-change'
 import { LeaderContactVerification } from '@/components/auth/leader-contact-verification'
+import { MemberWelcomeTour } from '@/components/onboarding/member-welcome-tour'
 
 // ROLE: authenticated app shell — sidebar + header around the routed <Outlet>.
 // Used as the layout route wrapping every signed-in page. Mounts the global
@@ -61,6 +62,8 @@ export function AppLayout() {
       <Toaster richColors position="top-center" />
       <SessionWarning />
       <RentreeOverduePopup />
+      {/* First-login welcome tour for regular members (self-gated; chefs/admins excluded — they get the guide). */}
+      <MemberWelcomeTour />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
         {inMaintenance && (

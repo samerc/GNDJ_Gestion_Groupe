@@ -1,6 +1,7 @@
 using GNDJ.Application.CustomFields;
 using GNDJ.Application.Guardians;
 using GNDJ.Application.Members.Commands.MyContacts;
+using GNDJ.Application.Members.Commands.MyOnboarding;
 using GNDJ.Application.Members.Commands.UpdateMyProfile;
 using GNDJ.Application.Reports;
 using Microsoft.AspNetCore.Authorization;
@@ -33,6 +34,10 @@ public class MyProfileController : BaseApiController
     /// as primary contact, adds the phone, marks it verified so the one-time prompt stops).</summary>
     [HttpPost("verify-contact")]
     public async Task<IActionResult> VerifyContact([FromBody] VerifyMyContactCommand command) => Wrap(await Mediator.Send(command));
+
+    /// <summary>Marks the caller's first-login welcome tour as seen (so the carousel doesn't show again).</summary>
+    [HttpPost("onboarding-seen")]
+    public async Task<IActionResult> OnboardingSeen() => Wrap(await Mediator.Send(new MarkOnboardingSeenCommand()));
 
     // ── Coordonnées: own phones / emails / addresses (add / edit / remove) ──────────────────────────
     // Each command is strictly own-scoped server-side (never a supplied member id), so no members.edit.

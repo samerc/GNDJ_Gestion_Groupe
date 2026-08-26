@@ -84,7 +84,8 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
             needsContactVerification,
             suggestedEmail,
             suggestedPhoneCountry,
-            suggestedPhone
+            suggestedPhone,
+            user.Member.OnboardingSeenAt != null
         ));
     }
 }

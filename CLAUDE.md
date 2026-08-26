@@ -3234,6 +3234,24 @@ sinks, app-pool warm-keeping all in place). Shipped code wins (all on main, push
       disable IIS W3C request logging (Cloudflare + Serilog already cover it). Skipped (Cloudflare handles): origin
       HTTP/2/3, request-queue caps. The "drop app JSON compression behind Cloudflare" idea = measure origin CPU first.
 
+### Member first-login welcome tour (2026-08-26)
+- [x] **A short, once-per-member onboarding carousel** for REGULAR members (youth/parents) on first login —
+      orients them to the 3 things that matter (envoyer ses documents → CTA to /my-documents · tenir sa fiche à
+      jour · où changer le mot de passe / trouver l'aide). Deliberately a **carousel, not a DOM-spotlight tour**:
+      the member base is mobile-heavy and the member nav is behind a hamburger, so pointing at sidebar items
+      would break — the carousel is layout-independent and tiny (no tour library).
+- [x] **Server flag** (`Member.OnboardingSeenAt`, migration `AddMemberOnboardingSeen`) so it never re-appears on
+      another device (not localStorage). Exposed as `MeResponse.HasSeenOnboarding` (via GetMeQuery → also on
+      `/auth/bootstrap`); `POST /my-profile/onboarding-seen` (`MarkOnboardingSeenCommand`, auth-only, own member
+      resolved server-side, idempotent) stamps it. Any dismissal (skip / finish / CTA / outside-click) marks it
+      seen — optimistically flips the cached user flag so it hides instantly; the server call is best-effort.
+- [x] **Members-only** (chefs get the printed guide): `MemberWelcomeTour` (mounted in AppLayout after the
+      password/contact gates, self-gating) shows only when the user is NOT a super-admin and holds NO leadership
+      (`isLeader`) or group-level (`isGroupLevel`) role — so CU/ACU/CG/ACG are excluded; a chef d'équipe (member,
+      no members.edit role) still sees it. Verified live: the flag round-trips False → 204 → True. DEV until deploy
+      (migration applies on prod startup). Companion doc: the CU guide (`docs/guides/guide-chef-unite.md`) was also
+      refreshed this session (Réunions/absences section, Actions ▾ menu, renamed items).
+
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
