@@ -70,6 +70,12 @@ $common = [ordered]@{
   "max_worker_processes"          = "8"     # restart
   "max_parallel_workers"          = "8"     # restart
   "max_parallel_workers_per_gather" = "4"   # reload
+  # Autovacuum: vacuum/analyze sooner than the 0.2 default so the churny tables (email_outbox leases,
+  # application_logs, audit_logs) don't accumulate dead tuples/bloat that slows every query on the shared box.
+  # All reload-only (no restart needed).
+  "autovacuum_vacuum_scale_factor"  = "0.05" # reload
+  "autovacuum_analyze_scale_factor" = "0.05" # reload
+  "autovacuum_naptime"              = "30s"   # reload
 }
 
 Write-Host "==> PostgreSQL profile: $Profile" -ForegroundColor Cyan

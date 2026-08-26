@@ -77,6 +77,17 @@ if (Test-Path $sitePath) {
   Write-Warning "Site '$SiteName' not found - skipped preload. Check -SiteName."
 }
 
+# 7. Turn OFF IIS *dynamic* compression at the site: the ASP.NET Core app already gzip/brotli-compresses its
+#    responses in-process (UseResponseCompression), so letting IIS compress again is a wasted second pass — pure
+#    CPU on a weak shared box. Static compression stays ON (for the immutable-cached JS/CSS). Idempotent.
+if (Test-Path "IIS:\Sites\$SiteName") {
+  try {
+    Set-WebConfigurationProperty -PSPath "IIS:\Sites\$SiteName" -Filter "system.webServer/urlCompression" -Name doDynamicCompression -Value $false
+    Set-WebConfigurationProperty -PSPath "IIS:\Sites\$SiteName" -Filter "system.webServer/urlCompression" -Name doStaticCompression -Value $true
+    Write-Host "    IIS dynamic compression OFF / static ON (site '$SiteName') — app compresses in-process" -ForegroundColor DarkGray
+  } catch { Write-Warning "Could not set urlCompression on '$SiteName' (server-level lock?): $($_.Exception.Message)" }
+}
+
 Write-Host "==> Recycling pool once to apply..." -ForegroundColor Cyan
 Restart-WebAppPool -Name $PoolName
 
