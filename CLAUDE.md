@@ -3153,7 +3153,40 @@ tasks past the snapshot the user saw). Live dev DB + the seed code; 2026-2027 re
 - **Excel exports** (`tools/gen_rentree_xlsx.py` grouped, `gen_todo_xlsx.py` full CLAUDE.md list) on the Desktop
       for reference/planning — one-way (editing the sheet doesn't write back).
 
+### Réunion rename + CG document matrix + prod placeholder cleanup (2026-08-25/26)
+- [x] **"Séance(s)" → "Réunion(s)" everywhere** (commit 00dd02b): 111 occurrences across 21 files (UI strings,
+      toasts, error messages, comments, backend). Excluded **"séance photo"** (photo session) via a lookahead;
+      no identifiers / DB columns / enum values touched (the meeting TYPE value `'Reunion'` + its "Réunion" label
+      are separate). NOTE the umbrella is now "Réunion" while one meeting type is ALSO "Réunion" (+ Sortie/Camp) —
+      mild redundancy, left as-is (offered to rename the type label; user hasn't decided). Builds clean.
+- [x] **CG/super-admin document matrix — any unit via a picker** (commit 4457138): the per-unit
+      document-verification grid (`/unit-documents`, `unit-documents.tsx`) was CU-only (scoped to `user.unitAccess`).
+      A group manager (super-admin / maitrise.manage) now gets a FULL active-units picker (`useUnits({isActive})`,
+      new `enabled` flag so the list only loads for managers) and can open ANY unit's matrix. **Backend unchanged** —
+      the matrix endpoint already allows a manager on any unit (members.edit + all units granted at login), so it's a
+      UI widening. Manager starts unselected ("Choisir une unité…" + "Sélectionnez une unité" prompt); CU behaviour
+      unchanged. New sidebar entry **"Documents par unité"** (Suivi group, maitrise.manage). Verified: CG loads JEM
+      matrix (200) with no assignment there.
+- [x] **Prod placeholder-units cleanup DONE** (scripts in `deploy/golive/`): the earlier two-part run had been left
+      UNCOMMITTED on prod (pgAdmin rolls back without an explicit `COMMIT`) — nothing had applied. Re-ran on prod
+      **with COMMIT**: Naia (F-0629) moved to **C2** as an alumna (her Compagnie-placeholder rows repointed to the
+      real C2, active row end-dated); **Meute + Ronde** placeholders hard-deleted; **Compagnie + Troupe** deactivated
+      then **soft-deleted** (is_deleted=true — they had a leftover empty "NA" team + a zero-day migration marker for
+      Alexandre SALHA M-0033 that RESTRICT-blocked a hard delete; soft-delete hides them from the app). Confirmed
+      gone from the Unités page. `deploy/golive/fix-naia-and-retire-placeholders.sql` = the committed one-shot.
+      **Authoritative unit-FK list** (for any future unit cleanup): RESTRICT on teams/member_assignments/
+      member_progressions/passages(×3)/demandes/unit_intake_quotas; CASCADE on meetings/trombinoscope_archives;
+      SET NULL on rentree_tasks; NON-FK (silent, not blocked by delete): events.tag_unit_id, news_posts.tag_unit_id,
+      camp_participants.unit_id.
+- **Excel task exports** (`tools/gen_todo_xlsx.py` = full CLAUDE.md checklist, `tools/gen_rentree_xlsx.py` = grouped
+      rentrée list) on the Desktop for planning; `tools/gen_rentree_template_sql.py` rebuilds the rentrée template.
+      One-way (editing the sheet doesn't write back).
+
 ### Remaining / Next
+- [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
+      dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
+      reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a
+      `cotisation_payments` row for a unit) or the new "Documents par unité" matrix (green cotisation cell).
 - [ ] **Feature idea (from the rentrée review): capture leavers' contacts at passage.** When a CU marks a member
       *Quitte le groupe*, pop a dialog to capture/confirm the member's PERSONAL email + phone (approve / edit /
       dismiss, editable later) so the group can re-contact them next year. Currently a manual checklist task
