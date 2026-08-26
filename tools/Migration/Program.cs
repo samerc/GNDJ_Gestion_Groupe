@@ -251,6 +251,26 @@ Console.WriteLine($"OK ({unitCount})");
 // STEP 5: Teams
 // ═══════════════════════════════════════════════════════════════
 Console.Write("5. Teams... ");
+// WEBDEV COULEUR palette (index → hex), recovered 2026-08 from the colour-named Meute/Ronde sizaines
+// (validated vs Troupe 2 by the CU) + the old site's "Couleurs du scalp" for indices 4/7. Colour-named
+// default-pair teams (Noir/Marron 12/12, Indigo 0/0) keep their name's colour; every other non-colour team
+// (numbered équipes, maîtrises, Noyau/JEM/Feu/Groupe sizaines) → white.
+var colourLegend = new Dictionary<int, string> {
+    [0]="#4B0082",[1]="#C8A165",[2]="#8B5A2B",[3]="#FFFFFF",[4]="#2563EB",[5]="#2563EB",[7]="#808080",
+    [8]="#808080",[9]="#F5C518",[10]="#6B3A0F",[11]="#9C6ADE",[12]="#1A1A1A",[13]="#F97316",[14]="#DC2626",[16]="#16A34A" };
+var colourByName = new Dictionary<string, string> {
+    ["noir"]="#1A1A1A",["noire"]="#1A1A1A",["marron"]="#6B3A0F",["indigo"]="#4B0082",["blanc"]="#FFFFFF",["blanche"]="#FFFFFF",
+    ["gris"]="#808080",["grise"]="#808080",["brun"]="#8B5A2B",["brune"]="#8B5A2B",["fauve"]="#C8A165",["roux"]="#B7410E",
+    ["rousse"]="#B7410E",["beige"]="#E8D3A2",["bleu"]="#2563EB",["bleue"]="#2563EB",["vert"]="#16A34A",["verte"]="#16A34A",
+    ["jaune"]="#F5C518",["orange"]="#F97316",["mauve"]="#9C6ADE",["violette"]="#7C3AED",["rose"]="#EC4899",["rouge"]="#DC2626" };
+(string? c1, string? c2) TeamColour(string totem, int i1, int i2)
+{
+    if ((i1 == 12 && i2 == 12) || (i1 == 0 && i2 == 0)) // WEBDEV default pair = "unset"
+        return colourByName.TryGetValue(totem.Trim().ToLowerInvariant(), out var named) ? (named, (string?)null) : ("#FFFFFF", (string?)null);
+    var h1 = colourLegend.GetValueOrDefault(i1) ?? "#FFFFFF";
+    return (h1, i2 != i1 ? colourLegend.GetValueOrDefault(i2) : null);
+}
+
 var wsTeams = OpenSheet("PatEqSiz.xlsx");
 int teamCount = 0;
 if (!reuseOrg) for (int r = 2; r <= wsTeams.LastRowUsed()!.RowNumber(); r++)
@@ -258,12 +278,13 @@ if (!reuseOrg) for (int r = 2; r <= wsTeams.LastRowUsed()!.RowNumber(); r++)
     var unitCode = Cell(wsTeams, r, 2); // UNITE
     var totem = Cell(wsTeams, r, 3);    // TOTEM
     var adjective = Cell(wsTeams, r, 4);
-    // COULEUR1/COULEUR2 (cols 5/6) are WEBDEV palette INDICES (integers 0–16), not hex — the
-    // app's color picker expects #RRGGBB. Without the original WEBDEV combo's index→colour legend
-    // the indices are meaningless here, so colours are intentionally NOT imported (decided 2026-06-19).
-    // Restore by mapping each index to a hex value once the legend is available.
+    // COULEUR1/COULEUR2 (cols 5/6) are WEBDEV palette INDICES (0–16); decode them via TeamColour() (legend
+    // recovered 2026-08 — see the comment above the loop). color2 stays null for a single-colour foulard.
+    int.TryParse(Cell(wsTeams, r, 5), out var colIdx1);
+    int.TryParse(Cell(wsTeams, r, 6), out var colIdx2);
 
     if (string.IsNullOrWhiteSpace(unitCode) || string.IsNullOrWhiteSpace(totem)) continue;
+    var (teamColor1, teamColor2) = TeamColour(totem, colIdx1, colIdx2);
     var unitId = unitIdMap.GetValueOrDefault(unitCode);
     if (unitId == Guid.Empty) continue;
 
@@ -288,7 +309,7 @@ if (!reuseOrg) for (int r = 2; r <= wsTeams.LastRowUsed()!.RowNumber(); r++)
     await Exec(conn, @"INSERT INTO teams (id, name, description, unit_id, display_order, totem, adjective, color1, color2, is_maitrise, created_at, updated_at, is_deleted)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, false)",
         id, teamName, (string?)null, unitId, teamCount, totem, NullIfEmpty(adjective),
-        (string?)null, (string?)null, isMaitrise, now);
+        teamColor1, teamColor2, isMaitrise, now);
     teamCount++;
 }
 Console.WriteLine($"OK ({teamCount})");
@@ -633,7 +654,7 @@ foreach (var grp in assignRows.GroupBy(x => x.OldMember))
                 await Exec(conn, @"INSERT INTO teams (id, name, description, unit_id, display_order, totem, adjective, color1, color2, is_maitrise, created_at, updated_at, is_deleted)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, false)",
                     newTid, nm, (string?)null, unitId, 900 + autoTeamCount, row.Totem,
-                    (string?)null, (string?)null, (string?)null, isMait, now);
+                    (string?)null, "#FFFFFF", (string?)null, isMait, now); // new team → white until a CU colours it
                 RegisterTeam(row.Unit, row.Totem, newTid);
                 teamId = newTid;
                 autoTeamCount++;
@@ -792,7 +813,7 @@ async Task<Guid?> ResolveBpTeam(string unitCode, Guid unitId, string raw)
     var newName = raw.Trim();
     await Exec(conn, @"INSERT INTO teams (id, name, description, unit_id, display_order, totem, adjective, color1, color2, is_maitrise, created_at, updated_at, is_deleted)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, false)",
-        newId, newName, (string?)null, unitId, 800, newName, (string?)null, (string?)null, (string?)null, false, now);
+        newId, newName, (string?)null, unitId, 800, newName, (string?)null, "#FFFFFF", (string?)null, false, now); // new team → white
     RegisterTeam(unitCode, newName, newId);
     cands.Add((newId, newName, rawNorm, ft, ftStem));
     if (!teamsByUnit.ContainsKey(ucl)) teamsByUnit[ucl] = cands;

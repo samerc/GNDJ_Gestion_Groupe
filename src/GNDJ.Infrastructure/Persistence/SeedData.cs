@@ -366,6 +366,8 @@ public static class SeedData
         // ① Configuration
         var cfgYear = Add("Définir la nouvelle année scoute et les dates", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-settings", null, null);
         var cfgUnits = Add("Vérifier les unités, types et équipes (créer les nouvelles sizaines)", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-units", null, null);
+        // Foulard colours were recovered from the old WEBDEV data (2026-08); each CU checks/corrects their unit's.
+        Add("Vérifier et corriger les couleurs des équipes", "Configuration", CU, true, "septembre", "goto-my-unit", null, null, cfgUnits);
         var cfgMaitrises = Add("Confirmer les maîtrises (CU/ACU de chaque unité)", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-maitrises", null, null);
         Add("Envoyer l'email d'accueil aux chefs", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-communications", null, null, cfgMaitrises);
         Add("Vérifier les textes des emails", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-email", null, null);
@@ -482,13 +484,15 @@ public static class SeedData
     {
         if (!await context.RentreeTaskTemplates.AnyAsync()) return; // fresh DB: base seed runs first, then this
 
-        // title → (phase, deadline label, actionKey)
-        var extras = new (string Title, string Phase, string Deadline, string Action)[]
+        // title → (phase, deadline label, actionKey, role, fanOutPerUnit)
+        var extras = new (string Title, string Phase, string Deadline, string Action, string Role, bool FanOut)[]
         {
-            ("Mettre à jour les pièces jointes des modèles d'email", "Configuration", "4ᵉ sem. septembre", "goto-email"),
-            ("Rédiger la lettre de refus (pièce jointe du modèle « demande refusée »)", "Demandes", "septembre", "goto-email"),
-            ("Relancer les familles qui n'ont pas soumis leur demande", "Demandes", "octobre", "goto-demandes"),
-            ("Relancer les accès non activés", "Dossiers membres", "novembre", "goto-send-access"),
+            ("Mettre à jour les pièces jointes des modèles d'email", "Configuration", "4ᵉ sem. septembre", "goto-email", "chef-de-groupe", false),
+            ("Rédiger la lettre de refus (pièce jointe du modèle « demande refusée »)", "Demandes", "septembre", "goto-email", "chef-de-groupe", false),
+            ("Relancer les familles qui n'ont pas soumis leur demande", "Demandes", "octobre", "goto-demandes", "chef-de-groupe", false),
+            ("Relancer les accès non activés", "Dossiers membres", "novembre", "goto-send-access", "chef-de-groupe", false),
+            // CU task (per-unit): check/correct the foulard colours recovered from the old WEBDEV data (2026-08).
+            ("Vérifier et corriger les couleurs des équipes", "Configuration", "septembre", "goto-my-unit", "chef-unite", true),
         };
 
         var existing = await context.RentreeTaskTemplates.Select(t => t.Title).ToListAsync();
@@ -500,7 +504,7 @@ public static class SeedData
             context.RentreeTaskTemplates.Add(new RentreeTaskTemplate
             {
                 Title = e.Title, Phase = e.Phase, DisplayOrder = ++maxOrder,
-                AssigneeType = "role", AssigneeRole = "chef-de-groupe", FanOutPerUnit = false,
+                AssigneeType = "role", AssigneeRole = e.Role, FanOutPerUnit = e.FanOut,
                 DefaultDeadlineLabel = e.Deadline, ActionKey = e.Action, DependsOnTemplateIds = []
             });
             changed = true;

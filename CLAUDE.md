@@ -3252,6 +3252,30 @@ sinks, app-pool warm-keeping all in place). Shipped code wins (all on main, push
       (migration applies on prod startup). Companion doc: the CU guide (`docs/guides/guide-chef-unite.md`) was also
       refreshed this session (Réunions/absences section, Actions ▾ menu, renamed items).
 
+### Team foulard colours recovered from WEBDEV (2026-08-26)
+The migration had skipped `PatEqSiz.COULEUR1/COULEUR2` because they're WEBDEV **palette indices (0–16)**, not hex,
+and we had no legend. Recovered it:
+- **Legend reverse-engineered from the data itself** — the Meute/Ronde sizaines are *named* by their colour
+  (Blanc/Gris/Roux/Bleu/Jaune…), internally consistent across every unit (M2=M3=M10, R1=R2=R3), so index→colour
+  decodes directly. **Validated live**: the CU confirmed the decoded Troupe-2 patrol colours. The last 2 indices
+  (4, 7 — no colour-named anchor) came from the **old site's "Couleurs du scalp"** (`C:\Users\Administrator\
+  Documents\old`): Marmousets=Bleu/Gris → 4=Bleu, Péléa/Abeilles int=Gris → 7=Gris. Final legend: 0 Indigo · 1
+  Fauve · 2 Brun · 3 Blanc · 4/5 Bleu · 7/8 Gris · 9 Jaune · 10 Marron · 11 Mauve · 12 Noir · 13 Orange · 14
+  Rouge · 16 Vert. `couleur1` then `couleur2` (two-tone foulards, 32 teams). **Non-colour teams → white** (per the
+  CU): numbered Compagnie équipes, all maîtrises, and the Noyau/JEM/Feu/Groupe/Clan branches (which don't use
+  foulard colours) — the `12/12`/`0/0` WEBDEV defaults, except colour-named defaults (Noir/Marron/Indigo sizaines)
+  keep their colour.
+- **Applied to the LIVE dev DB** (`deploy/patches/008_team_colours.sql`, backup `_bak_team_colors_20260827`):
+  113 of 115 teams set (46 white, 67 real, 32 two-tone; the 2 skipped are "NA" placeholder junk). The patch is
+  idempotent (matches by unit code + totem, only where `color1 IS NULL`) so it **reaches prod on the next deploy**
+  without a dump. **Migration tool** (`tools/Migration`) now decodes the indices via a `TeamColour()` legend so a
+  re-import keeps them (new BP-created teams → white).
+- **CU onboarding task**: added a per-unit rentrée template task **"Vérifier et corriger les couleurs des
+  équipes"** (Configuration phase, `goto-my-unit`) — in the base seed + backfilled into existing DBs via
+  `SeedRentreeExtraTasksAsync` (which gained per-task role + fan-out). CUs adjust any leftover in-app.
+- The palette was reviewed by the CU via a generated `GNDJ_couleurs_equipes.xlsx` (Desktop, painted hex cells +
+  Légende tab). Builds clean (dotnet Release + migration tool). DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to

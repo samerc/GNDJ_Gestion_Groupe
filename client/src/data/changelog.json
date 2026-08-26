@@ -3,6 +3,7 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Couleurs des équipes : les couleurs de foulard de chaque sizaine / patrouille (récupérées des anciennes données du groupe) sont désormais affichées. Les équipes qui n'utilisent pas de couleur (numérotées, maîtrises, Noyau / JEM / Feu…) sont en blanc. Une tâche de rentrée invite chaque chef d'unité à vérifier et corriger les couleurs de son unité.",
       "Bienvenue : à leur première connexion, les membres voient un court guide de bienvenue en 3 étapes (envoyer ses documents, tenir sa fiche à jour, où trouver l'aide). Il ne s'affiche qu'une seule fois, mais peut être revu à tout moment via « Revoir le tutoriel » dans le menu (en haut à droite). Les chefs ne le voient pas — ils ont leur guide dédié.",
       "Performance : chargement plus rapide et plus fluide à plusieurs utilisateurs. Au premier affichage, les informations du menu et du tableau de bord sont récupérées en un seul appel (au lieu de plusieurs), la navigation ne recharge plus inutilement les mêmes données, et la base a été optimisée (nouveaux index) pour les listes d'unité, la vérification des documents et les tableaux de bord. Nettoyage automatique du journal des erreurs pour éviter qu'il ralentisse la base.",
       "Correction (affichage) : la fenêtre « Générer la liste de rentrée » n'est plus coupée lorsqu'une liste existe déjà pour l'année — les boutons s'ajustent et passent à la ligne au besoin.",
