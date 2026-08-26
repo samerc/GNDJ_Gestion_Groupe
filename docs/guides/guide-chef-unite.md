@@ -16,11 +16,12 @@
 4. [Vérifier et corriger la fiche d'un membre](#4-vérifier-et-corriger-la-fiche-dun-membre)
 5. [Réaliser le passage annuel](#5-réaliser-le-passage-annuel)
 6. [Vérifier les documents et les cotisations](#6-vérifier-les-documents-et-les-cotisations)
-7. [Organiser la séance photo](#7-organiser-la-séance-photo)
-8. [Trombinoscope, liste, cartes et export](#8-trombinoscope-liste-cartes-et-export)
-9. [Traiter les demandes de modification](#9-traiter-les-demandes-de-modification)
-10. [Réinitialiser le mot de passe d'un membre](#10-réinitialiser-le-mot-de-passe-dun-membre)
-11. [Suivre sa liste de rentrée](#11-suivre-sa-liste-de-rentrée)
+7. [Gérer les réunions et les absences](#7-gérer-les-réunions-et-les-absences)
+8. [Organiser la séance photo](#8-organiser-la-séance-photo)
+9. [Trombinoscope, liste, cartes et export](#9-trombinoscope-liste-cartes-et-export)
+10. [Modifications à valider](#10-modifications-à-valider)
+11. [Réinitialiser le mot de passe d'un membre](#11-réinitialiser-le-mot-de-passe-dun-membre)
+12. [Suivre sa liste de rentrée](#12-suivre-sa-liste-de-rentrée)
 
 ---
 
@@ -78,8 +79,8 @@ Une fois connecté, vous arrivez sur le tableau de bord de **votre unité** :
 ## 4. Vérifier et corriger la fiche d'un membre
 
 1. Cliquez sur un membre (dans « Mon unité » ou dans la page **Membres**) pour ouvrir sa fiche.
-2. Sa fiche s'ouvre avec des onglets : **Informations**, **Famille**, **Unités / Fonctions**,
-   **Documents & cotisations**, **Progression**, **Médical**…
+2. Sa fiche s'ouvre avec des onglets : **Informations** (identité, scolarité, coordonnées), **Famille**,
+   **Unités / Fonctions**, **Documents & cotisations**, **Progression**, **Médical & infos**.
 3. Pour modifier, cliquez sur **Modifier** (en haut à droite de la fiche), corrigez, puis **Enregistrer**.
    - Modifiable : nationalité, école, classe, groupe sanguin, coordonnées, notes médicales…
    - Non modifiable : nom, prénom, date de naissance, sexe, matricule (signalez une correction au chef de
@@ -102,8 +103,8 @@ Le **passage** décide, pour chaque membre, ce qu'il devient à la nouvelle ann�
    - **Quitte le groupe** — le membre ne poursuit pas cette année.
 3. Une pastille de statut (À proposer / En attente / Approuvé / Quitte / Rejeté) indique où en est chaque
    ligne. Vous pouvez **rechercher** et **filtrer** en haut.
-4. Tant que le chef de groupe n'a pas **finalisé**, cliquez **Modifier** sur une ligne pour changer votre
-   proposition.
+4. Tant que le chef de groupe n'a pas **finalisé**, cliquez **« Modifier le choix »** sur une ligne pour
+   changer votre proposition.
 
 ![Passage des membres](screenshots/06-passage.png)
 
@@ -129,7 +130,24 @@ Le **passage** décide, pour chaque membre, ce qu'il devient à la nouvelle ann�
 
 ---
 
-## 7. Organiser la séance photo
+## 7. Gérer les réunions et les absences
+
+Vous pouvez tenir le registre des **réunions** (et sorties, camps) de votre unité et y faire **l'appel**.
+
+1. Menu de gauche → **« Réunions »**.
+2. Cliquez **« Nouvelle réunion »** : choisissez le **type** (Réunion, Sortie, Camp), la **date** (une
+   période pour un camp), et si elle concerne **toute l'unité** ou **une seule équipe**.
+3. Ouvrez une réunion pour **faire l'appel** : tous les membres sont **présents par défaut** — cochez
+   seulement les **absents** (indiquez un motif si besoin).
+4. Le **nombre d'absences de l'année** apparaît ensuite sur la fiche de chaque membre et dans la liste de
+   votre unité.
+
+> Un **chef d'équipe** peut créer une réunion pour **son équipe** ; elle est ensuite validée par le chef
+> d'unité.
+
+---
+
+## 8. Organiser la séance photo
 
 1. Menu de gauche → **« Session photo »** (ou bouton **Photos** sur le tableau de bord).
 2. La liste de vos membres s'affiche avec une **coche** pour ceux déjà photographiés et une **barre de
@@ -142,7 +160,7 @@ Le **passage** décide, pour chaque membre, ce qu'il devient à la nouvelle ann�
 
 ---
 
-## 8. Trombinoscope, liste, cartes et export
+## 9. Trombinoscope, liste, cartes et export
 
 Depuis le tableau de bord **« Mon unité »**, les boutons en haut ouvrent chacun une fenêtre d'options :
 
@@ -156,11 +174,11 @@ Depuis le tableau de bord **« Mon unité »**, les boutons en haut ouvrent chac
 
 ---
 
-## 9. Traiter les demandes de modification
+## 10. Modifications à valider
 
 Quand un membre propose lui-même une modification (une **fonction** ou une **progression**), vous la validez.
 
-1. Menu de gauche → **« Demandes de modification »** (une pastille indique le nombre en attente).
+1. Menu de gauche → **« Modifications à valider »** (une pastille indique le nombre en attente).
 2. Pour chaque demande, **Approuver** (crée la vraie progression / affectation) ou **Refuser** (avec un
    motif).
 
@@ -168,22 +186,24 @@ Quand un membre propose lui-même une modification (une **fonction** ou une **pr
 
 ---
 
-## 10. Réinitialiser le mot de passe d'un membre
+## 11. Réinitialiser le mot de passe d'un membre
 
 > Disponible si vous avez le droit correspondant (sinon, demandez au chef de groupe).
 
-Ouvrez la **fiche du membre** (voir §4). En haut à droite, à côté de **Modifier**, des icônes permettent de :
+Ouvrez la **fiche du membre** (voir §4). En haut à droite, à côté de **Modifier**, cliquez sur le menu
+**« Actions ▾ »** :
 
+- ✉️ **Envoyer l'accès (identifiant + lien)** — envoie au membre son identifiant + un lien pour définir son
+  mot de passe.
 - 🔑 **Réinitialiser le mot de passe** — un mot de passe temporaire est envoyé à l'adresse de contact du
   membre (et affiché à l'écran s'il n'a pas d'email). Le membre devra en choisir un nouveau à sa prochaine
   connexion.
-- ✉️ **Envoyer l'accès** — envoie au membre son identifiant + un lien pour définir son mot de passe.
 
-*(Les icônes se trouvent dans l'en-tête de la fiche, visibles sur la capture du §4.)*
+> Le menu **Actions** contient aussi **Carte membre** (PDF) et **Supprimer le membre**.
 
 ---
 
-## 11. Suivre sa liste de rentrée
+## 12. Suivre sa liste de rentrée
 
 1. Menu de gauche → **« Rentrée scoute »**.
 2. Vous voyez **vos tâches** de la rentrée, groupées par phase, avec une barre de progression.
