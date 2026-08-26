@@ -40,7 +40,9 @@ export interface EtapisteCandidateDto { memberId: string; firstName: string; las
 // ── Camps ──
 // GET /camps → list of camp editions. `enabled` lets callers without camp permission (e.g. the sidebar
 // deciding whether to show the CU "Camp BP" link) skip the fetch instead of getting a 403.
-export const useCamps = (enabled = true) => useQuery({ queryKey: ['camps'], queryFn: () => apiClient.get<CampListDto[]>('/camps').then(r => r.data), enabled })
+// staleTime: the sidebar reads this on every navigation just to place the "Camp BP" link; camps rarely change
+// mid-session (create/archive invalidate ['camps']), so cache it 5 min to avoid a refetch on each route change.
+export const useCamps = (enabled = true) => useQuery({ queryKey: ['camps'], queryFn: () => apiClient.get<CampListDto[]>('/camps').then(r => r.data), enabled, staleTime: 5 * 60 * 1000 })
 // GET /camps/{id} → one camp incl. note formula coefs + counts; disabled until id is set.
 export const useCamp = (id?: string) => useQuery({ queryKey: ['camp', id], queryFn: () => apiClient.get<CampDto>(`/camps/${id}`).then(r => r.data), enabled: !!id })
 

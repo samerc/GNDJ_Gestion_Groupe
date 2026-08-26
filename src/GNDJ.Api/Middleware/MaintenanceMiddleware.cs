@@ -60,7 +60,7 @@ public class MaintenanceMiddleware
     }
 
     private static bool IsAlwaysAllowed(string path) =>
-        path.StartsWith("/api/v1/auth/", StringComparison.OrdinalIgnoreCase)         // member login/refresh/me
+        path.StartsWith("/api/v1/auth/", StringComparison.OrdinalIgnoreCase)         // member login/refresh/me/bootstrap
         || path.StartsWith("/api/v1/public/maintenance", StringComparison.OrdinalIgnoreCase) // status probe
         || path.StartsWith("/api/v1/errors/report", StringComparison.OrdinalIgnoreCase);      // crash reporting
 

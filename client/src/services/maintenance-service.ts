@@ -16,9 +16,12 @@ export function useMaintenance() {
   return useQuery({
     queryKey: ['maintenance'],
     queryFn: () => publicApi.get<MaintenanceStatus>('/public/maintenance').then((r) => r.data),
-    staleTime: 30_000,
+    // The 60s interval already keeps this fresh; a focus refetch just fired a redundant second
+    // /public/maintenance right after login/tab-refocus (the "maintenance called twice" the user saw).
+    // Match staleTime to the interval so the focus refetch is a cache hit.
+    staleTime: 60_000,
     refetchInterval: 60_000,
-    refetchOnWindowFocus: true, // pick up a toggle promptly when the user comes back to the tab
+    refetchOnWindowFocus: false,
     retry: false,
   })
 }

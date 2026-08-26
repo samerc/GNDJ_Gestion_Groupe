@@ -30,6 +30,17 @@ Log.Logger = new LoggerConfiguration()
         outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
     .CreateBootstrapLogger();
 
+// ThreadPool floor for burst logins. In-process IIS hosting means Kestrel connection limits don't apply —
+// requests are served by the .NET ThreadPool, which grows only ~1 thread/500ms. Login is intentionally
+// bcrypt-bound (WF10/12), so a September morning spike (all leaders/parents at once) can queue behind slow
+// thread injection even though CPU isn't pegged. A modest floor (8×cores, capped) absorbs the burst without
+// wasting memory on the shared box. Complements async bcrypt — it doesn't replace it.
+{
+    var floor = Math.Clamp(Environment.ProcessorCount * 8, 32, 128);
+    ThreadPool.GetMinThreads(out _, out var minIocp);
+    ThreadPool.SetMinThreads(floor, Math.Max(minIocp, floor));
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Replace default logging with Serilog
@@ -84,6 +95,7 @@ builder.Services.AddHostedService<GNDJ.Api.Services.OutboxSenderBackgroundServic
 builder.Services.AddHostedService<GNDJ.Api.Services.MemberPurgeBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.DocumentCampaignBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.RentreeReminderBackgroundService>();
+builder.Services.AddHostedService<GNDJ.Api.Services.ApplicationLogMaintenanceBackgroundService>();
 
 // Performance: Response compression (gzip + brotli)
 builder.Services.AddResponseCompression(options =>

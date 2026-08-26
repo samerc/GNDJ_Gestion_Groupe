@@ -108,6 +108,9 @@ export function usePendingDemandeCount(enabled: boolean) {
     queryKey: ['demandes', 'pending-count'],
     queryFn: () => apiClient.get<{ count: number }>('/demandes/pending-count').then((r) => r.data.count),
     enabled,
+    // Without a staleTime, every admin-page navigation re-mounts the sidebar and re-fetches this. Match it
+    // just under the poll interval so navigation reads from cache but the badge still refreshes each minute.
+    staleTime: 55_000,
     refetchInterval: 60000,
   })
 }

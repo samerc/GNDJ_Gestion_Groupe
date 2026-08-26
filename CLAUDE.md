@@ -3182,6 +3182,58 @@ tasks past the snapshot the user saw). Live dev DB + the seed code; 2026-2027 re
       rentrée list) on the Desktop for planning; `tools/gen_rentree_template_sql.py` rebuilds the rentrée template.
       One-way (editing the sheet doesn't write back).
 
+### Performance pass — concurrency/latency (2026-08-26)
+A full-stack perf audit (4 parallel agents: backend/EF, Postgres, IIS, frontend) targeting a modest SHARED VPS
+with dozens of concurrent users. Baseline was already healthy (auth reads permissions/units from the JWT — ZERO
+DB hits per request; compression, DbContextPool, trgm search index, static-asset immutable headers, async Serilog
+sinks, app-pool warm-keeping all in place). Shipped code wins (all on main, pushed; DEV until deploy — migration
++ bg-service apply on prod startup):
+- [x] **Two hot-path partial indexes on `member_assignments`** (migration `AddAssignmentHotIndexes`):
+      **`ix_member_assignments_unit_active`** = `(unit_id) WHERE end_date IS NULL AND is_deleted=false` — the #1
+      query in the app (roster / doc matrix / cotisation dashboard / reports / member list all filter
+      `unit_id + end_date IS NULL`); the existing member-first partial index couldn't serve a unit-only filter, so
+      it was re-reading every historical row for the unit. **`ix_member_assignments_start_end`** =
+      `(start_date, end_date) WHERE is_deleted=false` — the CG dashboard's scout-year range overlap. Verified live:
+      EXPLAIN now shows **Index-Only Scan using ix_member_assignments_unit_active** on the active-by-unit query.
+- [x] **`application_logs` index + retention** (`ApplicationLogMaintenanceBackgroundService`, daily, self-healing):
+      Serilog auto-creates that table with NO index and there was no retention → an unbounded full-scan table that
+      bloats cache for the WHOLE shared box. The service guards on table existence (skips a fresh DB until the sink
+      creates it), `CREATE INDEX IF NOT EXISTS ix_application_logs_timestamp (timestamp DESC)`, and deletes rows
+      older than **`logs.retention_days`** (new setting, default 90, category maintenance, super-admin-only; 0 =
+      keep forever). Not a data patch (patches can't do non-transactional DDL and it's a non-EF table); the daily
+      service self-heals every env. Verified: the DO block runs + creates the index on dev.
+- [x] **`GET /auth/bootstrap`** (`GetBootstrapQuery`) — collapses the ~5 authenticated first-paint round-trips
+      (`/auth/me` + `/settings/ui.role_colors` + `/settings/passage.scout_year` + `/demandes/pending-count` +
+      `/change-requests/pending/count`) into **ONE** call. Reuses `GetMeQuery` + the two count queries via the
+      mediator (demande count gated by `demande.view`; change-request count self-gates); both settings in one DB
+      query. `auth-store.loadUser()` now calls it and **primes the TanStack Query cache**
+      (`queryClient.setQueryData`) for those keys so the header/sidebar/dashboard hooks read from cache instead of
+      each firing an XHR — the biggest perceived-latency win on a mobile link. No new exposure (single-key settings
+      were already readable by any authed user; counts reuse their gated handlers). `/auth/me` kept for API
+      integrations; `/api/v1/auth/` is already maintenance-exempt so bootstrap works during membres-maintenance.
+      Verified live: one call returns `{me, roleColors, scoutYear, pendingDemandes:3, pendingChangeRequests:0}`.
+- [x] **Frontend refetch discipline (`staleTime`):** `ui.role_colors` / `passage.scout_year` (read by header+sidebar
+      on EVERY route via `useSetting`, previously 0 staleTime → an XHR per navigation) → 5 min; the two sidebar
+      **pending-count** badges → 55–60s (was refetching on every admin-page navigation); **`useCamps`** (sidebar link
+      placement) → 5 min; **maintenance** dropped `refetchOnWindowFocus` (was the "called twice" duplicate at login,
+      the interval already covers freshness). Global query **retry** now skips 4xx (fail fast — a 403/404 no longer
+      waits for a pointless second attempt) and only retries transient 5xx.
+- [x] **`ThreadPool.SetMinThreads` floor** (Program.cs, `8×cores` clamped 32–128): in-process IIS hosting serves
+      requests off the .NET ThreadPool (Kestrel limits don't apply), which grows only ~1 thread/500ms — a September
+      login spike (bcrypt-bound) can queue behind slow thread injection even when CPU isn't pegged. Complements async
+      bcrypt.
+- [x] **AppInit warms 2 more anonymous GETs** (`web.config`): `/api/v1/public/site-config` + `/api/v1/public/units`
+      alongside `/health`, so after every recycle the MVC/EF/JSON pipeline + first query plans are JIT'd BEFORE the
+      first real user (health only primed the DB path). Only anonymous output-cached routes (AppInit can't auth).
+- **SERVER-SIDE checklist handed to the user (NOT code — they apply on the box):** (1) **Npgsql pool sizing** on the
+      prod connection string — it's UNSET (defaults to 100/process) against PG `max_connections=100` shared with ~10
+      sites; recommend `Maximum Pool Size=40;Minimum Pool Size=5;Connection Idle Lifetime=300;Timeout=15` + raise PG
+      `max_connections` to 200. THE top operational lever for concurrency. (2) Verify **IIS dynamic compression is
+      OFF** at the site (the app compresses; double-compression wastes CPU — DEPLOYMENT says off but no script
+      enforces it). (3) **autovacuum** tuning + the pool/max_connections alignment in `pg-profile.ps1`. (4) optional:
+      disable IIS W3C request logging (Cloudflare + Serilog already cover it). Skipped (Cloudflare handles): origin
+      HTTP/2/3, request-queue caps. The "drop app JSON compression behind Cloudflare" idea = measure origin CPU first.
+
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to

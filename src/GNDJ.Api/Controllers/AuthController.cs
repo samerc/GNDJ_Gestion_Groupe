@@ -100,6 +100,18 @@ public class AuthController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>One-shot bootstrap for the authenticated shell: profile + shell settings + sidebar badge counts in a single call (replaces ~5 first-paint round-trips).</summary>
+    /// <response code="200">Bootstrap payload (me, roleColors, scoutYear, pendingDemandes, pendingChangeRequests).</response>
+    /// <response code="401">Not authenticated.</response>
+    [Authorize]
+    [HttpGet("bootstrap")]
+    public async Task<IActionResult> Bootstrap()
+    {
+        var result = await Mediator.Send(new GetBootstrapQuery());
+        if (!result.IsSuccess) return Unauthorized(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     /// <summary>Request a password-reset email.</summary>
     /// <response code="200">Reports whether the account was found and the masked address(es) the link was sent to.</response>
     [HttpPost("forgot-password")]

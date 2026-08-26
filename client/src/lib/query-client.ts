@@ -8,7 +8,13 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000,
-      retry: 1,
+      // Only retry transient server errors (5xx) / network failures. A 4xx (401/403/404/validation)
+      // is deterministic — retrying it just doubles the perceived latency before the error shows.
+      retry: (count, err: unknown) => {
+        const status = (err as { response?: { status?: number } })?.response?.status
+        if (status && status >= 400 && status < 500) return false
+        return count < 1
+      },
       // This is a CRUD admin app, not a live feed — data is refreshed explicitly via mutation
       // invalidation. Refetching everything on every tab refocus (the library default) just adds
       // load with no real freshness benefit.

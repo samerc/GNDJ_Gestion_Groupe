@@ -23,7 +23,18 @@ public class MemberAssignmentConfiguration : IEntityTypeConfiguration<MemberAssi
         builder.HasIndex(e => e.MemberId);
         builder.HasIndex(e => e.UnitId);
         builder.HasIndex(e => e.TeamId);
-        // Partial index over open (end_date IS NULL) assignments — the hot path for active-membership lookups.
+        // Partial index over open (end_date IS NULL) assignments — the hot path for PER-MEMBER active lookups.
         builder.HasIndex(e => new { e.MemberId, e.UnitId }).HasFilter("end_date IS NULL AND is_deleted = false");
+        // Active-BY-UNIT hot path: "all active members of a unit" (roster, doc matrix, cotisation dashboard,
+        // reports, member list). The member-first partial index above can't serve a unit_id-only filter, so
+        // without this it falls back to the plain unit_id index and re-reads every historical row for the unit.
+        builder.HasIndex(e => e.UnitId, "ix_member_assignments_unit_active")
+            .HasFilter("end_date IS NULL AND is_deleted = false")
+            .HasDatabaseName("ix_member_assignments_unit_active");
+        // Year-range overlap: the CG dashboard counts members active DURING a scout year via a start/end date
+        // window (start < windowEnd AND (end IS NULL OR end > windowStart)); no existing index leads on the dates.
+        builder.HasIndex(e => new { e.StartDate, e.EndDate }, "ix_member_assignments_start_end")
+            .HasFilter("is_deleted = false")
+            .HasDatabaseName("ix_member_assignments_start_end");
     }
 }

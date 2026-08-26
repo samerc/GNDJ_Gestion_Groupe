@@ -25,6 +25,10 @@ export function useSetting(key: string) {
   return useQuery({
     queryKey: ['settings', key],
     queryFn: () => apiClient.get<SettingDto>(`/settings/${key}`).then(r => r.data),
+    // Settings change rarely and writes explicitly invalidate ['settings']. Some keys (ui.role_colors,
+    // passage.scout_year) are read by the header/sidebar on EVERY page — without a staleTime that fired a
+    // fresh XHR on each navigation. Bound staleness by explicit invalidation instead.
+    staleTime: 5 * 60 * 1000,
   })
 }
 

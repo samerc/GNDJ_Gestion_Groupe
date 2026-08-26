@@ -77,6 +77,8 @@ export function usePendingChangeRequestsCount(enabled = true) {
     queryKey: ['change-requests', 'pending', 'count'],
     queryFn: () => apiClient.get<{ count: number }>('/change-requests/pending/count').then(r => r.data.count),
     enabled,
+    // Read by the sidebar on every navigation; a staleTime avoids a refetch on each route change.
+    staleTime: 60_000,
   })
 }
 

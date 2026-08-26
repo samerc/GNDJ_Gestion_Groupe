@@ -2,6 +2,18 @@ import { create } from 'zustand'
 import apiClient from '@/lib/api-client'
 import { queryClient } from '@/lib/query-client'
 import type { AuthResponse, LoginRequest, MeResponse, RegisterRequest, UnitAccess } from '@/types/auth'
+import type { SettingDto } from '@/services/settings-service'
+
+// One-shot bootstrap payload: profile + shell settings + sidebar badge counts. Collapses ~5 first-paint XHRs
+// (/auth/me + 2 settings + 2 counts) into one; loadUser primes the query cache from it so the individual hooks
+// read from cache instead of re-fetching.
+interface BootstrapResponse {
+  me: MeResponse
+  roleColors: SettingDto | null
+  scoutYear: SettingDto | null
+  pendingDemandes: number
+  pendingChangeRequests: number
+}
 
 interface AuthState {
   user: MeResponse | null
@@ -66,12 +78,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: null, isAuthenticated: false })
   },
 
-  // Fetch /auth/me to hydrate the user (perms + unit access); clears the session if the token is bad.
+  // Fetch /auth/bootstrap to hydrate the user (perms + unit access) AND prime the shell's config/count queries
+  // in one round-trip; clears the session if the token is bad. (/auth/me still exists for API integrations.)
   loadUser: async () => {
     set({ isLoading: true })
     try {
-      const { data } = await apiClient.get<MeResponse>('/auth/me')
-      set({ user: data, isAuthenticated: true, isLoading: false })
+      const { data } = await apiClient.get<BootstrapResponse>('/auth/bootstrap')
+      set({ user: data.me, isAuthenticated: true, isLoading: false })
+      // Prime the query cache so the header/sidebar/dashboard hooks read from cache instead of each firing
+      // their own XHR on first paint. Keys must match the consuming hooks exactly. staleTime on those hooks
+      // then prevents an immediate refetch; explicit invalidation on write keeps them correct afterward.
+      if (data.roleColors) queryClient.setQueryData(['settings', 'ui.role_colors'], data.roleColors)
+      if (data.scoutYear) queryClient.setQueryData(['settings', 'passage.scout_year'], data.scoutYear)
+      queryClient.setQueryData(['demandes', 'pending-count'], data.pendingDemandes)
+      queryClient.setQueryData(['change-requests', 'pending', 'count'], data.pendingChangeRequests)
     } catch {
       set({ user: null, isAuthenticated: false, isLoading: false })
       localStorage.removeItem('accessToken')
