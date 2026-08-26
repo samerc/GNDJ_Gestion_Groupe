@@ -25,18 +25,18 @@ const STEPS: Step[] = [
   {
     icon: Hand,
     title: 'Bienvenue dans votre espace 👋',
-    body: "Ici, vous pouvez consulter vos informations, envoyer vos documents et voir le trombinoscope de votre unité. Voici l'essentiel en 3 étapes.",
+    body: "Ici, vous pouvez consulter vos informations, envoyer vos documents et voir le trombinoscope de votre unité une fois qu'il sera publié. Voici l'essentiel en quelques étapes.",
   },
   {
     icon: FileText,
     title: 'Envoyez vos documents',
-    body: 'La maîtrise vous demande quelques documents (autorisations, fiche médicale…). Dans « Mes documents », vous les téléversez et vous suivez leur validation.',
+    body: "La rubrique « Mes documents » sert à envoyer les documents requis pour la réinscription (autorisations, fiche médicale, carte d'identité). Vous les téléversez et vous suivez leur validation.",
     cta: { label: 'Aller à Mes documents', to: '/my-documents' },
   },
   {
     icon: UserRound,
     title: 'Gardez vos infos à jour',
-    body: "Dans « Ma fiche », vérifiez votre école, votre classe et vos coordonnées. Pour changer votre mot de passe ou vous déconnecter, utilisez le menu en haut à droite (votre nom).",
+    body: "Dans « Ma fiche », vérifiez et mettez à jour vos informations personnelles et vos coordonnées. De même, vous pourrez mettre à jour vos informations scoutes (badges, étapes scoutes…). Pour changer votre mot de passe ou vous déconnecter, utilisez le menu en haut à droite (votre nom).",
   },
 ]
 
