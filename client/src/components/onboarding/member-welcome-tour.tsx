@@ -5,6 +5,8 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
 import { useMarkOnboardingSeen } from '@/services/my-profile-service'
+import { useIsRegularMember } from '@/lib/use-is-manager'
+import { useOnboardingTour } from '@/stores/onboarding-store'
 
 // First-login welcome tour for REGULAR MEMBERS (youth / parents) — a short, mobile-friendly carousel that
 // orients them instead of a DOM-spotlight tour (which breaks when the member nav is behind the hamburger).
@@ -42,21 +44,28 @@ export function MemberWelcomeTour() {
   const user = useAuthStore((s) => s.user)
   const markSeen = useMarkOnboardingSeen()
   const navigate = useNavigate()
+  const isRegularMember = useIsRegularMember()
+  const replay = useOnboardingTour((s) => s.replay)
+  const closeReplay = useOnboardingTour((s) => s.close)
   const [step, setStep] = useState(0)
   const [dismissed, setDismissed] = useState(false)
 
-  // A regular member = not a super-admin and not a leader of any kind (a CU/ACU has an isLeader role; a CG/ACG
-  // has an isGroupLevel role). Chefs d'équipe (leadsTeam, no isLeader role) are still members → they see it.
-  const isRegularMember = !!user && !user.isSuperAdmin && !(user.unitAccess ?? []).some((u) => u.isLeader || u.isGroupLevel)
-  const show = isRegularMember && !user?.hasSeenOnboarding && !dismissed
+  // Shows automatically to a regular member who hasn't seen it, OR whenever they hit "Revoir le tutoriel"
+  // (replay overrides the once-per-member flag). Chefs/admins are excluded (isRegularMember is false, and the
+  // menu entry that sets replay is gated the same way).
+  const show = replay || (isRegularMember && !user?.hasSeenOnboarding && !dismissed)
 
-  // Any dismissal (skip / finish / CTA / outside-click) marks it seen so it never re-appears. Optimistic: hide
-  // locally + flip the cached user flag immediately; the server call is best-effort (a failure just means it may
-  // re-show on the next login, which is acceptable).
+  // Any dismissal (skip / finish / CTA / outside-click) closes the tour. On the FIRST viewing it marks it seen
+  // (optimistic: flip the cached flag immediately; the server call is best-effort). A replay of an already-seen
+  // member skips the mark. Reset the step so the next open starts at the beginning.
   const finish = (goTo?: string) => {
+    if (!user?.hasSeenOnboarding) {
+      markSeen.mutate()
+      useAuthStore.setState((s) => ({ user: s.user ? { ...s.user, hasSeenOnboarding: true } : s.user }))
+    }
     setDismissed(true)
-    markSeen.mutate()
-    useAuthStore.setState((s) => ({ user: s.user ? { ...s.user, hasSeenOnboarding: true } : s.user }))
+    setStep(0)
+    closeReplay()
     if (goTo) navigate(goTo)
   }
 

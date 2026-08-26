@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
-import { useIsManager } from '@/lib/use-is-manager'
+import { useIsManager, useIsRegularMember } from '@/lib/use-is-manager'
+import { useOnboardingTour } from '@/stores/onboarding-store'
 import { useNavigate } from 'react-router'
 import { useChangePassword, useSignOutOtherDevices } from '@/services/email-service'
 import { parseApiError } from '@/lib/error-utils'
@@ -17,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, KeyRound, IdCard, MonitorSmartphone, FileText, Image as ImageIcon } from 'lucide-react'
+import { LogOut, KeyRound, IdCard, MonitorSmartphone, FileText, Image as ImageIcon, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 
 // The single account/personal menu (avatar → dropdown), used by the header (mobile + non-managers) and the
@@ -29,6 +30,8 @@ export function UserMenu() {
   // Managers use the horizontal top nav (no left sidebar), so the personal pages live here for them. Regular
   // members already have those links in their sidebar/drawer, so we don't duplicate them in this menu.
   const isManager = useIsManager()
+  const isRegularMember = useIsRegularMember()
+  const openTour = useOnboardingTour((s) => s.open)
   const [loggingOut, setLoggingOut] = useState(false)
 
   const signOutOthersMutation = useSignOutOtherDevices()
@@ -120,6 +123,13 @@ export function UserMenu() {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
+          )}
+          {/* Members can replay the first-login welcome tour any time. Not shown to chefs (they get the guide). */}
+          {isRegularMember && (
+            <DropdownMenuItem onClick={() => openTour()}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Revoir le tutoriel
+            </DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={() => { setPasswordError(''); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); setChangePasswordOpen(true) }}>
             <KeyRound className="mr-2 h-4 w-4" />

@@ -9,6 +9,15 @@ export function useIsManager() {
   return !!user?.isSuperAdmin || hasPermission(PERMISSIONS.MAITRISE_MANAGE) || !!user?.unitAccess?.some((u) => u.isGroupLevel)
 }
 
+// A regular member = a youth/parent, NOT a chef of any kind: not a super-admin and holding no leadership role
+// (isLeader = a members.edit role → CU/ACU) or group-level role (CG/ACG). Chefs get the printed guide; regular
+// members get the in-app welcome tour + the "Revoir le tutoriel" menu entry. (A chef d'équipe has no isLeader
+// role, so they count as a member here.)
+export function useIsRegularMember() {
+  const user = useAuthStore((s) => s.user)
+  return !!user && !user.isSuperAdmin && !(user.unitAccess ?? []).some((u) => u.isLeader || u.isGroupLevel)
+}
+
 // Role-based chrome colour: the header (and the CU/member left sidebar + the mobile drawer) are tinted by the
 // signed-in user's category, so you can tell at a glance who you are. Colours are configurable in Settings →
 // Apparence (the `ui.role_colors` setting, one hex per role) and applied INLINE (not a Tailwind class) so any
