@@ -527,7 +527,7 @@ export default function RentreePage() {
 
       {/* Generate dialog */}
       <Dialog open={genOpen} onOpenChange={setGenOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Générer la liste de rentrée</DialogTitle></DialogHeader>
           <div className="space-y-2">
             <RequiredLabel required>Année scoute</RequiredLabel>
@@ -537,7 +537,7 @@ export default function RentreePage() {
               <p className="text-xs text-muted-foreground">Une liste existe déjà pour {genYear.trim()}. <b>Ajouter les nouvelles tâches</b> insère les tâches du modèle absentes et met à jour les libellés / échéances / suivis depuis le modèle (progression conservée) ; <b className="text-amber-600">Tout régénérer</b> efface la progression et recrée tout.</p>
             )}
           </div>
-          <DialogFooter className="flex-col gap-2 sm:flex-row">
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
             <Button variant="outline" onClick={() => setGenOpen(false)}>Annuler</Button>
             {years?.includes(genYear.trim()) ? (
               <>

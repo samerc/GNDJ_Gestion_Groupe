@@ -3,6 +3,7 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Correction (affichage) : la fenêtre « Générer la liste de rentrée » n'est plus coupée lorsqu'une liste existe déjà pour l'année — les boutons s'ajustent et passent à la ligne au besoin.",
       "Documents : le chef de groupe / super-administrateur peut désormais ouvrir la grille de vérification des documents (la même que le chef d'unité) pour n'importe quelle unité, via un sélecteur d'unité — nouvelle entrée « Documents par unité » dans le menu Suivi.",
       "Terminologie : « Séances » est renommé « Réunions » partout dans l'application (page, menu, boutons, messages). La « séance photo » (session photo) n'est pas concernée.",
       "Rentrée : la liste de tâches type a été revue (31 tâches). Les deux vérifications de documents (1ère et 2ème) sont désormais des tâches manuelles avec échéance — ce qui corrige les tâches qui apparaissaient « terminées » alors qu'elles ne l'étaient pas. Ajout de l'ouverture de la période de dépôt des documents, du blocage des dossiers incomplets, de la collecte des coordonnées des membres qui quittent, de la vérification des textes des emails, et du document des tenues ; « Imprimer les cartes » retirée.",
