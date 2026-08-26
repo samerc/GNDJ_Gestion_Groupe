@@ -3270,9 +3270,10 @@ and we had no legend. Recovered it:
   idempotent (matches by unit code + totem, only where `color1 IS NULL`) so it **reaches prod on the next deploy**
   without a dump. **Migration tool** (`tools/Migration`) now decodes the indices via a `TeamColour()` legend so a
   re-import keeps them (new BP-created teams → white).
-- **CU onboarding task**: added a per-unit rentrée template task **"Vérifier et corriger les couleurs des
-  équipes"** (Configuration phase, `goto-my-unit`) — in the base seed + backfilled into existing DBs via
-  `SeedRentreeExtraTasksAsync` (which gained per-task role + fan-out). CUs adjust any leftover in-app.
+- **CU verification**: this is a **one-time, this-year** ask, so it lives in the **CU onboarding email**
+  (a manual line the CG adds to the `cu_rentree` / `cu_rentree_nouveau` templates before sending) — NOT the
+  rentrée checklist (a rentrée task was built then reverted, since the list is meant to recur yearly). CUs
+  correct any leftover colour in-app.
 - The palette was reviewed by the CU via a generated `GNDJ_couleurs_equipes.xlsx` (Desktop, painted hex cells +
   Légende tab). Builds clean (dotnet Release + migration tool). DEV until deploy.
 
