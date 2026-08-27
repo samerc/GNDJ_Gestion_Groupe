@@ -148,7 +148,7 @@ export default function PublicUnitDetailPage() {
                   </div>
                 )}
                 <div className="flex items-center justify-between">
-                  <dt className="text-muted-foreground">Jeunes</dt>
+                  <dt className="text-muted-foreground">Membres</dt>
                   <dd className="font-medium">{unit.totalYouth}</dd>
                 </div>
                 {unit.foundedDate && (

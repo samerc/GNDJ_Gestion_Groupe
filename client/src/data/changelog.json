@@ -3,6 +3,7 @@
     "version": "3.0.0",
     "date": "2026-08-27",
     "changes": [
+      "Site public (unité) : dans « En bref », « Jeunes » est renommé « Membres ». (La ligne « Fondée en » s'affiche dès qu'une date de fondation est renseignée sur l'unité.)",
       "Site public (unité) : chaque équipe affiche désormais les couleurs de son foulard sous la forme d'un petit foulard (au lieu de pastilles) — plus fidèle à l'identité des sizaines / patrouilles.",
       "Site public : les boutons « Espace membres » et « Demande d'inscription » quittent le menu — ils sont désormais regroupés dans la bannière d'accueil et le pied de page (le menu ne contient plus que le contenu du site). « Agenda » devient une entrée de menu à part entière (au lieu d'être dans « Actualités »). Quand les inscriptions sont fermées, aucune mention n'apparaît nulle part.",
       "Cartes membres : la génération des cartes (individuelle et par unité) est désormais contrôlée par un réglage « Génération des cartes membres » (Paramètres → Rapports, modifiable par le chef de groupe / super-administrateur). Désactivé, les boutons « Cartes » disparaissent et la génération est refusée — pratique pour n'ouvrir la fonction qu'à la saison d'impression. Activé par défaut.",
