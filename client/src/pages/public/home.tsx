@@ -49,17 +49,33 @@ export default function PublicHomePage() {
               {home?.heroTitle ?? 'Groupe Notre-Dame Jamhour'}
             </h1>
             <p className="mt-5 max-w-xl text-pretty text-lg leading-relaxed text-white/85">{home?.heroSubtitle}</p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            {/* Hero actions — the ONLY place (with the footer) that surfaces Demande / Espace membres, now that
+                the header nav is content-only. When inscriptions are OPEN: row 1 = Demande (primary) + Espace
+                membres (secondary), and "Découvrir les unités" drops to a softer second-row link. When CLOSED:
+                no inscription mention at all — row 1 = Espace membres (primary) + Découvrir les unités. */}
+            <div className="mt-8 space-y-4">
+              <div className="flex flex-wrap gap-3">
+                {inscriptionsOpen && (
+                  <Link to="/inscription" className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-primary shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0">
+                    Demande d'inscription <ArrowRight className="h-4 w-4" />
+                  </Link>
+                )}
+                <Link to="/login" className={inscriptionsOpen
+                  ? "inline-flex items-center gap-2 rounded-xl bg-white/10 px-6 py-3 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur transition-all hover:bg-white/20"
+                  : "inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-primary shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"}>
+                  Espace membres
+                </Link>
+                {!inscriptionsOpen && (
+                  <Link to="/unites" className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-6 py-3 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur transition-all hover:bg-white/20">
+                    Découvrir les unités
+                  </Link>
+                )}
+              </div>
               {inscriptionsOpen && (
-                <Link to="/inscription" className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-primary shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0">
-                  Demande d'inscription <ArrowRight className="h-4 w-4" />
+                <Link to="/unites" className="inline-flex items-center gap-1.5 text-sm font-semibold text-white/85 transition-colors hover:text-white">
+                  Découvrir les unités <ArrowRight className="h-4 w-4" />
                 </Link>
               )}
-              <Link to="/unites" className={inscriptionsOpen
-                ? "inline-flex items-center gap-2 rounded-xl bg-white/10 px-6 py-3 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur transition-all hover:bg-white/20"
-                : "inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-primary shadow-lg transition-all hover:-translate-y-0.5"}>
-                Découvrir les unités
-              </Link>
             </div>
           </div>
         </div>

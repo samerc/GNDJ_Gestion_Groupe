@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { Toaster } from 'sonner'
-import { Compass, Menu, X, ArrowRight, ChevronDown, MapPin, Mail, Phone, ArrowUp } from 'lucide-react'
+import { Compass, Menu, X, ChevronDown, MapPin, Mail, Phone, ArrowUp } from 'lucide-react'
 
 // Instagram/Facebook brand glyphs (lucide dropped its brand icons) — module-scope so their identity is stable.
 function InstagramIcon() {
@@ -28,14 +28,13 @@ import { MaintenancePage } from '@/components/shared/maintenance-page'
 
 const FIXED_LEFT = [{ to: '/', label: 'Accueil', end: true }]
 // A fixed nav entry is either a direct link (to) or a group with a hover dropdown (children).
-// Actualités (news) + Agenda (events) are grouped under one "Actualités" entry.
+// Agenda (events) is its own top-level entry (time-sensitive — people look for it) rather than nested
+// under Actualités. The nav is now purely content: the member/inscription actions live in the hero + footer.
 type FixedNav = { label: string; to?: string; children?: { to: string; label: string }[] }
 const FIXED_RIGHT: FixedNav[] = [
   { to: '/unites', label: 'Unités' },
-  { label: 'Actualités', children: [
-    { to: '/actualites', label: 'Actualités' },
-    { to: '/agenda', label: 'Agenda' },
-  ] },
+  { to: '/actualites', label: 'Actualités' },
+  { to: '/agenda', label: 'Agenda' },
   { to: '/ressources', label: 'Ressources' },
   { to: '/contact', label: 'Contact' },
 ]
@@ -169,14 +168,8 @@ export function PublicLayout() {
             )}
           </nav>
 
-          <div className="hidden items-center gap-2 lg:flex">
-            <Link to="/login" className="rounded-md px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:text-foreground">Espace membres</Link>
-            {inscriptionsOpen && (
-              <Link to="/inscription" className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:shadow-md hover:brightness-110 active:translate-y-px">
-                Demande d'inscription
-              </Link>
-            )}
-          </div>
+          {/* Espace membres / Demande d'inscription intentionally NOT in the header — they live in the hero
+              (home) + the footer's "Rejoindre" column, so the nav stays purely content. */}
 
           <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-foreground lg:hidden"
             onClick={() => setMobileOpen((o) => !o)} aria-label="Menu" aria-expanded={mobileOpen}>
@@ -203,14 +196,7 @@ export function PublicLayout() {
                 <NavLink key={item.to} to={item.to} onClick={() => setMobileOpen(false)}
                   className={({ isActive }) => cn('rounded-lg px-3 py-2.5 text-base font-medium', isActive ? 'bg-accent/10 text-primary' : 'text-foreground/80 hover:bg-accent/10')}>{item.label}</NavLink>
               ))}
-              <div className="mt-3 flex flex-col gap-2 border-t border-border pt-4">
-                <Link to="/login" onClick={() => setMobileOpen(false)} className="rounded-lg border border-border px-4 py-2.5 text-center text-sm font-medium">Espace membres</Link>
-                {inscriptionsOpen && (
-                  <Link to="/inscription" onClick={() => setMobileOpen(false)} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-center text-sm font-semibold text-primary-foreground">
-                    Demande d'inscription <ArrowRight className="h-4 w-4" />
-                  </Link>
-                )}
-              </div>
+              {/* Espace membres / Demande d'inscription live in the hero + footer, not the menu. */}
             </nav>
           </div>
         )}
