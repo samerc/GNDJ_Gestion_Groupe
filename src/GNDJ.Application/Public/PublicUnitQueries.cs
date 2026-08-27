@@ -13,7 +13,7 @@ public record PublicUnitListItemDto(string Slug, string Name, string UnitTypeNam
     int? AgeMin, int? AgeMax, int MemberCount);
 
 public record PublicUnitGroupDto(Guid UnitTypeId, string UnitTypeName, string? Color, int? AgeMin, int? AgeMax,
-    string? Description, IReadOnlyList<PublicUnitListItemDto> Units);
+    string? Description, string? AssociationCode, string? AssociationName, IReadOnlyList<PublicUnitListItemDto> Units);
 
 public record PublicLeaderDto(string Name, string RoleName, string? Phone);
 // Foulard colours (color1 = main, color2 = optional secondary) so the public page can render each team's scarf.
@@ -64,6 +64,10 @@ public class GetPublicUnitsQueryHandler(IApplicationDbContext context)
                 u.UnitType.AgeMax,
                 Color = u.UnitType.Color,
                 Description = u.UnitType.PublicDescription,
+                // Association (SDL/GDL) — held per unit; the public site splits branches by it. A branch's
+                // published units all share one association in practice, so the group takes the first.
+                AssocCode = u.Association != null ? u.Association.Code : null,
+                AssocName = u.Association != null ? u.Association.Name : null,
                 MemberCount = u.Assignments.Count(a => a.EndDate == null),
             })
             .ToListAsync(ct);
@@ -74,6 +78,7 @@ public class GetPublicUnitsQueryHandler(IApplicationDbContext context)
             .OrderBy(g => BranchRank(g.Key.Code)).ThenBy(g => g.Key.AgeMin ?? 999).ThenBy(g => g.Key.UnitTypeName)
             .Select(g => new PublicUnitGroupDto(
                 g.Key.UnitTypeId, g.Key.UnitTypeName, g.Key.Color, g.Key.AgeMin, g.Key.AgeMax, g.Key.Description,
+                g.Select(u => u.AssocCode).FirstOrDefault(), g.Select(u => u.AssocName).FirstOrDefault(),
                 // Units within a branch in natural numeric order (2, 3, 10)
                 g.OrderBy(u => UnitNumber(u.Name)).ThenBy(u => u.Name)
                  .Select(u => new PublicUnitListItemDto(

@@ -20,6 +20,8 @@ export interface PublicUnitGroup {
   ageMin: number | null
   ageMax: number | null
   description: string | null
+  associationCode: string | null
+  associationName: string | null
   units: PublicUnitListItem[]
 }
 

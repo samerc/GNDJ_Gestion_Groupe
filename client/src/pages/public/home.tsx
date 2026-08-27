@@ -27,6 +27,24 @@ export default function PublicHomePage() {
   const unitTypes = groups ?? []
   const latestNews = news?.items ?? []
   const upcomingEvents = eventsData?.items ?? []
+
+  // Split the branches by association for "Nos unités": Scouts du Liban first, then Guides du Liban, then any
+  // other/none. A branch's association comes from its units (all share one association in practice).
+  const associationGroups = (() => {
+    const ASSOC_ORDER = ['SDL', 'GDL']
+    const label = (code: string | null, name: string | null) =>
+      code === 'SDL' ? 'Scouts du Liban' : code === 'GDL' ? 'Guides du Liban' : (name ?? 'Autres unités')
+    const map = new Map<string, { code: string; label: string; branches: typeof unitTypes }>()
+    for (const g of unitTypes) {
+      const code = g.associationCode ?? 'other'
+      if (!map.has(code)) map.set(code, { code, label: label(g.associationCode, g.associationName), branches: [] })
+      map.get(code)!.branches.push(g)
+    }
+    return [...map.values()].sort((a, b) => {
+      const ia = ASSOC_ORDER.indexOf(a.code), ib = ASSOC_ORDER.indexOf(b.code)
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
+    })
+  })()
   const home = config?.content.home // CMS-authored home copy; undefined until config loads
   const inscriptionsOpen = config?.inscriptionsOpen ?? false // gates all "Demande d'inscription" CTAs
 
@@ -181,40 +199,44 @@ export default function PublicHomePage() {
         </section>
       )}
 
-      {/* ---------- Units by branch (live) ---------- */}
+      {/* ---------- Units by branch (live), split by association SDL / GDL ---------- */}
       {unitTypes.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight">Nos unités</h2>
-              <p className="mt-2 text-muted-foreground">Une branche pour chaque âge, du louveteau au routier.</p>
-            </div>
+            <h2 className="text-3xl font-bold tracking-tight">Nos unités</h2>
             <Link to="/unites" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
               Toutes les unités <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {unitTypes.map((g) => {
-              const color = g.color ?? undefined // unit-type accent colour (hex) used for the strip + name
-              const ages = g.ageMin != null && g.ageMax != null ? `${g.ageMin}–${g.ageMax} ans` : null
-              return (
-                <Link key={g.unitTypeId} to="/unites" className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5">
-                  <div className="relative flex h-24 items-center justify-center" style={{ background: color ? `linear-gradient(135deg, ${color}26, ${color}0d)` : undefined }}>
-                    <Compass className="h-8 w-8" style={{ color: color ?? undefined, opacity: 0.5 }} />
-                  </div>
-                  <div className="flex flex-1 flex-col p-5">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-lg font-semibold" style={{ color }}>{g.unitTypeName}</h3>
-                      {ages && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{ages}</span>}
-                    </div>
-                    {g.description && <p className="mt-2 text-sm leading-relaxed text-muted-foreground line-clamp-2">{g.description}</p>}
-                    <span className="mt-3 text-xs text-muted-foreground">{g.units.length} unité{g.units.length > 1 ? 's' : ''}</span>
-                    <span className="mt-3 inline-flex items-center text-sm font-medium text-primary">Découvrir <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" /></span>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
+          {/* One labelled block per association (Scouts du Liban, then Guides du Liban, then any other/none). */}
+          {associationGroups.map((grp) => (
+            <div key={grp.code} className="mt-12 first:mt-10">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{grp.label}</h3>
+              <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {grp.branches.map((g) => {
+                  const color = g.color ?? undefined // unit-type accent colour (hex) used for the strip + icon
+                  const ages = g.ageMin != null && g.ageMax != null ? `${g.ageMin}–${g.ageMax} ans` : null
+                  return (
+                    <Link key={g.unitTypeId} to="/unites" className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5">
+                      <div className="relative flex h-24 items-center justify-center" style={{ background: color ? `linear-gradient(135deg, ${color}26, ${color}0d)` : undefined }}>
+                        <Compass className="h-8 w-8" style={{ color: color ?? undefined, opacity: 0.5 }} />
+                      </div>
+                      <div className="flex flex-1 flex-col p-5">
+                        <div className="flex items-center justify-between gap-2">
+                          {/* Branch name in the default (near-black) foreground, per request — the colour lives in the icon/strip */}
+                          <h3 className="text-lg font-semibold">{g.unitTypeName}</h3>
+                          {ages && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{ages}</span>}
+                        </div>
+                        {g.description && <p className="mt-2 text-sm leading-relaxed text-muted-foreground line-clamp-2">{g.description}</p>}
+                        <span className="mt-3 text-xs text-muted-foreground">{g.units.length} unité{g.units.length > 1 ? 's' : ''}</span>
+                        <span className="mt-3 inline-flex items-center text-sm font-medium text-primary">Découvrir <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" /></span>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </section>
       )}
 
