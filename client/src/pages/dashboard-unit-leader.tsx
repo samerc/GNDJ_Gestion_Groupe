@@ -35,7 +35,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, FileText, ArrowLeft, CalendarCheck } from 'lucide-react'
+import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, FileText, ArrowLeft, CalendarCheck, UsersRound } from 'lucide-react'
 
 interface Props { unitId: string }
 
@@ -368,6 +368,14 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
             <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate('/photo-session')}>
               <Camera className="mr-1 h-4 w-4" />
               Photos
+            </Button>
+          </Tip>
+          {/* Opens the unit detail page (unit info + teams) — where the CU edits équipes and their foulard
+              colours. The dashboard has no other path to it, so this is the CU's way in. */}
+          <Tip content="Gérer les équipes de l'unité (noms, couleurs des foulards…)">
+            <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate(`/units/${unitId}`)}>
+              <UsersRound className="mr-1 h-4 w-4" />
+              Équipes
             </Button>
           </Tip>
           {reportTemplates && reportTemplates.length > 0 && (
