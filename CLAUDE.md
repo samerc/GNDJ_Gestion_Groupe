@@ -3277,10 +3277,13 @@ and we had no legend. Recovered it:
 - The palette was reviewed by the CU via a generated `GNDJ_couleurs_equipes.xlsx` (Desktop, painted hex cells +
   Légende tab). Builds clean (dotnet Release + migration tool). DEV until deploy.
 
-### Entrée-progression backfill (2026-08-27, LIVE DEV DB — one-time data op, reaches prod via next dump)
-Every member was given the missing **"Entrée à …"** progression for each unit they passed through. Script
-`deploy/golive/entree-progression-backfill.sql` (idempotent, re-runnable via `psql -f`; backup
-`_bak_progressions_20260827`; reversible by `DELETE … WHERE notes='Entrée — ajout automatique'`).
+### Entrée-progression backfill (2026-08-27, LIVE DEV DB — one-time data op, AUTO-APPLIED on prod via patch 009)
+Every member was given the missing **"Entrée à …"** progression for each unit they passed through. Shipped as
+**`deploy/patches/009_entree_progression_backfill.sql`** — auto-applied ONCE by `DataPatchRunner` on the next
+prod startup (idempotent; portable — admin resolved by email + unit types by code, no hardcoded per-DB GUIDs; no
+BEGIN/COMMIT / psql meta-commands per the runner's execution model). Backup `_bak_progressions_entree_backfill`;
+reversible by `DELETE … WHERE notes='Entrée — ajout automatique'`. (Dev was done by a manual run first; the patch
+is a no-op there.)
 - **Rule:** for every `(member, unit)` with a **youth (non-maîtrise)** assignment, insert that unit's entrée if
   missing; **Groupe** included BY FUNCTION (any GRP assignment, maîtrise incl. → "Entrée au Groupe"). date =
   **earliest real assignment start** in that unit; **zero-day markers** (`start_date = end_date`) excluded; note
