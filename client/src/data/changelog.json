@@ -3,6 +3,7 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Site public : depuis l'espace connecté, le menu du compte (en haut à droite) propose « Voir le site public » pour revenir au site du groupe.",
       "Camp BP : la colonne « Note » est masquée pour le chef d'unité sur la page de notation (elle reste calculée et enregistrée pour la répartition en familles côté chef de groupe).",
       "Couleurs des équipes : les couleurs de foulard de chaque sizaine / patrouille (récupérées des anciennes données du groupe) sont désormais affichées. Les équipes qui n'utilisent pas de couleur (numérotées, maîtrises, Noyau / JEM / Feu…) sont en blanc. Les chefs d'unité sont invités à vérifier et corriger les couleurs de leur unité.",
       "Bienvenue : à leur première connexion, les membres voient un court guide de bienvenue en 3 étapes (envoyer ses documents, tenir sa fiche à jour, où trouver l'aide). Il ne s'affiche qu'une seule fois, mais peut être revu à tout moment via « Revoir le tutoriel » dans le menu (en haut à droite). Les chefs ne le voient pas — ils ont leur guide dédié.",

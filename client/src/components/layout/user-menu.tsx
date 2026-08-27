@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, KeyRound, IdCard, MonitorSmartphone, FileText, Image as ImageIcon, Sparkles } from 'lucide-react'
+import { LogOut, KeyRound, IdCard, MonitorSmartphone, FileText, Image as ImageIcon, Sparkles, Globe } from 'lucide-react'
 import { toast } from 'sonner'
 
 // The single account/personal menu (avatar → dropdown), used by the header (mobile + non-managers) and the
@@ -102,6 +102,12 @@ export function UserMenu() {
             <p className="font-medium">{user?.firstName} {user?.lastName}</p>
             <p className="text-muted-foreground text-xs">{user?.email}</p>
           </div>
+          <DropdownMenuSeparator />
+          {/* Everyone can jump to the public group site (they stay signed in — it's the same app). */}
+          <DropdownMenuItem onClick={() => navigate('/')}>
+            <Globe className="mr-2 h-4 w-4" />
+            Voir le site public
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           {/* Personal pages here ONLY for managers — they have no left sidebar (their nav is the horizontal top
               bar), so this menu is their only access. Regular members already have these in the sidebar/drawer. */}
