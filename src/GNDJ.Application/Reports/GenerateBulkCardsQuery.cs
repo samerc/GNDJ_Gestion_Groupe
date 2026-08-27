@@ -17,6 +17,10 @@ public class GenerateBulkCardsQueryHandler(
 {
     public async ValueTask<Result<byte[]>> Handle(GenerateBulkCardsQuery request, CancellationToken ct)
     {
+        // Card generation can be turned off group-wide by the CG/super-admin (reports.cards_enabled).
+        if (!await CardConfig.CardsEnabledAsync(context, ct))
+            return Result<byte[]>.Failure("La génération des cartes membres est désactivée.");
+
         // Leader-only report (multi-member PII): members.edit + unit scope, not bare co-unit membership.
         if (!currentUser.IsSuperAdmin && !(currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit) && currentUser.AuthorizedUnitIds.Contains(request.UnitId)))
             return Result<byte[]>.Failure("Accès non autorisé.");

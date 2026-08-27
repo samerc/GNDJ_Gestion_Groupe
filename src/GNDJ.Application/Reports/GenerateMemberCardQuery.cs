@@ -18,6 +18,10 @@ public class GenerateMemberCardQueryHandler(
 {
     public async ValueTask<Result<byte[]>> Handle(GenerateMemberCardQuery request, CancellationToken ct)
     {
+        // Card generation can be turned off group-wide by the CG/super-admin (reports.cards_enabled).
+        if (!await CardConfig.CardsEnabledAsync(context, ct))
+            return Result<byte[]>.Failure("La génération des cartes membres est désactivée.");
+
         // Access check: own card always; another member's card is leader-only (members.edit) + unit-scoped.
         if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, request.MemberId, ct))
             return Result<byte[]>.Failure("Accès non autorisé.");

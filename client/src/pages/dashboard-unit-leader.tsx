@@ -28,6 +28,7 @@ import { toast } from 'sonner'
 import { useReportTemplates } from '@/services/report-template-service'
 import { generateRoster, generateExport } from '@/services/report-service'
 import { useCurrentScoutYear, calendarScoutYear } from '@/hooks/use-scout-year'
+import { useSettingValue } from '@/services/settings-service'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
 import {
   DropdownMenu,
@@ -246,6 +247,8 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const [exportOpen, setExportOpen] = useState(false)
   const { data: reportTemplates } = useReportTemplates(true)
   const currentScoutYear = useCurrentScoutYear()
+  // Member-card generation is a group-wide toggle (Paramètres → Rapports). Off => hide the "Cartes" button.
+  const cardsEnabled = useSettingValue('reports.cards_enabled') !== 'false'
   const [generatingReport, setGeneratingReport] = useState<string | null>(null)
 
   // Per-member absence counts (the running calendar scout year, so pre-season réunions count) → roster badge.
@@ -358,12 +361,14 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
               Exporter
             </Button>
           </Tip>
-          <Tip content="Imprimer les cartes de membre">
-            <Button variant="outline" size="sm" className="shrink-0" onClick={handleBulkCards} disabled={bulkCardsLoading}>
-              <CreditCard className="mr-1 h-4 w-4" />
-              {bulkCardsLoading ? 'Génération...' : 'Cartes'}
-            </Button>
-          </Tip>
+          {cardsEnabled && (
+            <Tip content="Imprimer les cartes de membre">
+              <Button variant="outline" size="sm" className="shrink-0" onClick={handleBulkCards} disabled={bulkCardsLoading}>
+                <CreditCard className="mr-1 h-4 w-4" />
+                {bulkCardsLoading ? 'Génération...' : 'Cartes'}
+              </Button>
+            </Tip>
+          )}
           <Tip content="Session photo de l'unité">
             <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate('/photo-session')}>
               <Camera className="mr-1 h-4 w-4" />

@@ -111,6 +111,8 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
   const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
   const canDelete = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_DELETE))
+  // Member-card generation is a group-wide toggle (Paramètres → Rapports). Off => hide the download action.
+  const cardsEnabled = useSettingValue('reports.cards_enabled') !== 'false'
   const canManageSiblings = useAuthStore((s) => s.hasPermission(PERMISSIONS.MAITRISE_MANAGE)) // CG/super-admin: link/unlink fratries
 
   // Tab item counts come from the member detail payload itself (folded into GET /members/{id}), so opening
@@ -308,9 +310,11 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                       <KeyRound className="mr-2 h-4 w-4" />Réinitialiser le mot de passe
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onClick={downloadCard}>
-                    <CreditCard className="mr-2 h-4 w-4" />Télécharger la carte de membre
-                  </DropdownMenuItem>
+                  {cardsEnabled && (
+                    <DropdownMenuItem onClick={downloadCard}>
+                      <CreditCard className="mr-2 h-4 w-4" />Télécharger la carte de membre
+                    </DropdownMenuItem>
+                  )}
                   {canDelete && (
                     <>
                       <DropdownMenuSeparator />
