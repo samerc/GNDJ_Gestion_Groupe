@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { UserPlus, Compass } from 'lucide-react'
+import { UserPlus, Compass, ArrowLeft } from 'lucide-react'
 import { Toaster } from 'sonner'
 
 // ROLE: branded centered card shell for the UNAUTHENTICATED applicant pages
@@ -39,6 +39,11 @@ export function ApplicantAuthShell({ children, subtitle }: { children: React.Rea
         >
           <Compass className="h-4 w-4 text-primary" />
           Vous êtes déjà membre ? <span className="font-medium text-foreground">Espace membres →</span>
+        </Link>
+
+        {/* Back to the public group site (these pages live outside the public shell, so there's no header nav). */}
+        <Link to="/" className="mt-4 flex items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Retour au site
         </Link>
       </div>
     </div>

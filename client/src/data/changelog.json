@@ -3,6 +3,7 @@
     "version": "3.0.0",
     "date": "2026-08-27",
     "changes": [
+      "Connexion : les deux pages de connexion (espace membres et demande d'inscription) proposent désormais un lien « Retour au site » pour revenir au site public.",
       "Site public (accueil) : la section « Nos unités » est désormais séparée par association — Scouts du Liban puis Guides du Liban ; le nom de branche s'affiche en noir et le sous-titre a été retiré.",
       "Site public (unité) : dans « En bref », « Jeunes » est renommé « Membres ». (La ligne « Fondée en » s'affiche dès qu'une date de fondation est renseignée sur l'unité.)",
       "Site public (unité) : chaque équipe affiche désormais les couleurs de son foulard sous la forme d'un petit foulard (au lieu de pastilles) — plus fidèle à l'identité des sizaines / patrouilles.",

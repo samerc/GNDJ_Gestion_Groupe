@@ -1,5 +1,5 @@
 import { Navigate, Link } from 'react-router'
-import { Compass, UserPlus } from 'lucide-react'
+import { Compass, UserPlus, ArrowLeft } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePublicSiteConfig } from '@/services/public-service'
 import { LoginForm } from '@/components/auth/login-form'
@@ -52,7 +52,11 @@ export default function LoginPage() {
             </span>
           </Link>
         )}
-        <p className="mt-6 text-center text-xs text-muted-foreground">
+        {/* Back to the public group site (this page is outside the public shell, so there's no header nav). */}
+        <Link to="/" className="mt-6 flex items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Retour au site
+        </Link>
+        <p className="mt-4 text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()} Groupe Notre Dame - Jamhour — Tous droits réservés
         </p>
       </div>
