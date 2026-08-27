@@ -1,7 +1,7 @@
 [
   {
-    "version": "3.5.0",
-    "date": "2026-08-22",
+    "version": "3.0.0",
+    "date": "2026-08-27",
     "changes": [
       "Cartes membres : la génération des cartes (individuelle et par unité) est désormais contrôlée par un réglage « Génération des cartes membres » (Paramètres → Rapports, modifiable par le chef de groupe / super-administrateur). Désactivé, les boutons « Cartes » disparaissent et la génération est refusée — pratique pour n'ouvrir la fonction qu'à la saison d'impression. Activé par défaut.",
       "Sécurité : le chef d'unité ne peut plus modifier la fiche de l'unité (nom, code, association, type, statut, réglages du site public) — réservé au super-administrateur. Le chef d'unité gère uniquement les équipes de son unité. La section « Informations » est masquée pour lui.",
@@ -66,13 +66,7 @@
       "Documents : bandeau d'étape sur la page Documents de l'unité (chef d'unité) + bandeau « dépôt fermé / compte suspendu » côté membre",
       "Chefs : à la première connexion, un chef doit confirmer ses coordonnées personnelles (email + téléphone) — beaucoup avaient encore l'email d'un parent ; il confirme si c'est correct ou le corrige",
       "Séances : nouveau rôle « Chef d'équipe » (à activer sur une fonction) — le chef d'équipe voit son équipe, crée une séance pour elle (en attente d'approbation du chef d'unité) et remplit les présences",
-      "Absences : le nombre d'absences de l'année apparaît sur la fiche du membre, dans la liste de l'unité (chef d'unité) et dans la liste des membres (chef de groupe)"
-    ]
-  },
-  {
-    "version": "3.4.0",
-    "date": "2026-08-21",
-    "changes": [
+      "Absences : le nombre d'absences de l'année apparaît sur la fiche du membre, dans la liste de l'unité (chef d'unité) et dans la liste des membres (chef de groupe)",
       "Site public (unités) : le téléphone personnel de chaque chef de la maîtrise est affiché (quand renseigné)",
       "Demande d'inscription : le téléphone de chaque parent/tuteur est obligatoire",
       "Demande d'inscription : nouveau champ « Situation des parents » (Unis / Séparés / Divorcés), visible par le chef de groupe",
@@ -111,13 +105,7 @@
       "Unified account menu (Ma fiche / Mes documents / Trombinoscope / mot de passe / déconnexion)",
       "Progression: full Add modal for stages & badges; unit-type pills sorted by parcours order; removed « étape avec badge »",
       "Dashboard: fixed the scout-year selector (was blank) — dynamic years + « année en cours » label",
-      "Rentrée: dedupe the « en attente » blocked-by list (was repeated once per unit)"
-    ]
-  },
-  {
-    "version": "3.3.0",
-    "date": "2026-08-18",
-    "changes": [
+      "Rentrée: dedupe the « en attente » blocked-by list (was repeated once per unit)",
       "Demande UX: wizard proches rework, other-group flag, menu split, motifs table, wording",
       "Demande Excel decisions: single Décision column (code) + rejection-reasons list",
       "docs: CLAUDE.md — demande process fine-tuning batch F-I",
@@ -130,13 +118,7 @@
       "publish.ps1: absolute path for web.config Save (fix deploy failure)",
       "Organiser: larger, comfier rows on mobile",
       "Organiser mon unité: rework to a vertical list + move popup + multi-select",
-      "Demandes: save the pre-selected unit without deciding"
-    ]
-  },
-  {
-    "version": "3.2.0",
-    "date": "2026-08-16",
-    "changes": [
+      "Demandes: save the pre-selected unit without deciding",
       "Friendly offline page instead of the ASP.NET 500.30 diagnostic page",
       "watchdog: probe the public /health, not localhost:5000 (prod is in-process IIS)",
       "Ops: self-healing watchdog + PostgreSQL auto-restart on failure",
@@ -152,13 +134,7 @@
       "docs(go-live): all 3 SMTP providers tested green (Mailgun fixed)",
       "Email: surface the real SMTP error (flatten InnerException) — admin-only",
       "security: npm audit fix — 4 vulns (2 high, 2 moderate) to 0",
-      "docs(go-live): v3.1.0 bumped; prod deploy in progress"
-    ]
-  },
-  {
-    "version": "3.1.0",
-    "date": "2026-08-15",
-    "changes": [
+      "docs(go-live): v3.1.0 bumped; prod deploy in progress",
       "Email settings: show the full SMTP error in the test dialog (persistent)",
       "docs(go-live): SMTP2GO + SendPulse added & tested; Mailgun in progress",
       "docs: add GO-LIVE-CHECKLIST.md (living launch runbook with owners + status)",
@@ -184,13 +160,7 @@
       "Docs: mark the email outbox DONE in CLAUDE.md crash-consistency section",
       "Durable email outbox — replace in-memory queue so mail survives restart",
       "Docs: log the crash-consistency audit + photo-upload fix in CLAUDE.md",
-      "Photo upload: write+commit new file before deleting the old one"
-    ]
-  },
-  {
-    "version": "3.0.0",
-    "date": "2026-07-29",
-    "changes": [
+      "Photo upload: write+commit new file before deleting the old one",
       "bump.ps1: add -SetVersion for an explicit version (product-identity jump)",
       "Gitignore the local security-testing crash course (describes live weaknesses)",
       "Docs: log the pentest pass + 3 security fixes in CLAUDE.md",
@@ -213,13 +183,6 @@
       "Fixes: settings back-link, roster father first-name, cotisation year follows passage",
       "bump.ps1: refuse to release on a stale checkout + document versioning process",
       "Deploy: fold version bump into update.ps1 (-Bump) so releasing is one command"
-    ]
-  },
-  {
-    "version": "1.0.0",
-    "date": "2026-07-28",
-    "changes": [
-      "Première version suivie de l'application GNDJ (gestion de groupe)."
     ]
   }
 ]
