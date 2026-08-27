@@ -36,9 +36,6 @@ export default function ChangelogPage() {
             <Badge variant="outline" className="gap-1.5 font-mono"><GitCommit className="h-3.5 w-3.5" />{BUILD_COMMIT}</Badge>
             {BUILD_DATE && <Badge variant="outline" className="gap-1.5"><Calendar className="h-3.5 w-3.5" />{formatDate(BUILD_DATE)}</Badge>}
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Le commit et la date confirment quelle version est réellement en ligne, même sans changer le numéro.
-          </p>
         </CardContent>
       </Card>
 
