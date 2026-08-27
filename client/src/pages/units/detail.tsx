@@ -26,6 +26,8 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { useMembers } from '@/services/member-service'
 import { ArrowLeft, Plus, Pencil, Trash2, UsersRound, ChevronDown, ChevronUp, ChevronRight, Info as InfoIcon } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
+import { useAuthStore } from '@/stores/auth-store'
+import { PERMISSIONS } from '@/lib/constants'
 import { toast } from 'sonner'
 
 interface UnitDetail {
@@ -46,6 +48,11 @@ export default function UnitDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const isNew = id === 'new'
+
+  // Editing the unit's own record (nom/code/association/type/statut/site public) is a super-admin / assoc-admin
+  // concern — NOT a CU one. A CU reaches this page only to manage teams (teams.* permissions), so the whole
+  // "Informations" card is hidden unless the caller holds units.edit.
+  const canEditUnit = useAuthStore((s) => s.hasPermission(PERMISSIONS.UNITS_EDIT))
 
   const { data: unit, isLoading } = useQuery({
     queryKey: ['units', id],
@@ -207,7 +214,9 @@ export default function UnitDetailPage() {
         )}
       </div>
 
-      {/* Informations — collapsible; read-only card with "Modifier", or the inline edit form */}
+      {/* Informations — collapsible; read-only card with "Modifier", or the inline edit form.
+          Hidden entirely for anyone without units.edit (e.g. a CU, who only manages teams below). */}
+      {canEditUnit && (
       <Card>
         <CardHeader className="cursor-pointer py-3" onClick={() => setInfoOpen(o => !o)}>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -308,6 +317,7 @@ export default function UnitDetailPage() {
         </CardContent>
         )}
       </Card>
+      )}
 
       {/* Everything below needs an existing unit. */}
       {!isNew && (

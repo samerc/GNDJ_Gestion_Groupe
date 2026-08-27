@@ -85,7 +85,8 @@ public static class SeedData
             // NOTE: no MembersCreate — only a Chef de Groupe / super-admin creates new members; a CU manages
             // existing ones (edit, reset password, etc.).
             Permissions.MembersView, Permissions.MembersEdit, Permissions.MembersDelete, Permissions.MembersResetPassword,
-            Permissions.UnitsView, Permissions.UnitsEdit,
+            // UnitsView only — a CU can open its unit page (to manage teams) but must NOT edit the unit record.
+            Permissions.UnitsView,
             Permissions.TeamsView, Permissions.TeamsCreate, Permissions.TeamsEdit, Permissions.TeamsDelete,
             Permissions.AssignmentsView, Permissions.AssignmentsCreate, Permissions.AssignmentsEdit, Permissions.AssignmentsDelete,
             Permissions.RelationshipsView, Permissions.RelationshipsCreate, Permissions.RelationshipsEdit, Permissions.RelationshipsDelete,
@@ -225,7 +226,9 @@ public static class SeedData
         // Idempotent: no-op once the row is gone. Only patches these named profiles (custom profiles untouched).
         var profileRevocations = new Dictionary<string, string[]>
         {
-            ["chef-unite"] = [Permissions.MembersCreate],
+            // Also no UnitsEdit — a CU manages TEAMS (teams.*) but must not edit the unit's own record
+            // (nom/code/association/type/statut/site public). That stays super-admin / assoc-admin.
+            ["chef-unite"] = [Permissions.MembersCreate, Permissions.UnitsEdit],
             // The read-only (youth/member) profile previously got ALL ".view" perms, which included the
             // sensitive aggregate ones (audit/demande/roles/passage) — a member could read the audit trail,
             // the whole enrollment queue (children's medical/PII), the authz model, and the passage plan.

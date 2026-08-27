@@ -3,6 +3,7 @@
     "version": "3.5.0",
     "date": "2026-08-22",
     "changes": [
+      "Sécurité : le chef d'unité ne peut plus modifier la fiche de l'unité (nom, code, association, type, statut, réglages du site public) — réservé au super-administrateur. Le chef d'unité gère uniquement les équipes de son unité. La section « Informations » est masquée pour lui.",
       "Équipes : le chef d'unité a désormais un bouton « Équipes » sur le tableau de bord de son unité pour gérer ses équipes (noms, couleurs des foulards…). Auparavant la page existait mais aucun lien n'y menait.",
       "Site public : depuis l'espace connecté, le menu du compte (en haut à droite) propose « Voir le site public » pour revenir au site du groupe.",
       "Camp BP : la colonne « Note » est masquée pour le chef d'unité sur la page de notation (elle reste calculée et enregistrée pour la répartition en familles côté chef de groupe).",
