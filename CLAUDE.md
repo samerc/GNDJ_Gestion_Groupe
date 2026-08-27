@@ -3277,6 +3277,24 @@ and we had no legend. Recovered it:
 - The palette was reviewed by the CU via a generated `GNDJ_couleurs_equipes.xlsx` (Desktop, painted hex cells +
   Légende tab). Builds clean (dotnet Release + migration tool). DEV until deploy.
 
+### Entrée-progression backfill (2026-08-27, LIVE DEV DB — one-time data op, reaches prod via next dump)
+Every member was given the missing **"Entrée à …"** progression for each unit they passed through. Script
+`deploy/golive/entree-progression-backfill.sql` (idempotent, re-runnable via `psql -f`; backup
+`_bak_progressions_20260827`; reversible by `DELETE … WHERE notes='Entrée — ajout automatique'`).
+- **Rule:** for every `(member, unit)` with a **youth (non-maîtrise)** assignment, insert that unit's entrée if
+  missing; **Groupe** included BY FUNCTION (any GRP assignment, maîtrise incl. → "Entrée au Groupe"). date =
+  **earliest real assignment start** in that unit; **zero-day markers** (`start_date = end_date`) excluded; note
+  `Entrée — ajout automatique`; admin-attributed; skip if that exact entrée already exists.
+- **Pre-step cleanup (also for prod):** soft-deleted **149** migration-artifact progressions where a **Ronde
+  (girls) stage** sat on a **Troupe/Clan (boys) unit** (boys are never in a Ronde) — the only stage↔unit-type
+  mismatch class in the table; 0 remain.
+- **Created** the missing **"Entrée au Noyau"** stage (NOY had none; active, order 0). Caravelles skipped (0
+  assignments). Pionnières was already soft-deleted (prior session), so no action.
+- **Result:** +2,374 auto entrées (TRO 636 · COM 573 · MEU 263 · NOY 258 · CLAN 258 · RON 214 · JEM 81 · FEU 68 ·
+  GRP 23). 0 duplicates introduced; 34 pre-existing duplicate MANUAL entrées left untouched (separate legacy issue).
+  CLAN mapped by exact name to dodge its extra "Entrée Equipe Pilote" stage; JEM matched via ASCII-anchored ILIKE
+  (apostrophe in "l'équipe"). Piloted on Troupe 3ème Beyrouth first (215 rows) as the prod rehearsal.
+
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
