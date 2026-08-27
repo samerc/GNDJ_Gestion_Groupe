@@ -16,7 +16,8 @@ public record PublicUnitGroupDto(Guid UnitTypeId, string UnitTypeName, string? C
     string? Description, IReadOnlyList<PublicUnitListItemDto> Units);
 
 public record PublicLeaderDto(string Name, string RoleName, string? Phone);
-public record PublicTeamDto(string Name, int YouthCount);
+// Foulard colours (color1 = main, color2 = optional secondary) so the public page can render each team's scarf.
+public record PublicTeamDto(string Name, int YouthCount, string? Color1, string? Color2);
 
 public record PublicUnitDetailDto(string Slug, string Name, string UnitTypeName, string? Gender,
     int? AgeMin, int? AgeMax, string? PublicDescription, DateOnly? FoundedDate,
@@ -130,7 +131,7 @@ public class GetPublicUnitDetailQueryHandler(IApplicationDbContext context)
         var teams = await context.Teams
             .Where(t => t.UnitId == unit.Id && !t.IsMaitrise)
             .OrderBy(t => t.DisplayOrder).ThenBy(t => t.Name)
-            .Select(t => new PublicTeamDto(t.Name, t.Assignments.Count(a => a.EndDate == null)))
+            .Select(t => new PublicTeamDto(t.Name, t.Assignments.Count(a => a.EndDate == null), t.Color1, t.Color2))
             .ToListAsync(ct);
 
         var totalYouth = await context.MemberAssignments

@@ -56,6 +56,8 @@ export interface PublicLeader {
 export interface PublicTeam {
   name: string
   youthCount: number
+  color1: string | null
+  color2: string | null
 }
 
 export interface PublicUnitDetail {

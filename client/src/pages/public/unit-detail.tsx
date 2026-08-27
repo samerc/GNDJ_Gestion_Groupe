@@ -17,6 +17,27 @@ function initials(name: string) {
   return name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('')
 }
 
+// A team's foulard (neckerchief) rendered as a small hanging-scarf glyph in its own colours — the authentic
+// sub-group identity, so it beats two abstract dots. The triangle is split down the middle (left = colour 1,
+// right = colour 2, or solid when there's only one), with a little knot at the collar. A thin outline keeps
+// pale/white scarves visible on the card. Renders nothing when the team has no colour set yet.
+function TeamFoulard({ color1, color2 }: { color1: string | null; color2: string | null }) {
+  if (!color1) return null
+  const a = color1
+  const b = color2 && color2.toLowerCase() !== color1.toLowerCase() ? color2 : color1
+  const outline = 'rgba(15,23,42,0.22)' // subtle slate outline so white/pale foulards read on the card
+  return (
+    <svg width="30" height="30" viewBox="0 0 28 28" className="shrink-0" aria-hidden="true">
+      {/* Hanging scarf: full triangle (top-left → top-right → apex at bottom-centre), split down the middle */}
+      <path d="M4 8 H14 V24 Z" fill={a} stroke={outline} strokeWidth="0.9" strokeLinejoin="round" />
+      <path d="M14 8 H24 L14 24 Z" fill={b} stroke={outline} strokeWidth="0.9" strokeLinejoin="round" />
+      {/* Collar roll + knot */}
+      <path d="M4 8 H24" stroke={outline} strokeWidth="1" strokeLinecap="round" />
+      <circle cx="14" cy="8" r="2.6" fill="#fff" stroke={outline} strokeWidth="0.9" />
+    </svg>
+  )
+}
+
 // One maîtrise (leader) entry: initials avatar + name + role.
 function LeaderCard({ leader }: { leader: PublicLeader }) {
   return (
@@ -100,8 +121,9 @@ export default function PublicUnitDetailPage() {
                 </h2>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {unit.teams.map((t) => (
-                    <div key={t.name} className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 shadow-card">
-                      <span className="font-medium">{t.name}</span>
+                    <div key={t.name} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-card">
+                      <TeamFoulard color1={t.color1} color2={t.color2} />
+                      <span className="flex-1 font-medium">{t.name}</span>
                       <span className="text-sm text-muted-foreground">{t.youthCount} membres</span>
                     </div>
                   ))}
