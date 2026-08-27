@@ -149,14 +149,14 @@ export default function CampPage() {
                 <SortHead k="force" label="Force /5" className="text-left" sort={sort} onSort={toggleSort} />
                 <th className="p-2 text-center font-medium w-24">Père/Mère</th>
                 <th className="p-2 text-center font-medium w-24">Ne vient pas</th>
-                <SortHead k="note" label="Note" className="text-right" sort={sort} onSort={toggleSort} />
+                {/* Note column intentionally hidden from the CU — it's still computed (for the CG draft) and
+                    saved server-side; the CU just doesn't see it. The CG sees notes on the familles board. */}
                 <th className="p-2 text-left font-medium">Cas particulier</th>
               </tr>
             </thead>
             <tbody>
               {visible.map(g => {
                 const r = rows[g.memberId] ?? { attending: g.isAttending, force: g.force, annee: g.annee, isLeaderCandidate: g.isLeaderCandidate, notes: g.notes ?? '' }
-                const note = noteOf(g.branche, r.force, r.annee)
                 const absent = !r.attending
                 return (
                   <tr key={g.memberId} className={`border-t ${absent ? 'bg-muted/30 text-muted-foreground' : ''}`}>
@@ -177,7 +177,6 @@ export default function CampPage() {
                       <input type="checkbox" className="h-4 w-4 accent-orange-500" checked={absent}
                         onChange={e => set(g.memberId, { attending: !e.target.checked })} title="Cocher si le membre ne vient pas au camp" />
                     </td>
-                    <td className="p-2 text-right font-medium tabular-nums">{!absent && note != null ? note : '—'}</td>
                     <td className="p-2"><Input value={r.notes} disabled={absent} onChange={e => set(g.memberId, { notes: e.target.value })} className="h-8" placeholder="—" /></td>
                   </tr>
                 )
