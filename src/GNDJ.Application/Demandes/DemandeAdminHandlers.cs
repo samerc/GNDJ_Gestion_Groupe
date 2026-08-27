@@ -610,6 +610,9 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         var baseRoleByType = await FunctionalRoleQueries.ResolveBaseRoleIdsAsync(context, typeIds, ct);
         foreach (var (uId, typeId) in unitTypeByUnit)
             baseRoleCache[uId] = baseRoleByType.GetValueOrDefault(typeId);
+        // Entrée stage per decided unit — so each accepted member gets that unit's "Entrée à …" progression
+        // created automatically (batched here, added in the loop below; new members never have a prior entrée).
+        var entreeStageByUnit = await EntreeStageResolver.ResolveStagesForUnitsAsync(context, unitIds, ct);
 
         // (B) Existing guardians matched by email (case-sensitive, as before) then phone — loaded once.
         var agAll = acctGuardians.Values.SelectMany(g => g).ToList();
@@ -700,6 +703,10 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
 
             // assignment (chosen unit, base role, no team)
             context.MemberAssignments.Add(new MemberAssignment { MemberId = member.Id, UnitId = unitId, TeamId = null, FunctionalRoleId = roleId.Value, StartDate = memberStartDate, Notes = "Inscription" });
+
+            // "Entrée à …" progression for the joined unit (auto-created, like a passage into a new unit).
+            if (entreeStageByUnit.GetValueOrDefault(unitId) is Guid entreeStageId)
+                context.MemberProgressions.Add(new MemberProgression { MemberId = member.Id, UnitId = unitId, ScoutStageId = entreeStageId, Date = memberStartDate, Notes = EntreeStageResolver.AutoNote });
 
             // login — reuse the pre-computed RANDOM password hash (fallback: hash inline if a demande was
             // approved between the pre-hash read and acquiring the lock). The random password is never shared;

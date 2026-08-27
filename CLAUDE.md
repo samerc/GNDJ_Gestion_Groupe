@@ -3284,6 +3284,18 @@ prod startup (idempotent; portable — admin resolved by email + unit types by c
 BEGIN/COMMIT / psql meta-commands per the runner's execution model). Backup `_bak_progressions_entree_backfill`;
 reversible by `DELETE … WHERE notes='Entrée — ajout automatique'`. (Dev was done by a manual run first; the patch
 is a no-op there.)
+- **Going forward, the entrée is auto-created** so the data stays consistent without re-running the backfill each
+  year (previously entrées were ONLY ever entered by hand — passage/demande created none). New shared
+  **`Common/EntreeStageResolver`** (`ResolveStagesForUnitsAsync`, batched) matches the entrée stage by EXACT NAME
+  per unit-type code (display_order is unreliable — many stages share order 0, Meute's order-0 stage is "1er
+  Sizenier"; CLAN has an extra inactive "Entrée Equipe Pilote"). Wired into: **passage finalize** (creates the
+  destination unit's entrée when a member joins a DIFFERENT unit — same-unit team/role change gets none; idempotent
+  via a pre-loaded existing-entrées HashSet, so returning to a former/backfilled unit doesn't duplicate) and
+  **demande acceptance** (`SendDemandeResponses` creates the joined unit's entrée for the new member). Both
+  batch-resolve stages ONCE outside their advisory-locked loops (no N+1), date = the assignment start (passage.date
+  / demande.member_start_date, else today), note `Entrée — ajout automatique`. Verified live end-to-end (isolated
+  throwaway units + year, then cleaned up): passage move → entrée created; re-entering a unit with an existing
+  entrée → no duplicate; demande accept → member + assignment + entrée. Backend-only, DEV until deploy.
 - **Rule:** for every `(member, unit)` with a **youth (non-maîtrise)** assignment, insert that unit's entrée if
   missing; **Groupe** included BY FUNCTION (any GRP assignment, maîtrise incl. → "Entrée au Groupe"). date =
   **earliest real assignment start** in that unit; **zero-day markers** (`start_date = end_date`) excluded; note

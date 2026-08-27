@@ -737,6 +737,22 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
             .GroupBy(a => a.MemberId)
             .ToDictionary(g => g.Key, g => g.First());
 
+        // Pre-load (once, outside the loop) what the entrée auto-create needs, so it costs no extra query per
+        // member inside the advisory lock. Destination units = where a non-leaving member joins a DIFFERENT unit.
+        var destUnitIds = passages
+            .Where(p => !p.IsLeaving && (p.FinalUnitId ?? p.ProposedUnitId) != p.CurrentUnitId)
+            .Select(p => p.FinalUnitId ?? p.ProposedUnitId)
+            .Distinct().ToList();
+        var entreeStageByUnit = await EntreeStageResolver.ResolveStagesForUnitsAsync(context, destUnitIds, ct);
+        // Existing (member, unit, stage) entrées for the affected members — so a member returning to a former
+        // unit (or one already backfilled) doesn't get a duplicate. HashSet.Add later doubles as the guard.
+        var existingEntrees = (await context.MemberProgressions
+                .Where(p => memberIds.Contains(p.MemberId))
+                .Select(p => new { p.MemberId, p.UnitId, p.ScoutStageId })
+                .ToListAsync(ct))
+            .Select(p => (p.MemberId, p.UnitId, p.ScoutStageId))
+            .ToHashSet();
+
         int count = 0;
 
         foreach (var passage in passages)
@@ -770,6 +786,24 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
                     Notes = $"Passage {passage.ScoutYear}"
                 };
                 context.MemberAssignments.Add(newAssignment);
+
+                // If the member joined a DIFFERENT unit, auto-create that unit's "Entrée à …" progression
+                // (a same-unit team/role change gets no new entrée). Idempotent: skip if the member already
+                // has that entrée (returning to a former unit, or one seeded by the backfill). Stage +
+                // existing-entrées are pre-loaded ABOVE the loop, so this adds no query inside the lock.
+                if (finalUnitId != passage.CurrentUnitId
+                    && entreeStageByUnit.GetValueOrDefault(finalUnitId) is Guid entreeStageId
+                    && existingEntrees.Add((passage.MemberId, finalUnitId, entreeStageId)))
+                {
+                    context.MemberProgressions.Add(new MemberProgression
+                    {
+                        MemberId = passage.MemberId,
+                        UnitId = finalUnitId,
+                        ScoutStageId = entreeStageId,
+                        Date = passageDate,
+                        Notes = EntreeStageResolver.AutoNote
+                    });
+                }
             }
 
             // Mark passage as finalized
