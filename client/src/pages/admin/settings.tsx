@@ -211,8 +211,17 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
   const isNumber = setting.valueType === 'number'
   const isDate = setting.valueType === 'date'
   const isExchangeRates = setting.key === 'cotisation.exchange_rates'
-  const isLongText = setting.key === 'demande.terms' // multi-line free text → textarea
+  // Long free-text settings → a roomy textarea instead of a cramped one-line input. Match the message/text
+  // keys (intro/result messages, terms, maintenance message…); a length fallback catches any future long value.
+  const isLongText = /(text|terms|message|tagline)/i.test(setting.key) || (setting.value?.length ?? 0) > 80
   const options = SETTING_OPTIONS[setting.key]
+
+  // Date settings (submission window, member start date, passage/document dates…) are all forward-looking
+  // scheduling — a date in the past is a mistake (e.g. a past deadline would immediately close inscriptions).
+  // Guard: the picker's min is today, and a past value is flagged + blocks Save (a value already in the past
+  // stays until changed). Local date so it matches the user's calendar (Lebanon).
+  const todayStr = (() => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` })()
+  const dateInPast = isDate && !!value && value < todayStr
 
   // Re-sync when the persisted value changes externally (render-phase reset; lazy init covers mount).
   const [prevValue, setPrevValue] = useState(setting.value)
@@ -277,19 +286,22 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
               {UNITS[setting.key] && <span className="text-sm text-muted-foreground">{UNITS[setting.key]}</span>}
             </div>
           ) : isDate ? (
-            <div className="flex items-center gap-2">
-              <Input type="date" value={value} onChange={(e) => setValue(e.target.value)} className="max-w-[12rem]" />
-              {value && <button type="button" onClick={() => setValue('')} className="text-sm text-muted-foreground hover:text-destructive">Effacer</button>}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Input type="date" min={todayStr} value={value} onChange={(e) => setValue(e.target.value)} className="max-w-[12rem]" />
+                {value && <button type="button" onClick={() => setValue('')} className="text-sm text-muted-foreground hover:text-destructive">Effacer</button>}
+              </div>
+              {dateInPast && <p className="text-xs text-destructive">La date ne peut pas être dans le passé.</p>}
             </div>
           ) : isLongText ? (
             <textarea value={value} onChange={(e) => setValue(e.target.value)} rows={5}
-              className="flex min-h-[7rem] w-full max-w-2xl rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              className="flex min-h-[7rem] w-full max-w-2xl rounded-md border border-input bg-background px-3 py-2 text-sm shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring" />
           ) : (
             <Input value={value} onChange={(e) => setValue(e.target.value)} className="max-w-sm" />
           )}
 
           {hasChanged && (
-            <Button size="sm" onClick={handleSave} disabled={saving}>
+            <Button size="sm" onClick={handleSave} disabled={saving || dateInPast}>
               <Save className="mr-1 h-3 w-3" />{saving ? 'Enregistrement...' : 'Enregistrer'}
             </Button>
           )}
