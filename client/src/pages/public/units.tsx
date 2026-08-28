@@ -13,31 +13,48 @@ function ageLabel(min: number | null, max: number | null) {
   return null
 }
 
-// Single unit tile linking to its public detail page. Header is a diagonal two-tone band in the unit's
-// historic foulard (scarf) colours — its sub-group identity. Age is intentionally omitted here: it's
-// identical for every unit in the branch and already shown once in the section header.
+// A small neckerchief (foulard) emblem: a downward triangle split into the scarf's two colours, with a collar
+// line + knot. Compact identity badge on unit cards (a soft alternative to a full-width colour block).
+function FoulardGlyph({ a, b, className }: { a: string; b: string; className?: string }) {
+  const outline = 'rgba(15,23,42,0.22)'
+  return (
+    <svg viewBox="0 0 28 28" className={className} aria-hidden="true">
+      <path d="M4 8 H14 V24 Z" fill={a} stroke={outline} strokeWidth="0.9" strokeLinejoin="round" />
+      <path d="M14 8 H24 L14 24 Z" fill={b} stroke={outline} strokeWidth="0.9" strokeLinejoin="round" />
+      <path d="M4 8 H24" stroke={outline} strokeWidth="1" strokeLinecap="round" />
+      <circle cx="14" cy="8" r="2.6" fill="#fff" stroke={outline} strokeWidth="0.9" />
+    </svg>
+  )
+}
+
+// Single unit tile linking to its public detail page. The unit's historic foulard (scarf) colours — its
+// sub-group identity — show as a compact neckerchief emblem beside the name (cleaner than a full-width block).
+// Age is intentionally omitted here: it's identical for every unit in the branch and already shown once in the
+// section header.
 function UnitCard({ unit }: { unit: PublicUnitListItem }) {
   const { a, b } = foulardColors(unit.name)
   return (
     <Link
       to={`/unites/${unit.slug}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5"
+      className="group flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5"
     >
-      {/* Foulard colours split on the diagonal (top-left / bottom-right). Solid scarves (f2) read as one colour. */}
-      <div
-        className="h-20 border-b border-border/60"
-        style={{ background: `linear-gradient(to top right, ${a} 0 49.5%, ${b} 50.5% 100%)` }}
-      />
-      <div className="flex flex-1 flex-col p-5">
+      <div className="flex items-center gap-3">
+        {/* Foulard emblem — a small scarf glyph on a tile tinted with the scarf's main colour. */}
+        <span
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ring-1 ring-border/70"
+          style={{ backgroundColor: `color-mix(in srgb, ${a} 12%, var(--card))` }}
+        >
+          <FoulardGlyph a={a} b={b} className="h-7 w-7" />
+        </span>
         <h3 className="font-semibold leading-snug">{unit.name}</h3>
-        <div className="mt-4 flex flex-1 items-end justify-between">
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Users className="h-3.5 w-3.5" /> {unit.memberCount} membres
-          </span>
-          <span className="inline-flex items-center text-sm font-medium text-primary">
-            Découvrir <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-          </span>
-        </div>
+      </div>
+      <div className="mt-4 flex flex-1 items-end justify-between">
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Users className="h-3.5 w-3.5" /> {unit.memberCount} membres
+        </span>
+        <span className="inline-flex items-center text-sm font-medium text-primary">
+          Découvrir <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+        </span>
       </div>
     </Link>
   )
@@ -56,7 +73,7 @@ export default function PublicUnitsPage() {
         {isLoading ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-56 animate-pulse rounded-2xl border border-border bg-card" />
+              <div key={i} className="h-32 animate-pulse rounded-2xl border border-border bg-card" />
             ))}
           </div>
         ) : isError ? (
