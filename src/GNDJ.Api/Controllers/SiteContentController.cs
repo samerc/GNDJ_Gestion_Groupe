@@ -3,6 +3,7 @@ using GNDJ.Application.Public;
 using GNDJ.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace GNDJ.Api.Controllers;
 
@@ -23,10 +24,13 @@ public class SiteContentController : BaseApiController
     /// <summary>Updates the editable site texts. Requires content.manage.</summary>
     [HttpPut]
     [HasPermission(Permissions.ContentManage)]
-    public async Task<IActionResult> Update([FromBody] UpdateSiteContentCommand command)
+    public async Task<IActionResult> Update([FromBody] UpdateSiteContentCommand command, [FromServices] IOutputCacheStore outputCache)
     {
         var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        // Evict the public read cache so the edit (hero photo, texts, footer…) shows on the public site
+        // immediately instead of after the 2-min ShortCache TTL. /public/* endpoints are tagged "short".
+        await outputCache.EvictByTagAsync("short", default);
         return NoContent();
     }
 }
