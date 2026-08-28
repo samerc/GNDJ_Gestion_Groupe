@@ -1,8 +1,8 @@
-import { useId } from 'react'
 import { Link } from 'react-router'
 import { ArrowRight, Users } from 'lucide-react'
 import { PageHero } from '@/components/public/page-hero'
 import { foulardColors } from '@/components/public/foulard'
+import { FoulardGlyph } from '@/components/public/foulard-glyph'
 import { usePublicUnits, type PublicUnitListItem } from '@/services/public-service'
 import { Seo } from '@/components/public/seo'
 
@@ -12,31 +12,6 @@ function ageLabel(min: number | null, max: number | null) {
   if (min != null) return `${min} ans et +`
   if (max != null) return `Jusqu'à ${max} ans`
   return null
-}
-
-// A neckerchief (foulard) emblem: a downward triangle filled with the scarf's colours as vertical stripes
-// (1 = solid, 2 or 3 = striped, e.g. the Clan's blue/orange/white), with a collar line + knot. Compact identity
-// badge on unit cards. Stripes are drawn as rects clipped to the triangle; the clip id is unique per instance.
-function FoulardGlyph({ colors, className }: { colors: string[]; className?: string }) {
-  const outline = 'rgba(15,23,42,0.22)'
-  const clipId = useId()
-  const n = Math.max(1, colors.length)
-  const left = 4, width = 20, stripe = width / n // triangle spans x=4..24
-  return (
-    <svg viewBox="0 0 28 28" className={className} aria-hidden="true">
-      <defs>
-        <clipPath id={clipId}><path d="M4 8 H24 L14 24 Z" /></clipPath>
-      </defs>
-      <g clipPath={`url(#${clipId})`}>
-        {colors.map((c, i) => (
-          <rect key={i} x={left + i * stripe} y={8} width={stripe + 0.4} height={16} fill={c} />
-        ))}
-      </g>
-      <path d="M4 8 H24 L14 24 Z" fill="none" stroke={outline} strokeWidth="0.9" strokeLinejoin="round" />
-      <path d="M4 8 H24" stroke={outline} strokeWidth="1" strokeLinecap="round" />
-      <circle cx="14" cy="8" r="2.6" fill="#fff" stroke={outline} strokeWidth="0.9" />
-    </svg>
-  )
 }
 
 // Single unit tile linking to its public detail page. The unit's historic foulard (scarf) colours — its

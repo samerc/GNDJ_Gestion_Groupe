@@ -1,6 +1,8 @@
 import { Link, useParams } from 'react-router'
 import { ArrowLeft, Users, Shield, Phone } from 'lucide-react'
 import { PageHero } from '@/components/public/page-hero'
+import { foulardColors } from '@/components/public/foulard'
+import { FoulardGlyph } from '@/components/public/foulard-glyph'
 import { usePublicUnitDetail, usePublicSiteConfig, type PublicLeader } from '@/services/public-service'
 import { Seo } from '@/components/public/seo'
 
@@ -17,24 +19,43 @@ function initials(name: string) {
   return name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('')
 }
 
-// A team's foulard (neckerchief) rendered as a small hanging-scarf glyph in its own colours — the authentic
-// sub-group identity, so it beats two abstract dots. The triangle is split down the middle (left = colour 1,
-// right = colour 2, or solid when there's only one), with a little knot at the collar. A thin outline keeps
-// pale/white scarves visible on the card. Renders nothing when the team has no colour set yet.
+// A team's foulard (neckerchief) as a small scarf glyph in its own colours — the authentic sub-group identity,
+// so it beats two abstract dots. Reuses the shared FoulardGlyph (one colour = solid, two distinct = striped).
+// Renders nothing when the team has no colour set yet.
 function TeamFoulard({ color1, color2 }: { color1: string | null; color2: string | null }) {
   if (!color1) return null
-  const a = color1
-  const b = color2 && color2.toLowerCase() !== color1.toLowerCase() ? color2 : color1
-  const outline = 'rgba(15,23,42,0.22)' // subtle slate outline so white/pale foulards read on the card
+  const colors = color2 && color2.toLowerCase() !== color1.toLowerCase() ? [color1, color2] : [color1]
+  return <FoulardGlyph colors={colors} className="h-[30px] w-[30px] shrink-0" />
+}
+
+// Foulard-integrated hero for the unit page: a dark base tinted by the scarf's primary colour, a thin ribbon of
+// ALL the scarf's stripe colours along the top, and a large foulard emblem badge — so the unit's identity
+// colours are immediate. Text stays white on the dark base regardless of the (often pale) scarf colours.
+function UnitHero({ name, subtitle, colors }: { name: string; subtitle?: string; colors: string[] }) {
+  const base = colors[0] ?? '#000080'
   return (
-    <svg width="30" height="30" viewBox="0 0 28 28" className="shrink-0" aria-hidden="true">
-      {/* Hanging scarf: full triangle (top-left → top-right → apex at bottom-centre), split down the middle */}
-      <path d="M4 8 H14 V24 Z" fill={a} stroke={outline} strokeWidth="0.9" strokeLinejoin="round" />
-      <path d="M14 8 H24 L14 24 Z" fill={b} stroke={outline} strokeWidth="0.9" strokeLinejoin="round" />
-      {/* Collar roll + knot */}
-      <path d="M4 8 H24" stroke={outline} strokeWidth="1" strokeLinecap="round" />
-      <circle cx="14" cy="8" r="2.6" fill="#fff" stroke={outline} strokeWidth="0.9" />
-    </svg>
+    <section
+      className="relative overflow-hidden border-b border-border"
+      style={{
+        background: `linear-gradient(135deg, color-mix(in srgb, ${base} 62%, #0b1220) 0%, color-mix(in srgb, ${base} 42%, #0b1220) 60%, color-mix(in srgb, ${base} 24%, #0b1220) 100%)`,
+      }}
+    >
+      <div className="pointer-events-none absolute -top-20 -right-16 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+      {/* Foulard colour ribbon (all stripes) along the very top edge. */}
+      <div className="absolute inset-x-0 top-0 flex h-1.5">
+        {colors.map((c, i) => <div key={i} className="flex-1" style={{ backgroundColor: c }} />)}
+      </div>
+      <div className="relative mx-auto flex max-w-6xl items-center gap-5 px-4 py-14 sm:px-6">
+        {/* Foulard emblem badge — solid white tile so even a white scarf stripe reads. */}
+        <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-black/5">
+          <FoulardGlyph colors={colors} className="h-14 w-14" />
+        </span>
+        <div className="min-w-0">
+          <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">{name}</h1>
+          {subtitle && <p className="mt-2 text-white/85">{subtitle}</p>}
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -91,11 +112,14 @@ export default function PublicUnitDetailPage() {
   }
 
   const age = ageLabel(unit.ageMin, unit.ageMax)
+  const { colors: foulard } = foulardColors(unit.name)
+  // Only show teams that actually have youth (an empty sizaine/patrouille isn't presented publicly).
+  const teams = unit.teams.filter((t) => t.youthCount > 0)
 
   return (
     <>
       <Seo title={unit.name} description={unit.publicDescription?.slice(0, 160) || `${unit.name} — ${[unit.unitTypeName, age].filter(Boolean).join(' · ')}, Groupe Notre-Dame de Jamhour.`} />
-      <PageHero title={unit.name} subtitle={[unit.unitTypeName, age].filter(Boolean).join(' · ')} />
+      <UnitHero name={unit.name} subtitle={[unit.unitTypeName, age].filter(Boolean).join(' · ')} colors={foulard} />
 
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <Link to="/unites" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
@@ -113,14 +137,14 @@ export default function PublicUnitDetailPage() {
               <p className="text-muted-foreground">La présentation de cette unité sera bientôt disponible.</p>
             )}
 
-            {/* Teams */}
-            {unit.teams.length > 0 && (
+            {/* Teams (only those with members) */}
+            {teams.length > 0 && (
               <div className="mt-12">
                 <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight">
                   <Users className="h-5 w-5 text-accent" /> Les équipes
                 </h2>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {unit.teams.map((t) => (
+                <div className="mt-5 grid gap-3">
+                  {teams.map((t) => (
                     <div key={t.name} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-card">
                       <TeamFoulard color1={t.color1} color2={t.color2} />
                       <span className="flex-1 font-medium">{t.name}</span>
