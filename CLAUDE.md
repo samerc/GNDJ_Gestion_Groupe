@@ -3360,6 +3360,24 @@ step"). All on main, DEV until deploy; verified live.
       **per-account cap** is check-then-insert with no DB unique backstop (self-spam only, no crash). All are
       conversion-phase (weeks after Monday) and visible to the CG in the review drawer — deferred, not rushed the
       weekend before launch. See the enrollment review notes.
+- **Member (youth) flow shaken down the same way** (live, against the running API, as a real pure-youth login —
+      Sydney CHEHAB; a mis-picked first subject, Clara ABBOUD, turned out to be an ACU leader, which explained an
+      apparent "youth lists 160 members" that was actually legitimate unit-scoped access). Verdict: **solid.**
+      Login errors (wrong pw / unknown email → generic 401), self-edit (blank required / >5 section / <script> /
+      >2000 medical → clean 400; **locked identity fields — name/DOB/gender/matricule — are absent from
+      `UpdateMyProfileCommand`, so an injected `firstName/dateOfBirth/gender/cardNumber` is silently ignored**,
+      verified unchanged), contact IDOR (delete a non-owned phone → "introuvable"), and the full **document upload**
+      battery (bad magic bytes / disallowed extension / empty file → 400; **upload for another member → 400 "Accès
+      non autorisé"; self-approve own doc → 403** [youth lacks documents.approve]) all correct. Pure-youth IDOR
+      re-confirmed: `GET /members` → empty, another member's detail → 404, own detail → 200.
+- **FIXED (member flow) — same no-TLD email gap** on the member self-service contact + guardian email
+      (`AddMyEmail`/`UpdateMyEmail`/`AddMyGuardianEmail`): applied `RealEmail()` (a member's own email can become
+      their `PrimaryContactEmail` that drives reset/activation delivery, so a `nom@gmail` typo bounces it).
+- **FIXED (member flow) — login was exact-match on email**: a member typing their synthetic
+      `prenom.nom@scouts.gndj` login with a mobile auto-capitalized first letter or a trailing space failed. Member
+      `LoginCommandHandler` now trims + lowercases the input and compares `LOWER(email)` case-insensitively (mirrors
+      the applicant login; emails are unique so no ambiguity). Verified live: exact / UPPERCASE / trailing-space all
+      log in.
 
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`

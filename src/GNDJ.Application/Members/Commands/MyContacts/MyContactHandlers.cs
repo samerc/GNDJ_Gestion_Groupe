@@ -89,7 +89,7 @@ public class AddMyEmailValidator : AbstractValidator<AddMyEmailCommand>
 {
     public AddMyEmailValidator()
     {
-        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse courriel est requise.").EmailAddress().MaximumLength(150).NoHtml();
+        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse courriel est requise.").EmailAddress().MaximumLength(150).NoHtml().RealEmail();
         RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
     }
 }
@@ -98,7 +98,7 @@ public class UpdateMyEmailValidator : AbstractValidator<UpdateMyEmailCommand>
     public UpdateMyEmailValidator()
     {
         RuleFor(x => x.Id).NotEmpty();
-        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse courriel est requise.").EmailAddress().MaximumLength(150).NoHtml();
+        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse courriel est requise.").EmailAddress().MaximumLength(150).NoHtml().RealEmail();
         RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
     }
 }

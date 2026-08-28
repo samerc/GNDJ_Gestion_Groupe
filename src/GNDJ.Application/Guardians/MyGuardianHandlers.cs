@@ -158,7 +158,7 @@ public class AddMyGuardianEmailValidator : AbstractValidator<AddMyGuardianEmailC
 {
     public AddMyGuardianEmailValidator()
     {
-        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse courriel est requise.").EmailAddress().MaximumLength(150).NoHtml();
+        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse courriel est requise.").EmailAddress().MaximumLength(150).NoHtml().RealEmail();
         RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
     }
 }

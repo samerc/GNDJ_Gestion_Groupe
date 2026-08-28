@@ -27,9 +27,14 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
 
     public async ValueTask<Result<AuthResponse>> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
+        // Normalize the typed email: trim + lowercase, and compare case-insensitively. Mobile keyboards
+        // auto-capitalize the first letter and can append a trailing space, so a member typing their
+        // synthetic "prenom.nom@scouts.gndj" login would otherwise fail an exact match. Mirrors the
+        // applicant login (which already trims + lowercases). Emails are unique, so LOWER() can't ambiguate.
+        var email = (request.Email ?? "").Trim().ToLowerInvariant();
         var user = await _context.Users
             .Include(u => u.Member)
-            .FirstOrDefaultAsync(u => u.Email == request.Email && u.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == email && u.IsActive, cancellationToken);
 
         // Also treat a missing/deleted member as an auth failure: a soft-deleted member's User is deactivated
         // (so the IsActive filter above already excludes it), but the query filter would also null out Member

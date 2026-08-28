@@ -26,7 +26,8 @@
       "PowerShell(git push 2>&1)",
       "WebSearch",
       "Read(//c/Users/Administrator/Documents/old/**)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git commit -q -m ' *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Administrator\\Desktop\\BP 2026",
