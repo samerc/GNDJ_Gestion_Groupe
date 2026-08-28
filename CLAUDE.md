@@ -3310,6 +3310,17 @@ is a no-op there.)
   CLAN mapped by exact name to dodge its extra "Entrée Equipe Pilote" stage; JEM matched via ASCII-anchored ILIKE
   (apostrophe in "l'équipe"). Piloted on Troupe 3ème Beyrouth first (215 rows) as the prod rehearsal.
 
+### Demande delete (2026-08-27)
+There was NO way to delete a demande (junk/spam/duplicate) — the CG/admin could only accept/refuse, and the
+review page's "Effacer" button (Trash2 icon) only CLEARED the checkbox selection (looked like delete, did
+nothing to the data). Added a real delete: `DeleteDemandeCommand` + `DELETE /demandes/{id}` (demande.manage,
+super-admin included) soft-deletes a demande, **blocked once a member was created** (converted demandes keep
+their link/history — refuse/re-decide those instead), audited `Delete`. Frontend (demande-validation.tsx): a
+per-row **Supprimer** (Trash2) action, one in the detail drawer footer, and a **bulk Supprimer** on the
+selection bar (skips converted, Promise.allSettled + summary toast) — all behind a confirm. Renamed the
+misleading "Effacer" → **"Désélectionner"** (X icon). Verified live: normal → 204 soft-delete; converted → 400
+blocked. Backend + frontend, DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to

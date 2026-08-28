@@ -144,6 +144,16 @@ export function useDecideDemande() {
   })
 }
 
+// DELETE /demandes/{id} → soft-delete a single demande (junk/spam/duplicate cleanup). Blocked server-side once
+// a member was created. Invalidates ['demandes'].
+export function useDeleteDemande() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/demandes/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes'] }) },
+  })
+}
+
 // PUT /demandes/{id}/unit → save the pre-selected unit WITHOUT deciding (staged); status stays as-is.
 // Lets the CG lock in / change "unité d'affectation (si accepté)" and come back later. Invalidates ['demandes'].
 export function useSetDemandeUnit() {

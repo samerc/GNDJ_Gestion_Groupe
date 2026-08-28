@@ -79,6 +79,17 @@ public class DemandesController : BaseApiController
         return Ok(new { success = true });
     }
 
+    /// <summary>Deletes a single demande (junk/spam/duplicate cleanup). Soft-delete; blocked once a member was
+    /// created. Requires demande.manage.</summary>
+    [HttpDelete("{id:guid}")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var result = await Mediator.Send(new DeleteDemandeCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>Saves the pre-selected unit for a demande WITHOUT deciding (staged). Requires demande.manage.</summary>
     [HttpPut("{id:guid}/unit")]
     [HasPermission(Permissions.DemandeManage)]

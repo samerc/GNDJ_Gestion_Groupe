@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { useSettingValue, useSchoolCode } from '@/services/settings-service'
 import {
-  useDemandesForReview, useUnitOccupancy, useDecideDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useCloseCampaign,
+  useDemandesForReview, useUnitOccupancy, useDecideDemande, useDeleteDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useCloseCampaign,
   useCampaignStatus, useSetSubmissions, useSetDemandeUnit,
   useExportDecisions, useImportDecisions, useUnsubmittedCount, useSendSubmissionReminders, useRejectionReasons,
   type DemandeReview, type UnitOccupancy, type ImportDecisionsResult, type RejectionReason,
@@ -132,6 +132,7 @@ export default function DemandeValidationPage() {
   const { data: demandes, isLoading } = useDemandesForReview(scoutYear, filters)
   const { data: occupancy } = useUnitOccupancy(scoutYear)
   const decideMutation = useDecideDemande()
+  const deleteMutation = useDeleteDemande()
   const bulkMutation = useBulkDecideDemande()
   const sendMutation = useSendResponses()
   const closeMutation = useCloseCampaign()
@@ -173,6 +174,8 @@ export default function DemandeValidationPage() {
   const [sendOpen, setSendOpen] = useState(false)
   const [closeOpen, setCloseOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<DemandeReview | null>(null)  // single delete confirm
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)                    // bulk delete confirm
 
   // Bulk selection
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -286,6 +289,25 @@ export default function DemandeValidationPage() {
   }
   const bulkDecline = () => runBulk({ status: 'Declined', decisionNotes: bulkMotif || null, items: [...selected].map((id) => ({ id })) }, 'refusée(s)')
 
+  // Delete (soft) — for junk/spam/duplicate demandes. Backend blocks a converted one (member created).
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    try {
+      await deleteMutation.mutateAsync(deleteTarget.id)
+      toast.success('Demande supprimée.')
+      setDeleteTarget(null); setDetailId(null)
+    } catch (err) { toast.error(parseApiError(err)); setDeleteTarget(null) }
+  }
+  // Bulk delete the selection (skips converted ones — those stay, reported). Runs the single delete per id.
+  const bulkDelete = async () => {
+    const ids = [...selected].filter((id) => !byId[id]?.createdMemberId)
+    const results = await Promise.allSettled(ids.map((id) => deleteMutation.mutateAsync(id)))
+    const ok = results.filter((r) => r.status === 'fulfilled').length
+    const failed = results.length - ok
+    toast.success(`${ok} demande(s) supprimée(s)${failed ? ` · ${failed} échec(s)` : ''}`)
+    clearSelection(); setBulkDeleteOpen(false)
+  }
+
   // Final, irreversible step: converts accepted demandes → real members (login + assignment) and
   // emails every family. Backend is advisory-locked + idempotent.
   const handleSend = async () => {
@@ -320,7 +342,7 @@ export default function DemandeValidationPage() {
   // Ready to close only once every demande is decided AND its response sent (nothing left to send/review).
   const canClose = all.length > 0 && undecided === 0 && pendingSend === 0
 
-  const busy = decideMutation.isPending || bulkMutation.isPending
+  const busy = decideMutation.isPending || bulkMutation.isPending || deleteMutation.isPending
 
   return (
     <div className="space-y-6">
@@ -478,7 +500,8 @@ export default function DemandeValidationPage() {
             <Input className="h-9 w-full sm:w-48" value={bulkMotif} onChange={(e) => setBulkMotif(e.target.value)} placeholder="Motif de refus (optionnel)" />
             <Button size="sm" variant="destructive" disabled={busy} onClick={bulkDecline}><X className="mr-1 h-4 w-4" />Refuser</Button>
           </div>
-          <Button size="sm" variant="ghost" className="ml-auto" onClick={clearSelection}><Trash2 className="mr-1 h-4 w-4" />Effacer</Button>
+          <Button size="sm" variant="outline" className="ml-auto border-destructive/40 text-destructive hover:bg-destructive/10" disabled={busy} onClick={() => setBulkDeleteOpen(true)}><Trash2 className="mr-1 h-4 w-4" />Supprimer</Button>
+          <Button size="sm" variant="ghost" onClick={clearSelection}><X className="mr-1 h-4 w-4" />Désélectionner</Button>
         </div>
       )}
 
@@ -564,6 +587,7 @@ export default function DemandeValidationPage() {
                         <div className="flex justify-end gap-1">
                           <Tip content="Accepter"><Button size="sm" variant={d.status === 'Approved' ? 'default' : 'outline'} className="h-8 px-2" onClick={() => openApprove(d)}><Check className="h-4 w-4" /></Button></Tip>
                           <Tip content="Refuser"><Button size="sm" variant={d.status === 'Declined' ? 'destructive' : 'outline'} className="h-8 px-2" onClick={() => openDecline(d)}><X className="h-4 w-4" /></Button></Tip>
+                          <Tip content="Supprimer"><Button size="sm" variant="outline" className="h-8 px-2 text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(d)}><Trash2 className="h-4 w-4" /></Button></Tip>
                         </div>
                       )}
                     </TableCell>
@@ -591,6 +615,7 @@ export default function DemandeValidationPage() {
               onPrev={() => detailIndex > 0 && setDetailId(rows[detailIndex - 1].id)}
               onNext={() => detailIndex < rows.length - 1 && setDetailId(rows[detailIndex + 1].id)}
               onDecide={decide}
+              onDelete={(dd) => setDeleteTarget(dd)}
             />
           )}
         </SheetContent>
@@ -657,6 +682,22 @@ export default function DemandeValidationPage() {
         confirmLabel={submissionsConfirm ? 'Rouvrir' : 'Clôturer les soumissions'}
         loading={submissionsMutation.isPending}
         onConfirm={() => handleToggleSubmissions(submissionsConfirm!)}
+      />
+
+      {/* Single delete confirm */}
+      <ConfirmDialog
+        open={deleteTarget !== null} onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+        title="Supprimer la demande"
+        description={deleteTarget ? `Supprimer définitivement la demande de ${deleteTarget.firstName} ${deleteTarget.lastName} ? Cette demande disparaîtra de la liste. (Un membre déjà créé n'est jamais supprimé.)` : ''}
+        confirmLabel="Supprimer" variant="destructive" loading={deleteMutation.isPending} onConfirm={handleDelete}
+      />
+
+      {/* Bulk delete confirm */}
+      <ConfirmDialog
+        open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}
+        title="Supprimer les demandes sélectionnées"
+        description={`Supprimer ${[...selected].filter((id) => !byId[id]?.createdMemberId).length} demande(s) sélectionnée(s) ? Les demandes déjà converties en membres sont ignorées. Continuer ?`}
+        confirmLabel="Supprimer" variant="destructive" loading={deleteMutation.isPending} onConfirm={bulkDelete}
       />
 
       {/* Reminder confirm (G) */}
@@ -772,7 +813,7 @@ function UnitHint({ u, d }: { u: UnitOccupancy; d: DemandeReview }) {
 }
 
 // ── detail drawer panel ────────────────────────────────────────────────────────
-function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons, hasPrev, hasNext, onPrev, onNext, onDecide }: {
+function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons, hasPrev, hasNext, onPrev, onNext, onDecide, onDelete }: {
   d: DemandeReview
   occupancy: UnitOccupancy[]
   occByUnit: Record<string, UnitOccupancy>
@@ -784,6 +825,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
   onPrev: () => void
   onNext: () => void
   onDecide: (d: DemandeReview, status: 'Approved' | 'Declined', unitId: string | null, note: string | null) => Promise<boolean>
+  onDelete: (d: DemandeReview) => void
 }) {
   const locked = !!d.createdMemberId // only a converted demande is locked; a sent-declined one can be re-opened
   const suggested = useMemo(() => suggestUnit(d, occupancy), [d, occupancy])
@@ -1002,6 +1044,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
               <Button variant="destructive" className="flex-1" disabled={busy} onClick={() => onDecide(d, 'Declined', null, motif)}>
                 <X className="mr-1 h-4 w-4" />{d.status === 'Declined' ? 'Mettre à jour' : 'Refuser'}
               </Button>
+              <Tip content="Supprimer la demande"><Button variant="outline" className="shrink-0 text-destructive hover:bg-destructive/10" disabled={busy} onClick={() => onDelete(d)}><Trash2 className="h-4 w-4" /></Button></Tip>
             </div>
             <p className="hidden text-center text-xs text-muted-foreground sm:block">Raccourcis : <kbd>A</kbd> accepter · <kbd>R</kbd> refuser · <kbd>←</kbd>/<kbd>→</kbd> naviguer</p>
           </div>

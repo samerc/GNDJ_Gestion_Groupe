@@ -326,6 +326,29 @@ public class GetDemandeStatisticsQueryHandler(IApplicationDbContext context, ICu
 // ============================================================
 // Decide (stage approval/decline) — not yet communicated to applicant
 // ============================================================
+// Deletes a single demande (CG cleanup of junk/spam/duplicate entries). Soft-delete (global filter hides it
+// from the review list, restorable). Blocked once a member was created (a converted demande must keep its link
+// + history; un-converting is out of scope) — decline/re-decide those instead.
+public record DeleteDemandeCommand(Guid Id) : IRequest<Result<bool>>;
+
+public class DeleteDemandeCommandHandler(IApplicationDbContext context, IAuditService audit) : IRequestHandler<DeleteDemandeCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(DeleteDemandeCommand request, CancellationToken ct)
+    {
+        var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id, ct);
+        if (demande is null) return Result<bool>.Failure("Demande introuvable.");
+        if (demande.CreatedMemberId is not null)
+            return Result<bool>.Failure("Un membre a déjà été créé pour cette demande — suppression impossible. Vous pouvez plutôt la refuser.");
+
+        context.Demandes.Remove(demande);   // BaseEntity → soft-delete via the interceptor
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Delete", "Demande", demande.Id,
+            oldValues: new { demande.FirstName, demande.LastName, demande.ScoutYear, demande.Status },
+            cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
 public record DecideDemandeCommand(Guid Id, string Status, Guid? DecidedUnitId, string? DecisionNotes) : IRequest<Result<bool>>;
 
 public class DecideDemandeCommandValidator : AbstractValidator<DecideDemandeCommand>
