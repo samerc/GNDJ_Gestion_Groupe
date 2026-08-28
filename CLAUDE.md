@@ -3378,6 +3378,25 @@ step"). All on main, DEV until deploy; verified live.
       `LoginCommandHandler` now trims + lowercases the input and compares `LOWER(email)` case-insensitively (mirrors
       the applicant login; emails are unique so no ambiguity). Verified live: exact / UPPERCASE / trailing-space all
       log in.
+- **CU (Chef d'Unité) flow shaken down the same way** (live, as a real CU — Sacha CHEBLI, Cheftaine de Compagnie 1;
+      password reset via admin, backed up + restored). Verdict: **the unit-scoping holds.** ALL 11 cross-unit IDOR
+      attempts on an out-of-unit member/unit were blocked (read detail → 404; edit / reset-password / read docs /
+      read cotisations / record payment / set exempt / passage propose → 400 "Accès non autorisé à ce membre";
+      doc matrix / trombinoscope / export for another unit → 400 "Accès non autorisé à cette unité"). In-unit bad
+      input is clean (cotisation amount 0/negative → "montant doit être supérieur à 0"; junk currency → "Devise
+      invalide"; passage to an invalid unit → 400 not 500). Privilege boundaries hold: settings write → 403, create
+      unit / edit own unit (units.edit) → 403, `/demandes` (CG) → 403, group dashboard → 403. Cotisation summary is
+      correctly unit-scoped (87 = Compagnie 1, not the group ~1000).
+- **FIXED (CU flow) — security-profiles read was reachable by a CU** (`roles.view` over-exposure the 2026-07-29
+      pentest missed): `roles.view` gates BOTH the functional-roles list (which a CU legitimately needs for the
+      assignment/passage **Fonction** picker) AND the `security-profiles` GET endpoints — so a CU could
+      `GET /security-profiles` + `/{id}/members` (browse the whole authorization model + enumerate who holds each
+      profile = every admin/CG) via direct API/URL (no sidebar link, but the route was `roles.view`-gated). The
+      security-profiles read is a **manager** tool, so its 3 GET endpoints now require **`maitrise.manage`**
+      (super-admin / CG / ACG) instead of `roles.view`; functional-roles stays on `roles.view` so the CU keeps their
+      Fonction picker. Frontend aligned (the "Profils & accès" route + sidebar link + Profils tab now gate on
+      `maitrise.manage`). Verified live: CU → security-profiles 403 but functional-roles 200 (picker intact),
+      super-admin → 200.
 
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`

@@ -2,8 +2,9 @@
 //   • "Profils de sécurité" (roles.view / roles.manage) — the master permission profiles + who holds each.
 //   • "Accès maîtrise" (roles.manage_group) — the CG's per-function, per-area access delegation.
 // They edit the same underlying SecurityProfile permissions but for different audiences, so each is a TAB
-// shown only if the user holds that permission (a super-admin sees both; a Chef de Groupe sees both; someone
-// with only roles.view sees just Profils). The two child pages render in `embedded` mode (their own headers
+// shown only if the user holds that permission (a super-admin sees both; a Chef de Groupe sees both). Profils is
+// gated on maitrise.manage (NOT roles.view): a Chef d'Unité holds roles.view for the Fonction picker but must not
+// see the authorization model / who holds each profile. The two child pages render in `embedded` mode (their own headers
 // suppressed) so this page owns the single title + tab bar.
 import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
@@ -14,7 +15,7 @@ import GroupAccessPage from './group-access'
 
 export default function RolesAccessPage() {
   const { hasPermission } = useAuthStore()
-  const canProfiles = hasPermission(PERMISSIONS.ROLES_VIEW)
+  const canProfiles = hasPermission(PERMISSIONS.MAITRISE_MANAGE)
   const canGroup = hasPermission(PERMISSIONS.ROLES_MANAGE_GROUP)
 
   const tabs = [

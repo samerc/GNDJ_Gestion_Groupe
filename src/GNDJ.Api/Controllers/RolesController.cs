@@ -122,28 +122,31 @@ public class RolesController : BaseApiController
 
 /// <summary>
 /// Security profiles — permission sets assigned to functional roles, base route <c>api/v1/security-profiles</c>.
-/// Authenticated; reading requires roles.view, mutating requires roles.manage. The members endpoint lists the
-/// accounts holding a profile (the super-admin profile lists the flagged accounts, since super-admin is a flag, not
-/// a role). Deletion is blocked for system or in-use profiles.
+/// Authenticated; reading requires maitrise.manage (super-admin / Chef de Groupe — this is a manager tool),
+/// mutating requires roles.manage. Reading is deliberately NOT on roles.view: a Chef d'Unité holds roles.view
+/// (needed for the functional-role/Fonction picker) but must NOT be able to browse the authorization model or
+/// enumerate who holds each profile (every admin/CG). The members endpoint lists the accounts holding a profile
+/// (the super-admin profile lists the flagged accounts, since super-admin is a flag, not a role). Deletion is
+/// blocked for system or in-use profiles.
 /// </summary>
 [Authorize]
 [Route("api/v1/security-profiles")]
 public class SecurityProfilesController : BaseApiController
 {
-    /// <summary>Lists all security profiles. Requires roles.view.</summary>
+    /// <summary>Lists all security profiles. Requires maitrise.manage (manager-only).</summary>
     [HttpGet]
-    [HasPermission(Permissions.RolesView)]
+    [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> GetAll()
     {
         var result = await Mediator.Send(new GetSecurityProfilesQuery());
         return Ok(result);
     }
 
-    /// <summary>Returns one security profile with its permissions. Requires roles.view.</summary>
+    /// <summary>Returns one security profile with its permissions. Requires maitrise.manage (manager-only).</summary>
     /// <response code="404">No profile matches the id.</response>
     [ProducesResponseType(404)]
     [HttpGet("{id:guid}")]
-    [HasPermission(Permissions.RolesView)]
+    [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await Mediator.Send(new GetSecurityProfileByIdQuery(id));
@@ -151,9 +154,9 @@ public class SecurityProfilesController : BaseApiController
         return Ok(result);
     }
 
-    /// <summary>Lists the accounts holding this profile. Requires roles.view.</summary>
+    /// <summary>Lists the accounts holding this profile. Requires maitrise.manage (manager-only).</summary>
     [HttpGet("{id:guid}/members")]
-    [HasPermission(Permissions.RolesView)]
+    [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> GetMembers(Guid id)
     {
         var result = await Mediator.Send(new GetSecurityProfileMembersQuery(id));

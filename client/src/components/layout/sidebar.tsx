@@ -180,7 +180,7 @@ const adminGroups: AdminGroup[] = [
   {
     label: 'Système',
     items: [
-      { path: '/admin/roles-access', label: 'Profils & accès', icon: ShieldCheck, permission: PERMISSIONS.ROLES_VIEW },
+      { path: '/admin/roles-access', label: 'Profils & accès', icon: ShieldCheck, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/email-settings', label: 'Email / SMTP', icon: Mail, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/email-outbox', label: 'File d\'emails', icon: Send, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/api-keys', label: 'Clés API', icon: Key, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },

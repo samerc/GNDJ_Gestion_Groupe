@@ -204,8 +204,10 @@ export default function App() {
               <Route path="/admin/camps" element={<CampsAdminPage />} />
               <Route path="/admin/camps/:id" element={<CampDetailPage />} />
             </Route>
-            <Route element={<PermissionRoute permission={PERMISSIONS.ROLES_VIEW} />}>
-              {/* Merged "Profils & accès" page (security profiles + group-access delegation, each a permission-gated tab). */}
+            <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
+              {/* Merged "Profils & accès" page (security profiles + group-access delegation, each a permission-gated tab).
+                  Manager-only (maitrise.manage): a Chef d'Unité holds roles.view for the Fonction picker but must NOT
+                  browse the authorization model / enumerate who holds each profile — matches the backend gate. */}
               <Route path="/admin/roles-access" element={<RolesAccessPage />} />
               {/* Back-compat redirects for the two former routes/bookmarks. */}
               <Route path="/admin/security-profiles" element={<Navigate to="/admin/roles-access" replace />} />
