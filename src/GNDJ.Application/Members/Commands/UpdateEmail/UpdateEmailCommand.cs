@@ -16,7 +16,7 @@ public class UpdateEmailCommandValidator : AbstractValidator<UpdateEmailCommand>
     public UpdateEmailCommandValidator()
     {
         RuleFor(x => x.Id).NotEmpty();
-        RuleFor(x => x.Address).NotEmpty().EmailAddress().WithMessage("Adresse email invalide.").MaximumLength(254);
+        RuleFor(x => x.Address).NotEmpty().EmailAddress().WithMessage("Adresse email invalide.").MaximumLength(254).RealEmail();
         RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
     }
 }

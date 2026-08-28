@@ -65,7 +65,7 @@ public class AddGuardianEmailCommandValidator : AbstractValidator<AddGuardianEma
     public AddGuardianEmailCommandValidator()
     {
         RuleFor(x => x.GuardianId).NotEmpty();
-        RuleFor(x => x.Address).NotEmpty().EmailAddress().WithMessage("Adresse email invalide.").MaximumLength(254);
+        RuleFor(x => x.Address).NotEmpty().EmailAddress().WithMessage("Adresse email invalide.").MaximumLength(254).RealEmail();
         RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
     }
 }

@@ -16,7 +16,7 @@ public class AddEmailCommandValidator : AbstractValidator<AddEmailCommand>
 {
     public AddEmailCommandValidator()
     {
-        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse courriel est requise.").EmailAddress().WithMessage("L'adresse courriel est invalide.").MaximumLength(254);
+        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse courriel est requise.").EmailAddress().WithMessage("L'adresse courriel est invalide.").MaximumLength(254).RealEmail();
         RuleFor(x => x.Type).NotEmpty().WithMessage("Le type est requis.").MaximumLength(50).NoHtml();
     }
 }

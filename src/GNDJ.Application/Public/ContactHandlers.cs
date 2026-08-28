@@ -18,7 +18,7 @@ public class SendContactMessageCommandValidator : AbstractValidator<SendContactM
     {
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
         RuleFor(x => x.Email).NotEmpty().WithMessage("L'adresse email est requise.")
-            .EmailAddress().WithMessage("Adresse email invalide.").MaximumLength(254);
+            .EmailAddress().WithMessage("Adresse email invalide.").MaximumLength(254).RealEmail();
         RuleFor(x => x.Subject).NotEmpty().WithMessage("Le sujet est requis.").MaximumLength(150).NoHtml();
         RuleFor(x => x.Message).NotEmpty().WithMessage("Le message est requis.").MaximumLength(4000).NoHtml();
     }
