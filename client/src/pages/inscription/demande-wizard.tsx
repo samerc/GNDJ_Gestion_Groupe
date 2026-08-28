@@ -287,6 +287,13 @@ export default function DemandeWizardPage() {
     }
   }
 
+  // After a validation failure, bring the first highlighted field into view — on a long mobile form the
+  // failing field (e.g. a parent's phone or the "Situation des parents") is often far from the button, so a
+  // parent seeing only the toast wouldn't know where to look. Delayed so the error borders have rendered.
+  const scrollToFirstError = () => {
+    setTimeout(() => document.querySelector('.border-destructive')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60)
+  }
+
   // Stepper/Précédent/Suivant navigation. Read-only just jumps. Moving forward validates the
   // current step first (blocks on errors), then persists progress before switching steps; going
   // backward still persists but skips validation.
@@ -295,7 +302,7 @@ export default function DemandeWizardPage() {
     // validate when moving forward past a gated step
     if (target > step) {
       const e = validateStep(step)
-      if (Object.keys(e).length) { setErrors(e); toast.error('Veuillez corriger les champs indiqués.'); return }
+      if (Object.keys(e).length) { setErrors(e); toast.error('Veuillez corriger les champs indiqués.'); scrollToFirstError(); return }
     }
     setErrors({})
     setSaving(true)
@@ -310,7 +317,7 @@ export default function DemandeWizardPage() {
   async function handleSubmit() {
     const e0 = validateStep(0), e1 = validateStep(1)
     const all = { ...e0, ...e1 }
-    if (Object.keys(all).length) { setErrors(all); setStep(Object.keys(e0).length ? 0 : 1); toast.error('Informations incomplètes.'); return }
+    if (Object.keys(all).length) { setErrors(all); setStep(Object.keys(e0).length ? 0 : 1); toast.error('Informations incomplètes.'); scrollToFirstError(); return }
     setSaving(true)
     try {
       const did = await persist()
@@ -423,7 +430,7 @@ export default function DemandeWizardPage() {
                   <Input type="email" value={child.email ?? ''} onChange={(e) => setC({ email: e.target.value || null })} className={errors.email ? 'border-destructive' : ''} />
                 </Field>
                 <Field label="Téléphone de l'enfant (optionnel)">
-                  <Input value={child.phoneNumber ?? ''} onChange={(e) => setC({ phoneNumber: e.target.value || null })} />
+                  <Input type="tel" inputMode="tel" value={child.phoneNumber ?? ''} onChange={(e) => setC({ phoneNumber: e.target.value || null })} />
                 </Field>
               </div>
               <Field label="Allergies"><Input value={child.allergies ?? ''} onChange={(e) => setC({ allergies: e.target.value || null })} /></Field>
@@ -465,12 +472,17 @@ export default function DemandeWizardPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Input placeholder="Code reçu par email" value={lookupCode} onChange={(e) => setLookupCode(e.target.value)} className="w-full sm:max-w-[12rem]" />
-                    <Button type="button" size="sm" disabled={!lookupCode.trim() || verifyLookup.isPending} onClick={verifyLookupCode}>
-                      {verifyLookup.isPending ? 'Vérification...' : 'Vérifier et pré-remplir'}
-                    </Button>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => { setLookupCodeSent(false); setLookupCode('') }}>Changer l'email</Button>
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input inputMode="numeric" placeholder="Code reçu par email" value={lookupCode} onChange={(e) => setLookupCode(e.target.value)} className="w-full sm:max-w-[12rem]" />
+                      <Button type="button" size="sm" disabled={!lookupCode.trim() || verifyLookup.isPending} onClick={verifyLookupCode}>
+                        {verifyLookup.isPending ? 'Vérification...' : 'Vérifier et pré-remplir'}
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { setLookupCodeSent(false); setLookupCode('') }}>Changer l'email</Button>
+                    </div>
+                    {/* Persistent guidance — the "code sent" toast auto-dismisses; a parent staring at this field
+                        needs a lasting reminder to check email (incl. spam). */}
+                    <p className="text-xs text-muted-foreground">Saisissez le code reçu par email (pensez à vérifier les courriers indésirables).</p>
                   </div>
                 )}
               </div>
@@ -503,7 +515,7 @@ export default function DemandeWizardPage() {
                       <Input value={g.profession ?? ''} maxLength={150} placeholder="Profession (ex. Ingénieure)" onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, profession: e.target.value } : x))} />
                     </Field>
                     <Field label="Téléphone" required={!g.isDeceased} error={errors[`g_${i}_phone`]}>
-                      <Input value={g.phoneNumber ?? ''} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, phoneNumber: e.target.value } : x))} className={errors[`g_${i}_phone`] ? 'border-destructive' : ''} />
+                      <Input type="tel" inputMode="tel" value={g.phoneNumber ?? ''} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, phoneNumber: e.target.value } : x))} className={errors[`g_${i}_phone`] ? 'border-destructive' : ''} />
                     </Field>
                     <Field label="Email" error={errors[`g_${i}_email`]}>
                       <Input type="email" value={g.email ?? ''} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, email: e.target.value } : x))} className={errors[`g_${i}_email`] ? 'border-destructive' : ''} />

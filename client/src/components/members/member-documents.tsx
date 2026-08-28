@@ -199,6 +199,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
     if (!deleting) return
     try {
       await deleteMutation.mutateAsync(deleting.id)
+      toast.success('Document supprimé')
       setDeleting(null)
     } catch (err) {
       toast.error(parseApiError(err))
@@ -331,6 +332,11 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                   )}
                   {doc?.reviewNotes && (
                     <p className="mt-1 text-xs text-orange-600 font-medium">Note : {doc.reviewNotes}</p>
+                  )}
+                  {/* Reassure the parent/member that a pending doc is normal (not a problem). Hidden for reviewers (CU),
+                      who understand the workflow — shown only when the viewer can't approve documents. */}
+                  {doc && doc.status !== 'Approved' && doc.status !== 'Rejected' && !doc.isExpired && !hasPermission(PERMISSIONS.DOCUMENTS_APPROVE) && (
+                    <p className="mt-1 text-xs text-muted-foreground">En attente de vérification par la maîtrise — aucune action requise de votre part.</p>
                   )}
                   {!doc && (
                     <p className="mt-1 text-xs text-muted-foreground">Aucun document envoyé</p>

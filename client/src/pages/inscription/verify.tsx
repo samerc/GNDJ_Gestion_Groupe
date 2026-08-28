@@ -53,6 +53,11 @@ export default function ApplicantVerifyPage() {
             >
               Renvoyer l'email de vérification
             </Button>
+            {/* A parent who clicked the link in another tab (verifying there) needs a way forward from THIS tab.
+                The verify gate re-checks on navigation: if verified it lets them in, otherwise it returns here. */}
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/inscription/portail">J'ai déjà vérifié — continuer</Link>
+            </Button>
           </CardContent>
         </Card>
       </ApplicantAuthShell>

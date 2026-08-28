@@ -280,7 +280,8 @@ export default function UnitDocumentsPage() {
       toast.success('Statut modifié')
       closePreview()
     } catch (err) {
-      setError(parseApiError(err))
+      // toast (not setError): the preview dialog stays open on failure, so a page banner would hide behind it.
+      toast.error(parseApiError(err))
     }
   }
 

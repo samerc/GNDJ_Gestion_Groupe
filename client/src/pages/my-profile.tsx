@@ -93,7 +93,7 @@ export default function MyProfilePage() {
       await updatePhoneMutation.mutateAsync({ id: editingPhone.id, ...editPhoneForm })
       toast.success('Téléphone modifié')
       setEditingPhone(null)
-    } catch (err) { setError(parseApiError(err)) }
+    } catch (err) { toast.error(parseApiError(err)) } // toast (not setError): the edit dialog is open, a banner would hide behind it
   }
 
   const openEditEmail = (em: MemberEmailDto) => {
@@ -107,7 +107,7 @@ export default function MyProfilePage() {
       await updateEmailMutation.mutateAsync({ id: editingEmail.id, ...editEmailForm })
       toast.success('Courriel modifié')
       setEditingEmail(null)
-    } catch (err) { setError(parseApiError(err)) }
+    } catch (err) { toast.error(parseApiError(err)) }
   }
 
   const openEditAddress = (a: MemberAddressDto) => {
@@ -121,7 +121,7 @@ export default function MyProfilePage() {
       await updateAddressMutation.mutateAsync({ id: editingAddress.id, ...editAddressForm, details: editAddressForm.details || null })
       toast.success('Adresse modifiée')
       setEditingAddress(null)
-    } catch (err) { setError(parseApiError(err)) }
+    } catch (err) { toast.error(parseApiError(err)) }
   }
 
   const startEdit = () => {
@@ -242,6 +242,8 @@ export default function MyProfilePage() {
             <CardHeader><CardTitle>Informations personnelles</CardTitle></CardHeader>
             <CardContent>
               {editing ? (
+                <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">Le nom, le prénom, la date de naissance, le sexe et le matricule sont gérés par la maîtrise. Contactez vos chefs pour toute correction.</p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {/* Locked identity fields — admin-controlled; a member can view but not change them. */}
                   <div className="space-y-2"><RequiredLabel>Prénom</RequiredLabel><Input value={member.firstName} disabled /></div>
@@ -299,6 +301,7 @@ export default function MyProfilePage() {
                     <RequiredLabel>Section</RequiredLabel>
                     <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} />
                   </div>
+                </div>
                 </div>
               ) : (
                 <dl className="grid gap-4 sm:grid-cols-2">
@@ -413,7 +416,7 @@ export default function MyProfilePage() {
             </div>
             <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editPhoneForm.type} onValueChange={(v) => setEditPhoneForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PHONE_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
             <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editPhoneForm.isPrimary} onChange={(e) => setEditPhoneForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editPhoneForm.isEmergency} onChange={(e) => setEditPhoneForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingPhone(null)}>Annuler</Button><Button type="submit" disabled={updatePhoneMutation.isPending}>Enregistrer</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingPhone(null)}>Annuler</Button><Button type="submit" disabled={updatePhoneMutation.isPending}>{updatePhoneMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -426,7 +429,7 @@ export default function MyProfilePage() {
             <div className="space-y-2"><RequiredLabel required>Adresse</RequiredLabel><Input type="email" value={editEmailForm.address} onChange={(e) => setEditEmailForm(f => ({ ...f, address: e.target.value }))} required /></div>
             <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editEmailForm.type} onValueChange={(v) => setEditEmailForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{EMAIL_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
             <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editEmailForm.isPrimary} onChange={(e) => setEditEmailForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editEmailForm.isEmergency} onChange={(e) => setEditEmailForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingEmail(null)}>Annuler</Button><Button type="submit" disabled={updateEmailMutation.isPending}>Enregistrer</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingEmail(null)}>Annuler</Button><Button type="submit" disabled={updateEmailMutation.isPending}>{updateEmailMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -440,7 +443,7 @@ export default function MyProfilePage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={editAddressForm.country} onValueChange={(v) => setEditAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><CitySelect value={editAddressForm.city} onChange={(city) => setEditAddressForm(f => ({ ...f, city }))} cities={cities} /></div></div>
             <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={editAddressForm.details} onChange={(e) => setEditAddressForm(f => ({ ...f, details: e.target.value }))} placeholder="Rue, immeuble..." /></div>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editAddressForm.isPrimary} onChange={(e) => setEditAddressForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingAddress(null)}>Annuler</Button><Button type="submit" disabled={updateAddressMutation.isPending}>Enregistrer</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingAddress(null)}>Annuler</Button><Button type="submit" disabled={updateAddressMutation.isPending}>{updateAddressMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
