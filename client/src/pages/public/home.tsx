@@ -214,22 +214,29 @@ export default function PublicHomePage() {
               <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{grp.label}</h3>
               <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {grp.branches.map((g) => {
-                  const color = g.color ?? undefined // unit-type accent colour (hex) used for the strip + icon
+                  const color = g.color ?? undefined // unit-type accent colour (hex) used for the emblem tile + icon
                   const ages = g.ageMin != null && g.ageMax != null ? `${g.ageMin}–${g.ageMax} ans` : null
                   return (
-                    <Link key={g.unitTypeId} to="/unites" className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5">
-                      <div className="relative flex h-24 items-center justify-center" style={{ background: color ? `linear-gradient(135deg, ${color}26, ${color}0d)` : undefined }}>
-                        <Compass className="h-8 w-8" style={{ color: color ?? undefined, opacity: 0.5 }} />
-                      </div>
-                      <div className="flex flex-1 flex-col p-5">
-                        <div className="flex items-center justify-between gap-2">
-                          {/* Branch name in the default (near-black) foreground, per request — the colour lives in the icon/strip */}
-                          <h3 className="text-lg font-semibold">{g.unitTypeName}</h3>
-                          {ages && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{ages}</span>}
+                    // Same card style as the /unites page: compact emblem tile beside the name (a branch spans
+                    // several foulards, so its emblem is the Compass in the branch's unit-type colour, not a scarf).
+                    <Link key={g.unitTypeId} to="/unites" className="group flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5">
+                      <div className="flex items-center gap-3.5">
+                        <span
+                          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl ring-1 ring-border/70"
+                          style={{ backgroundColor: color ? `color-mix(in srgb, ${color} 12%, var(--card))` : undefined }}
+                        >
+                          <Compass className="h-8 w-8" style={{ color }} />
+                        </span>
+                        <div className="min-w-0">
+                          {/* Branch name in the default (near-black) foreground — the colour lives in the emblem */}
+                          <h3 className="font-semibold leading-snug">{g.unitTypeName}</h3>
+                          {ages && <span className="text-xs text-muted-foreground">{ages}</span>}
                         </div>
-                        {g.description && <p className="mt-2 text-sm leading-relaxed text-muted-foreground line-clamp-2">{g.description}</p>}
-                        <span className="mt-3 text-xs text-muted-foreground">{g.units.length} unité{g.units.length > 1 ? 's' : ''}</span>
-                        <span className="mt-3 inline-flex items-center text-sm font-medium text-primary">Découvrir <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" /></span>
+                      </div>
+                      {g.description && <p className="mt-4 text-sm leading-relaxed text-muted-foreground line-clamp-2">{g.description}</p>}
+                      <div className="mt-4 flex flex-1 items-end justify-between">
+                        <span className="text-xs text-muted-foreground">{g.units.length} unité{g.units.length > 1 ? 's' : ''}</span>
+                        <span className="inline-flex items-center text-sm font-medium text-primary">Découvrir <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" /></span>
                       </div>
                     </Link>
                   )
@@ -237,6 +244,15 @@ export default function PublicHomePage() {
               </div>
             </div>
           ))}
+          {/* Prominent gateway to the full directory. */}
+          <div className="mt-12 flex justify-center">
+            <Link
+              to="/unites"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-3 text-sm font-semibold text-primary shadow-card transition-all hover:-translate-y-0.5 hover:shadow-elevated"
+            >
+              Voir toutes les unités <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </section>
       )}
 

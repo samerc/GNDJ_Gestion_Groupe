@@ -3,6 +3,7 @@
     "version": "3.0.0",
     "date": "2026-08-27",
     "changes": [
+      "Site public (accueil) : la section « Nos unités » adopte le même style de cartes que la page Unités (emblème compact à côté du nom, teinté à la couleur de la branche) et gagne un bouton bien visible « Voir toutes les unités » qui mène à la page complète.",
       "Site public (page d'une unité) : l'identité de l'unité est intégrée à la page — la bannière prend les couleurs du foulard (dégradé teinté, ruban des couleurs en haut, grand emblème du foulard) au lieu du dégradé générique. Les équipes vides (0 membre) ne sont plus affichées, et les équipes sont listées une par ligne.",
       "Site public (Nos unités) : cartes d'unité épurées — les couleurs du foulard s'affichent comme un emblème (écusson) à côté du nom, au lieu d'un grand bandeau de couleur plein. Emblème agrandi pour bien voir les couleurs, foulard tricolore du Clan (bleu/orange/blanc) désormais correct, et les descriptions de branche sont justifiées et occupent toute la largeur des cartes.",
       "Demandes d'inscription : possibilité de supprimer une demande (indésirable, doublon, test) — bouton « Supprimer » sur chaque ligne, dans le volet de détail, et en action groupée sur la sélection (avec confirmation). Une demande déjà convertie en membre ne peut pas être supprimée. Le bouton « Effacer » de la barre de sélection est renommé « Désélectionner » (il ne faisait que vider la sélection, il ne supprimait rien).",
