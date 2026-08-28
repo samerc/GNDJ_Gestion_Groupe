@@ -34,6 +34,7 @@ export interface SiteContent {
     introTitle: string; introText: string
     values: SiteValue[]; stats: SiteStat[]
     ctaTitle: string; ctaText: string
+    heroImageUrl?: string | null // optional hero photo URL (uploaded in Textes du site)
   }
   footer: { tagline: string; instagram?: string; facebook?: string; email?: string; phone?: string }
   contact: { intro: string; address: string }

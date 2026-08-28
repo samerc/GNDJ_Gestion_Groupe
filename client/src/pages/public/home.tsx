@@ -47,6 +47,7 @@ export default function PublicHomePage() {
   })()
   const home = config?.content.home // CMS-authored home copy; undefined until config loads
   const inscriptionsOpen = config?.inscriptionsOpen ?? false // gates all "Demande d'inscription" CTAs
+  const heroImage = home?.heroImageUrl || null // optional hero photo (Textes du site) → two-column hero when set
 
   return (
     <>
@@ -56,8 +57,9 @@ export default function PublicHomePage() {
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary via-primary to-accent" />
         <div className="pointer-events-none absolute -top-24 -right-24 h-[28rem] w-[28rem] rounded-full bg-white/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 -left-24 h-[28rem] w-[28rem] rounded-full bg-accent/30 blur-3xl" />
-        <div className="relative mx-auto max-w-6xl px-4 py-24 sm:px-6 md:py-32">
-          <div className="max-w-2xl">
+        <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 md:py-28">
+          <div className={heroImage ? 'grid items-center gap-10 lg:grid-cols-2' : ''}>
+            <div className={heroImage ? 'min-w-0' : 'max-w-2xl'}>
             {home?.heroBadge && (
               <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white ring-1 ring-white/20 backdrop-blur">
                 <Compass className="h-3.5 w-3.5" /> {home.heroBadge}
@@ -95,6 +97,16 @@ export default function PublicHomePage() {
                 </Link>
               )}
             </div>
+            </div>
+            {heroImage && (
+              <div className="relative">
+                <img
+                  src={heroImage}
+                  alt="Le Groupe Notre-Dame de Jamhour"
+                  className="aspect-[4/3] w-full rounded-2xl object-cover shadow-elevated ring-1 ring-white/25"
+                />
+              </div>
+            )}
           </div>
         </div>
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent" />

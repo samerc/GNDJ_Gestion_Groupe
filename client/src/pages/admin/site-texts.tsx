@@ -2,13 +2,14 @@
 // site's fixed sections (home hero/intro/values/stats/CTA, footer, contact) stored in the single site.content
 // JSON setting. Loads into a local `form` draft; the whole object is saved at once. The home CTA only renders
 // publicly when inscriptions are open (see public-layout); values/stats are capped at 6 entries each.
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { parseApiError } from '@/lib/error-utils'
 import { useSiteContent, useUpdateSiteContent, type SiteContent } from '@/services/site-content-service'
+import { uploadContentImage } from '@/services/content-image-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, ImagePlus, Loader2 } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
@@ -38,7 +39,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 // Empty defaults so a fresh DB (no site.content yet) or a load error still renders an editable form
 // instead of spinning forever.
 const emptyContent: SiteContent = {
-  home: { heroBadge: '', heroTitle: '', heroSubtitle: '', introTitle: '', introText: '', values: [], stats: [], ctaTitle: '', ctaText: '' },
+  home: { heroBadge: '', heroTitle: '', heroSubtitle: '', introTitle: '', introText: '', values: [], stats: [], ctaTitle: '', ctaText: '', heroImageUrl: '' },
   footer: { tagline: '', instagram: '', facebook: '', email: '', phone: '' },
   contact: { intro: '', address: '' },
 }
@@ -47,6 +48,9 @@ export default function AdminSiteTextsPage() {
   const { data, isLoading } = useSiteContent()
   const [form, setForm] = useState<SiteContent | null>(null)
   const updateMutation = useUpdateSiteContent()
+  // Hero-photo upload state (hooks must be above the early returns below).
+  const heroFileRef = useRef<HTMLInputElement>(null)
+  const [uploadingHero, setUploadingHero] = useState(false)
 
   // Hydrate the form when the fetched content (re)loads — render-phase reset.
   const [prevData, setPrevData] = useState(data)
@@ -59,6 +63,15 @@ export default function AdminSiteTextsPage() {
 
   const home = effectiveForm.home
   const setHome = (patch: Partial<SiteContent['home']>) => setForm({ ...effectiveForm, home: { ...home, ...patch } })
+
+  // Hero photo upload → the same content-image endpoint the news/pages CMS uses; stores the returned URL.
+  const handleHeroFile = async (file: File | undefined) => {
+    if (!file) return
+    setUploadingHero(true)
+    try { const url = await uploadContentImage(file); setHome({ heroImageUrl: url }); toast.success('Photo téléversée. N\'oubliez pas d\'enregistrer.') }
+    catch (err) { toast.error(parseApiError(err)) }
+    finally { setUploadingHero(false); if (heroFileRef.current) heroFileRef.current.value = '' }
+  }
 
   const handleSave = async () => {
     try { await updateMutation.mutateAsync(effectiveForm); toast.success('Textes du site enregistrés') }
@@ -79,6 +92,27 @@ export default function AdminSiteTextsPage() {
         <Field label="Badge" value={home.heroBadge} onChange={(v) => setHome({ heroBadge: v })} />
         <Field label="Titre" value={home.heroTitle} onChange={(v) => setHome({ heroTitle: v })} />
         <Field label="Sous-titre" value={home.heroSubtitle} onChange={(v) => setHome({ heroSubtitle: v })} textarea max={1000} />
+        {/* Optional hero photo — shown on the right of the banner. Empty = the plain gradient banner. */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Photo de la bannière (optionnelle)</label>
+          <p className="text-xs text-muted-foreground">Une photo du groupe (camp, cérémonie…). Affichée à droite de la bannière. Format paysage recommandé (JPG/PNG). Laissez vide pour garder la bannière dégradée.</p>
+          <input ref={heroFileRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => handleHeroFile(e.target.files?.[0])} />
+          {home.heroImageUrl ? (
+            <div className="flex items-center gap-3">
+              <img src={home.heroImageUrl} alt="Aperçu de la bannière" className="h-24 w-40 rounded-lg border border-border object-cover" />
+              <div className="flex flex-col gap-2">
+                <Button type="button" variant="outline" size="sm" disabled={uploadingHero} onClick={() => heroFileRef.current?.click()}>
+                  {uploadingHero ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="mr-1 h-3.5 w-3.5" />}Remplacer
+                </Button>
+                <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setHome({ heroImageUrl: '' })}><Trash2 className="mr-1 h-3.5 w-3.5" />Retirer</Button>
+              </div>
+            </div>
+          ) : (
+            <Button type="button" variant="outline" size="sm" disabled={uploadingHero} onClick={() => heroFileRef.current?.click()}>
+              {uploadingHero ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="mr-1 h-3.5 w-3.5" />}Téléverser une photo
+            </Button>
+          )}
+        </div>
       </Section>
 
       <Section title="Accueil — introduction">

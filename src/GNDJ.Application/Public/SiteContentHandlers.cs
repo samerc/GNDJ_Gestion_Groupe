@@ -17,7 +17,10 @@ public record SiteHomeContent(
     string HeroBadge, string HeroTitle, string HeroSubtitle,
     string IntroTitle, string IntroText,
     List<SiteValueDto> Values, List<SiteStatDto> Stats,
-    string CtaTitle, string CtaText);
+    string CtaTitle, string CtaText,
+    // Optional hero photo (uploaded via /content/images → its public URL). Nullable default keeps previously
+    // stored site.content JSON (without this field) deserializable. Empty/null → the gradient-only hero.
+    string? HeroImageUrl = null);
 // Instagram/Facebook are optional profile URLs shown as social icons in the public footer; Email/Phone
 // are optional public contact details shown (as mailto:/tel: links) in the footer's Contact column.
 // Nullable defaults keep previously-stored site.content JSON (without these fields) deserializable.
@@ -116,6 +119,7 @@ public class UpdateSiteContentCommandValidator : AbstractValidator<UpdateSiteCon
             RuleFor(x => x.Content.Home.IntroText).MaximumLength(1000).NoHtml();
             RuleFor(x => x.Content.Home.CtaTitle).MaximumLength(200).NoHtml();
             RuleFor(x => x.Content.Home.CtaText).MaximumLength(1000).NoHtml();
+            RuleFor(x => x.Content.Home.HeroImageUrl).MaximumLength(500).NoHtml();
             RuleFor(x => x.Content.Home.Values).NotNull().Must(v => v.Count <= 6).WithMessage("Trop de valeurs.");
             RuleFor(x => x.Content.Home.Stats).NotNull().Must(s => s.Count <= 6).WithMessage("Trop de statistiques.");
             RuleForEach(x => x.Content.Home.Values).ChildRules(v => {
