@@ -8,6 +8,7 @@ import { useVerifyMyContact } from '@/services/my-profile-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/phone-input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { parseApiError } from '@/lib/error-utils'
@@ -69,7 +70,7 @@ export function LeaderContactVerification() {
               <Label htmlFor="lev-phone">Votre téléphone personnel <span className="font-normal text-muted-foreground">(facultatif)</span></Label>
               <div className="flex gap-2">
                 <Input aria-label="Indicatif" value={countryCode} onChange={(e) => setCountryCode(e.target.value)} className="w-20 shrink-0" placeholder="+961" />
-                <Input id="lev-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" placeholder="03 123 456" className="flex-1" />
+                <PhoneInput id="lev-phone" dialCode={countryCode} value={phone} onChange={setPhone} autoComplete="tel" placeholder="03 123 456" className="flex-1" />
               </div>
               {!user?.suggestedPhone && (
                 <p className="text-xs text-muted-foreground">Ajoutez votre numéro personnel pour être joignable.</p>

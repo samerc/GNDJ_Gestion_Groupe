@@ -640,15 +640,21 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         // (B) Existing guardians matched by email (case-sensitive, as before) then phone — loaded once.
         var agAll = acctGuardians.Values.SelectMany(g => g).ToList();
         var agEmails = agAll.Where(a => !string.IsNullOrWhiteSpace(a.Email)).Select(a => a.Email!).Distinct().ToList();
-        var agPhones = agAll.Where(a => !string.IsNullOrWhiteSpace(a.PhoneNumber)).Select(a => a.PhoneNumber!).Distinct().ToList();
         var guardianByEmail = (await context.GuardianEmails.Where(e => agEmails.Contains(e.Address))
                 .Select(e => new { e.Address, e.Guardian }).ToListAsync(ct))
             .GroupBy(x => x.Address, StringComparer.Ordinal)
             .ToDictionary(x => x.Key, x => x.First().Guardian, StringComparer.Ordinal);
-        var guardianByPhone = (await context.GuardianPhones.Where(p => agPhones.Contains(p.Number))
-                .Select(p => new { p.Number, p.Guardian }).ToListAsync(ct))
-            .GroupBy(x => x.Number, StringComparer.Ordinal)
-            .ToDictionary(x => x.Key, x => x.First().Guardian, StringComparer.Ordinal);
+        // Phone match is now DIGIT-normalized ("76 123 456" ≡ "76123456"): numbers are entered formatted
+        // (per-country grouping), and legacy/migrated data is unformatted, so an exact string match would
+        // create duplicate guardians. The guardian_phones table is small, so load it once and key by digits.
+        var agPhoneDigits = agAll.Select(a => PhoneDigits(a.PhoneNumber)).Where(d => d.Length >= 6).ToHashSet();
+        var guardianByPhone = agPhoneDigits.Count == 0
+            ? new Dictionary<string, Guardian>()
+            : (await context.GuardianPhones.Select(p => new { p.Number, p.Guardian }).ToListAsync(ct))
+                .Select(x => new { Key = PhoneDigits(x.Number), x.Guardian })
+                .Where(x => x.Key.Length >= 6 && agPhoneDigits.Contains(x.Key))
+                .GroupBy(x => x.Key, StringComparer.Ordinal)
+                .ToDictionary(x => x.Key, x => x.First().Guardian, StringComparer.Ordinal);
 
         // (C) Usernames already taken — one read instead of an AnyAsync per member.
         var takenEmails = new HashSet<string>(await context.Users.Select(u => u.Email).ToListAsync(ct), StringComparer.OrdinalIgnoreCase);
@@ -833,9 +839,13 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
     private static Guardian? FindExistingGuardian(ApplicantGuardian ag, Dictionary<string, Guardian> byEmail, Dictionary<string, Guardian> byPhone)
     {
         if (!string.IsNullOrWhiteSpace(ag.Email) && byEmail.TryGetValue(ag.Email, out var g1)) return g1;
-        if (!string.IsNullOrWhiteSpace(ag.PhoneNumber) && byPhone.TryGetValue(ag.PhoneNumber, out var g2)) return g2;
+        var digits = PhoneDigits(ag.PhoneNumber);
+        if (digits.Length >= 6 && byPhone.TryGetValue(digits, out var g2)) return g2;
         return null;
     }
+
+    // Digits only, for format-insensitive phone matching ("+961 76 123 456" / "76123456" → "76123456").
+    private static string PhoneDigits(string? s) => new(( s ?? "").Where(char.IsDigit).ToArray());
 
     // Unique login local-part, checked against usernames taken in this batch (`used`) and already-existing
     // ones (`taken`, pre-loaded) — no per-member DB round-trip.

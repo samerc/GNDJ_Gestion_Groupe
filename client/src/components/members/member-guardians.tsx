@@ -10,6 +10,7 @@ import { SearchableSelect } from '@/components/shared/searchable-select'
 import { PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, PROFESSION_OPTIONS } from '@/lib/options'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -244,7 +245,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                     {gl.guardian.phones.map(p => (
                       <div key={p.id} className="group flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-sm">
                         <Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        <span className="font-medium">{p.countryCode} {p.number}</span>
+                        <span className="font-medium">{formatPhoneDisplay(p.countryCode, p.number)}</span>
                         <span className="text-xs text-muted-foreground">{p.type}</span>
                         {p.isPrimary && <Badge variant="outline" className="h-5 text-xs">Principal</Badge>}
                         <Tip content="Supprimer"><Button variant="ghost" size="icon" className="ml-auto h-7 w-7 opacity-60 transition-opacity group-hover:opacity-100" disabled={deletePhoneMutation.isPending} onClick={() => deletePhoneMutation.mutateAsync(p.id).then(() => toast.success('Téléphone supprimé')).catch(err => toast.error(parseApiError(err)))}>
@@ -414,7 +415,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
               </div>
               <div className="sm:col-span-2 space-y-2">
                 <RequiredLabel required>Numéro</RequiredLabel>
-                <Input value={phoneForm.number} onChange={(e) => setPhoneForm(f => ({ ...f, number: e.target.value }))} required />
+                <PhoneInput dialCode={phoneForm.countryCode} value={phoneForm.number} onChange={(v) => setPhoneForm(f => ({ ...f, number: v }))} required />
               </div>
             </div>
             <div className="space-y-2">

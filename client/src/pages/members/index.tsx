@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -484,8 +485,8 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                   {member.phones.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
                     <div className="space-y-1.5">{member.phones.map(p => (
                       <div key={p.id} className="flex items-center gap-1.5 text-sm">
-                        <span className="flex-1">{p.countryCode} {p.number} <span className="text-muted-foreground">({p.type})</span>{p.isEmergency && <Badge variant="destructive" className="ml-1 text-[9px]">Urgence</Badge>}</span>
-                        {editing && <><button className="text-muted-foreground hover:text-foreground" onClick={() => openEditPhone(p)}><Pencil className="h-3 w-3" /></button><button className="text-destructive/80 hover:text-destructive" onClick={() => setDeletingContact({ type: 'phone', id: p.id, label: `${p.countryCode} ${p.number}` })}><Trash2 className="h-3 w-3" /></button></>}
+                        <span className="flex-1">{formatPhoneDisplay(p.countryCode, p.number)} <span className="text-muted-foreground">({p.type})</span>{p.isEmergency && <Badge variant="destructive" className="ml-1 text-[9px]">Urgence</Badge>}</span>
+                        {editing && <><button className="text-muted-foreground hover:text-foreground" onClick={() => openEditPhone(p)}><Pencil className="h-3 w-3" /></button><button className="text-destructive/80 hover:text-destructive" onClick={() => setDeletingContact({ type: 'phone', id: p.id, label: formatPhoneDisplay(p.countryCode, p.number) })}><Trash2 className="h-3 w-3" /></button></>}
                       </div>
                     ))}</div>
                   )}
@@ -590,7 +591,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
           <form onSubmit={submitAddPhone} className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={phoneForm.countryCode} onValueChange={(v) => setPhoneForm(f => ({ ...f, countryCode: v }))} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher un indicatif..." /></div>
-              <div className="col-span-2 space-y-2"><RequiredLabel required>Numéro</RequiredLabel><Input value={phoneForm.number} onChange={(e) => setPhoneForm(f => ({ ...f, number: e.target.value }))} required /></div>
+              <div className="col-span-2 space-y-2"><RequiredLabel required>Numéro</RequiredLabel><PhoneInput dialCode={phoneForm.countryCode} value={phoneForm.number} onChange={(v) => setPhoneForm(f => ({ ...f, number: v }))} required /></div>
             </div>
             <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={phoneForm.type} onValueChange={(v) => setPhoneForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PHONE_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
             <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={phoneForm.isPrimary} onChange={(e) => setPhoneForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={phoneForm.isEmergency} onChange={(e) => setPhoneForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
@@ -629,7 +630,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
           <form onSubmit={submitEditPhone} className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={editPhoneForm.countryCode} onValueChange={(v) => setEditPhoneForm(f => ({ ...f, countryCode: v }))} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher un indicatif..." /></div>
-              <div className="col-span-2 space-y-2"><RequiredLabel required>Numéro</RequiredLabel><Input value={editPhoneForm.number} onChange={(e) => setEditPhoneForm(f => ({ ...f, number: e.target.value }))} required /></div>
+              <div className="col-span-2 space-y-2"><RequiredLabel required>Numéro</RequiredLabel><PhoneInput dialCode={editPhoneForm.countryCode} value={editPhoneForm.number} onChange={(v) => setEditPhoneForm(f => ({ ...f, number: v }))} required /></div>
             </div>
             <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editPhoneForm.type} onValueChange={(v) => setEditPhoneForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PHONE_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
             <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editPhoneForm.isPrimary} onChange={(e) => setEditPhoneForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editPhoneForm.isEmergency} onChange={(e) => setEditPhoneForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>

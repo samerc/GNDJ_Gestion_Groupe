@@ -3398,6 +3398,33 @@ step"). All on main, DEV until deploy; verified live.
       `maitrise.manage`). Verified live: CU → security-profiles 403 but functional-roles 200 (picker intact),
       super-admin → 200.
 
+### Country-aware phone formatting (2026-08-28)
+Phone numbers now format per-country as-you-type + display formatted everywhere. Frontend-only + one small
+backend robustness fix. DEV until deploy.
+- **`components/ui/phone-input.tsx`** — `libphonenumber-js` (default/min bundle, ~25 KB gz, lazy with the
+      routes that use it). `formatPhoneNational(dialCode, raw)` derives the calling code from the stored dial
+      code (`+961` → `961`) and runs `AsYouType({defaultCallingCode})` → national grouping (Liban "76 123 456",
+      "01 234 567"; landlines too). `formatPhoneDisplay` = `"+961 76 123 456"`. `<PhoneInput dialCode value
+      onChange>` formats as the user types. All defensive (unknown/foreign country → returned as typed, never
+      throws). Lebanon (~99% of numbers) formats correctly with the small bundle; other countries pass through.
+- **Stored value = the formatted string** (spaces), so it shows formatted EVERYWHERE for free — including the
+      backend-generated PDFs / rosters / exports (which concatenate `CountryCode + " " + Number`, no .NET formatter
+      needed) and the wizard recap. Legacy migrated digit-only numbers are formatted on DISPLAY via
+      `formatPhoneDisplay`.
+- **Wired:** the demande wizard (child + guardian phones), Ma fiche (add/edit phone + display),
+      member-guardians self-service (add + display), the CU member panel (add/edit phone + display), and the
+      leader contact-verification screen. (Backend PDF/roster/export display formats for free from the stored value.)
+- **Backend dedup made digit-robust** (`DemandeAdminHandlers`): formatting spaces would have broken the
+      exact-string guardian phone match at demande→member conversion (formatted "76 123 456" vs migrated
+      "76123456" → a duplicate parent). `guardianByPhone` now keys by **digits only** (`PhoneDigits` helper;
+      the guardian_phones table is small, loaded once and normalized in memory), and `FindExistingGuardian`
+      looks up by the applicant guardian's digits. So "76 123 456" ≡ "76123456" — no duplicate guardians.
+- Verified: as-you-type "76123456"→"76 123 456", legacy "76123456" displays "+961 76 123 456", landline
+      "01234567"→"01 234 567", digit-match dedup equal; dotnet + tsc + eslint + vite clean; API smoke OK.
+- NOTE (not wired, low value): admin/settings phone fields + the CU roster/dashboard inline contact strings
+      that come pre-concatenated from the backend already show the stored formatted value, so they're covered;
+      the SMTP/config phone-ish fields are not phone numbers.
+
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to

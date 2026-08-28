@@ -7,6 +7,7 @@ import {
 } from '@/services/applicant-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/phone-input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -430,7 +431,7 @@ export default function DemandeWizardPage() {
                   <Input type="email" value={child.email ?? ''} onChange={(e) => setC({ email: e.target.value || null })} className={errors.email ? 'border-destructive' : ''} />
                 </Field>
                 <Field label="Téléphone de l'enfant (optionnel)">
-                  <Input type="tel" inputMode="tel" value={child.phoneNumber ?? ''} onChange={(e) => setC({ phoneNumber: e.target.value || null })} />
+                  <PhoneInput dialCode={child.phoneCountryCode ?? '+961'} value={child.phoneNumber ?? ''} onChange={(v) => setC({ phoneNumber: v || null })} />
                 </Field>
               </div>
               <Field label="Allergies"><Input value={child.allergies ?? ''} onChange={(e) => setC({ allergies: e.target.value || null })} /></Field>
@@ -515,7 +516,7 @@ export default function DemandeWizardPage() {
                       <Input value={g.profession ?? ''} maxLength={150} placeholder="Profession (ex. Ingénieure)" onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, profession: e.target.value } : x))} />
                     </Field>
                     <Field label="Téléphone" required={!g.isDeceased} error={errors[`g_${i}_phone`]}>
-                      <Input type="tel" inputMode="tel" value={g.phoneNumber ?? ''} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, phoneNumber: e.target.value } : x))} className={errors[`g_${i}_phone`] ? 'border-destructive' : ''} />
+                      <PhoneInput dialCode={g.phoneCountryCode ?? '+961'} value={g.phoneNumber ?? ''} onChange={(v) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, phoneNumber: v } : x))} className={errors[`g_${i}_phone`] ? 'border-destructive' : ''} />
                     </Field>
                     <Field label="Email" error={errors[`g_${i}_email`]}>
                       <Input type="email" value={g.email ?? ''} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, email: e.target.value } : x))} className={errors[`g_${i}_email`] ? 'border-destructive' : ''} />
