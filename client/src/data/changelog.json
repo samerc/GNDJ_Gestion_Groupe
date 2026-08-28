@@ -3,6 +3,7 @@
     "version": "3.0.0",
     "date": "2026-08-27",
     "changes": [
+      "Portail d'inscription : une fois la période de soumission terminée (résultats pas encore communiqués), le statut d'une demande soumise passe de « Soumise » (orange) à « En cours d'étude » (bleu), pour bien montrer aux parents qu'elle est en cours d'examen.",
       "Site public (accueil) : possibilité d'ajouter une photo à la bannière d'accueil. Téléversez-la dans Admin → Textes du site → « Accueil — bannière » ; elle s'affiche à droite du titre (bannière sur deux colonnes). Sans photo, la bannière dégradée habituelle reste inchangée.",
       "Site public (accueil) : la section « Nos unités » adopte le même style de cartes que la page Unités (emblème compact à côté du nom, teinté à la couleur de la branche) et gagne un bouton bien visible « Voir toutes les unités » qui mène à la page complète.",
       "Site public (page d'une unité) : l'identité de l'unité est intégrée à la page — la bannière prend les couleurs du foulard (dégradé teinté, ruban des couleurs en haut, grand emblème du foulard) au lieu du dégradé générique. Les équipes vides (0 membre) ne sont plus affichées, et les équipes sont listées une par ligne.",

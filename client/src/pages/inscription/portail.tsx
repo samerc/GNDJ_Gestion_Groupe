@@ -6,12 +6,13 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
-import { UserPlus, Pencil, Trash2, Users, MailWarning, CheckCircle2, XCircle, Clock, FileEdit, LogIn } from 'lucide-react'
+import { UserPlus, Pencil, Trash2, Users, MailWarning, CheckCircle2, XCircle, Clock, FileEdit, LogIn, Hourglass } from 'lucide-react'
 
-// Maps a demande to its status: a coloured row bar (green accepted / amber pending / red refused /
-// grey draft) + a matching badge. The CG's decision is only revealed once the response batch has
-// been sent (Brouillon → Soumise → Acceptée/Refusée).
-function statusMeta(d: Demande): { border: string; badge: React.ReactNode } {
+// Maps a demande to its status: a coloured row bar (green accepted / amber pending / blue under review /
+// red refused / grey draft) + a matching badge. The CG's decision is only revealed once the response batch
+// has been sent (Brouillon → Soumise / En cours d'étude → Acceptée/Refusée). `reviewPhase` = submissions
+// closed but results not out yet → a submitted demande reads "En cours d'étude" (blue) instead of "Soumise".
+function statusMeta(d: Demande, reviewPhase: boolean): { border: string; badge: React.ReactNode } {
   if (d.responseSentAt && d.status === 'Approved')
     return { border: 'border-l-green-500', badge: <Badge className="bg-green-600"><CheckCircle2 className="mr-1 h-3 w-3" />Acceptée</Badge> }
   if (d.responseSentAt && d.status === 'Declined')
@@ -21,6 +22,10 @@ function statusMeta(d: Demande): { border: string; badge: React.ReactNode } {
     return { border: 'border-l-slate-300', badge: <Badge variant="outline" className="text-muted-foreground"><Clock className="mr-1 h-3 w-3" />Expirée</Badge> }
   if (d.status === 'Draft')
     return { border: 'border-l-slate-300', badge: <Badge variant="secondary"><FileEdit className="mr-1 h-3 w-3" />Brouillon</Badge> }
+  // Submitted, awaiting the decision. During the review phase (submissions closed, results not out) show
+  // "En cours d'étude" in blue; while submissions are still open it's "Soumise" in amber (still editable).
+  if (reviewPhase)
+    return { border: 'border-l-blue-500', badge: <Badge className="bg-blue-600"><Hourglass className="mr-1 h-3 w-3" />En cours d'étude</Badge> }
   return { border: 'border-l-amber-500', badge: <Badge className="bg-amber-500"><Clock className="mr-1 h-3 w-3" />Soumise</Badge> }
 }
 
@@ -139,7 +144,7 @@ export default function ApplicantPortalPage() {
                   else navigate(`/inscription/portail/demande/${d.id}`)
                 }
                 const buttonLabel = enteredMemberArea ? 'Espace membre' : sent ? 'Voir le résultat' : editable && d.status === 'Draft' ? 'Continuer' : 'Voir'
-                const { border, badge } = statusMeta(d)
+                const { border, badge } = statusMeta(d, reviewPhase)
                 return (
                   <tr key={d.id} className="hover:bg-muted/30">
                     {/* Coloured left bar = status at a glance */}
