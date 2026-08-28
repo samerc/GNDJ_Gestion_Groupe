@@ -3407,6 +3407,10 @@ backend robustness fix. DEV until deploy.
       "01 234 567"; landlines too). `formatPhoneDisplay` = `"+961 76 123 456"`. `<PhoneInput dialCode value
       onChange>` formats as the user types. All defensive (unknown/foreign country → returned as typed, never
       throws). Lebanon (~99% of numbers) formats correctly with the small bundle; other countries pass through.
+      **Caret preservation:** reformatting inserts grouping spaces, which by default snaps the caret to the end
+      each keystroke (a visible flicker/jump). `PhoneInput` remembers how many DIGITS were before the caret,
+      reformats, then restores the caret right after that digit in a `useLayoutEffect` (before paint) — only when
+      the string actually changed. Verified: the caret always lands after the last-typed digit, no flicker.
 - **Stored value = the formatted string** (spaces), so it shows formatted EVERYWHERE for free — including the
       backend-generated PDFs / rosters / exports (which concatenate `CountryCode + " " + Number`, no .NET formatter
       needed) and the wizard recap. Legacy migrated digit-only numbers are formatted on DISPLAY via
