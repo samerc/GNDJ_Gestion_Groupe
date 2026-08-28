@@ -259,9 +259,14 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         }));
 
-    // Forms: anti-abuse throttle for public/write forms — max 10 submissions per minute per
-    // user (when authenticated) or per IP. Exceeding it returns 429 until the next window.
-    // Deliberately NOT applied to authenticated admin data-entry (a CU may add >10 members/min).
+    // Forms: anti-abuse throttle for public/write forms, per user (when authenticated) or per IP.
+    // Exceeding it returns 429 until the next window. Deliberately NOT applied to authenticated admin
+    // data-entry (a CU may add >10 members/min). NOTE: for the ANONYMOUS register/forgot endpoints the
+    // key is the IP — and during the September enrollment surge many legitimate parents share one egress
+    // IP (school WiFi, and Lebanese mobile-carrier CGNAT), so a too-tight per-IP cap 429s real families.
+    // Abuse is already handled by Cloudflare + honeypot + AbuseDetectionMiddleware + email verification,
+    // so this app-level cap is defense-in-depth; 30/min tolerates a shared-IP burst while still blocking a
+    // scripted flood. (Cloudflare rate-limit rules remain the front-line control if a real flood happens.)
     static string FormKey(HttpContext ctx) =>
         ctx.User.FindFirst("sub")?.Value
         ?? ctx.User.FindFirst("applicant_id")?.Value
@@ -271,7 +276,7 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("forms", ctx => RateLimitPartition.GetFixedWindowLimiter(
         FormKey(ctx), _ => new FixedWindowRateLimiterOptions
         {
-            PermitLimit = 10,
+            PermitLimit = 30,
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
         }));
