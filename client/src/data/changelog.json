@@ -3,7 +3,7 @@
     "version": "3.0.0",
     "date": "2026-08-27",
     "changes": [
-      "Site public (Nos unités) : cartes d'unité épurées — les couleurs du foulard s'affichent désormais comme un petit emblème (écusson) à côté du nom, au lieu d'un grand bandeau de couleur plein qui alourdissait la mise en page.",
+      "Site public (Nos unités) : cartes d'unité épurées — les couleurs du foulard s'affichent comme un emblème (écusson) à côté du nom, au lieu d'un grand bandeau de couleur plein. Emblème agrandi pour bien voir les couleurs, foulard tricolore du Clan (bleu/orange/blanc) désormais correct, et les descriptions de branche sont justifiées et occupent toute la largeur des cartes.",
       "Demandes d'inscription : possibilité de supprimer une demande (indésirable, doublon, test) — bouton « Supprimer » sur chaque ligne, dans le volet de détail, et en action groupée sur la sélection (avec confirmation). Une demande déjà convertie en membre ne peut pas être supprimée. Le bouton « Effacer » de la barre de sélection est renommé « Désélectionner » (il ne faisait que vider la sélection, il ne supprimait rien).",
       "Progression : l'« Entrée à … » de l'unité est désormais créée automatiquement lorsqu'un membre rejoint une nouvelle unité — à la finalisation d'un passage (changement d'unité) et à l'acceptation d'une demande d'inscription. Auparavant elle devait être saisie à la main. Pas de doublon si l'entrée existe déjà (retour dans une ancienne unité, ou entrée déjà présente).",
       "Connexion : les deux pages de connexion (espace membres et demande d'inscription) proposent désormais un lien « Retour au site » pour revenir au site public.",
