@@ -33,8 +33,15 @@ try {
     $pgDump = Join-Path $db.pgBin "pg_dump.exe"
     if (-not (Test-Path $pgDump)) { throw "pg_dump not found at '$pgDump' - check database.pgBin." }
     $env:PGPASSWORD = $db.password
-    & $pgDump -h localhost -U $db.user -d $db.name -Fc -f $file
-    if ($LASTEXITCODE -ne 0) { throw "pg_dump exited with code $LASTEXITCODE" }
+    # Capture pg_dump's stderr to a temp file so a failure reports the REAL reason (version mismatch, auth,
+    # connection, disk full...) instead of a bare exit code. (Redirect to a file, not 2>&1, to avoid PS 5.1
+    # wrapping native stderr in ErrorRecords under $ErrorActionPreference=Stop.)
+    $dumpErrFile = [System.IO.Path]::GetTempFileName()
+    & $pgDump -h localhost -U $db.user -d $db.name -Fc -f $file 2> $dumpErrFile
+    $dumpCode = $LASTEXITCODE
+    $dumpErr = (Get-Content $dumpErrFile -Raw -ErrorAction SilentlyContinue)
+    Remove-Item $dumpErrFile -Force -ErrorAction SilentlyContinue
+    if ($dumpCode -ne 0) { throw "pg_dump exited with code $dumpCode`n$dumpErr" }
     $sizeMb = [math]::Round((Get-Item $file).Length / 1MB, 1)
     $log += "Dump OK: $file ($sizeMb MB)"
 
