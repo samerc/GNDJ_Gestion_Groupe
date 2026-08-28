@@ -65,7 +65,7 @@ export default function ApplicantPortalPage() {
           <p className="text-sm text-muted-foreground">{profile.email} · Année {config?.scoutYear}</p>
         </div>
         <Button onClick={() => navigate('/inscription/portail/demande/new')} disabled={!canSubmit || reachedMax}>
-          <UserPlus className="mr-2 h-4 w-4" />Ajouter un enfant
+          <UserPlus className="mr-2 h-4 w-4" />Ajouter une demande
         </Button>
       </div>
 
@@ -106,7 +106,7 @@ export default function ApplicantPortalPage() {
       )}
 
       {demandes.length === 0 ? (
-        <EmptyState icon={Users} title="Aucune demande" description="Cliquez sur « Ajouter un enfant » pour présenter une demande d'inscription." />
+        <EmptyState icon={Users} title="Aucune demande" description="Cliquez sur « Ajouter une demande » pour présenter une demande d'inscription." />
       ) : (
         // Table (with a coloured status bar per row) so several children are easy to scan at a glance.
         <div className="overflow-x-auto rounded-lg border">
