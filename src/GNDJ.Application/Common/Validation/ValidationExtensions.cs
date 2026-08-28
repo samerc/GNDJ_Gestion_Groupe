@@ -17,6 +17,20 @@ public static class ValidationExtensions
     public static IRuleBuilderOptions<T, string?> NoHtml<T>(this IRuleBuilder<T, string?> rule)
         => rule.Must(ContainsNoAngleBrackets).WithMessage(HtmlMessage);
 
+    // Requires a dotted domain (a real TLD). Stricter than FluentValidation's .EmailAddress() and the browser's
+    // type=email, which BOTH accept a bare "marie@gmail" (no ".com") — the single most common parent typo, and a
+    // silent trap in an email-driven enrollment flow: the account/child/guardian address then bounces every mail
+    // (verification, activation, decision) with no error, and the parent is stuck. Empty passes, so compose with
+    // NotEmpty where the field is required and use it directly for optional email fields.
+    private static readonly System.Text.RegularExpressions.Regex RealEmailRegex =
+        new(@"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static bool IsRealEmailOrEmpty(string? s)
+        => string.IsNullOrWhiteSpace(s) || RealEmailRegex.IsMatch(s.Trim());
+
+    public static IRuleBuilderOptions<T, string?> RealEmail<T>(this IRuleBuilder<T, string?> rule)
+        => rule.Must(IsRealEmailOrEmpty).WithMessage("Adresse email invalide (exemple : prenom@domaine.com).");
+
     // Optional hex color (#RRGGBB, '#' optional).
     public static IRuleBuilderOptions<T, string?> HexColor<T>(this IRuleBuilder<T, string?> rule)
         => rule.Must(c => string.IsNullOrEmpty(c) || System.Text.RegularExpressions.Regex.IsMatch(c, "^#?[0-9A-Fa-f]{6}$"))

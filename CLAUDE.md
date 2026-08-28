@@ -3321,6 +3321,46 @@ selection bar (skips converted, Promise.allSettled + summary toast) — all behi
 misleading "Effacer" → **"Désélectionner"** (X icon). Verified live: normal → 204 soft-delete; converted → 400
 blocked. Backend + frontend, DEV until deploy.
 
+### Pre-launch enrollment shakedown — dry-run + parent-mistake hardening (2026-08-28)
+Ahead of Monday's enrollment surge, ran a LIVE end-to-end dry-run of the parent flow against the running API
+(throwaway accounts, cleaned up) + 3 parallel focused reviews of the enrollment hot path (concurrency, edge
+cases, error-UX), then hardened against **realistic parent data-entry mistakes** ("parents will mess up on every
+step"). All on main, DEV until deploy; verified live.
+- **Dry-run verdict: the flow is solid.** register → verify-email → accept-terms → household → create → submit
+      lands `Submitted` for the CG; email verification works; and every gate returns a clean, friendly French 400
+      (terms, ≥1 parent, parents' situation, 6ème excluded, missing required fields, cap of 3, future DOB, XSS via
+      AbuseDetection, invalid gender). No 500s, no dead-ends. The WEB forms already validate email format + required
+      fields inline at every step (register regex, wizard `emailRe` child+guardian, `validateStep` phone/situation/
+      DOB-future) — the gaps below were reachable via **direct API** (and one absurd-DOB via the manual date input).
+- **FIXED — email without a TLD accepted** (the #1 real-world trap): `.NET .EmailAddress()` and browser
+      `type=email` BOTH accept a bare `marie@gmail` (no `.com`). In an email-driven flow that address then bounces
+      EVERY mail (verification/activation/decision) silently → the parent is stuck. New shared
+      `ValidationExtensions.RealEmail()` (requires a dotted domain, empty passes) applied to the four STORING email
+      fields: applicant **register** email, **child** demande email, **guardian** email, **primary-contact** email.
+      (Login/reset email untouched — a no-TLD typo there just fails to match, harmless.)
+- **FIXED — absurd DOB accepted** (e.g. `1816` → "age 210" from a year typo in the manual JJ/MM/AAAA wizard input):
+      added a sanity floor to `DemandeInputValidator` — DOB must be ≥ today − 30 years (generous; oldest realistic new
+      scout ~21, so it only catches gross typos, never a legitimate youth). Mirrored client-side in the wizard's
+      `validateStep(0)` for instant feedback.
+- **FIXED — 429 showed a cryptic "unexpected error"** (`parseApiError`): the `forms`/`auth` limiters reject with an
+      EMPTY body, and during the surge many families share one egress IP (school/CGNAT), so a legitimate parent
+      registering/resending can trip it. Now shows "Trop de tentatives en peu de temps. Veuillez patienter une minute
+      puis réessayer." (added a 429 branch before the generic fallbacks).
+- **FIXED — concurrent double-save → opaque 500** (`ExceptionHandlingMiddleware`): a `DbUpdateConcurrencyException`
+      (household saved twice via double-tap "Suivant" / two tabs) has no PostgresException inner, so it fell through
+      to the generic 500. Now caught BEFORE the `DbUpdateException` branch (it's a subclass) → 409 "Cette information
+      vient d'être modifiée. Veuillez réessayer."
+- **FLAGGED (not fixed — conversion-time, not Monday-surge; CG-reviewed):** the reviews surfaced pre-existing
+      convert-time behaviours the CG can catch in review — (a) **sibling auto-link by name only**: a unique-homonym
+      stranger (same normalized first+last name, no/unmatched unit) gets `RelatedMemberId` set and on send inherits
+      the applicant household's guardians (cross-family PII merge) — the unit only narrows when >1 match; (b)
+      **guardian dedup by shared phone/email** collapses two different parents sharing one contact into one Guardian;
+      (c) **excluded-classe / gender / DOB** are enforced at submit but NOT re-checked at convert (a demande approved
+      via Excel-import or a mid-campaign setting change can convert an excluded-grade/wrong-gender child); (d)
+      **per-account cap** is check-then-insert with no DB unique backstop (self-spam only, no crash). All are
+      conversion-phase (weeks after Monday) and visible to the CG in the review drawer — deferred, not rushed the
+      weekend before launch. See the enrollment review notes.
+
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to

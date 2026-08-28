@@ -227,7 +227,7 @@ public class RegisterApplicantCommandValidator : AbstractValidator<RegisterAppli
 {
     public RegisterApplicantCommandValidator(IPasswordPolicy policy)
     {
-        RuleFor(x => x.Email).NotEmpty().EmailAddress().WithMessage("Adresse email invalide.").MaximumLength(254);
+        RuleFor(x => x.Email).NotEmpty().EmailAddress().WithMessage("Adresse email invalide.").MaximumLength(254).RealEmail();
         RuleFor(x => x.Password).PasswordPolicy(policy);
         RuleFor(x => x.ContactName).MaximumLength(200).NoHtml();
     }
@@ -886,13 +886,18 @@ public class DemandeInputValidator : AbstractValidator<DemandeInput>
         RuleFor(x => x.Section).MaximumLength(20);
         RuleFor(x => x.BloodType).MaximumLength(10);
         RuleFor(x => x.PhoneNumber).MaximumLength(30);
-        RuleFor(x => x.Email).MaximumLength(254).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Email)).WithMessage("Adresse email invalide.");
+        RuleFor(x => x.Email).MaximumLength(254).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Email)).WithMessage("Adresse email invalide.").RealEmail();
         RuleFor(x => x.MedicalNotes).MaximumLength(2000);
         RuleFor(x => x.Allergies).MaximumLength(2000);
         RuleFor(x => x.ParentNotes).MaximumLength(2000);
         RuleFor(x => x.PreviousDemandeYear).MaximumLength(20).Must(NoHtml);
         RuleFor(x => x.DateOfBirth).Must(d => d == null || d.Value <= LebanonClock.Today)
             .WithMessage("La date de naissance ne peut pas être dans le futur.");
+        // Sanity floor: catches a gross year typo (e.g. 1816 / 1916 instead of 2016 → an "age 210" applicant).
+        // 30 years is generous — the oldest realistic new scout applicant is ~21 (Clan) — so this only rejects
+        // obvious data-entry mistakes, never a legitimate youth, and the manual JJ/MM/AAAA wizard input can hit it.
+        RuleFor(x => x.DateOfBirth).Must(d => d == null || d.Value >= LebanonClock.Today.AddYears(-30))
+            .WithMessage("La date de naissance semble incorrecte (année trop ancienne).");
         RuleFor(x => x.Gender).Must(g => string.IsNullOrEmpty(g) || g == "Masculin" || g == "Féminin")
             .WithMessage("Genre invalide.");
     }
@@ -919,7 +924,7 @@ public class SaveApplicantHouseholdCommandValidator : AbstractValidator<SaveAppl
         {
             g.RuleFor(x => x.FirstName).MaximumLength(100).Must(NoHtml).WithMessage("Caractères non autorisés.");
             g.RuleFor(x => x.LastName).MaximumLength(100).Must(NoHtml).WithMessage("Caractères non autorisés.");
-            g.RuleFor(x => x.Email).MaximumLength(254).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Email)).WithMessage("Adresse email invalide.");
+            g.RuleFor(x => x.Email).MaximumLength(254).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Email)).WithMessage("Adresse email invalide.").RealEmail();
             g.RuleFor(x => x.PhoneCountryCode).MaximumLength(10);
             g.RuleFor(x => x.PhoneNumber).MaximumLength(30);
             g.RuleFor(x => x.Profession).MaximumLength(150).Must(NoHtml);
@@ -941,7 +946,7 @@ public class SaveApplicantHouseholdCommandValidator : AbstractValidator<SaveAppl
         RuleFor(x => x.AddressCountry).MaximumLength(100);
         RuleFor(x => x.AddressDetails).MaximumLength(500).Must(NoHtml);
         RuleFor(x => x.PrimaryContactEmail).MaximumLength(254).EmailAddress()
-            .When(x => !string.IsNullOrWhiteSpace(x.PrimaryContactEmail));
+            .When(x => !string.IsNullOrWhiteSpace(x.PrimaryContactEmail)).RealEmail();
         RuleFor(x => x.ParentsSituation).Must(s => s is "Unis" or "Séparés" or "Divorcés")
             .When(x => !string.IsNullOrWhiteSpace(x.ParentsSituation))
             .WithMessage("Situation des parents invalide.");

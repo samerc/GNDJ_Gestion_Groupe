@@ -231,7 +231,13 @@ export default function DemandeWizardPage() {
       if (!child.firstName?.trim()) e.firstName = 'Requis'
       if (!child.lastName?.trim()) e.lastName = 'Requis'
       if (!child.dateOfBirth) e.dateOfBirth = 'Requis'
-      else if (new Date(child.dateOfBirth) > new Date()) e.dateOfBirth = 'Date invalide'
+      else {
+        // Not in the future, and not absurdly old — catches a year typo (e.g. 1816/1916) from the manual
+        // JJ/MM/AAAA input. 30 years is generous (oldest realistic new scout ~21); mirrors the server rule.
+        const dob = new Date(child.dateOfBirth), now = new Date()
+        const floor = new Date(now.getFullYear() - 30, now.getMonth(), now.getDate())
+        if (dob > now || dob < floor) e.dateOfBirth = 'Date invalide'
+      }
       if (!child.gender) e.gender = 'Requis'
       if (!child.nationality?.trim()) e.nationality = 'Requis'
       if (!child.school?.trim()) e.school = 'Requis'

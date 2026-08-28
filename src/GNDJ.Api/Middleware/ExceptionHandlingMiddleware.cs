@@ -53,6 +53,18 @@ public class ExceptionHandlingMiddleware
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsync(JsonSerializer.Serialize(new { error = "Accès refusé." }));
         }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException ex)
+        {
+            // Two writes raced on the same rows (e.g. a parent double-tapping "Suivant" so the household save
+            // runs twice, or the same record edited in two tabs) — the second SaveChanges finds the rows already
+            // changed/removed. This is NOT a server fault: it's a transient conflict the user just retries.
+            // (Must be caught BEFORE DbUpdateException below — it's a subclass with no PostgresException inner,
+            // so it would otherwise fall through to an opaque 500.)
+            _logger.LogWarning(ex, "Concurrency conflict on {Method} {Path}", context.Request.Method, context.Request.Path);
+            context.Response.StatusCode = 409;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(JsonSerializer.Serialize(new { error = "Cette information vient d'être modifiée. Veuillez réessayer." }));
+        }
         catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pg)
         {
             // A database constraint rejected the write — almost always duplicate/oversized/invalid input from a

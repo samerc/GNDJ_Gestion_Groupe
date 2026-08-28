@@ -6,6 +6,13 @@ import type { ApiError } from '@/types/api'
 export function parseApiError(err: unknown): string {
   const axiosError = err as AxiosError<ApiError>
   const data = axiosError.response?.data
+  const status = axiosError.response?.status
+
+  // Too many requests (rate limiter). The "forms"/"auth" limiters reject with an EMPTY body, and during a
+  // surge many families share one egress IP (school/CGNAT), so a legitimate parent registering / resending
+  // a code can trip it. Show a clear, reassuring French message instead of the generic "unexpected error"
+  // (which reads like a bug and makes them retry harder, burning more of the window).
+  if (status === 429) return 'Trop de tentatives en peu de temps. Veuillez patienter une minute puis réessayer.'
 
   // Validation errors (field-level)
   if (data?.errors) {
