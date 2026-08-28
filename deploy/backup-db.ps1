@@ -36,8 +36,11 @@ try {
     # Capture pg_dump's stderr to a temp file so a failure reports the REAL reason (version mismatch, auth,
     # connection, disk full...) instead of a bare exit code. (Redirect to a file, not 2>&1, to avoid PS 5.1
     # wrapping native stderr in ErrorRecords under $ErrorActionPreference=Stop.)
+    # --exclude-table='_bak_*' skips one-off in-DB backup tables (created by cleanup scripts, sometimes owned by
+    # the postgres superuser). They're redundant copies that don't belong in a dump anyway, and if the app user
+    # can't LOCK them pg_dump would otherwise abort the whole backup.
     $dumpErrFile = [System.IO.Path]::GetTempFileName()
-    & $pgDump -h localhost -U $db.user -d $db.name -Fc -f $file 2> $dumpErrFile
+    & $pgDump -h localhost -U $db.user -d $db.name --exclude-table='_bak_*' -Fc -f $file 2> $dumpErrFile
     $dumpCode = $LASTEXITCODE
     $dumpErr = (Get-Content $dumpErrFile -Raw -ErrorAction SilentlyContinue)
     Remove-Item $dumpErrFile -Force -ErrorAction SilentlyContinue
