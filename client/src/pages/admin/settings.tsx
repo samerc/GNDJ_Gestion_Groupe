@@ -216,12 +216,13 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
   const isLongText = /(text|terms|message|tagline)/i.test(setting.key) || (setting.value?.length ?? 0) > 80
   const options = SETTING_OPTIONS[setting.key]
 
-  // Date settings (submission window, member start date, passage/document dates…) are all forward-looking
-  // scheduling — a date in the past is a mistake (e.g. a past deadline would immediately close inscriptions).
-  // Guard: the picker's min is today, and a past value is flagged + blocks Save (a value already in the past
-  // stays until changed). Local date so it matches the user's calendar (Lebanon).
+  // Most date settings (submission window, document dates…) are forward-looking scheduling — a date in the
+  // past is a mistake (e.g. a past deadline would immediately close inscriptions). Guard: the picker's min is
+  // today, a past value is flagged + blocks Save. EXCEPTIONS: member start date + passage date can legitimately
+  // be backdated (e.g. to the scout-year start, Oct 1, when processing after that date), so past is allowed there.
+  const allowsPastDate = setting.key === 'demande.member_start_date' || setting.key === 'passage.date'
   const todayStr = (() => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` })()
-  const dateInPast = isDate && !!value && value < todayStr
+  const dateInPast = isDate && !allowsPastDate && !!value && value < todayStr
 
   // Re-sync when the persisted value changes externally (render-phase reset; lazy init covers mount).
   const [prevValue, setPrevValue] = useState(setting.value)
@@ -288,7 +289,7 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
           ) : isDate ? (
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <Input type="date" min={todayStr} value={value} onChange={(e) => setValue(e.target.value)} className="max-w-[12rem]" />
+                <Input type="date" min={allowsPastDate ? undefined : todayStr} value={value} onChange={(e) => setValue(e.target.value)} className="max-w-[12rem]" />
                 {value && <button type="button" onClick={() => setValue('')} className="text-sm text-muted-foreground hover:text-destructive">Effacer</button>}
               </div>
               {dateInPast && <p className="text-xs text-destructive">La date ne peut pas être dans le passé.</p>}
