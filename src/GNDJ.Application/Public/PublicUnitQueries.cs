@@ -130,12 +130,17 @@ public class GetPublicUnitDetailQueryHandler(IApplicationDbContext context)
         string? LeaderPhone(Guid mid) => leaderPhones.TryGetValue(mid, out var p)
             ? (string.IsNullOrWhiteSpace(p.CountryCode) ? p.Number?.Trim() : $"{p.CountryCode} {p.Number}".Trim())
             : null;
-        // A member holding two functions in the same unit (e.g. Assistant de Groupe + Trésorier) has two
-        // assignment rows → dedupe to ONE entry, keeping the highest-rank role (leaderRows is ordered by
-        // rank desc, so the first occurrence per member is the most senior).
-        var seenLeader = new HashSet<Guid>();
-        var leaders = leaderRows.Where(r => seenLeader.Add(r.MemberId))
-            .Select(r => new PublicLeaderDto(r.Name, r.Role, LeaderPhone(r.MemberId))).ToList();
+        // A member holding several functions in the same unit (e.g. Assistant de Groupe + Trésorier) has
+        // multiple assignment rows → collapse to ONE entry that lists ALL their roles, senior first.
+        // leaderRows is ordered by rank desc, so GroupBy keeps groups in senior-first order AND each group's
+        // roles stay senior-first; the group's highest rank drives its position in the list.
+        var leaders = leaderRows
+            .GroupBy(r => r.MemberId)
+            .Select(g => new PublicLeaderDto(
+                g.First().Name,
+                string.Join(" · ", g.Select(x => x.Role).Distinct()),
+                LeaderPhone(g.Key)))
+            .ToList();
 
         // Teams (non-leadership): name + active youth count only.
         var teams = await context.Teams

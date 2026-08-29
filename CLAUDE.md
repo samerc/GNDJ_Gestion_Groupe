@@ -3478,8 +3478,9 @@ Two items from the CG's live test of the public site.
       Séréna Abou Rached has no email in the sheet (phone only).
 - **Dedup a leader with two functions in the same unit (code, deploys next).** `PublicUnitQueries` built one
       maîtrise entry per assignment row, so someone holding two roles in a unit (e.g. Sélim Asly & Samer Cheaib =
-      Assistant de Groupe + Trésorier on the Groupe) showed twice. Now deduped by member, keeping the
-      highest-rank role (leaderRows is rank-desc, keep first via a HashSet). Builds clean; DEV until deploy.
+      Assistant de Groupe + Trésorier on the Groupe) showed twice. Now collapsed to ONE entry that LISTS both
+      roles, senior first ("Assistant de Groupe · Trésorier de Groupe") — GroupBy on the rank-desc leaderRows.
+      Builds clean; DEV until deploy.
 
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
