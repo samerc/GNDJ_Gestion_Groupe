@@ -8,8 +8,10 @@
 --      a random temp password (bcrypt via pgcrypto), must_change_password = true,
 --      is_active = true. They set their own password via the emailed activation link.
 -- Prints each created account + its temp password (fallback if the email fails).
--- Requires pgcrypto (crypt/gen_salt) — present on this DB.
+-- Requires pgcrypto (crypt/gen_salt).
 -- ============================================================================
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 DO $$
 DECLARE r RECORD; v_email text; v_base text; v_suffix int; v_pw text; n_react int; n_new int := 0;
 BEGIN
