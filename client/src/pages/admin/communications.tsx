@@ -81,7 +81,7 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
   // Fill {{variables}} with sample values so the CG sees a realistic preview (real values are per-recipient).
   const sampleRecipient = (recipients ?? []).find((r) => selected.has(r.memberId)) ?? recipients?.[0]
   const fillPreview = (html: string) => {
-    const base = 'https://new.gndj.org'
+    const base = 'https://gndj.org'
     const v: Record<string, string> = {
       leaderName: sampleRecipient?.fullName ?? 'Prénom Nom',
       unitName: sampleRecipient?.units || 'Votre unité',
