@@ -20,6 +20,10 @@ public class Member : BaseEntity
     public string? School { get; set; }
     public string? Classe { get; set; }
     public string? Section { get; set; }
+    // Profession (domain/category, from the managed `member.profession_domains` list) — for older members who
+    // are no longer in a school class (Clan, Noyau, maîtrise). Classe and Profession are mutually the "situation":
+    // youth fill Classe, working members fill Profession. Both optional in the member area.
+    public string? ProfessionDomain { get; set; }
     public string? MedicalNotes { get; set; }
     public string? Allergies { get; set; }
     public string? Notes { get; set; }

@@ -23,7 +23,7 @@ public record CreateMemberCommand(
     string? Classe, string? Section,
     string? MedicalNotes, string? Allergies, string? Notes,
     string? FatherName = null, string? MotherName = null, string? MotherMaidenName = null,
-    Guid? UnitId = null
+    Guid? UnitId = null, string? ProfessionDomain = null
 ) : IRequest<Result<CreateMemberResult>>;
 
 public class CreateMemberCommandValidator : AbstractValidator<CreateMemberCommand>
@@ -54,6 +54,9 @@ public class CreateMemberCommandValidator : AbstractValidator<CreateMemberComman
         RuleFor(x => x.School).NotEmpty().WithMessage("L'école est requise.").MaximumLength(100);
         // Classe is optional on manual creation (a walk-in who skipped the demande may not have it yet).
         RuleFor(x => x.Classe).MaximumLength(50);
+        // Profession (domain/category) — optional; for older members not in a school class.
+        RuleFor(x => x.ProfessionDomain).MaximumLength(100)
+            .Must(n => n == null || !n.Contains('<') && !n.Contains('>')).WithMessage("La profession contient des caractères invalides.");
         RuleFor(x => x.Section).MaximumLength(5).WithMessage("La section ne doit pas dépasser 5 caractères.");
         RuleFor(x => x.MedicalNotes).MaximumLength(2000);
         RuleFor(x => x.Allergies).MaximumLength(2000);
@@ -126,6 +129,7 @@ public class CreateMemberCommandHandler : IRequestHandler<CreateMemberCommand, R
             Nationality = request.Nationality,
             School = request.School,
             Classe = request.Classe,
+            ProfessionDomain = request.ProfessionDomain,
             Section = request.Section,
             MedicalNotes = request.MedicalNotes,
             Allergies = request.Allergies,

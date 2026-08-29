@@ -12,7 +12,8 @@ public record UpdateMemberCommand(
     Guid Id, string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender,
     string? CardNumber, string? ExternalCardNumber, string? BloodType, string? Nationality, string? School,
     string? Classe, string? Section,
-    string? MedicalNotes, string? Allergies, string? Notes
+    string? MedicalNotes, string? Allergies, string? Notes,
+    string? ProfessionDomain = null
 ) : IRequest<Result<bool>>;
 
 public class UpdateMemberCommandValidator : AbstractValidator<UpdateMemberCommand>
@@ -40,7 +41,10 @@ public class UpdateMemberCommandValidator : AbstractValidator<UpdateMemberComman
             .Must(n => n == null || !n.Contains('<') && !n.Contains('>')).WithMessage("Le numéro de carte contient des caractères invalides.");
         RuleFor(x => x.Nationality).NotEmpty().WithMessage("La nationalité est requise.").MaximumLength(50);
         RuleFor(x => x.School).NotEmpty().WithMessage("L'école est requise.").MaximumLength(100);
-        RuleFor(x => x.Classe).NotEmpty().WithMessage("La classe est requise.").MaximumLength(50);
+        // Classe optional in the member area: older members (Clan/Noyau/maîtrise) fill Profession instead.
+        RuleFor(x => x.Classe).MaximumLength(50);
+        RuleFor(x => x.ProfessionDomain).MaximumLength(100)
+            .Must(n => n == null || !n.Contains('<') && !n.Contains('>')).WithMessage("La profession contient des caractères invalides.");
         RuleFor(x => x.Section).MaximumLength(5).WithMessage("La section ne doit pas dépasser 5 caractères.");
         RuleFor(x => x.BloodType).MaximumLength(10);
         RuleFor(x => x.MedicalNotes).MaximumLength(2000);
@@ -93,6 +97,7 @@ public class UpdateMemberCommandHandler : IRequestHandler<UpdateMemberCommand, R
         entity.Nationality = request.Nationality;
         entity.School = request.School;
         entity.Classe = request.Classe;
+        entity.ProfessionDomain = request.ProfessionDomain;
         entity.Section = request.Section;
         entity.MedicalNotes = request.MedicalNotes;
         entity.Allergies = request.Allergies;

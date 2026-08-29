@@ -129,6 +129,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   const defaultCountry = useSettingValue('default_country')
   const schools = useSettingArray('member.schools')
   const classes = useSettingArray('member.classes')
+  const professionDomains = useSettingArray('member.profession_domains')
   const cities = useCities()
 
   // Contact mutations (phones/emails/addresses save immediately via their own dialogs).
@@ -189,6 +190,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
       cardNumber: member.cardNumber ?? '', externalCardNumber: member.externalCardNumber ?? '',
       bloodType: member.bloodType ?? '', nationality: member.nationality ?? '',
       school: member.school ?? '', classe: member.classe ?? '', section: member.section ?? '',
+      professionDomain: member.professionDomain ?? '',
       medicalNotes: member.medicalNotes ?? '', allergies: member.allergies ?? '', notes: member.notes ?? '',
     })
     setError(''); setEditing(true)
@@ -204,7 +206,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
     if (!form.gender) missing.push('genre')
     if (!form.nationality?.trim()) missing.push('nationalité')
     if (!form.school?.trim()) missing.push('école')
-    if (!form.classe?.trim()) missing.push('classe')
+    // Classe optional: older members (Clan/Noyau/maîtrise) fill Profession instead.
     if (missing.length) { setError(`Champs requis manquants : ${missing.join(', ')}.`); return }
     try {
       await updateMember.mutateAsync({
@@ -213,6 +215,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
         cardNumber: form.cardNumber || null, externalCardNumber: form.externalCardNumber || null,
         bloodType: form.bloodType || null, nationality: form.nationality || null,
         school: form.school || null, classe: form.classe || null, section: form.section || null,
+        professionDomain: form.professionDomain || null,
         medicalNotes: form.medicalNotes || null, allergies: form.allergies || null, notes: form.notes || null,
       })
       toast.success('Membre modifié')
@@ -437,10 +440,24 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                     })()}
                   </div>
                   <div className="space-y-1.5">
-                    <RequiredLabel required>Classe</RequiredLabel>
-                    <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v }))}>
+                    <RequiredLabel>Classe</RequiredLabel>
+                    <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v === '__clear__' ? '' : v }))}>
                       <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                      <SelectContent>{classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                      <SelectContent>
+                        {form.classe && <SelectItem value="__clear__">— Aucune —</SelectItem>}
+                        {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Profession — for older members (Clan/Noyau/maîtrise) not in a school class; options = the demande profession categories. */}
+                  <div className="space-y-1.5">
+                    <RequiredLabel>Profession</RequiredLabel>
+                    <Select value={form.professionDomain || ''} onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v === '__clear__' ? '' : v }))}>
+                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                      <SelectContent>
+                        {form.professionDomain && <SelectItem value="__clear__">— Aucune —</SelectItem>}
+                        {professionDomains.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                      </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5"><RequiredLabel>Section</RequiredLabel><Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} /></div>
@@ -449,6 +466,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                 <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
                   <Field label="École" value={member.school} />
                   <Field label="Classe" value={member.classe} />
+                  {member.professionDomain && <Field label="Profession" value={member.professionDomain} />}
                   <Field label="Section" value={member.section} />
                 </div>
               )}
@@ -760,6 +778,7 @@ export default function MembersPage() {
   const schools = useSettingArray('member.schools')
   const defaultSchool = useSettingValue('member.default_school')
   const classes = useSettingArray('member.classes')
+  const professionDomains = useSettingArray('member.profession_domains')
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
   const [page, setPage] = useState(1)
@@ -841,7 +860,7 @@ export default function MembersPage() {
   }, [absenceCountsRaw])
 
   const openCreate = () => {
-    setForm({ firstName: '', lastName: '', dateOfBirth: '', gender: '', bloodType: '', nationality: '', school: defaultSchool ?? '', classe: '', section: '', externalCardNumber: '', fatherName: '', motherName: '', motherMaidenName: '', unitId: '' })
+    setForm({ firstName: '', lastName: '', dateOfBirth: '', gender: '', bloodType: '', nationality: '', school: defaultSchool ?? '', classe: '', professionDomain: '', section: '', externalCardNumber: '', fatherName: '', motherName: '', motherMaidenName: '', unitId: '' })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -851,7 +870,7 @@ export default function MembersPage() {
     setError('')
     if (!validate({ firstName: !form.firstName, lastName: !form.lastName })) return
     try {
-      const payload = { ...form, dateOfBirth: form.dateOfBirth || null, gender: form.gender || null, bloodType: form.bloodType || null, nationality: form.nationality || null, school: form.school || null, classe: form.classe || null, section: form.section || null, fatherName: form.fatherName || null, motherName: form.motherName || null, motherMaidenName: form.motherMaidenName || null, unitId: form.unitId || null }
+      const payload = { ...form, dateOfBirth: form.dateOfBirth || null, gender: form.gender || null, bloodType: form.bloodType || null, nationality: form.nationality || null, school: form.school || null, classe: form.classe || null, professionDomain: form.professionDomain || null, section: form.section || null, fatherName: form.fatherName || null, motherName: form.motherName || null, motherMaidenName: form.motherMaidenName || null, unitId: form.unitId || null }
       const result = await createMutation.mutateAsync(payload)
       toast.success('Membre créé')
       setFormOpen(false)
@@ -1117,6 +1136,17 @@ export default function MembersPage() {
                   <SelectContent>
                     <SelectItem value="__clear__">-- Aucune --</SelectItem>
                     {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Profession — for older members not in a school class (options = demande profession categories) */}
+              <div className="space-y-2">
+                <RequiredLabel>Profession</RequiredLabel>
+                <Select value={form.professionDomain || ''} onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v === '__clear__' ? '' : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__clear__">-- Aucune --</SelectItem>
+                    {professionDomains.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

@@ -37,6 +37,7 @@ public record MemberDetailDto(
     string? Nationality,
     string? School,
     string? Classe,
+    string? ProfessionDomain,
     string? Section,
     string? MedicalNotes,
     string? Allergies,

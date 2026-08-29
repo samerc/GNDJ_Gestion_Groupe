@@ -3482,6 +3482,24 @@ Two items from the CG's live test of the public site.
       roles, senior first ("Assistant de Groupe · Trésorier de Groupe") — GroupBy on the rank-desc leaderRows.
       Builds clean; DEV until deploy.
 
+### Member "Profession" field + optional classe (2026-08-29)
+Some chefs/aînés (Clan, Noyau, maîtrises) are working professionals, not students — so the member area needed a
+Profession field and classe shouldn't be mandatory for them.
+- **New `Member.ProfessionDomain`** (nullable; migration `AddMemberProfessionDomain`) — a **category from the
+      managed `member.profession_domains` list** (the SAME categories the demande uses for guardians). UI label
+      "Profession". Wired into CreateMember + UpdateMember + UpdateMyProfile (commands/validators/mapping),
+      MemberDetailDto + GetMemberById projection, and the member-service TS types.
+- **Classe made optional in the member area:** `UpdateMember` + `UpdateMyProfile` dropped the `NotEmpty` on
+      Classe (CreateMember was already optional); the member forms no longer require it (a clearable Select).
+      The **demande wizard keeps classe required** (untouched — it reads the same list but its own validators).
+- **Frontend:** a "Profession" Select (from `member.profession_domains`) added next to Classe in the member
+      create dialog, the member edit panel, and **Ma fiche** (`my-profile.tsx`); shown for all members (optional),
+      intended for Clan/Noyau/maîtrise. Detail views show Profession when set.
+- **Managed-list cascade:** renaming/archiving a profession domain in *Listes* now also cascades to
+      `members.profession_domain` (added to `ListValueHandlers` usage-count + rename cascade, alongside guardians).
+- Verified live (admin API): update with classe=null → 204 (was 400 "La classe est requise"); profession value
+      persists + reads back. Builds clean (dotnet + tsc + eslint), migration applied on dev. DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to

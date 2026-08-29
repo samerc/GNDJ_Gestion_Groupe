@@ -47,6 +47,7 @@ export default function MyProfilePage() {
   const defaultCountry = useSettingValue('default_country')
   const schools = useSettingArray('member.schools')
   const classes = useSettingArray('member.classes')
+  const professionDomains = useSettingArray('member.profession_domains')
   const cities = useCities()
 
   // Coordonnées use the SELF-SERVICE hooks (own record, no members.edit needed).
@@ -133,7 +134,7 @@ export default function MyProfilePage() {
       cardNumber: member.cardNumber ?? '', externalCardNumber: member.externalCardNumber ?? '',
       bloodType: member.bloodType ?? '',
       nationality: member.nationality ?? '', school: member.school ?? '',
-      classe: member.classe ?? '', section: member.section ?? '',
+      classe: member.classe ?? '', professionDomain: member.professionDomain ?? '', section: member.section ?? '',
       medicalNotes: member.medicalNotes ?? '', allergies: member.allergies ?? '',
       notes: member.notes ?? '',
     })
@@ -150,6 +151,7 @@ export default function MyProfilePage() {
         nationality: form.nationality || null,
         school: form.school || null,
         classe: form.classe || null,
+        professionDomain: form.professionDomain || null,
         section: form.section || null,
         bloodType: form.bloodType || null,
         allergies: form.allergies || null,
@@ -290,11 +292,23 @@ export default function MyProfilePage() {
                     })()}
                   </div>
                   <div className="space-y-2">
-                    <RequiredLabel required>Classe</RequiredLabel>
-                    <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v }))}>
+                    <RequiredLabel>Classe</RequiredLabel>
+                    <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v === '__clear__' ? '' : v }))}>
                       <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
                       <SelectContent>
+                        {form.classe && <SelectItem value="__clear__">— Aucune —</SelectItem>}
                         {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Profession — for older members (Clan/Noyau/maîtrise) not in a school class */}
+                  <div className="space-y-2">
+                    <RequiredLabel>Profession</RequiredLabel>
+                    <Select value={form.professionDomain || ''} onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v === '__clear__' ? '' : v }))}>
+                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                      <SelectContent>
+                        {form.professionDomain && <SelectItem value="__clear__">— Aucune —</SelectItem>}
+                        {professionDomains.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -316,6 +330,7 @@ export default function MyProfilePage() {
                   <Field label="Groupe sanguin" value={member.bloodType} />
                   <Field label="École" value={member.school} />
                   <Field label="Classe" value={member.classe} />
+                  {member.professionDomain && <Field label="Profession" value={member.professionDomain} />}
                   <Field label="Section" value={member.section} />
                 </dl>
               )}

@@ -36,6 +36,7 @@ export interface MemberDetailDto {
   nationality: string | null
   school: string | null
   classe: string | null
+  professionDomain: string | null
   section: string | null
   medicalNotes: string | null
   allergies: string | null
@@ -77,6 +78,7 @@ export interface MemberFormData {
   nationality?: string | null
   school?: string | null
   classe?: string | null
+  professionDomain?: string | null
   section?: string | null
   medicalNotes?: string | null
   allergies?: string | null

@@ -49,6 +49,7 @@ public static class ManagedListSettings
                 Merge(await GroupCount(ctx.ApplicantAccounts.Where(a => a.AddressCity != null).Select(a => a.AddressCity!), ct));
                 break;
             case "member.profession_domains":
+                Merge(await GroupCount(ctx.Members.Where(m => m.ProfessionDomain != null).Select(m => m.ProfessionDomain!), ct));
                 Merge(await GroupCount(ctx.Guardians.Where(g => g.ProfessionDomain != null).Select(g => g.ProfessionDomain!), ct));
                 Merge(await GroupCount(ctx.ApplicantGuardians.Where(g => g.ProfessionDomain != null).Select(g => g.ProfessionDomain!), ct));
                 break;
@@ -80,6 +81,7 @@ public static class ManagedListSettings
                 n += await ctx.ApplicantAccounts.IgnoreQueryFilters().Where(a => a.AddressCity == oldV).ExecuteUpdateAsync(s => s.SetProperty(a => a.AddressCity, newV), ct);
                 break;
             case "member.profession_domains":
+                n += await ctx.Members.IgnoreQueryFilters().Where(m => m.ProfessionDomain == oldV).ExecuteUpdateAsync(s => s.SetProperty(m => m.ProfessionDomain, newV), ct);
                 n += await ctx.Guardians.IgnoreQueryFilters().Where(g => g.ProfessionDomain == oldV).ExecuteUpdateAsync(s => s.SetProperty(g => g.ProfessionDomain, newV), ct);
                 n += await ctx.ApplicantGuardians.IgnoreQueryFilters().Where(g => g.ProfessionDomain == oldV).ExecuteUpdateAsync(s => s.SetProperty(g => g.ProfessionDomain, newV), ct);
                 break;
