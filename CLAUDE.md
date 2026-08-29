@@ -3499,6 +3499,16 @@ Profession field and classe shouldn't be mandatory for them.
       `members.profession_domain` (added to `ListValueHandlers` usage-count + rename cascade, alongside guardians).
 - Verified live (admin API): update with classe=null → 204 (was 400 "La classe est requise"); profession value
       persists + reads back. Builds clean (dotnet + tsc + eslint), migration applied on dev. DEV until deploy.
+- **Free-text Profession + "Situation" toggle (2026-08-30):** added `Member.Profession` (free-text job title,
+      migration `AddMemberProfession`) paired with the existing `ProfessionDomain` category — mirrors the guardian
+      model (Domaine + free-text Profession). Wired through Create/Update/UpdateMyProfile (params + NoHtml/≤150
+      validators + mapping), `MemberDetailDto` + the detail projection. The member forms (panel + create dialog +
+      Ma fiche) now show a **"Situation" segmented toggle — Scolarisé(e) / En activité**: student → Classe + Section,
+      working → Domaine (select) + Profession (free text). **Mutually exclusive**: the hidden side is sent as null on
+      save (`situation==='student'` clears profession(Domain); `'working'` clears classe/section) so a member is
+      never both; the toggle's initial state is derived from the data (profession filled → working). Read-only views
+      show Domaine+Profession or Classe+Section accordingly. Verified live: update→working persists profession +
+      clears classe; `<script>` → 400. Builds clean (dotnet+tsc+eslint+vite). DEV until deploy.
 
 ### Access delegation — "accès délégué" per member (2026-08-30)
 A CG-succession + delegation tool: grant a SPECIFIC member extra access WITHOUT any assignment or visible role

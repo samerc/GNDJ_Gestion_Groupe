@@ -12,6 +12,7 @@ export interface MyProfileUpdate {
   school?: string | null
   classe?: string | null
   professionDomain?: string | null
+  profession?: string | null
   section?: string | null
   bloodType?: string | null
   allergies?: string | null

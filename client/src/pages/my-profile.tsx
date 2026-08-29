@@ -2,6 +2,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useMember, type MemberFormData, type MemberPhoneDto, type MemberEmailDto, type MemberAddressDto } from '@/services/member-service'
 import { useUpdateMyProfile, useAddMyPhone, useUpdateMyPhone, useDeleteMyPhone, useAddMyEmail, useUpdateMyEmail, useDeleteMyEmail, useAddMyAddress, useUpdateMyAddress, useDeleteMyAddress } from '@/services/my-profile-service'
 import { MemberPhoto } from '@/components/shared/member-photo'
+import { cn } from '@/lib/utils'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -63,6 +64,8 @@ export default function MyProfilePage() {
 
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<MemberFormData>({ firstName: '', lastName: '' })
+  // "Situation" toggle: 'student' shows Classe/Section, 'working' shows Domaine/Profession (hidden side cleared on save).
+  const [situation, setSituation] = useState<'student' | 'working'>('student')
   const [error, setError] = useState('')
 
   useUnsavedChanges(editing)
@@ -134,10 +137,11 @@ export default function MyProfilePage() {
       cardNumber: member.cardNumber ?? '', externalCardNumber: member.externalCardNumber ?? '',
       bloodType: member.bloodType ?? '',
       nationality: member.nationality ?? '', school: member.school ?? '',
-      classe: member.classe ?? '', professionDomain: member.professionDomain ?? '', section: member.section ?? '',
+      classe: member.classe ?? '', professionDomain: member.professionDomain ?? '', profession: member.profession ?? '', section: member.section ?? '',
       medicalNotes: member.medicalNotes ?? '', allergies: member.allergies ?? '',
       notes: member.notes ?? '',
     })
+    setSituation(member.professionDomain || member.profession ? 'working' : 'student')
     setError('')
     setEditing(true)
   }
@@ -150,9 +154,11 @@ export default function MyProfilePage() {
       await updateMutation.mutateAsync({
         nationality: form.nationality || null,
         school: form.school || null,
-        classe: form.classe || null,
-        professionDomain: form.professionDomain || null,
-        section: form.section || null,
+        // Mutually exclusive by situation (student keeps classe/section, working keeps domaine/profession).
+        classe: situation === 'student' ? (form.classe || null) : null,
+        section: situation === 'student' ? (form.section || null) : null,
+        professionDomain: situation === 'working' ? (form.professionDomain || null) : null,
+        profession: situation === 'working' ? (form.profession || null) : null,
         bloodType: form.bloodType || null,
         allergies: form.allergies || null,
         medicalNotes: form.medicalNotes || null,
@@ -291,31 +297,56 @@ export default function MyProfilePage() {
                       )
                     })()}
                   </div>
-                  <div className="space-y-2">
-                    <RequiredLabel>Classe</RequiredLabel>
-                    <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v === '__clear__' ? '' : v }))}>
-                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                      <SelectContent>
-                        {form.classe && <SelectItem value="__clear__">— Aucune —</SelectItem>}
-                        {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                  {/* Situation: student (Classe/Section) vs working (Domaine/Profession). Full-width toggle row. */}
+                  <div className="space-y-2 sm:col-span-2">
+                    <RequiredLabel>Situation</RequiredLabel>
+                    <div className="inline-flex h-9 items-center rounded-md border p-0.5">
+                      <button type="button" onClick={() => setSituation('student')}
+                        className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'student' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                        Scolarisé(e)
+                      </button>
+                      <button type="button" onClick={() => setSituation('working')}
+                        className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'working' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                        En activité
+                      </button>
+                    </div>
                   </div>
-                  {/* Profession — for older members (Clan/Noyau/maîtrise) not in a school class */}
-                  <div className="space-y-2">
-                    <RequiredLabel>Profession</RequiredLabel>
-                    <Select value={form.professionDomain || ''} onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v === '__clear__' ? '' : v }))}>
-                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                      <SelectContent>
-                        {form.professionDomain && <SelectItem value="__clear__">— Aucune —</SelectItem>}
-                        {professionDomains.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <RequiredLabel>Section</RequiredLabel>
-                    <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} />
-                  </div>
+                  {situation === 'student' ? (
+                    <>
+                      <div className="space-y-2">
+                        <RequiredLabel>Classe</RequiredLabel>
+                        <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v === '__clear__' ? '' : v }))}>
+                          <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                          <SelectContent>
+                            {form.classe && <SelectItem value="__clear__">— Aucune —</SelectItem>}
+                            {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <RequiredLabel>Section</RequiredLabel>
+                        <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Working member (Clan/Noyau/maîtrise): Domaine category + free-text job title. */}
+                      <div className="space-y-2">
+                        <RequiredLabel>Domaine</RequiredLabel>
+                        <Select value={form.professionDomain || ''} onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v === '__clear__' ? '' : v }))}>
+                          <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                          <SelectContent>
+                            {form.professionDomain && <SelectItem value="__clear__">— Aucun —</SelectItem>}
+                            {professionDomains.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <RequiredLabel>Profession</RequiredLabel>
+                        <Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex: Ingénieur, Médecin..." maxLength={150} />
+                      </div>
+                    </>
+                  )}
                 </div>
                 </div>
               ) : (
@@ -329,9 +360,17 @@ export default function MyProfilePage() {
                   <Field label="Nationalité" value={member.nationality} />
                   <Field label="Groupe sanguin" value={member.bloodType} />
                   <Field label="École" value={member.school} />
-                  <Field label="Classe" value={member.classe} />
-                  {member.professionDomain && <Field label="Profession" value={member.professionDomain} />}
-                  <Field label="Section" value={member.section} />
+                  {(member.professionDomain || member.profession) ? (
+                    <>
+                      <Field label="Domaine" value={member.professionDomain} />
+                      <Field label="Profession" value={member.profession} />
+                    </>
+                  ) : (
+                    <>
+                      <Field label="Classe" value={member.classe} />
+                      <Field label="Section" value={member.section} />
+                    </>
+                  )}
                 </dl>
               )}
             </CardContent>

@@ -22,8 +22,12 @@ public class Member : BaseEntity
     public string? Section { get; set; }
     // Profession (domain/category, from the managed `member.profession_domains` list) — for older members who
     // are no longer in a school class (Clan, Noyau, maîtrise). Classe and Profession are mutually the "situation":
-    // youth fill Classe, working members fill Profession. Both optional in the member area.
+    // youth fill Classe/Section, working members fill Profession. The member area shows a "Situation" radio
+    // (Scolarisé / En activité) that toggles which side is shown; the hidden side is cleared on save.
     public string? ProfessionDomain { get; set; }
+    // Free-text job title / details (e.g. "Ingénieur logiciel"), paired with ProfessionDomain (the category).
+    // Mirrors the guardian model (Domaine = category + Profession = free-text title).
+    public string? Profession { get; set; }
     public string? MedicalNotes { get; set; }
     public string? Allergies { get; set; }
     public string? Notes { get; set; }

@@ -13,7 +13,7 @@ public record UpdateMemberCommand(
     string? CardNumber, string? ExternalCardNumber, string? BloodType, string? Nationality, string? School,
     string? Classe, string? Section,
     string? MedicalNotes, string? Allergies, string? Notes,
-    string? ProfessionDomain = null
+    string? ProfessionDomain = null, string? Profession = null
 ) : IRequest<Result<bool>>;
 
 public class UpdateMemberCommandValidator : AbstractValidator<UpdateMemberCommand>
@@ -44,6 +44,8 @@ public class UpdateMemberCommandValidator : AbstractValidator<UpdateMemberComman
         // Classe optional in the member area: older members (Clan/Noyau/maîtrise) fill Profession instead.
         RuleFor(x => x.Classe).MaximumLength(50);
         RuleFor(x => x.ProfessionDomain).MaximumLength(100)
+            .Must(n => n == null || !n.Contains('<') && !n.Contains('>')).WithMessage("La profession contient des caractères invalides.");
+        RuleFor(x => x.Profession).MaximumLength(150)
             .Must(n => n == null || !n.Contains('<') && !n.Contains('>')).WithMessage("La profession contient des caractères invalides.");
         RuleFor(x => x.Section).MaximumLength(5).WithMessage("La section ne doit pas dépasser 5 caractères.");
         RuleFor(x => x.BloodType).MaximumLength(10);
@@ -98,6 +100,7 @@ public class UpdateMemberCommandHandler : IRequestHandler<UpdateMemberCommand, R
         entity.School = request.School;
         entity.Classe = request.Classe;
         entity.ProfessionDomain = request.ProfessionDomain;
+        entity.Profession = request.Profession;
         entity.Section = request.Section;
         entity.MedicalNotes = request.MedicalNotes;
         entity.Allergies = request.Allergies;

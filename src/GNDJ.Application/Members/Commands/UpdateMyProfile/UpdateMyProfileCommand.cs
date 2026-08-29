@@ -12,7 +12,8 @@ namespace GNDJ.Application.Members.Commands.UpdateMyProfile;
 // never change them here. Always operates on the caller's own MemberId (never a client-supplied id).
 public record UpdateMyProfileCommand(
     string? Nationality, string? School, string? Classe, string? Section,
-    string? BloodType, string? Allergies, string? MedicalNotes, string? ProfessionDomain = null
+    string? BloodType, string? Allergies, string? MedicalNotes, string? ProfessionDomain = null,
+    string? Profession = null
 ) : IRequest<Result<bool>>;
 
 public class UpdateMyProfileCommandValidator : AbstractValidator<UpdateMyProfileCommand>
@@ -28,6 +29,8 @@ public class UpdateMyProfileCommandValidator : AbstractValidator<UpdateMyProfile
         RuleFor(x => x.Classe).MaximumLength(50)
             .Must(NoHtml).WithMessage("La classe contient des caractères invalides.");
         RuleFor(x => x.ProfessionDomain).MaximumLength(100)
+            .Must(NoHtml).WithMessage("La profession contient des caractères invalides.");
+        RuleFor(x => x.Profession).MaximumLength(150)
             .Must(NoHtml).WithMessage("La profession contient des caractères invalides.");
         RuleFor(x => x.Section).MaximumLength(5).WithMessage("La section ne doit pas dépasser 5 caractères.");
         RuleFor(x => x.BloodType).MaximumLength(10);
@@ -57,6 +60,7 @@ public class UpdateMyProfileCommandHandler(IApplicationDbContext context, IAudit
         entity.School = request.School;
         entity.Classe = request.Classe;
         entity.ProfessionDomain = request.ProfessionDomain;
+        entity.Profession = request.Profession;
         entity.Section = request.Section;
         entity.BloodType = request.BloodType;
         entity.Allergies = request.Allergies;

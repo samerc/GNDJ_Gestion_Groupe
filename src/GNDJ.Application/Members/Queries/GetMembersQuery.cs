@@ -274,7 +274,7 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
             .Select(m => new MemberDetailDto(
                 m.Id, m.FirstName, m.LastName, m.DateOfBirth, m.Gender,
                 m.CardNumber, m.ExternalCardNumber, m.BloodType, m.Nationality, m.School,
-                m.Classe, m.ProfessionDomain, m.Section,
+                m.Classe, m.ProfessionDomain, m.Profession, m.Section,
                 m.MedicalNotes, m.Allergies, m.Notes, m.PhotoPath,
                 m.Phones.Where(p => !p.IsDeleted).OrderByDescending(p => p.IsPrimary)
                     .Select(p => new MemberPhoneDto(p.Id, p.CountryCode, p.Number, p.Type, p.IsPrimary, p.IsEmergency)).ToList(),

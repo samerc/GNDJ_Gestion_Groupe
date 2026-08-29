@@ -146,6 +146,9 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   const [activeTab, setActiveTab] = useState('info')
   const isFormTab = activeTab === 'info' || activeTab === 'medical'
   const [form, setForm] = useState<MemberFormData>({ firstName: '', lastName: '' })
+  // "Situation" toggle: 'student' shows Classe/Section, 'working' shows Domaine/Profession. The hidden side is
+  // cleared on save so a member is never both. Derived from the data when opening the edit form.
+  const [situation, setSituation] = useState<'student' | 'working'>('student')
   const [error, setError] = useState('')
 
   // Reset password (one-time credentials).
@@ -195,9 +198,11 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
       cardNumber: member.cardNumber ?? '', externalCardNumber: member.externalCardNumber ?? '',
       bloodType: member.bloodType ?? '', nationality: member.nationality ?? '',
       school: member.school ?? '', classe: member.classe ?? '', section: member.section ?? '',
-      professionDomain: member.professionDomain ?? '',
+      professionDomain: member.professionDomain ?? '', profession: member.profession ?? '',
       medicalNotes: member.medicalNotes ?? '', allergies: member.allergies ?? '', notes: member.notes ?? '',
     })
+    // A member with a profession filled is "working"; otherwise default to "student" (classe/section).
+    setSituation(member.professionDomain || member.profession ? 'working' : 'student')
     setError(''); setEditing(true)
   }
 
@@ -219,8 +224,13 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
         dateOfBirth: form.dateOfBirth || null, gender: form.gender || null,
         cardNumber: form.cardNumber || null, externalCardNumber: form.externalCardNumber || null,
         bloodType: form.bloodType || null, nationality: form.nationality || null,
-        school: form.school || null, classe: form.classe || null, section: form.section || null,
-        professionDomain: form.professionDomain || null,
+        school: form.school || null,
+        // Mutually exclusive by "situation": a student keeps classe/section (profession cleared); a working
+        // member keeps domaine/profession (classe/section cleared) — so a member is never shown as both.
+        classe: situation === 'student' ? (form.classe || null) : null,
+        section: situation === 'student' ? (form.section || null) : null,
+        professionDomain: situation === 'working' ? (form.professionDomain || null) : null,
+        profession: situation === 'working' ? (form.profession || null) : null,
         medicalNotes: form.medicalNotes || null, allergies: form.allergies || null, notes: form.notes || null,
       })
       toast.success('Membre modifié')
@@ -456,35 +466,65 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                       )
                     })()}
                   </div>
-                  <div className="space-y-1.5">
-                    <RequiredLabel>Classe</RequiredLabel>
-                    <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v === '__clear__' ? '' : v }))}>
-                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                      <SelectContent>
-                        {form.classe && <SelectItem value="__clear__">— Aucune —</SelectItem>}
-                        {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                  {/* Situation toggle: student (Classe/Section) vs working (Domaine/Profession). Full-width row. */}
+                  <div className="space-y-1.5 sm:col-span-2 xl:col-span-3">
+                    <RequiredLabel>Situation</RequiredLabel>
+                    <div className="inline-flex h-9 items-center rounded-md border p-0.5">
+                      <button type="button" onClick={() => setSituation('student')}
+                        className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'student' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                        Scolarisé(e)
+                      </button>
+                      <button type="button" onClick={() => setSituation('working')}
+                        className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'working' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                        En activité
+                      </button>
+                    </div>
                   </div>
-                  {/* Profession — for older members (Clan/Noyau/maîtrise) not in a school class; options = the demande profession categories. */}
-                  <div className="space-y-1.5">
-                    <RequiredLabel>Profession</RequiredLabel>
-                    <Select value={form.professionDomain || ''} onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v === '__clear__' ? '' : v }))}>
-                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                      <SelectContent>
-                        {form.professionDomain && <SelectItem value="__clear__">— Aucune —</SelectItem>}
-                        {professionDomains.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5"><RequiredLabel>Section</RequiredLabel><Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} /></div>
+                  {situation === 'student' ? (
+                    <>
+                      <div className="space-y-1.5">
+                        <RequiredLabel>Classe</RequiredLabel>
+                        <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v === '__clear__' ? '' : v }))}>
+                          <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                          <SelectContent>
+                            {form.classe && <SelectItem value="__clear__">— Aucune —</SelectItem>}
+                            {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5"><RequiredLabel>Section</RequiredLabel><Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} /></div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Working member (Clan/Noyau/maîtrise): a Domaine category + a free-text job title. */}
+                      <div className="space-y-1.5">
+                        <RequiredLabel>Domaine</RequiredLabel>
+                        <Select value={form.professionDomain || ''} onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v === '__clear__' ? '' : v }))}>
+                          <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                          <SelectContent>
+                            {form.professionDomain && <SelectItem value="__clear__">— Aucun —</SelectItem>}
+                            {professionDomains.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5"><RequiredLabel>Profession</RequiredLabel><Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex: Ingénieur, Médecin..." maxLength={150} /></div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
                   <Field label="École" value={member.school} />
-                  <Field label="Classe" value={member.classe} />
-                  {member.professionDomain && <Field label="Profession" value={member.professionDomain} />}
-                  <Field label="Section" value={member.section} />
+                  {(member.professionDomain || member.profession) ? (
+                    <>
+                      <Field label="Domaine" value={member.professionDomain} />
+                      <Field label="Profession" value={member.profession} />
+                    </>
+                  ) : (
+                    <>
+                      <Field label="Classe" value={member.classe} />
+                      <Field label="Section" value={member.section} />
+                    </>
+                  )}
                 </div>
               )}
             </Section>
@@ -826,6 +866,8 @@ export default function MembersPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [credentialsDialog, setCredentialsDialog] = useState<{ username: string; password: string; memberId: string } | null>(null)
   const [form, setForm] = useState<MemberFormData>({ firstName: '', lastName: '' })
+  // Situation toggle (create): 'student' = Classe/Section, 'working' = Domaine/Profession.
+  const [situation, setSituation] = useState<'student' | 'working'>('student')
   const [error, setError] = useState('')
   const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
 
@@ -883,7 +925,8 @@ export default function MembersPage() {
   }, [absenceCountsRaw])
 
   const openCreate = () => {
-    setForm({ firstName: '', lastName: '', dateOfBirth: '', gender: '', bloodType: '', nationality: '', school: defaultSchool ?? '', classe: '', professionDomain: '', section: '', externalCardNumber: '', fatherName: '', motherName: '', motherMaidenName: '', unitId: '' })
+    setForm({ firstName: '', lastName: '', dateOfBirth: '', gender: '', bloodType: '', nationality: '', school: defaultSchool ?? '', classe: '', professionDomain: '', profession: '', section: '', externalCardNumber: '', fatherName: '', motherName: '', motherMaidenName: '', unitId: '' })
+    setSituation('student')
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -893,7 +936,11 @@ export default function MembersPage() {
     setError('')
     if (!validate({ firstName: !form.firstName, lastName: !form.lastName })) return
     try {
-      const payload = { ...form, dateOfBirth: form.dateOfBirth || null, gender: form.gender || null, bloodType: form.bloodType || null, nationality: form.nationality || null, school: form.school || null, classe: form.classe || null, professionDomain: form.professionDomain || null, section: form.section || null, fatherName: form.fatherName || null, motherName: form.motherName || null, motherMaidenName: form.motherMaidenName || null, unitId: form.unitId || null }
+      const payload = { ...form, dateOfBirth: form.dateOfBirth || null, gender: form.gender || null, bloodType: form.bloodType || null, nationality: form.nationality || null, school: form.school || null,
+        // Mutually exclusive by situation (student keeps classe/section, working keeps domaine/profession).
+        classe: situation === 'student' ? (form.classe || null) : null, section: situation === 'student' ? (form.section || null) : null,
+        professionDomain: situation === 'working' ? (form.professionDomain || null) : null, profession: situation === 'working' ? (form.profession || null) : null,
+        fatherName: form.fatherName || null, motherName: form.motherName || null, motherMaidenName: form.motherMaidenName || null, unitId: form.unitId || null }
       const result = await createMutation.mutateAsync(payload)
       toast.success('Membre créé')
       setFormOpen(false)
@@ -1152,33 +1199,57 @@ export default function MembersPage() {
                   )
                 })()}
               </div>
-              <div className="space-y-2">
-                <RequiredLabel>Classe</RequiredLabel>
-                <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v === '__clear__' ? '' : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__clear__">-- Aucune --</SelectItem>
-                    {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+              {/* Situation: student (Classe/Section) vs working (Domaine/Profession). Full-width toggle row. */}
+              <div className="space-y-2 sm:col-span-2">
+                <RequiredLabel>Situation</RequiredLabel>
+                <div className="inline-flex h-9 items-center rounded-md border p-0.5">
+                  <button type="button" onClick={() => setSituation('student')}
+                    className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'student' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                    Scolarisé(e)
+                  </button>
+                  <button type="button" onClick={() => setSituation('working')}
+                    className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'working' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                    En activité
+                  </button>
+                </div>
               </div>
-              {/* Profession — for older members not in a school class (options = demande profession categories) */}
-              <div className="space-y-2">
-                <RequiredLabel>Profession</RequiredLabel>
-                <Select value={form.professionDomain || ''} onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v === '__clear__' ? '' : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__clear__">-- Aucune --</SelectItem>
-                    {professionDomains.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+              {situation === 'student' ? (
+                <>
+                  <div className="space-y-2">
+                    <RequiredLabel>Classe</RequiredLabel>
+                    <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v === '__clear__' ? '' : v }))}>
+                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__clear__">-- Aucune --</SelectItem>
+                        {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <RequiredLabel>Section</RequiredLabel>
+                    <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <RequiredLabel>Domaine</RequiredLabel>
+                    <Select value={form.professionDomain || ''} onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v === '__clear__' ? '' : v }))}>
+                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__clear__">-- Aucun --</SelectItem>
+                        {professionDomains.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <RequiredLabel>Profession</RequiredLabel>
+                    <Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex: Ingénieur, Médecin..." maxLength={150} />
+                  </div>
+                </>
+              )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <RequiredLabel>Section</RequiredLabel>
-                <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} />
-              </div>
               <div className="space-y-2">
                 <RequiredLabel>Numéro de carte (SDL/GDL)</RequiredLabel>
                 <Input value={form.externalCardNumber || ''} onChange={(e) => setForm(f => ({ ...f, externalCardNumber: e.target.value }))} placeholder="Optionnel" maxLength={50} />
