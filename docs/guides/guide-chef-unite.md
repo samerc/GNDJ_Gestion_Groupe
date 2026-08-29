@@ -142,6 +142,8 @@ Vous pouvez tenir le registre des **réunions** (et sorties, camps) de votre uni
 4. Le **nombre d'absences de l'année** apparaît ensuite sur la fiche de chaque membre et dans la liste de
    votre unité.
 
+![Réunions et absences](screenshots/08-reunions.png)
+
 > Un **chef d'équipe** peut créer une réunion pour **son équipe** ; elle est ensuite validée par le chef
 > d'unité.
 
@@ -198,8 +200,11 @@ Ouvrez la **fiche du membre** (voir §4). En haut à droite, à côté de **Modi
 - 🔑 **Réinitialiser le mot de passe** — un mot de passe temporaire est envoyé à l'adresse de contact du
   membre (et affiché à l'écran s'il n'a pas d'email). Le membre devra en choisir un nouveau à sa prochaine
   connexion.
+- 🪪 **Télécharger la carte de membre** — la carte du membre au format PDF.
 
-> Le menu **Actions** contient aussi **Carte membre** (PDF) et **Supprimer le membre**.
+![Menu Actions d'un membre](screenshots/12-actions.png)
+
+> Selon vos droits, le menu **Actions** peut aussi proposer **Supprimer le membre**.
 
 ---
 
