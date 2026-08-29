@@ -68,3 +68,6 @@ docs/SECURITY_TESTING.md
 # keep out of git; blur before distributing.
 docs/guides/screenshots/
 docs/guides/*.pdf
+
+# One-off go-live data script with real member PII (maîtrise phones/emails) — keep out of git.
+deploy/golive/import_maitrise_contacts.sql

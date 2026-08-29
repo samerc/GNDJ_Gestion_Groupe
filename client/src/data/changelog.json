@@ -3,6 +3,7 @@
     "version": "3.0.0",
     "date": "2026-08-27",
     "changes": [
+      "Site public (page d'une unité) : la maîtrise affiche désormais le numéro de téléphone personnel de chaque chef (cliquable pour appeler). Un chef qui occupe deux fonctions dans la même unité (par ex. Assistant de Groupe et Trésorier) n'apparaît plus qu'une seule fois.",
       "Site public : les anciens liens du site précédent (adresses en /gndj) redirigent désormais automatiquement vers la page d'accueil, au lieu d'afficher une page « introuvable ». Utile pour les visiteurs qui reviennent avec un ancien favori.",
       "Éditeur de contenu (site public, actualités, pages, emails) : nouveau bouton « Justifier » dans la barre d'outils, à côté des alignements gauche / centre / droite — pour aligner un texte sur les deux marges (idéal pour les articles longs comme l'histoire du Groupe).",
       "Paramètres (dates) : les réglages de type date (fenêtre d'inscription, dates des documents…) n'acceptent plus une date dans le passé — le calendrier grise les jours passés, et si une date passée est saisie, un message s'affiche et l'enregistrement est bloqué. Évite, par exemple, de fermer les inscriptions par erreur avec une date limite déjà dépassée. (Exceptions : la date de début des nouveaux membres et la date du passage peuvent être antérieures, pour permettre de les caler sur le début de l'année scoute.)",

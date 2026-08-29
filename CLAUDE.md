@@ -3458,6 +3458,29 @@ Cloudflare; apex `@`+`www` were DNS-only pointing at the disposable **old** stat
       makes the Origin-cert CF-only caveat moot); (b) **retire `new.gndj.org`** (DNS + Page Rule + drop from
       AllowedHosts) after the activation-link overlap; (c) optional one-time Cloudflare cache purge.
 
+### CG feedback: public maîtrise phones + dedup (2026-08-29)
+Two items from the CG's live test of the public site.
+- **Maîtrise phone on the public unit page — DATA, no code needed.** The backend `LeaderPhone`
+      (`PublicUnitQueries`) already returns each leader's OWN primary `member_phone`, and the frontend
+      `LeaderCard` (`public/unit-detail.tsx`) already renders it as a clickable `tel:` link — both already in
+      HEAD/on prod. Phones just weren't on file. The CG provided `Mail du grp.xlsx` (63 maîtrise: unit shortcode
+      + name + personal email + phone). Matched 62/63 to **prod matricules** (via a prod maîtrise export the user
+      ran — dev was stale; unit map Clan→C, MDG→G; reconciled spelling variants Jude/Joud, Kannan/Kanaan,
+      Azoury/Azouri, Haber/Habr, Hadwane/Hedwane, Feghaly/KHALIL EL FEGHALI, El Khoury/KHOURY EL, Abou Mrad/
+      ABOUMRAD, middle names Elsa Karol/Sacha Maria, etc.). Generated `deploy/golive/import_maitrise_contacts.sql`
+      (idempotent DO block, keyed by card_number so it's correct on prod, skips-with-NOTICE if a matricule is
+      missing): sets each leader's personal phone as their **primary** member_phone + adds the email + sets
+      `primary_contact_email`. **Phone stored VERBATIM as in the sheet ("81-400 112") with an EMPTY country_code**
+      so the public shows exactly the local number (LeaderPhone renders just the number when country_code is
+      blank) — per the CG's "show it like the Excel". **PII → gitignored** (not committed); run once on prod
+      (`psql -f`), then phones appear immediately (display already live). Validated on dev via a rolled-back txn.
+      OMITTED: **Kinda Tayar** (Excel M3) — not in prod's current M3 maîtrise (fix her assignment first);
+      Séréna Abou Rached has no email in the sheet (phone only).
+- **Dedup a leader with two functions in the same unit (code, deploys next).** `PublicUnitQueries` built one
+      maîtrise entry per assignment row, so someone holding two roles in a unit (e.g. Sélim Asly & Samer Cheaib =
+      Assistant de Groupe + Trésorier on the Groupe) showed twice. Now deduped by member, keeping the
+      highest-rank role (leaderRows is rank-desc, keep first via a HashSet). Builds clean; DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
