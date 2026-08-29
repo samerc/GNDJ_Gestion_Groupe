@@ -33,9 +33,9 @@ export function DelegationDialog({ memberId, memberName, open, onOpenChange }: {
   // Seed the working copy from the server whenever the dialog (re)opens or fresh data arrives — the
   // "adjust state during render" pattern (React's recommended alternative to a setState-in-effect), keyed on
   // (open, data) so edits are preserved between renders but a fresh open re-reads the server state.
-  const [seed, setSeed] = useState<{ open: boolean; data: MemberDelegation | null }>({ open: false, data: null })
+  const [seed, setSeed] = useState<{ open: boolean; data: MemberDelegation | undefined }>({ open: false, data: undefined })
   if (seed.open !== open || seed.data !== data) {
-    setSeed({ open, data: data ?? null })
+    setSeed({ open, data })
     if (open && data) {
       setFullCg(data.fullCg)
       setLevels(Object.fromEntries(data.areas.map(a => [a.key, a.level])))
