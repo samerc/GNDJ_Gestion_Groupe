@@ -1044,7 +1044,9 @@ export default function MembersPage() {
             <div className="flex-1 min-w-0">
               <SortHeader label="Nom" field="lastname" current={sortBy} dir={sortDir} onSort={handleSort} />
             </div>
-            <div className="w-12 shrink-0 text-xs">Unité</div>
+            <div className="w-12 shrink-0 text-xs">
+              <SortHeader label="Unité" field="unit" current={sortBy} dir={sortDir} onSort={handleSort} />
+            </div>
           </div>
 
           {/* List */}

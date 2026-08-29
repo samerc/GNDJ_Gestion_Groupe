@@ -120,6 +120,11 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
             "firstname" => desc ? query.OrderByDescending(m => m.FirstName) : query.OrderBy(m => m.FirstName),
             "dateofbirth" => desc ? query.OrderByDescending(m => m.DateOfBirth) : query.OrderBy(m => m.DateOfBirth),
             "cardnumber" => desc ? query.OrderByDescending(m => m.CardNumber) : query.OrderBy(m => m.CardNumber),
+            // Sort by the member's active unit code (matches the "Unité" column, which shows the first active
+            // assignment's unit code). Members are then sub-sorted by name via the ThenBy below.
+            "unit" => desc
+                ? query.OrderByDescending(m => m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Code).FirstOrDefault())
+                : query.OrderBy(m => m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Code).FirstOrDefault()),
             _ => desc ? query.OrderByDescending(m => m.LastName) : query.OrderBy(m => m.LastName),
         };
 
