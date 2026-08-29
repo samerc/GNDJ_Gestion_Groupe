@@ -371,6 +371,18 @@ On the first request after a deploy the app **auto‑runs any new EF migrations*
 
 ## 11. Switching the domain to gndj.org (later)
 
+> ✅ **DONE 2026-08-29 — `gndj.org` is now the primary domain.** What we actually did (differs slightly from
+> the runbook below): TLS = a free **Cloudflare Origin Certificate** (`gndj.org` + `*.gndj.org`, 15 yr) imported
+> to `LocalMachine\My` + IIS **SNI** bindings on site `GNDJ` for `gndj.org`/`www` — NOT win-acme (which stays on
+> `new.gndj.org`); Cloudflare **SSL mode = Full (strict)**. DNS: apex `@` A → origin **`144.91.89.20`** Proxied,
+> `www` CNAME → `gndj.org` Proxied (were DNS-only → old site `185.190.91.230`). Redirect: a **Page Rule**
+> `new.gndj.org/*` → **Forwarding URL 301** `https://gndj.org/$1` (this account has Page Rules, not Redirect
+> Rules). `AllowedHosts` (was `new.gndj.org` only) → `gndj.org;www.gndj.org;new.gndj.org`. `app.base_url` →
+> `https://gndj.org`. **Extra:** the old site lived under `/gndj` and 301'd root there → cached in returning
+> visitors' browsers, so the app now client-redirects `/gndj` + `/gndj/*` → `/` (App.tsx, commit 5270181).
+> **Still pending:** origin firewall → Cloudflare IPs only; retire `new.gndj.org` (DNS + Page Rule + drop from
+> AllowedHosts) after the overlap.
+
 Goal: make **`gndj.org`** the primary home and turn **`new.gndj.org` into a 301 redirect → `gndj.org`**
 (NOT the other way — a `new.` subdomain reads as temporary, and the public site belongs on the root domain).
 No client rebuild is needed (the SPA calls a relative `/api/v1`). The app is behind **Cloudflare**, in‑process

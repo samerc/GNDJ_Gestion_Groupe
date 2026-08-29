@@ -3429,6 +3429,35 @@ backend robustness fix. DEV until deploy.
       that come pre-concatenated from the backend already show the stored formatted value, so they're covered;
       the SMTP/config phone-ish fields are not phone numbers.
 
+### Domain switch → gndj.org (2026-08-29, DONE + live)
+Made **`gndj.org`** the primary production domain (was `new.gndj.org`). The `gndj.org` zone was already on
+Cloudflare; apex `@`+`www` were DNS-only pointing at the disposable **old** static site (`185.190.91.230`). App
+**origin IP = `144.91.89.20`**. Walked the user through it on the prod server (samer's box). Full detail in memory
+[[project-production-deployment]] + `docs/DEPLOYMENT.md` §11 (DONE callout).
+- **TLS = free Cloudflare Origin Certificate** (`gndj.org` + `*.gndj.org`, 15 yr) — chosen over win-acme (user
+      wanted free + no-renewals + Cloudflare-only posture, no CT-log exposure). PEM→PFX (`openssl pkcs12`) →
+      `LocalMachine\My` (thumbprint `C101C44B…`) → IIS **SNI** bindings on site `GNDJ` for `gndj.org`/`www` (80+443,
+      `netsh http add sslcert hostnameport=`). `new.gndj.org` keeps its win-acme cert (coexist via SNI). Cloudflare
+      **SSL mode = Full (strict)**.
+- **`AllowedHosts`** in `appsettings.Production.json` was **`new.gndj.org`** only → `gndj.org;www.gndj.org;new.gndj.org`
+      (else the app 400s the new Host); recycled app pool `gndj` (NOT `iisreset` — shared box). `Cloudflare:Enabled`
+      stays true.
+- **DNS cutover:** apex `@` A → `144.91.89.20` **Proxied**, `www` CNAME → `gndj.org` **Proxied**. **MX (Zoho) + all
+      TXT (SPF/DKIM/DMARC) untouched** — email unaffected. Verified: `gndj.org` → CF edge, public API 200, app
+      homepage title, public Google-Trust edge cert.
+- **Redirect:** this CF account has **Page Rules** (not Redirect Rules) → Page Rule `new.gndj.org/*` → **Forwarding
+      URL 301** `https://gndj.org/$1` (preserves path+query; a `/reset-password?token=…` link 301s intact).
+- **`app.base_url` → `https://gndj.org`** (email links).
+- **Legacy `/gndj` redirect (code, commit `5270181`):** the old site lived under `/gndj` and 301-redirected root
+      there → that permanent redirect is **cached in returning visitors' browsers** → opening `gndj.org` replays it
+      to `/gndj` = app 404. Added client-side routes `/gndj` + `/gndj/*` → `<Navigate to="/">` (App.tsx). Safe
+      (pushState, no HTTP GET of `/`, can't re-trigger the cached 301 → no loop). Deployed via `update.ps1 -Pull`.
+      Also fixed the communications email-preview sample URL new.→gndj. (commit `e9de257`), and the **CU guide + PDF**
+      login URL → `gndj.org`.
+- **PENDING:** (a) **origin firewall → Cloudflare IPs only** (the real hardening — closes direct-to-origin bypass +
+      makes the Origin-cert CF-only caveat moot); (b) **retire `new.gndj.org`** (DNS + Page Rule + drop from
+      AllowedHosts) after the activation-link overlap; (c) optional one-time Cloudflare cache purge.
+
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to

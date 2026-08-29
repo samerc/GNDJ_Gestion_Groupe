@@ -27,7 +27,7 @@
 
 ## 1. Se connecter et choisir son mot de passe
 
-1. Ouvrez **https://new.gndj.org** dans votre navigateur (Chrome, Edge, Safari…).
+1. Ouvrez **https://gndj.org** dans votre navigateur (Chrome, Edge, Safari…).
 2. Sur la page **« Espace membres »**, saisissez votre **identifiant** (`prenom.nom@scouts.gndj`) et le
    **mot de passe** qui vous a été communiqué, puis cliquez sur **Se connecter**.
 
