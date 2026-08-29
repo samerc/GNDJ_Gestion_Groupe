@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GNDJ.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,9 +28,25 @@ public static class AuthAccess
             .ToListAsync(ct);
 
         var permissions = rows.SelectMany(r => r.Perms).Distinct().ToList();
+        var groupLevel = rows.Any(r => r.IsGroupLevel);
 
-        // A group-level profile (Chef de Groupe) sees ALL units, like a super-admin.
-        var unitIds = rows.Any(r => r.IsGroupLevel)
+        // Access delegation ("accès délégué"): extra permissions the CG granted to THIS member directly (no
+        // assignment/visible role). Merged in here — the single chokepoint feeding both login and refresh — so a
+        // delegated incoming CG (or a granular "Camp BP only" grant) takes effect on the next token issue.
+        var delegation = await context.Members
+            .Where(m => m.Id == memberId)
+            .Select(m => new { m.DelegatedPermissionsJson, m.DelegatedGroupAccess })
+            .FirstOrDefaultAsync(ct);
+        if (!string.IsNullOrWhiteSpace(delegation?.DelegatedPermissionsJson))
+        {
+            var extra = JsonSerializer.Deserialize<List<string>>(delegation.DelegatedPermissionsJson) ?? [];
+            permissions = permissions.Union(extra).Distinct().ToList();
+            // A full-CG delegation grants group-wide access (all units) so the stand-in can act everywhere.
+            if (delegation.DelegatedGroupAccess) groupLevel = true;
+        }
+
+        // A group-level profile (Chef de Groupe) — or a full-CG delegation — sees ALL units, like a super-admin.
+        var unitIds = groupLevel
             ? await context.Units.Select(u => u.Id).ToListAsync(ct)
             : rows.Select(r => r.UnitId).Distinct().ToList();
 

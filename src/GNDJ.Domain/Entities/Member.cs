@@ -53,6 +53,18 @@ public class Member : BaseEntity
     public Guid? SiblingGroupId { get; set; }
     public SiblingGroup? SiblingGroup { get; set; }
 
+    // Access delegation ("accès délégué") — extra permissions granted to THIS member without any assignment or
+    // visible role, set by the CG/super-admin (roles.manage_group). Invisible everywhere (no role shows on the
+    // public site / maîtrises). Two uses: a full "Chef de Groupe entrant" hand-off (the incoming CG works before
+    // the role is formally set / in case the outgoing CG is unavailable), or a granular per-area grant (e.g. give
+    // one ACG "Camp BP" only). The perms are merged into the JWT at the next login/refresh (see AuthAccess).
+    // DelegatedPermissionsJson = a JSON array of permission strings (null/empty = no delegation).
+    public string? DelegatedPermissionsJson { get; set; }
+    // When true, the delegation also grants group-wide access (all units) — set by the full-CG preset so the
+    // stand-in can act across the whole group. Granular area grants leave this false (the person keeps their own
+    // unit scope + the delegated area perms).
+    public bool DelegatedGroupAccess { get; set; }
+
     public User? User { get; set; }
     public ICollection<MemberPhone> Phones { get; set; } = [];
     public ICollection<MemberEmail> Emails { get; set; } = [];

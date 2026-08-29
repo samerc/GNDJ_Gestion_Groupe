@@ -52,7 +52,11 @@ public record MemberDetailDto(
     string? PrimaryContactEmail, // designated recipient for member-facing mail (null = auto)
     IReadOnlyList<string> GuardianEmails, // distinct guardian emails available as contact options
     MemberTabCountsDto Counts, // per-tab badge counts, so the detail panel needs no extra count queries
-    int AbsencesThisYear // count of the member's absences on approved réunions in the current scout year
+    int AbsencesThisYear, // count of the member's absences on approved réunions in the current scout year
+    // Access delegation ("accès délégué") — extra hidden permissions granted to this member (no visible role).
+    // HasDelegatedAccess drives the panel badge; DelegatedGroupAccess = the full "Chef de Groupe entrant" hand-off.
+    bool HasDelegatedAccess,
+    bool DelegatedGroupAccess
 );
 
 // Counts shown as tab badges on the member detail panel — folded into the detail query so opening a member

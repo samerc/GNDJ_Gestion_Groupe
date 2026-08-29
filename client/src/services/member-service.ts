@@ -52,6 +52,8 @@ export interface MemberDetailDto {
   guardianEmails: string[] // distinct guardian emails, available as contact-email options
   counts: MemberTabCounts // per-tab badge counts (folded in so the panel needs no extra count queries)
   absencesThisYear: number // count of absences on approved réunions this scout year (Réunions feature)
+  hasDelegatedAccess: boolean // an access delegation ("accès délégué") is active on this member
+  delegatedGroupAccess: boolean // the delegation is the full "Chef de Groupe entrant" hand-off
 }
 
 // Tab badge counts returned with the member detail (famille / unités / documents / cotisations / progression).
@@ -229,6 +231,34 @@ export function useResetMemberPassword() {
   return useMutation({
     mutationFn: (id: string) =>
       apiClient.post<{ username: string; temporaryPassword: string; sentToEmail: string | null }>(`/members/${id}/reset-password`).then(r => r.data),
+  })
+}
+
+// ── Access delegation ("accès délégué") ──
+// Grant a specific member extra access (the full Chef de Groupe toolset, or granular areas like Camp BP) with
+// no visible role. CG (roles.manage_group) / super-admin only. Takes effect on the member's next login/refresh.
+export interface DelegationArea { key: string; label: string; level: string } // level: aucun | lecture | complet
+export interface MemberDelegation { hasDelegation: boolean; fullCg: boolean; areas: DelegationArea[] }
+
+// GET the member's current delegation (per-area levels + full-CG flag), for the dialog.
+export function useMemberDelegation(memberId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['members', memberId, 'delegation'],
+    queryFn: () => apiClient.get<MemberDelegation>(`/members/${memberId}/delegation`).then(r => r.data),
+    enabled,
+  })
+}
+
+// PUT the delegation: fullCg = full Chef de Groupe hand-off, else areaLevels = granular per-area (empty clears).
+export function useSetMemberDelegation(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { fullCg: boolean; areaLevels?: Record<string, string> }) =>
+      apiClient.put(`/members/${memberId}/delegation`, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members', memberId] })
+      qc.invalidateQueries({ queryKey: ['members', memberId, 'delegation'] })
+    },
   })
 }
 

@@ -208,6 +208,36 @@ public class MembersController : BaseApiController
 
     public record SetPrimaryEmailRequest(string? Email);
 
+    /// <summary>
+    /// Gets the member's current access delegation (per-area levels + full-CG flag). Requires roles.manage_group
+    /// (CG) or super-admin.
+    /// </summary>
+    [HttpGet("{id:guid}/delegation")]
+    [HasPermission(Permissions.RolesManageGroup)]
+    public async Task<IActionResult> GetDelegation(Guid id)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Members.GetMemberDelegationQuery(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Sets (fullCg = full Chef de Groupe hand-off, or areaLevels = granular per-area) or clears (empty) a
+    /// member's access delegation — extra permissions with no visible role. Requires roles.manage_group / super-admin;
+    /// a non-super granter can only delegate what they hold. Takes effect on the member's next login/refresh.
+    /// </summary>
+    [HttpPut("{id:guid}/delegation")]
+    [HasPermission(Permissions.RolesManageGroup)]
+    public async Task<IActionResult> SetDelegation(Guid id, [FromBody] SetDelegationRequest body)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Members.SetMemberDelegationCommand(
+            id, body?.FullCg ?? false, body?.AreaLevels));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    public record SetDelegationRequest(bool FullCg, Dictionary<string, string>? AreaLevels);
+
     // --- Contact endpoints ---
 
     /// <summary>Adds a phone number to a member. Requires members.edit.</summary>

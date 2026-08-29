@@ -49,7 +49,8 @@ import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPT
 import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck } from 'lucide-react'
+import { DelegationDialog } from './delegation-dialog'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 
@@ -112,6 +113,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
   const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
   const canDelete = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_DELETE))
+  const canDelegate = useAuthStore((s) => s.hasPermission(PERMISSIONS.ROLES_MANAGE_GROUP)) // CG/super-admin: accès délégué
   // Member-card generation is a group-wide toggle (Paramètres → Rapports). Off => hide the download action.
   const cardsEnabled = useSettingValue('reports.cards_enabled') !== 'false'
   const canManageSiblings = useAuthStore((s) => s.hasPermission(PERMISSIONS.MAITRISE_MANAGE)) // CG/super-admin: link/unlink fratries
@@ -149,6 +151,9 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   // Reset password (one-time credentials).
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [resetCreds, setResetCreds] = useState<{ username: string; password: string; sentToEmail: string | null } | null>(null)
+
+  // Access delegation ("accès délégué") — CG grants this member extra hidden access (full CG or per-area).
+  const [delegationOpen, setDelegationOpen] = useState(false)
 
   // Delete member (soft-delete → Corbeille, restorable until the purge job runs).
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -294,6 +299,13 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                 ? <>Identifiant : <span className="font-medium text-foreground">{member.username}</span></>
                 : <span className="italic">Aucun compte utilisateur</span>}
             </p>
+            {/* Access delegation badge — visible to the CG so they know this member holds hidden extra access. */}
+            {member.hasDelegatedAccess && (
+              <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                <ShieldCheck className="h-3 w-3" />
+                {member.delegatedGroupAccess ? 'Accès délégué : Chef de Groupe' : 'Accès délégué'}
+              </p>
+            )}
           </div>
           <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
             {/* Member actions as a single LABELLED menu (was four hover-only, unlabelled icon buttons — invisible
@@ -317,6 +329,11 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                   {cardsEnabled && (
                     <DropdownMenuItem onClick={downloadCard}>
                       <CreditCard className="mr-2 h-4 w-4" />Télécharger la carte de membre
+                    </DropdownMenuItem>
+                  )}
+                  {canDelegate && (
+                    <DropdownMenuItem onClick={() => setDelegationOpen(true)}>
+                      <ShieldCheck className="mr-2 h-4 w-4" />Délégation d'accès
                     </DropdownMenuItem>
                   )}
                   {canDelete && (
@@ -681,6 +698,12 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
       </Dialog>
 
       <ConfirmDialog open={!!deletingContact} onOpenChange={() => setDeletingContact(null)} title="Supprimer" description={`Êtes-vous sûr de vouloir supprimer « ${deletingContact?.label} » ?`} confirmLabel="Supprimer" variant="destructive" onConfirm={handleDeleteContact} />
+
+      {/* Accès délégué (CG/super-admin) */}
+      {canDelegate && (
+        <DelegationDialog memberId={memberId} memberName={`${member.firstName} ${member.lastName}`}
+          open={delegationOpen} onOpenChange={setDelegationOpen} />
+      )}
 
       {/* Delete member (soft-delete → Corbeille) */}
       <ConfirmDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen} title="Supprimer le membre"

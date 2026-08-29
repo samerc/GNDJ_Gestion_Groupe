@@ -300,7 +300,10 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
                     m.Progressions.Count(p => !p.IsDeleted)),
                 // Absences on APPROVED réunions within the current scout year (Réunions feature).
                 _context.MeetingAbsences.Count(a => !a.IsDeleted && a.MemberId == m.Id
-                    && a.Meeting.Status == "Approved" && a.Meeting.Date >= syStart && a.Meeting.Date < syEnd)
+                    && a.Meeting.Status == "Approved" && a.Meeting.Date >= syStart && a.Meeting.Date < syEnd),
+                // Access delegation flags (drive the panel badge; managed via the delegation dialog).
+                m.DelegatedPermissionsJson != null && m.DelegatedPermissionsJson != "",
+                m.DelegatedGroupAccess
             ))
             .FirstOrDefaultAsync(cancellationToken);
     }

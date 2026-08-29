@@ -3500,6 +3500,36 @@ Profession field and classe shouldn't be mandatory for them.
 - Verified live (admin API): update with classe=null → 204 (was 400 "La classe est requise"); profession value
       persists + reads back. Builds clean (dotnet + tsc + eslint), migration applied on dev. DEV until deploy.
 
+### Access delegation — "accès délégué" per member (2026-08-30)
+A CG-succession + delegation tool: grant a SPECIFIC member extra access WITHOUT any assignment or visible role
+(invisible on the public site / maîtrises), so an **incoming CG can work the demandes + full toolset before the
+role change is announced** (or if the outgoing CG becomes unavailable — happened when a CG travelled), and so a CG
+can hand one person a single feature (e.g. Camp BP) regardless of their role. Key realization: an ACG already
+holds `maitrise.manage` → is already `IsGroupManager`, so the ONLY thing blocking them from demandes is the two
+`demande.*` perms — this feature simply merges extra perms into that member's JWT, invisibly.
+- **Model:** `Member.DelegatedPermissionsJson` (JSON array of permission strings) + `Member.DelegatedGroupAccess`
+      (bool → grant all units + group-manager scope) — migration `AddMemberDelegatedAccess` (2 nullable/defaulted
+      cols, no new table). Merged in **`AuthAccess.LoadAsync`** (the single chokepoint for BOTH login + refresh):
+      union the delegated perms; if `DelegatedGroupAccess`, set `groupLevel=true` → all units (like a CG profile).
+      Takes effect on the member's next login/refresh (≤15 min).
+- **Grant model reuses `GroupAccessAreas`** (the same per-area map as the *Accès maîtrise* page): two shapes —
+      (a) **full CG** ("Chef de Groupe entrant") = the entire live `chef-de-groupe` permission set (INCL.
+      `roles.manage_group` / the appointment power, on purpose — a true stand-in) + `DelegatedGroupAccess=true`;
+      (b) **granular** = one or more areas at Aucun/Lecture/Complet (e.g. Camp BP → Complet). Granular strips
+      `GroupAccessAreas.NonDelegatable` (never leaks appointment/system perms); the full-CG preset does NOT (it IS
+      the CG set). **No-escalation cap:** a non-super granter's result is intersected with their own perms.
+- **API** (`Application/Members/MemberDelegationHandlers.cs`): `GET /members/{id}/delegation` (per-area levels +
+      fullCg flag) + `PUT /members/{id}/delegation { fullCg, areaLevels }` (empty clears) — both gated
+      **`roles.manage_group`** (CG) / super-admin; audited `SetDelegation`. `MemberDetailDto` gained
+      `HasDelegatedAccess` + `DelegatedGroupAccess` for a panel badge.
+- **UI:** member panel **Actions ▾ → "Délégation d'accès"** (shown with `roles.manage_group`) → dialog
+      (`members/delegation-dialog.tsx`): a **"Accès complet Chef de Groupe (entrant)"** switch + granular per-area
+      selects + "Tout retirer"; a **"Accès délégué : Chef de Groupe"** badge on the panel when active.
+- **Verified live end-to-end:** full-CG on a plain CU → 47 CG perms + all 17 units in the JWT + `/demandes` 200;
+      granular Camp BP → only `camp.*` (no demande/appointment), `/demandes` 403; clear → NULL; a plain CU (no
+      `roles.manage_group`) → 403 on the endpoints. Build clean (dotnet + tsc + eslint + vite). DEV until deploy
+      (migration applies on prod startup).
+
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
