@@ -11,7 +11,7 @@ import Image from '@tiptap/extension-image'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
-  AlignLeft, AlignCenter, AlignRight,
+  AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Link as LinkIcon, Undo, Redo, Variable, Image as ImageIcon, Loader2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -119,6 +119,9 @@ export function RichTextEditor({ content, onChange, variables, placeholder, clas
         </ToolbarButton>
         <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="Aligner a droite">
           <AlignRight className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('justify').run()} active={editor.isActive({ textAlign: 'justify' })} title="Justifier">
+          <AlignJustify className="h-4 w-4" />
         </ToolbarButton>
 
         <div className="w-px h-5 bg-border mx-1" />
