@@ -57,7 +57,10 @@ public record MemberDetailDto(
     // Access delegation ("accès délégué") — extra hidden permissions granted to this member (no visible role).
     // HasDelegatedAccess drives the panel badge; DelegatedGroupAccess = the full "Chef de Groupe entrant" hand-off.
     bool HasDelegatedAccess,
-    bool DelegatedGroupAccess
+    bool DelegatedGroupAccess,
+    // Whether the "Profession / En activité" option is offered: false for a youth (non-maîtrise) in Meute/Ronde/
+    // Compagnie/Troupe (they're in school → Classe/Section only); true for maîtrise/chefs, older branches, or none.
+    bool ShowProfession
 );
 
 // Counts shown as tab badges on the member detail panel — folded into the detail query so opening a member

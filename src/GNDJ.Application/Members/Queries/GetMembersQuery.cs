@@ -245,6 +245,9 @@ public record GetMemberByIdQuery(Guid Id) : IRequest<MemberDetailDto?>;
 
 public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, MemberDetailDto?>
 {
+    // Youth branches (school-age) — a non-maîtrise member here fills Classe/Section, not a profession.
+    private static readonly string[] YouthBranchCodes = ["MEU", "RON", "COM", "TRO"];
+
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
 
@@ -303,7 +306,13 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
                     && a.Meeting.Status == "Approved" && a.Meeting.Date >= syStart && a.Meeting.Date < syEnd),
                 // Access delegation flags (drive the panel badge; managed via the delegation dialog).
                 m.DelegatedPermissionsJson != null && m.DelegatedPermissionsJson != "",
-                m.DelegatedGroupAccess
+                m.DelegatedGroupAccess,
+                // ShowProfession: hide the "En activité / Profession" option for a youth (non-maîtrise) whose active
+                // branch is Meute/Ronde/Compagnie/Troupe (school-age → Classe/Section only). Shown for maîtrise/chefs,
+                // older branches (Clan/Noyau/JEM/Feu…), or a member with no active assignment.
+                !m.Assignments.Any(a => a.EndDate == null)
+                    || m.Assignments.Any(a => a.EndDate == null
+                        && (a.FunctionalRole.IsMaitrise || !YouthBranchCodes.Contains(a.Unit.UnitType.Code)))
             ))
             .FirstOrDefaultAsync(cancellationToken);
     }

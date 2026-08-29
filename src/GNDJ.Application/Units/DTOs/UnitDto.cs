@@ -13,6 +13,7 @@ public record UnitDto(
     string? AssociationName,
     Guid UnitTypeId,
     string UnitTypeName,
+    string UnitTypeCode, // branch code (MEU/RON/COM/TRO/…) — drives youth-vs-older UI decisions
     int TeamCount,
     int MemberCount,
     string? Slug,

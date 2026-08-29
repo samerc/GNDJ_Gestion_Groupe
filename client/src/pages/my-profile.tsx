@@ -141,7 +141,7 @@ export default function MyProfilePage() {
       medicalNotes: member.medicalNotes ?? '', allergies: member.allergies ?? '',
       notes: member.notes ?? '',
     })
-    setSituation(member.professionDomain || member.profession ? 'working' : 'student')
+    setSituation(member.showProfession && (member.professionDomain || member.profession) ? 'working' : 'student')
     setError('')
     setEditing(true)
   }
@@ -297,20 +297,23 @@ export default function MyProfilePage() {
                       )
                     })()}
                   </div>
-                  {/* Situation: student (Classe/Section) vs working (Domaine/Profession). Full-width toggle row. */}
-                  <div className="space-y-2 sm:col-span-2">
-                    <RequiredLabel>Situation</RequiredLabel>
-                    <div className="inline-flex h-9 items-center rounded-md border p-0.5">
-                      <button type="button" onClick={() => setSituation('student')}
-                        className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'student' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
-                        Scolarisé(e)
-                      </button>
-                      <button type="button" onClick={() => setSituation('working')}
-                        className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'working' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
-                        En activité
-                      </button>
+                  {/* Situation toggle — only for older members (a youth in Meute/Ronde/Compagnie/Troupe stays
+                      Classe/Section; member.showProfession is false there so the toggle is hidden). */}
+                  {member.showProfession && (
+                    <div className="space-y-2 sm:col-span-2">
+                      <RequiredLabel>Situation</RequiredLabel>
+                      <div className="inline-flex h-9 items-center rounded-md border p-0.5">
+                        <button type="button" onClick={() => setSituation('student')}
+                          className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'student' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                          Scolarisé(e)
+                        </button>
+                        <button type="button" onClick={() => setSituation('working')}
+                          className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'working' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                          En activité
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                   {situation === 'student' ? (
                     <>
                       <div className="space-y-2">
@@ -360,7 +363,7 @@ export default function MyProfilePage() {
                   <Field label="Nationalité" value={member.nationality} />
                   <Field label="Groupe sanguin" value={member.bloodType} />
                   <Field label="École" value={member.school} />
-                  {(member.professionDomain || member.profession) ? (
+                  {(member.showProfession && (member.professionDomain || member.profession)) ? (
                     <>
                       <Field label="Domaine" value={member.professionDomain} />
                       <Field label="Profession" value={member.profession} />

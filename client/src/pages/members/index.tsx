@@ -64,6 +64,10 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 }
 
 
+// Youth (school-age) branches: a member here fills Classe/Section, never a profession. Used to hide the
+// "En activité" option in the create dialog (the panel/Ma fiche use the server-computed member.showProfession).
+const YOUTH_BRANCH_CODES = ['MEU', 'RON', 'COM', 'TRO']
+
 function Section({ icon: Icon, title, children }: { icon: ComponentType<{ className?: string }>; title: string; children: ReactNode }) {
   return (
     <div>
@@ -201,8 +205,9 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
       professionDomain: member.professionDomain ?? '', profession: member.profession ?? '',
       medicalNotes: member.medicalNotes ?? '', allergies: member.allergies ?? '', notes: member.notes ?? '',
     })
-    // A member with a profession filled is "working"; otherwise default to "student" (classe/section).
-    setSituation(member.professionDomain || member.profession ? 'working' : 'student')
+    // A member with a profession filled is "working"; otherwise default to "student". Youth branches never
+    // offer profession (member.showProfession = false), so force "student" there.
+    setSituation(member.showProfession && (member.professionDomain || member.profession) ? 'working' : 'student')
     setError(''); setEditing(true)
   }
 
@@ -466,20 +471,23 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                       )
                     })()}
                   </div>
-                  {/* Situation toggle: student (Classe/Section) vs working (Domaine/Profession). Full-width row. */}
-                  <div className="space-y-1.5 sm:col-span-2 xl:col-span-3">
-                    <RequiredLabel>Situation</RequiredLabel>
-                    <div className="inline-flex h-9 items-center rounded-md border p-0.5">
-                      <button type="button" onClick={() => setSituation('student')}
-                        className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'student' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
-                        Scolarisé(e)
-                      </button>
-                      <button type="button" onClick={() => setSituation('working')}
-                        className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'working' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
-                        En activité
-                      </button>
+                  {/* Situation toggle (only for older members — youth in Meute/Ronde/Compagnie/Troupe are
+                      Classe/Section only, so the toggle is hidden and situation stays 'student'). */}
+                  {member.showProfession && (
+                    <div className="space-y-1.5 sm:col-span-2 xl:col-span-3">
+                      <RequiredLabel>Situation</RequiredLabel>
+                      <div className="inline-flex h-9 items-center rounded-md border p-0.5">
+                        <button type="button" onClick={() => setSituation('student')}
+                          className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'student' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                          Scolarisé(e)
+                        </button>
+                        <button type="button" onClick={() => setSituation('working')}
+                          className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'working' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                          En activité
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                   {situation === 'student' ? (
                     <>
                       <div className="space-y-1.5">
@@ -514,7 +522,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
               ) : (
                 <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
                   <Field label="École" value={member.school} />
-                  {(member.professionDomain || member.profession) ? (
+                  {(member.showProfession && (member.professionDomain || member.profession)) ? (
                     <>
                       <Field label="Domaine" value={member.professionDomain} />
                       <Field label="Profession" value={member.profession} />
@@ -906,6 +914,12 @@ export default function MembersPage() {
     setPage(1)
   }
 
+  // Create form: hide the "En activité" option when the chosen unit is a youth branch (Meute/Ronde/Compagnie/
+  // Troupe) — those members fill Classe/Section only. createSituation = effective situation (forced 'student').
+  const createSelectedUnit = units?.items.find(u => u.id === form.unitId)
+  const createIsYouthUnit = !!createSelectedUnit && YOUTH_BRANCH_CODES.includes(createSelectedUnit.unitTypeCode)
+  const createSituation = createIsYouthUnit ? 'student' : situation
+
   const { data, isLoading } = useMembers({
     search: debouncedSearch || undefined,
     unitId, noUnit, maitrise,
@@ -938,8 +952,8 @@ export default function MembersPage() {
     try {
       const payload = { ...form, dateOfBirth: form.dateOfBirth || null, gender: form.gender || null, bloodType: form.bloodType || null, nationality: form.nationality || null, school: form.school || null,
         // Mutually exclusive by situation (student keeps classe/section, working keeps domaine/profession).
-        classe: situation === 'student' ? (form.classe || null) : null, section: situation === 'student' ? (form.section || null) : null,
-        professionDomain: situation === 'working' ? (form.professionDomain || null) : null, profession: situation === 'working' ? (form.profession || null) : null,
+        classe: createSituation === 'student' ? (form.classe || null) : null, section: createSituation === 'student' ? (form.section || null) : null,
+        professionDomain: createSituation === 'working' ? (form.professionDomain || null) : null, profession: createSituation === 'working' ? (form.profession || null) : null,
         fatherName: form.fatherName || null, motherName: form.motherName || null, motherMaidenName: form.motherMaidenName || null, unitId: form.unitId || null }
       const result = await createMutation.mutateAsync(payload)
       toast.success('Membre créé')
@@ -1199,21 +1213,24 @@ export default function MembersPage() {
                   )
                 })()}
               </div>
-              {/* Situation: student (Classe/Section) vs working (Domaine/Profession). Full-width toggle row. */}
-              <div className="space-y-2 sm:col-span-2">
-                <RequiredLabel>Situation</RequiredLabel>
-                <div className="inline-flex h-9 items-center rounded-md border p-0.5">
-                  <button type="button" onClick={() => setSituation('student')}
-                    className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'student' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
-                    Scolarisé(e)
-                  </button>
-                  <button type="button" onClick={() => setSituation('working')}
-                    className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'working' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
-                    En activité
-                  </button>
+              {/* Situation toggle — hidden when a youth-branch unit is selected (Meute/Ronde/Compagnie/Troupe →
+                  Classe/Section only). For older branches or no unit, the CG chooses. */}
+              {!createIsYouthUnit && (
+                <div className="space-y-2 sm:col-span-2">
+                  <RequiredLabel>Situation</RequiredLabel>
+                  <div className="inline-flex h-9 items-center rounded-md border p-0.5">
+                    <button type="button" onClick={() => setSituation('student')}
+                      className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'student' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                      Scolarisé(e)
+                    </button>
+                    <button type="button" onClick={() => setSituation('working')}
+                      className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'working' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                      En activité
+                    </button>
+                  </div>
                 </div>
-              </div>
-              {situation === 'student' ? (
+              )}
+              {createSituation === 'student' ? (
                 <>
                   <div className="space-y-2">
                     <RequiredLabel>Classe</RequiredLabel>

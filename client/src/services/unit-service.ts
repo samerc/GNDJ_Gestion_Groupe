@@ -13,6 +13,7 @@ export interface UnitDto {
   associationName: string | null
   unitTypeId: string
   unitTypeName: string
+  unitTypeCode: string
   teamCount: number
   memberCount: number
   slug: string | null

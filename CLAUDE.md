@@ -3509,6 +3509,14 @@ Profession field and classe shouldn't be mandatory for them.
       never both; the toggle's initial state is derived from the data (profession filled → working). Read-only views
       show Domaine+Profession or Classe+Section accordingly. Verified live: update→working persists profession +
       clears classe; `<script>` → 400. Builds clean (dotnet+tsc+eslint+vite). DEV until deploy.
+- **Branch-gated (2026-08-30):** the "En activité / Profession" option is HIDDEN for youth (school-age) — the toggle
+      shows only when `MemberDetailDto.ShowProfession` is true. Server-computed in `GetMemberByIdQuery`:
+      false for a member whose EVERY active assignment is a **non-maîtrise role in a youth branch**
+      (`YouthBranchCodes` = MEU/RON/COM/TRO); true for maîtrise/chefs (even in a youth unit), older branches
+      (Clan/Noyau/JEM/Feu…), or no active assignment. Panel + Ma fiche gate the toggle + force 'student' on it; the
+      create dialog gates on the selected unit's branch (`UnitDto.UnitTypeCode` added to the list query + TS type;
+      `YOUTH_BRANCH_CODES` const). Verified live: pure youth (Meute) → false (no toggle); Clan member → true; chef in
+      a youth branch → true; a youth who is ALSO an ACU elsewhere → true (correct — leaders can work).
 
 ### Access delegation — "accès délégué" per member (2026-08-30)
 A CG-succession + delegation tool: grant a SPECIFIC member extra access WITHOUT any assignment or visible role
