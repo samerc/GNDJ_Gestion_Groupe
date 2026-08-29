@@ -267,6 +267,14 @@ export default function App() {
           </Route>
         </Route>
 
+        {/* Legacy domain: the old static gndj.org lived under /gndj and 301-redirected the root
+            there, so many returning visitors have that PERMANENT redirect cached and land on
+            /gndj (a 404 on the new app). Bounce /gndj* back to the home. This is a CLIENT-side
+            redirect (React Router pushState) — it never re-issues an HTTP GET for "/", so it
+            cannot re-trigger the browser's cached 301 → no redirect loop. */}
+        <Route path="/gndj" element={<Navigate to="/" replace />} />
+        <Route path="/gndj/*" element={<Navigate to="/" replace />} />
+
         <Route path="*" element={
           <div className="flex flex-col items-center justify-center h-screen gap-4">
             <h1 className="text-4xl font-bold text-muted-foreground">404</h1>
