@@ -239,6 +239,9 @@ export function useResetMemberPassword() {
 // no visible role. CG (roles.manage_group) / super-admin only. Takes effect on the member's next login/refresh.
 export interface DelegationArea { key: string; label: string; level: string } // level: aucun | lecture | complet
 export interface MemberDelegation { hasDelegation: boolean; fullCg: boolean; areas: DelegationArea[] }
+// Overview row for the Accès maîtrise page: one member holding a delegation. areas = "Label (niveau)" strings
+// (empty for a full-CG grant — fullCg conveys it). unitCode = their current unit (null if none).
+export interface MemberDelegationSummary { memberId: string; name: string; unitCode: string | null; fullCg: boolean; areas: string[] }
 
 // GET the member's current delegation (per-area levels + full-CG flag), for the dialog.
 export function useMemberDelegation(memberId: string, enabled: boolean) {
@@ -246,6 +249,14 @@ export function useMemberDelegation(memberId: string, enabled: boolean) {
     queryKey: ['members', memberId, 'delegation'],
     queryFn: () => apiClient.get<MemberDelegation>(`/members/${memberId}/delegation`).then(r => r.data),
     enabled,
+  })
+}
+
+// GET all members who currently hold a delegation (tracking overview on the Accès maîtrise page).
+export function useMemberDelegations() {
+  return useQuery({
+    queryKey: ['members', 'delegations'],
+    queryFn: () => apiClient.get<MemberDelegationSummary[]>('/members/delegations').then(r => r.data),
   })
 }
 
@@ -258,6 +269,7 @@ export function useSetMemberDelegation(memberId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['members', memberId] })
       qc.invalidateQueries({ queryKey: ['members', memberId, 'delegation'] })
+      qc.invalidateQueries({ queryKey: ['members', 'delegations'] }) // refresh the Accès maîtrise overview
     },
   })
 }

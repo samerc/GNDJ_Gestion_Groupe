@@ -209,6 +209,19 @@ public class MembersController : BaseApiController
     public record SetPrimaryEmailRequest(string? Email);
 
     /// <summary>
+    /// Lists every member who currently holds an access delegation ("accès délégué") — for the Accès maîtrise
+    /// overview (who has what). Requires roles.manage_group (CG) or super-admin.
+    /// </summary>
+    [HttpGet("delegations")]
+    [HasPermission(Permissions.RolesManageGroup)]
+    public async Task<IActionResult> GetDelegations()
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Members.GetMemberDelegationsQuery());
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>
     /// Gets the member's current access delegation (per-area levels + full-CG flag). Requires roles.manage_group
     /// (CG) or super-admin.
     /// </summary>

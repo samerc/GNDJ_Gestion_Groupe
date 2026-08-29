@@ -13,6 +13,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { parseApiError } from '@/lib/error-utils'
 import { ShieldCheck, Save } from 'lucide-react'
 import { toast } from 'sonner'
+import { MemberDelegationsSection } from './member-delegations'
 
 const LEVELS = [
   { value: 'aucun', label: 'Aucun' },
@@ -55,6 +56,14 @@ export default function GroupAccessPage({ embedded = false }: { embedded?: boole
           </p>
         </div>
       )}
+
+      {/* Per-person delegations ("accès délégués") — tracked + managed here, above the per-function access. */}
+      <MemberDelegationsSection />
+
+      <div>
+        <h2 className="text-lg font-semibold">Accès par fonction</h2>
+        <p className="text-sm text-muted-foreground">Niveau d'accès par domaine pour chaque fonction de la maîtrise de groupe.</p>
+      </div>
 
       {(!functions || functions.length === 0) && (
         <Card><CardContent className="py-16 text-center text-muted-foreground">Aucune fonction de maîtrise de groupe.</CardContent></Card>

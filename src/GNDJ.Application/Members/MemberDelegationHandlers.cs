@@ -19,6 +19,51 @@ namespace GNDJ.Application.Members;
 //     the system/appointment perms (NonDelegatable), and stays capped to what the granter holds.
 // The merged perms take effect on the person's next login / token refresh (see AuthAccess.LoadAsync).
 
+// Overview row: one member who currently holds a delegation, for the Accès maîtrise page (tracking who has
+// what). Areas = the granted areas as "Label (niveau)" strings (empty for a full-CG grant — FullCg says it all).
+public record MemberDelegationSummaryDto(Guid MemberId, string Name, string? UnitCode, bool FullCg, IReadOnlyList<string> Areas);
+
+public record GetMemberDelegationsQuery : IRequest<Result<IReadOnlyList<MemberDelegationSummaryDto>>>;
+
+public class GetMemberDelegationsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetMemberDelegationsQuery, Result<IReadOnlyList<MemberDelegationSummaryDto>>>
+{
+    public async ValueTask<Result<IReadOnlyList<MemberDelegationSummaryDto>>> Handle(GetMemberDelegationsQuery request, CancellationToken ct)
+    {
+        if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(P.RolesManageGroup))
+            return Result<IReadOnlyList<MemberDelegationSummaryDto>>.Failure("Accès non autorisé.");
+
+        // Only members with an active delegation (bounded, tiny set) — pulled with their current unit code.
+        var rows = await context.Members
+            .Where(m => m.DelegatedPermissionsJson != null && m.DelegatedPermissionsJson != "")
+            .Select(m => new
+            {
+                m.Id, m.FirstName, m.LastName, m.DelegatedPermissionsJson, m.DelegatedGroupAccess,
+                UnitCode = m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Code).FirstOrDefault(),
+            })
+            .ToListAsync(ct);
+
+        var list = rows
+            .Select(r =>
+            {
+                var permSet = (JsonSerializer.Deserialize<List<string>>(r.DelegatedPermissionsJson!) ?? []).ToHashSet();
+                // Granular areas as "Label (niveau)"; omitted for a full-CG grant (the flag conveys it).
+                var areas = r.DelegatedGroupAccess
+                    ? []
+                    : GroupAccessAreas.All
+                        .Select(a => new { a.Label, Level = GroupAccessAreas.LevelOf(permSet, a) })
+                        .Where(x => x.Level != "aucun")
+                        .Select(x => $"{x.Label} ({x.Level})")
+                        .ToList();
+                return new MemberDelegationSummaryDto(r.Id, $"{r.FirstName} {r.LastName}", r.UnitCode, r.DelegatedGroupAccess, areas);
+            })
+            .OrderByDescending(x => x.FullCg).ThenBy(x => x.Name)
+            .ToList();
+
+        return Result<IReadOnlyList<MemberDelegationSummaryDto>>.Success(list);
+    }
+}
+
 // Current delegation for a member (per-area levels + the full-CG flag), for the dialog.
 public record MemberDelegationDto(bool HasDelegation, bool FullCg, IReadOnlyList<GroupAreaDto> Areas);
 

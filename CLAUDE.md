@@ -3525,6 +3525,13 @@ holds `maitrise.manage` → is already `IsGroupManager`, so the ONLY thing block
 - **UI:** member panel **Actions ▾ → "Délégation d'accès"** (shown with `roles.manage_group`) → dialog
       (`members/delegation-dialog.tsx`): a **"Accès complet Chef de Groupe (entrant)"** switch + granular per-area
       selects + "Tout retirer"; a **"Accès délégué : Chef de Groupe"** badge on the panel when active.
+- **Tracking + add-from-there (2026-08-30):** an **"Accès délégués"** overview at the top of the *Accès maîtrise*
+      tab (`/admin/roles-access`) — `GetMemberDelegationsQuery` + `GET /members/delegations` (roles.manage_group)
+      lists every member holding a delegation (name · unit · chips = "Chef de Groupe (accès complet)" or the granular
+      "Label (niveau)"), with **Ajouter** (member search → the same DelegationDialog), **Modifier** (reopen), and
+      **Retirer** (clears). `MemberDelegationsSection` in `pages/admin/member-delegations.tsx`, rendered inside
+      `group-access.tsx`; the set-hook now also invalidates `['members','delegations']`. So delegations are no longer
+      invisible until you open each fiche. Verified live: list shows full-CG (CG-first) + granular rows correctly.
 - **Verified live end-to-end:** full-CG on a plain CU → 47 CG perms + all 17 units in the JWT + `/demandes` 200;
       granular Camp BP → only `camp.*` (no demande/appointment), `/demandes` 403; clear → NULL; a plain CU (no
       `roles.manage_group`) → 403 on the endpoints. Build clean (dotnet + tsc + eslint + vite). DEV until deploy
