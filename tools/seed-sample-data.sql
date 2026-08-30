@@ -1,5 +1,5 @@
 -- Sample data for GNDJ Scout Management
--- Run with: PGPASSWORD="GndjDev2026!" psql -U gndj_admin -d gndj -f seed-sample-data.sql
+-- Run with: PGPASSWORD="GndjDev2026!" psql -U gndj_admin -d gndj -f tools/seed-sample-data.sql
 
 -- Association
 INSERT INTO associations (id, name, code, description, created_at, updated_at, is_deleted)

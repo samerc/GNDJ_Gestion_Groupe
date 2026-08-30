@@ -24,7 +24,7 @@ tests/GNDJ.*.Tests/                 # xUnit test projects
 client/                             # React frontend (Vite)
 docker-compose.yml                  # PostgreSQL 18 + pgAdmin
 start.ps1                           # Start both backend + frontend
-seed-sample-data.sql                # Sample data (Lebanese scout group)
+tools/seed-sample-data.sql          # Sample data (Lebanese scout group)
 ```
 
 ## Build Commands
