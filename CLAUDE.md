@@ -3742,11 +3742,19 @@ Two role/permission gaps from a CG request. All on main, DEV until deploy; verif
 A CG tool to merge duplicate member records (the import created some members twice). Same shape as the sibling
 reconcile but for a SINGLE person entered twice. All on main, DEV until deploy; verified live end-to-end.
 - **Detection** (`Application/Members/DuplicateHandlers.cs` `GetDuplicateMemberSuggestionsQuery`, gated
-      `MemberAccess.IsGroupManager` = super-admin/CG/ACG): groups non-deleted members by **normalized full name +
-      same date of birth** (accent/case-insensitive via `TextNormalization.NormalizeKey`; requires a DOB — the
-      confirming signal, distinct from siblings who merely share parents). Each member carries all the fields the
-      merge dialog shows/lets you choose from + unit/account/active/assignment-count/createdAt. Keeper suggestion
-      order = active → most assignments → oldest (the CG chooses). Cap 200.
+      `MemberAccess.IsGroupManager` = super-admin/CG/ACG): groups non-deleted members that share ALL of a
+      **configurable set of match keys** — the CG checks which fields must match. `DuplicateMatchKeys` (backend) +
+      `DUPLICATE_MATCH_KEYS` (frontend) = the single source of truth: **lastName / firstName / dob / gender /
+      nationality / school** (external card deliberately EXCLUDED — its `is_deleted`-filtered unique index means two
+      live members can't share it, so it'd never match). Default = **nom + prénom + date de naissance** (the original
+      behaviour). Values normalized accent/case-insensitively (`TextNormalization.NormalizeKey`); a member is skipped
+      if any selected key is empty. Groups > 12 members are skipped (a generic match, not a duplicate). Evidence line
+      = "Même " + the chosen labels. `GET /siblings/duplicates?keys=lastName,dob` (comma-separated; empty = default).
+      Each member carries all the fields the merge dialog shows/lets you choose from + unit/account/active/
+      assignment-count/createdAt. Keeper suggestion order = active → most assignments → oldest. Cap 200 groups.
+      UI: a config bar of checkboxes at the top of the Doublons tab re-queries on change (e.g. uncheck Prénom to
+      catch a first-name typo with the same nom + DOB). Verified live: default misses a Jean/Jon typo, keys=nom+DOB
+      finds it.
 - **Merge** (`MergeMembersCommand(KeeperId, LoserIds[], MemberMergeFields)` → `IMemberMergeService` /
       `Infrastructure/Services/MemberMergeService.cs`, mirrors MemberPurgeService's raw-SQL architecture): ONE
       transaction — (1) move each loser's connected rows onto the keeper: **dedup-on-move** for tables with a natural

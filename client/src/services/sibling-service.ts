@@ -204,11 +204,21 @@ export interface MemberMergeFields {
   photoPath: string | null
 }
 
-// GET /siblings/duplicates → groups of same-name+DOB members, CG-only.
-export function useDuplicateSuggestions() {
+// The fields duplicate detection can match on (must mirror the backend DuplicateMatchKeys).
+export const DUPLICATE_MATCH_KEYS = [
+  { key: 'lastName', label: 'Nom' },
+  { key: 'firstName', label: 'Prénom' },
+  { key: 'dob', label: 'Date de naissance' },
+  { key: 'gender', label: 'Sexe' },
+  { key: 'nationality', label: 'Nationalité' },
+  { key: 'school', label: 'École' },
+] as const
+
+// GET /siblings/duplicates?keys=… → groups of members sharing ALL the selected match keys, CG-only.
+export function useDuplicateSuggestions(keys: string[]) {
   return useQuery({
-    queryKey: ['siblings', 'duplicates'],
-    queryFn: () => apiClient.get<DuplicateGroup[]>('/siblings/duplicates').then((r) => r.data),
+    queryKey: ['siblings', 'duplicates', keys.join(',')],
+    queryFn: () => apiClient.get<DuplicateGroup[]>('/siblings/duplicates', { params: keys.length ? { keys: keys.join(',') } : {} }).then((r) => r.data),
   })
 }
 

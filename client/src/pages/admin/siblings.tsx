@@ -4,7 +4,7 @@ import { Users, Check, X, Search, Sparkles, ChevronRight, Phone, Mail, MapPin, U
 import {
   useSiblingSuggestions, useSiblingGroups, useReconcileData,
   useApproveSiblingGroup, useRejectSiblingSuggestion, useUnlinkSibling,
-  useDuplicateSuggestions, useMergeMembers,
+  useDuplicateSuggestions, useMergeMembers, DUPLICATE_MATCH_KEYS,
   type SiblingSuggestion, type SiblingReconcileData, type SiblingGuardian, type SiblingAddress,
   type DuplicateGroup, type DuplicateMember, type MemberMergeFields,
 } from '@/services/sibling-service'
@@ -394,21 +394,43 @@ function ConfirmedTab() {
   )
 }
 
-// ── Doublons (duplicate members: same name + DOB = likely the same person entered twice) ──
+// ── Doublons (duplicate members: members sharing the selected criteria = likely the same person twice) ──
 function DuplicatesTab() {
-  const { data: groups, isLoading } = useDuplicateSuggestions()
+  // Configurable match criteria (default = Nom + Prénom + Date de naissance). A member is grouped with another
+  // only when they share ALL the checked fields.
+  const [keys, setKeys] = useState<string[]>(['lastName', 'firstName', 'dob'])
+  const { data: groups, isLoading } = useDuplicateSuggestions(keys)
   const [merging, setMerging] = useState<DuplicateGroup | null>(null)
 
-  if (isLoading) return <LoadingSpinner variant="table" />
+  const toggleKey = (k: string) => setKeys((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]))
+
+  // Config bar: pick which fields must match. Kept above the results so it's clear what drives the list.
+  const configBar = (
+    <div className="mb-3 rounded-md border bg-muted/20 p-3">
+      <p className="mb-2 text-xs font-semibold text-muted-foreground">Critères de détection — les membres doivent partager TOUS les champs cochés</p>
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+        {DUPLICATE_MATCH_KEYS.map((k) => (
+          <label key={k.key} className="flex cursor-pointer items-center gap-1.5 text-sm">
+            <input type="checkbox" checked={keys.includes(k.key)} onChange={() => toggleKey(k.key)} className="h-4 w-4 rounded" />
+            {k.label}
+          </label>
+        ))}
+      </div>
+      {keys.length === 0 && <p className="mt-1.5 text-xs text-amber-600">Cochez au moins un critère (sinon les critères par défaut nom + prénom + date de naissance sont utilisés).</p>}
+    </div>
+  )
+
+  if (isLoading) return <>{configBar}<LoadingSpinner variant="table" /></>
   if (!groups || groups.length === 0)
-    return <EmptyState icon={Copy} title="Aucun doublon" description="Aucun membre en double (même nom et même date de naissance) détecté." />
+    return <>{configBar}<EmptyState icon={Copy} title="Aucun doublon" description="Aucun membre partageant tous les critères sélectionnés n'a été détecté." /></>
 
   return (
     <>
+      {configBar}
       <p className="mb-3 text-sm text-muted-foreground">
-        {groups.length} doublon(s) probable(s) — même nom et même date de naissance. Fusionnez pour n'en garder qu'un
-        (les affectations, documents, contacts… du doublon sont transférés vers le membre conservé, qui est ensuite
-        placé dans la Corbeille et restaurable).
+        {groups.length} doublon(s) probable(s). Fusionnez pour n'en garder qu'un (les affectations, documents,
+        contacts… du doublon sont transférés vers le membre conservé, qui est ensuite placé dans la Corbeille et
+        restaurable).
       </p>
       <div className="space-y-3">
         {groups.map((g, i) => (

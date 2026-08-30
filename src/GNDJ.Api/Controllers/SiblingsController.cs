@@ -91,12 +91,14 @@ public class SiblingsController : BaseApiController
 
     // ── Duplicate members ("Doublons" tab): same name + same DOB = likely the same person entered twice ──
 
-    /// <summary>Suggested duplicate members (same name + date of birth). Requires maitrise.manage.</summary>
+    /// <summary>Suggested duplicate members. Match keys are configurable via `keys` (lastName,firstName,dob,gender,nationality,school; default = name+DOB). Requires maitrise.manage.</summary>
+    /// <param name="keys">Comma-separated match keys the members must ALL share. Empty = the default (name + DOB).</param>
     [HttpGet("duplicates")]
     [HasPermission(Permissions.MaitriseManage)]
-    public async Task<IActionResult> Duplicates()
+    public async Task<IActionResult> Duplicates([FromQuery] string? keys)
     {
-        var result = await Mediator.Send(new GetDuplicateMemberSuggestionsQuery());
+        var keyList = (keys ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var result = await Mediator.Send(new GetDuplicateMemberSuggestionsQuery(keyList));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }

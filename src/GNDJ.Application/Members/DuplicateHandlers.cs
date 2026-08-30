@@ -23,21 +23,51 @@ public record DuplicateMemberDto(
 // A set of members that look like the same person.
 public record DuplicateGroupDto(IReadOnlyList<DuplicateMemberDto> Members, string Evidence);
 
-public record GetDuplicateMemberSuggestionsQuery : IRequest<Result<IReadOnlyList<DuplicateGroupDto>>>;
+// Which fields the duplicate detection matches on (configurable by the CG). A member is grouped with another
+// only when they share ALL of the selected keys (each of which must be non-empty on both). The available keys +
+// their labels are the single source of truth for the backend and the frontend checkboxes.
+public static class DuplicateMatchKeys
+{
+    public const string LastName = "lastName";
+    public const string FirstName = "firstName";
+    public const string Dob = "dob";
+    public const string Gender = "gender";
+    public const string Nationality = "nationality";
+    public const string School = "school";
+
+    // key → French label (used to build the evidence line). Only fields that two duplicate records can legitimately
+    // SHARE are offered — the external card number is excluded (a unique index means two live members can't share it).
+    public static readonly IReadOnlyDictionary<string, string> Labels = new Dictionary<string, string>
+    {
+        [LastName] = "nom", [FirstName] = "prénom", [Dob] = "date de naissance",
+        [Gender] = "sexe", [Nationality] = "nationalité", [School] = "école",
+    };
+
+    // Sensible default when none are supplied: same name + same date of birth (the original behaviour).
+    public static readonly string[] Default = [LastName, FirstName, Dob];
+}
+
+public record GetDuplicateMemberSuggestionsQuery(IReadOnlyList<string>? Keys = null) : IRequest<Result<IReadOnlyList<DuplicateGroupDto>>>;
 
 public class GetDuplicateMemberSuggestionsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
     : IRequestHandler<GetDuplicateMemberSuggestionsQuery, Result<IReadOnlyList<DuplicateGroupDto>>>
 {
     private const int MaxGroups = 200;
+    private const int MaxGroupSize = 12;   // a bucket bigger than this is a generic match, not a duplicate — skipped
 
     public async ValueTask<Result<IReadOnlyList<DuplicateGroupDto>>> Handle(GetDuplicateMemberSuggestionsQuery request, CancellationToken ct)
     {
         if (!MemberAccess.IsGroupManager(currentUser))
             return Result<IReadOnlyList<DuplicateGroupDto>>.Failure("Accès non autorisé.");
 
-        // Only members WITH a date of birth (the confirming signal). Projected with the fields the dialog needs.
+        // Keep only recognized keys (default if none valid).
+        var keys = (request.Keys ?? [])
+            .Where(k => DuplicateMatchKeys.Labels.ContainsKey(k)).Distinct().ToList();
+        if (keys.Count == 0) keys = DuplicateMatchKeys.Default.ToList();
+
+        // All non-deleted members, projected with the fields the dialog needs.
         var members = await context.Members
-            .Where(m => !m.IsDeleted && m.DateOfBirth != null)
+            .Where(m => !m.IsDeleted)
             .Select(m => new DuplicateMemberDto(
                 m.Id, m.FirstName, m.LastName, m.DateOfBirth, m.Gender,
                 m.CardNumber, m.ExternalCardNumber, m.BloodType, m.Nationality, m.School,
@@ -50,10 +80,24 @@ public class GetDuplicateMemberSuggestionsQueryHandler(IApplicationDbContext con
                 m.CreatedAt))
             .ToListAsync(ct);
 
-        // Group by (normalized first name, normalized last name, DOB) — accent/case-insensitive.
+        // The normalized value of one match key for a member; null/empty means the member can't be grouped on it.
+        static string? KeyValue(DuplicateMemberDto m, string key) => key switch
+        {
+            DuplicateMatchKeys.LastName => Norm(m.LastName),
+            DuplicateMatchKeys.FirstName => Norm(m.FirstName),
+            DuplicateMatchKeys.Dob => m.DateOfBirth?.ToString("yyyy-MM-dd"),
+            DuplicateMatchKeys.Gender => Norm(m.Gender),
+            DuplicateMatchKeys.Nationality => Norm(m.Nationality),
+            DuplicateMatchKeys.School => Norm(m.School),
+            _ => null,
+        };
+
+        // Group by the tuple of the selected keys' values; a member is skipped if ANY selected key is empty.
         var groups = members
-            .GroupBy(m => (TextNormalization.NormalizeKey(m.FirstName), TextNormalization.NormalizeKey(m.LastName), m.DateOfBirth))
-            .Where(g => g.Count() >= 2)
+            .Select(m => (m, vals: keys.Select(k => KeyValue(m, k)).ToList()))
+            .Where(x => x.vals.All(v => !string.IsNullOrWhiteSpace(v)))
+            .GroupBy(x => string.Join("", x.vals), x => x.m)
+            .Where(g => g.Count() >= 2 && g.Count() <= MaxGroupSize)
             .Select(g =>
             {
                 // Keeper suggestion order: active first, then most assignments, then oldest record — but the CG chooses.
@@ -61,9 +105,8 @@ public class GetDuplicateMemberSuggestionsQueryHandler(IApplicationDbContext con
                     .ThenByDescending(m => m.AssignmentCount)
                     .ThenBy(m => m.CreatedAt)
                     .ToList();
-                var dob = g.Key.Item3;
-                return new DuplicateGroupDto(ordered,
-                    $"Même nom + date de naissance ({(dob.HasValue ? dob.Value.ToString("dd/MM/yyyy") : "?")})");
+                var evidence = "Même " + string.Join(" + ", keys.Select(k => DuplicateMatchKeys.Labels[k]));
+                return new DuplicateGroupDto(ordered, evidence);
             })
             .OrderBy(g => g.Members[0].LastName).ThenBy(g => g.Members[0].FirstName)
             .Take(MaxGroups)
@@ -71,6 +114,8 @@ public class GetDuplicateMemberSuggestionsQueryHandler(IApplicationDbContext con
 
         return Result<IReadOnlyList<DuplicateGroupDto>>.Success(groups);
     }
+
+    private static string? Norm(string? s) => string.IsNullOrWhiteSpace(s) ? null : TextNormalization.NormalizeKey(s);
 }
 
 // Merge the losers into the keeper with the chosen field values. Group manager only. Delegates the data moves +
