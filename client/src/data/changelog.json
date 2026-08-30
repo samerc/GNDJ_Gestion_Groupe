@@ -3,6 +3,7 @@
     "version": "3.0.0",
     "date": "2026-08-27",
     "changes": [
+      "Cotisations (tableau de l'unité) : on peut désormais supprimer une cotisation enregistrée et son reçu directement depuis la fenêtre de cotisation (bouton « Supprimer », avec confirmation). Réservé à ceux qui ont le droit de supprimer les cotisations (chef d'unité / chef de groupe / administrateur).",
       "Comptes d'inscription : on peut désormais supprimer un compte parent — la suppression retire aussi TOUTES ses demandes (avec confirmation ; les membres déjà créés à partir d'une demande sont conservés). Les colonnes sont maintenant triables (clic sur l'en-tête) et les lignes plus compactes (pensé pour des centaines de comptes).",
       "Super-administrateur : l'action a été retirée du menu « Actions » de la fiche membre ; elle reste disponible uniquement sur la page « Profils & accès » (section « Super administrateurs »).",
       "Carte membre — correction : sur le serveur de production, enregistrer la configuration de la carte échouait (« Élément introuvable ») et les réglages revenaient aux valeurs par défaut après actualisation. En cause, une règle de sécurité du serveur (IIS) qui bloque toute adresse se terminant par « .config ». Le paramètre a été renommé en interne (card_config) ; l'ancienne valeur enregistrée est conservée automatiquement.",

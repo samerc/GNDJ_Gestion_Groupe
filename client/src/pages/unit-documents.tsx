@@ -13,7 +13,8 @@ import {
   type MemberDocRowDto, type MemberDocCellDto, type DocTypeColumnDto, type DocumentPageDto, type MemberDocumentDto
 } from '@/services/document-service'
 import apiClient from '@/lib/api-client'
-import { useCreateCotisation, useUpdateCotisation, useSetCotisationExempt } from '@/services/cotisation-service'
+import { useCreateCotisation, useUpdateCotisation, useSetCotisationExempt, useDeleteCotisation } from '@/services/cotisation-service'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { useUnits } from '@/services/unit-service'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
@@ -134,6 +135,21 @@ export default function UnitDocumentsPage() {
   const createCotisation = useCreateCotisation('')
   const updateCotisation = useUpdateCotisation('')
   const setExempt = useSetCotisationExempt()
+  const deleteCotisation = useDeleteCotisation('')
+  const canDeleteCotisation = useAuthStore((s) => s.hasPermission(PERMISSIONS.COTISATIONS_DELETE))
+  const [confirmDeleteCot, setConfirmDeleteCot] = useState(false)
+
+  // Delete the recorded cotisation (and its receipt) for the selected member.
+  const handleDeleteCotisation = async () => {
+    const id = cotisationMember?.cotisation.cotisationId
+    if (!id) return
+    try {
+      await deleteCotisation.mutateAsync(id)
+      toast.success('Cotisation supprimée')
+      setConfirmDeleteCot(false)
+      setCotisationMember(null)
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
 
   // Mark/unmark a member as "ne paiera pas" for the year — a shared CU↔CG fact (no payment line).
   const toggleExempt = async (member: MemberDocRowDto, willNotPay: boolean) => {
@@ -703,7 +719,12 @@ export default function UnitDocumentsPage() {
                 <br />Reçu : {cotisationMember.cotisation.receiptNumber}
                 {cotisationMember.cotisation.paymentDate && <><br />Date : {new Date(cotisationMember.cotisation.paymentDate).toLocaleDateString('fr-FR')}</>}
               </div>
-              <DialogFooter>
+              <DialogFooter className="sm:justify-between">
+                {canDeleteCotisation ? (
+                  <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setConfirmDeleteCot(true)}>
+                    <Trash2 className="mr-1 h-4 w-4" />Supprimer
+                  </Button>
+                ) : <span />}
                 <Button variant="outline" onClick={() => setCotisationMember(null)}>Fermer</Button>
               </DialogFooter>
             </div>
@@ -775,6 +796,18 @@ export default function UnitDocumentsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Confirm deletion of a recorded cotisation (removes the receipt too). */}
+      <ConfirmDialog
+        open={confirmDeleteCot}
+        onOpenChange={setConfirmDeleteCot}
+        title="Supprimer la cotisation ?"
+        description={`La cotisation${cotisationMember?.cotisation.receiptNumber ? ` (reçu ${cotisationMember.cotisation.receiptNumber})` : ''} de ${cotisationMember?.firstName} ${cotisationMember?.lastName} et son reçu seront supprimés. Cette action est irréversible.`}
+        confirmLabel="Supprimer"
+        variant="destructive"
+        loading={deleteCotisation.isPending}
+        onConfirm={handleDeleteCotisation}
+      />
 
       {/* Hidden file input driving the inline matrix upload — multiple = several pages into one document. */}
       <input

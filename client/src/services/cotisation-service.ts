@@ -127,7 +127,8 @@ export function useSetCotisationExempt() {
   })
 }
 
-// DELETE /cotisations/{id}.
+// DELETE /cotisations/{id} — removes the cotisation and its receipt (soft-delete; receipts are generated
+// on demand from the cotisation, so deleting it removes the receipt too).
 export function useDeleteCotisation(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -135,6 +136,9 @@ export function useDeleteCotisation(memberId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cotisations', memberId] })
       qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
+      qc.invalidateQueries({ queryKey: ['cotisations', 'summary'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }
