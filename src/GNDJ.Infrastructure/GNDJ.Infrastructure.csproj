@@ -32,4 +32,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- Expose internal helpers (e.g. PdfText) to the test project only. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>GNDJ.Infrastructure.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>
