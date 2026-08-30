@@ -266,7 +266,10 @@ public class CompleteRentreeTaskCommandHandler(IApplicationDbContext context, IC
         if (task is null) return Result<bool>.Failure("Tâche introuvable.");
 
         var canManage = currentUser.IsSuperAdmin || currentUser.Permissions.Contains(Permissions.RentreeManage);
-        var isAssignee = currentUser.MemberId.HasValue && task.AssigneeMemberIds.Contains(currentUser.MemberId.Value);
+        // Assignee check resolves LIVE (same rule as the list) so a maîtrise placed after generate — incl. an ACU —
+        // can complete their task without a manual refresh.
+        var isAssignee = !canManage && currentUser.MemberId.HasValue
+            && RentreeAssignees.Resolve(task, await RentreeAssignees.LoadHoldersAsync(context, ct)).Contains(currentUser.MemberId.Value);
         if (!canManage && !isAssignee) return Result<bool>.Failure("Vous n'êtes pas responsable de cette tâche.");
 
         if (request.Done)

@@ -80,7 +80,13 @@ public class GetRentreeTasksQueryHandler(IApplicationDbContext context, ICurrent
         var unitNames = await context.Units.Where(u => unitIds.Contains(u.Id))
             .Select(u => new { u.Id, u.Name }).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
 
-        var memberIds = tasks.SelectMany(t => t.AssigneeMemberIds).Distinct().ToList();
+        // Resolve every task's assignees LIVE from current active assignments (role tasks → the unit's maîtrise /
+        // the profile's holders; "members" tasks → their stored ids). This is what makes a newly-placed maîtrise —
+        // incl. an ACU on the assistant-unite profile — show up without a manual refresh, and drives IsMine below.
+        var holders = await RentreeAssignees.LoadHoldersAsync(context, ct);
+        var assigneesByTask = tasks.ToDictionary(t => t.Id, t => RentreeAssignees.Resolve(t, holders));
+
+        var memberIds = assigneesByTask.Values.SelectMany(s => s).Distinct().ToList();
         var memberNames = await context.Members.Where(m => memberIds.Contains(m.Id))
             .Select(m => new { m.Id, Name = m.FirstName + " " + m.LastName }).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
 
@@ -99,14 +105,16 @@ public class GetRentreeTasksQueryHandler(IApplicationDbContext context, ICurrent
         var result = tasks.Select(t =>
         {
             var blockedBy = t.DependsOnTaskIds.Where(d => !doneIds.Contains(d)).ToList();
-            var isMine = myMemberId.HasValue && t.AssigneeMemberIds.Contains(myMemberId.Value);
+            var assignees = assigneesByTask[t.Id];
+            var isMine = myMemberId.HasValue && assignees.Contains(myMemberId.Value);
             var due = dueByTask.GetValueOrDefault(t.Id);
             var prog = progress.GetValueOrDefault(t.Id);
             var isDone = EffectiveDone(t);
+            var assigneeIds = assignees.ToList();
             return new RentreeTaskDto(
                 t.Id, t.TemplateId, t.ScoutYear, t.Title, t.Description, t.Phase, t.DisplayOrder,
                 t.AssigneeType, t.AssigneeRole, t.UnitId, t.UnitId.HasValue ? unitNames.GetValueOrDefault(t.UnitId.Value) : null,
-                t.AssigneeMemberIds, t.AssigneeMemberIds.Select(id => memberNames.GetValueOrDefault(id, "?")).ToList(),
+                assigneeIds, assigneeIds.Select(id => memberNames.GetValueOrDefault(id, "?")).ToList(),
                 t.DeadlineLabel, due, t.DeadlineAnchor, t.Status, t.CompletedByName, t.CompletedAt,
                 t.DependsOnTaskIds, blockedBy.Count > 0, blockedBy.Select(d => titleById.GetValueOrDefault(d, "?")).ToList(),
                 isMine, !isDone && due.HasValue && due.Value < today, t.ActionKey,
@@ -135,11 +143,19 @@ public class GetMyOverdueRentreeTasksQueryHandler(IApplicationDbContext context,
         var myId = currentUser.MemberId.Value;
         var today = LebanonClock.Today;
 
-        // Candidates: my not-yet-completed tasks that carry SOME deadline (a fixed date or a live anchor).
-        var tasks = await context.RentreeTasks
-            .Where(t => t.Status != "done" && t.AssigneeMemberIds.Contains(myId)
-                        && (t.DueDate != null || t.DeadlineAnchor != null))
+        // My live responsibilities (see RentreeAssignees): the units where I'm maîtrise (per-unit role tasks) and
+        // the profile codes I hold group-wide (group role tasks). Used to decide which tasks are mine, live.
+        var holders = await RentreeAssignees.LoadHoldersAsync(context, ct);
+        var myUnits = holders.Where(h => h.MemberId == myId && h.IsMaitrise).Select(h => h.UnitId).ToHashSet();
+        var myCodes = holders.Where(h => h.MemberId == myId).Select(h => h.ProfileCode).ToHashSet();
+
+        // Candidates: not-yet-completed tasks that carry SOME deadline (a fixed date or a live anchor).
+        var candidates = await context.RentreeTasks
+            .Where(t => t.Status != "done" && (t.DueDate != null || t.DeadlineAnchor != null))
             .ToListAsync(ct);
+        var tasks = candidates.Where(t => t.AssigneeType == "role"
+            ? (t.UnitId.HasValue ? myUnits.Contains(t.UnitId.Value) : myCodes.Contains(t.AssigneeRole))
+            : t.AssigneeMemberIds.Contains(myId)).ToList();
         if (tasks.Count == 0) return [];
 
         // Resolve effective due dates + progress (per year, since tasks may span years) to skip auto-satisfied ones.

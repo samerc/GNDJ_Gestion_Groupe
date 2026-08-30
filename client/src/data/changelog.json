@@ -3,6 +3,7 @@
     "version": "3.0.0",
     "date": "2026-08-27",
     "changes": [
+      "Rentrée — correction importante : la liste de tâches d'une unité s'affiche désormais à TOUTE la maîtrise de l'unité (chef d'unité ET assistant(e)s/aumônier), et pour un chef placé à n'importe quel moment (même après la génération de la liste) — sans avoir à cliquer « Responsables ». Avant, un(e) assistant(e) chef d'unité (ex. Maria en R3) voyait une liste vide car les tâches ne visaient que le profil « Chef d'unité ». Les responsables sont maintenant recalculés en direct à partir des affectations actuelles.",
       "Groupes — page réorganisée pour s'y retrouver avec beaucoup de groupes : une barre de recherche (par nom, branche ou unité) et un filtre par portée (tout le groupe / une branche / une unité) en haut, et les groupes sont regroupés en sections (« Tout le groupe », « Par branche », « Par unité ») avec un compteur. L'affichage passe aussi à 3 colonnes sur grand écran.",
       "Groupes — correction : l'enregistrement d'un groupe (ex. activer « Visible dans la liste de l'unité » sur la Haute Patrouille) échouait avec « Cette information vient d'être modifiée ». Corrigé.",
       "Groupes — « Voir les membres » d'un groupe par unité : les membres sont désormais présentés en onglets, un par unité (ex. la Haute Patrouille montre un onglet par troupe), chacun avec sa propre liste et ses propres boutons (copier les emails / exporter / envoyer un email à cette unité). Un groupe combiné ou pour tout le groupe reste sur une seule liste.",

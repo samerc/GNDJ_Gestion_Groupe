@@ -63,12 +63,14 @@ public static class RentreeReminders
             .ToList();
         if (relevant.Count == 0) return 0;
 
-        // Group the relevant tasks by assignee member.
+        // Group the relevant tasks by assignee member — resolved LIVE (role tasks → the unit's maîtrise / the
+        // profile's holders) so the digest reaches whoever currently holds the role, not a stale snapshot.
+        var holders = await RentreeAssignees.LoadHoldersAsync(context, ct);
         var byMember = new Dictionary<Guid, List<(RentreeTask Task, DateOnly Due)>>();
         foreach (var t in relevant)
         {
             var due = dueByTask[t.Id]!.Value;
-            foreach (var mid in t.AssigneeMemberIds)
+            foreach (var mid in RentreeAssignees.Resolve(t, holders))
             {
                 if (!byMember.TryGetValue(mid, out var l)) { l = []; byMember[mid] = l; }
                 l.Add((t, due));

@@ -3687,6 +3687,28 @@ holds `maitrise.manage` → is already `IsGroupManager`, so the ONLY thing block
       `roles.manage_group`) → 403 on the endpoints. Build clean (dotnet + tsc + eslint + vite). DEV until deploy
       (migration applies on prod startup).
 
+### Rentrée assignees resolved LIVE — ACU + late-placement fix (2026-08-30)
+Two reported bugs (an ACU with an EMPTY to-do list; "the list didn't appear to all maîtrises when they were
+assigned") shared a root cause: rentrée task assignees were FROZEN into `RentreeTask.AssigneeMemberIds` only at
+generate/refresh time, and per-unit tasks resolved to the **`chef-unite` profile code only**. The **ACU profile
+split (2026-08-30)** moved assistants onto `assistant-unite` → a per-unit "CU" task (targets `chef-unite`) no
+longer matched an ACU (e.g. Maria HARFOUCHE, R3, `assistant-unite`, `is_maitrise=t`) → empty list; and anyone
+placed AFTER generate needed a manual "Responsables" (RefreshRentreeAssignees) click.
+- **Fix = resolve role-task assignees LIVE at read/authz time** (new `Application/Rentree/RentreeAssignees.cs`):
+      a **per-unit** role task → every **`IsMaitrise`** holder active in that unit (so CU + ACU + aumônier — the
+      whole unit maîtrise); a **group-wide** role task → holders of its `SecurityProfile.Code` (CG tasks unchanged).
+      `"members"` tasks keep their stored ids. So a maîtrise placed at ANY time appears immediately, no refresh.
+- **Applied in 4 places** (all use `RentreeAssignees.LoadHoldersAsync` + `.Resolve(task, holders)`):
+      `GetRentreeTasksQuery` (IsMine + the shown AssigneeMemberIds/Names now live), `GetMyOverdueRentreeTasksQuery`
+      (candidate filter by my maîtrise units / my group profile codes — the old SQL `AssigneeMemberIds.Contains(me)`
+      couldn't reflect live), `CompleteRentreeTaskCommand` (the isAssignee authz), and `RentreeReminders.SendDigestAsync`
+      (weekly digest recipients). The stored `AssigneeMemberIds` snapshot (written by generate/refresh) is now just a
+      cache/fallback for role tasks — the Refresh button + generate still populate it but read no longer depends on it.
+- **Verified live** (super-admin `/rentree/tasks?scoutYear=2026-2027`): Maria (ACU) now on ALL 9 R3 per-unit tasks
+      alongside the head CU (Lynn CORTAS) + Léa RAPHAEL; 22/22 group tasks still have assignees; the only empty
+      per-unit tasks are Feu Jamhour's 9 (the one active unit with 0 maîtrise — correct). Backend build clean.
+      Backend-only, DEV until deploy.
+
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
