@@ -3738,6 +3738,14 @@ Two role/permission gaps from a CG request. All on main, DEV until deploy; verif
       the target. Build clean (dotnet + tsc + eslint + vite). **NEXT in this batch: duplicate-MEMBERS merge tool
       (Fratries "Doublons" tab).**
 
+### Audit-log date-filter 500 fix (2026-08-30)
+A CG (giorgio.rizk) hit a **500 on `GET /audit-logs`** filtering by date (surfaced in the Journal des erreurs).
+Root cause: `GetAuditLogsQuery` compared the `From`/`To` bounds — which arrive `Kind=Unspecified` from the query
+string — directly against the `timestamptz` `timestamp` column, and Npgsql throws "Cannot write DateTime with
+Kind=Unspecified … only UTC is supported". The `PurgeAuditLogsCommand` already normalized to UTC; the READ query
+didn't. Fix: a shared `ToUtc` (SpecifyKind Utc for Unspecified, else ToUniversalTime) applied to both `From`/`To`.
+Verified live: `?from=&to=` → 200 (was 500). Backend-only, DEV until deploy (prod still crashes until deployed).
+
 ### Duplicate MEMBERS merge — Fratries "Doublons" tab (2026-08-30)
 A CG tool to merge duplicate member records (the import created some members twice). Same shape as the sibling
 reconcile but for a SINGLE person entered twice. All on main, DEV until deploy; verified live end-to-end.

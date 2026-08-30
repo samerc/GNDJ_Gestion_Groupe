@@ -33,10 +33,18 @@ public class GetAuditLogsQueryHandler(IApplicationDbContext context) : IRequestH
             query = query.Where(a => a.Action == request.Action);
         if (request.UserId.HasValue)
             query = query.Where(a => a.UserId == request.UserId.Value);
+        // timestamp is a timestamptz column; Npgsql only accepts UTC DateTimes. A date bound off the query string
+        // arrives as Kind=Unspecified → normalize to UTC (else Npgsql throws "only UTC is supported").
         if (request.From.HasValue)
-            query = query.Where(a => a.Timestamp >= request.From.Value);
+        {
+            var fromUtc = ToUtc(request.From.Value);
+            query = query.Where(a => a.Timestamp >= fromUtc);
+        }
         if (request.To.HasValue)
-            query = query.Where(a => a.Timestamp <= request.To.Value);
+        {
+            var toUtc = ToUtc(request.To.Value);
+            query = query.Where(a => a.Timestamp <= toUtc);
+        }
 
         var projected = query
             .OrderByDescending(a => a.Timestamp)
@@ -49,6 +57,11 @@ public class GetAuditLogsQueryHandler(IApplicationDbContext context) : IRequestH
 
         return await PaginatedList<AuditLogDto>.CreateAsync(projected, request.Page, request.PageSize, ct);
     }
+
+    // A query-string date bound arrives as Kind=Unspecified; the timestamptz column requires UTC.
+    private static DateTime ToUtc(DateTime d) => d.Kind == DateTimeKind.Unspecified
+        ? DateTime.SpecifyKind(d, DateTimeKind.Utc)
+        : d.ToUniversalTime();
 }
 
 // Distinct entity types and actions for filter dropdowns
