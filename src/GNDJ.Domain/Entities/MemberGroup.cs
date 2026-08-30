@@ -15,8 +15,9 @@ public class MemberGroup : BaseEntity
     public Guid? UnitTypeId { get; set; }   // when ScopeType == UnitType
     public Guid? UnitId { get; set; }       // when ScopeType == Unit
 
-    public bool IsVisible { get; set; } = true; // show in pickers (e.g. the réunion scope list) — the "toggle"
-    public bool IsSystem { get; set; }          // seeded preset (Grande Maîtrise / Chefs d'unité) — not deletable
+    public bool IsVisible { get; set; } = true;      // show in the réunion scope picker — the "réunions" toggle
+    public bool ShowInUnitList { get; set; }         // offer as a filter in the CU/CG unit roster (never public/members)
+    public bool IsSystem { get; set; }               // seeded preset (Grande Maîtrise / Chefs d'unité) — not deletable
 
     public UnitType? UnitType { get; set; }
     public Unit? Unit { get; set; }

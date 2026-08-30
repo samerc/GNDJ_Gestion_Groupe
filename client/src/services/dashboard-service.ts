@@ -14,10 +14,13 @@ export interface TeamRosterDto {
   members: RosterMemberDto[]
 }
 
+export interface UnitRosterGroupDto { id: string; name: string; memberIds: string[] }
+
 export interface UnitDashboardDto {
   unitId: string; unitName: string; unitTypeName: string
   totalMembers: number; totalTeams: number
   teams: TeamRosterDto[]; unassignedMembers: RosterMemberDto[]
+  groups: UnitRosterGroupDto[] // rule-based groups the CU can filter the roster by (ShowInUnitList)
 }
 
 export interface UnitBreakdownDto { unitCode: string; unitName: string; memberCount: number; docCompliance: number }

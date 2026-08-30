@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tooltip'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { MemberPhoto } from '@/components/shared/member-photo'
@@ -316,7 +316,15 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
     filtered = filtered.filter(m => m.firstName.toLowerCase().includes(s) || m.lastName.toLowerCase().includes(s) || (m.cardNumber?.toLowerCase().includes(s)))
   }
   if (teamFilter && teamFilter !== 'all') {
-    filtered = teamFilter === 'none' ? filtered.filter(m => !m.teamName) : filtered.filter(m => m.teamName === teamFilter)
+    if (teamFilter.startsWith('grp:')) {
+      // Filter to a rule-based member group (Haute Patrouille, …) — member ids resolved server-side for this unit.
+      const ids = new Set(data.groups.find(g => g.id === teamFilter.slice(4))?.memberIds ?? [])
+      filtered = filtered.filter(m => ids.has(m.memberId))
+    } else if (teamFilter === 'none') {
+      filtered = filtered.filter(m => !m.teamName)
+    } else {
+      filtered = filtered.filter(m => m.teamName === teamFilter)
+    }
   }
 
   // Re-group the filtered list back into team sections, preserving first-seen team order.
@@ -419,8 +427,17 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
             <SelectTrigger className="w-44 h-8 text-sm"><SelectValue placeholder="Toutes" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes les équipes</SelectItem>
-              {data.teams.map(t => <SelectItem key={t.teamId} value={t.teamName}>{t.teamName}</SelectItem>)}
-              <SelectItem value="none">Sans équipe</SelectItem>
+              <SelectGroup>
+                <SelectLabel>Équipes</SelectLabel>
+                {data.teams.map(t => <SelectItem key={t.teamId} value={t.teamName}>{t.teamName}</SelectItem>)}
+                <SelectItem value="none">Sans équipe</SelectItem>
+              </SelectGroup>
+              {data.groups.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel>Groupes</SelectLabel>
+                  {data.groups.map(g => <SelectItem key={g.id} value={`grp:${g.id}`}>{g.name}</SelectItem>)}
+                </SelectGroup>
+              )}
             </SelectContent>
           </Select>
         </div>

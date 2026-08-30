@@ -16,7 +16,7 @@ namespace GNDJ.Application.MemberGroups;
 public record MemberGroupRuleDto(bool Include, string Criterion, string? Value);
 public record MemberGroupDto(
     Guid Id, string Name, string ScopeType, Guid? UnitTypeId, string? UnitTypeName, Guid? UnitId, string? UnitName,
-    bool IsVisible, bool IsSystem, int MemberCount, IReadOnlyList<MemberGroupRuleDto> Rules);
+    bool IsVisible, bool ShowInUnitList, bool IsSystem, int MemberCount, IReadOnlyList<MemberGroupRuleDto> Rules);
 
 // Only a group manager (super-admin or maitrise.manage = CG/ACG) may see/manage member groups.
 internal static class MemberGroupAccess
@@ -43,7 +43,7 @@ public class GetMemberGroupsQueryHandler(IApplicationDbContext context, ICurrent
             // Live member count (rules resolved). Groups are few, so a count per group is fine (no N+1 concern).
             var count = await MemberGroupResolver.RosterQuery(context, g).Select(a => a.MemberId).Distinct().CountAsync(ct);
             list.Add(new MemberGroupDto(g.Id, g.Name, g.ScopeType, g.UnitTypeId, g.UnitType?.Name, g.UnitId, g.Unit?.Name,
-                g.IsVisible, g.IsSystem, count,
+                g.IsVisible, g.ShowInUnitList, g.IsSystem, count,
                 g.Rules.Select(r => new MemberGroupRuleDto(r.Include, r.Criterion, r.Value)).ToList()));
         }
         return Result<IReadOnlyList<MemberGroupDto>>.Success(list);
@@ -72,7 +72,7 @@ internal static class MemberGroupValidation
 }
 
 public record CreateMemberGroupCommand(string Name, string ScopeType, Guid? UnitTypeId, Guid? UnitId, bool IsVisible,
-    List<MemberGroupRuleDto> Rules) : IRequest<Result<Guid>>;
+    bool ShowInUnitList, List<MemberGroupRuleDto> Rules) : IRequest<Result<Guid>>;
 
 public class CreateMemberGroupCommandValidator : AbstractValidator<CreateMemberGroupCommand>
 {
@@ -99,6 +99,7 @@ public class CreateMemberGroupCommandHandler(IApplicationDbContext context, ICur
             UnitTypeId = request.ScopeType == MemberGroupScopes.UnitType ? request.UnitTypeId : null,
             UnitId = request.ScopeType == MemberGroupScopes.Unit ? request.UnitId : null,
             IsVisible = request.IsVisible,
+            ShowInUnitList = request.ShowInUnitList,
             IsSystem = false,
         };
         foreach (var r in request.Rules)
@@ -110,7 +111,7 @@ public class CreateMemberGroupCommandHandler(IApplicationDbContext context, ICur
 }
 
 public record UpdateMemberGroupCommand(Guid Id, string Name, string ScopeType, Guid? UnitTypeId, Guid? UnitId, bool IsVisible,
-    List<MemberGroupRuleDto> Rules) : IRequest<Result<bool>>;
+    bool ShowInUnitList, List<MemberGroupRuleDto> Rules) : IRequest<Result<bool>>;
 
 public class UpdateMemberGroupCommandValidator : AbstractValidator<UpdateMemberGroupCommand>
 {
@@ -134,6 +135,7 @@ public class UpdateMemberGroupCommandHandler(IApplicationDbContext context, ICur
         if (g.IsSystem)
         {
             g.IsVisible = request.IsVisible;
+            g.ShowInUnitList = request.ShowInUnitList;
             await context.SaveChangesAsync(ct);
             return Result<bool>.Success(true);
         }
@@ -146,6 +148,7 @@ public class UpdateMemberGroupCommandHandler(IApplicationDbContext context, ICur
         g.UnitTypeId = request.ScopeType == MemberGroupScopes.UnitType ? request.UnitTypeId : null;
         g.UnitId = request.ScopeType == MemberGroupScopes.Unit ? request.UnitId : null;
         g.IsVisible = request.IsVisible;
+        g.ShowInUnitList = request.ShowInUnitList;
 
         // Hard-replace the rules (plain children).
         context.MemberGroupRules.RemoveRange(g.Rules);

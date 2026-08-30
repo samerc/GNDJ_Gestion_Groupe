@@ -3568,6 +3568,19 @@ as a **réunion scope** (and reusable elsewhere later). Replaces a first draft o
       teams + applicable groups; a group réunion shows a group badge. Verified live: Haute Patrouille (Troupes,
       team-leader rule) → in all 3 Troupes' Concernés (not top-level), réunion for one Troupe → its 7 team-leaders
       only + listed in that Troupe.
+- **Réunions "Concernés" dropdown grouped (2026-08-30):** teams and groups are now split into labelled
+      `SelectGroup` sections ("Équipes" / "Groupes"; "Toute l'unité" stands alone at top) so they're visually distinct.
+- **`MemberGroup.ShowInUnitList` — "Visible dans la liste de l'unité" (2026-08-30):** a SECOND, independent
+      visibility toggle (migration `AddMemberGroupShowInUnitList`, bool default false; `IsVisible` = réunions picker,
+      `ShowInUnitList` = CU roster). When on, the group is offered as a **filter** in the CU/CG unit-leader roster
+      (`dashboard-unit-leader.tsx` team-filter dropdown, `grp:<id>` encoding under a "Groupes" section). NEVER exposed
+      publicly or to members — it rides the leader-only unit dashboard. `GetUnitDashboardQuery` returns
+      `UnitDashboardDto.Groups: UnitRosterGroupDto(Id, Name, MemberIds)` = every `ShowInUnitList` group applicable to
+      the unit (whole-group / this branch / this exact unit), each resolved via `MemberGroupResolver.RosterQuery ∩
+      this unit` (empty groups hidden). Both create/update commands + the system-preset path carry the flag; the
+      Groupes admin form has the toggle + a "Liste d'unité" badge; group mutations invalidate `['dashboard']`.
+      Verified live: Haute Patrouille (Troupes, team-leader rule, ShowInUnitList=true) → appears in every Troupe's
+      roster filter (7 in Troupe 2, 4 in Troupe 3, matches SQL), absent from Meute, presets stay off.
 
 ### Access delegation — "accès délégué" per member (2026-08-30)
 A CG-succession + delegation tool: grant a SPECIFIC member extra access WITHOUT any assignment or visible role

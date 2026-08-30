@@ -31,7 +31,8 @@ export interface MemberGroupDto {
   unitTypeName: string | null
   unitId: string | null
   unitName: string | null
-  isVisible: boolean
+  isVisible: boolean       // shown in the réunion scope picker
+  showInUnitList: boolean  // offered as a filter in the CU/CG unit roster (never public/members)
   isSystem: boolean
   memberCount: number
   rules: MemberGroupRuleDto[]
@@ -44,13 +45,13 @@ export function useMemberGroups() {
   })
 }
 
-type GroupPayload = { name: string; scopeType: string; unitTypeId: string | null; unitId: string | null; isVisible: boolean; rules: MemberGroupRuleDto[] }
+type GroupPayload = { name: string; scopeType: string; unitTypeId: string | null; unitId: string | null; isVisible: boolean; showInUnitList: boolean; rules: MemberGroupRuleDto[] }
 
 export function useCreateMemberGroup() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: GroupPayload) => apiClient.post<{ id: string }>('/member-groups', data).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['member-groups'] }); qc.invalidateQueries({ queryKey: ['meetings'] }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['member-groups'] }); qc.invalidateQueries({ queryKey: ['meetings'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }) },
   })
 }
 
@@ -58,7 +59,7 @@ export function useUpdateMemberGroup() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, ...data }: GroupPayload & { id: string }) => apiClient.put(`/member-groups/${id}`, { id, ...data }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['member-groups'] }); qc.invalidateQueries({ queryKey: ['meetings'] }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['member-groups'] }); qc.invalidateQueries({ queryKey: ['meetings'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }) },
   })
 }
 
@@ -66,6 +67,6 @@ export function useDeleteMemberGroup() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiClient.delete(`/member-groups/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['member-groups'] }); qc.invalidateQueries({ queryKey: ['meetings'] }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['member-groups'] }); qc.invalidateQueries({ queryKey: ['meetings'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }) },
   })
 }

@@ -23,7 +23,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { parseApiError } from '@/lib/error-utils'
-import { Plus, Users, Pencil, Trash2, ShieldCheck, X, EyeOff } from 'lucide-react'
+import { Plus, Users, Pencil, Trash2, ShieldCheck, X, EyeOff, ListFilter } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function MemberGroupsPage() {
@@ -64,7 +64,8 @@ export default function MemberGroupsPage() {
                   <CardTitle className="text-base flex items-center gap-2">
                     {g.name}
                     {g.isSystem && <Badge variant="outline" className="gap-1"><ShieldCheck className="h-3 w-3" />Prédéfini</Badge>}
-                    {!g.isVisible && <Badge variant="secondary" className="gap-1"><EyeOff className="h-3 w-3" />Masqué</Badge>}
+                    {!g.isVisible && <Badge variant="secondary" className="gap-1"><EyeOff className="h-3 w-3" />Masqué des réunions</Badge>}
+                    {g.showInUnitList && <Badge variant="outline" className="gap-1"><ListFilter className="h-3 w-3" />Liste d'unité</Badge>}
                   </CardTitle>
                   <div className="flex items-center gap-1">
                     <Button variant="ghost" size="sm" onClick={() => setEditing(g)}><Pencil className="mr-1 h-3.5 w-3.5" />Modifier</Button>
@@ -118,6 +119,7 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
   const [unitTypeId, setUnitTypeId] = useState(group?.unitTypeId ?? '')
   const [unitId, setUnitId] = useState(group?.unitId ?? '')
   const [isVisible, setIsVisible] = useState(group?.isVisible ?? true)
+  const [showInUnitList, setShowInUnitList] = useState(group?.showInUnitList ?? false)
   const [rules, setRules] = useState<MemberGroupRuleDto[]>(group?.rules ?? [{ include: true, criterion: 'maitrise', value: null }])
   const [error, setError] = useState('')
 
@@ -149,7 +151,7 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
       name: name.trim(), scopeType,
       unitTypeId: scopeType === 'UnitType' ? (unitTypeId || null) : null,
       unitId: scopeType === 'Unit' ? (unitId || null) : null,
-      isVisible, rules,
+      isVisible, showInUnitList, rules,
     }
     try {
       if (group) { await update.mutateAsync({ id: group.id, ...payload }); toast.success('Groupe modifié') }
@@ -176,13 +178,21 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
             <Input value={name} onChange={e => setName(e.target.value)} disabled={isSystem} maxLength={150} placeholder="Ex : Haute Patrouille" />
           </div>
 
-          {/* Visibility toggle — the "hide from pickers" control (works for presets too). */}
+          {/* Visibility toggles — where this group is offered (both work for presets too). */}
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
               <p className="text-sm font-medium">Visible dans les réunions</p>
-              <p className="text-xs text-muted-foreground">Décochez pour masquer ce groupe du sélecteur de portée.</p>
+              <p className="text-xs text-muted-foreground">Décochez pour masquer ce groupe du sélecteur de portée des réunions.</p>
             </div>
             <Switch checked={isVisible} onCheckedChange={setIsVisible} />
+          </div>
+
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div>
+              <p className="text-sm font-medium">Visible dans la liste de l'unité</p>
+              <p className="text-xs text-muted-foreground">Le chef d'unité peut filtrer sa liste de membres sur ce groupe. N'apparaît pas sur le site public ni pour les membres.</p>
+            </div>
+            <Switch checked={showInUnitList} onCheckedChange={setShowInUnitList} />
           </div>
 
           {!isSystem && (

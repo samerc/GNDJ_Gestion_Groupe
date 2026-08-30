@@ -13,8 +13,12 @@ public record UnitDashboardDto(
     int TotalMembers,
     int TotalTeams,
     IReadOnlyList<TeamRosterDto> Teams,
-    IReadOnlyList<RosterMemberDto> UnassignedMembers // members in unit but no team
+    IReadOnlyList<RosterMemberDto> UnassignedMembers, // members in unit but no team
+    IReadOnlyList<UnitRosterGroupDto> Groups // rule-based member groups the CU can filter the roster by (ShowInUnitList)
 );
+
+// A member group applicable to this unit, with the ids of its members present in the unit's roster.
+public record UnitRosterGroupDto(Guid Id, string Name, IReadOnlyList<Guid> MemberIds);
 
 public record TeamRosterDto(
     Guid TeamId,
@@ -61,7 +65,7 @@ public class GetUnitDashboardQueryHandler : IRequestHandler<GetUnitDashboardQuer
 
         var unit = await _context.Units
             .Where(u => u.Id == request.UnitId)
-            .Select(u => new { u.Id, u.Name, UnitTypeName = u.UnitType.Name })
+            .Select(u => new { u.Id, u.Name, u.UnitTypeId, UnitTypeName = u.UnitType.Name })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (unit is null) return null;
@@ -115,10 +119,32 @@ public class GetUnitDashboardQueryHandler : IRequestHandler<GetUnitDashboardQuer
 
         var teams = await _context.Teams.CountAsync(t => t.UnitId == request.UnitId && !t.IsDeleted, cancellationToken);
 
+        // Rule-based member groups flagged ShowInUnitList that APPLY to this unit (whole-group, this branch, or
+        // this exact unit). Each is resolved to the member ids present in THIS unit's roster, so the CU can filter
+        // the list by the group. Never exposed publicly or to members — this is the leader roster only.
+        var applicableGroups = await _context.MemberGroups
+            .Include(g => g.Rules)
+            .Where(g => g.ShowInUnitList
+                && (g.ScopeType == GNDJ.Domain.Entities.MemberGroupScopes.Group
+                    || (g.ScopeType == GNDJ.Domain.Entities.MemberGroupScopes.Unit && g.UnitId == request.UnitId)
+                    || (g.ScopeType == GNDJ.Domain.Entities.MemberGroupScopes.UnitType && g.UnitTypeId == unit.UnitTypeId)))
+            .OrderBy(g => g.Name)
+            .ToListAsync(cancellationToken);
+
+        var rosterGroups = new List<UnitRosterGroupDto>(applicableGroups.Count);
+        foreach (var g in applicableGroups)
+        {
+            var memberIds = await MemberGroupResolver.RosterQuery(_context, g)
+                .Where(a => a.UnitId == request.UnitId)
+                .Select(a => a.MemberId).Distinct().ToListAsync(cancellationToken);
+            if (memberIds.Count > 0) // hide groups that match no one in this unit
+                rosterGroups.Add(new UnitRosterGroupDto(g.Id, g.Name, memberIds));
+        }
+
         return new UnitDashboardDto(
             unit.Id, unit.Name, unit.UnitTypeName,
             assignments.Count, teams,
-            teamGroups, unassigned
+            teamGroups, unassigned, rosterGroups
         );
     }
 }
