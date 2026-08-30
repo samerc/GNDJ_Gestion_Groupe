@@ -6,7 +6,6 @@
 // The split is drag-resizable on desktop. A create dialog returns auto-generated login credentials.
 // Route param :id deep-links a member into the right panel.
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
-import { useSetSuperAdmin } from '@/services/role-service'
 import { saveBlob } from '@/lib/download'
 import { useState, useRef, useCallback, useMemo, type ReactNode, type ComponentType } from 'react'
 import { useParams } from 'react-router'
@@ -50,7 +49,7 @@ import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPT
 import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck, Crown } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck } from 'lucide-react'
 import { DelegationDialog } from './delegation-dialog'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
@@ -119,8 +118,6 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
   const canDelete = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_DELETE))
   const canDelegate = useAuthStore((s) => s.hasPermission(PERMISSIONS.ROLES_MANAGE_GROUP)) // CG/super-admin: accès délégué
-  const isSuperAdminViewer = useAuthStore((s) => s.user?.isSuperAdmin ?? false) // only a super-admin can grant super-admin
-  const setSuperAdmin = useSetSuperAdmin()
   // Member-card generation is a group-wide toggle (Paramètres → Rapports). Off => hide the download action.
   const cardsEnabled = useSettingValue('reports.cards_enabled') !== 'false'
   const canManageSiblings = useAuthStore((s) => s.hasPermission(PERMISSIONS.MAITRISE_MANAGE)) // CG/super-admin: link/unlink fratries
@@ -164,17 +161,6 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
 
   // Access delegation ("accès délégué") — CG grants this member extra hidden access (full CG or per-area).
   const [delegationOpen, setDelegationOpen] = useState(false)
-
-  // Super-admin grant/revoke (super-admin viewers only). member.isSuperAdmin is populated only for a super-admin.
-  const [superAdminConfirmOpen, setSuperAdminConfirmOpen] = useState(false)
-  const handleToggleSuperAdmin = async () => {
-    if (!member) return
-    try {
-      await setSuperAdmin.mutateAsync({ memberId, grant: !member.isSuperAdmin })
-      toast.success(member.isSuperAdmin ? 'Super-administrateur retiré' : 'Super-administrateur accordé')
-      setSuperAdminConfirmOpen(false)
-    } catch (err) { toast.error(parseApiError(err)) }
-  }
 
   // Delete member (soft-delete → Corbeille, restorable until the purge job runs).
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -363,11 +349,6 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                   {canDelegate && (
                     <DropdownMenuItem onClick={() => setDelegationOpen(true)}>
                       <ShieldCheck className="mr-2 h-4 w-4" />Délégation d'accès
-                    </DropdownMenuItem>
-                  )}
-                  {isSuperAdminViewer && member.username && (
-                    <DropdownMenuItem onClick={() => setSuperAdminConfirmOpen(true)}>
-                      <Crown className="mr-2 h-4 w-4" />{member.isSuperAdmin ? 'Retirer le super-admin' : 'Rendre super-administrateur'}
                     </DropdownMenuItem>
                   )}
                   {canDelete && (
@@ -770,17 +751,6 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
       {canDelegate && (
         <DelegationDialog memberId={memberId} memberName={`${member.firstName} ${member.lastName}`}
           open={delegationOpen} onOpenChange={setDelegationOpen} />
-      )}
-
-      {/* Super-admin grant/revoke (super-admin viewers only) */}
-      {isSuperAdminViewer && (
-        <ConfirmDialog open={superAdminConfirmOpen} onOpenChange={setSuperAdminConfirmOpen}
-          title={member.isSuperAdmin ? 'Retirer le super-administrateur' : 'Rendre super-administrateur'}
-          description={member.isSuperAdmin
-            ? `Retirer l'accès super-administrateur de ${member.firstName} ${member.lastName} ? Le changement prend effet à sa prochaine connexion.`
-            : `Accorder l'accès super-administrateur à ${member.firstName} ${member.lastName} ? Cette personne aura TOUS les droits sur TOUT le groupe. Le changement prend effet à sa prochaine connexion.`}
-          confirmLabel={member.isSuperAdmin ? 'Retirer' : 'Accorder'} variant={member.isSuperAdmin ? 'destructive' : 'default'}
-          loading={setSuperAdmin.isPending} onConfirm={handleToggleSuperAdmin} />
       )}
 
       {/* Delete member (soft-delete → Corbeille) */}
