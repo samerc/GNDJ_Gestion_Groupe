@@ -70,7 +70,7 @@ public class GenerateBulkCardsQueryHandler(
 
         // Card settings
         var cardConfigJson = await context.Settings
-            .Where(s => s.Key == "card.config")
+            .Where(s => s.Key == "card_config")
             .Select(s => s.Value)
             .FirstOrDefaultAsync(ct);
         var cardSettings = GenerateMemberCardQueryHandler.DeserializeCardSettings(cardConfigJson);

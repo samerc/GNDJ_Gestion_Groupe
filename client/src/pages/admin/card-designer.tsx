@@ -1,4 +1,4 @@
-// Admin screen (super-admin): member-card designer. Edits the single `card.config`
+// Admin screen (super-admin): member-card designer. Edits the single `card_config`
 // JSON setting (org name + per-field visibility toggles) that drives the printed
 // member-card PDF, with a live credit-card-sized preview using dummy data.
 import { useState } from 'react'
@@ -40,7 +40,7 @@ const DEFAULT_CONFIG: CardConfig = {
 }
 
 export default function CardDesignerPage() {
-  const { data: setting, isLoading } = useSetting('card.config')
+  const { data: setting, isLoading } = useSetting('card_config')
   const updateSetting = useUpdateSetting()
   const [config, setConfig] = useState<CardConfig>(DEFAULT_CONFIG)
   // `loaded` gates the one-time hydration from the saved setting so subsequent edits aren't overwritten.
@@ -75,7 +75,7 @@ export default function CardDesignerPage() {
   const handleSave = async () => {
     try {
       await updateSetting.mutateAsync({
-        key: 'card.config',
+        key: 'card_config',
         value: JSON.stringify(config),
       })
       toast.success('Configuration de la carte sauvegardée')

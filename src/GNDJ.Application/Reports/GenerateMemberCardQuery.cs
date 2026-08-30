@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Reports;
 
 // Credit-card-sized member ID card PDF. Access: super-admin, the member themselves, or a leader of the
-// member's active unit. Fields shown are driven by the admin "card designer" (the card.config setting).
+// member's active unit. Fields shown are driven by the admin "card designer" (the card_config setting).
 public record GenerateMemberCardQuery(Guid MemberId) : IRequest<Result<byte[]>>;
 
 public class GenerateMemberCardQueryHandler(
@@ -59,7 +59,7 @@ public class GenerateMemberCardQueryHandler(
 
         // Load card settings
         var cardConfigJson = await context.Settings
-            .Where(s => s.Key == "card.config")
+            .Where(s => s.Key == "card_config")
             .Select(s => s.Value)
             .FirstOrDefaultAsync(ct);
 

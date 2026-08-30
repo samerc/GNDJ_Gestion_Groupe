@@ -656,7 +656,9 @@ public static class SeedData
             new() { Key = "passage.enabled", Value = "false", Category = "passage", Label = "Passage annuel actif", Description = "Active ou désactive le processus de passage annuel", ValueType = "boolean" },
             new() { Key = "passage.scout_year", Value = "2026-2027", Category = "passage", Label = "Année scoute en cours", Description = "Année scoute active, ouverte par le CG pour le passage. Sert aussi de référence aux cotisations, tableaux de bord, trombinoscope, listes et exports.", ValueType = "string" },
             new() { Key = "passage.date", Value = "", Category = "passage", Label = "Date du passage", Description = "Date d'effet du passage : date de début des nouvelles affectations des anciens membres (et de fin des anciennes). À définir chaque année ; vide = date du jour.", ValueType = "date" },
-            new() { Key = "card.config", Value = "{\"orgName\":\"GNDJ Scout\",\"fields\":{\"photo\":true,\"name\":true,\"cardNumber\":true,\"unit\":true,\"team\":true,\"role\":true,\"dateOfBirth\":true,\"bloodType\":true,\"emergencyContact\":true,\"customFields\":true}}", Category = "reports", Label = "Configuration de la carte membre", Description = "Champs affichés sur la carte membre", ValueType = "json" },
+            // Key deliberately has NO ".config" suffix: IIS Request Filtering denies the ".config" file extension,
+            // so a URL like /settings/card.config 404s on prod (works on Kestrel). Renamed key → card_config.
+            new() { Key = "card_config", Value = "{\"orgName\":\"GNDJ Scout\",\"fields\":{\"photo\":true,\"name\":true,\"cardNumber\":true,\"unit\":true,\"team\":true,\"role\":true,\"dateOfBirth\":true,\"bloodType\":true,\"emergencyContact\":true,\"customFields\":true}}", Category = "reports", Label = "Configuration de la carte membre", Description = "Champs affichés sur la carte membre", ValueType = "json" },
             // Master switch for member-card generation (single + bulk). When off, the "Cartes" buttons are hidden
             // and the card endpoints refuse. The CG/super-admin toggles it (e.g. only enable during card-print season).
             new() { Key = "reports.cards_enabled", Value = "true", Category = "reports", Label = "Génération des cartes membres", Description = "Autorise la génération des cartes membres (individuelles et par unité). Désactivez pour masquer les boutons « Cartes » et empêcher leur génération.", ValueType = "boolean" },
@@ -724,6 +726,8 @@ public static class SeedData
         {
             ["cotisation.current_school_year"] = "cotisation.current_scout_year",
             ["passage.school_year"] = "passage.scout_year",
+            // ".config" URLs are blocked by IIS Request Filtering (404) — carry any saved value onto the new key.
+            ["card.config"] = "card_config",
         };
         foreach (var (oldKey, newKey) in renames)
         {

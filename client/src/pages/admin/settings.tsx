@@ -39,7 +39,7 @@ const CONFIG_TABS: { key: string; label: string; Component: React.ComponentType 
 ]
 
 // Settings already edited on dedicated pages — hidden from the generic Paramètres page.
-const HIDDEN_KEYS = new Set(['site.content', 'card.config', 'member.cities', 'member.schools', 'member.classes', 'member.profession_domains', 'demande.rejection_reasons', 'ui.role_colors', 'pinned_professions'])
+const HIDDEN_KEYS = new Set(['site.content', 'card_config', 'member.cities', 'member.schools', 'member.classes', 'member.profession_domains', 'demande.rejection_reasons', 'ui.role_colors', 'pinned_professions'])
 // Technical keys moved to an "Avancé" tab.
 const ADVANCED_KEYS = new Set(['app.base_url', 'user_domain'])
 
