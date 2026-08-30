@@ -3591,6 +3591,28 @@ as a **réunion scope** (and reusable elsewhere later). Replaces a first draft o
       members` (maitrise.manage) resolves the live roster (dedup by member, unit/team/role); the card's member count
       is a button → `MembersDialog` (grouped by unit, searchable >8). Verified live: HP labels = Chef/Second de
       Patrouille, 49 members listed by unit matching the count. Build clean (dotnet+tsc+eslint).
+- **Member groups — per-unit vs combined + mailing list (2026-08-30):** rethink from a live CG report.
+  - **`MemberGroup.PerUnit`** (migration `AddMemberGroupPerUnit`, existing UnitType groups backfilled → true to
+      preserve behaviour). Meaningful only for a **branch (UnitType)** scope: `true` = SPLIT per unit (one
+      independent list/réunion/mailing per unit — e.g. Haute Patrouille = each troupe's CP/SP), `false` = ONE
+      combined list across the branch (e.g. join the 3 troupes). Shared helper `MemberGroupModes.IsTopLevel /
+      IsPerUnit` (Domain): top-level = Group OR (UnitType && !PerUnit); unit-context = Unit OR (UnitType &&
+      PerUnit). Réunion logic (`MeetingHandlers`) reworked to key on these instead of `ScopeType==Group`:
+      `CanManageGroupMeeting(scopeType, perUnit, unitId)`, `GetAttendanceScope` (top-level `groups` vs per-unit
+      `unitGroups`), `GetMeetings` (top-level combined branch now a valid `memberGroupId` scope; unit list includes
+      unit-context group meetings), create anchoring (top-level→Groupe unit, per-unit branch→the target unit),
+      `RosterQueryForAsync` (∩ unit only for unit-context). Frontend: an "Organisation" select (Une liste par unité
+      / Une seule liste combinée) shown for a branch scope; a "Par unité"/"Combiné" chip on the card. Verified live:
+      HP (per-unit) shows 3× in unitGroups, a combined branch group shows top-level.
+  - **Groups as mailing lists.** Members endpoint now returns each member's reachable **email + phone** (own primary
+      first, else a guardian's — `ContactEmailResolver` + a local `MemberContactPhones`). MembersDialog shows them
+      with **Copier les emails** + **Exporter (CSV)** (name/unit/role/team/email/phone). **Send email**:
+      `SendGroupMessageCommand` + `POST /member-groups/{id}/send-message` (maitrise.manage) — a saved template OR
+      free text (subject+body via the seeded **`adhoc_message`** template: `{{subject}}` / `{{body}}` in a
+      white-space:pre-line block, so plain-text line breaks survive the sink's HTML-encode). One email per DISTINCT
+      resolved address (deduped), optional `unitId` narrows a per-unit group; queued via the durable outbox; returns
+      recipients/no-contact report. Compose dialog reuses `useLeaderMessageTemplates`. Verified live: free-text send
+      to HP∩Troupe3 → 12 recipients, 12 Pending outbox rows w/ subject.
 
 ### Access delegation — "accès délégué" per member (2026-08-30)
 A CG-succession + delegation tool: grant a SPECIFIC member extra access WITHOUT any assignment or visible role

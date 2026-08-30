@@ -15,6 +15,12 @@ public class MemberGroup : BaseEntity
     public Guid? UnitTypeId { get; set; }   // when ScopeType == UnitType
     public Guid? UnitId { get; set; }       // when ScopeType == Unit
 
+    // Only meaningful for a UnitType (branch) scope. true = the group is SPLIT per unit (one independent list
+    // per unit of the branch — e.g. "Haute Patrouille" = each troupe's CP/SP; a réunion/mailing targets one unit
+    // at a time). false = the branch is treated as ONE combined list (e.g. joining the 3 troupes; one top-level
+    // réunion/mailing). Group and Unit scopes ignore this (Group = always combined, Unit = always one unit).
+    public bool PerUnit { get; set; }
+
     public bool IsVisible { get; set; } = true;      // show in the réunion scope picker — the "réunions" toggle
     public bool ShowInUnitList { get; set; }         // offer as a filter in the CU/CG unit roster (never public/members)
     public bool IsSystem { get; set; }               // seeded preset (Grande Maîtrise / Chefs d'unité) — not deletable
@@ -43,6 +49,19 @@ public static class MemberGroupScopes
     public const string UnitType = "UnitType";  // all units of a branch
     public const string Unit = "Unit";          // one unit
     public static readonly string[] All = { Group, UnitType, Unit };
+}
+
+// How a group is presented/used: as ONE combined list ("top-level" — a single réunion/mailing over the whole
+// scope) or SPLIT per unit ("unit-context" — one independent list/réunion/mailing per unit). See MemberGroup.PerUnit.
+public static class MemberGroupModes
+{
+    // Split per unit: a single Unit, or a UnitType branch explicitly flagged PerUnit (e.g. Haute Patrouille).
+    public static bool IsPerUnit(string scopeType, bool perUnit)
+        => scopeType == MemberGroupScopes.Unit || (scopeType == MemberGroupScopes.UnitType && perUnit);
+
+    // One combined list: the whole group, or a UnitType branch NOT split (e.g. "joining the 3 troupes").
+    public static bool IsTopLevel(string scopeType, bool perUnit)
+        => scopeType == MemberGroupScopes.Group || (scopeType == MemberGroupScopes.UnitType && !perUnit);
 }
 
 public static class MemberGroupCriteria

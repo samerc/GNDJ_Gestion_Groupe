@@ -30,6 +30,15 @@ public class MemberGroupsController : BaseApiController
         return r.IsSuccess ? Ok(r.Value) : BadRequest(new { error = r.Error });
     }
 
+    /// <summary>Sends an email to a group's members (template or free text). Uses the durable outbox.</summary>
+    [HttpPost("{id:guid}/send-message")]
+    public async Task<IActionResult> SendMessage(Guid id, [FromBody] SendGroupMessageCommand command)
+    {
+        if (id != command.GroupId) return BadRequest(new { error = "L'identifiant ne correspond pas." });
+        var r = await Mediator.Send(command);
+        return r.IsSuccess ? Ok(r.Value) : BadRequest(new { error = r.Error });
+    }
+
     /// <summary>Creates a member group (name, scope, visibility + membership rules).</summary>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateMemberGroupCommand command)

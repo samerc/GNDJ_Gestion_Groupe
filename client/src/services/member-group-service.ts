@@ -31,6 +31,7 @@ export interface MemberGroupDto {
   unitTypeName: string | null
   unitId: string | null
   unitName: string | null
+  perUnit: boolean         // branch scope only: true = one list per unit (split), false = one combined list
   isVisible: boolean       // shown in the réunion scope picker
   showInUnitList: boolean  // offered as a filter in the CU/CG unit roster (never public/members)
   isSystem: boolean
@@ -50,6 +51,7 @@ export function useMemberGroups() {
 export interface MemberGroupMemberDto {
   memberId: string; firstName: string; lastName: string
   unitName: string | null; teamName: string | null; roleName: string
+  email: string | null; phone: string | null  // reachable contact (member then parent) — for mailing / export
 }
 export function useMemberGroupMembers(id: string | undefined) {
   return useQuery({
@@ -59,7 +61,17 @@ export function useMemberGroupMembers(id: string | undefined) {
   })
 }
 
-type GroupPayload = { name: string; scopeType: string; unitTypeId: string | null; unitId: string | null; isVisible: boolean; showInUnitList: boolean; rules: MemberGroupRuleDto[] }
+// POST /member-groups/{id}/send-message → email the group's members (a template OR free text). Optional unitId
+// narrows a per-unit group to one unit. Returns a queued/no-contact report (delivery is via the durable outbox).
+export interface SendGroupMessageResult { recipients: number; noContact: number; noContactNames: string[] }
+export function useSendGroupMessage() {
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; unitId?: string | null; templateCode?: string | null; subject?: string | null; bodyHtml?: string | null }) =>
+      apiClient.post<SendGroupMessageResult>(`/member-groups/${id}/send-message`, { groupId: id, ...body }).then(r => r.data),
+  })
+}
+
+type GroupPayload = { name: string; scopeType: string; unitTypeId: string | null; unitId: string | null; perUnit: boolean; isVisible: boolean; showInUnitList: boolean; rules: MemberGroupRuleDto[] }
 
 export function useCreateMemberGroup() {
   const qc = useQueryClient()

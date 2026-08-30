@@ -18,7 +18,7 @@ namespace GNDJ.Application.MemberGroups;
 public record MemberGroupRuleDto(bool Include, string Criterion, string? Value, string? ValueLabel = null);
 public record MemberGroupDto(
     Guid Id, string Name, string ScopeType, Guid? UnitTypeId, string? UnitTypeName, Guid? UnitId, string? UnitName,
-    bool IsVisible, bool ShowInUnitList, bool IsSystem, int MemberCount, IReadOnlyList<MemberGroupRuleDto> Rules);
+    bool PerUnit, bool IsVisible, bool ShowInUnitList, bool IsSystem, int MemberCount, IReadOnlyList<MemberGroupRuleDto> Rules);
 
 // Only a group manager (super-admin or maitrise.manage = CG/ACG) may see/manage member groups.
 internal static class MemberGroupAccess
@@ -78,7 +78,7 @@ public class GetMemberGroupsQueryHandler(IApplicationDbContext context, ICurrent
             // Live member count (rules resolved). Groups are few, so a count per group is fine (no N+1 concern).
             var count = await MemberGroupResolver.RosterQuery(context, g).Select(a => a.MemberId).Distinct().CountAsync(ct);
             list.Add(new MemberGroupDto(g.Id, g.Name, g.ScopeType, g.UnitTypeId, g.UnitType?.Name, g.UnitId, g.Unit?.Name,
-                g.IsVisible, g.ShowInUnitList, g.IsSystem, count,
+                g.PerUnit, g.IsVisible, g.ShowInUnitList, g.IsSystem, count,
                 g.Rules.Select(r => new MemberGroupRuleDto(r.Include, r.Criterion, r.Value, Label(r))).ToList()));
         }
         return Result<IReadOnlyList<MemberGroupDto>>.Success(list);
@@ -86,7 +86,10 @@ public class GetMemberGroupsQueryHandler(IApplicationDbContext context, ICurrent
 }
 
 // ── Members of a group (resolved live) ──
-public record MemberGroupMemberDto(Guid MemberId, string FirstName, string LastName, string? UnitName, string? TeamName, string RoleName);
+// Email/Phone are the reachable contact = the member's OWN (primary first) else a guardian's ("membre puis parent"),
+// so the list doubles as a mailing/contact export. Only exposed to a group manager (this is leader data).
+public record MemberGroupMemberDto(Guid MemberId, string FirstName, string LastName, string? UnitName, string? TeamName,
+    string RoleName, string? Email, string? Phone);
 public record GetMemberGroupMembersQuery(Guid Id) : IRequest<Result<IReadOnlyList<MemberGroupMemberDto>>>;
 
 public class GetMemberGroupMembersQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
@@ -106,19 +109,68 @@ public class GetMemberGroupMembersQueryHandler(IApplicationDbContext context, IC
                 a.MemberId,
                 a.Member.FirstName,
                 a.Member.LastName,
+                a.Member.PrimaryContactEmail,
                 UnitName = a.Unit.Name,
                 TeamName = a.Team != null ? a.Team.Name : null,
                 RoleName = a.FunctionalRole.Name,
             })
             .ToListAsync(ct);
 
-        var members = rows
-            .GroupBy(r => r.MemberId)
-            .Select(grp => grp.First())
-            .OrderBy(r => r.LastName).ThenBy(r => r.FirstName)
-            .Select(r => new MemberGroupMemberDto(r.MemberId, r.FirstName, r.LastName, r.UnitName, r.TeamName, r.RoleName))
+        var distinct = rows.GroupBy(r => r.MemberId).Select(grp => grp.First())
+            .OrderBy(r => r.LastName).ThenBy(r => r.FirstName).ToList();
+        var memberIds = distinct.Select(r => r.MemberId).ToList();
+
+        // Resolve one email + one phone per member (own primary first, else a guardian's).
+        var emails = await ContactEmailResolver.LoadAsync(context, memberIds, ct);
+        var phones = await MemberContactPhones.LoadAsync(context, memberIds, ct);
+
+        var members = distinct
+            .Select(r => new MemberGroupMemberDto(r.MemberId, r.FirstName, r.LastName, r.UnitName, r.TeamName, r.RoleName,
+                emails.Resolve(r.MemberId, r.PrimaryContactEmail), phones.Resolve(r.MemberId)))
             .ToList();
         return Result<IReadOnlyList<MemberGroupMemberDto>>.Success(members);
+    }
+}
+
+// Batched member phone resolver: member's OWN (primary first) else a guardian's (primary first). Mirrors
+// ContactEmailResolver for phones; kept local to member-group contact export (the general resolvers return email).
+internal sealed class MemberContactPhones
+{
+    private readonly ILookup<Guid, (string Number, bool IsPrimary)> _own;
+    private readonly Dictionary<Guid, List<Guid>> _memberGuardians;
+    private readonly ILookup<Guid, (string Number, bool IsPrimary)> _guardian;
+
+    private MemberContactPhones(ILookup<Guid, (string, bool)> own, Dictionary<Guid, List<Guid>> mg, ILookup<Guid, (string, bool)> guardian)
+    { _own = own; _memberGuardians = mg; _guardian = guardian; }
+
+    public static async Task<MemberContactPhones> LoadAsync(IApplicationDbContext context, List<Guid> memberIds, CancellationToken ct)
+    {
+        var own = (await context.MemberPhones.Where(p => memberIds.Contains(p.MemberId) && !p.IsDeleted)
+            .Select(p => new { p.MemberId, p.CountryCode, p.Number, p.IsPrimary }).ToListAsync(ct))
+            .ToLookup(p => p.MemberId, p => (Combine(p.CountryCode, p.Number), p.IsPrimary));
+        var links = await context.GuardianLinks.Where(l => memberIds.Contains(l.MemberId) && !l.IsDeleted)
+            .Select(l => new { l.MemberId, l.GuardianId }).ToListAsync(ct);
+        var mg = links.GroupBy(l => l.MemberId).ToDictionary(x => x.Key, x => x.Select(y => y.GuardianId).Distinct().ToList());
+        var gids = links.Select(l => l.GuardianId).Distinct().ToList();
+        var guardian = (await context.GuardianPhones.Where(p => gids.Contains(p.GuardianId) && !p.IsDeleted)
+            .Select(p => new { p.GuardianId, p.CountryCode, p.Number, p.IsPrimary }).ToListAsync(ct))
+            .ToLookup(p => p.GuardianId, p => (Combine(p.CountryCode, p.Number), p.IsPrimary));
+        return new MemberContactPhones(own, mg, guardian);
+    }
+
+    private static string Combine(string? code, string number) => string.IsNullOrWhiteSpace(code) ? number : $"{code} {number}";
+
+    public string? Resolve(Guid memberId)
+    {
+        var ownNum = _own[memberId].OrderByDescending(p => p.IsPrimary).Select(p => p.Number).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+        if (!string.IsNullOrWhiteSpace(ownNum)) return ownNum;
+        if (_memberGuardians.TryGetValue(memberId, out var gids))
+            foreach (var gid in gids)
+            {
+                var num = _guardian[gid].OrderByDescending(p => p.IsPrimary).Select(p => p.Number).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+                if (!string.IsNullOrWhiteSpace(num)) return num;
+            }
+        return null;
     }
 }
 
@@ -143,8 +195,8 @@ internal static class MemberGroupValidation
     }
 }
 
-public record CreateMemberGroupCommand(string Name, string ScopeType, Guid? UnitTypeId, Guid? UnitId, bool IsVisible,
-    bool ShowInUnitList, List<MemberGroupRuleDto> Rules) : IRequest<Result<Guid>>;
+public record CreateMemberGroupCommand(string Name, string ScopeType, Guid? UnitTypeId, Guid? UnitId, bool PerUnit,
+    bool IsVisible, bool ShowInUnitList, List<MemberGroupRuleDto> Rules) : IRequest<Result<Guid>>;
 
 public class CreateMemberGroupCommandValidator : AbstractValidator<CreateMemberGroupCommand>
 {
@@ -170,6 +222,7 @@ public class CreateMemberGroupCommandHandler(IApplicationDbContext context, ICur
             ScopeType = request.ScopeType,
             UnitTypeId = request.ScopeType == MemberGroupScopes.UnitType ? request.UnitTypeId : null,
             UnitId = request.ScopeType == MemberGroupScopes.Unit ? request.UnitId : null,
+            PerUnit = request.ScopeType == MemberGroupScopes.UnitType && request.PerUnit, // only meaningful for a branch
             IsVisible = request.IsVisible,
             ShowInUnitList = request.ShowInUnitList,
             IsSystem = false,
@@ -182,8 +235,8 @@ public class CreateMemberGroupCommandHandler(IApplicationDbContext context, ICur
     }
 }
 
-public record UpdateMemberGroupCommand(Guid Id, string Name, string ScopeType, Guid? UnitTypeId, Guid? UnitId, bool IsVisible,
-    bool ShowInUnitList, List<MemberGroupRuleDto> Rules) : IRequest<Result<bool>>;
+public record UpdateMemberGroupCommand(Guid Id, string Name, string ScopeType, Guid? UnitTypeId, Guid? UnitId, bool PerUnit,
+    bool IsVisible, bool ShowInUnitList, List<MemberGroupRuleDto> Rules) : IRequest<Result<bool>>;
 
 public class UpdateMemberGroupCommandValidator : AbstractValidator<UpdateMemberGroupCommand>
 {
@@ -219,6 +272,7 @@ public class UpdateMemberGroupCommandHandler(IApplicationDbContext context, ICur
         g.ScopeType = request.ScopeType;
         g.UnitTypeId = request.ScopeType == MemberGroupScopes.UnitType ? request.UnitTypeId : null;
         g.UnitId = request.ScopeType == MemberGroupScopes.Unit ? request.UnitId : null;
+        g.PerUnit = request.ScopeType == MemberGroupScopes.UnitType && request.PerUnit;
         g.IsVisible = request.IsVisible;
         g.ShowInUnitList = request.ShowInUnitList;
 
@@ -251,5 +305,76 @@ public class DeleteMemberGroupCommandHandler(IApplicationDbContext context, ICur
         context.MemberGroups.Remove(g);
         await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);
+    }
+}
+
+// ── Send a message (email) to a group's members — the "mailing list" use ──
+// Content is either an existing template (TemplateCode) OR free text (Subject + BodyHtml, sent via the seeded
+// "adhoc_message" template). Recipients = one email per member (own then parent), deduped by address. Optional
+// UnitId narrows a per-unit group to a single unit. Emails go through the durable outbox (never blocks; survives
+// restart), so this returns fast with a queued/no-contact report.
+public record SendGroupMessageCommand(Guid GroupId, Guid? UnitId, string? TemplateCode, string? Subject, string? BodyHtml)
+    : IRequest<Result<SendGroupMessageResult>>;
+public record SendGroupMessageResult(int Recipients, int NoContact, IReadOnlyList<string> NoContactNames);
+
+public class SendGroupMessageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IEmailQueue emailQueue)
+    : IRequestHandler<SendGroupMessageCommand, Result<SendGroupMessageResult>>
+{
+    public async ValueTask<Result<SendGroupMessageResult>> Handle(SendGroupMessageCommand request, CancellationToken ct)
+    {
+        if (!MemberGroupAccess.CanManage(currentUser)) return Result<SendGroupMessageResult>.Failure("Accès non autorisé.");
+
+        // Content: a template code, OR a free-text subject + body (routed through the seeded "adhoc_message").
+        var useTemplate = !string.IsNullOrWhiteSpace(request.TemplateCode);
+        if (!useTemplate)
+        {
+            if (string.IsNullOrWhiteSpace(request.Subject) || string.IsNullOrWhiteSpace(request.BodyHtml))
+                return Result<SendGroupMessageResult>.Failure("Choisissez un modèle ou saisissez un objet et un message.");
+            if (request.Subject!.Length > 200) return Result<SendGroupMessageResult>.Failure("L'objet est trop long (max 200).");
+            if (request.BodyHtml!.Length > 10000) return Result<SendGroupMessageResult>.Failure("Le message est trop long.");
+        }
+
+        var g = await context.MemberGroups.Include(x => x.Rules).FirstOrDefaultAsync(x => x.Id == request.GroupId, ct);
+        if (g is null) return Result<SendGroupMessageResult>.Failure("Groupe introuvable.");
+
+        var roster = MemberGroupResolver.RosterQuery(context, g);
+        if (request.UnitId is Guid u) roster = roster.Where(a => a.UnitId == u); // per-unit send
+
+        var rows = await roster.Select(a => new
+        {
+            a.MemberId, a.Member.FirstName, a.Member.LastName, a.Member.PrimaryContactEmail, UnitName = a.Unit.Name
+        }).ToListAsync(ct);
+        var distinct = rows.GroupBy(r => r.MemberId).Select(x => x.First()).ToList();
+        if (distinct.Count == 0) return Result<SendGroupMessageResult>.Failure("Ce groupe n'a aucun membre dans cette portée.");
+
+        var emails = await ContactEmailResolver.LoadAsync(context, distinct.Select(r => r.MemberId).ToList(), ct);
+
+        // One email per DISTINCT address (a parent shared by siblings gets one message). Members with no
+        // reachable email are reported so the manager can follow up another way.
+        var byEmail = new Dictionary<string, (string MemberName, string UnitName)>(StringComparer.OrdinalIgnoreCase);
+        var noContact = new List<string>();
+        foreach (var r in distinct.OrderBy(r => r.LastName).ThenBy(r => r.FirstName))
+        {
+            var email = emails.Resolve(r.MemberId, r.PrimaryContactEmail);
+            var name = $"{r.FirstName} {r.LastName}";
+            if (string.IsNullOrWhiteSpace(email)) { noContact.Add(name); continue; }
+            byEmail.TryAdd(email.Trim(), (name, r.UnitName)); // keep the first member for that address
+        }
+
+        var code = useTemplate ? request.TemplateCode!.Trim() : "adhoc_message";
+        var jobs = byEmail.Select(kv =>
+        {
+            var vars = new Dictionary<string, string>
+            {
+                ["memberName"] = kv.Value.MemberName,
+                ["unitName"] = kv.Value.UnitName,
+                ["groupName"] = g.Name,
+            };
+            if (!useTemplate) { vars["subject"] = request.Subject!.Trim(); vars["body"] = request.BodyHtml!.Trim(); }
+            return new EmailJob(code, kv.Key, vars);
+        }).ToList();
+
+        await emailQueue.EnqueueManyAsync(jobs, ct);
+        return Result<SendGroupMessageResult>.Success(new SendGroupMessageResult(jobs.Count, noContact.Count, noContact));
     }
 }

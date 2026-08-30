@@ -36,11 +36,11 @@ public static class AttendanceAccess
     public static bool CanManageDynamic(ICurrentUserService u) =>
         u.IsSuperAdmin || u.Permissions.Contains(Permissions.MaitriseManage);
 
-    // Who may create/fill a member-group réunion. A WHOLE-GROUP group (Grande Maîtrise, Chefs d'unité) is a
-    // top-level group manager thing. A branch/unit group is a UNIT-CONTEXT réunion (it appears inside a unit's
-    // "concernés"), so it's managed by that specific unit's manager (CU/CG) — keyed on the réunion's own unit.
-    public static bool CanManageGroupMeeting(ICurrentUserService u, string scopeType, Guid unitId) =>
-        scopeType == MemberGroupScopes.Group ? CanManageDynamic(u) : CanManageUnit(u, unitId);
+    // Who may create/fill a member-group réunion. A TOP-LEVEL group (whole group, or a NON-split branch) is a
+    // group-manager thing. A UNIT-CONTEXT group (a single unit, or a per-unit branch) appears inside a unit's
+    // "concernés", so it's managed by that specific unit's manager (CU/CG) — keyed on the réunion's own unit.
+    public static bool CanManageGroupMeeting(ICurrentUserService u, string scopeType, bool perUnit, Guid unitId) =>
+        MemberGroupModes.IsTopLevel(scopeType, perUnit) ? CanManageDynamic(u) : CanManageUnit(u, unitId);
 
     // The Groupe (MDG) unit — group réunions that aren't Unit-scoped anchor to it (roster is computed).
     public static async Task<Guid?> GroupeUnitIdAsync(IApplicationDbContext ctx, CancellationToken ct) =>
@@ -98,23 +98,25 @@ public class GetAttendanceScopeQueryHandler(IApplicationDbContext context, ICurr
             .OrderBy(t => t.Unit.Name).ThenBy(t => t.Name)
             .Select(t => new ScopeTeam(t.Id, t.Name, t.UnitId, t.Unit.Name)).ToListAsync(ct);
 
-        // Member groups. WHOLE-GROUP groups (Grande Maîtrise, Chefs d'unité) are top-level scopes for a group
-        // manager. BRANCH/UNIT groups (a UnitType or Unit scope) are UNIT-CONTEXT: they appear inside the relevant
-        // unit's "concernés" (resolved to THAT unit), so they're returned per manageable unit. Hidden groups excluded.
+        // Member groups. TOP-LEVEL groups (whole group, or a NON-split branch e.g. "join the 3 troupes") are
+        // top-level scopes for a group manager — one combined réunion. UNIT-CONTEXT groups (a Unit scope, or a
+        // per-unit branch e.g. "Haute Patrouille") appear inside the relevant unit's "concernés" (resolved to THAT
+        // unit), returned per manageable unit. Hidden groups excluded.
         var visibleGroups = await context.MemberGroups.Where(g => g.IsVisible).OrderBy(g => g.Name)
-            .Select(g => new { g.Id, g.Name, g.ScopeType, g.UnitTypeId, g.UnitId }).ToListAsync(ct);
+            .Select(g => new { g.Id, g.Name, g.ScopeType, g.PerUnit, g.UnitTypeId, g.UnitId }).ToListAsync(ct);
 
         var isGroupMgr = AttendanceAccess.CanManageDynamic(currentUser);
         var groups = isGroupMgr
-            ? visibleGroups.Where(g => g.ScopeType == MemberGroupScopes.Group).Select(g => new ScopeGroup(g.Id, g.Name)).ToList()
+            ? visibleGroups.Where(g => MemberGroupModes.IsTopLevel(g.ScopeType, g.PerUnit)).Select(g => new ScopeGroup(g.Id, g.Name)).ToList()
             : [];
 
-        // Per-unit applicable branch/unit groups: a Unit-scoped group for that exact unit, or a UnitType-scoped
-        // group for that unit's branch. Available to whoever manages the unit (CU/CG).
+        // Per-unit applicable groups: a Unit-scoped group for that exact unit, or a PER-UNIT UnitType group for
+        // that unit's branch. Available to whoever manages the unit (CU/CG). (A non-split branch group is top-level.)
         var unitGroups = (from u in manageableUnits
                           from g in visibleGroups
-                          where (g.ScopeType == MemberGroupScopes.Unit && g.UnitId == u.Id)
-                             || (g.ScopeType == MemberGroupScopes.UnitType && g.UnitTypeId == u.UnitTypeId)
+                          where MemberGroupModes.IsPerUnit(g.ScopeType, g.PerUnit)
+                             && ((g.ScopeType == MemberGroupScopes.Unit && g.UnitId == u.Id)
+                                 || (g.ScopeType == MemberGroupScopes.UnitType && g.UnitTypeId == u.UnitTypeId))
                           select new ScopeUnitGroup(u.Id, g.Id, g.Name)).ToList();
 
         return Result<AttendanceScopeDto>.Success(new AttendanceScopeDto(units, teams, groups, unitGroups));
@@ -130,13 +132,14 @@ public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUser
 {
     public async ValueTask<Result<IReadOnlyList<MeetingDto>>> Handle(GetMeetingsQuery request, CancellationToken ct)
     {
-        // TOP-LEVEL whole-group réunions (Grande Maîtrise, Chefs d'unité) — group manager only; roster computed.
+        // TOP-LEVEL group réunions (Grande Maîtrise, Chefs d'unité, or a combined branch) — group manager only;
+        // one combined roster. Per-unit groups live inside a unit's list, not here.
         if (request.MemberGroupId is Guid groupId)
         {
             var group = await context.MemberGroups.Include(g => g.Rules).FirstOrDefaultAsync(g => g.Id == groupId, ct);
             if (group is null) return Result<IReadOnlyList<MeetingDto>>.Failure("Groupe introuvable.");
-            // Branch/unit groups aren't a top-level scope (they live inside a unit's list); reject here.
-            if (group.ScopeType != MemberGroupScopes.Group || !AttendanceAccess.CanManageDynamic(currentUser))
+            // Per-unit groups aren't a top-level scope (they live inside a unit's list); reject here.
+            if (!MemberGroupModes.IsTopLevel(group.ScopeType, group.PerUnit) || !AttendanceAccess.CanManageDynamic(currentUser))
                 return Result<IReadOnlyList<MeetingDto>>.Failure("Accès non autorisé.");
 
             var dq = context.Meetings.Where(m => m.MemberGroupId == groupId);
@@ -165,10 +168,13 @@ public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUser
         if (!canManage && ledInThisUnit.Count == 0)
             return Result<IReadOnlyList<MeetingDto>>.Failure("Accès non autorisé à cette unité.");
 
-        // A unit's list = its normal réunions + its branch/unit GROUP réunions (unit-context). Whole-group group
-        // réunions (anchored to the Groupe unit) are excluded — they live under the top-level group scope.
+        // A unit's list = its normal réunions + its UNIT-CONTEXT group réunions (a Unit-scoped group, or a
+        // per-unit branch group). TOP-LEVEL group réunions (whole group, or a combined branch — anchored to the
+        // Groupe unit) are excluded; they live under the top-level group scope.
         var q = context.Meetings.Where(m => m.UnitId == unitId
-            && (m.MemberGroupId == null || m.MemberGroup!.ScopeType != MemberGroupScopes.Group));
+            && (m.MemberGroupId == null
+                || m.MemberGroup!.ScopeType == MemberGroupScopes.Unit
+                || (m.MemberGroup!.ScopeType == MemberGroupScopes.UnitType && m.MemberGroup!.PerUnit)));
         // A team leader only sees their own team's réunions (CU sees all, incl. group réunions).
         if (!canManage) q = q.Where(m => m.TeamId != null && ledInThisUnit.Contains(m.TeamId.Value));
         if (!string.IsNullOrWhiteSpace(request.ScoutYear))
@@ -218,8 +224,9 @@ public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUser
             : ctx.MemberAssignments.Where(a => a.UnitId == unitId && a.EndDate == null && a.TeamId == teamId);
 
     // Active-member roster for ANY réunion — a rule-based member group (computed) or a normal unit/team.
-    // A branch/unit group réunion is created FOR a specific unit, so its roster = the group's rules ∩ that unit;
-    // a whole-group (Group-scoped) group spans the whole group (no unit filter).
+    // A UNIT-CONTEXT group réunion (Unit scope, or per-unit branch) is created FOR a specific unit, so its roster
+    // = the group's rules ∩ that unit; a TOP-LEVEL group (whole group, or a combined branch) spans its whole
+    // scope (no unit filter).
     internal static async Task<IQueryable<MemberAssignment>> RosterQueryForAsync(IApplicationDbContext ctx, Meeting m, CancellationToken ct)
     {
         if (m.MemberGroupId is Guid gid)
@@ -227,7 +234,7 @@ public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUser
             var group = await ctx.MemberGroups.Include(g => g.Rules).FirstOrDefaultAsync(g => g.Id == gid, ct);
             if (group is null) return ctx.MemberAssignments.Where(_ => false);
             var roster = MemberGroupResolver.RosterQuery(ctx, group);
-            return group.ScopeType == MemberGroupScopes.Group ? roster : roster.Where(a => a.UnitId == m.UnitId);
+            return MemberGroupModes.IsTopLevel(group.ScopeType, group.PerUnit) ? roster : roster.Where(a => a.UnitId == m.UnitId);
         }
         return RosterQuery(ctx, m.UnitId, m.TeamId);
     }
@@ -246,14 +253,14 @@ public class GetMeetingAttendanceQueryHandler(IApplicationDbContext context, ICu
         if (m is null) return Result<MeetingAttendanceDto>.Failure("Réunion introuvable.");
 
         var isGroup = m.MemberGroupId != null;
-        var canManage = isGroup ? AttendanceAccess.CanManageGroupMeeting(currentUser, m.MemberGroup!.ScopeType, m.UnitId) : AttendanceAccess.CanManageUnit(currentUser, m.UnitId);
+        var canManage = isGroup ? AttendanceAccess.CanManageGroupMeeting(currentUser, m.MemberGroup!.ScopeType, m.MemberGroup!.PerUnit, m.UnitId) : AttendanceAccess.CanManageUnit(currentUser, m.UnitId);
         var ledTeamIds = await AttendanceAccess.LeadTeamIdsAsync(context, currentUser.MemberId, ct);
         var canFill = canManage || (m.TeamId != null && ledTeamIds.Contains(m.TeamId.Value));
         if (!canFill) return Result<MeetingAttendanceDto>.Failure("Accès non autorisé à cette réunion.");
 
-        // Column next to each name: a WHOLE-GROUP group spans units → show the member's UNIT; a normal or a
-        // branch/unit group réunion is within one unit → show the member's TEAM.
-        var showUnit = isGroup && m.MemberGroup!.ScopeType == MemberGroupScopes.Group;
+        // Column next to each name: a TOP-LEVEL group spans units → show the member's UNIT; a normal or a
+        // unit-context group réunion is within one unit → show the member's TEAM.
+        var showUnit = isGroup && MemberGroupModes.IsTopLevel(m.MemberGroup!.ScopeType, m.MemberGroup!.PerUnit);
         var rosterQuery = await GetMeetingsQueryHandler.RosterQueryForAsync(context, m, ct);
         var roster = await rosterQuery
             .Select(a => new { a.MemberId, a.Member.FirstName, a.Member.LastName,
@@ -334,16 +341,17 @@ public class CreateMeetingCommandHandler(IApplicationDbContext context, ICurrent
         if (request.MemberGroupId is Guid groupId)
         {
             // Member-group réunion (rule-based roster), approved immediately, no team. The ANCHOR unit depends on
-            // the group's scope: a WHOLE-GROUP group → the Groupe unit; a UNIT group → its own unit; a BRANCH
-            // (unit-type) group → the specific unit the réunion is created for (request.UnitId, a unit of that branch).
+            // the group's mode: a TOP-LEVEL group (whole group, or a combined branch) → the Groupe unit (one
+            // combined réunion); a UNIT group → its own unit; a PER-UNIT branch → the specific unit the réunion is
+            // created for (request.UnitId, a unit of that branch).
             var group = await context.MemberGroups.Include(g => g.Unit).FirstOrDefaultAsync(g => g.Id == groupId, ct);
             if (group is null) return Result<Guid>.Failure("Groupe introuvable.");
             Guid? anchor;
-            if (group.ScopeType == MemberGroupScopes.Group)
+            if (MemberGroupModes.IsTopLevel(group.ScopeType, group.PerUnit))
                 anchor = await AttendanceAccess.GroupeUnitIdAsync(context, ct);
             else if (group.ScopeType == MemberGroupScopes.Unit)
                 anchor = group.UnitId;
-            else // UnitType: the target unit must be given and belong to the group's branch
+            else // per-unit UnitType: the target unit must be given and belong to the group's branch
             {
                 if (request.UnitId is not Guid target) return Result<Guid>.Failure("Unité requise pour ce groupe.");
                 var okBranch = await context.Units.AnyAsync(x => x.Id == target && x.UnitTypeId == group.UnitTypeId, ct);
@@ -351,7 +359,7 @@ public class CreateMeetingCommandHandler(IApplicationDbContext context, ICurrent
                 anchor = target;
             }
             if (anchor is null) return Result<Guid>.Failure("Aucune unité « Groupe » configurée.");
-            if (!AttendanceAccess.CanManageGroupMeeting(currentUser, group.ScopeType, anchor.Value))
+            if (!AttendanceAccess.CanManageGroupMeeting(currentUser, group.ScopeType, group.PerUnit, anchor.Value))
                 return Result<Guid>.Failure("Accès non autorisé à ce groupe.");
             unitId = anchor.Value;
             teamId = null;
@@ -427,7 +435,7 @@ public class UpdateMeetingCommandHandler(IApplicationDbContext context, ICurrent
         if (m is null) return Result<bool>.Failure("Réunion introuvable.");
         var isGroup = m.MemberGroupId != null;
         // Only a CU/CG (manager of the unit) — or the group's manager for a member-group réunion — may edit.
-        if (!(isGroup ? AttendanceAccess.CanManageGroupMeeting(currentUser, m.MemberGroup!.ScopeType, m.UnitId) : AttendanceAccess.CanManageUnit(currentUser, m.UnitId)))
+        if (!(isGroup ? AttendanceAccess.CanManageGroupMeeting(currentUser, m.MemberGroup!.ScopeType, m.MemberGroup!.PerUnit, m.UnitId) : AttendanceAccess.CanManageUnit(currentUser, m.UnitId)))
             return Result<bool>.Failure("Seul le chef d'unité peut modifier une réunion.");
 
         // A member-group réunion keeps its computed group (no team); a normal one may set a team of its unit.
@@ -518,7 +526,7 @@ public class SaveMeetingAttendanceCommandHandler(IApplicationDbContext context, 
 
         var isGroup = m.MemberGroupId != null;
         if (isGroup) m.MemberGroup = await context.MemberGroups.FirstOrDefaultAsync(g => g.Id == m.MemberGroupId, ct);
-        var canManage = isGroup ? AttendanceAccess.CanManageGroupMeeting(currentUser, m.MemberGroup!.ScopeType, m.UnitId) : AttendanceAccess.CanManageUnit(currentUser, m.UnitId);
+        var canManage = isGroup ? AttendanceAccess.CanManageGroupMeeting(currentUser, m.MemberGroup!.ScopeType, m.MemberGroup!.PerUnit, m.UnitId) : AttendanceAccess.CanManageUnit(currentUser, m.UnitId);
         var ledTeamIds = await AttendanceAccess.LeadTeamIdsAsync(context, currentUser.MemberId, ct);
         var canFill = canManage || (m.TeamId != null && ledTeamIds.Contains(m.TeamId.Value));
         if (!canFill) return Result<bool>.Failure("Accès non autorisé à cette réunion.");

@@ -3,10 +3,12 @@
 // set of membership rules (union of includes, minus excludes), resolved live. Used as réunion scopes today.
 import { useState } from 'react'
 import {
-  useMemberGroups, useCreateMemberGroup, useUpdateMemberGroup, useDeleteMemberGroup, useMemberGroupMembers,
+  useMemberGroups, useCreateMemberGroup, useUpdateMemberGroup, useDeleteMemberGroup, useMemberGroupMembers, useSendGroupMessage,
   GROUP_SCOPES, GROUP_SCOPE_LABELS, GROUP_CRITERIA, CRITERION_LABELS,
   type MemberGroupDto, type MemberGroupRuleDto,
 } from '@/services/member-group-service'
+import { useLeaderMessageTemplates } from '@/services/communications-service'
+import { saveBlob } from '@/lib/download'
 import { useUnits } from '@/services/unit-service'
 import { useUnitTypes } from '@/services/unit-type-service'
 import { useFunctionalRoles, useSecurityProfiles } from '@/services/role-service'
@@ -25,7 +27,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
-import { Plus, Users, Pencil, Trash2, ShieldCheck, X, Search, Check, Minus, Globe, Layers, Building2 } from 'lucide-react'
+import { Plus, Users, Pencil, Trash2, ShieldCheck, X, Search, Check, Minus, Globe, Layers, Building2, Mail, Copy, FileDown } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function MemberGroupsPage() {
@@ -143,9 +145,14 @@ function GroupCard({ g, onEdit, onDelete, onView }: { g: MemberGroupDto; onEdit:
                 <h3 className="truncate font-semibold">{g.name}</h3>
                 {g.isSystem && <Badge variant="outline" className="gap-1 text-[10px]"><ShieldCheck className="h-3 w-3" />Prédéfini</Badge>}
               </div>
-              <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                {(() => { const I = scopeIcon; return <I className="h-3 w-3 shrink-0" /> })()}
-                <span className="truncate">{scopeLabel(g)}</span>
+              <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  {(() => { const I = scopeIcon; return <I className="h-3 w-3 shrink-0" /> })()}
+                  <span className="truncate">{scopeLabel(g)}</span>
+                </span>
+                {g.scopeType === 'UnitType' && (
+                  <Badge variant="outline" className="text-[10px] font-normal">{g.perUnit ? 'Par unité' : 'Combiné'}</Badge>
+                )}
               </p>
             </div>
           </div>
@@ -199,10 +206,12 @@ function GroupCard({ g, onEdit, onDelete, onView }: { g: MemberGroupDto; onEdit:
   )
 }
 
-// Read-only list of a group's current members (resolved live from the rules). Grouped by unit for readability.
+// Members of a group (resolved live) with their reachable contact — doubles as a mailing / contact export.
+// Grouped by unit (so a per-unit branch group reads as several lists). Actions: copy emails, export CSV, send email.
 function MembersDialog({ group, onClose }: { group: MemberGroupDto; onClose: () => void }) {
   const { data: members, isLoading } = useMemberGroupMembers(group.id)
   const [search, setSearch] = useState('')
+  const [sending, setSending] = useState(false)
   const q = search.trim().toLowerCase()
   const filtered = (members ?? []).filter(m => !q || `${m.lastName} ${m.firstName}`.toLowerCase().includes(q))
 
@@ -215,13 +224,36 @@ function MembersDialog({ group, onClose }: { group: MemberGroupDto; onClose: () 
   }
   const units = [...byUnit.keys()].sort((a, b) => a.localeCompare(b, 'fr'))
 
+  const withEmail = (members ?? []).filter(m => m.email)
+  const copyEmails = async () => {
+    const list = [...new Set(withEmail.map(m => m.email!.trim()))].join('; ')
+    try { await navigator.clipboard.writeText(list); toast.success(`${withEmail.length} adresse(s) copiée(s)`) }
+    catch { toast.error('Impossible de copier') }
+  }
+  const exportCsv = () => {
+    const rows = [['Nom', 'Prénom', 'Unité', 'Fonction', 'Équipe', 'Email', 'Téléphone']]
+    for (const m of members ?? [])
+      rows.push([m.lastName, m.firstName, m.unitName ?? '', m.roleName, m.teamName ?? '', m.email ?? '', m.phone ?? ''])
+    const csv = '﻿' + rows.map(r => r.map(c => `"${(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n')
+    saveBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `${group.name.replace(/\s+/g, '_')}.csv`, 'text/csv')
+  }
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Users className="h-5 w-5" />{group.name}</DialogTitle>
-          <DialogDescription>{group.memberCount} membre{group.memberCount > 1 ? 's' : ''} · {scopeLabel(group)}</DialogDescription>
+          <DialogDescription>
+            {group.memberCount} membre{group.memberCount > 1 ? 's' : ''} · {scopeLabel(group)} · {withEmail.length} avec email
+          </DialogDescription>
         </DialogHeader>
+
+        {/* Mailing-list actions */}
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => setSending(true)} disabled={withEmail.length === 0}><Mail className="mr-1 h-4 w-4" />Envoyer un email</Button>
+          <Button size="sm" variant="outline" onClick={copyEmails} disabled={withEmail.length === 0}><Copy className="mr-1 h-4 w-4" />Copier les emails</Button>
+          <Button size="sm" variant="outline" onClick={exportCsv} disabled={!members || members.length === 0}><FileDown className="mr-1 h-4 w-4" />Exporter (CSV)</Button>
+        </div>
 
         {members && members.length > 8 && (
           <div className="relative">
@@ -245,7 +277,12 @@ function MembersDialog({ group, onClose }: { group: MemberGroupDto; onClose: () 
                   <ul className="divide-y">
                     {byUnit.get(u)!.map(m => (
                       <li key={m.memberId} className="flex items-center justify-between gap-2 py-1.5 text-sm">
-                        <span className="truncate font-medium">{m.lastName} {m.firstName}</span>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{m.lastName} {m.firstName}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {m.email ?? <span className="text-amber-600">Aucun email</span>}{m.phone ? ` · ${m.phone}` : ''}
+                          </p>
+                        </div>
                         <span className="shrink-0 text-xs text-muted-foreground">
                           {m.roleName}{m.teamName ? ` · ${m.teamName}` : ''}
                         </span>
@@ -260,6 +297,88 @@ function MembersDialog({ group, onClose }: { group: MemberGroupDto; onClose: () 
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Fermer</Button>
+        </DialogFooter>
+      </DialogContent>
+      {sending && <SendMessageDialog group={group} onClose={() => setSending(false)} />}
+    </Dialog>
+  )
+}
+
+// Compose + send an email to a group's members: a saved template OR a free-text subject/body. Delivery is queued
+// (durable outbox) — the toast reports how many were queued and who has no reachable email.
+function SendMessageDialog({ group, onClose }: { group: MemberGroupDto; onClose: () => void }) {
+  const { data: templates } = useLeaderMessageTemplates()
+  const send = useSendGroupMessage()
+  const [mode, setMode] = useState<'free' | 'template'>('free')
+  const [templateCode, setTemplateCode] = useState('')
+  const [subject, setSubject] = useState('')
+  const [body, setBody] = useState('')
+  const [error, setError] = useState('')
+
+  const submit = async () => {
+    setError('')
+    if (mode === 'template' && !templateCode) { setError('Choisissez un modèle.'); return }
+    if (mode === 'free' && (!subject.trim() || !body.trim())) { setError('Saisissez un objet et un message.'); return }
+    try {
+      const r = await send.mutateAsync(mode === 'template'
+        ? { id: group.id, templateCode }
+        : { id: group.id, subject: subject.trim(), bodyHtml: body.trim() })
+      const extra = r.noContact > 0 ? ` · ${r.noContact} sans email` : ''
+      toast.success(`Email envoyé à ${r.recipients} destinataire(s)${extra}`)
+      onClose()
+    } catch (e) { setError(parseApiError(e)) }
+  }
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-[95vw] sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Envoyer un email — {group.name}</DialogTitle>
+          <DialogDescription>Un email par membre (adresse du membre, sinon celle d'un parent). Envoi mis en file.</DialogDescription>
+        </DialogHeader>
+
+        {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Contenu</label>
+            <Select value={mode} onValueChange={v => setMode(v as 'free' | 'template')}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="free">Message libre</SelectItem>
+                <SelectItem value="template">Modèle existant</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {mode === 'template' ? (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Modèle</label>
+              <Select value={templateCode} onValueChange={setTemplateCode}>
+                <SelectTrigger><SelectValue placeholder="Choisir un modèle…" /></SelectTrigger>
+                <SelectContent>{(templates ?? []).map(t => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}</SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Le contenu du modèle est envoyé tel quel (modifiable dans Email).</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Objet</label>
+                <Input value={subject} onChange={e => setSubject(e.target.value)} maxLength={200} placeholder="Objet de l'email" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Message</label>
+                <textarea value={body} onChange={e => setBody(e.target.value)} maxLength={10000} rows={8}
+                  className="w-full rounded-md border bg-transparent px-3 py-2 text-sm" placeholder="Votre message…" />
+                <p className="text-xs text-muted-foreground">Texte simple : les sauts de ligne sont conservés.</p>
+              </div>
+            </>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={send.isPending}>Annuler</Button>
+          <Button onClick={submit} disabled={send.isPending}>{send.isPending ? 'Envoi…' : 'Envoyer'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -278,6 +397,7 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
   const [unitId, setUnitId] = useState(group?.unitId ?? '')
   const [isVisible, setIsVisible] = useState(group?.isVisible ?? true)
   const [showInUnitList, setShowInUnitList] = useState(group?.showInUnitList ?? false)
+  const [perUnit, setPerUnit] = useState(group?.perUnit ?? true) // branch scope: default = one list per unit
   const [rules, setRules] = useState<MemberGroupRuleDto[]>(group?.rules ?? [{ include: true, criterion: 'maitrise', value: null }])
   const [error, setError] = useState('')
 
@@ -309,6 +429,7 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
       name: name.trim(), scopeType,
       unitTypeId: scopeType === 'UnitType' ? (unitTypeId || null) : null,
       unitId: scopeType === 'Unit' ? (unitId || null) : null,
+      perUnit: scopeType === 'UnitType' ? perUnit : false,
       isVisible, showInUnitList, rules,
     }
     try {
@@ -382,6 +503,25 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
                   </div>
                 )}
               </div>
+
+              {/* Per-unit vs combined — only meaningful for a branch (UnitType) scope, which spans several units. */}
+              {scopeType === 'UnitType' && (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Organisation</label>
+                  <Select value={perUnit ? 'per' : 'combined'} onValueChange={v => setPerUnit(v === 'per')}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="per">Une liste par unité (séparé)</SelectItem>
+                      <SelectItem value="combined">Une seule liste combinée</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {perUnit
+                      ? "Le groupe est séparé par unité — une liste, une réunion et un envoi par unité de la branche (ex. la Haute Patrouille de chaque troupe)."
+                      : "Toutes les unités de la branche forment une seule liste — une réunion et un envoi communs (ex. réunir les 3 troupes)."}
+                  </p>
+                </div>
+              )}
 
               {/* Rules builder */}
               <div className="space-y-2">

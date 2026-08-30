@@ -1091,6 +1091,20 @@ public static class SeedData
                 IsActive = true
             });
 
+        // Ad-hoc / free-text message (mailing lists): the "Envoyer un message" to a member group with a free-text
+        // subject + body (rather than a fixed template). Subject = {{subject}}; body = {{body}} wrapped in a
+        // white-space:pre-line block so the author's plain-text line breaks render (EmailService HTML-encodes the
+        // substituted body as an XSS defense, so it is delivered as safe plain text, not raw HTML).
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "adhoc_message"))
+            toAdd.Add(new EmailTemplate
+            {
+                Name = "Message libre (groupe / mailing)", Code = "adhoc_message", Module = "general",
+                Subject = "{{subject}}",
+                BodyHtml = "<div style=\"white-space:pre-line;font-family:sans-serif;font-size:14px;line-height:1.5;\">{{body}}</div>",
+                Variables = "[{\"key\":\"subject\",\"label\":\"Objet\"},{\"key\":\"body\",\"label\":\"Message\"}]",
+                IsActive = true
+            });
+
         if (toAdd.Count > 0) { context.EmailTemplates.AddRange(toAdd); await context.SaveChangesAsync(); }
 
         // Upgrade an EXISTING DB's onboarding templates in place to the activation-link version, so a single
