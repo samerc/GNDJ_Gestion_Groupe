@@ -3644,7 +3644,11 @@ as a **réunion scope** (and reusable elsewhere later). Replaces a first draft o
       animates with `zoom-in-95` + `slide-in-from-top-[48%]` — a `backdrop-filter` blur repainted UNDER a transform
       animation is a classic GPU flicker (worse for the big `h-[80vh]` members dialog). FIX: removed
       `backdrop-blur-sm` from the overlay (kept the `bg-foreground/40` dim) in `components/ui/dialog.tsx` —
-      **app-wide**, benefits every modal. Headless (no GPU) can't verify the repaint fix → pending the user's check.
+      **app-wide**, benefits every modal. Confirmed fixed by the user.
+  - **Page scales to dozens of groups (2026-08-30):** the flat 2-col card grid was unmanageable at scale. Added an
+      always-on **search** (matches name + branch + unit names) + a **scope filter** (Toutes / Tout le groupe / Une
+      branche / Une unité), and the results are **grouped into scope sections** ("Tout le groupe" / "Par branche" /
+      "Par unité") with per-section counts, sorted by branch/unit then name; grid widened to `md:2 / xl:3` columns.
 
 ### Access delegation — "accès délégué" per member (2026-08-30)
 A CG-succession + delegation tool: grant a SPECIFIC member extra access WITHOUT any assignment or visible role

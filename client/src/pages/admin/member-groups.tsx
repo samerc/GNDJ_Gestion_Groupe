@@ -38,6 +38,7 @@ export default function MemberGroupsPage() {
   const [deleting, setDeleting] = useState<MemberGroupDto | null>(null)
   const [viewing, setViewing] = useState<MemberGroupDto | null>(null)
   const [search, setSearch] = useState('')
+  const [scope, setScope] = useState('all') // all | Group | UnitType | Unit
   const del = useDeleteMemberGroup()
 
   const remove = async () => {
@@ -46,15 +47,32 @@ export default function MemberGroupsPage() {
     catch (e) { toast.error(parseApiError(e)); setDeleting(null) }
   }
 
-  if (isLoading) return <LoadingSpinner variant="table" />
-
   const all = groups ?? []
   const q = search.trim().toLowerCase()
-  const filtered = q ? all.filter(g => g.name.toLowerCase().includes(q)) : all
+  // Search matches the name AND the branch/unit it targets, so "troupe" finds branch- and unit-scoped groups.
+  const filtered = all.filter(g =>
+    (scope === 'all' || g.scopeType === scope) &&
+    (!q || `${g.name} ${g.unitTypeName ?? ''} ${g.unitName ?? ''}`.toLowerCase().includes(q)))
+
+  // Split into scope sections (each sorted) so dozens of groups stay organized and scannable.
+  const SECTIONS: { key: string; label: string; icon: typeof Globe }[] = [
+    { key: 'Group', label: 'Tout le groupe', icon: Globe },
+    { key: 'UnitType', label: 'Par branche', icon: Layers },
+    { key: 'Unit', label: 'Par unité', icon: Building2 },
+  ]
+  const sections = SECTIONS.map(s => ({
+    ...s,
+    items: filtered
+      .filter(g => g.scopeType === s.key)
+      .sort((a, b) =>
+        (a.unitTypeName ?? a.unitName ?? '').localeCompare(b.unitTypeName ?? b.unitName ?? '', 'fr')
+        || a.name.localeCompare(b.name, 'fr')),
+  })).filter(s => s.items.length > 0)
+
+  if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
     <div className="space-y-5">
-      {/* Header: title + live count + create. Search appears once there are several groups. */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -69,11 +87,23 @@ export default function MemberGroupsPage() {
         <Button onClick={() => setCreating(true)}><Plus className="mr-1 h-4 w-4" />Nouveau groupe</Button>
       </div>
 
-      {all.length > 4 && (
-        <div className="relative max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un groupe…" className="pl-8" />
-          {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>}
+      {/* Toolbar: search (name / branch / unit) + scope filter — keeps dozens of groups findable. */}
+      {all.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <div className="relative min-w-56 flex-1 sm:max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher (nom, branche, unité)…" className="pl-8" />
+            {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>}
+          </div>
+          <Select value={scope} onValueChange={setScope}>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les portées</SelectItem>
+              <SelectItem value="Group">Tout le groupe</SelectItem>
+              <SelectItem value="UnitType">Une branche</SelectItem>
+              <SelectItem value="Unit">Une unité</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
 
@@ -82,9 +112,20 @@ export default function MemberGroupsPage() {
       ) : filtered.length === 0 ? (
         <EmptyState icon={Search} title="Aucun résultat" description="Aucun groupe ne correspond à votre recherche." />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {filtered.map(g => (
-            <GroupCard key={g.id} g={g} onEdit={() => setEditing(g)} onDelete={() => setDeleting(g)} onView={() => setViewing(g)} />
+        <div className="space-y-6">
+          {sections.map(s => (
+            <section key={s.key} className="space-y-3">
+              <div className="flex items-center gap-2 border-b pb-1.5 text-sm font-semibold text-muted-foreground">
+                <s.icon className="h-4 w-4" />
+                <span>{s.label}</span>
+                <span className="rounded-full bg-muted px-1.5 text-xs">{s.items.length}</span>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {s.items.map(g => (
+                  <GroupCard key={g.id} g={g} onEdit={() => setEditing(g)} onDelete={() => setDeleting(g)} onView={() => setViewing(g)} />
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       )}
