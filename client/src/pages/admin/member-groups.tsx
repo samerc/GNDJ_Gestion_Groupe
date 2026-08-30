@@ -227,7 +227,9 @@ function MembersDialog({ group, onClose }: { group: MemberGroupDto; onClose: () 
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+      {/* Fixed height so the dialog opens at its final size — otherwise it pops open small (header + spinner) then
+          snaps to full height when the list arrives, which reads as a flicker. */}
+      <DialogContent className="flex h-[80vh] max-h-[calc(100dvh-2rem)] w-full max-w-[95vw] flex-col overflow-hidden sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Users className="h-5 w-5" />{group.name}</DialogTitle>
           <DialogDescription>
@@ -237,7 +239,7 @@ function MembersDialog({ group, onClose }: { group: MemberGroupDto; onClose: () 
         </DialogHeader>
 
         {isLoading ? (
-          <div className="py-8"><LoadingSpinner /></div>
+          <div className="flex flex-1 items-center justify-center"><LoadingSpinner /></div>
         ) : tabbed ? (
           <Tabs defaultValue={unitBuckets[0].unitId} className="flex min-h-0 flex-1 flex-col">
             <TabsList className="shrink-0 justify-start overflow-x-auto flex-nowrap">

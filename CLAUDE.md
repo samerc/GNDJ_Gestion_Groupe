@@ -3630,6 +3630,12 @@ as a **réunion scope** (and reusable elsewhere later). Replaces a first draft o
   - **Flicker on open:** the RuleRow's `/members` search query fired for EVERY rule (3× on opening HP) → extracted
       into `MemberRuleSearch` that only mounts for the "member" criterion; `useMemberGroups` (60s) +
       `useMemberGroupMembers` (30s) got `staleTime` so the list doesn't refetch under an open dialog.
+  - **Members-dialog flicker (2026-08-30, follow-up):** the reported flicker was the "Voir les membres" dialog —
+      diagnosed with a headless-Edge/CDP probe (login → open → sample): exactly 1 `/members` fetch, single dialog,
+      static once open (NO render loop / double-fetch). The flicker was the dialog opening SMALL (header + centered
+      spinner) then snapping to full height when the list arrived. FIX = fixed `h-[80vh]` on the members
+      `DialogContent` + spinner centered in `flex-1`, so it opens at its final size (no size-jump). Any faint
+      residual is React `StrictMode`'s dev-only double-mount (no-op in production).
 
 ### Access delegation — "accès délégué" per member (2026-08-30)
 A CG-succession + delegation tool: grant a SPECIFIC member extra access WITHOUT any assignment or visible role
