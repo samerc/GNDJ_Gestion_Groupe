@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { EmptyState } from '@/components/shared/empty-state'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { CalendarCheck, Plus, Pencil, Trash2, CheckCircle2, Clock, ClipboardList } from 'lucide-react'
+import { CalendarCheck, Plus, Pencil, Trash2, CheckCircle2, Clock, ClipboardList, Users } from 'lucide-react'
 
 // Réunions / Absences — the CU (and chef d'équipe) attendance screen. Pick a unit → list its réunions
 // (réunions / sorties / camps), create new ones (unit-wide or for a team), approve pending chef-d'équipe
@@ -50,7 +50,9 @@ function MeetingCard({ meeting, onOpen, onEdit, onApprove, onDelete, busy }: {
             {meeting.status === 'Pending' && (
               <Badge className="gap-1 border-amber-200 bg-amber-50 text-amber-700"><Clock className="h-3 w-3" />En attente</Badge>
             )}
-            {meeting.teamName ? (
+            {meeting.groupName ? (
+              <Badge variant="outline" className="gap-1 text-xs"><Users className="h-3 w-3" />{meeting.groupName}</Badge>
+            ) : meeting.teamName ? (
               <Badge variant="outline" className="text-xs">{meeting.teamName}</Badge>
             ) : (
               <Badge variant="outline" className="text-xs">Toute l'unité</Badge>
@@ -137,7 +139,7 @@ function AttendanceDialog({ meetingId, onClose }: { meetingId: string; onClose: 
         ) : (
           <>
             <p className="text-sm text-muted-foreground">
-              {frDate(data.date)} · {data.teamName ?? "Toute l'unité"} · <span className="font-medium">{absentCount}</span> absent{absentCount > 1 ? 's' : ''} sur {data.roster.length}. Cochez uniquement les membres absents.
+              {frDate(data.date)} · {data.groupName ?? data.teamName ?? "Toute l'unité"} · <span className="font-medium">{absentCount}</span> absent{absentCount > 1 ? 's' : ''} sur {data.roster.length}. Cochez uniquement les membres absents.
             </p>
             <div className="max-h-[55vh] divide-y overflow-y-auto rounded-md border">
               {data.roster.map((r: AttendanceRosterRow) => {
@@ -174,9 +176,10 @@ function AttendanceDialog({ meetingId, onClose }: { meetingId: string; onClose: 
 // The réunion create/edit dialog. A CU can target the whole unit or any team; a chef d'équipe is restricted
 // to the team(s) they lead in this unit (no "whole unit" option). Pass `meeting` to edit an existing réunion
 // (editing is manager-only — the caller only shows the edit button when canManage).
-function MeetingFormDialog({ unitId, memberGroupId, canManage, ledTeamIds, meeting, defaultDate, onClose }: {
+function MeetingFormDialog({ unitId, memberGroupId, unitGroups = [], canManage, ledTeamIds, meeting, defaultDate, onClose }: {
   unitId?: string
-  memberGroupId?: string // set for a member-group réunion (Grande Maîtrise, Chefs d'unité, …) — no team scope
+  memberGroupId?: string // set for a TOP-LEVEL whole-group réunion (Grande Maîtrise, Chefs d'unité) — no team scope
+  unitGroups?: { groupId: string; groupName: string }[] // branch/unit groups applicable IN this unit (concernés options)
   canManage: boolean
   ledTeamIds: string[]
   meeting?: MeetingDto
@@ -186,17 +189,19 @@ function MeetingFormDialog({ unitId, memberGroupId, canManage, ledTeamIds, meeti
   const create = useCreateMeeting()
   const update = useUpdateMeeting()
   const editing = !!meeting
-  const isGroup = !!memberGroupId // a member group defines its own membership → no team scope selector
+  const isTopGroup = !!memberGroupId // whole-group réunion from the top-level scope → no unit/team
+  const editingGroup = editing && !!meeting.memberGroupId // editing a unit-context group réunion → group is fixed
   // CU picks from all the unit's teams; a chef d'équipe only from their led teams (fetched, then filtered).
-  const { data: teamsData } = useTeams({ unitId: unitId || undefined, pageSize: 100, enabled: !isGroup && !!unitId })
+  const { data: teamsData } = useTeams({ unitId: unitId || undefined, pageSize: 100, enabled: !isTopGroup && !!unitId })
   const teams = useMemo(() => {
     const all = teamsData?.items ?? []
     return canManage ? all : all.filter(t => ledTeamIds.includes(t.id))
   }, [teamsData, canManage, ledTeamIds])
 
   const [type, setType] = useState<string>(meeting?.type ?? 'Reunion')
-  // '__unit__' = whole unit, else teamId. Edit prefills from the réunion; create defaults to whole unit for a CU.
-  const [scope, setScope] = useState<string>(meeting ? (meeting.teamId ?? '__unit__') : (canManage ? '__unit__' : ''))
+  // '__unit__' = whole unit · teamId · 'grp:<id>' = a branch/unit group. Edit prefills; create defaults to whole unit.
+  const [scope, setScope] = useState<string>(
+    meeting ? (meeting.memberGroupId ? `grp:${meeting.memberGroupId}` : (meeting.teamId ?? '__unit__')) : (canManage ? '__unit__' : ''))
   const [title, setTitle] = useState(meeting?.title ?? '')
   const [date, setDate] = useState(meeting?.date ?? defaultDate ?? '')
   const [endDate, setEndDate] = useState(meeting?.endDate ?? '')
@@ -206,21 +211,22 @@ function MeetingFormDialog({ unitId, memberGroupId, canManage, ledTeamIds, meeti
     e.preventDefault()
     setError('')
     if (!date) { setError('La date est requise.'); return }
-    if (!isGroup && !scope) { setError('Choisissez une équipe.'); return }
-    const payload = {
-      teamId: isGroup ? null : (scope === '__unit__' ? null : scope),
-      type,
-      title: title.trim() || null,
-      date,
-      endDate: type === 'Camp' && endDate ? endDate : null,
-      notes: null,
-    }
+    if (!isTopGroup && !editingGroup && !scope) { setError('Choisissez les concernés.'); return }
+    const isGroupScope = scope.startsWith('grp:')
+    const rest = { type, title: title.trim() || null, date, endDate: type === 'Camp' && endDate ? endDate : null, notes: null }
     try {
       if (editing) {
-        await update.mutateAsync({ id: meeting!.id, ...payload })
+        // Editing: a group réunion keeps its group (teamId null); a normal one keeps its team/unit scope.
+        await update.mutateAsync({ id: meeting!.id, teamId: editingGroup ? null : (scope === '__unit__' ? null : scope), ...rest })
         toast.success('Réunion modifiée')
+      } else if (isTopGroup) {
+        await create.mutateAsync({ memberGroupId, teamId: null, ...rest })
+        toast.success('Réunion créée')
+      } else if (isGroupScope) {
+        await create.mutateAsync({ unitId, memberGroupId: scope.slice(4), teamId: null, ...rest })
+        toast.success('Réunion créée')
       } else {
-        await create.mutateAsync(isGroup ? { memberGroupId, ...payload } : { unitId, ...payload })
+        await create.mutateAsync({ unitId, teamId: scope === '__unit__' ? null : scope, ...rest })
         toast.success(canManage ? 'Réunion créée' : 'Réunion créée — en attente d\'approbation du chef d\'unité')
       }
       onClose()
@@ -244,7 +250,12 @@ function MeetingFormDialog({ unitId, memberGroupId, canManage, ledTeamIds, meeti
               <SelectContent>{MEETING_TYPES.map(t => <SelectItem key={t} value={t}>{MEETING_TYPE_LABELS[t]}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          {!isGroup && (
+          {editingGroup ? (
+            <div className="space-y-2">
+              <RequiredLabel required>Concernés</RequiredLabel>
+              <Input value={meeting?.groupName ?? 'Groupe'} disabled />
+            </div>
+          ) : !isTopGroup && (
             <div className="space-y-2">
               <RequiredLabel required>Concernés</RequiredLabel>
               <Select value={scope} onValueChange={setScope}>
@@ -252,6 +263,7 @@ function MeetingFormDialog({ unitId, memberGroupId, canManage, ledTeamIds, meeti
                 <SelectContent>
                   {canManage && <SelectItem value="__unit__">Toute l'unité</SelectItem>}
                   {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                  {canManage && unitGroups.map(g => <SelectItem key={g.groupId} value={`grp:${g.groupId}`}>{g.groupName}</SelectItem>)}
                 </SelectContent>
               </Select>
               {!canManage && teams.length === 0 && <p className="text-xs text-muted-foreground">Aucune équipe dirigée dans cette unité.</p>}
@@ -413,10 +425,14 @@ export default function AttendancePage() {
       )}
 
       {createOpen && sel && (
-        <MeetingFormDialog unitId={unitId || undefined} memberGroupId={groupId || undefined} canManage={canManageUnit} ledTeamIds={ledTeamIds} defaultDate={defaultDate} onClose={() => setCreateOpen(false)} />
+        <MeetingFormDialog unitId={unitId || undefined} memberGroupId={groupId || undefined}
+          unitGroups={(scope?.unitGroups ?? []).filter(g => g.unitId === unitId)}
+          canManage={canManageUnit} ledTeamIds={ledTeamIds} defaultDate={defaultDate} onClose={() => setCreateOpen(false)} />
       )}
       {editMeeting && (
-        <MeetingFormDialog unitId={editMeeting.unitId} memberGroupId={editMeeting.memberGroupId ?? undefined} canManage={canManageUnit} ledTeamIds={ledTeamIds} meeting={editMeeting} onClose={() => setEditMeeting(null)} />
+        <MeetingFormDialog unitId={editMeeting.unitId}
+          unitGroups={(scope?.unitGroups ?? []).filter(g => g.unitId === editMeeting.unitId)}
+          canManage={canManageUnit} ledTeamIds={ledTeamIds} meeting={editMeeting} onClose={() => setEditMeeting(null)} />
       )}
       {attendanceId && <AttendanceDialog meetingId={attendanceId} onClose={() => setAttendanceId(null)} />}
       <ConfirmDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}

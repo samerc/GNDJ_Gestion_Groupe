@@ -31,10 +31,13 @@ export interface MeetingDto {
 }
 
 // The caller's manageable units + led teams + usable member groups — drives what to create/fill réunions for.
+// groups = WHOLE-GROUP groups (top-level scope, e.g. Grande Maîtrise). unitGroups = branch/unit groups that
+// apply INSIDE a unit (offered in that unit's "concernés"; resolved to that unit).
 export interface AttendanceScopeDto {
   units: { unitId: string; unitName: string }[]
   teams: { teamId: string; teamName: string; unitId: string; unitName: string }[]
   groups: { id: string; name: string }[]
+  unitGroups: { unitId: string; groupId: string; groupName: string }[]
 }
 
 export interface AttendanceRosterRow {

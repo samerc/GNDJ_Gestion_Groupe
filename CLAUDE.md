@@ -3554,6 +3554,20 @@ as a **réunion scope** (and reusable elsewhere later). Replaces a first draft o
       absence + list counts; custom Unit-scoped "Haute Patrouille" (team-leader rule) → 4 members; preset delete
       blocked; dev left with only the 2 presets. Build clean (dotnet + 4 tests + tsc + eslint + vite). DEV until deploy
       (migrations `AddMemberGroups` + the seeders apply on prod startup).
+- **Where a group appears (refined same day):** a **whole-group** group (`ScopeType=Group` → Grande Maîtrise, Chefs
+      d'unité) is a **top-level** réunion scope (group managers). A **branch/unit** group (`UnitType`/`Unit` scope, e.g.
+      "Haute Patrouille" on the Troupes branch) is **unit-context**: it does NOT show top-level — it appears in the
+      relevant unit's **"Concernés"** list when creating a réunion, resolves to **that unit only** (roster = the
+      group's rules **∩ the réunion's unit**), and its réunions show **within that unit's** list. Managed by that
+      unit's CU/CG (not group-manager-only). Wiring: `AttendanceScopeDto.UnitGroups` (per manageable unit, its
+      applicable branch/unit groups; UnitType matches the unit's `UnitTypeId`, Unit matches the unit) alongside
+      top-level `Groups` (whole-group only); `GetMeetings(unitId)` now includes unit-context group réunions (excludes
+      whole-group) with per-group `∩ unit` roster counts; create anchors a UnitType group to the passed `UnitId`
+      (validated to the branch); `RosterQueryForAsync` ∩'s the meeting's unit for non-whole-group; access =
+      `CanManageGroupMeeting(scopeType, meeting.UnitId)`. Frontend: the create dialog's Concernés = Toute l'unité +
+      teams + applicable groups; a group réunion shows a group badge. Verified live: Haute Patrouille (Troupes,
+      team-leader rule) → in all 3 Troupes' Concernés (not top-level), réunion for one Troupe → its 7 team-leaders
+      only + listed in that Troupe.
 
 ### Access delegation — "accès délégué" per member (2026-08-30)
 A CG-succession + delegation tool: grant a SPECIFIC member extra access WITHOUT any assignment or visible role
