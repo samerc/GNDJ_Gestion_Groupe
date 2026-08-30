@@ -262,8 +262,18 @@ function MeetingFormDialog({ unitId, memberGroupId, unitGroups = [], canManage, 
                 <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
                 <SelectContent>
                   {canManage && <SelectItem value="__unit__">Toute l'unité</SelectItem>}
-                  {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                  {canManage && unitGroups.map(g => <SelectItem key={g.groupId} value={`grp:${g.groupId}`}>{g.groupName}</SelectItem>)}
+                  {teams.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>Équipes</SelectLabel>
+                      {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                    </SelectGroup>
+                  )}
+                  {canManage && unitGroups.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>Groupes</SelectLabel>
+                      {unitGroups.map(g => <SelectItem key={g.groupId} value={`grp:${g.groupId}`}>{g.groupName}</SelectItem>)}
+                    </SelectGroup>
+                  )}
                 </SelectContent>
               </Select>
               {!canManage && teams.length === 0 && <p className="text-xs text-muted-foreground">Aucune équipe dirigée dans cette unité.</p>}
