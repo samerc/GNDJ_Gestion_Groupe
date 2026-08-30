@@ -262,6 +262,16 @@ export function useResetAccountPassword() {
   })
 }
 
+// DELETE /demandes/accounts/{id} → hard-delete the account and ALL its demandes/guardians/relations. Any
+// member already created from a demande is kept. Returns {demandesDeleted}; invalidates the list.
+export function useDeleteAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete<{ demandesDeleted: number }>(`/demandes/accounts/${id}`).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['demandes', 'accounts'] }),
+  })
+}
+
 // ── Reminders (G) ───────────────────────────────────────────────────────────────────────────────────
 // GET /demandes/unsubmitted-count?scoutYear → how many accounts have no submitted demande (reminder audience).
 export function useUnsubmittedCount(scoutYear: string) {

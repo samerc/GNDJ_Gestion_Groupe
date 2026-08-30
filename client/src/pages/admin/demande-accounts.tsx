@@ -1,12 +1,12 @@
-// CG "Comptes d'inscription" page ("/admin/demande-accounts", perm demande.view; verify/reset need demande.manage).
-// Lists the applicant (parent) accounts behind the demandes — including UNVERIFIED accounts that have no demande
-// yet, which is the whole point: email verification is required to submit, so a parent whose verification email
-// never arrived is otherwise invisible and stuck. The CG can filter to the unverified ones, search, click
-// "Vérifier manuellement" as a safety net, jump to an account's demande(s), and reset the account's portal
-// password (shown once to relay to the parent).
-import { useState } from 'react'
+// CG "Comptes d'inscription" page ("/admin/demande-accounts", perm demande.view; verify/reset/delete need
+// demande.manage). Lists the applicant (parent) accounts behind the demandes — including UNVERIFIED accounts
+// that have no demande yet, which is the whole point: email verification is required to submit, so a parent
+// whose verification email never arrived is otherwise invisible and stuck. The CG can filter to the unverified
+// ones, search, sort the columns, click "Vérifier manuellement" as a safety net, jump to an account's
+// demande(s), reset the account's portal password, and DELETE an account (which removes all its demandes too).
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { useDemandeAccounts, useVerifyAccountEmail, useResetAccountPassword } from '@/services/demande-admin-service'
+import { useDemandeAccounts, useVerifyAccountEmail, useResetAccountPassword, useDeleteAccount } from '@/services/demande-admin-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { parseApiError } from '@/lib/error-utils'
 import { Input } from '@/components/ui/input'
@@ -18,9 +18,21 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Tip } from '@/components/ui/tooltip'
-import { CheckCircle2, MailWarning, Search, ShieldCheck, X, FileText, KeyRound, Copy } from 'lucide-react'
+import { CheckCircle2, MailWarning, Search, ShieldCheck, X, FileText, KeyRound, Copy, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DemandeAccount } from '@/services/demande-admin-service'
+
+// A clickable, hoisted sort header (module scope to keep it stable across renders).
+type SortKey = 'email' | 'contact' | 'status' | 'demandes' | 'created'
+function SortHeader({ label, field, current, dir, onSort, className }: { label: string; field: SortKey; current: SortKey | null; dir: 'asc' | 'desc'; onSort: (f: SortKey) => void; className?: string }) {
+  const active = current === field
+  return (
+    <button className={`flex items-center gap-1 text-xs font-medium uppercase text-muted-foreground hover:text-foreground transition-colors ${className ?? ''}`} onClick={() => onSort(field)}>
+      {label}
+      {active ? (dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-50" />}
+    </button>
+  )
+}
 
 export default function DemandeAccountsPage() {
   const navigate = useNavigate()
@@ -30,10 +42,41 @@ export default function DemandeAccountsPage() {
   const { data: accounts, isLoading } = useDemandeAccounts(unverifiedOnly, debouncedSearch)
   const verify = useVerifyAccountEmail()
   const reset = useResetAccountPassword()
+  const del = useDeleteAccount()
   const [toVerify, setToVerify] = useState<DemandeAccount | null>(null)
   const [toReset, setToReset] = useState<DemandeAccount | null>(null)
+  const [toDelete, setToDelete] = useState<DemandeAccount | null>(null)
   // Temp credentials shown once after a reset, for the CG to relay to the parent.
   const [creds, setCreds] = useState<{ email: string; password: string } | null>(null)
+
+  // Client-side sorting (the list is capped at 500 rows). Default = server order (createdAt desc).
+  const [sortBy, setSortBy] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const handleSort = (f: SortKey) => {
+    if (sortBy === f) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortBy(f); setSortDir('asc') }
+  }
+
+  const sorted = useMemo(() => {
+    if (!accounts) return []
+    if (!sortBy) return accounts
+    const factor = sortDir === 'asc' ? 1 : -1
+    const val = (a: DemandeAccount): string | number => {
+      switch (sortBy) {
+        case 'email': return a.email.toLowerCase()
+        case 'contact': return (a.contactName ?? '').toLowerCase()
+        case 'status': return a.emailVerified ? 1 : 0
+        case 'demandes': return a.demandeCount
+        case 'created': return a.createdAt
+      }
+    }
+    return [...accounts].sort((x, y) => {
+      const vx = val(x), vy = val(y)
+      if (vx < vy) return -1 * factor
+      if (vx > vy) return 1 * factor
+      return 0
+    })
+  }, [accounts, sortBy, sortDir])
 
   // Jump to the review page filtered to this account's demande(s).
   const viewDemandes = (a: DemandeAccount) => {
@@ -58,6 +101,19 @@ export default function DemandeAccountsPage() {
       const r = await reset.mutateAsync(toReset.id)
       setCreds({ email: r.email, password: r.temporaryPassword })
       setToReset(null)
+    } catch (err) {
+      toast.error(parseApiError(err))
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!toDelete) return
+    try {
+      const r = await del.mutateAsync(toDelete.id)
+      toast.success(r.demandesDeleted > 0
+        ? `Compte supprimé (${r.demandesDeleted} demande(s) supprimée(s)).`
+        : 'Compte supprimé.')
+      setToDelete(null)
     } catch (err) {
       toast.error(parseApiError(err))
     }
@@ -104,22 +160,23 @@ export default function DemandeAccountsPage() {
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
-      ) : !accounts || accounts.length === 0 ? (
+      ) : sorted.length === 0 ? (
         <EmptyState icon={ShieldCheck} title="Aucun compte" description="Aucun compte d'inscription à afficher." />
       ) : (
         <div className="overflow-x-auto rounded-lg border">
           <Table>
             <TableHeader>
+              {/* Compact header; every column is click-to-sort. */}
               <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Statut email</TableHead>
-                <TableHead className="text-center">Demandes</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="h-9"><SortHeader label="Email" field="email" current={sortBy} dir={sortDir} onSort={handleSort} /></TableHead>
+                <TableHead className="h-9"><SortHeader label="Contact" field="contact" current={sortBy} dir={sortDir} onSort={handleSort} /></TableHead>
+                <TableHead className="h-9"><SortHeader label="Statut email" field="status" current={sortBy} dir={sortDir} onSort={handleSort} /></TableHead>
+                <TableHead className="h-9"><SortHeader label="Demandes" field="demandes" current={sortBy} dir={sortDir} onSort={handleSort} className="justify-center" /></TableHead>
+                <TableHead className="h-9 text-right text-xs uppercase text-muted-foreground">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {accounts.map((a) => {
+              {sorted.map((a) => {
                 const clickable = a.demandeCount > 0
                 return (
                   <TableRow
@@ -127,9 +184,9 @@ export default function DemandeAccountsPage() {
                     className={clickable ? 'cursor-pointer' : ''}
                     onClick={() => viewDemandes(a)}
                   >
-                    <TableCell className="font-medium break-all">{a.email}</TableCell>
-                    <TableCell>{a.contactName || <span className="text-muted-foreground">—</span>}</TableCell>
-                    <TableCell>
+                    <TableCell className="py-1.5 text-sm font-medium break-all">{a.email}</TableCell>
+                    <TableCell className="py-1.5 text-sm">{a.contactName || <span className="text-muted-foreground">—</span>}</TableCell>
+                    <TableCell className="py-1.5">
                       {a.emailVerified ? (
                         <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700">
                           <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Vérifié
@@ -140,11 +197,11 @@ export default function DemandeAccountsPage() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-center tabular-nums">
+                    <TableCell className="py-1.5 text-center text-sm tabular-nums">
                       {a.submittedCount}/{a.demandeCount}
                     </TableCell>
                     {/* Stop row-click propagation so the action buttons don't also navigate. */}
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1.5">
                         {clickable && (
                           <Tip content="Voir les demandes de ce compte">
@@ -163,6 +220,11 @@ export default function DemandeAccountsPage() {
                             Vérifier
                           </Button>
                         )}
+                        <Tip content="Supprimer ce compte et toutes ses demandes">
+                          <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setToDelete(a)} aria-label="Supprimer le compte">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </Tip>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -191,6 +253,17 @@ export default function DemandeAccountsPage() {
         confirmLabel="Réinitialiser"
         loading={reset.isPending}
         onConfirm={confirmReset}
+      />
+
+      <ConfirmDialog
+        open={!!toDelete}
+        onOpenChange={(o) => !o && setToDelete(null)}
+        title="Supprimer ce compte ?"
+        description={`Le compte « ${toDelete?.email} » et TOUTES ses demandes${toDelete && toDelete.demandeCount > 0 ? ` (${toDelete.demandeCount})` : ''} seront définitivement supprimés. Les membres déjà créés à partir d'une demande sont conservés. Cette action est irréversible.`}
+        confirmLabel="Supprimer"
+        variant="destructive"
+        loading={del.isPending}
+        onConfirm={confirmDelete}
       />
 
       {/* One-time credentials dialog after a reset. */}

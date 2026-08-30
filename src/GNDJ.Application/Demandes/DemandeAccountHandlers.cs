@@ -102,6 +102,52 @@ public class ResetApplicantPasswordCommandHandler(
     }
 }
 
+// Returned so the confirm/toast can report what was removed.
+public record DeleteApplicantAccountResult(int DemandesDeleted);
+
+// CG hard-deletes an applicant (parent) account AND everything on it — its demandes, guardians and scout
+// relations — in one transaction (mirrors the campaign-close cascade, scoped to one account). Any member
+// already CREATED from a demande on this account is kept (the member is a separate record; only the
+// applicant-side data goes). Irreversible.
+public record DeleteApplicantAccountCommand(Guid AccountId) : IRequest<Result<DeleteApplicantAccountResult>>;
+
+public class DeleteApplicantAccountCommandHandler(
+    IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<DeleteApplicantAccountCommand, Result<DeleteApplicantAccountResult>>
+{
+    public async ValueTask<Result<DeleteApplicantAccountResult>> Handle(DeleteApplicantAccountCommand request, CancellationToken ct)
+    {
+        // Same authority as posting decisions / manual-verify — a whole-group manager. (Controller also gates demande.manage.)
+        if (!MemberAccess.IsGroupManager(currentUser))
+            return Result<DeleteApplicantAccountResult>.Failure("Action non autorisée.");
+
+        var account = await context.ApplicantAccounts.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(a => a.Id == request.AccountId, ct);
+        if (account is null)
+            return Result<DeleteApplicantAccountResult>.Failure("Compte introuvable.");
+
+        var id = account.Id;
+        await using var tx = await context.BeginTransactionAsync(ct);
+
+        // FK order: demandes → relations/guardians → account. ExecuteDelete hard-deletes (bypasses the
+        // soft-delete interceptor); IgnoreQueryFilters so any already-soft-deleted rows go too.
+        var demandesDeleted = await context.Demandes.IgnoreQueryFilters()
+            .Where(d => d.ApplicantAccountId == id).ExecuteDeleteAsync(ct);
+        await context.ApplicantScoutRelations.IgnoreQueryFilters()
+            .Where(r => r.ApplicantAccountId == id).ExecuteDeleteAsync(ct);
+        await context.ApplicantGuardians.IgnoreQueryFilters()
+            .Where(g => g.ApplicantAccountId == id).ExecuteDeleteAsync(ct);
+        await context.ApplicantAccounts.IgnoreQueryFilters()
+            .Where(a => a.Id == id).ExecuteDeleteAsync(ct);
+
+        await tx.CommitAsync(ct);
+        await audit.LogAsync("DeleteAccount", "ApplicantAccount", id,
+            newValues: new { account.Email, DemandesDeleted = demandesDeleted }, cancellationToken: ct);
+
+        return Result<DeleteApplicantAccountResult>.Success(new DeleteApplicantAccountResult(demandesDeleted));
+    }
+}
+
 // Manually mark an applicant account's email as verified (CG safety net when the verification email failed).
 public record VerifyApplicantEmailManuallyCommand(Guid AccountId) : IRequest<Result<bool>>;
 

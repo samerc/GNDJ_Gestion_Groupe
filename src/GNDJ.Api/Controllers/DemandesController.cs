@@ -205,6 +205,17 @@ public class DemandesController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>Hard-deletes an applicant account and ALL its data (demandes, guardians, scout relations).
+    /// Any member already created from a demande is kept. Irreversible. Requires demande.manage.</summary>
+    [HttpDelete("accounts/{id:guid}")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> DeleteAccount(Guid id)
+    {
+        var result = await Mediator.Send(new DeleteApplicantAccountCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     // ── Reminders (G) ────────────────────────────────────────────────────────────────────────────────
     /// <summary>Count of applicant accounts with no submitted demande this year (reminder-A audience). demande.view.</summary>
     [HttpGet("unsubmitted-count")]
