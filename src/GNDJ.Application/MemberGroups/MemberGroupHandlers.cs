@@ -79,7 +79,8 @@ public class GetMemberGroupsQueryHandler(IApplicationDbContext context, ICurrent
             var count = await MemberGroupResolver.RosterQuery(context, g).Select(a => a.MemberId).Distinct().CountAsync(ct);
             list.Add(new MemberGroupDto(g.Id, g.Name, g.ScopeType, g.UnitTypeId, g.UnitType?.Name, g.UnitId, g.Unit?.Name,
                 g.PerUnit, g.IsVisible, g.ShowInUnitList, g.IsSystem, count,
-                g.Rules.Select(r => new MemberGroupRuleDto(r.Include, r.Criterion, r.Value, Label(r))).ToList()));
+                // Order by id: v7 ids are created sequentially in the saved order, so this preserves the UI order.
+                g.Rules.OrderBy(r => r.Id).Select(r => new MemberGroupRuleDto(r.Include, r.Criterion, r.Value, Label(r))).ToList()));
         }
         return Result<IReadOnlyList<MemberGroupDto>>.Success(list);
     }
@@ -88,8 +89,8 @@ public class GetMemberGroupsQueryHandler(IApplicationDbContext context, ICurrent
 // ── Members of a group (resolved live) ──
 // Email/Phone are the reachable contact = the member's OWN (primary first) else a guardian's ("membre puis parent"),
 // so the list doubles as a mailing/contact export. Only exposed to a group manager (this is leader data).
-public record MemberGroupMemberDto(Guid MemberId, string FirstName, string LastName, string? UnitName, string? TeamName,
-    string RoleName, string? Email, string? Phone);
+public record MemberGroupMemberDto(Guid MemberId, string FirstName, string LastName, Guid UnitId, string? UnitName,
+    string? TeamName, string RoleName, string? Email, string? Phone);
 public record GetMemberGroupMembersQuery(Guid Id) : IRequest<Result<IReadOnlyList<MemberGroupMemberDto>>>;
 
 public class GetMemberGroupMembersQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
@@ -110,6 +111,7 @@ public class GetMemberGroupMembersQueryHandler(IApplicationDbContext context, IC
                 a.Member.FirstName,
                 a.Member.LastName,
                 a.Member.PrimaryContactEmail,
+                a.UnitId,
                 UnitName = a.Unit.Name,
                 TeamName = a.Team != null ? a.Team.Name : null,
                 RoleName = a.FunctionalRole.Name,
@@ -125,7 +127,7 @@ public class GetMemberGroupMembersQueryHandler(IApplicationDbContext context, IC
         var phones = await MemberContactPhones.LoadAsync(context, memberIds, ct);
 
         var members = distinct
-            .Select(r => new MemberGroupMemberDto(r.MemberId, r.FirstName, r.LastName, r.UnitName, r.TeamName, r.RoleName,
+            .Select(r => new MemberGroupMemberDto(r.MemberId, r.FirstName, r.LastName, r.UnitId, r.UnitName, r.TeamName, r.RoleName,
                 emails.Resolve(r.MemberId, r.PrimaryContactEmail), phones.Resolve(r.MemberId)))
             .ToList();
         return Result<IReadOnlyList<MemberGroupMemberDto>>.Success(members);
@@ -276,11 +278,14 @@ public class UpdateMemberGroupCommandHandler(IApplicationDbContext context, ICur
         g.IsVisible = request.IsVisible;
         g.ShowInUnitList = request.ShowInUnitList;
 
-        // Hard-replace the rules (plain children).
+        // Hard-replace the rules (plain children). IMPORTANT: operate on the DbSet directly and do NOT mutate the
+        // tracked parent's nav collection (g.Rules) — mutating it (Clear/Add) triggers EF relationship fixup that
+        // severs the just-deleted children and throws DbUpdateConcurrencyException on SaveChanges (the same gotcha
+        // as multi-page docs / sibling contacts). New rules keep the request's order (sequential v7 ids), which the
+        // read side orders by, so the UI ordering is preserved.
         context.MemberGroupRules.RemoveRange(g.Rules);
-        g.Rules.Clear();
         foreach (var r in request.Rules)
-            g.Rules.Add(new MemberGroupRule { Id = Guid.CreateVersion7(), MemberGroupId = g.Id, Include = r.Include, Criterion = r.Criterion, Value = r.Value });
+            context.MemberGroupRules.Add(new MemberGroupRule { Id = Guid.CreateVersion7(), MemberGroupId = g.Id, Include = r.Include, Criterion = r.Criterion, Value = r.Value });
 
         await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);

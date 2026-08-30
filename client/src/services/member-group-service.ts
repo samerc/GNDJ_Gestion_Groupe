@@ -43,6 +43,7 @@ export function useMemberGroups() {
   return useQuery({
     queryKey: ['member-groups'],
     queryFn: () => apiClient.get<MemberGroupDto[]>('/member-groups').then(r => r.data),
+    staleTime: 60_000, // the list rarely changes; avoids a refetch flash when a dialog opens over it
   })
 }
 
@@ -50,7 +51,7 @@ export function useMemberGroups() {
 // (only fetched when the "Voir les membres" dialog opens).
 export interface MemberGroupMemberDto {
   memberId: string; firstName: string; lastName: string
-  unitName: string | null; teamName: string | null; roleName: string
+  unitId: string; unitName: string | null; teamName: string | null; roleName: string
   email: string | null; phone: string | null  // reachable contact (member then parent) — for mailing / export
 }
 export function useMemberGroupMembers(id: string | undefined) {
@@ -58,6 +59,7 @@ export function useMemberGroupMembers(id: string | undefined) {
     queryKey: ['member-groups', id, 'members'],
     queryFn: () => apiClient.get<MemberGroupMemberDto[]>(`/member-groups/${id}/members`).then(r => r.data),
     enabled: !!id,
+    staleTime: 30_000, // avoid a refetch flash while the dialog is open
   })
 }
 

@@ -3613,6 +3613,23 @@ as a **réunion scope** (and reusable elsewhere later). Replaces a first draft o
       resolved address (deduped), optional `unitId` narrows a per-unit group; queued via the durable outbox; returns
       recipients/no-contact report. Compose dialog reuses `useLeaderMessageTemplates`. Verified live: free-text send
       to HP∩Troupe3 → 12 recipients, 12 Pending outbox rows w/ subject.
+- **Member groups — fixes from CG feedback (2026-08-30):**
+  - **FIXED save-throws-409:** `UpdateMemberGroupCommandHandler` hard-replaced rules by mutating the tracked
+      parent's nav collection (`g.Rules.Clear()` + `g.Rules.Add()`) → EF relationship fixup severed the
+      just-deleted children → `DbUpdateConcurrencyException` → 409 "Cette information vient d'être modifiée" on
+      EVERY edit of a non-system group (e.g. toggling ShowInUnitList on HP). Now rules are removed/added via the
+      **DbSet directly** (never touch `g.Rules`) — same gotcha/fix as multi-page docs + sibling contacts. Verified:
+      HP edit → 204.
+  - **Rule reorder:** ▲▼ handles on each rule row (`moveRule`); order preserved on save (new rules get sequential
+      v7 ids in array order) and read back via `OrderBy(r.Id)` in `GetMemberGroupsQuery`. Cosmetic (rules are a
+      union) — for readability. Verified: reorder persists across save.
+  - **Per-unit members = tabs:** `MembersDialog` shows a **per-unit branch group** (`perUnit && >1 unit`) as one
+      TAB per unit (`MemberPane`, `unitId`), each with its own list + copy/export/send acting on THAT unit
+      (`unitId` added to `MemberGroupMemberDto` + the query; send passes it). Combined/Group/Unit scopes stay one
+      list. Verified: HP → 3 tabs (Troupe 2/3/10, 18/12/19).
+  - **Flicker on open:** the RuleRow's `/members` search query fired for EVERY rule (3× on opening HP) → extracted
+      into `MemberRuleSearch` that only mounts for the "member" criterion; `useMemberGroups` (60s) +
+      `useMemberGroupMembers` (30s) got `staleTime` so the list doesn't refetch under an open dialog.
 
 ### Access delegation — "accès délégué" per member (2026-08-30)
 A CG-succession + delegation tool: grant a SPECIFIC member extra access WITHOUT any assignment or visible role

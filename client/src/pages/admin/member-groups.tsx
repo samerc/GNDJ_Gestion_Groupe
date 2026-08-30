@@ -1,11 +1,11 @@
 // "Groupes" — admin page (CG/ACG/super-admin, perm maitrise.manage) to create reusable rule-based member groups
 // (Grande Maîtrise, Chefs d'unité, "Haute Patrouille", …). A group = a scope (whole group / branch / unit) + a
 // set of membership rules (union of includes, minus excludes), resolved live. Used as réunion scopes today.
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   useMemberGroups, useCreateMemberGroup, useUpdateMemberGroup, useDeleteMemberGroup, useMemberGroupMembers, useSendGroupMessage,
   GROUP_SCOPES, GROUP_SCOPE_LABELS, GROUP_CRITERIA, CRITERION_LABELS,
-  type MemberGroupDto, type MemberGroupRuleDto,
+  type MemberGroupDto, type MemberGroupRuleDto, type MemberGroupMemberDto,
 } from '@/services/member-group-service'
 import { useLeaderMessageTemplates } from '@/services/communications-service'
 import { saveBlob } from '@/lib/download'
@@ -21,13 +21,14 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Tip } from '@/components/ui/tooltip'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
-import { Plus, Users, Pencil, Trash2, ShieldCheck, X, Search, Check, Minus, Globe, Layers, Building2, Mail, Copy, FileDown } from 'lucide-react'
+import { Plus, Users, Pencil, Trash2, ShieldCheck, X, Search, Check, Minus, Globe, Layers, Building2, Mail, Copy, FileDown, ChevronUp, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function MemberGroupsPage() {
@@ -207,36 +208,22 @@ function GroupCard({ g, onEdit, onDelete, onView }: { g: MemberGroupDto; onEdit:
 }
 
 // Members of a group (resolved live) with their reachable contact — doubles as a mailing / contact export.
-// Grouped by unit (so a per-unit branch group reads as several lists). Actions: copy emails, export CSV, send email.
+// A PER-UNIT branch group is shown as one TAB per unit (separate lists, each with its own actions targeting that
+// unit); every other group is one combined list. Actions: copy emails, export CSV, send email.
 function MembersDialog({ group, onClose }: { group: MemberGroupDto; onClose: () => void }) {
   const { data: members, isLoading } = useMemberGroupMembers(group.id)
-  const [search, setSearch] = useState('')
-  const [sending, setSending] = useState(false)
-  const q = search.trim().toLowerCase()
-  const filtered = (members ?? []).filter(m => !q || `${m.lastName} ${m.firstName}`.toLowerCase().includes(q))
 
-  // Group the members by their unit (a member appears once — see the query).
-  const byUnit = new Map<string, typeof filtered>()
-  for (const m of filtered) {
-    const u = m.unitName ?? 'Sans unité'
-    if (!byUnit.has(u)) byUnit.set(u, [])
-    byUnit.get(u)!.push(m)
-  }
-  const units = [...byUnit.keys()].sort((a, b) => a.localeCompare(b, 'fr'))
+  // Buckets by unit (stable order by name) — used for the per-unit tabs.
+  const unitBuckets = useMemo(() => {
+    const map = new Map<string, { unitId: string; unitName: string; members: MemberGroupMemberDto[] }>()
+    for (const m of members ?? []) {
+      if (!map.has(m.unitId)) map.set(m.unitId, { unitId: m.unitId, unitName: m.unitName ?? 'Sans unité', members: [] })
+      map.get(m.unitId)!.members.push(m)
+    }
+    return [...map.values()].sort((a, b) => a.unitName.localeCompare(b.unitName, 'fr'))
+  }, [members])
 
-  const withEmail = (members ?? []).filter(m => m.email)
-  const copyEmails = async () => {
-    const list = [...new Set(withEmail.map(m => m.email!.trim()))].join('; ')
-    try { await navigator.clipboard.writeText(list); toast.success(`${withEmail.length} adresse(s) copiée(s)`) }
-    catch { toast.error('Impossible de copier') }
-  }
-  const exportCsv = () => {
-    const rows = [['Nom', 'Prénom', 'Unité', 'Fonction', 'Équipe', 'Email', 'Téléphone']]
-    for (const m of members ?? [])
-      rows.push([m.lastName, m.firstName, m.unitName ?? '', m.roleName, m.teamName ?? '', m.email ?? '', m.phone ?? ''])
-    const csv = '﻿' + rows.map(r => r.map(c => `"${(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n')
-    saveBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `${group.name.replace(/\s+/g, '_')}.csv`, 'text/csv')
-  }
+  const tabbed = group.perUnit && unitBuckets.length > 1
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -244,69 +231,125 @@ function MembersDialog({ group, onClose }: { group: MemberGroupDto; onClose: () 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Users className="h-5 w-5" />{group.name}</DialogTitle>
           <DialogDescription>
-            {group.memberCount} membre{group.memberCount > 1 ? 's' : ''} · {scopeLabel(group)} · {withEmail.length} avec email
+            {group.memberCount} membre{group.memberCount > 1 ? 's' : ''} · {scopeLabel(group)}
+            {tabbed && ' · séparé par unité'}
           </DialogDescription>
         </DialogHeader>
 
-        {/* Mailing-list actions */}
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={() => setSending(true)} disabled={withEmail.length === 0}><Mail className="mr-1 h-4 w-4" />Envoyer un email</Button>
-          <Button size="sm" variant="outline" onClick={copyEmails} disabled={withEmail.length === 0}><Copy className="mr-1 h-4 w-4" />Copier les emails</Button>
-          <Button size="sm" variant="outline" onClick={exportCsv} disabled={!members || members.length === 0}><FileDown className="mr-1 h-4 w-4" />Exporter (CSV)</Button>
-        </div>
-
-        {members && members.length > 8 && (
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…" className="pl-8" />
-          </div>
+        {isLoading ? (
+          <div className="py-8"><LoadingSpinner /></div>
+        ) : tabbed ? (
+          <Tabs defaultValue={unitBuckets[0].unitId} className="flex min-h-0 flex-1 flex-col">
+            <TabsList className="shrink-0 justify-start overflow-x-auto flex-nowrap">
+              {unitBuckets.map(b => <TabsTrigger key={b.unitId} value={b.unitId}>{b.unitName} ({b.members.length})</TabsTrigger>)}
+            </TabsList>
+            {unitBuckets.map(b => (
+              <TabsContent key={b.unitId} value={b.unitId} className="mt-2 flex min-h-0 flex-1 flex-col">
+                <MemberPane group={group} members={b.members} unitId={b.unitId} unitName={b.unitName} grouped={false} />
+              </TabsContent>
+            ))}
+          </Tabs>
+        ) : (
+          <MemberPane group={group} members={members ?? []} unitId={null} unitName={null} grouped={unitBuckets.length > 1} />
         )}
-
-        <div className="-mx-1 flex-1 overflow-y-auto px-1">
-          {isLoading ? (
-            <div className="py-8"><LoadingSpinner /></div>
-          ) : filtered.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Aucun membre.</p>
-          ) : (
-            <div className="space-y-3">
-              {units.map(u => (
-                <div key={u}>
-                  <div className="sticky top-0 flex items-center justify-between gap-2 bg-background/95 py-1 text-xs font-semibold text-muted-foreground">
-                    <span className="truncate">{u}</span><span>{byUnit.get(u)!.length}</span>
-                  </div>
-                  <ul className="divide-y">
-                    {byUnit.get(u)!.map(m => (
-                      <li key={m.memberId} className="flex items-center justify-between gap-2 py-1.5 text-sm">
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{m.lastName} {m.firstName}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {m.email ?? <span className="text-amber-600">Aucun email</span>}{m.phone ? ` · ${m.phone}` : ''}
-                          </p>
-                        </div>
-                        <span className="shrink-0 text-xs text-muted-foreground">
-                          {m.roleName}{m.teamName ? ` · ${m.teamName}` : ''}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Fermer</Button>
         </DialogFooter>
       </DialogContent>
-      {sending && <SendMessageDialog group={group} onClose={() => setSending(false)} />}
     </Dialog>
+  )
+}
+
+// One list of members (all of a combined group, or one unit of a per-unit group) + its mailing actions (copy /
+// export / send). `grouped` shows per-unit section headers (combined group with several units); a per-unit tab is flat.
+function MemberPane({ group, members, unitId, unitName, grouped }: {
+  group: MemberGroupDto; members: MemberGroupMemberDto[]; unitId: string | null; unitName: string | null; grouped: boolean
+}) {
+  const [search, setSearch] = useState('')
+  const [sending, setSending] = useState(false)
+  const q = search.trim().toLowerCase()
+  const filtered = members.filter(m => !q || `${m.lastName} ${m.firstName}`.toLowerCase().includes(q))
+  const withEmail = members.filter(m => m.email)
+
+  const copyEmails = async () => {
+    const list = [...new Set(withEmail.map(m => m.email!.trim()))].join('; ')
+    try { await navigator.clipboard.writeText(list); toast.success(`${new Set(withEmail.map(m => m.email!.trim())).size} adresse(s) copiée(s)`) }
+    catch { toast.error('Impossible de copier') }
+  }
+  const exportCsv = () => {
+    const rows = [['Nom', 'Prénom', 'Unité', 'Fonction', 'Équipe', 'Email', 'Téléphone']]
+    for (const m of members)
+      rows.push([m.lastName, m.firstName, m.unitName ?? '', m.roleName, m.teamName ?? '', m.email ?? '', m.phone ?? ''])
+    const csv = '﻿' + rows.map(r => r.map(c => `"${(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n')
+    const name = `${group.name}${unitName ? '_' + unitName : ''}`.replace(/\s+/g, '_')
+    saveBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `${name}.csv`, 'text/csv')
+  }
+
+  // Section the list by unit only for a combined group with several units; a per-unit tab is a flat list.
+  const byUnit = new Map<string, MemberGroupMemberDto[]>()
+  for (const m of filtered) {
+    const u = m.unitName ?? 'Sans unité'
+    if (!byUnit.has(u)) byUnit.set(u, [])
+    byUnit.get(u)!.push(m)
+  }
+  const units = [...byUnit.keys()].sort((a, b) => a.localeCompare(b, 'fr'))
+
+  const row = (m: MemberGroupMemberDto) => (
+    <li key={m.memberId} className="flex items-center justify-between gap-2 py-1.5 text-sm">
+      <div className="min-w-0">
+        <p className="truncate font-medium">{m.lastName} {m.firstName}</p>
+        <p className="truncate text-xs text-muted-foreground">
+          {m.email ?? <span className="text-amber-600">Aucun email</span>}{m.phone ? ` · ${m.phone}` : ''}
+        </p>
+      </div>
+      <span className="shrink-0 text-xs text-muted-foreground">{m.roleName}{m.teamName ? ` · ${m.teamName}` : ''}</span>
+    </li>
+  )
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" onClick={() => setSending(true)} disabled={withEmail.length === 0}><Mail className="mr-1 h-4 w-4" />Envoyer un email</Button>
+        <Button size="sm" variant="outline" onClick={copyEmails} disabled={withEmail.length === 0}><Copy className="mr-1 h-4 w-4" />Copier les emails</Button>
+        <Button size="sm" variant="outline" onClick={exportCsv} disabled={members.length === 0}><FileDown className="mr-1 h-4 w-4" />Exporter (CSV)</Button>
+      </div>
+      <p className="text-xs text-muted-foreground">{members.length} membre{members.length > 1 ? 's' : ''} · {withEmail.length} avec email</p>
+
+      {members.length > 8 && (
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…" className="pl-8" />
+        </div>
+      )}
+
+      <div className="-mx-1 flex-1 overflow-y-auto px-1">
+        {filtered.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Aucun membre.</p>
+        ) : grouped ? (
+          <div className="space-y-3">
+            {units.map(u => (
+              <div key={u}>
+                <div className="sticky top-0 flex items-center justify-between gap-2 bg-background/95 py-1 text-xs font-semibold text-muted-foreground">
+                  <span className="truncate">{u}</span><span>{byUnit.get(u)!.length}</span>
+                </div>
+                <ul className="divide-y">{byUnit.get(u)!.map(row)}</ul>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <ul className="divide-y">{filtered.map(row)}</ul>
+        )}
+      </div>
+
+      {sending && <SendMessageDialog group={group} unitId={unitId} unitName={unitName} onClose={() => setSending(false)} />}
+    </div>
   )
 }
 
 // Compose + send an email to a group's members: a saved template OR a free-text subject/body. Delivery is queued
 // (durable outbox) — the toast reports how many were queued and who has no reachable email.
-function SendMessageDialog({ group, onClose }: { group: MemberGroupDto; onClose: () => void }) {
+function SendMessageDialog({ group, unitId, unitName, onClose }: { group: MemberGroupDto; unitId?: string | null; unitName?: string | null; onClose: () => void }) {
   const { data: templates } = useLeaderMessageTemplates()
   const send = useSendGroupMessage()
   const [mode, setMode] = useState<'free' | 'template'>('free')
@@ -320,9 +363,10 @@ function SendMessageDialog({ group, onClose }: { group: MemberGroupDto; onClose:
     if (mode === 'template' && !templateCode) { setError('Choisissez un modèle.'); return }
     if (mode === 'free' && (!subject.trim() || !body.trim())) { setError('Saisissez un objet et un message.'); return }
     try {
+      const base = { id: group.id, unitId: unitId ?? null }
       const r = await send.mutateAsync(mode === 'template'
-        ? { id: group.id, templateCode }
-        : { id: group.id, subject: subject.trim(), bodyHtml: body.trim() })
+        ? { ...base, templateCode }
+        : { ...base, subject: subject.trim(), bodyHtml: body.trim() })
       const extra = r.noContact > 0 ? ` · ${r.noContact} sans email` : ''
       toast.success(`Email envoyé à ${r.recipients} destinataire(s)${extra}`)
       onClose()
@@ -333,7 +377,7 @@ function SendMessageDialog({ group, onClose }: { group: MemberGroupDto; onClose:
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Envoyer un email — {group.name}</DialogTitle>
+          <DialogTitle>Envoyer un email — {group.name}{unitName ? ` · ${unitName}` : ''}</DialogTitle>
           <DialogDescription>Un email par membre (adresse du membre, sinon celle d'un parent). Envoi mis en file.</DialogDescription>
         </DialogHeader>
 
@@ -414,6 +458,12 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
     setRules(rs => rs.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const addRule = () => setRules(rs => [...rs, { include: true, criterion: 'maitrise', value: null }])
   const removeRule = (i: number) => setRules(rs => rs.filter((_, idx) => idx !== i))
+  // Reorder a rule (cosmetic — the order is preserved on save for readability).
+  const moveRule = (i: number, dir: -1 | 1) => setRules(rs => {
+    const j = i + dir
+    if (j < 0 || j >= rs.length) return rs
+    const copy = [...rs]; [copy[i], copy[j]] = [copy[j], copy[i]]; return copy
+  })
 
   const submit = async () => {
     setError('')
@@ -533,7 +583,8 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
                 <div className="space-y-2">
                   {rules.map((r, i) => (
                     <RuleRow key={i} rule={r} roles={roles ?? []} profiles={profiles ?? []} units={units?.items ?? []} unitTypes={unitTypes?.items ?? []}
-                      onChange={patch => setRule(i, patch)} onRemove={() => removeRule(i)} canRemove={rules.length > 1} />
+                      onChange={patch => setRule(i, patch)} onRemove={() => removeRule(i)} canRemove={rules.length > 1}
+                      onMoveUp={() => moveRule(i, -1)} onMoveDown={() => moveRule(i, 1)} canMoveUp={i > 0} canMoveDown={i < rules.length - 1} />
                   ))}
                 </div>
               </div>
@@ -550,8 +601,8 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
   )
 }
 
-// One editable rule row: include/exclude + criterion + (optional) value picker.
-function RuleRow({ rule, roles, profiles, units, unitTypes, onChange, onRemove, canRemove }: {
+// One editable rule row: reorder handles + include/exclude + criterion + (optional) value picker.
+function RuleRow({ rule, roles, profiles, units, unitTypes, onChange, onRemove, canRemove, onMoveUp, onMoveDown, canMoveUp, canMoveDown }: {
   rule: MemberGroupRuleDto
   roles: { id: string; name: string }[]
   profiles: { id: string; code: string; name: string }[]
@@ -560,74 +611,88 @@ function RuleRow({ rule, roles, profiles, units, unitTypes, onChange, onRemove, 
   onChange: (patch: Partial<MemberGroupRuleDto>) => void
   onRemove: () => void
   canRemove: boolean
+  onMoveUp: () => void
+  onMoveDown: () => void
+  canMoveUp: boolean
+  canMoveDown: boolean
 }) {
+  return (
+    <div className="flex items-start gap-1.5 rounded-md border p-2">
+      {/* Reorder handles (cosmetic ordering for readability) */}
+      <div className="flex flex-col">
+        <Button type="button" variant="ghost" size="icon" className="h-4 w-6 text-muted-foreground disabled:opacity-30" onClick={onMoveUp} disabled={!canMoveUp} aria-label="Monter"><ChevronUp className="h-4 w-4" /></Button>
+        <Button type="button" variant="ghost" size="icon" className="h-4 w-6 text-muted-foreground disabled:opacity-30" onClick={onMoveDown} disabled={!canMoveDown} aria-label="Descendre"><ChevronDown className="h-4 w-4" /></Button>
+      </div>
+      <div className="flex-1 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Include / Exclude */}
+          <Select value={rule.include ? 'inc' : 'exc'} onValueChange={v => onChange({ include: v === 'inc' })}>
+            <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="inc">Inclure</SelectItem>
+              <SelectItem value="exc">Exclure</SelectItem>
+            </SelectContent>
+          </Select>
+          {/* Criterion */}
+          <Select value={rule.criterion} onValueChange={v => onChange({ criterion: v, value: null })}>
+            <SelectTrigger className="h-8 w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>{GROUP_CRITERIA.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}</SelectContent>
+          </Select>
+          {/* Value picker (per criterion) */}
+          {rule.criterion === 'profile' && (
+            <Select value={rule.value ?? ''} onValueChange={v => onChange({ value: v })}>
+              <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Profil..." /></SelectTrigger>
+              <SelectContent>{profiles.map(p => <SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
+          {rule.criterion === 'role' && (
+            <Select value={rule.value ?? ''} onValueChange={v => onChange({ value: v })}>
+              <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Fonction..." /></SelectTrigger>
+              <SelectContent>{roles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
+          {rule.criterion === 'unit' && (
+            <Select value={rule.value ?? ''} onValueChange={v => onChange({ value: v })}>
+              <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Unité..." /></SelectTrigger>
+              <SelectContent>{units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
+          {rule.criterion === 'unit-type' && (
+            <Select value={rule.value ?? ''} onValueChange={v => onChange({ value: v })}>
+              <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Branche..." /></SelectTrigger>
+              <SelectContent>{unitTypes.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
+          {canRemove && (
+            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={onRemove}><X className="h-4 w-4" /></Button>
+          )}
+        </div>
+        {/* Member search only mounts for the "member" criterion, so its query doesn't fire for other rules. */}
+        {rule.criterion === 'member' && <MemberRuleSearch value={rule.value} onChange={v => onChange({ value: v })} />}
+      </div>
+    </div>
+  )
+}
+
+// Member picker for a "member" rule — self-contained so its /members search query only runs when this rule
+// is a member rule (mounting/unmounting with the criterion), not for every rule row.
+function MemberRuleSearch({ value, onChange }: { value: string | null | undefined; onChange: (v: string | null) => void }) {
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search)
   const { data: memberResults } = useMembers({ search: debounced || undefined, pageSize: 6 })
-
+  if (value)
+    return <div className="flex items-center gap-2 text-sm"><Badge variant="secondary">Membre sélectionné</Badge><Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>Changer</Button></div>
   return (
-    <div className="rounded-md border p-2 space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Include / Exclude */}
-        <Select value={rule.include ? 'inc' : 'exc'} onValueChange={v => onChange({ include: v === 'inc' })}>
-          <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="inc">Inclure</SelectItem>
-            <SelectItem value="exc">Exclure</SelectItem>
-          </SelectContent>
-        </Select>
-        {/* Criterion */}
-        <Select value={rule.criterion} onValueChange={v => onChange({ criterion: v, value: null })}>
-          <SelectTrigger className="h-8 w-44"><SelectValue /></SelectTrigger>
-          <SelectContent>{GROUP_CRITERIA.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}</SelectContent>
-        </Select>
-        {/* Value picker (per criterion) */}
-        {rule.criterion === 'profile' && (
-          <Select value={rule.value ?? ''} onValueChange={v => onChange({ value: v })}>
-            <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Profil..." /></SelectTrigger>
-            <SelectContent>{profiles.map(p => <SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>)}</SelectContent>
-          </Select>
-        )}
-        {rule.criterion === 'role' && (
-          <Select value={rule.value ?? ''} onValueChange={v => onChange({ value: v })}>
-            <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Fonction..." /></SelectTrigger>
-            <SelectContent>{roles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
-          </Select>
-        )}
-        {rule.criterion === 'unit' && (
-          <Select value={rule.value ?? ''} onValueChange={v => onChange({ value: v })}>
-            <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Unité..." /></SelectTrigger>
-            <SelectContent>{units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
-          </Select>
-        )}
-        {rule.criterion === 'unit-type' && (
-          <Select value={rule.value ?? ''} onValueChange={v => onChange({ value: v })}>
-            <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Branche..." /></SelectTrigger>
-            <SelectContent>{unitTypes.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-          </Select>
-        )}
-        {canRemove && (
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={onRemove}><X className="h-4 w-4" /></Button>
-        )}
-      </div>
-      {/* Member search (its own row — value = a member id). */}
-      {rule.criterion === 'member' && (
-        <div className="pl-1">
-          {rule.value
-            ? <div className="flex items-center gap-2 text-sm"><Badge variant="secondary">Membre sélectionné</Badge><Button type="button" variant="ghost" size="sm" onClick={() => onChange({ value: null })}>Changer</Button></div>
-            : <>
-                <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un membre…" className="h-8" />
-                {debounced && memberResults && (
-                  <div className="mt-1 max-h-36 overflow-y-auto rounded-md border text-sm">
-                    {memberResults.items.map(m => (
-                      <button key={m.id} type="button" className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-muted"
-                        onClick={() => { onChange({ value: m.id }); setSearch('') }}>
-                        <Users className="h-3.5 w-3.5 text-muted-foreground" />{m.lastName} {m.firstName}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>}
+    <div>
+      <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un membre…" className="h-8" />
+      {debounced && memberResults && (
+        <div className="mt-1 max-h-36 overflow-y-auto rounded-md border text-sm">
+          {memberResults.items.map(m => (
+            <button key={m.id} type="button" className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-muted"
+              onClick={() => { onChange(m.id); setSearch('') }}>
+              <Users className="h-3.5 w-3.5 text-muted-foreground" />{m.lastName} {m.firstName}
+            </button>
+          ))}
         </div>
       )}
     </div>
