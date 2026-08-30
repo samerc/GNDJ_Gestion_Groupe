@@ -13,7 +13,9 @@ namespace GNDJ.Application.MemberGroups;
 // manager (CG/ACG/super-admin). Membership is computed live from the rules (see MemberGroupResolver); these
 // handlers are the CRUD over the group DEFINITIONS.
 
-public record MemberGroupRuleDto(bool Include, string Criterion, string? Value);
+// ValueLabel is a READ-ONLY, human-readable resolution of Value (a role/unit/branch/member name, or a profile
+// name) so the UI never shows a raw GUID. Writes send only Include/Criterion/Value; the handlers ignore ValueLabel.
+public record MemberGroupRuleDto(bool Include, string Criterion, string? Value, string? ValueLabel = null);
 public record MemberGroupDto(
     Guid Id, string Name, string ScopeType, Guid? UnitTypeId, string? UnitTypeName, Guid? UnitId, string? UnitName,
     bool IsVisible, bool ShowInUnitList, bool IsSystem, int MemberCount, IReadOnlyList<MemberGroupRuleDto> Rules);
@@ -37,6 +39,39 @@ public class GetMemberGroupsQueryHandler(IApplicationDbContext context, ICurrent
         var groups = await context.MemberGroups.Include(g => g.Rules).Include(g => g.UnitType).Include(g => g.Unit)
             .OrderByDescending(g => g.IsSystem).ThenBy(g => g.Name).ToListAsync(ct);
 
+        // Batch-resolve every rule's Value → a human name (role/unit/branch/member name, or profile name) so the
+        // UI shows readable chips instead of raw GUIDs. Collect the referenced ids/codes across all groups first.
+        var roleIds = new HashSet<Guid>(); var unitIds = new HashSet<Guid>();
+        var unitTypeIds = new HashSet<Guid>(); var memberIds = new HashSet<Guid>();
+        var profileCodes = new HashSet<string>();
+        foreach (var r in groups.SelectMany(g => g.Rules))
+        {
+            if (string.IsNullOrWhiteSpace(r.Value)) continue;
+            switch (r.Criterion)
+            {
+                case MemberGroupCriteria.Role: if (Guid.TryParse(r.Value, out var ri)) roleIds.Add(ri); break;
+                case MemberGroupCriteria.Unit: if (Guid.TryParse(r.Value, out var ui)) unitIds.Add(ui); break;
+                case MemberGroupCriteria.UnitType: if (Guid.TryParse(r.Value, out var ti)) unitTypeIds.Add(ti); break;
+                case MemberGroupCriteria.Member: if (Guid.TryParse(r.Value, out var mi)) memberIds.Add(mi); break;
+                case MemberGroupCriteria.Profile: profileCodes.Add(r.Value); break;
+            }
+        }
+        var roleNames = await context.FunctionalRoles.Where(x => roleIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+        var unitNames = await context.Units.Where(x => unitIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+        var unitTypeNames = await context.UnitTypes.Where(x => unitTypeIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+        var memberNames = await context.Members.Where(x => memberIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.FirstName + " " + x.LastName, ct);
+        var profileNames = await context.SecurityProfiles.Where(x => profileCodes.Contains(x.Code)).ToDictionaryAsync(x => x.Code, x => x.Name, ct);
+
+        string? Label(MemberGroupRule r) => string.IsNullOrWhiteSpace(r.Value) ? null : r.Criterion switch
+        {
+            MemberGroupCriteria.Profile => profileNames.GetValueOrDefault(r.Value),
+            MemberGroupCriteria.Role => Guid.TryParse(r.Value, out var ri) ? roleNames.GetValueOrDefault(ri) : null,
+            MemberGroupCriteria.Unit => Guid.TryParse(r.Value, out var ui) ? unitNames.GetValueOrDefault(ui) : null,
+            MemberGroupCriteria.UnitType => Guid.TryParse(r.Value, out var ti) ? unitTypeNames.GetValueOrDefault(ti) : null,
+            MemberGroupCriteria.Member => Guid.TryParse(r.Value, out var mi) ? memberNames.GetValueOrDefault(mi) : null,
+            _ => null,
+        };
+
         var list = new List<MemberGroupDto>(groups.Count);
         foreach (var g in groups)
         {
@@ -44,9 +79,46 @@ public class GetMemberGroupsQueryHandler(IApplicationDbContext context, ICurrent
             var count = await MemberGroupResolver.RosterQuery(context, g).Select(a => a.MemberId).Distinct().CountAsync(ct);
             list.Add(new MemberGroupDto(g.Id, g.Name, g.ScopeType, g.UnitTypeId, g.UnitType?.Name, g.UnitId, g.Unit?.Name,
                 g.IsVisible, g.ShowInUnitList, g.IsSystem, count,
-                g.Rules.Select(r => new MemberGroupRuleDto(r.Include, r.Criterion, r.Value)).ToList()));
+                g.Rules.Select(r => new MemberGroupRuleDto(r.Include, r.Criterion, r.Value, Label(r))).ToList()));
         }
         return Result<IReadOnlyList<MemberGroupDto>>.Success(list);
+    }
+}
+
+// ── Members of a group (resolved live) ──
+public record MemberGroupMemberDto(Guid MemberId, string FirstName, string LastName, string? UnitName, string? TeamName, string RoleName);
+public record GetMemberGroupMembersQuery(Guid Id) : IRequest<Result<IReadOnlyList<MemberGroupMemberDto>>>;
+
+public class GetMemberGroupMembersQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetMemberGroupMembersQuery, Result<IReadOnlyList<MemberGroupMemberDto>>>
+{
+    public async ValueTask<Result<IReadOnlyList<MemberGroupMemberDto>>> Handle(GetMemberGroupMembersQuery request, CancellationToken ct)
+    {
+        if (!MemberGroupAccess.CanManage(currentUser)) return Result<IReadOnlyList<MemberGroupMemberDto>>.Failure("Accès non autorisé.");
+        var g = await context.MemberGroups.Include(x => x.Rules).FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+        if (g is null) return Result<IReadOnlyList<MemberGroupMemberDto>>.Failure("Groupe introuvable.");
+
+        // Resolve the live roster (assignments), then project. A member with several matching assignments is shown
+        // once (dedupe by member, keeping the first — matches the member COUNT which is Distinct by member).
+        var rows = await MemberGroupResolver.RosterQuery(context, g)
+            .Select(a => new
+            {
+                a.MemberId,
+                a.Member.FirstName,
+                a.Member.LastName,
+                UnitName = a.Unit.Name,
+                TeamName = a.Team != null ? a.Team.Name : null,
+                RoleName = a.FunctionalRole.Name,
+            })
+            .ToListAsync(ct);
+
+        var members = rows
+            .GroupBy(r => r.MemberId)
+            .Select(grp => grp.First())
+            .OrderBy(r => r.LastName).ThenBy(r => r.FirstName)
+            .Select(r => new MemberGroupMemberDto(r.MemberId, r.FirstName, r.LastName, r.UnitName, r.TeamName, r.RoleName))
+            .ToList();
+        return Result<IReadOnlyList<MemberGroupMemberDto>>.Success(members);
     }
 }
 

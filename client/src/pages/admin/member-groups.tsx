@@ -3,7 +3,7 @@
 // set of membership rules (union of includes, minus excludes), resolved live. Used as réunion scopes today.
 import { useState } from 'react'
 import {
-  useMemberGroups, useCreateMemberGroup, useUpdateMemberGroup, useDeleteMemberGroup,
+  useMemberGroups, useCreateMemberGroup, useUpdateMemberGroup, useDeleteMemberGroup, useMemberGroupMembers,
   GROUP_SCOPES, GROUP_SCOPE_LABELS, GROUP_CRITERIA, CRITERION_LABELS,
   type MemberGroupDto, type MemberGroupRuleDto,
 } from '@/services/member-group-service'
@@ -12,18 +12,20 @@ import { useUnitTypes } from '@/services/unit-type-service'
 import { useFunctionalRoles, useSecurityProfiles } from '@/services/role-service'
 import { useMembers } from '@/services/member-service'
 import { useDebounce } from '@/hooks/use-debounce'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { Tip } from '@/components/ui/tooltip'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { parseApiError } from '@/lib/error-utils'
-import { Plus, Users, Pencil, Trash2, ShieldCheck, X, EyeOff, ListFilter } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Plus, Users, Pencil, Trash2, ShieldCheck, X, Search, Check, Minus, Globe, Layers, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function MemberGroupsPage() {
@@ -31,6 +33,8 @@ export default function MemberGroupsPage() {
   const [editing, setEditing] = useState<MemberGroupDto | null>(null)
   const [creating, setCreating] = useState(false)
   const [deleting, setDeleting] = useState<MemberGroupDto | null>(null)
+  const [viewing, setViewing] = useState<MemberGroupDto | null>(null)
+  const [search, setSearch] = useState('')
   const del = useDeleteMemberGroup()
 
   const remove = async () => {
@@ -41,53 +45,43 @@ export default function MemberGroupsPage() {
 
   if (isLoading) return <LoadingSpinner variant="table" />
 
+  const all = groups ?? []
+  const q = search.trim().toLowerCase()
+  const filtered = q ? all.filter(g => g.name.toLowerCase().includes(q)) : all
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-5">
+      {/* Header: title + live count + create. Search appears once there are several groups. */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Groupes</h1>
-          <p className="text-sm text-muted-foreground">
-            Groupes de membres définis par des règles (Grande Maîtrise, Chefs d'unité, Haute Patrouille…). Utilisables comme portée de réunion.
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            Groupes
+            {all.length > 0 && <span className="text-base font-normal text-muted-foreground">({all.length})</span>}
+          </h1>
+          <p className="text-sm text-muted-foreground max-w-2xl">
+            Ensembles de membres définis par des règles (Grande Maîtrise, Chefs d'unité, Haute Patrouille…), recalculés
+            automatiquement. Réutilisables comme portée de réunion et comme filtre dans la liste d'une unité.
           </p>
         </div>
         <Button onClick={() => setCreating(true)}><Plus className="mr-1 h-4 w-4" />Nouveau groupe</Button>
       </div>
 
-      {(!groups || groups.length === 0) ? (
-        <EmptyState icon={Users} title="Aucun groupe" description="Créez un groupe pour l'utiliser dans les réunions." />
+      {all.length > 4 && (
+        <div className="relative max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un groupe…" className="pl-8" />
+          {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>}
+        </div>
+      )}
+
+      {all.length === 0 ? (
+        <EmptyState icon={Users} title="Aucun groupe" description="Créez un groupe pour l'utiliser dans les réunions ou comme filtre d'unité." />
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={Search} title="Aucun résultat" description="Aucun groupe ne correspond à votre recherche." />
       ) : (
-        <div className="space-y-3">
-          {groups.map(g => (
-            <Card key={g.id}>
-              <CardHeader className="pb-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    {g.name}
-                    {g.isSystem && <Badge variant="outline" className="gap-1"><ShieldCheck className="h-3 w-3" />Prédéfini</Badge>}
-                    {!g.isVisible && <Badge variant="secondary" className="gap-1"><EyeOff className="h-3 w-3" />Masqué des réunions</Badge>}
-                    {g.showInUnitList && <Badge variant="outline" className="gap-1"><ListFilter className="h-3 w-3" />Liste d'unité</Badge>}
-                  </CardTitle>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => setEditing(g)}><Pencil className="mr-1 h-3.5 w-3.5" />Modifier</Button>
-                    {!g.isSystem && (
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleting(g)}>
-                        <Trash2 className="mr-1 h-3.5 w-3.5" />Supprimer
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge variant="outline">{scopeLabel(g)}</Badge>
-                <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" />{g.memberCount} membre{g.memberCount > 1 ? 's' : ''}</Badge>
-                <span className="text-muted-foreground">·</span>
-                {g.rules.map((r, i) => (
-                  <Badge key={i} variant={r.include ? 'default' : 'destructive'} className="font-normal">
-                    {r.include ? '' : '– '}{CRITERION_LABELS[r.criterion] ?? r.criterion}{r.value ? ` : ${r.value}` : ''}
-                  </Badge>
-                ))}
-              </CardContent>
-            </Card>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {filtered.map(g => (
+            <GroupCard key={g.id} g={g} onEdit={() => setEditing(g)} onDelete={() => setDeleting(g)} onView={() => setViewing(g)} />
           ))}
         </div>
       )}
@@ -95,6 +89,7 @@ export default function MemberGroupsPage() {
       {(creating || editing) && (
         <GroupDialog group={editing} onClose={() => { setCreating(false); setEditing(null) }} />
       )}
+      {viewing && <MembersDialog group={viewing} onClose={() => setViewing(null)} />}
       <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)}
         title="Supprimer le groupe" description={`Supprimer « ${deleting?.name} » ? Cette action est définitive.`}
         confirmLabel="Supprimer" variant="destructive" loading={del.isPending} onConfirm={remove} />
@@ -106,6 +101,169 @@ function scopeLabel(g: MemberGroupDto): string {
   if (g.scopeType === 'UnitType') return `Branche : ${g.unitTypeName ?? '—'}`
   if (g.scopeType === 'Unit') return `Unité : ${g.unitName ?? '—'}`
   return GROUP_SCOPE_LABELS.Group
+}
+
+// Human-readable text for one rule chip (resolved name, never a GUID).
+function ruleText(r: MemberGroupRuleDto): string {
+  const base = CRITERION_LABELS[r.criterion] ?? r.criterion
+  if (GROUP_CRITERIA.find(c => c.key === r.criterion)?.needsValue)
+    return `${base} : ${r.valueLabel ?? '(supprimé)'}`
+  return base
+}
+
+// A single visibility indicator ("Réunions" / "Liste d'unité") — green when the group is offered there.
+function VisChip({ on, label }: { on: boolean; label: string }) {
+  return (
+    <span className={cn(
+      'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium',
+      on ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-border bg-muted/50 text-muted-foreground'
+    )}>
+      {on ? <Check className="h-3 w-3" /> : <Minus className="h-3 w-3" />}{label}
+    </span>
+  )
+}
+
+// One group card: icon + name/scope, member count, both visibility states, and readable rules (Membres / Sauf).
+function GroupCard({ g, onEdit, onDelete, onView }: { g: MemberGroupDto; onEdit: () => void; onDelete: () => void; onView: () => void }) {
+  const includes = g.rules.filter(r => r.include)
+  const excludes = g.rules.filter(r => !r.include)
+  const scopeIcon = g.scopeType === 'Group' ? Globe : g.scopeType === 'UnitType' ? Layers : Building2
+
+  return (
+    <Card className="flex flex-col">
+      <CardContent className="flex flex-1 flex-col gap-3 p-4">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Users className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="truncate font-semibold">{g.name}</h3>
+                {g.isSystem && <Badge variant="outline" className="gap-1 text-[10px]"><ShieldCheck className="h-3 w-3" />Prédéfini</Badge>}
+              </div>
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                {(() => { const I = scopeIcon; return <I className="h-3 w-3 shrink-0" /> })()}
+                <span className="truncate">{scopeLabel(g)}</span>
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-0.5">
+            <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}><Pencil className="h-4 w-4" /></Button></Tip>
+            {!g.isSystem && (
+              <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button></Tip>
+            )}
+          </div>
+        </div>
+
+        {/* Member count (click to see who) + visibility */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <button
+            type="button"
+            onClick={onView}
+            disabled={g.memberCount === 0}
+            className="group/count flex items-baseline gap-1 rounded-md text-left transition-colors hover:text-primary disabled:pointer-events-none disabled:opacity-60"
+            title="Voir les membres"
+          >
+            <span className="text-2xl font-bold leading-none tabular-nums">{g.memberCount}</span>
+            <span className="text-xs text-muted-foreground group-hover/count:text-primary">membre{g.memberCount > 1 ? 's' : ''}</span>
+            {g.memberCount > 0 && <span className="ml-0.5 text-xs font-medium text-primary underline-offset-2 group-hover/count:underline">voir</span>}
+          </button>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">Apparaît dans :</span>
+            <VisChip on={g.isVisible} label="Réunions" />
+            <VisChip on={g.showInUnitList} label="Liste d'unité" />
+          </div>
+        </div>
+
+        {/* Rules — resolved names, grouped into includes and "sauf" excludes */}
+        <div className="mt-auto space-y-1.5 rounded-md bg-muted/40 p-2.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Membres :</span>
+            {includes.map((r, i) => (
+              <Badge key={i} variant="secondary" className="font-normal">{ruleText(r)}</Badge>
+            ))}
+          </div>
+          {excludes.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-medium text-destructive">Sauf :</span>
+              {excludes.map((r, i) => (
+                <Badge key={i} variant="outline" className="border-destructive/30 font-normal text-destructive">{ruleText(r)}</Badge>
+              ))}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Read-only list of a group's current members (resolved live from the rules). Grouped by unit for readability.
+function MembersDialog({ group, onClose }: { group: MemberGroupDto; onClose: () => void }) {
+  const { data: members, isLoading } = useMemberGroupMembers(group.id)
+  const [search, setSearch] = useState('')
+  const q = search.trim().toLowerCase()
+  const filtered = (members ?? []).filter(m => !q || `${m.lastName} ${m.firstName}`.toLowerCase().includes(q))
+
+  // Group the members by their unit (a member appears once — see the query).
+  const byUnit = new Map<string, typeof filtered>()
+  for (const m of filtered) {
+    const u = m.unitName ?? 'Sans unité'
+    if (!byUnit.has(u)) byUnit.set(u, [])
+    byUnit.get(u)!.push(m)
+  }
+  const units = [...byUnit.keys()].sort((a, b) => a.localeCompare(b, 'fr'))
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Users className="h-5 w-5" />{group.name}</DialogTitle>
+          <DialogDescription>{group.memberCount} membre{group.memberCount > 1 ? 's' : ''} · {scopeLabel(group)}</DialogDescription>
+        </DialogHeader>
+
+        {members && members.length > 8 && (
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…" className="pl-8" />
+          </div>
+        )}
+
+        <div className="-mx-1 flex-1 overflow-y-auto px-1">
+          {isLoading ? (
+            <div className="py-8"><LoadingSpinner /></div>
+          ) : filtered.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Aucun membre.</p>
+          ) : (
+            <div className="space-y-3">
+              {units.map(u => (
+                <div key={u}>
+                  <div className="sticky top-0 flex items-center justify-between gap-2 bg-background/95 py-1 text-xs font-semibold text-muted-foreground">
+                    <span className="truncate">{u}</span><span>{byUnit.get(u)!.length}</span>
+                  </div>
+                  <ul className="divide-y">
+                    {byUnit.get(u)!.map(m => (
+                      <li key={m.memberId} className="flex items-center justify-between gap-2 py-1.5 text-sm">
+                        <span className="truncate font-medium">{m.lastName} {m.firstName}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {m.roleName}{m.teamName ? ` · ${m.teamName}` : ''}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Fermer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 // ── Create / edit dialog ──

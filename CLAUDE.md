@@ -3581,6 +3581,16 @@ as a **réunion scope** (and reusable elsewhere later). Replaces a first draft o
       Groupes admin form has the toggle + a "Liste d'unité" badge; group mutations invalidate `['dashboard']`.
       Verified live: Haute Patrouille (Troupes, team-leader rule, ShowInUnitList=true) → appears in every Troupe's
       roster filter (7 in Troupe 2, 4 in Troupe 3, matches SQL), absent from Meute, presets stay off.
+- **Groupes page relift + "Voir les membres" (2026-08-30):** (a) **Rule labels resolved** — `GetMemberGroupsQuery`
+      now batch-resolves each rule's `Value` (role/unit/branch/member GUID or profile code) to a human name into a
+      new read-only `MemberGroupRuleDto.ValueLabel` (writes ignore it), so chips read "Fonction : Chef de Patrouille"
+      / "Membre : Rhéa Assaf" instead of a GUID. (b) **Card redesign** (`member-groups.tsx`): 2-col grid,
+      icon+name+scope, big member count, an "Apparaît dans :" row with both visibility states (Réunions/Liste d'unité
+      as green ✓ / muted – chips via `VisChip`), rules grouped Membres/"Sauf" with resolved names; header count +
+      name search (shown >4 groups). (c) **See members** — `GetMemberGroupMembersQuery` + `GET /member-groups/{id}/
+      members` (maitrise.manage) resolves the live roster (dedup by member, unit/team/role); the card's member count
+      is a button → `MembersDialog` (grouped by unit, searchable >8). Verified live: HP labels = Chef/Second de
+      Patrouille, 49 members listed by unit matching the count. Build clean (dotnet+tsc+eslint).
 
 ### Access delegation — "accès délégué" per member (2026-08-30)
 A CG-succession + delegation tool: grant a SPECIFIC member extra access WITHOUT any assignment or visible role

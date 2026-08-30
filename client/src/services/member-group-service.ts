@@ -22,7 +22,7 @@ export const GROUP_CRITERIA = [
 ] as const
 export const CRITERION_LABELS: Record<string, string> = Object.fromEntries(GROUP_CRITERIA.map(c => [c.key, c.label]))
 
-export interface MemberGroupRuleDto { include: boolean; criterion: string; value: string | null }
+export interface MemberGroupRuleDto { include: boolean; criterion: string; value: string | null; valueLabel?: string | null }
 export interface MemberGroupDto {
   id: string
   name: string
@@ -42,6 +42,20 @@ export function useMemberGroups() {
   return useQuery({
     queryKey: ['member-groups'],
     queryFn: () => apiClient.get<MemberGroupDto[]>('/member-groups').then(r => r.data),
+  })
+}
+
+// The members currently resolved by a group's rules (name + unit/team/role). Disabled until an id is given
+// (only fetched when the "Voir les membres" dialog opens).
+export interface MemberGroupMemberDto {
+  memberId: string; firstName: string; lastName: string
+  unitName: string | null; teamName: string | null; roleName: string
+}
+export function useMemberGroupMembers(id: string | undefined) {
+  return useQuery({
+    queryKey: ['member-groups', id, 'members'],
+    queryFn: () => apiClient.get<MemberGroupMemberDto[]>(`/member-groups/${id}/members`).then(r => r.data),
+    enabled: !!id,
   })
 }
 

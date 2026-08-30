@@ -22,6 +22,14 @@ public class MemberGroupsController : BaseApiController
         return r.IsSuccess ? Ok(r.Value) : BadRequest(new { error = r.Error });
     }
 
+    /// <summary>Lists the members currently resolved by a group's rules (name, unit, team, role).</summary>
+    [HttpGet("{id:guid}/members")]
+    public async Task<IActionResult> Members(Guid id)
+    {
+        var r = await Mediator.Send(new GetMemberGroupMembersQuery(id));
+        return r.IsSuccess ? Ok(r.Value) : BadRequest(new { error = r.Error });
+    }
+
     /// <summary>Creates a member group (name, scope, visibility + membership rules).</summary>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateMemberGroupCommand command)
