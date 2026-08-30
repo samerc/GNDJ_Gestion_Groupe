@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
@@ -78,9 +79,11 @@ public class ErrorLogReader : IErrorLogReader
             // Parameterized; when `before` is null every row is deleted (@before IS NULL short-circuits).
             await using var cmd = new NpgsqlCommand(
                 "DELETE FROM application_logs WHERE @before IS NULL OR timestamp < @before", conn);
+            // A query-string date arrives Kind=Unspecified; timestamptz requires UTC (explicit TimestampTz doesn't
+            // relax that — Npgsql still rejects an Unspecified value).
             cmd.Parameters.Add(new NpgsqlParameter("before", NpgsqlDbType.TimestampTz)
             {
-                Value = (object?)before ?? DBNull.Value,
+                Value = (object?)before.AsUtc() ?? DBNull.Value,
             });
             return await cmd.ExecuteNonQueryAsync(ct);
         }

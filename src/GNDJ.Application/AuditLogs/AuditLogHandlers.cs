@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
@@ -37,12 +38,12 @@ public class GetAuditLogsQueryHandler(IApplicationDbContext context) : IRequestH
         // arrives as Kind=Unspecified → normalize to UTC (else Npgsql throws "only UTC is supported").
         if (request.From.HasValue)
         {
-            var fromUtc = ToUtc(request.From.Value);
+            var fromUtc = request.From.Value.AsUtc();
             query = query.Where(a => a.Timestamp >= fromUtc);
         }
         if (request.To.HasValue)
         {
-            var toUtc = ToUtc(request.To.Value);
+            var toUtc = request.To.Value.AsUtc();
             query = query.Where(a => a.Timestamp <= toUtc);
         }
 
@@ -57,11 +58,6 @@ public class GetAuditLogsQueryHandler(IApplicationDbContext context) : IRequestH
 
         return await PaginatedList<AuditLogDto>.CreateAsync(projected, request.Page, request.PageSize, ct);
     }
-
-    // A query-string date bound arrives as Kind=Unspecified; the timestamptz column requires UTC.
-    private static DateTime ToUtc(DateTime d) => d.Kind == DateTimeKind.Unspecified
-        ? DateTime.SpecifyKind(d, DateTimeKind.Utc)
-        : d.ToUniversalTime();
 }
 
 // Distinct entity types and actions for filter dropdowns
@@ -94,11 +90,8 @@ public class PurgeAuditLogsCommandHandler(IApplicationDbContext context, ICurren
         var query = context.AuditLogs.AsQueryable();
         if (request.Before is DateTime before)
         {
-            // timestamp is a timestamptz column; Npgsql only accepts UTC DateTimes. A date bound off the query
-            // string arrives as Kind=Unspecified → treat it as UTC (else Npgsql throws).
-            var beforeUtc = before.Kind == DateTimeKind.Unspecified
-                ? DateTime.SpecifyKind(before, DateTimeKind.Utc)
-                : before.ToUniversalTime();
+            // timestamp is a timestamptz column; a query-string date arrives Kind=Unspecified → normalize to UTC.
+            var beforeUtc = before.AsUtc();
             query = query.Where(a => a.Timestamp < beforeUtc);
         }
         return await query.ExecuteDeleteAsync(ct);

@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Domain.Entities;
@@ -134,7 +135,11 @@ public class PurgeSentOutboxEmailsHandler(IApplicationDbContext context) : IRequ
     {
         var query = context.OutboxEmails.Where(e => e.Status == OutboxEmailStatus.Sent);
         if (request.Before is { } before)
-            query = query.Where(e => e.SentAt != null && e.SentAt < before);
+        {
+            // sent_at is a timestamptz column; a query-string date arrives Kind=Unspecified → normalize to UTC.
+            var beforeUtc = before.AsUtc();
+            query = query.Where(e => e.SentAt != null && e.SentAt < beforeUtc);
+        }
         var count = await query.ExecuteDeleteAsync(ct);
         return Result<int>.Success(count);
     }

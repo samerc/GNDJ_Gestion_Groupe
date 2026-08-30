@@ -3738,13 +3738,23 @@ Two role/permission gaps from a CG request. All on main, DEV until deploy; verif
       the target. Build clean (dotnet + tsc + eslint + vite). **NEXT in this batch: duplicate-MEMBERS merge tool
       (Fratries "Doublons" tab).**
 
-### Audit-log date-filter 500 fix (2026-08-30)
+### Timestamptz Kind=Unspecified sweep — audit + outbox + error-log date filters (2026-08-30)
 A CG (giorgio.rizk) hit a **500 on `GET /audit-logs`** filtering by date (surfaced in the Journal des erreurs).
-Root cause: `GetAuditLogsQuery` compared the `From`/`To` bounds — which arrive `Kind=Unspecified` from the query
-string — directly against the `timestamptz` `timestamp` column, and Npgsql throws "Cannot write DateTime with
-Kind=Unspecified … only UTC is supported". The `PurgeAuditLogsCommand` already normalized to UTC; the READ query
-didn't. Fix: a shared `ToUtc` (SpecifyKind Utc for Unspecified, else ToUniversalTime) applied to both `From`/`To`.
-Verified live: `?from=&to=` → 200 (was 500). Backend-only, DEV until deploy (prod still crashes until deployed).
+Root cause: a `DateTime` bound from the query string arrives `Kind=Unspecified`; comparing/writing it to a
+`timestamptz` column makes Npgsql throw "Cannot write DateTime with Kind=Unspecified … only UTC is supported".
+`GetAuditLogsQuery` (From/To) had it. Swept ALL query-string `DateTime?` bounds and fixed the class:
+- **New shared `Application/Common/DateTimeExtensions.AsUtc()`** (UTC as-is, Local→UTC, Unspecified→SpecifyKind Utc;
+      + a `DateTime?` overload). Applied to: `GetAuditLogsQuery` From/To (the reported crash), `PurgeAuditLogsCommand`
+      Before (was inline OK → now uses the helper), **`PurgeSentOutboxEmailsCommand` Before** (`SentAt < before` —
+      same latent crash on the outbox "Vider les envoyés" with a date), and **`ErrorLogReader.PurgeAsync` Before**
+      (raw Npgsql — an explicit `NpgsqlDbType.TimestampTz` param does NOT relax the Kind check, so it was also
+      vulnerable). Verified live (far-past dates so nothing deleted): all three → 200 (audit filter, outbox
+      purge-sent, logs clear).
+- **Checked SAFE (no change):** every other timestamptz comparison uses `DateTime.UtcNow` (auth/token/reset/outbox
+      sender = Kind=Utc); `LebanonClock.Now` is Kind=Unspecified BUT only feeds `ScoutYearHelper` (extracts year/
+      month → `DateOnly`), never a query; no `DateOnly.ToDateTime`/`DateTime.Parse` reaching a query; assignment/
+      meeting/scout-year windows compare `DateOnly` to `date` columns (no Kind issue). So these 4 were the complete
+      set. Backend-only, DEV until deploy (prod still crashes on those filters until deployed).
 
 ### Duplicate MEMBERS merge — Fratries "Doublons" tab (2026-08-30)
 A CG tool to merge duplicate member records (the import created some members twice). Same shape as the sibling
