@@ -340,6 +340,66 @@ public static class SeedData
         if (strays.Count > 0) { context.SecurityProfilePermissions.RemoveRange(strays); await context.SaveChangesAsync(); }
     }
 
+    // Splits an "assistant-unite" (ACU) profile off chef-unite so a CU (chef d'unité) is distinguishable from an
+    // ACU (assistant). The new profile is a CLONE of chef-unite's current permissions (no functional change today —
+    // the CG can diverge it later), and the assistant maîtrise roles (name contains "assistant"/"adjoint" or starts
+    // with "co-") are moved onto it, leaving chef-unite = the unit HEADS only. This lets the "Chefs d'unité" réunion
+    // group = chef-unite holders + MDG. One-time reassignment (only runs when the profile is first created), so a CG
+    // who later re-points a role is not overridden. Idempotent.
+    public static async Task SeedAssistantUniteProfileAsync(GndjDbContext context)
+    {
+        var cu = await context.SecurityProfiles.Include(p => p.Permissions).FirstOrDefaultAsync(p => p.Code == "chef-unite");
+        if (cu is null) return; // nothing to split from (fresh DB before structure seed)
+
+        var existing = await context.SecurityProfiles.FirstOrDefaultAsync(p => p.Code == "assistant-unite");
+        if (existing is not null) return; // already split — one-time only
+
+        // Clone chef-unite's current permissions.
+        var perms = cu.Permissions.Select(p => p.Permission).ToArray();
+        var acu = CreateProfile("Assistant(e) chef d'unité", "assistant-unite",
+            "Comme le chef d'unité (modifiable séparément par la suite)", perms);
+        context.SecurityProfiles.Add(acu);
+        await context.SaveChangesAsync();
+
+        // Move the assistant maîtrise roles off chef-unite onto assistant-unite (heads stay on chef-unite).
+        static bool IsAssistant(string name)
+        {
+            var n = (name ?? "").ToLowerInvariant();
+            return n.Contains("assistant") || n.Contains("adjoint") || n.StartsWith("co-") || n.StartsWith("co ");
+        }
+        var maitriseOnCu = await context.FunctionalRoles
+            .Where(r => !r.IsDeleted && r.SecurityProfileId == cu.Id && r.IsMaitrise)
+            .ToListAsync();
+        var moved = 0;
+        foreach (var r in maitriseOnCu.Where(r => IsAssistant(r.Name)))
+        {
+            r.SecurityProfileId = acu.Id;
+            moved++;
+        }
+        if (moved > 0) await context.SaveChangesAsync();
+    }
+
+    // Seeds the two built-in member-group presets used for réunions: Grande Maîtrise (all maîtrises, group-wide)
+    // and Chefs d'unité (chef-unite profile + MDG = the group-level profiles). System groups: their rules are
+    // fixed, but the CG can show/hide them. Idempotent (create-if-missing by name).
+    public static async Task SeedMemberGroupPresetsAsync(GndjDbContext context)
+    {
+        async Task Ensure(string name, params (bool include, string crit, string? val)[] rules)
+        {
+            if (await context.MemberGroups.IgnoreQueryFilters().AnyAsync(g => g.IsSystem && g.Name == name)) return;
+            var g = new MemberGroup { Name = name, ScopeType = MemberGroupScopes.Group, IsVisible = true, IsSystem = true };
+            foreach (var (inc, crit, val) in rules)
+                g.Rules.Add(new MemberGroupRule { Id = Guid.CreateVersion7(), Include = inc, Criterion = crit, Value = val });
+            context.MemberGroups.Add(g);
+            await context.SaveChangesAsync();
+        }
+        await Ensure("Grande Maîtrise", (true, MemberGroupCriteria.Maitrise, null));
+        await Ensure("Chefs d'unité",
+            (true, MemberGroupCriteria.Profile, "chef-unite"),
+            (true, MemberGroupCriteria.Profile, "chef-de-groupe"),
+            (true, MemberGroupCriteria.Profile, "assistant-de-groupe"));
+    }
+
     // Default "rentrée scoute" task template (scout-year startup checklist). Idempotent.
     public static async Task SeedRentreeTemplateAsync(GndjDbContext context)
     {

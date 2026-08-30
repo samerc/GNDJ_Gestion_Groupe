@@ -30,24 +30,44 @@ public static class AttendanceAccess
             .Select(a => a.TeamId!.Value).Distinct().ToListAsync(ct);
         return [.. ids];
     }
+
+    // Group-manager (super-admin or maitrise.manage = CG/ACG, or a delegated full-CG) — may create/manage
+    // group-wide & unit-type member groups + define groups.
+    public static bool CanManageDynamic(ICurrentUserService u) =>
+        u.IsSuperAdmin || u.Permissions.Contains(Permissions.MaitriseManage);
+
+    // Who may create/fill a réunion of a member group: a Unit-scoped group → that unit's manager (CU/CG); any
+    // other scope (whole group / unit type) → a group manager.
+    public static bool CanManageGroup(ICurrentUserService u, MemberGroup g) =>
+        g.ScopeType == MemberGroupScopes.Unit && g.UnitId is Guid uid
+            ? CanManageUnit(u, uid)
+            : CanManageDynamic(u);
+
+    // The Groupe (MDG) unit — group réunions that aren't Unit-scoped anchor to it (roster is computed).
+    public static async Task<Guid?> GroupeUnitIdAsync(IApplicationDbContext ctx, CancellationToken ct) =>
+        await ctx.Units.Where(u => u.UnitType != null && u.UnitType.Code == "GRP")
+            .Select(u => (Guid?)u.Id).FirstOrDefaultAsync(ct);
 }
 
 // ── DTOs ───────────────────────────────────────────────────────────────────────
 public record MeetingDto(
     Guid Id, Guid UnitId, string UnitName, Guid? TeamId, string? TeamName,
     string Type, string? Title, DateOnly Date, DateOnly? EndDate, string Status,
-    int RosterCount, int AbsentCount, bool CanManage);
+    int RosterCount, int AbsentCount, bool CanManage,
+    Guid? MemberGroupId = null, string? GroupName = null); // set for a member-group réunion
 
-// The caller's manageable units + led teams — drives the page (which unit/team to create/fill réunions for).
-public record AttendanceScopeDto(IReadOnlyList<ScopeUnit> Units, IReadOnlyList<ScopeTeam> Teams);
+// The caller's manageable units + led teams (+ usable member groups) — drives the page.
+public record AttendanceScopeDto(IReadOnlyList<ScopeUnit> Units, IReadOnlyList<ScopeTeam> Teams, IReadOnlyList<ScopeGroup> Groups);
 public record ScopeUnit(Guid UnitId, string UnitName);
 public record ScopeTeam(Guid TeamId, string TeamName, Guid UnitId, string UnitName);
+public record ScopeGroup(Guid Id, string Name); // a member group usable as a réunion scope
 
 public record AttendanceRosterRow(Guid MemberId, string Name, string? TeamName, bool Absent, string? Reason);
 public record MeetingAttendanceDto(
     Guid Id, Guid UnitId, string UnitName, Guid? TeamId, string? TeamName,
     string Type, string? Title, DateOnly Date, DateOnly? EndDate, string Status, bool CanManage,
-    IReadOnlyList<AttendanceRosterRow> Roster);
+    IReadOnlyList<AttendanceRosterRow> Roster,
+    Guid? MemberGroupId = null, string? GroupName = null);
 
 public record MemberAbsenceCount(Guid MemberId, int Count);
 
@@ -76,26 +96,65 @@ public class GetAttendanceScopeQueryHandler(IApplicationDbContext context, ICurr
             .OrderBy(t => t.Unit.Name).ThenBy(t => t.Name)
             .Select(t => new ScopeTeam(t.Id, t.Name, t.UnitId, t.Unit.Name)).ToListAsync(ct);
 
-        return Result<AttendanceScopeDto>.Success(new AttendanceScopeDto(units, teams));
+        // Usable member groups (rule-based rosters). A group manager sees all VISIBLE groups; a CU sees VISIBLE
+        // Unit-scoped groups for the units they manage. Hidden groups (IsVisible=false) stay out of the picker.
+        var isGroupMgr = AttendanceAccess.CanManageDynamic(currentUser);
+        var groupsQuery = context.MemberGroups.Where(g => g.IsVisible);
+        if (!isGroupMgr)
+            groupsQuery = groupsQuery.Where(g => g.ScopeType == MemberGroupScopes.Unit
+                && g.UnitId != null && manageableUnitIds.Contains(g.UnitId.Value));
+        var groups = await groupsQuery.OrderBy(g => g.Name)
+            .Select(g => new ScopeGroup(g.Id, g.Name)).ToListAsync(ct);
+
+        return Result<AttendanceScopeDto>.Success(new AttendanceScopeDto(units, teams, groups));
     }
 }
 
 // Réunions for a unit the caller manages, OR (for a chef d'équipe) their team's réunions in that unit.
 // ScoutYear (optional) filters to that year's Oct-1 window so two years can be viewed in parallel.
-public record GetMeetingsQuery(Guid UnitId, string? ScoutYear = null) : IRequest<Result<IReadOnlyList<MeetingDto>>>;
+public record GetMeetingsQuery(Guid? UnitId, string? ScoutYear = null, Guid? MemberGroupId = null) : IRequest<Result<IReadOnlyList<MeetingDto>>>;
 
 public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
     : IRequestHandler<GetMeetingsQuery, Result<IReadOnlyList<MeetingDto>>>
 {
     public async ValueTask<Result<IReadOnlyList<MeetingDto>>> Handle(GetMeetingsQuery request, CancellationToken ct)
     {
-        var canManage = AttendanceAccess.CanManageUnit(currentUser, request.UnitId);
+        // Member-group réunions (rule-based roster) — access follows the group's scope; roster is computed.
+        if (request.MemberGroupId is Guid groupId)
+        {
+            var group = await context.MemberGroups.Include(g => g.Rules).FirstOrDefaultAsync(g => g.Id == groupId, ct);
+            if (group is null) return Result<IReadOnlyList<MeetingDto>>.Failure("Groupe introuvable.");
+            if (!AttendanceAccess.CanManageGroup(currentUser, group))
+                return Result<IReadOnlyList<MeetingDto>>.Failure("Accès non autorisé.");
+
+            var dq = context.Meetings.Where(m => m.MemberGroupId == groupId);
+            if (!string.IsNullOrWhiteSpace(request.ScoutYear))
+            {
+                var (s, e) = ScoutYearHelper.Window(request.ScoutYear);
+                dq = dq.Where(m => m.Date >= s && m.Date < e);
+            }
+            var dmeetings = await dq.OrderByDescending(m => m.Date).ThenByDescending(m => m.CreatedAt)
+                .Select(m => new { m.Id, m.UnitId, UnitName = m.Unit.Name, m.Type, m.Title, m.Date, m.EndDate, m.Status,
+                    AbsentCount = m.Absences.Count(a => !a.IsDeleted) })
+                .ToListAsync(ct);
+            // The roster is the same for every meeting of the group → count distinct members once.
+            var grpRosterCount = await MemberGroupResolver.RosterQuery(context, group)
+                .Select(a => a.MemberId).Distinct().CountAsync(ct);
+            var dres = dmeetings.Select(m => new MeetingDto(m.Id, m.UnitId, m.UnitName, null, group.Name,
+                m.Type, m.Title, m.Date, m.EndDate, m.Status, grpRosterCount, m.AbsentCount, true, group.Id, group.Name)).ToList();
+            return Result<IReadOnlyList<MeetingDto>>.Success(dres);
+        }
+
+        if (request.UnitId is not Guid unitId)
+            return Result<IReadOnlyList<MeetingDto>>.Failure("Unité requise.");
+        var canManage = AttendanceAccess.CanManageUnit(currentUser, unitId);
         var ledTeamIds = await AttendanceAccess.LeadTeamIdsAsync(context, currentUser.MemberId, ct);
-        var ledInThisUnit = await context.Teams.Where(t => ledTeamIds.Contains(t.Id) && t.UnitId == request.UnitId).Select(t => t.Id).ToListAsync(ct);
+        var ledInThisUnit = await context.Teams.Where(t => ledTeamIds.Contains(t.Id) && t.UnitId == unitId).Select(t => t.Id).ToListAsync(ct);
         if (!canManage && ledInThisUnit.Count == 0)
             return Result<IReadOnlyList<MeetingDto>>.Failure("Accès non autorisé à cette unité.");
 
-        var q = context.Meetings.Where(m => m.UnitId == request.UnitId);
+        // Exclude member-group réunions from a unit's list (they're listed under their own group scope).
+        var q = context.Meetings.Where(m => m.UnitId == unitId && m.MemberGroupId == null);
         // A team leader only sees their own team's réunions (CU sees all).
         if (!canManage) q = q.Where(m => m.TeamId != null && ledInThisUnit.Contains(m.TeamId.Value));
         // Optional scout-year filter (Oct-1 window) so a leader can view/log either year during the transition.
@@ -117,9 +176,9 @@ public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUser
         // whole-unit active count + one grouped per-team active count, then each meeting looks up its scope
         // (team-wide vs unit-wide) from the dictionary.
         var unitRosterCount = await context.MemberAssignments
-            .CountAsync(a => a.UnitId == request.UnitId && a.EndDate == null, ct);
+            .CountAsync(a => a.UnitId == unitId && a.EndDate == null, ct);
         var teamRosterCount = (await context.MemberAssignments
-                .Where(a => a.UnitId == request.UnitId && a.EndDate == null && a.TeamId != null)
+                .Where(a => a.UnitId == unitId && a.EndDate == null && a.TeamId != null)
                 .GroupBy(a => a.TeamId!.Value)
                 .Select(g => new { TeamId = g.Key, Count = g.Count() })
                 .ToListAsync(ct))
@@ -136,6 +195,17 @@ public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUser
         teamId is null
             ? ctx.MemberAssignments.Where(a => a.UnitId == unitId && a.EndDate == null)
             : ctx.MemberAssignments.Where(a => a.UnitId == unitId && a.EndDate == null && a.TeamId == teamId);
+
+    // Active-member roster for ANY réunion — a rule-based member group (computed) or a normal unit/team.
+    internal static async Task<IQueryable<MemberAssignment>> RosterQueryForAsync(IApplicationDbContext ctx, Meeting m, CancellationToken ct)
+    {
+        if (m.MemberGroupId is Guid gid)
+        {
+            var group = await ctx.MemberGroups.Include(g => g.Rules).FirstOrDefaultAsync(g => g.Id == gid, ct);
+            return group is null ? ctx.MemberAssignments.Where(_ => false) : MemberGroupResolver.RosterQuery(ctx, group);
+        }
+        return RosterQuery(ctx, m.UnitId, m.TeamId);
+    }
 }
 
 // The roster + current absentees for one réunion (to fill attendance).
@@ -146,17 +216,22 @@ public class GetMeetingAttendanceQueryHandler(IApplicationDbContext context, ICu
 {
     public async ValueTask<Result<MeetingAttendanceDto>> Handle(GetMeetingAttendanceQuery request, CancellationToken ct)
     {
-        var m = await context.Meetings.Include(x => x.Unit).Include(x => x.Team)
+        var m = await context.Meetings.Include(x => x.Unit).Include(x => x.Team).Include(x => x.MemberGroup)
             .FirstOrDefaultAsync(x => x.Id == request.Id, ct);
         if (m is null) return Result<MeetingAttendanceDto>.Failure("Réunion introuvable.");
 
-        var canManage = AttendanceAccess.CanManageUnit(currentUser, m.UnitId);
+        var isGroup = m.MemberGroupId != null;
+        var canManage = isGroup ? AttendanceAccess.CanManageGroup(currentUser, m.MemberGroup!) : AttendanceAccess.CanManageUnit(currentUser, m.UnitId);
         var ledTeamIds = await AttendanceAccess.LeadTeamIdsAsync(context, currentUser.MemberId, ct);
         var canFill = canManage || (m.TeamId != null && ledTeamIds.Contains(m.TeamId.Value));
         if (!canFill) return Result<MeetingAttendanceDto>.Failure("Accès non autorisé à cette réunion.");
 
-        var roster = await GetMeetingsQueryHandler.RosterQuery(context, m.UnitId, m.TeamId)
-            .Select(a => new { a.MemberId, a.Member.FirstName, a.Member.LastName, TeamName = a.Team != null ? a.Team.Name : null })
+        // For a member group, show each member's UNIT (which unit's chef) in the "team" column; for a normal
+        // réunion, show their team within the unit.
+        var rosterQuery = await GetMeetingsQueryHandler.RosterQueryForAsync(context, m, ct);
+        var roster = await rosterQuery
+            .Select(a => new { a.MemberId, a.Member.FirstName, a.Member.LastName,
+                Label = isGroup ? a.Unit.Name : (a.Team != null ? a.Team.Name : null) })
             .ToListAsync(ct);
         var absences = await context.MeetingAbsences.Where(a => a.MeetingId == m.Id && !a.IsDeleted)
             .Select(a => new { a.MemberId, a.Reason }).ToListAsync(ct);
@@ -165,12 +240,13 @@ public class GetMeetingAttendanceQueryHandler(IApplicationDbContext context, ICu
         var rows = roster
             .GroupBy(r => r.MemberId).Select(g => g.First()) // a member could match twice on a unit-wide roster
             .OrderBy(r => r.LastName).ThenBy(r => r.FirstName)
-            .Select(r => new AttendanceRosterRow(r.MemberId, $"{r.FirstName} {r.LastName}".Trim(), r.TeamName,
+            .Select(r => new AttendanceRosterRow(r.MemberId, $"{r.FirstName} {r.LastName}".Trim(), r.Label,
                 absentBy.ContainsKey(r.MemberId), absentBy.GetValueOrDefault(r.MemberId)))
             .ToList();
 
         return Result<MeetingAttendanceDto>.Success(new MeetingAttendanceDto(
-            m.Id, m.UnitId, m.Unit.Name, m.TeamId, m.Team?.Name, m.Type, m.Title, m.Date, m.EndDate, m.Status, canManage, rows));
+            m.Id, m.UnitId, m.Unit.Name, m.TeamId, m.Team?.Name, m.Type, m.Title, m.Date, m.EndDate, m.Status, canManage, rows,
+            m.MemberGroupId, m.MemberGroup?.Name));
     }
 }
 
@@ -205,8 +281,8 @@ public class GetUnitAbsenceCountsQueryHandler(IApplicationDbContext context, ICu
 
 // ── Commands ───────────────────────────────────────────────────────────────────
 
-public record CreateMeetingCommand(Guid UnitId, Guid? TeamId, string Type, string? Title, DateOnly Date, DateOnly? EndDate, string? Notes)
-    : IRequest<Result<Guid>>;
+public record CreateMeetingCommand(Guid? UnitId, Guid? TeamId, string Type, string? Title, DateOnly Date, DateOnly? EndDate, string? Notes,
+    Guid? MemberGroupId = null) : IRequest<Result<Guid>>;
 
 public class CreateMeetingCommandValidator : AbstractValidator<CreateMeetingCommand>
 {
@@ -225,32 +301,55 @@ public class CreateMeetingCommandHandler(IApplicationDbContext context, ICurrent
 {
     public async ValueTask<Result<Guid>> Handle(CreateMeetingCommand request, CancellationToken ct)
     {
-        // If a team is set, it must belong to the unit.
-        if (request.TeamId is Guid tid)
-        {
-            var okTeam = await context.Teams.AnyAsync(t => t.Id == tid && t.UnitId == request.UnitId, ct);
-            if (!okTeam) return Result<Guid>.Failure("Équipe invalide pour cette unité.");
-        }
-
-        var canManage = AttendanceAccess.CanManageUnit(currentUser, request.UnitId);
+        Guid unitId;
+        Guid? teamId;
         string status;
-        if (canManage)
+
+        if (request.MemberGroupId is Guid groupId)
         {
-            status = MeetingStatuses.Approved; // CU/CG réunions are approved immediately
+            // Member-group réunion (rule-based roster) — access follows the group's scope; anchored to the
+            // group's own unit (Unit-scoped) or the Groupe unit; no team; approved immediately.
+            var group = await context.MemberGroups.FirstOrDefaultAsync(g => g.Id == groupId, ct);
+            if (group is null) return Result<Guid>.Failure("Groupe introuvable.");
+            if (!AttendanceAccess.CanManageGroup(currentUser, group))
+                return Result<Guid>.Failure("Accès non autorisé à ce groupe.");
+            Guid? anchor = group.ScopeType == MemberGroupScopes.Unit ? group.UnitId : await AttendanceAccess.GroupeUnitIdAsync(context, ct);
+            if (anchor is null) return Result<Guid>.Failure("Aucune unité « Groupe » configurée.");
+            unitId = anchor.Value;
+            teamId = null;
+            status = MeetingStatuses.Approved;
         }
         else
         {
-            // A chef d'équipe may create a réunion ONLY for a team they lead — pending CU approval.
-            var ledTeamIds = await AttendanceAccess.LeadTeamIdsAsync(context, currentUser.MemberId, ct);
-            if (request.TeamId is null || !ledTeamIds.Contains(request.TeamId.Value))
-                return Result<Guid>.Failure("Vous ne pouvez créer une réunion que pour votre équipe.");
-            status = MeetingStatuses.Pending;
+            if (request.UnitId is not Guid uid) return Result<Guid>.Failure("Unité requise.");
+            unitId = uid;
+            teamId = request.TeamId;
+            // If a team is set, it must belong to the unit.
+            if (teamId is Guid tid)
+            {
+                var okTeam = await context.Teams.AnyAsync(t => t.Id == tid && t.UnitId == unitId, ct);
+                if (!okTeam) return Result<Guid>.Failure("Équipe invalide pour cette unité.");
+            }
+
+            if (AttendanceAccess.CanManageUnit(currentUser, unitId))
+            {
+                status = MeetingStatuses.Approved; // CU/CG réunions are approved immediately
+            }
+            else
+            {
+                // A chef d'équipe may create a réunion ONLY for a team they lead — pending CU approval.
+                var ledTeamIds = await AttendanceAccess.LeadTeamIdsAsync(context, currentUser.MemberId, ct);
+                if (teamId is null || !ledTeamIds.Contains(teamId.Value))
+                    return Result<Guid>.Failure("Vous ne pouvez créer une réunion que pour votre équipe.");
+                status = MeetingStatuses.Pending;
+            }
         }
 
         var meeting = new Meeting
         {
-            UnitId = request.UnitId,
-            TeamId = request.TeamId,
+            UnitId = unitId,
+            TeamId = teamId,
+            MemberGroupId = request.MemberGroupId,
             Type = request.Type,
             Title = string.IsNullOrWhiteSpace(request.Title) ? null : request.Title.Trim(),
             Date = request.Date,
@@ -286,20 +385,23 @@ public class UpdateMeetingCommandHandler(IApplicationDbContext context, ICurrent
 {
     public async ValueTask<Result<bool>> Handle(UpdateMeetingCommand request, CancellationToken ct)
     {
-        var m = await context.Meetings.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+        var m = await context.Meetings.Include(x => x.MemberGroup).FirstOrDefaultAsync(x => x.Id == request.Id, ct);
         if (m is null) return Result<bool>.Failure("Réunion introuvable.");
-        // Only a CU/CG (manager of the unit) may edit a réunion's details.
-        if (!AttendanceAccess.CanManageUnit(currentUser, m.UnitId))
+        var isGroup = m.MemberGroupId != null;
+        // Only a CU/CG (manager of the unit) — or the group's manager for a member-group réunion — may edit.
+        if (!(isGroup ? AttendanceAccess.CanManageGroup(currentUser, m.MemberGroup!) : AttendanceAccess.CanManageUnit(currentUser, m.UnitId)))
             return Result<bool>.Failure("Seul le chef d'unité peut modifier une réunion.");
 
-        // If a team is set, it must belong to the réunion's unit.
-        if (request.TeamId is Guid tid)
+        // A member-group réunion keeps its computed group (no team); a normal one may set a team of its unit.
+        if (!isGroup)
         {
-            var okTeam = await context.Teams.AnyAsync(t => t.Id == tid && t.UnitId == m.UnitId, ct);
-            if (!okTeam) return Result<bool>.Failure("Équipe invalide pour cette unité.");
+            if (request.TeamId is Guid tid)
+            {
+                var okTeam = await context.Teams.AnyAsync(t => t.Id == tid && t.UnitId == m.UnitId, ct);
+                if (!okTeam) return Result<bool>.Failure("Équipe invalide pour cette unité.");
+            }
+            m.TeamId = request.TeamId;
         }
-
-        m.TeamId = request.TeamId;
         m.Type = request.Type;
         m.Title = string.IsNullOrWhiteSpace(request.Title) ? null : request.Title.Trim();
         m.Date = request.Date;
@@ -308,8 +410,8 @@ public class UpdateMeetingCommandHandler(IApplicationDbContext context, ICurrent
 
         // Changing the scope (team ↔ whole unit) changes the roster: drop any absence for a member no longer
         // in the new roster so the counts stay consistent.
-        var rosterIds = (await GetMeetingsQueryHandler.RosterQuery(context, m.UnitId, m.TeamId)
-            .Select(a => a.MemberId).Distinct().ToListAsync(ct)).ToHashSet();
+        var rosterQ = await GetMeetingsQueryHandler.RosterQueryForAsync(context, m, ct);
+        var rosterIds = (await rosterQ.Select(a => a.MemberId).Distinct().ToListAsync(ct)).ToHashSet();
         var stale = await context.MeetingAbsences.Where(a => a.MeetingId == m.Id && !rosterIds.Contains(a.MemberId)).ToListAsync(ct);
         if (stale.Count > 0) context.MeetingAbsences.RemoveRange(stale);
 
@@ -376,14 +478,16 @@ public class SaveMeetingAttendanceCommandHandler(IApplicationDbContext context, 
         var m = await context.Meetings.FirstOrDefaultAsync(x => x.Id == request.MeetingId, ct);
         if (m is null) return Result<bool>.Failure("Réunion introuvable.");
 
-        var canManage = AttendanceAccess.CanManageUnit(currentUser, m.UnitId);
+        var isGroup = m.MemberGroupId != null;
+        if (isGroup) m.MemberGroup = await context.MemberGroups.FirstOrDefaultAsync(g => g.Id == m.MemberGroupId, ct);
+        var canManage = isGroup ? AttendanceAccess.CanManageGroup(currentUser, m.MemberGroup!) : AttendanceAccess.CanManageUnit(currentUser, m.UnitId);
         var ledTeamIds = await AttendanceAccess.LeadTeamIdsAsync(context, currentUser.MemberId, ct);
         var canFill = canManage || (m.TeamId != null && ledTeamIds.Contains(m.TeamId.Value));
         if (!canFill) return Result<bool>.Failure("Accès non autorisé à cette réunion.");
 
         // Only members actually in the réunion's roster may be marked absent (ignore anything else).
-        var rosterIds = (await GetMeetingsQueryHandler.RosterQuery(context, m.UnitId, m.TeamId)
-            .Select(a => a.MemberId).Distinct().ToListAsync(ct)).ToHashSet();
+        var rosterQ = await GetMeetingsQueryHandler.RosterQueryForAsync(context, m, ct);
+        var rosterIds = (await rosterQ.Select(a => a.MemberId).Distinct().ToListAsync(ct)).ToHashSet();
 
         var existing = await context.MeetingAbsences.Where(a => a.MeetingId == m.Id).ToListAsync(ct);
         context.MeetingAbsences.RemoveRange(existing);

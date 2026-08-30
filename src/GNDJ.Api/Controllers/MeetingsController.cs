@@ -18,11 +18,12 @@ public class MeetingsController : BaseApiController
     public async Task<IActionResult> Scope()
         => Ok((await Mediator.Send(new GetAttendanceScopeQuery())).Value);
 
-    /// <summary>Lists réunions for a unit (CU: all; chef d'équipe: their team's only), optionally filtered to a scout year.</summary>
+    /// <summary>Lists réunions for a unit (CU: all; chef d'équipe: their team's only) OR a member group
+    /// (memberGroupId), optionally filtered to a scout year.</summary>
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] Guid unitId, [FromQuery] string? scoutYear)
+    public async Task<IActionResult> List([FromQuery] Guid? unitId, [FromQuery] string? scoutYear, [FromQuery] Guid? memberGroupId)
     {
-        var r = await Mediator.Send(new GetMeetingsQuery(unitId, scoutYear));
+        var r = await Mediator.Send(new GetMeetingsQuery(unitId, scoutYear, memberGroupId));
         return r.IsSuccess ? Ok(r.Value) : BadRequest(new { error = r.Error });
     }
 

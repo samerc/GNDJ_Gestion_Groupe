@@ -26,12 +26,15 @@ export interface MeetingDto {
   rosterCount: number
   absentCount: number
   canManage: boolean // the caller can approve/delete (CU/CG) vs. only fill (chef d'équipe)
+  memberGroupId: string | null // set for a member-group réunion (Grande Maîtrise, Chefs d'unité, …)
+  groupName: string | null
 }
 
-// The caller's manageable units + led teams — drives which unit/team to create/fill réunions for.
+// The caller's manageable units + led teams + usable member groups — drives what to create/fill réunions for.
 export interface AttendanceScopeDto {
   units: { unitId: string; unitName: string }[]
   teams: { teamId: string; teamName: string; unitId: string; unitName: string }[]
+  groups: { id: string; name: string }[]
 }
 
 export interface AttendanceRosterRow {
@@ -55,6 +58,8 @@ export interface MeetingAttendanceDto {
   status: string
   canManage: boolean
   roster: AttendanceRosterRow[]
+  memberGroupId: string | null
+  groupName: string | null
 }
 
 export interface MemberAbsenceCount {
@@ -70,13 +75,13 @@ export function useAttendanceScope() {
   })
 }
 
-// GET /meetings?unitId&scoutYear → réunions for a unit (CU: all; chef d'équipe: their team's only), optionally
-// filtered to a scout year. Disabled until unitId.
-export function useMeetings(unitId: string | undefined, scoutYear?: string) {
+// GET /meetings?unitId|memberGroupId&scoutYear → réunions for a unit (CU: all; chef d'équipe: their team's only)
+// OR a member group, optionally filtered to a scout year. Disabled until a unit or group is given.
+export function useMeetings(unitId: string | undefined, scoutYear?: string, memberGroupId?: string) {
   return useQuery({
-    queryKey: ['meetings', 'list', unitId, scoutYear],
-    queryFn: () => apiClient.get<MeetingDto[]>('/meetings', { params: { unitId, scoutYear } }).then(r => r.data),
-    enabled: !!unitId,
+    queryKey: ['meetings', 'list', unitId, scoutYear, memberGroupId],
+    queryFn: () => apiClient.get<MeetingDto[]>('/meetings', { params: { unitId, scoutYear, memberGroupId } }).then(r => r.data),
+    enabled: !!unitId || !!memberGroupId,
   })
 }
 
@@ -102,7 +107,7 @@ export function useUnitAbsenceCounts(unitId: string | undefined, scoutYear: stri
 export function useCreateMeeting() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { unitId: string; teamId: string | null; type: string; title: string | null; date: string; endDate: string | null; notes: string | null }) =>
+    mutationFn: (data: { unitId?: string; memberGroupId?: string; teamId: string | null; type: string; title: string | null; date: string; endDate: string | null; notes: string | null }) =>
       apiClient.post<{ id: string }>('/meetings', data).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['meetings'] }),
   })

@@ -9,6 +9,11 @@ public class Meeting : BaseEntity
 {
     public Guid UnitId { get; set; }
     public Guid? TeamId { get; set; }               // null = the whole unit; else a specific team
+    // Reusable rule-based member group (roster computed live, not a real team) — e.g. Grande Maîtrise, Chefs
+    // d'unité, "Haute Patrouille". Null = a normal unit/team réunion. When set, UnitId anchors the réunion
+    // (the group's own unit for a Unit-scoped group, else the Groupe unit). See MemberGroup / MemberGroupResolver.
+    public Guid? MemberGroupId { get; set; }
+    public MemberGroup? MemberGroup { get; set; }
 
     public string Type { get; set; } = MeetingTypes.Reunion; // Reunion | Sortie | Camp
     public string? Title { get; set; }

@@ -3518,6 +3518,43 @@ Profession field and classe shouldn't be mandatory for them.
       `YOUTH_BRANCH_CODES` const). Verified live: pure youth (Meute) → false (no toggle); Clan member → true; chef in
       a youth branch → true; a youth who is ALSO an ACU elsewhere → true (correct — leaders can work).
 
+### Member groups (rule-based) + group réunions + ACU profile split (2026-08-30)
+Reusable **rule-based member groups** — created by a group manager (CG/ACG/super-admin, `maitrise.manage`) — usable
+as a **réunion scope** (and reusable elsewhere later). Replaces a first draft of two hardcoded "dynamic groups".
+- **Entities** (`MemberGroup` + plain child `MemberGroupRule`, migration `AddMemberGroups`): a group = a **scope**
+      (`Group` / `UnitType`+unitTypeId / `Unit`+unitId) + **rules**. Membership = **union of include rules minus
+      exclude rules**, constrained to the scope, resolved LIVE by **`Common/MemberGroupResolver.RosterQuery`**
+      (returns `IQueryable<MemberAssignment>` of active members; UNION ALL of include predicates, `.Where(!excl)`).
+      Criteria (`MemberGroupCriteria`): `all` / `maitrise` / `youth` / `team-leader` (IsTeamLeader) / `profile`
+      (Value=code) / `role` / `unit` / `unit-type` / `member` (Value=GUID, parsed OUTSIDE the expr tree). `IsVisible`
+      = the show/hide-in-pickers toggle; `IsSystem` = a seeded preset (only show/hide-able, not deletable).
+- **CRUD** (`MemberGroups/MemberGroupHandlers.cs` + `MemberGroupsController` `api/v1/member-groups`, gated
+      `maitrise.manage`): list (with live member count per group) / create / update (a system preset only toggles
+      visibility) / delete (blocked for a preset or a group used by réunions — hide instead). Validated (scope needs
+      its target; ≥1 include rule; value-requiring criteria need a value).
+- **Réunions integration:** `Meeting.MemberGroupId` (FK, migration in `AddMemberGroups`) replaces the draft string;
+      `GetAttendanceScope` returns usable groups (manager → all visible; a CU → visible Unit-scoped groups of their
+      units); `GetMeetings`/create/attendance/update/save branch on the group (roster via `RosterQueryForAsync`,
+      anchor unit = the group's own unit for Unit-scope else the Groupe unit, approved immediately). Access:
+      `AttendanceAccess.CanManageGroup` = Unit-scoped → that unit's manager (CU/CG); else group manager. The
+      attendance page's scope picker now lists **Unités + Groupes**; the create dialog hides the team selector for a
+      group. New admin page **`/admin/member-groups` "Groupes"** (sidebar Unités & maîtrise) = a full rule builder
+      (scope + include/exclude rows with per-criterion value pickers: profile/role/unit/branch/member-search).
+- **Two seeded presets** (`SeedMemberGroupPresetsAsync`): **Grande Maîtrise** (rule `maitrise`, group-wide) +
+      **Chefs d'unité** (rules `profile:chef-unite` + `profile:chef-de-groupe` + `profile:assistant-de-groupe` = CU +
+      MDG). Verified live: 70 and 27 members respectively (match SQL).
+- **ACU profile split** (`SeedAssistantUniteProfileAsync`, one-time, after ScoutStructure): creates
+      **`assistant-unite`** (clone of chef-unite's perms — no behaviour change) and moves the **assistant** maîtrise
+      roles (name contains "assistant"/"adjoint" or starts "co-") off `chef-unite` → so `chef-unite` = the unit
+      HEADS only, which makes "Chefs d'unité" a clean rule. Moved 10 roles (ACM/ACR/ACO/ACT/ACC/ACN/ACJ/ACF/ACML/CAJ);
+      heads (CM/CR/CCO/CT/CC/CN/AJ…) stayed. Nothing branches on the `chef-unite` code (only seed defs), so safe.
+- **Who manages:** dynamic-group réunions + the group definitions are CG/ACG/super-admin (`maitrise.manage`); an ACG
+      that had it stripped can be granted via *Accès délégué*. A Unit-scoped group's réunions are managed by that
+      unit's CU too. Verified live end-to-end: create group meeting → roster 70 + per-member unit column + save
+      absence + list counts; custom Unit-scoped "Haute Patrouille" (team-leader rule) → 4 members; preset delete
+      blocked; dev left with only the 2 presets. Build clean (dotnet + 4 tests + tsc + eslint + vite). DEV until deploy
+      (migrations `AddMemberGroups` + the seeders apply on prod startup).
+
 ### Access delegation — "accès délégué" per member (2026-08-30)
 A CG-succession + delegation tool: grant a SPECIFIC member extra access WITHOUT any assignment or visible role
 (invisible on the public site / maîtrises), so an **incoming CG can work the demandes + full toolset before the

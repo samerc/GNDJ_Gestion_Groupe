@@ -66,6 +66,8 @@ public interface IApplicationDbContext
     DbSet<OutboxEmail> OutboxEmails { get; }
     DbSet<Meeting> Meetings { get; }
     DbSet<MeetingAbsence> MeetingAbsences { get; }
+    DbSet<MemberGroup> MemberGroups { get; }
+    DbSet<MemberGroupRule> MemberGroupRules { get; }
     DbSet<SiblingGroup> SiblingGroups { get; }
     DbSet<SiblingRejection> SiblingRejections { get; }
 

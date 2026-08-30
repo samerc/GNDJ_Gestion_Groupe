@@ -355,6 +355,8 @@ using (var scope = app.Services.CreateScope())
             await SeedData.SeedChefDeGroupeProfileAsync(context);
             await SeedData.SeedAssistantDeGroupeProfileAsync(context);
             await SeedData.SeedScoutStructureAsync(context);
+            await SeedData.SeedAssistantUniteProfileAsync(context); // split ACU off chef-unite (after roles exist)
+            await SeedData.SeedMemberGroupPresetsAsync(context);    // Grande Maîtrise + Chefs d'unité presets
             await SeedData.SeedMissingSettingsAsync(context);
             await SeedData.SeedDefaultEmailTemplatesAsync(context);
             await SeedData.SeedDemandeEmailTemplatesAsync(context);

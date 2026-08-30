@@ -69,6 +69,8 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<OutboxEmail> OutboxEmails => Set<OutboxEmail>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<MeetingAbsence> MeetingAbsences => Set<MeetingAbsence>();
+    public DbSet<MemberGroup> MemberGroups => Set<MemberGroup>();
+    public DbSet<MemberGroupRule> MemberGroupRules => Set<MemberGroupRule>();
     public DbSet<SiblingGroup> SiblingGroups => Set<SiblingGroup>();
     public DbSet<SiblingRejection> SiblingRejections => Set<SiblingRejection>();
 

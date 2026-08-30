@@ -147,6 +147,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/units', label: 'Unités', icon: Building2, permission: PERMISSIONS.UNITS_VIEW },
       { path: '/organiser', label: 'Organiser une unité', icon: LayoutGrid, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/maitrises', label: 'Maîtrises', icon: Crown, permission: PERMISSIONS.MAITRISE_MANAGE },
+      { path: '/admin/member-groups', label: 'Groupes', icon: Users, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/siblings', label: 'Fratries', icon: Users, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/communications-acces', label: 'Communications & accès', icon: Megaphone, permission: PERMISSIONS.MEMBERS_RESET_PASSWORD },
     ],
