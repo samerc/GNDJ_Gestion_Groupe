@@ -215,10 +215,11 @@ export const DUPLICATE_MATCH_KEYS = [
 ] as const
 
 // GET /siblings/duplicates?keys=… → groups of members sharing ALL the selected match keys, CG-only.
-export function useDuplicateSuggestions(keys: string[]) {
+export function useDuplicateSuggestions(keys: string[] = []) {
+  const k = keys ?? []
   return useQuery({
-    queryKey: ['siblings', 'duplicates', keys.join(',')],
-    queryFn: () => apiClient.get<DuplicateGroup[]>('/siblings/duplicates', { params: keys.length ? { keys: keys.join(',') } : {} }).then((r) => r.data),
+    queryKey: ['siblings', 'duplicates', k.join(',')],
+    queryFn: () => apiClient.get<DuplicateGroup[]>('/siblings/duplicates', { params: k.length ? { keys: k.join(',') } : {} }).then((r) => r.data),
   })
 }
 
