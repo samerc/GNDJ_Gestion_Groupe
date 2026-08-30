@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { Users, Check, X, Search, Sparkles, ChevronRight, Phone, Mail, MapPin, UserRound, ArrowRight } from 'lucide-react'
+import { Users, Check, X, Search, Sparkles, ChevronRight, Phone, Mail, MapPin, UserRound, ArrowRight, GitMerge, Copy } from 'lucide-react'
 import {
   useSiblingSuggestions, useSiblingGroups, useReconcileData,
   useApproveSiblingGroup, useRejectSiblingSuggestion, useUnlinkSibling,
+  useDuplicateSuggestions, useMergeMembers,
   type SiblingSuggestion, type SiblingReconcileData, type SiblingGuardian, type SiblingAddress,
+  type DuplicateGroup, type DuplicateMember, type MemberMergeFields,
 } from '@/services/sibling-service'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -35,9 +37,11 @@ export default function SiblingsPage() {
         <TabsList>
           <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
           <TabsTrigger value="confirmed">Fratries confirmées</TabsTrigger>
+          <TabsTrigger value="duplicates">Doublons</TabsTrigger>
         </TabsList>
         <TabsContent value="suggestions" className="mt-4"><SuggestionsTab /></TabsContent>
         <TabsContent value="confirmed" className="mt-4"><ConfirmedTab /></TabsContent>
+        <TabsContent value="duplicates" className="mt-4"><DuplicatesTab /></TabsContent>
       </Tabs>
     </div>
   )
@@ -387,5 +391,187 @@ function ConfirmedTab() {
         variant="destructive"
       />
     </>
+  )
+}
+
+// ── Doublons (duplicate members: same name + DOB = likely the same person entered twice) ──
+function DuplicatesTab() {
+  const { data: groups, isLoading } = useDuplicateSuggestions()
+  const [merging, setMerging] = useState<DuplicateGroup | null>(null)
+
+  if (isLoading) return <LoadingSpinner variant="table" />
+  if (!groups || groups.length === 0)
+    return <EmptyState icon={Copy} title="Aucun doublon" description="Aucun membre en double (même nom et même date de naissance) détecté." />
+
+  return (
+    <>
+      <p className="mb-3 text-sm text-muted-foreground">
+        {groups.length} doublon(s) probable(s) — même nom et même date de naissance. Fusionnez pour n'en garder qu'un
+        (les affectations, documents, contacts… du doublon sont transférés vers le membre conservé, qui est ensuite
+        placé dans la Corbeille et restaurable).
+      </p>
+      <div className="space-y-3">
+        {groups.map((g, i) => (
+          <Card key={i} className="overflow-hidden">
+            <CardContent className="flex flex-wrap items-center gap-2 p-4">
+              <span className="mr-1 inline-flex items-center gap-1 text-xs text-muted-foreground"><Copy className="h-3.5 w-3.5" />{g.evidence}</span>
+              {g.members.map((m) => (
+                <span key={m.memberId} className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 py-1 pl-1 pr-2.5 text-sm">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">{(m.firstName[0] ?? '').toUpperCase()}</span>
+                  <Link to={`/members/${m.memberId}`} className="font-medium hover:underline">{m.firstName} {m.lastName}</Link>
+                  <span className="text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}{m.isActiveMember ? '' : ' · ancien'}{m.hasAccount ? ' · compte' : ''}</span>
+                </span>
+              ))}
+              <Button size="sm" className="ml-auto" onClick={() => setMerging(g)}><GitMerge className="mr-1 h-4 w-4" />Fusionner</Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {merging && <MergeDialog group={merging} onClose={() => setMerging(null)} />}
+    </>
+  )
+}
+
+// Fields the CG can choose from when merging (label + accessor). The internal matricule is intentionally absent —
+// the keeper always keeps its own. Order = most likely to differ / matter first.
+const MERGE_FIELDS: { key: keyof MemberMergeFields; label: string; get: (m: DuplicateMember) => string | null }[] = [
+  { key: 'externalCardNumber', label: 'N° de carte (SDL/GDL)', get: (m) => m.externalCardNumber },
+  { key: 'firstName', label: 'Prénom', get: (m) => m.firstName },
+  { key: 'lastName', label: 'Nom', get: (m) => m.lastName },
+  { key: 'dateOfBirth', label: 'Date de naissance', get: (m) => m.dateOfBirth },
+  { key: 'gender', label: 'Sexe', get: (m) => m.gender },
+  { key: 'nationality', label: 'Nationalité', get: (m) => m.nationality },
+  { key: 'bloodType', label: 'Groupe sanguin', get: (m) => m.bloodType },
+  { key: 'school', label: 'École', get: (m) => m.school },
+  { key: 'classe', label: 'Classe', get: (m) => m.classe },
+  { key: 'section', label: 'Section', get: (m) => m.section },
+  { key: 'professionDomain', label: 'Domaine pro.', get: (m) => m.professionDomain },
+  { key: 'profession', label: 'Profession', get: (m) => m.profession },
+  { key: 'primaryContactEmail', label: 'Email de contact', get: (m) => m.primaryContactEmail },
+  { key: 'medicalNotes', label: 'Médical', get: (m) => m.medicalNotes },
+  { key: 'allergies', label: 'Allergies', get: (m) => m.allergies },
+  { key: 'notes', label: 'Notes', get: (m) => m.notes },
+  { key: 'photoPath', label: 'Photo', get: (m) => m.photoPath },
+]
+
+const norm = (v: string | null) => (v ?? '').trim()
+
+// Merge dialog: pick the member to KEEP + for each field that differs, which value wins. Everything from the
+// other members is transferred onto the keeper; they're then soft-deleted (Corbeille).
+function MergeDialog({ group, onClose }: { group: DuplicateGroup; onClose: () => void }) {
+  const merge = useMergeMembers()
+  const members = group.members
+  const [keeperId, setKeeperId] = useState(members[0].memberId)
+  // Per field, which member's value to use (memberId). Defaults computed from the keeper below.
+  const [choices, setChoices] = useState<Record<string, string>>({})
+
+  // Default each field's source: the keeper if it has a value, else the first member that does. Recomputed
+  // (render-phase reset) whenever the keeper changes — React's derive-from-props pattern keyed on keeperId.
+  const [seededKeeper, setSeededKeeper] = useState<string | null>(null)
+  if (seededKeeper !== keeperId) {
+    setSeededKeeper(keeperId)
+    const keeper = members.find((m) => m.memberId === keeperId)!
+    const next: Record<string, string> = {}
+    for (const f of MERGE_FIELDS) {
+      const withValue = members.find((m) => norm(f.get(m)))
+      next[f.key] = norm(f.get(keeper)) ? keeperId : (withValue?.memberId ?? keeperId)
+    }
+    setChoices(next)
+  }
+
+  // Only fields where members actually DIFFER (distinct non-empty values, or one has a value another lacks) get a picker.
+  const differingFields = MERGE_FIELDS.filter((f) => {
+    const vals = members.map((m) => norm(f.get(m)))
+    const distinct = new Set(vals.filter(Boolean))
+    return distinct.size > 1 || (distinct.size === 1 && vals.some((v) => !v))
+  })
+
+  const submit = async () => {
+    const keeper = members.find((m) => m.memberId === keeperId)!
+    // Build the final field set: each field = the chosen member's value (falling back to keeper's).
+    const fields = {} as Record<keyof MemberMergeFields, string | null>
+    for (const f of MERGE_FIELDS) {
+      const src = members.find((m) => m.memberId === (choices[f.key] ?? keeperId)) ?? keeper
+      fields[f.key] = f.get(src) ?? null
+    }
+    try {
+      const r = await merge.mutateAsync({ keeperId, loserIds: members.filter((m) => m.memberId !== keeperId).map((m) => m.memberId), fields })
+      toast.success(`Fusion effectuée — ${r.merged} doublon(s) placé(s) dans la Corbeille.`)
+      onClose()
+    } catch (e) { toast.error(parseApiError(e)) }
+  }
+
+  const nameOf = (id: string) => { const m = members.find((x) => x.memberId === id); return m ? `${m.firstName} ${m.lastName}` : '' }
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Fusionner les doublons</DialogTitle></DialogHeader>
+        <div className="space-y-5">
+          {/* Choose the keeper */}
+          <section>
+            <p className="mb-2 text-sm font-semibold">Membre à conserver</p>
+            <div className="grid gap-1.5 sm:grid-cols-2">
+              {members.map((m) => {
+                const on = keeperId === m.memberId
+                const age = computeAge(m.dateOfBirth)
+                return (
+                  <label key={m.memberId} className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${on ? 'border-primary/50 bg-primary/5' : ''}`}>
+                    <input type="radio" checked={on} onChange={() => setKeeperId(m.memberId)} className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{m.firstName} {m.lastName}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {m.unitName ?? 'Sans unité'}{age != null ? ` · ${age} ans` : ''}{m.isActiveMember ? ' · actif' : ' · ancien'}
+                        {m.hasAccount ? ' · compte' : ''}{m.cardNumber ? ` · ${m.cardNumber}` : ''}
+                      </span>
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+          </section>
+
+          {/* Per-field value choice (only where they differ) */}
+          {differingFields.length > 0 ? (
+            <section>
+              <p className="mb-2 text-sm font-semibold">Valeurs à conserver <span className="font-normal text-muted-foreground">— pour les champs qui diffèrent</span></p>
+              <div className="space-y-2.5">
+                {differingFields.map((f) => (
+                  <div key={f.key} className="rounded-md border p-2.5">
+                    <p className="mb-1.5 text-xs font-semibold text-muted-foreground">{f.label}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {members.map((m) => {
+                        const v = norm(f.get(m))
+                        const on = (choices[f.key] ?? keeperId) === m.memberId
+                        return (
+                          <button key={m.memberId} type="button"
+                            onClick={() => setChoices((prev) => ({ ...prev, [f.key]: m.memberId }))}
+                            className={`rounded-md border px-2.5 py-1 text-left text-xs transition-colors ${on ? 'border-primary bg-primary/10 font-medium' : 'hover:bg-muted'}`}>
+                            <span className="block max-w-[16rem] truncate">{v || <span className="italic text-muted-foreground">(vide)</span>}</span>
+                            <span className="block text-[10px] text-muted-foreground">{nameOf(m.memberId)}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : (
+            <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">Les fiches sont identiques — rien à choisir, la fusion transfère simplement les données.</p>
+          )}
+
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            Les affectations, documents, cotisations, progressions, contacts et liens parents des autres fiches
+            seront transférés vers le membre conservé. Les doublons seront placés dans la Corbeille (restaurables).
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Annuler</Button>
+          <Button onClick={submit} disabled={merge.isPending}>{merge.isPending ? 'Fusion…' : 'Fusionner'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -1,4 +1,5 @@
 using GNDJ.Api.Authorization;
+using GNDJ.Application.Members;
 using GNDJ.Application.Siblings;
 using GNDJ.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -86,5 +87,27 @@ public class SiblingsController : BaseApiController
         var result = await Mediator.Send(new GetMemberSiblingsQuery(memberId));
         if (!result.IsSuccess) return StatusCode(403, new { error = result.Error });
         return Ok(result.Value);
+    }
+
+    // ── Duplicate members ("Doublons" tab): same name + same DOB = likely the same person entered twice ──
+
+    /// <summary>Suggested duplicate members (same name + date of birth). Requires maitrise.manage.</summary>
+    [HttpGet("duplicates")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> Duplicates()
+    {
+        var result = await Mediator.Send(new GetDuplicateMemberSuggestionsQuery());
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>Merges duplicate members into a keeper (moves their data, applies chosen fields, soft-deletes the losers). Requires maitrise.manage.</summary>
+    [HttpPost("merge-members")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> MergeMembers([FromBody] MergeMembersCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { merged = result.Value });
     }
 }

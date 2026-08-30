@@ -149,3 +149,75 @@ export function useUnlinkSibling() {
     onSuccess: invalidate,
   })
 }
+
+// ── Duplicate members ("Doublons" tab) ──
+export interface DuplicateMember {
+  memberId: string
+  firstName: string
+  lastName: string
+  dateOfBirth: string | null
+  gender: string | null
+  cardNumber: string | null
+  externalCardNumber: string | null
+  bloodType: string | null
+  nationality: string | null
+  school: string | null
+  classe: string | null
+  section: string | null
+  professionDomain: string | null
+  profession: string | null
+  medicalNotes: string | null
+  allergies: string | null
+  notes: string | null
+  primaryContactEmail: string | null
+  photoPath: string | null
+  unitName: string | null
+  hasAccount: boolean
+  isActiveMember: boolean
+  assignmentCount: number
+  createdAt: string
+}
+
+export interface DuplicateGroup {
+  members: DuplicateMember[]
+  evidence: string
+}
+
+// The scalar fields the merge sets on the keeper (the CG picks which duplicate's value wins per field).
+export interface MemberMergeFields {
+  firstName: string | null
+  lastName: string | null
+  dateOfBirth: string | null
+  gender: string | null
+  externalCardNumber: string | null
+  bloodType: string | null
+  nationality: string | null
+  school: string | null
+  classe: string | null
+  section: string | null
+  professionDomain: string | null
+  profession: string | null
+  medicalNotes: string | null
+  allergies: string | null
+  notes: string | null
+  primaryContactEmail: string | null
+  photoPath: string | null
+}
+
+// GET /siblings/duplicates → groups of same-name+DOB members, CG-only.
+export function useDuplicateSuggestions() {
+  return useQuery({
+    queryKey: ['siblings', 'duplicates'],
+    queryFn: () => apiClient.get<DuplicateGroup[]>('/siblings/duplicates').then((r) => r.data),
+  })
+}
+
+// POST /siblings/merge-members → merge losers into the keeper with the chosen field values.
+export function useMergeMembers() {
+  const invalidate = useSiblingInvalidate()
+  return useMutation({
+    mutationFn: (data: { keeperId: string; loserIds: string[]; fields: MemberMergeFields }) =>
+      apiClient.post<{ merged: number }>('/siblings/merge-members', data).then((r) => r.data),
+    onSuccess: invalidate,
+  })
+}

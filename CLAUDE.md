@@ -3738,8 +3738,41 @@ Two role/permission gaps from a CG request. All on main, DEV until deploy; verif
       the target. Build clean (dotnet + tsc + eslint + vite). **NEXT in this batch: duplicate-MEMBERS merge tool
       (Fratries "Doublons" tab).**
 
-### Remaining / Next
-- [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
+### Duplicate MEMBERS merge — Fratries "Doublons" tab (2026-08-30)
+A CG tool to merge duplicate member records (the import created some members twice). Same shape as the sibling
+reconcile but for a SINGLE person entered twice. All on main, DEV until deploy; verified live end-to-end.
+- **Detection** (`Application/Members/DuplicateHandlers.cs` `GetDuplicateMemberSuggestionsQuery`, gated
+      `MemberAccess.IsGroupManager` = super-admin/CG/ACG): groups non-deleted members by **normalized full name +
+      same date of birth** (accent/case-insensitive via `TextNormalization.NormalizeKey`; requires a DOB — the
+      confirming signal, distinct from siblings who merely share parents). Each member carries all the fields the
+      merge dialog shows/lets you choose from + unit/account/active/assignment-count/createdAt. Keeper suggestion
+      order = active → most assignments → oldest (the CG chooses). Cap 200.
+- **Merge** (`MergeMembersCommand(KeeperId, LoserIds[], MemberMergeFields)` → `IMemberMergeService` /
+      `Infrastructure/Services/MemberMergeService.cs`, mirrors MemberPurgeService's raw-SQL architecture): ONE
+      transaction — (1) move each loser's connected rows onto the keeper: **dedup-on-move** for tables with a natural
+      key (phones by digits, emails by lower(address), addresses by city+details, guardian_links by guardian,
+      custom_field_values by field, camp_participants by camp, camp_game_etapistes by game, meeting_absences by
+      meeting — drop the loser's row the keeper already has, move the rest) + plain re-point for the rest
+      (assignments/documents/cotisations/progressions/change_requests/passages/api_keys + repoint
+      applicant_scout_relations.related_member_id / demandes.created_member_id / camp_familles pere/mere); (2) give
+      the keeper the loser's LOGIN if it has none, else disable the loser's (is_active=false, clear token); (3)
+      **soft-delete** the loser (frees its card numbers from the `is_deleted`-filtered unique indexes + nulls its
+      external card) — restorable from the Corbeille; (4) apply the CG-chosen field values to the keeper LAST (via a
+      tracked EF entity — NOT raw SQL, so nulls map cleanly; done last so a carried external card can't collide).
+      Keeper always keeps its OWN internal matricule; only ExternalCardNumber can be carried. Audited MergeMembers.
+- **UI:** a **"Doublons"** tab on the Fratries page (`siblings.tsx`) — cards per duplicate group → **"Fusionner"**
+      → dialog: pick the member to KEEP + for each field that DIFFERS, which value wins (chip picker), then merge.
+      Endpoints `GET /siblings/duplicates` + `POST /siblings/merge-members` (maitrise.manage). Extracted a shared
+      member-picker earlier; here the group members come from the suggestion.
+- **Verified live** (throwaway same-name+DOB pair, cleaned up): detection flags them; merge carries the loser's
+      external card + school onto the keeper, moves its phone, **dedups** a shared email on move, soft-deletes the
+      loser with its external card freed, keeper keeps its matricule; a mid-merge failure rolled back cleanly (tx).
+      dotnet + tsc + eslint + vite all clean. NOTE: dev currently has **0** same-name+DOB duplicates (prior 48-pair
+      + 45 merges already done); real ones surface wherever they exist (e.g. prod's earlier snapshot). Detection is
+      **name+DOB only** — two records of the same person with a mismatched/missing DOB aren't auto-flagged (a
+      manual "merge any two members" entry could be added later if needed).
+
+### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a
       `cotisation_payments` row for a unit) or the new "Documents par unité" matrix (green cotisation cell).

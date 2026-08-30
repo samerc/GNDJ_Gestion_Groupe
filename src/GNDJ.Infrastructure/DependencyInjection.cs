@@ -77,6 +77,8 @@ public static class DependencyInjection
 
         // Permanent purge of soft-deleted members past the retention window (driven by a hosted job).
         services.AddScoped<IMemberPurgeService, MemberPurgeService>();
+        // Merge duplicate member records (moves connected data onto the keeper, soft-deletes the losers).
+        services.AddScoped<IMemberMergeService, MemberMergeService>();
 
         // PDF services
         QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
