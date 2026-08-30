@@ -3634,8 +3634,17 @@ as a **réunion scope** (and reusable elsewhere later). Replaces a first draft o
       diagnosed with a headless-Edge/CDP probe (login → open → sample): exactly 1 `/members` fetch, single dialog,
       static once open (NO render loop / double-fetch). The flicker was the dialog opening SMALL (header + centered
       spinner) then snapping to full height when the list arrived. FIX = fixed `h-[80vh]` on the members
-      `DialogContent` + spinner centered in `flex-1`, so it opens at its final size (no size-jump). Any faint
-      residual is React `StrictMode`'s dev-only double-mount (no-op in production).
+      `DialogContent` + spinner centered in `flex-1`, so it opens at its final size (no size-jump).
+  - **Root cause of the residual flicker = `backdrop-blur` on the Dialog overlay (2026-08-30, 3rd pass):** after
+      the size-jump fix the flicker persisted AND showed on the (small, no-fetch) send dialog too → not
+      content-specific. Instrumented the open with a headless-Edge/CDP probe (network count / mount-timeline via
+      setInterval / **Animation.animationStarted** / **Page screencast**): exactly 1 fetch, single dialog, static
+      once open, NO double-mount, NO enter-animation replay — clean in headless `--disable-gpu`. The tell: it only
+      flickers on a real GPU. The shared shadcn `DialogOverlay` had **`backdrop-blur-sm`** while `DialogContent`
+      animates with `zoom-in-95` + `slide-in-from-top-[48%]` — a `backdrop-filter` blur repainted UNDER a transform
+      animation is a classic GPU flicker (worse for the big `h-[80vh]` members dialog). FIX: removed
+      `backdrop-blur-sm` from the overlay (kept the `bg-foreground/40` dim) in `components/ui/dialog.tsx` —
+      **app-wide**, benefits every modal. Headless (no GPU) can't verify the repaint fix → pending the user's check.
 
 ### Access delegation — "accès délégué" per member (2026-08-30)
 A CG-succession + delegation tool: grant a SPECIFIC member extra access WITHOUT any assignment or visible role

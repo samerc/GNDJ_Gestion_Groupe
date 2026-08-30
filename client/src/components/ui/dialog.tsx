@@ -19,7 +19,10 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      // NOTE: no backdrop-blur. A backdrop-filter blur repainted UNDER the content's zoom/slide transform
+      // animation causes GPU flicker on open (visible on real GPUs; not in headless --disable-gpu). The dim
+      // (bg-foreground/40) gives the same focus effect without the flicker.
+      "fixed inset-0 z-50 bg-foreground/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
