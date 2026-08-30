@@ -6,18 +6,19 @@
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
 import { useSecurityProfiles, useSecurityProfile, useUpdateSecurityProfilePermissions, useCreateSecurityProfile, useDeleteSecurityProfile } from '@/services/security-profile-service'
-import { useSecurityProfileMembers } from '@/services/role-service'
+import { useSecurityProfileMembers, useMergeSecurityProfiles } from '@/services/role-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { Shield, ChevronRight, Save, Plus, Trash2 } from 'lucide-react'
+import { Shield, ChevronRight, Save, Plus, Trash2, GitMerge } from 'lucide-react'
 import { toast } from 'sonner'
 
 // All permissions grouped by category for the editor
@@ -306,6 +307,7 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [mergeOpen, setMergeOpen] = useState(false)
   const [tab, setTab] = useState<'perms' | 'members'>(canManage ? 'perms' : 'members')
 
   const handleDelete = async () => {
@@ -378,6 +380,12 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
               {profile.description ?? profile.code}
               {profile.roleCount > 0 && <span> — {profile.roleCount} fonction{profile.roleCount > 1 ? 's' : ''}</span>}
             </p>
+            {/* Which fonctions use this profile (not just a count) — helps decide a merge / spot duplicates. */}
+            {profile.roleNames.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {profile.roleNames.map((r, i) => <Badge key={i} variant="outline" className="text-[10px] font-normal">{r}</Badge>)}
+              </div>
+            )}
           </div>
           {canManage && tab === 'perms' && (
             <div className="flex items-center gap-2">
@@ -389,6 +397,11 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
                     <Save className="mr-1 h-4 w-4" />{updateMutation.isPending ? '...' : 'Enregistrer'}
                   </Button>
                 </>
+              )}
+              {!hasChanges && (
+                <Button variant="outline" size="sm" onClick={() => setMergeOpen(true)}>
+                  <GitMerge className="mr-1 h-4 w-4" />Fusionner
+                </Button>
               )}
               {!hasChanges && !profile.isSystem && (
                 <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
@@ -466,7 +479,64 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
       loading={deleteMutation.isPending}
       onConfirm={handleDelete}
     />
+    <MergeProfileDialog open={mergeOpen} onOpenChange={setMergeOpen}
+      sourceId={profileId} sourceName={profile.name} roleCount={profile.roleCount}
+      onMerged={() => { setMergeOpen(false); onDeleted() }} />
     </>
+  )
+}
+
+// Merge THIS profile (source) into another (target): repoints its fonctions onto the target, then deletes it.
+// For cleaning up duplicate profiles. The members of the source's fonctions inherit the target's permissions.
+function MergeProfileDialog({ open, onOpenChange, sourceId, sourceName, roleCount, onMerged }: {
+  open: boolean; onOpenChange: (o: boolean) => void; sourceId: string; sourceName: string; roleCount: number; onMerged: () => void
+}) {
+  const { data: profiles } = useSecurityProfiles()
+  const mergeMutation = useMergeSecurityProfiles()
+  const [targetId, setTargetId] = useState('')
+
+  const targets = (profiles ?? []).filter(p => p.id !== sourceId)
+
+  const handleMerge = async () => {
+    if (!targetId) return
+    try {
+      const r = await mergeMutation.mutateAsync({ sourceId, targetId })
+      const target = targets.find(t => t.id === targetId)
+      toast.success(`« ${sourceName} » fusionné dans « ${target?.name ?? '?'} »${r.rolesRepointed > 0 ? ` (${r.rolesRepointed} fonction${r.rolesRepointed > 1 ? 's' : ''} déplacée${r.rolesRepointed > 1 ? 's' : ''})` : ''}.`)
+      onMerged()
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) setTargetId(''); onOpenChange(o) }}>
+      <DialogContent className="max-w-[95vw] sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Fusionner le profil</DialogTitle>
+          <DialogDescription>
+            Le profil « {sourceName} » sera <span className="font-medium text-foreground">supprimé</span>, et
+            {roleCount > 0
+              ? ` ses ${roleCount} fonction${roleCount > 1 ? 's' : ''} (et donc leurs membres) `
+              : ' ses fonctions (aucune actuellement) '}
+            basculeront vers le profil choisi. À utiliser pour nettoyer des profils en double.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <RequiredLabel required>Fusionner dans</RequiredLabel>
+          <Select value={targetId} onValueChange={setTargetId}>
+            <SelectTrigger><SelectValue placeholder="Choisir le profil cible…" /></SelectTrigger>
+            <SelectContent>
+              {targets.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={mergeMutation.isPending}>Annuler</Button>
+          <Button variant="destructive" onClick={handleMerge} disabled={!targetId || mergeMutation.isPending}>
+            {mergeMutation.isPending ? 'Fusion…' : 'Fusionner'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

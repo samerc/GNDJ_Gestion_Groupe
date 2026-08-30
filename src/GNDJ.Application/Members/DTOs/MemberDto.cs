@@ -60,7 +60,10 @@ public record MemberDetailDto(
     bool DelegatedGroupAccess,
     // Whether the "Profession / En activité" option is offered: false for a youth (non-maîtrise) in Meute/Ronde/
     // Compagnie/Troupe (they're in school → Classe/Section only); true for maîtrise/chefs, older branches, or none.
-    bool ShowProfession
+    bool ShowProfession,
+    // Whether the member's login account is a super-admin. Only meaningful (populated true) when the VIEWER is a
+    // super-admin — always false otherwise, so a CU can't learn who holds super-admin. Drives the panel toggle.
+    bool IsSuperAdmin
 );
 
 // Counts shown as tab badges on the member detail panel — folded into the detail query so opening a member

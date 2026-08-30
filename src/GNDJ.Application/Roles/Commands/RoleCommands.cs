@@ -283,6 +283,46 @@ public class CreateSecurityProfileCommandHandler(IApplicationDbContext context, 
     }
 }
 
+// Merge one security profile INTO another (cleanup of duplicate profiles). Repoints every fonction that uses
+// the SOURCE profile onto the TARGET (so their members inherit the target's permissions — members attach to a
+// profile via their fonction, never directly), then deletes the now-unused SOURCE + its permissions. Handles
+// soft-deleted fonctions too (IgnoreQueryFilters) so the required SecurityProfileId FK never dangles. Gated by
+// roles.manage (super-admin). Result value = number of fonctions repointed.
+public record MergeSecurityProfilesCommand(Guid SourceId, Guid TargetId) : IRequest<Result<int>>;
+
+public class MergeSecurityProfilesCommandHandler(IApplicationDbContext context, IAuditService auditService)
+    : IRequestHandler<MergeSecurityProfilesCommand, Result<int>>
+{
+    public async ValueTask<Result<int>> Handle(MergeSecurityProfilesCommand request, CancellationToken ct)
+    {
+        if (request.SourceId == request.TargetId)
+            return Result<int>.Failure("Sélectionnez deux profils différents.");
+
+        var source = await context.SecurityProfiles.Include(sp => sp.Permissions)
+            .FirstOrDefaultAsync(sp => sp.Id == request.SourceId, ct);
+        if (source is null) return Result<int>.Failure("Profil source introuvable.");
+
+        var target = await context.SecurityProfiles.FirstOrDefaultAsync(sp => sp.Id == request.TargetId, ct);
+        if (target is null) return Result<int>.Failure("Profil cible introuvable.");
+
+        // Repoint ALL fonctions using the source (incl. soft-deleted, so the FK doesn't block the delete).
+        var roles = await context.FunctionalRoles.IgnoreQueryFilters()
+            .Where(r => r.SecurityProfileId == request.SourceId).ToListAsync(ct);
+        foreach (var r in roles) r.SecurityProfileId = request.TargetId;
+
+        // The source is now unreferenced → remove it + its permission rows.
+        context.SecurityProfilePermissions.RemoveRange(source.Permissions);
+        context.SecurityProfiles.Remove(source);
+
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("Merge", "SecurityProfile", request.SourceId,
+            oldValues: new { source.Name, source.Code },
+            newValues: new { MergedInto = target.Code, RolesRepointed = roles.Count }, cancellationToken: ct);
+
+        return Result<int>.Success(roles.Count);
+    }
+}
+
 public record DeleteSecurityProfileCommand(Guid Id) : IRequest<Result<bool>>;
 
 public class DeleteSecurityProfileCommandHandler(IApplicationDbContext context, IAuditService auditService)

@@ -201,4 +201,14 @@ public class SecurityProfilesController : BaseApiController
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return NoContent();
     }
+
+    /// <summary>Merges the SOURCE profile into the TARGET (repoints its fonctions, deletes the source) — for cleaning up duplicate profiles. Requires roles.manage.</summary>
+    [HttpPost("merge")]
+    [HasPermission(Permissions.RolesManage)]
+    public async Task<IActionResult> Merge([FromBody] MergeSecurityProfilesCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { rolesRepointed = result.Value });
+    }
 }

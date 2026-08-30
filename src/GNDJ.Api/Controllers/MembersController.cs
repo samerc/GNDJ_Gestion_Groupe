@@ -251,6 +251,29 @@ public class MembersController : BaseApiController
 
     public record SetDelegationRequest(bool FullCg, Dictionary<string, string>? AreaLevels);
 
+    // --- Super-admin (grant / revoke) — the flag is not a permission, so ONLY an existing super-admin (enforced
+    // in the handler) can list or change it. Takes effect on the target's next login/refresh. ---
+
+    /// <summary>Lists the super-admin accounts. Super-admin only (enforced in the handler).</summary>
+    [HttpGet("super-admins")]
+    public async Task<IActionResult> GetSuperAdmins()
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Members.GetSuperAdminsQuery());
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>Grants or revokes super-admin on a member's account. Super-admin only; the last super-admin cannot be revoked.</summary>
+    [HttpPut("{id:guid}/super-admin")]
+    public async Task<IActionResult> SetSuperAdmin(Guid id, [FromBody] SetSuperAdminRequest body)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Members.SetSuperAdminCommand(id, body?.Grant ?? false));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    public record SetSuperAdminRequest(bool Grant);
+
     // --- Contact endpoints ---
 
     /// <summary>Adds a phone number to a member. Requires members.edit.</summary>

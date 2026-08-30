@@ -18,6 +18,7 @@ export interface SecurityProfileDetailDto {
   isSystem: boolean
   permissions: string[]
   roleCount: number
+  roleNames: string[] // the fonctions bound to this profile (name + unit-type), for the relift/merge UI
 }
 
 // GET /security-profiles → list (id/name/code/isSystem).

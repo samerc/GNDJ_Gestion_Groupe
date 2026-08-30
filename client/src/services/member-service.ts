@@ -56,6 +56,7 @@ export interface MemberDetailDto {
   hasDelegatedAccess: boolean // an access delegation ("accès délégué") is active on this member
   delegatedGroupAccess: boolean // the delegation is the full "Chef de Groupe entrant" hand-off
   showProfession: boolean // offer the "En activité / Profession" option (false = youth in Meute/Ronde/Compagnie/Troupe → Classe/Section only)
+  isSuperAdmin: boolean // the linked account is a super-admin — populated only for a super-admin viewer (else false)
 }
 
 // Tab badge counts returned with the member detail (famille / unités / documents / cotisations / progression).

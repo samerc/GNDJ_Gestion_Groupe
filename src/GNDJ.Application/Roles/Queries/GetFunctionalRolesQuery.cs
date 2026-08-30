@@ -85,8 +85,8 @@ public class GetSecurityProfilesQueryHandler : IRequestHandler<GetSecurityProfil
     }
 }
 
-// Security profile detail (with permissions list)
-public record SecurityProfileDetailDto(Guid Id, string Name, string Code, string? Description, bool IsSystem, IReadOnlyList<string> Permissions, int RoleCount);
+// Security profile detail (with permissions list + the names of the fonctions that use it, for the relift/merge UI)
+public record SecurityProfileDetailDto(Guid Id, string Name, string Code, string? Description, bool IsSystem, IReadOnlyList<string> Permissions, int RoleCount, IReadOnlyList<string> RoleNames);
 
 public record GetSecurityProfileByIdQuery(Guid Id) : IRequest<SecurityProfileDetailDto?>;
 
@@ -99,7 +99,13 @@ public class GetSecurityProfileByIdQueryHandler(IApplicationDbContext context) :
             .Select(sp => new SecurityProfileDetailDto(
                 sp.Id, sp.Name, sp.Code, sp.Description, sp.IsSystem,
                 sp.Permissions.Select(p => p.Permission).OrderBy(p => p).ToList(),
-                sp.FunctionalRoles.Count(r => !r.IsDeleted)
+                sp.FunctionalRoles.Count(r => !r.IsDeleted),
+                // The fonctions bound to this profile (name + unit-type when set), so the editor shows WHO uses it,
+                // not just a count — also drives the merge dialog ("N fonctions will move to the target").
+                sp.FunctionalRoles.Where(r => !r.IsDeleted)
+                    .OrderBy(r => r.Name)
+                    .Select(r => r.UnitType != null ? r.Name + " (" + r.UnitType.Name + ")" : r.Name)
+                    .ToList()
             ))
             .FirstOrDefaultAsync(ct);
     }

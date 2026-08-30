@@ -3709,6 +3709,35 @@ placed AFTER generate needed a manual "Responsables" (RefreshRentreeAssignees) c
       per-unit tasks are Feu Jamhour's 9 (the one active unit with 0 maîtrise — correct). Backend build clean.
       Backend-only, DEV until deploy.
 
+### Super-admin grant UI + security-profile merge + relift (2026-08-30)
+Two role/permission gaps from a CG request. All on main, DEV until deploy; verified live.
+- **Grant/revoke super-admin from the app** (was a DB-only `User.IsSuperAdmin` flag). `Members/SuperAdminHandlers.cs`:
+      `GetSuperAdminsQuery` + `SetSuperAdminCommand(memberId, grant)` — **super-admin only** (enforced in-handler,
+      no permission maps to the flag); grant needs a login account; the **last super-admin can't be revoked**;
+      audited Grant/RevokeSuperAdmin; effective on the target's next login/refresh (the flag is read in
+      `AuthAccess.LoadAsync`). Endpoints on MembersController: `GET /members/super-admins`,
+      `PUT /members/{id}/super-admin {grant}` (`[Authorize]`, handler gates). **Both places** (user's choice):
+      (a) member panel **Actions ▾ → Rendre/Retirer super-administrateur** (shown only to a super-admin viewer),
+      (b) a **"Super administrateurs"** section on the Profils & accès page (`super-admins.tsx`, add via member
+      search / remove). `MemberDetailDto.IsSuperAdmin` added but **gated** — populated true only for a super-admin
+      viewer (`_currentUser.IsSuperAdmin && <target flag>`), always false for a CU, so it never leaks who's
+      super-admin. Extracted a shared `components/shared/member-picker-dialog.tsx` (searchable member picker).
+- **Merge duplicate security profiles** (the "move members between profils d'accès" ask = cleaning up dup
+      profiles; members follow their fonction, so merge = repoint the source's fonctions onto the keeper).
+      `MergeSecurityProfilesCommand(sourceId, targetId)` (roles.manage): repoints EVERY fonction using the source
+      (incl. soft-deleted, via IgnoreQueryFilters, so the required FK never dangles) onto the target, then deletes
+      the source + its permissions; audited Merge; returns rolesRepointed. `POST /security-profiles/merge`.
+      UI: a **"Fusionner"** button on the Profils de sécurité editor → pick a target profile → confirm.
+- **Relift:** `GetSecurityProfileByIdQuery`/`SecurityProfileDetailDto` gained **`RoleNames`** (the fonctions using
+      the profile, name + unit-type) — the editor now lists WHICH fonctions use a profile (not just a count),
+      helping spot/decide a merge.
+- **"Set which profile a fonction uses" was already done** (the fonction edit form's "Profil de sécurité" picker) —
+      confirmed with the user, no work.
+- Verified live: super-admin grant→204 (Maria appears in the list)→revoke→204 (gone); a CU caller → 400 "Accès non
+      autorisé"; merge of a throwaway profile with 1 bound fonction → rolesRepointed=1, source 404, fonction now on
+      the target. Build clean (dotnet + tsc + eslint + vite). **NEXT in this batch: duplicate-MEMBERS merge tool
+      (Fratries "Doublons" tab).**
+
 ### Remaining / Next
 - [ ] **Feature idea (cotisation dashboard): show WHO paid, not just the count.** The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to

@@ -317,7 +317,11 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
                 // older branches (Clan/Noyau/JEM/Feu…), or a member with no active assignment.
                 !m.Assignments.Any(a => a.EndDate == null)
                     || m.Assignments.Any(a => a.EndDate == null
-                        && (a.FunctionalRole.IsMaitrise || !YouthBranchCodes.Contains(a.Unit.UnitType.Code)))
+                        && (a.FunctionalRole.IsMaitrise || !YouthBranchCodes.Contains(a.Unit.UnitType.Code))),
+                // Super-admin state of the linked account — surfaced ONLY to a super-admin viewer (drives the panel
+                // toggle); always false for anyone else so a CU can't learn who's super-admin.
+                _currentUser.IsSuperAdmin
+                    && _context.Users.Any(u => u.MemberId == m.Id && !u.IsDeleted && u.IsSuperAdmin)
             ))
             .FirstOrDefaultAsync(cancellationToken);
     }

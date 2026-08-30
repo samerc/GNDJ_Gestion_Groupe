@@ -172,3 +172,44 @@ export function useSetDefaultFunctionalRole() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['functionalRoles'] }),
   })
 }
+
+// ── Super-admin grant/revoke (super-admin only; the flag is not a permission/role) ──
+export interface SuperAdminDto { memberId: string; name: string; email: string | null; unitCode: string | null }
+
+// GET /members/super-admins → the flagged accounts. Keyed ['super-admins'].
+export function useSuperAdmins(enabled = true) {
+  return useQuery({
+    queryKey: ['super-admins'],
+    queryFn: () => apiClient.get<SuperAdminDto[]>('/members/super-admins').then(r => r.data),
+    enabled,
+  })
+}
+
+// PUT /members/:id/super-admin { grant } → grant/revoke super-admin. Invalidates the list + the member detail.
+export function useSetSuperAdmin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ memberId, grant }: { memberId: string; grant: boolean }) =>
+      apiClient.put(`/members/${memberId}/super-admin`, { grant }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['super-admins'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+      qc.invalidateQueries({ queryKey: ['securityProfileMembers'] })
+    },
+  })
+}
+
+// POST /security-profiles/merge { sourceId, targetId } → merge a duplicate profile into another (repoints its
+// fonctions, deletes the source). Returns { rolesRepointed }. Invalidates profiles + functional roles.
+export function useMergeSecurityProfiles() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ sourceId, targetId }: { sourceId: string; targetId: string }) =>
+      apiClient.post<{ rolesRepointed: number }>('/security-profiles/merge', { sourceId, targetId }).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['security-profiles'] })
+      qc.invalidateQueries({ queryKey: ['securityProfiles'] })
+      qc.invalidateQueries({ queryKey: ['functionalRoles'] })
+    },
+  })
+}

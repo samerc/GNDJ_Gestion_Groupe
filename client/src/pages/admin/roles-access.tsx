@@ -12,9 +12,11 @@ import { PERMISSIONS } from '@/lib/constants'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import SecurityProfilesPage from './security-profiles'
 import GroupAccessPage from './group-access'
+import { SuperAdminsSection } from './super-admins'
 
 export default function RolesAccessPage() {
   const { hasPermission } = useAuthStore()
+  const isSuperAdmin = useAuthStore((s) => s.user?.isSuperAdmin ?? false)
   const canProfiles = hasPermission(PERMISSIONS.MAITRISE_MANAGE)
   const canGroup = hasPermission(PERMISSIONS.ROLES_MANAGE_GROUP)
 
@@ -32,6 +34,9 @@ export default function RolesAccessPage() {
           Profils de permissions et délégation d'accès de la maîtrise de groupe.
         </p>
       </div>
+
+      {/* Super-admin management (super-admin only) — the flag is not a role/profile, so it lives above the tabs. */}
+      {isSuperAdmin && <SuperAdminsSection />}
 
       {tabs.length > 1 ? (
         <Tabs value={tab} onValueChange={setTab}>
