@@ -3,6 +3,7 @@
     "version": "3.0.0",
     "date": "2026-08-27",
     "changes": [
+      "Campagne des documents : les dates (ouverture/limite de dépôt, correction, date finale), l'année scoute et l'activation sont désormais gérées UNIQUEMENT sur « Suivi des documents → Campagne » (qui vérifie que les dates se suivent dans l'ordre). Elles ont été retirées de Paramètres → Documents pour éviter les doublons et les dates incohérentes. Une nouvelle action de rentrée « Campagne des documents (dates) » permet de créer une tâche qui mène directement à cette page.",
       "Cotisations (tableau de l'unité) : on peut désormais supprimer une cotisation enregistrée et son reçu directement depuis la fenêtre de cotisation (bouton « Supprimer », avec confirmation). Réservé à ceux qui ont le droit de supprimer les cotisations (chef d'unité / chef de groupe / administrateur).",
       "Comptes d'inscription : on peut désormais supprimer un compte parent — la suppression retire aussi TOUTES ses demandes (avec confirmation ; les membres déjà créés à partir d'une demande sont conservés). Les colonnes sont maintenant triables (clic sur l'en-tête) et les lignes plus compactes (pensé pour des centaines de comptes).",
       "Super-administrateur : l'action a été retirée du menu « Actions » de la fiche membre ; elle reste disponible uniquement sur la page « Profils & accès » (section « Super administrateurs »).",

@@ -26,6 +26,7 @@ export const RENTREE_ACTIONS: Record<string, RentreeActionDef> = {
   'goto-progression': { label: 'Étapes & badges', kind: 'goto', route: '/admin/progression' },
   'goto-communications': { label: 'Envoyer un message aux chefs', kind: 'goto', route: '/admin/communications-acces?tab=chefs' },
   'goto-document-reminders': { label: 'Relancer les documents manquants', kind: 'goto', route: '/admin/documents-suivi?tab=relances' },
+  'goto-documents-suivi': { label: 'Campagne des documents (dates)', kind: 'goto', route: '/admin/documents-suivi' },
   'goto-email': { label: 'Modèles d\'email / pièces jointes', kind: 'goto', route: '/admin/email-settings' },
   'goto-send-access': { label: 'Envoyer les accès', kind: 'goto', route: '/admin/communications-acces?tab=acces' },
   'goto-demande-archives': { label: 'Archives des demandes', kind: 'goto', route: '/admin/demande-archives' },

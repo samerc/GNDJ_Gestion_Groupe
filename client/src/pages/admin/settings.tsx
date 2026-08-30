@@ -39,7 +39,12 @@ const CONFIG_TABS: { key: string; label: string; Component: React.ComponentType 
 ]
 
 // Settings already edited on dedicated pages — hidden from the generic Paramètres page.
-const HIDDEN_KEYS = new Set(['site.content', 'card_config', 'member.cities', 'member.schools', 'member.classes', 'member.profession_domains', 'demande.rejection_reasons', 'ui.role_colors', 'pinned_professions'])
+// The documents.* campaign dates/toggle live on "Suivi des documents → Campagne" (which validates their
+// order); their internal idempotency markers are never user-editable. Hidden here so there is ONE place
+// to set them (the generic editor would let you save the dates out of order and break the campaign phases).
+const HIDDEN_KEYS = new Set(['site.content', 'card_config', 'member.cities', 'member.schools', 'member.classes', 'member.profession_domains', 'demande.rejection_reasons', 'ui.role_colors', 'pinned_professions',
+  'documents.campaign_enabled', 'documents.scout_year', 'documents.deposit_start', 'documents.deposit_deadline', 'documents.correction_start', 'documents.correction_deadline', 'documents.final_deadline',
+  'documents.errors_sent_for', 'documents.errors_alert_for', 'documents.hold_applied_for', 'documents.hold_alert_for'])
 // Technical keys moved to an "Avancé" tab.
 const ADVANCED_KEYS = new Set(['app.base_url', 'user_domain'])
 
