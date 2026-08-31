@@ -16,6 +16,25 @@ import { UserMinus, ArrowRightLeft, Crown, ChevronRight } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
+// Group a unit's maîtrise rows (backend returns one per function/assignment) BY MEMBER, so someone
+// holding two functions in the same unit shows ONCE with both functions listed — each function keeps
+// its own Transférer/Retirer action (they act on that specific assignment). Members ordered by their
+// most senior function's rank, then name; functions within a member ordered rank-desc.
+type GroupedMaitrise = { memberId: string; firstName: string; lastName: string; functions: MaitriseMemberDto[]; maxRank: number }
+function groupByMember(members: MaitriseMemberDto[]): GroupedMaitrise[] {
+  const byMember = new Map<string, MaitriseMemberDto[]>()
+  for (const m of members) {
+    const arr = byMember.get(m.memberId)
+    if (arr) arr.push(m); else byMember.set(m.memberId, [m])
+  }
+  return [...byMember.values()]
+    .map(fns => {
+      const sorted = [...fns].sort((a, b) => b.rank - a.rank)
+      return { memberId: sorted[0].memberId, firstName: sorted[0].firstName, lastName: sorted[0].lastName, functions: sorted, maxRank: sorted[0].rank }
+    })
+    .sort((a, b) => b.maxRank - a.maxRank || a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName))
+}
+
 // CG-only page (perm maitrise.manage): the leaders (maîtrise) of every unit, grouped into
 // collapsible per-unit cards ordered by rank. CG can remove a leader (ends the function) or
 // transfer them to another unit/function.
@@ -57,6 +76,7 @@ export default function MaitrisesPage() {
       <div className="space-y-4">
         {units?.map(u => {
           const isOpen = expanded.has(u.unitId)
+          const grouped = groupByMember(u.members) // one entry per member (functions merged)
           return (
           <Card key={u.unitId}>
             <button
@@ -70,23 +90,28 @@ export default function MaitrisesPage() {
                 ? <Badge className="gap-1" style={u.unitTypeColor ? { backgroundColor: u.unitTypeColor } : undefined}><Crown className="h-3 w-3" />Maîtrise de Groupe</Badge>
                 : <Badge variant="outline" style={u.unitTypeColor ? { borderColor: u.unitTypeColor, color: u.unitTypeColor, backgroundColor: `${u.unitTypeColor}14` } : undefined}>{u.unitCode}</Badge>}
               <span className="font-medium">{u.unitName}</span>
-              <span className="ml-auto text-xs text-muted-foreground">{u.members.length} membre{u.members.length > 1 ? 's' : ''}</span>
+              <span className="ml-auto text-xs text-muted-foreground">{grouped.length} membre{grouped.length > 1 ? 's' : ''}</span>
             </button>
             {isOpen && (
               <CardContent className="border-t p-0">
                 <div className="divide-y">
-                  {u.members.map(m => (
-                    <div key={m.assignmentId} className="flex items-center gap-2 px-4 py-2.5">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{m.lastName} {m.firstName}</div>
-                        <div className="text-xs text-muted-foreground">{m.functionName}</div>
+                  {grouped.map(m => (
+                    <div key={m.memberId} className="px-4 py-2.5">
+                      <div className="font-medium text-sm truncate">{m.lastName} {m.firstName}</div>
+                      {/* One line per function — each keeps its own Transférer / Retirer (per assignment). */}
+                      <div className="mt-0.5 space-y-1">
+                        {m.functions.map(f => (
+                          <div key={f.assignmentId} className="flex items-center gap-2">
+                            <div className="flex-1 min-w-0 truncate text-xs text-muted-foreground">{f.functionName}</div>
+                            <Tip content="Transférer cette fonction vers une autre unité"><Button variant="ghost" size="sm" onClick={() => setTransferTarget(f)}>
+                              <ArrowRightLeft className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Transférer</span>
+                            </Button></Tip>
+                            <Tip content="Retirer cette fonction"><Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setRemoveTarget(f)}>
+                              <UserMinus className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Retirer</span>
+                            </Button></Tip>
+                          </div>
+                        ))}
                       </div>
-                      <Tip content="Transférer vers une autre unité"><Button variant="ghost" size="sm" onClick={() => setTransferTarget(m)}>
-                        <ArrowRightLeft className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Transférer</span>
-                      </Button></Tip>
-                      <Tip content="Retirer de la maîtrise"><Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setRemoveTarget(m)}>
-                        <UserMinus className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Retirer</span>
-                      </Button></Tip>
                     </div>
                   ))}
                 </div>
