@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { EmptyState } from '@/components/shared/empty-state'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { CalendarCheck, Plus, Pencil, Trash2, CheckCircle2, Clock, ClipboardList, Users } from 'lucide-react'
+import { CalendarCheck, Plus, Pencil, Trash2, CheckCircle2, Clock, ClipboardList, Users, Search, X } from 'lucide-react'
 
 // Réunions / Absences — the CU (and chef d'équipe) attendance screen. Pick a unit → list its réunions
 // (réunions / sorties / camps), create new ones (unit-wide or for a team), approve pending chef-d'équipe
@@ -28,6 +28,11 @@ import { CalendarCheck, Plus, Pencil, Trash2, CheckCircle2, Clock, ClipboardList
 
 function frDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+// Accent- & case-insensitive normalization for the roster search (so "rhea" finds "Rhéa").
+function norm(s: string) {
+  return s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
 }
 
 // One réunion card in the list.
@@ -96,6 +101,8 @@ function AttendanceDialog({ meetingId, onClose }: { meetingId: string; onClose: 
   const save = useSaveMeetingAttendance()
   // Local edit state: memberId → { absent, reason }. Seeded from the loaded roster.
   const [rows, setRows] = useState<Record<string, { absent: boolean; reason: string }> | null>(null)
+  // Name search (roster can be 80+ members) — filters the displayed list only, edits stay intact.
+  const [query, setQuery] = useState('')
 
   // Seed local state once the roster loads (render-phase init, no effect).
   const seeded = useMemo(() => {
@@ -110,6 +117,13 @@ function AttendanceDialog({ meetingId, onClose }: { meetingId: string; onClose: 
     setRows(prev => ({ ...(prev ?? seeded ?? {}), [id]: { ...(prev ?? seeded ?? {})[id], ...patch } }))
 
   const absentCount = Object.values(state).filter(v => v.absent).length
+
+  // Roster filtered by the name search (accent/case-insensitive). Absences summary stays on the full roster.
+  const filteredRoster = useMemo(() => {
+    const list = data?.roster ?? []
+    const needle = norm(query.trim())
+    return needle ? list.filter(r => norm(r.name).includes(needle)) : list
+  }, [data, query])
 
   const handleSave = async () => {
     const absences = Object.entries(state)
@@ -141,8 +155,24 @@ function AttendanceDialog({ meetingId, onClose }: { meetingId: string; onClose: 
             <p className="text-sm text-muted-foreground">
               {frDate(data.date)} · {data.groupName ?? data.teamName ?? "Toute l'unité"} · <span className="font-medium">{absentCount}</span> absent{absentCount > 1 ? 's' : ''} sur {data.roster.length}. Cochez uniquement les membres absents.
             </p>
+            {data.roster.length > 6 && (
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher un membre…"
+                  className="h-9 pl-8 pr-8" />
+                {query && (
+                  <button type="button" onClick={() => setQuery('')} aria-label="Effacer la recherche"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            )}
             <div className="max-h-[55vh] divide-y overflow-y-auto rounded-md border">
-              {data.roster.map((r: AttendanceRosterRow) => {
+              {filteredRoster.length === 0 && (
+                <p className="p-3 text-sm text-muted-foreground">Aucun membre ne correspond à « {query} ».</p>
+              )}
+              {filteredRoster.map((r: AttendanceRosterRow) => {
                 const s = state[r.memberId] ?? { absent: false, reason: '' }
                 return (
                   <div key={r.memberId} className="flex flex-col gap-2 p-2.5 sm:flex-row sm:items-center">
