@@ -29,7 +29,7 @@ public record ApplicantAuthDto(Guid AccountId, string Email, bool EmailVerified,
 // IsOpen (demande.enabled) = the portal is accessible at all (login + view). SubmissionsOpen
 // (demande.submissions_open) is the INNER window inside it: while true, parents can create/edit/submit/delete;
 // once the CG closes it (review phase), the portal stays open for viewing but all writes are blocked.
-public record ApplicantConfigDto(bool IsOpen, bool SubmissionsOpen, string ScoutYear, int MaxPerAccount, int NotesMaxLength, bool RequireEmailVerification, string? IntroText,
+public record ApplicantConfigDto(bool IsOpen, bool SubmissionsOpen, string ScoutYear, int MaxPerAccount, int NotesMaxLength, bool RequireEmailVerification,
     IReadOnlyList<string> Schools, IReadOnlyList<string> Classes, IReadOnlyList<string> Cities, IReadOnlyList<string> Units, int MaxScoutRelations,
     // ExcludedClasse: a grade that cannot enroll (default 6ème) — hidden from the wizard's classe dropdown
     // and rejected at submit. Empty/null = no restriction. Editable via the demande.excluded_classe setting.
@@ -106,7 +106,7 @@ static class ApplicantHelpers
     static readonly string[] ConfigKeys =
     [
         "demande.enabled", "demande.submissions_open", "demande.scout_year", "passage.scout_year", "demande.max_per_account",
-        "demande.notes_max_length", "demande.require_email_verification", "demande.intro_text",
+        "demande.notes_max_length", "demande.require_email_verification",
         "demande.max_scout_relations", "demande.terms", "demande.excluded_classe", "member.schools", "member.classes", "member.cities", "member.profession_domains",
         "demande.submission_start", "demande.submission_deadline", "demande.result_text_accepted", "demande.result_text_declined", "member.activation_link_days"
     ];
@@ -145,7 +145,6 @@ static class ApplicantHelpers
         var notesLen = int.TryParse(Get("demande.notes_max_length"), out var n) ? n : 500;
         var maxRelations = int.TryParse(Get("demande.max_scout_relations"), out var mr) && mr > 0 ? Math.Min(mr, MaxScoutRelationsHardCap) : 3;
         var requireVerify = Get("demande.require_email_verification") != "false";
-        var intro = Get("demande.intro_text");
         var terms = Get("demande.terms");
         var excludedClasse = Get("demande.excluded_classe");
 
@@ -164,7 +163,7 @@ static class ApplicantHelpers
         // indicate which unit a current-member relative belongs to, easing family matching for the CG.
         var units = await ctx.Units.Where(u => u.IsActive).OrderBy(u => u.Name).Select(u => u.Name).ToListAsync(ct);
 
-        return new ApplicantConfigDto(enabled, submissionsOpen, year, max, notesLen, requireVerify, intro, schools, classes, cities, units, maxRelations, professionDomains, terms, excludedClasse,
+        return new ApplicantConfigDto(enabled, submissionsOpen, year, max, notesLen, requireVerify, schools, classes, cities, units, maxRelations, professionDomains, terms, excludedClasse,
             Get("demande.submission_start"), Get("demande.submission_deadline"), Get("demande.result_text_accepted"), Get("demande.result_text_declined"), activationDays);
     }
 

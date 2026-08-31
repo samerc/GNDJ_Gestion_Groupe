@@ -11,7 +11,6 @@ export interface ApplicantConfig {
   maxPerAccount: number
   notesMaxLength: number
   requireEmailVerification: boolean
-  introText: string | null
   schools: string[]
   classes: string[]
   cities: string[]
