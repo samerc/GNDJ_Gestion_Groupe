@@ -244,8 +244,12 @@ function MemberRow({ m, checked, onCheck, onMove }: {
         <GripVertical className="h-5 w-5 sm:h-4 sm:w-4" />
       </button>
       <MemberPhoto memberId={m.memberId} name={`${m.firstName} ${m.lastName}`} photoPath={m.photoPath} size={34} />
-      <span className="min-w-0 flex-1 truncate text-[15px] font-medium sm:text-sm">{m.firstName} {m.lastName}</span>
-      <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">· {m.functionalRoleName}</span>
+      {/* Name + role side by side (role right after the name, not pushed to the far right) so the fonction is
+          easy to read next to who it belongs to — especially on wide screens. Role hidden on small screens. */}
+      <div className="flex min-w-0 flex-1 items-baseline gap-x-2">
+        <span className="min-w-0 truncate text-[15px] font-medium sm:text-sm">{m.firstName} {m.lastName}</span>
+        <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">· {m.functionalRoleName}</span>
+      </div>
       <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 sm:h-8 sm:w-8" onClick={onMove} title="Déplacer">
         <ArrowRightLeft className="h-5 w-5 sm:h-4 sm:w-4" />
       </Button>
