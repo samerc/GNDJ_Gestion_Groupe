@@ -63,6 +63,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
         user.RefreshToken = _passwordHasher.HashToken(refreshToken);
         user.RefreshTokenExpiry = _tokenService.GetRefreshTokenExpiry();
         user.LastLoginAt = DateTime.UtcNow;
+        user.LastActivityAt = DateTime.UtcNow; // presence signal for the active-sessions view
 
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Login", "User", user.Id,

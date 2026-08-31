@@ -264,6 +264,8 @@ public class RegisterApplicantCommandHandler(IApplicationDbContext context, IPas
         var refresh = tokens.GenerateRefreshToken();
         account.RefreshToken = hasher.HashToken(refresh);
         account.RefreshTokenExpiry = tokens.GetRefreshTokenExpiry();
+        account.LastLoginAt = DateTime.UtcNow;
+        account.LastActivityAt = DateTime.UtcNow;
 
         context.ApplicantAccounts.Add(account);
         await context.SaveChangesAsync(ct);
@@ -349,6 +351,8 @@ public class LoginApplicantCommandHandler(IApplicationDbContext context, IPasswo
         var refresh = tokens.GenerateRefreshToken();
         account.RefreshToken = hasher.HashToken(refresh);
         account.RefreshTokenExpiry = tokens.GetRefreshTokenExpiry();
+        account.LastLoginAt = DateTime.UtcNow;
+        account.LastActivityAt = DateTime.UtcNow;
         await context.SaveChangesAsync(ct);
 
         var access = tokens.GenerateApplicantToken(account);
@@ -376,6 +380,8 @@ public class RefreshApplicantTokenCommandHandler(IApplicationDbContext context, 
         var refresh = tokens.GenerateRefreshToken();
         account.RefreshToken = hasher.HashToken(refresh);
         account.RefreshTokenExpiry = tokens.GetRefreshTokenExpiry();
+        account.LastActivityAt = DateTime.UtcNow; // ~15-min heartbeat while active
+
         await context.SaveChangesAsync(ct);
 
         var access = tokens.GenerateApplicantToken(account);

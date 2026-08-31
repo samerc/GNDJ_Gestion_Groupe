@@ -3798,6 +3798,31 @@ reconcile but for a SINGLE person entered twice. All on main, DEV until deploy; 
       **name+DOB only** — two records of the same person with a mismatched/missing DOB aren't auto-flagged (a
       manual "merge any two members" entry could be added later if needed).
 
+### Active sessions — "Sessions actives" viewer + force-disconnect (2026-08-31)
+Super-admin page (`/admin/sessions`, sidebar Système) to see who currently holds a live session + kick one.
+- **Model reminder:** stateless 15-min access token + ONE rotating 7-day refresh token per account (no
+      per-device table), so this shows **one row per account**. A "session" = an account with a non-null,
+      unexpired `RefreshToken`. New `LastActivityAt` stamped on **login AND every token refresh** (~15-min
+      heartbeat while active) → drives an **"En ligne"** flag (activity within 20 min); `LastLoginAt` stays the
+      original sign-in ("connecté depuis"). Migration `AddSessionActivity` adds `users.last_activity_at` +
+      `applicant_accounts.last_login_at`/`last_activity_at`.
+- **Covers BOTH realms** (user's choice): **Membres et chefs** (`User`) + **Portail des parents** (`ApplicantAccount`)
+      — the applicant login/register/refresh now stamp the same timestamps. Two tables on one page.
+- **Backend** `Application/Sessions/SessionHandlers.cs`: `GetActiveSessionsQuery` (members joined to Member for a
+      name + applicants; only `RefreshToken != null && RefreshTokenExpiry > now && IsActive`; `IsOnline` computed
+      in memory) + `DisconnectSessionCommand(Kind, Id)` (clears the refresh token → the account can't refresh, its
+      access dies within ≤15 min; audited `DisconnectSession`). **Super-admin ONLY** — both handlers throw
+      `UnauthorizedAccessException` if `!IsSuperAdmin` (super-admin isn't a permission, same gate as the audit/error
+      log purge). `SessionsController` (`api/v1/sessions` GET + `/disconnect`), route under `<AdminRoute>`.
+- **Frontend** `pages/admin/sessions.tsx` (auto-refetch 30s) — per realm: État (En ligne/Session ouverte), Nom,
+      Identifiant (email), Connecté depuis (relative), Dernière activité (relative), Session expire, **Déconnecter**
+      (confirm). Blue note explains the ≤15-min caveat + that "en ligne" = last-activity window.
+- **Inherent limits (documented, accepted):** revocation is "≤15 min" not instant (stateless JWT); one session per
+      account, no per-device list / "last login from" (would need a `user_sessions` table); no new-device alert.
+- Verified live: super-admin GET → 8 member + 1 applicant sessions w/ online + timestamps; a **CU → 403** on both
+      GET and disconnect; disconnecting a session → the account's next refresh **401** (session truly ended);
+      re-login restores. Build clean (dotnet 0/0, tsc + eslint). Migration applies on prod startup; DEV until deploy.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

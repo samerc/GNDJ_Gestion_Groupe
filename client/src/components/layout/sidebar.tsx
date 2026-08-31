@@ -47,6 +47,7 @@ import {
   LayoutGrid,
   Archive,
   Palette,
+  MonitorSmartphone,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -187,6 +188,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/api-keys', label: 'Clés API', icon: Key, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/audit-logs', label: 'Journal d\'audit', icon: ScrollText, permission: PERMISSIONS.AUDIT_VIEW },
       { path: '/admin/error-log', label: 'Journal des erreurs', icon: AlertTriangle, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+      { path: '/admin/sessions', label: 'Sessions actives', icon: MonitorSmartphone, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       { path: '/admin/deleted-members', label: 'Corbeille', icon: Trash2, permission: PERMISSIONS.MEMBERS_DELETE },
       { path: '/admin/appearance', label: 'Apparence', icon: Palette, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
       // Paramètres is CG-reachable (page + backend filter it to the operational categories a CG may edit).

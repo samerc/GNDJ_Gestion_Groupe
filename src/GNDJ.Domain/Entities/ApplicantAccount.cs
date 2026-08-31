@@ -19,6 +19,11 @@ public class ApplicantAccount : BaseEntity
     public string? PasswordResetToken { get; set; }
     public DateTime? PasswordResetTokenExpiry { get; set; }
 
+    // Session tracking for the "active sessions" admin view (parent portal). LastLoginAt = original sign-in;
+    // LastActivityAt = updated on login AND every token refresh (~15-min heartbeat while active).
+    public DateTime? LastLoginAt { get; set; }
+    public DateTime? LastActivityAt { get; set; }
+
     // "Retrouver mes informations" — a one-time code emailed to an address the applicant claims, to prove
     // ownership before we reveal + prefill that family's household data (parents/address/siblings).
     public string? HouseholdLookupEmail { get; set; }

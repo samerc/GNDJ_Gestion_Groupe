@@ -12,6 +12,10 @@ public class User : BaseEntity
     public bool IsSuperAdmin { get; set; } // full access, independent of any role/profile (manual flag)
     public bool IsActive { get; set; } = true;
     public DateTime? LastLoginAt { get; set; }
+    // Updated on login AND on every token refresh (~15-min heartbeat while the user is active) — the
+    // "active sessions" admin view uses it as a live "last activity"/presence signal (LastLoginAt stays
+    // the original login time). Null for accounts that never signed in.
+    public DateTime? LastActivityAt { get; set; }
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiry { get; set; }
     public string? PasswordResetToken { get; set; }

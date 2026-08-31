@@ -41,6 +41,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
 
         user.RefreshToken = _passwordHasher.HashToken(newRefreshToken);
         user.RefreshTokenExpiry = _tokenService.GetRefreshTokenExpiry();
+        user.LastActivityAt = DateTime.UtcNow; // ~15-min heartbeat while the user is active
 
         await _context.SaveChangesAsync(cancellationToken);
 
