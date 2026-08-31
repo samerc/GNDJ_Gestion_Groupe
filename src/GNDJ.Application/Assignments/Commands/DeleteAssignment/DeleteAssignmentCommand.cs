@@ -30,11 +30,14 @@ public class DeleteAssignmentCommandHandler : IRequestHandler<DeleteAssignmentCo
         if (!_currentUser.IsSuperAdmin && !_currentUser.AuthorizedUnitIds.Contains(entity.UnitId))
             return Result<bool>.Failure("Accès non autorisé à cette unité.");
 
+        // Readable snapshot of what's being removed (names, not GUIDs) — resolved before the delete.
+        var snapshot = await GNDJ.Application.Assignments.AssignmentAudit.DescribeAsync(_context, entity.MemberId,
+            entity.UnitId, entity.TeamId, entity.FunctionalRoleId, entity.StartDate, entity.EndDate, cancellationToken);
+
         _context.MemberAssignments.Remove(entity);
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Delete", "MemberAssignment", entity.Id,
-            oldValues: new { entity.MemberId, entity.UnitId, entity.FunctionalRoleId },
-            cancellationToken: cancellationToken);
+            oldValues: snapshot, cancellationToken: cancellationToken);
 
         return Result<bool>.Success(true);
     }

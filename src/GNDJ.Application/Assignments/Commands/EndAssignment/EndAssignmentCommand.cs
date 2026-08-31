@@ -36,13 +36,17 @@ public class EndAssignmentCommandHandler : IRequestHandler<EndAssignmentCommand,
         if (request.EndDate < entity.StartDate)
             return Result<bool>.Failure("La date de fin doit être postérieure à la date de début.");
 
+        // Readable BEFORE snapshot (still open — no end date) then AFTER (with the end date).
+        var oldSnapshot = await GNDJ.Application.Assignments.AssignmentAudit.DescribeAsync(_context, entity.MemberId,
+            entity.UnitId, entity.TeamId, entity.FunctionalRoleId, entity.StartDate, null, cancellationToken);
+
         entity.EndDate = request.EndDate;
 
         await _context.SaveChangesAsync(cancellationToken);
+        var newSnapshot = await GNDJ.Application.Assignments.AssignmentAudit.DescribeAsync(_context, entity.MemberId,
+            entity.UnitId, entity.TeamId, entity.FunctionalRoleId, entity.StartDate, entity.EndDate, cancellationToken);
         await _auditService.LogAsync("Update", "MemberAssignment", entity.Id,
-            oldValues: new { EndDate = (DateOnly?)null },
-            newValues: new { entity.EndDate },
-            cancellationToken: cancellationToken);
+            oldValues: oldSnapshot, newValues: newSnapshot, cancellationToken: cancellationToken);
 
         return Result<bool>.Success(true);
     }

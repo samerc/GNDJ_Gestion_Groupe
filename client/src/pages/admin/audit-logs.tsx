@@ -45,8 +45,25 @@ const ENTITY_LABELS: Record<string, string> = {
   GuardianLink: 'Lien parent',
 }
 
+// Human labels for the raw snapshot field names, so the detail reads in French instead of PascalCase keys.
+const FIELD_LABELS: Record<string, string> = {
+  Member: 'Membre', Unit: 'Unité', Team: 'Équipe', Role: 'Fonction',
+  StartDate: 'Début', EndDate: 'Fin', Name: 'Nom', Totem: 'Totem', Adjective: 'Adjectif',
+  Description: 'Description', Color1: 'Couleur 1', Color2: 'Couleur 2', DisplayOrder: 'Ordre',
+  IsMaitrise: 'Maîtrise', Email: 'Email', Code: 'Code', Reason: 'Motif', Title: 'Titre',
+  ReceiptNumber: 'Reçu', ScoutYear: 'Année scoute', FirstName: 'Prénom', LastName: 'Nom',
+}
+const fieldLabel = (k: string) => FIELD_LABELS[k] ?? k
+
+// Renders a stored value readably: booleans → Oui/Non, null/empty → —.
+function formatVal(v: unknown): string {
+  if (v === null || v === undefined || v === '') return '—'
+  if (typeof v === 'boolean') return v ? 'Oui' : 'Non'
+  return String(v)
+}
+
 // Best-effort human label for a log row, sniffed from the first recognizable field
-// in the JSON snapshot (Name → Email → Title → full name → …). Empty if none found.
+// in the JSON snapshot (Member → Name → Email → full name → …). Empty if none found.
 function entitySummary(log: AuditLogDto): string {
   // Try to extract a meaningful label from newValues or oldValues
   const json = log.newValues || log.oldValues
@@ -54,6 +71,7 @@ function entitySummary(log: AuditLogDto): string {
   try {
     const obj = JSON.parse(json)
     // Common field patterns
+    if (obj.Member) return obj.Member       // assignments (readable member name)
     if (obj.Name) return obj.Name
     if (obj.Email) return obj.Email
     if (obj.Title) return obj.Title
@@ -65,27 +83,57 @@ function entitySummary(log: AuditLogDto): string {
   return ''
 }
 
-// Renders a stored JSON snapshot as a key-value table; falls back to raw <pre>
-// for non-objects or unparseable strings.
-function JsonViewer({ json }: { json: string | null }) {
-  if (!json) return <span className="text-muted-foreground">—</span>
-  // Only the parse can throw — keep it in the try and build all JSX outside it (constructing JSX inside
-  // try/catch is flagged because a render error there would be swallowed instead of hitting a boundary).
-  let obj: unknown
+function parseObj(json: string | null): Record<string, unknown> | null {
+  if (!json) return null
   try {
-    obj = JSON.parse(json)
-  } catch {
-    return <pre className="rounded-md bg-muted/30 p-3 text-xs overflow-auto whitespace-pre-wrap">{json}</pre>
+    const o = JSON.parse(json)
+    return typeof o === 'object' && o !== null ? (o as Record<string, unknown>) : null
+  } catch { return null }
+}
+
+// Combined before→after view. When both snapshots exist it shows one row per field with the old and new value
+// side by side, HIGHLIGHTING the ones that actually changed (so a reorder/recolor is obvious instead of looking
+// like a no-op). When only one side exists (Create / Delete) it shows a single value column.
+function DiffViewer({ oldJson, newJson }: { oldJson: string | null; newJson: string | null }) {
+  const oldObj = parseObj(oldJson)
+  const newObj = parseObj(newJson)
+
+  // Fall back to raw text if neither parsed into an object (e.g. a scalar or malformed snapshot).
+  if (!oldObj && !newObj) {
+    const raw = newJson ?? oldJson
+    if (!raw) return <span className="text-muted-foreground">—</span>
+    return <pre className="rounded-md bg-muted/30 p-3 text-xs overflow-auto whitespace-pre-wrap">{raw}</pre>
   }
-  if (typeof obj !== 'object' || obj === null) return <span className="text-sm">{String(obj)}</span>
+
+  const keys = Array.from(new Set([...Object.keys(oldObj ?? {}), ...Object.keys(newObj ?? {})]))
+  const both = oldObj && newObj
+
   return (
-    <div className="rounded-md border bg-muted/30 text-sm divide-y">
-      {Object.entries(obj as Record<string, unknown>).map(([key, value]) => (
-        <div key={key} className="flex gap-3 px-3 py-1.5">
-          <span className="font-medium text-muted-foreground min-w-28 shrink-0">{key}</span>
-          <span className="break-all">{value === null ? '—' : String(value)}</span>
-        </div>
-      ))}
+    <div className="rounded-md border text-sm overflow-hidden">
+      <div className={`grid ${both ? 'grid-cols-[10rem_1fr_1fr]' : 'grid-cols-[10rem_1fr]'} bg-muted/50 font-medium text-muted-foreground text-xs uppercase`}>
+        <div className="px-3 py-1.5">Champ</div>
+        {both ? <><div className="px-3 py-1.5">Avant</div><div className="px-3 py-1.5">Après</div></> : <div className="px-3 py-1.5">Valeur</div>}
+      </div>
+      <div className="divide-y">
+        {keys.map((k) => {
+          const ov = oldObj?.[k]
+          const nv = newObj?.[k]
+          const changed = both && formatVal(ov) !== formatVal(nv)
+          return (
+            <div key={k} className={`grid ${both ? 'grid-cols-[10rem_1fr_1fr]' : 'grid-cols-[10rem_1fr]'} ${changed ? 'bg-amber-50' : ''}`}>
+              <div className="px-3 py-1.5 font-medium text-muted-foreground">{fieldLabel(k)}</div>
+              {both ? (
+                <>
+                  <div className={`px-3 py-1.5 break-all ${changed ? 'text-muted-foreground line-through' : ''}`}>{formatVal(ov)}</div>
+                  <div className={`px-3 py-1.5 break-all ${changed ? 'font-medium text-amber-800' : ''}`}>{formatVal(nv)}</div>
+                </>
+              ) : (
+                <div className="px-3 py-1.5 break-all">{formatVal(oldObj ? ov : nv)}</div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -260,17 +308,12 @@ export default function AuditLogsPage() {
                 <div><span className="text-muted-foreground">IP :</span> {detail.ipAddress ?? '—'}</div>
               </div>
 
-              {detail.oldValues && (
+              {(detail.oldValues || detail.newValues) && (
                 <div>
-                  <p className="font-medium text-muted-foreground mb-1">Anciennes valeurs</p>
-                  <JsonViewer json={detail.oldValues} />
-                </div>
-              )}
-
-              {detail.newValues && (
-                <div>
-                  <p className="font-medium text-muted-foreground mb-1">Nouvelles valeurs</p>
-                  <JsonViewer json={detail.newValues} />
+                  <p className="font-medium text-muted-foreground mb-1">
+                    {detail.oldValues && detail.newValues ? 'Modifications' : detail.oldValues ? 'Valeurs supprimées' : 'Valeurs'}
+                  </p>
+                  <DiffViewer oldJson={detail.oldValues} newJson={detail.newValues} />
                 </div>
               )}
             </div>

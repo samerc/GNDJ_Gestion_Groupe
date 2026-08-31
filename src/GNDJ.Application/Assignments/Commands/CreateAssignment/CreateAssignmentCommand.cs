@@ -83,9 +83,11 @@ public class CreateAssignmentCommandHandler : IRequestHandler<CreateAssignmentCo
 
         _context.MemberAssignments.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
+        // Log readable names (member/unit/team/role/dates), not raw GUIDs.
+        var snapshot = await AssignmentAudit.DescribeAsync(_context, entity.MemberId, entity.UnitId, entity.TeamId,
+            entity.FunctionalRoleId, entity.StartDate, entity.EndDate, cancellationToken);
         await _auditService.LogAsync("Create", "MemberAssignment", entity.Id,
-            newValues: new { entity.MemberId, entity.UnitId, entity.FunctionalRoleId, entity.StartDate },
-            cancellationToken: cancellationToken);
+            newValues: snapshot, cancellationToken: cancellationToken);
 
         return Result<Guid>.Success(entity.Id);
     }

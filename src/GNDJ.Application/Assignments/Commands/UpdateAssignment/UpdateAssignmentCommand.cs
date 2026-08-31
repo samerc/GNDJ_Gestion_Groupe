@@ -63,7 +63,9 @@ public class UpdateAssignmentCommandHandler : IRequestHandler<UpdateAssignmentCo
                 return Result<bool>.Failure("L'équipe sélectionnée n'appartient pas à cette unité.");
         }
 
-        var oldValues = new { entity.UnitId, entity.TeamId, entity.FunctionalRoleId, entity.StartDate, entity.EndDate };
+        // Readable BEFORE snapshot (names, not GUIDs) — resolved before we mutate the ids.
+        var oldSnapshot = await AssignmentAudit.DescribeAsync(_context, entity.MemberId, entity.UnitId, entity.TeamId,
+            entity.FunctionalRoleId, entity.StartDate, entity.EndDate, cancellationToken);
 
         entity.UnitId = request.UnitId;
         entity.TeamId = request.TeamId;
@@ -73,9 +75,10 @@ public class UpdateAssignmentCommandHandler : IRequestHandler<UpdateAssignmentCo
         entity.Notes = request.Notes;
 
         await _context.SaveChangesAsync(cancellationToken);
-        await _auditService.LogAsync("Update", "MemberAssignment", entity.Id, oldValues: oldValues,
-            newValues: new { entity.UnitId, entity.TeamId, entity.FunctionalRoleId, entity.StartDate, entity.EndDate },
-            cancellationToken: cancellationToken);
+        var newSnapshot = await AssignmentAudit.DescribeAsync(_context, entity.MemberId, entity.UnitId, entity.TeamId,
+            entity.FunctionalRoleId, entity.StartDate, entity.EndDate, cancellationToken);
+        await _auditService.LogAsync("Update", "MemberAssignment", entity.Id, oldValues: oldSnapshot,
+            newValues: newSnapshot, cancellationToken: cancellationToken);
 
         return Result<bool>.Success(true);
     }

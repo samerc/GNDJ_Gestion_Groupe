@@ -54,7 +54,11 @@ public class UpdateTeamCommandHandler : IRequestHandler<UpdateTeamCommand, Resul
         if (nameExists)
             return Result<bool>.Failure("Une équipe avec ce nom existe déjà dans cette unité.");
 
-        var oldValues = new { entity.Name, entity.Totem, entity.Adjective };
+        // Snapshot ALL editable fields (not just name/totem/adjective) so the audit diff shows what actually
+        // changed — a reorder (DisplayOrder), recolor or Maîtrise-flag toggle used to look like a no-op.
+        var unitName = await _context.Units.Where(u => u.Id == entity.UnitId).Select(u => u.Name).FirstOrDefaultAsync(cancellationToken) ?? "—";
+        var oldValues = new { entity.Name, entity.Totem, entity.Adjective, entity.Description,
+            entity.Color1, entity.Color2, entity.DisplayOrder, entity.IsMaitrise, Unit = unitName };
 
         entity.Name = request.Name;
         entity.UnitId = request.UnitId;
@@ -67,7 +71,12 @@ public class UpdateTeamCommandHandler : IRequestHandler<UpdateTeamCommand, Resul
         entity.IsMaitrise = request.IsMaitrise;
 
         await _context.SaveChangesAsync(cancellationToken);
-        await _auditService.LogAsync("Update", "Team", entity.Id, oldValues: oldValues, newValues: new { entity.Name, entity.Totem, entity.Adjective }, cancellationToken: cancellationToken);
+        var newUnitName = await _context.Units.Where(u => u.Id == entity.UnitId).Select(u => u.Name).FirstOrDefaultAsync(cancellationToken) ?? "—";
+        await _auditService.LogAsync("Update", "Team", entity.Id,
+            oldValues: oldValues,
+            newValues: new { entity.Name, entity.Totem, entity.Adjective, entity.Description,
+                entity.Color1, entity.Color2, entity.DisplayOrder, entity.IsMaitrise, Unit = newUnitName },
+            cancellationToken: cancellationToken);
 
         return Result<bool>.Success(true);
     }

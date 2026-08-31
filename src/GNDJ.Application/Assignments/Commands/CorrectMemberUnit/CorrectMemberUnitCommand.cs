@@ -62,7 +62,9 @@ public class CorrectMemberUnitCommandHandler(
             newRoleId = resolved.Value;
         }
 
-        var oldValues = new { entity.UnitId, entity.TeamId, entity.FunctionalRoleId };
+        // Readable BEFORE snapshot (names) — resolved before we repoint the assignment.
+        var oldSnapshot = await AssignmentAudit.DescribeAsync(context, entity.MemberId, entity.UnitId, entity.TeamId,
+            entity.FunctionalRoleId, entity.StartDate, entity.EndDate, ct);
 
         var oldUnitId = entity.UnitId;
         entity.UnitId = request.NewUnitId;
@@ -83,8 +85,10 @@ public class CorrectMemberUnitCommandHandler(
         }
 
         await context.SaveChangesAsync(ct);
-        await auditService.LogAsync("CorrectUnit", "MemberAssignment", entity.Id, oldValues: oldValues,
-            newValues: new { entity.UnitId, entity.TeamId, entity.FunctionalRoleId }, cancellationToken: ct);
+        var newSnapshot = await AssignmentAudit.DescribeAsync(context, entity.MemberId, entity.UnitId, entity.TeamId,
+            entity.FunctionalRoleId, entity.StartDate, entity.EndDate, ct);
+        await auditService.LogAsync("CorrectUnit", "MemberAssignment", entity.Id, oldValues: oldSnapshot,
+            newValues: newSnapshot, cancellationToken: ct);
 
         return Result<bool>.Success(true);
     }
