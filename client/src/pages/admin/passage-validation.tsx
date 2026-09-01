@@ -316,7 +316,7 @@ export default function PassageValidationPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Validation des passages — {scoutYear}</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Select value={scoutYear} onValueChange={setScoutYear}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>

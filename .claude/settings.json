@@ -27,7 +27,15 @@
       "WebSearch",
       "Read(//c/Users/Administrator/Documents/old/**)",
       "Bash(git commit -m ' *)",
-      "Bash(git commit -q -m ' *)"
+      "Bash(git commit -q -m ' *)",
+      "Bash(npx eslint *)",
+      "Bash(powershell -NoProfile -Command \"Get-Process msedge -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(rm -f temp/sc_*.jpg temp/fl_*.png temp/flicker_shot.png temp/flicker_probe.py)",
+      "Bash(rm -rf temp/edge-flicker)",
+      "Bash(curl -s -o /dev/null -w \"api=%{http_code}\\\\n\" http://localhost:5000/health)",
+      "Bash(rm -f temp/groups_page.png)",
+      "Bash(npx vite *)",
+      "Bash(git reset *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Administrator\\Desktop\\BP 2026",
