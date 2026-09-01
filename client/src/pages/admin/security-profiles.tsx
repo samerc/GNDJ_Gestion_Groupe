@@ -373,8 +373,8 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
     <>
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <CardTitle className="text-base">{profile.name}</CardTitle>
             <p className="text-sm text-muted-foreground mt-0.5">
               {profile.description ?? profile.code}
@@ -388,7 +388,7 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
             )}
           </div>
           {canManage && tab === 'perms' && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
               {saved && <span className="text-sm text-green-600">Enregistré</span>}
               {hasChanges && (
                 <>
