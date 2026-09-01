@@ -9,8 +9,8 @@ import { useState, useMemo } from 'react'
 import { saveBlob } from '@/lib/download'
 import { useNavigate } from 'react-router'
 import {
-  useCotisationSummary, useUnpaidCotisations, useCreateCotisation, useSetCotisationExempt,
-  type UnpaidCotisationDto,
+  useCotisationSummary, useUnpaidCotisations, usePaidCotisations, useCreateCotisation, useSetCotisationExempt,
+  downloadReceipt, type UnpaidCotisationDto, type PaidCotisationDto,
 } from '@/services/cotisation-service'
 import { useSettingValue } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
@@ -38,6 +38,7 @@ export default function CotisationDashboardPage() {
 
   const { data: summary, isLoading } = useCotisationSummary(scoutYear)
   const { data: unpaid } = useUnpaidCotisations(scoutYear)
+  const { data: paid } = usePaidCotisations(scoutYear)
 
   // Shared mutations for the inline row actions (memberId passed per-call; queries invalidated below).
   const createCotisation = useCreateCotisation('')
@@ -77,7 +78,18 @@ export default function CotisationDashboardPage() {
 
   const refreshCotisations = () => {
     qc.invalidateQueries({ queryKey: ['cotisations', 'unpaid', scoutYear] })
+    qc.invalidateQueries({ queryKey: ['cotisations', 'paid', scoutYear] })
     qc.invalidateQueries({ queryKey: ['cotisations', 'summary', scoutYear] })
+  }
+
+  // Download a member's receipt PDF (from the paid list). Receipts are generated on demand from the cotisation.
+  const handleReceipt = async (m: PaidCotisationDto) => {
+    try {
+      const res = await downloadReceipt(m.cotisationId)
+      saveBlob(res.data, `Recu_${m.receiptNumber || m.memberName}.pdf`, 'application/pdf')
+    } catch {
+      toast.error('Impossible de télécharger le reçu.')
+    }
   }
 
   const submitPayment = async () => {
@@ -122,6 +134,17 @@ export default function CotisationDashboardPage() {
     }
     return groups
   }, [unpaid])
+
+  // Same, for members who PAID — so a unit row can also reveal its "Ont payé" list (name + amounts + receipt).
+  const paidByUnit = useMemo(() => {
+    const groups = new Map<string, PaidCotisationDto[]>()
+    for (const p of paid ?? []) {
+      const list = groups.get(p.unitName) ?? []
+      list.push(p)
+      groups.set(p.unitName, list)
+    }
+    return groups
+  }, [paid])
 
   const exportCsv = () => {
     if (!unpaid || unpaid.length === 0) return
@@ -257,8 +280,10 @@ export default function CotisationDashboardPage() {
                     </thead>
                     {summary.byUnit.map((u, idx) => {
                       const toRelance = unpaidByUnit.get(u.unitName) ?? []
+                      const paidList = paidByUnit.get(u.unitName) ?? []
                       const impaye = u.totalMembers - u.paidMembers - u.exemptMembers
-                      const canExpand = toRelance.length > 0
+                      // Expandable if the unit has anyone paid OR unpaid — click reveals both lists.
+                      const canExpand = paidList.length > 0 || toRelance.length > 0
                       const isOpen = expandedUnits.has(u.unitName)
                       return (
                         <tbody key={u.unitName}>
@@ -304,6 +329,59 @@ export default function CotisationDashboardPage() {
                           {canExpand && (
                             <tr className={isOpen ? '' : 'hidden print:table-row'}>
                               <td colSpan={5} className="bg-muted/5 px-3 pb-4 pt-1">
+                                {/* Members who PAID — name (→ member file), date, amounts, and a receipt download. */}
+                                {paidList.length > 0 && (
+                                  <div className="mb-3">
+                                    <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                                      <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                                      Ont payé — {paidList.length} membre{paidList.length > 1 ? 's' : ''}
+                                    </div>
+                                    <div className="overflow-x-auto rounded-md border bg-background">
+                                      <table className="w-full text-sm min-w-[520px]">
+                                        <thead>
+                                          <tr className="border-b bg-muted/40 text-left">
+                                            <th className="px-3 py-2 font-medium">Membre</th>
+                                            <th className="px-3 py-2 font-medium">Date</th>
+                                            <th className="px-3 py-2 font-medium text-right">Montant</th>
+                                            <th className="px-3 py-2 font-medium">Reçu N°</th>
+                                            <th className="px-3 py-2 font-medium text-right no-print">Reçu</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {paidList.map((m, i2) => (
+                                            <tr key={m.memberId} className={`border-b ${i2 % 2 === 1 ? 'bg-muted/10' : ''}`}>
+                                              <td className="px-3 py-2">
+                                                <button
+                                                  className="group inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                                                  onClick={() => navigate(`/members/${m.memberId}`)}
+                                                >
+                                                  {m.memberName}
+                                                  <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60 no-print" />
+                                                </button>
+                                              </td>
+                                              <td className="px-3 py-2 text-muted-foreground">{new Date(m.paymentDate).toLocaleDateString('fr-FR')}</td>
+                                              <td className="px-3 py-2 text-right">
+                                                {m.totals.length > 0 ? (
+                                                  <div className="space-y-0.5">
+                                                    {m.totals.map(t => <div key={t.currency}>{formatMoney(t.total, t.currency)}</div>)}
+                                                  </div>
+                                                ) : <span className="text-muted-foreground">—</span>}
+                                              </td>
+                                              <td className="px-3 py-2 text-muted-foreground">{m.receiptNumber || '—'}</td>
+                                              <td className="px-3 py-2 text-right no-print">
+                                                <Button variant="outline" size="sm" className="h-8" onClick={() => handleReceipt(m)}>
+                                                  <Download className="mr-1 h-3.5 w-3.5" /> Reçu
+                                                </Button>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                )}
+                                {toRelance.length > 0 && (
+                                <div>
                                 <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                                   <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
                                   À relancer — {toRelance.length} membre{toRelance.length > 1 ? 's' : ''} sans cotisation
@@ -362,6 +440,8 @@ export default function CotisationDashboardPage() {
                                     </tbody>
                                   </table>
                                 </div>
+                                </div>
+                                )}
                               </td>
                             </tr>
                           )}

@@ -53,6 +53,19 @@ export interface CurrencyTotalDto {
   count: number
 }
 
+// A member who PAID for the year — shown in the CG dashboard's per-unit "Ont payé" list with amounts +
+// a receipt download (cotisationId → GET /cotisations/{id}/receipt).
+export interface PaidCotisationDto {
+  memberId: string
+  memberName: string
+  unitId: string
+  unitName: string
+  cotisationId: string
+  receiptNumber: string
+  paymentDate: string
+  totals: CurrencyTotalDto[]
+}
+
 export interface UnitCotisationSummaryDto {
   unitName: string
   totalMembers: number
@@ -158,6 +171,15 @@ export function useUnpaidCotisations(scoutYear: string) {
   return useQuery({
     queryKey: ['cotisations', 'unpaid', scoutYear],
     queryFn: () => apiClient.get<UnpaidCotisationDto[]>('/cotisations/unpaid', { params: { scoutYear } }).then(r => r.data),
+    enabled: !!scoutYear,
+  })
+}
+
+// GET /cotisations/paid — members who paid (with amounts + receipt id) for the year; requires scoutYear.
+export function usePaidCotisations(scoutYear: string) {
+  return useQuery({
+    queryKey: ['cotisations', 'paid', scoutYear],
+    queryFn: () => apiClient.get<PaidCotisationDto[]>('/cotisations/paid', { params: { scoutYear } }).then(r => r.data),
     enabled: !!scoutYear,
   })
 }

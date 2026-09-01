@@ -477,6 +477,63 @@ public class GetUnpaidCotisationsQueryHandler(IApplicationDbContext context, ICu
     }
 }
 
+// Dashboard: members who PAID for a scout year (has ≥1 payment line). Carries the unit (for grouping) and
+// the cotisation id + receipt number so the CG can open/download each receipt. Same unit-scoping as the
+// unpaid list (super-admin all; CG all units; a CU their own; requires members.edit — else empty).
+public record GetPaidCotisationsQuery(string ScoutYear) : IRequest<IReadOnlyList<PaidCotisationDto>>;
+public record PaidCotisationDto(
+    Guid MemberId, string MemberName, Guid UnitId, string UnitName,
+    Guid CotisationId, string ReceiptNumber, DateOnly PaymentDate,
+    List<CurrencyTotalDto> Totals);
+
+public class GetPaidCotisationsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetPaidCotisationsQuery, IReadOnlyList<PaidCotisationDto>>
+{
+    public async ValueTask<IReadOnlyList<PaidCotisationDto>> Handle(GetPaidCotisationsQuery request, CancellationToken ct)
+    {
+        var query = context.MemberAssignments.Where(a => a.EndDate == null);
+        if (!currentUser.IsSuperAdmin)
+        {
+            // Leader-only (shows co-members' names + amounts). A read-only youth holds cotisations.view + their
+            // own unit, so require members.edit — otherwise return nothing.
+            if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit))
+                return [];
+            var authorizedUnitIds = currentUser.AuthorizedUnitIds;
+            query = query.Where(a => authorizedUnitIds.Contains(a.UnitId));
+        }
+
+        // Active members in scope → one row per member (a member with two active assignments would repeat).
+        var rows = await query
+            .Select(a => new { a.MemberId, MemberName = a.Member.FirstName + " " + a.Member.LastName, a.UnitId, UnitName = a.Unit.Name })
+            .ToListAsync(ct);
+        var byMember = rows.DistinctBy(r => r.MemberId).ToDictionary(r => r.MemberId);
+        var memberIds = byMember.Keys.ToList();
+
+        // Paid = a cotisation with ≥1 (non-deleted) payment line, for a member in scope, this year.
+        var paid = await context.MemberCotisations
+            .Where(c => c.ScoutYear == request.ScoutYear && memberIds.Contains(c.MemberId) && c.Payments.Any(p => !p.IsDeleted))
+            .Select(c => new
+            {
+                c.Id, c.MemberId, c.ReceiptNumber, c.PaymentDate,
+                Payments = c.Payments.Where(p => !p.IsDeleted).Select(p => new { p.Amount, p.Currency }).ToList()
+            })
+            .ToListAsync(ct);
+
+        return paid
+            .Where(c => byMember.ContainsKey(c.MemberId))
+            .Select(c =>
+            {
+                var m = byMember[c.MemberId];
+                var totals = c.Payments
+                    .GroupBy(p => p.Currency)
+                    .Select(g => new CurrencyTotalDto(g.Key, g.Sum(p => p.Amount), g.Count()))
+                    .ToList();
+                return new PaidCotisationDto(c.MemberId, m.MemberName, m.UnitId, m.UnitName, c.Id, c.ReceiptNumber, c.PaymentDate, totals);
+            })
+            .OrderBy(r => r.UnitName).ThenBy(r => r.MemberName)
+            .ToList();
+    }
+}
+
 // Batched follow-up-contact resolver for the unpaid list. Per member returns a parent name + a reachable
 // email and phone, preferring the member's own designated/primary contact, then their own entries, then a
 // guardian's (primary-contact guardian first). Loaded once for the whole set; Resolve(...) is in-memory.

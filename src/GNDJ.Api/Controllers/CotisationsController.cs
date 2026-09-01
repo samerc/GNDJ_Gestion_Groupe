@@ -100,6 +100,18 @@ public class CotisationsController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Lists members who PAID for the given scout year (with amounts + receipt id for download). Requires cotisations.view.</summary>
+    /// <param name="scoutYear">Required scout year (e.g. "2025-2026").</param>
+    [HttpGet("paid")]
+    [HasPermission(Permissions.CotisationsView)]
+    public async Task<IActionResult> GetPaid([FromQuery] string scoutYear)
+    {
+        if (string.IsNullOrWhiteSpace(scoutYear))
+            return BadRequest(new { error = "L'année scoute est requise." });
+        var result = await Mediator.Send(new GetPaidCotisationsQuery(scoutYear));
+        return Ok(result);
+    }
+
     /// <summary>Returns cotisation totals for the scout year (paid / unpaid / exempt counts). Requires cotisations.view.</summary>
     /// <param name="scoutYear">Required scout year (e.g. "2025-2026").</param>
     [HttpGet("summary")]
