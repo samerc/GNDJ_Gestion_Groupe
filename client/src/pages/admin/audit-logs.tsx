@@ -29,6 +29,7 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
 
 const ENTITY_LABELS: Record<string, string> = {
   User: 'Utilisateur',
+  ApplicantAccount: "Compte d'inscription",
   Member: 'Membre',
   Unit: 'Unité',
   Team: 'Équipe',
@@ -52,6 +53,7 @@ const FIELD_LABELS: Record<string, string> = {
   Description: 'Description', Color1: 'Couleur 1', Color2: 'Couleur 2', DisplayOrder: 'Ordre',
   IsMaitrise: 'Maîtrise', Email: 'Email', Code: 'Code', Reason: 'Motif', Title: 'Titre',
   ReceiptNumber: 'Reçu', ScoutYear: 'Année scoute', FirstName: 'Prénom', LastName: 'Nom',
+  Portal: 'Portail',
 }
 const fieldLabel = (k: string) => FIELD_LABELS[k] ?? k
 

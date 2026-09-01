@@ -3488,6 +3488,18 @@ Two login-experience items (all on main, pushed; DEV until deploy). Verified liv
         existing sessions have no flag → default remembered → localStorage → keep working, no forced logout.
   - Checkbox "Rester connecté sur cet appareil" on both login forms (`login-form.tsx`, `inscription/login.tsx`),
         default checked. Build clean (dotnet 0/0, tsc + eslint + vite), migration-free.
+- **Login-experience trio (same day).** (1) **Audit both portals + tag it.** The applicant login was NOT audited
+      at all → `LoginApplicantCommandHandler` now injects `IAuditService` and logs `Login`/`LoginFailed` as
+      entity_type **`ApplicantAccount`** with `{Email, Reason, Portal="Portail des demandes"}`; the member login
+      audit gained `Portal="Espace membres"` (both success + fail). Audit page: `ENTITY_LABELS.ApplicantAccount =
+      "Compte d'inscription"`, `FIELD_LABELS.Portal = "Portail"`. `deploy/diagnostics/failed-logins.sql` now shows a
+      `portail` column (covers both). (2) **Cross-portal suggestion.** New setting exposure `user_domain`
+      (e.g. `scouts.gndj`) on BOTH `PublicSiteConfigDto` + `ApplicantConfigDto`; `lib/email-domain.ts` helper — the
+      member login shows "Aller au portail des demandes →" when the typed email's domain ≠ user_domain (and
+      inscriptions open), the portal login shows "Aller à l'espace membres →" when it = user_domain. (3) **3 failed
+      logins → offer reset.** Both login forms count consecutive failures (client-side, reset on success); at ≥3 an
+      amber box links to the password reset (member also → "retrouver votre identifiant"). Verified live: applicant
+      login failure audited with the portal; both configs return userDomain=scouts.gndj. Build clean, migration-free.
 
 ### CG feedback: public maîtrise phones + dedup (2026-08-29)
 Two items from the CG's live test of the public site.

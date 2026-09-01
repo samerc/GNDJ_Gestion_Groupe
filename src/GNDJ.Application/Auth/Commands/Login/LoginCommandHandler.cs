@@ -49,7 +49,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
         if (user is null || user.Member is null || !passwordValid)
         {
             await _auditService.LogAsync("LoginFailed", "User", user?.Id,
-                newValues: new { Email = request.Email, Reason = user is null ? "Utilisateur introuvable" : user.Member is null ? "Membre supprimé" : "Mot de passe incorrect" },
+                newValues: new { Email = request.Email, Reason = user is null ? "Utilisateur introuvable" : user.Member is null ? "Membre supprimé" : "Mot de passe incorrect", Portal = "Espace membres" },
                 cancellationToken: cancellationToken);
             return Result<AuthResponse>.Failure("Adresse courriel ou mot de passe incorrect.");
         }
@@ -67,7 +67,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
 
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Login", "User", user.Id,
-            newValues: new { user.Email, MemberId = user.MemberId, Name = $"{user.Member.FirstName} {user.Member.LastName}" },
+            newValues: new { user.Email, MemberId = user.MemberId, Name = $"{user.Member.FirstName} {user.Member.LastName}", Portal = "Espace membres" },
             cancellationToken: cancellationToken);
 
         return Result<AuthResponse>.Success(new AuthResponse(

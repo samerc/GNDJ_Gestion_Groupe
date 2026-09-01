@@ -29,7 +29,9 @@ public record SiteContactContent(string Intro, string Address);
 public record SiteContentDto(SiteHomeContent Home, SiteFooterContent Footer, SiteContactContent Contact);
 
 // SupportEmail = demande.support_email — shown on the member login page ("en cas de problème, écrivez à …").
-public record PublicSiteConfigDto(bool InscriptionsOpen, SiteContentDto Content, string? SupportEmail = null);
+// UserDomain = user_domain (e.g. "scouts.gndj") — the member-login email domain; the login pages use it to
+// suggest the OTHER portal when a typed email's domain doesn't match (member) / matches (demandes).
+public record PublicSiteConfigDto(bool InscriptionsOpen, SiteContentDto Content, string? SupportEmail = null, string? UserDomain = null);
 
 public static class SiteContentDefaults
 {
@@ -88,13 +90,15 @@ public class GetPublicSiteConfigQueryHandler(IApplicationDbContext context) : IR
     public async ValueTask<PublicSiteConfigDto> Handle(GetPublicSiteConfigQuery request, CancellationToken ct)
     {
         var settings = await context.Settings
-            .Where(s => s.Key == "demande.enabled" || s.Key == "demande.support_email")
+            .Where(s => s.Key == "demande.enabled" || s.Key == "demande.support_email" || s.Key == "user_domain")
             .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
         var enabled = settings.GetValueOrDefault("demande.enabled");
         var support = settings.GetValueOrDefault("demande.support_email");
+        var userDomain = settings.GetValueOrDefault("user_domain");
         var content = await SiteContentStore.ReadAsync(context, ct);
         return new PublicSiteConfigDto(string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase), content,
-            string.IsNullOrWhiteSpace(support) ? null : support);
+            string.IsNullOrWhiteSpace(support) ? null : support,
+            string.IsNullOrWhiteSpace(userDomain) ? null : userDomain);
     }
 }
 

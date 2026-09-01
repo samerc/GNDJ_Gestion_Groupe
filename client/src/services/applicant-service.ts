@@ -25,6 +25,7 @@ export interface ApplicantConfig {
   resultTextDeclined: string | null // editable result-page wording (declined)
   activationLinkDays: number        // how long an accepted member's set-password link stays valid
   supportEmail: string | null       // demande.support_email — shown on the inscription pages for help (empty = hide)
+  userDomain: string | null         // user_domain (e.g. "scouts.gndj") — to suggest the member portal for a chef's email
 }
 
 export interface ApplicantGuardian {

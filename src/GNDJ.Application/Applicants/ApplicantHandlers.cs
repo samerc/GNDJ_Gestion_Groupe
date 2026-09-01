@@ -40,7 +40,10 @@ public record ApplicantConfigDto(bool IsOpen, bool SubmissionsOpen, string Scout
     string? SubmissionStart = null, string? SubmissionDeadline = null,
     string? ResultTextAccepted = null, string? ResultTextDeclined = null, int ActivationLinkDays = 30,
     // Support address shown on the inscription pages ("en cas de problème, écrivez à …"). Empty/null = hide.
-    string? SupportEmail = null);
+    string? SupportEmail = null,
+    // Member-login email domain (user_domain, e.g. "scouts.gndj") — the portal login uses it to suggest the
+    // member space when a typed email matches it (a chef on the wrong portal).
+    string? UserDomain = null);
 
 public record ApplicantGuardianDto(Guid? Id, string Relationship, string FirstName, string LastName, string? Profession, string? ProfessionDomain,
     string? PhoneCountryCode, string? PhoneNumber, string? Email, bool IsDeceased, bool IsPrimaryContact, bool IsEmergencyContact);
@@ -112,7 +115,7 @@ static class ApplicantHelpers
         "demande.notes_max_length", "demande.require_email_verification",
         "demande.max_scout_relations", "demande.terms", "demande.excluded_classe", "member.schools", "member.classes", "member.cities", "member.profession_domains",
         "demande.submission_start", "demande.submission_deadline", "demande.result_text_accepted", "demande.result_text_declined", "member.activation_link_days",
-        "demande.support_email"
+        "demande.support_email", "user_domain"
     ];
 
     // Parses a yyyy-MM-dd setting into a DateOnly (null if empty/invalid).
@@ -169,7 +172,7 @@ static class ApplicantHelpers
 
         return new ApplicantConfigDto(enabled, submissionsOpen, year, max, notesLen, requireVerify, schools, classes, cities, units, maxRelations, professionDomains, terms, excludedClasse,
             Get("demande.submission_start"), Get("demande.submission_deadline"), Get("demande.result_text_accepted"), Get("demande.result_text_declined"), activationDays,
-            Get("demande.support_email"));
+            Get("demande.support_email"), Get("user_domain"));
     }
 
     // Returns an error message if the applicant may NOT submit/edit right now (portal closed, or the submission
@@ -340,7 +343,7 @@ public class LoginApplicantCommandValidator : AbstractValidator<LoginApplicantCo
     }
 }
 
-public class LoginApplicantCommandHandler(IApplicationDbContext context, IPasswordHasher hasher, ITokenService tokens) : IRequestHandler<LoginApplicantCommand, Result<ApplicantAuthDto>>
+public class LoginApplicantCommandHandler(IApplicationDbContext context, IPasswordHasher hasher, ITokenService tokens, IAuditService audit) : IRequestHandler<LoginApplicantCommand, Result<ApplicantAuthDto>>
 {
     public async ValueTask<Result<ApplicantAuthDto>> Handle(LoginApplicantCommand request, CancellationToken ct)
     {
@@ -352,7 +355,14 @@ public class LoginApplicantCommandHandler(IApplicationDbContext context, IPasswo
             ? await hasher.VerifyAsync(request.Password, account.PasswordHash)
             : await hasher.VerifyDummyAsync(request.Password);
         if (account is null || !account.IsActive || !ok)
+        {
+            // Audit the failed parent-portal login (mirrors the member login), tagged with the portal so the
+            // Journal d'audit distinguishes which login screen the attempt hit.
+            await audit.LogAsync("LoginFailed", "ApplicantAccount", account?.Id,
+                newValues: new { Email = request.Email, Reason = account is null ? "Compte introuvable" : !account.IsActive ? "Compte désactivé" : "Mot de passe incorrect", Portal = "Portail des demandes" },
+                cancellationToken: ct);
             return Result<ApplicantAuthDto>.Failure("Email ou mot de passe incorrect.");
+        }
 
         var refresh = tokens.GenerateRefreshToken();
         account.RefreshToken = hasher.HashToken(refresh);
@@ -360,6 +370,8 @@ public class LoginApplicantCommandHandler(IApplicationDbContext context, IPasswo
         account.LastLoginAt = DateTime.UtcNow;
         account.LastActivityAt = DateTime.UtcNow;
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Login", "ApplicantAccount", account.Id,
+            newValues: new { account.Email, Portal = "Portail des demandes" }, cancellationToken: ct);
 
         var access = tokens.GenerateApplicantToken(account);
         return Result<ApplicantAuthDto>.Success(new ApplicantAuthDto(account.Id, account.Email, account.EmailVerified, access, refresh, DateTime.UtcNow.AddMinutes(15)));

@@ -24,6 +24,10 @@
 
 WITH fails AS (
     SELECT lower(trim(new_values->>'Email')) AS email,
+           -- Which login screen the attempt hit (member vs parent portal). Older member rows predate the
+           -- Portal tag → default to "Espace membres" for entity_type='User'.
+           coalesce(new_values->>'Portal',
+                    CASE WHEN entity_type = 'ApplicantAccount' THEN 'Portail des demandes' ELSE 'Espace membres' END) AS portail,
            count(*)                          AS tentatives,
            count(DISTINCT ip_address)        AS ips,
            max(timestamp)                    AS derniere
@@ -32,10 +36,11 @@ WITH fails AS (
       AND timestamp > now() - interval '3 days'
       AND new_values->>'Email' IS NOT NULL
       AND trim(new_values->>'Email') <> ''
-    GROUP BY 1
+    GROUP BY 1, 2
 )
 SELECT
     f.email,
+    f.portail,
     f.tentatives,
     f.ips,
     to_char(f.derniere, 'YYYY-MM-DD HH24:MI') AS derniere_tentative,

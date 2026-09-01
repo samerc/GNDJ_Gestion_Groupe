@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
+import { UserPlus, KeyRound } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
+import { usePublicSiteConfig } from '@/services/public-service'
+import { emailDomain } from '@/lib/email-domain'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,12 +17,20 @@ import type { ApiError } from '@/types/api'
 export function LoginForm() {
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
+  const { data: config } = usePublicSiteConfig()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [website, setWebsite] = useState('') // honeypot — must stay empty (bots fill it → server rejects)
   const [rememberMe, setRememberMe] = useState(true) // "Rester connecté" — default ON
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [failedAttempts, setFailedAttempts] = useState(0) // 3 consecutive failures → offer a password reset
+
+  // The typed email's domain isn't the member-login domain (e.g. a personal gmail) → likely a parent on the
+  // wrong screen: suggest the demandes portal. Only while enrollment is open.
+  const domain = emailDomain(email)
+  const userDomain = config?.userDomain?.toLowerCase()
+  const suggestDemandes = !!config?.inscriptionsOpen && !!userDomain && domain.includes('.') && domain !== userDomain
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,10 +39,12 @@ export function LoginForm() {
 
     try {
       await login({ email, password, website }, rememberMe)
+      setFailedAttempts(0)
       navigate('/dashboard')
     } catch (err) {
       const axiosError = err as AxiosError<ApiError>
       setError(axiosError.response?.data?.error ?? 'Une erreur est survenue.')
+      setFailedAttempts((n) => n + 1)
     } finally {
       setLoading(false)
     }
@@ -67,6 +80,13 @@ export function LoginForm() {
             <p className="text-xs text-muted-foreground">
               Votre identifiant a le format <span className="font-medium">prénom.nom@scouts.gndj</span> — ce n'est pas votre adresse email personnelle.
             </p>
+            {/* Personal-email domain → probably a parent on the wrong screen: point to the demandes portal. */}
+            {suggestDemandes && (
+              <Link to="/inscription/login" className="mt-1 flex items-start gap-2 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-accent-foreground/90">
+                <UserPlus className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />
+                <span>Vous inscrivez un enfant&nbsp;? <span className="font-medium text-accent underline-offset-2 hover:underline">Aller au portail des demandes →</span></span>
+              </Link>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Mot de passe</Label>
@@ -89,6 +109,18 @@ export function LoginForm() {
             />
             Rester connecté sur cet appareil
           </label>
+          {/* After 3 consecutive failed attempts, proactively offer a password reset. */}
+          {failedAttempts >= 3 && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              <KeyRound className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                Vous n'arrivez pas à vous connecter&nbsp;?{' '}
+                <Link to="/forgot-password" className="font-medium underline underline-offset-2">Réinitialiser votre mot de passe</Link>
+                {' '}ou{' '}
+                <Link to="/forgot-username" className="font-medium underline underline-offset-2">retrouver votre identifiant</Link>.
+              </span>
+            </div>
+          )}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Connexion...' : 'Se connecter'}
           </Button>
