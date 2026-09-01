@@ -602,7 +602,10 @@ export default function DemandeValidationPage() {
 
       {/* Detail drawer */}
       <Sheet open={!!detail} onOpenChange={(o) => { if (!o) setDetailId(null) }}>
-        <SheetContent className="w-full overflow-y-auto p-0 sm:max-w-xl">
+        {/* Don't auto-focus the first control (the « Précédent » nav button) on open — it would pop that
+            button's tooltip every time the drawer opens. Keyboard triage (A/R/←/→) is a window listener, so
+            it keeps working regardless of focus. */}
+        <SheetContent className="w-full overflow-y-auto p-0 sm:max-w-xl" onOpenAutoFocus={(e) => e.preventDefault()}>
           {detail && (
             <DetailPanel
               d={detail}
@@ -1040,7 +1043,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
               <Input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif de refus (optionnel, inclus dans l'email)" />
             </div>
             <div className="flex gap-2">
-              <Button className="flex-1" disabled={busy} onClick={() => onDecide(d, 'Approved', unit, note)}>
+              <Button className="flex-1 bg-green-600 text-white hover:bg-green-700" disabled={busy} onClick={() => onDecide(d, 'Approved', unit, note)}>
                 <Check className="mr-1 h-4 w-4" />{d.status === 'Approved' ? 'Mettre à jour' : 'Accepter'}
               </Button>
               <Button variant="destructive" className="flex-1" disabled={busy} onClick={() => onDecide(d, 'Declined', null, motif)}>
