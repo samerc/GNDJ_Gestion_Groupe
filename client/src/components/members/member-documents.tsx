@@ -310,9 +310,9 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                 onDragOver={uploadable ? (e) => { e.preventDefault(); setDragOverId(dt.id) } : undefined}
                 onDragLeave={uploadable ? () => setDragOverId(prev => prev === dt.id ? null : prev) : undefined}
                 onDrop={uploadable ? (e) => handleRowDrop(dt, e) : undefined}
-                className={`flex items-center gap-4 rounded-lg border border-l-4 ${statusColor(doc)} ${statusBg(doc)} p-4 ${dragOverId === dt.id ? 'ring-2 ring-primary ring-offset-1' : ''}`}>
+                className={`flex flex-col gap-3 rounded-lg border border-l-4 sm:flex-row sm:items-center sm:gap-4 ${statusColor(doc)} ${statusBg(doc)} p-4 ${dragOverId === dt.id ? 'ring-2 ring-primary ring-offset-1' : ''}`}>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-sm">{dt.name}</span>
                     {doc ? statusBadge(doc.status, doc.isExpired) : (
                       <Badge variant="outline" className="gap-1 text-muted-foreground text-xs"><Minus className="h-3 w-3" />Manquant</Badge>
@@ -343,8 +343,8 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                   )}
                 </div>
 
-                {/* Actions */}
-                <div className="flex shrink-0 items-center gap-1.5">
+                {/* Actions — full-width below the content on mobile (stacked), inline on the right on ≥sm. */}
+                <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                   {doc && (
                     <Tip content="Télécharger le document"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)}>
                       <Download className="h-4 w-4" />
@@ -395,7 +395,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       {/* Mobile: opens the camera to photograph the document (capture="environment"). On desktop
                           it just opens an image picker — harmless. Requires-expiry types go via the date dialog. */}
                       <Tip content="Prendre une photo">
-                        <Button variant="ghost" size="icon" className="h-8 w-8"
+                        <Button variant="outline" size="icon" className="h-8 w-8 border-primary/40 text-primary hover:bg-primary/5"
                           onClick={() => {
                             if (dt.requiresExpiry) { setUploadingDocTypeId(dt.id); setExpiryDate('') }
                             else { setUploadingDocTypeId(dt.id); setTimeout(() => cameraInputRef.current?.click(), 50) }
