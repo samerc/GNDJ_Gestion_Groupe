@@ -18,7 +18,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Tip } from '@/components/ui/tooltip'
-import { CheckCircle2, MailWarning, Search, ShieldCheck, X, FileText, KeyRound, Copy, Trash2, ArrowUp, ArrowDown, ArrowUpDown, MailCheck } from 'lucide-react'
+import { CheckCircle2, MailWarning, Search, ShieldCheck, X, FileText, FileX, KeyRound, Copy, Trash2, ArrowUp, ArrowDown, ArrowUpDown, MailCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DemandeAccount } from '@/services/demande-admin-service'
 
@@ -98,8 +98,9 @@ export default function DemandeAccountsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [unverifiedOnly, setUnverifiedOnly] = useState(false)
+  const [notSubmittedOnly, setNotSubmittedOnly] = useState(false) // the "Relancer les non-soumis" audience
   const debouncedSearch = useDebounce(search)
-  const { data: accounts, isLoading } = useDemandeAccounts(unverifiedOnly, debouncedSearch)
+  const { data: accounts, isLoading } = useDemandeAccounts(unverifiedOnly, debouncedSearch, notSubmittedOnly)
   const verify = useVerifyAccountEmail()
   const reset = useResetAccountPassword()
   const del = useDeleteAccount()
@@ -216,6 +217,14 @@ export default function DemandeAccountsPage() {
         >
           <MailWarning className="mr-2 h-4 w-4" />
           Non vérifiés uniquement
+        </Button>
+        {/* The "Relancer les non-soumis" audience — accounts that registered but never submitted a demande. */}
+        <Button
+          variant={notSubmittedOnly ? 'default' : 'outline'}
+          onClick={() => setNotSubmittedOnly((v) => !v)}
+        >
+          <FileX className="mr-2 h-4 w-4" />
+          Non soumis uniquement
         </Button>
       </div>
 

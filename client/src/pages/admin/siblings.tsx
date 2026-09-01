@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { Users, Check, X, Search, Sparkles, ChevronRight, Phone, Mail, MapPin, UserRound, ArrowRight, GitMerge, Copy } from 'lucide-react'
 import {
   useSiblingSuggestions, useSiblingGroups, useReconcileData,
@@ -27,13 +27,20 @@ import { toast } from 'sonner'
 //    reviews each (picking the canonical père/mère/adresse → the data is reconciled onto all siblings) or rejects.
 //  • Fratries confirmées : the confirmed groups, with per-member unlink.
 export default function SiblingsPage() {
+  // The active tab lives in the URL (?tab=…) so opening a member's file and hitting the browser Back button
+  // returns to the SAME tab (e.g. Doublons) instead of resetting to Suggestions. replace:true keeps each tab
+  // switch out of the history stack (Back doesn't cycle through tabs).
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') ?? 'suggestions'
+  const setTab = (v: string) => setSearchParams(prev => { prev.set('tab', v); return prev }, { replace: true })
+
   return (
     <div className="space-y-4">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><Users className="h-6 w-6 text-primary" />Fratries</h1>
         <p className="text-sm text-muted-foreground">Identifier et confirmer les frères et sœurs. Approuver une fratrie regroupe les membres et harmonise les informations de la famille (parents, adresse, contacts).</p>
       </div>
-      <Tabs defaultValue="suggestions">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
           <TabsTrigger value="confirmed">Fratries confirmées</TabsTrigger>
@@ -362,7 +369,8 @@ function ConfirmedTab() {
                   <CardContent className="flex flex-wrap items-center gap-2 p-4">
                     {g.members.map((m) => (
                       <span key={m.memberId} className="flex items-center gap-1 rounded-full border bg-muted/40 py-1 pl-3 pr-1 text-sm">
-                        <Link to={`/members/${m.memberId}`} className="font-medium hover:underline">{m.firstName} {m.lastName}</Link>
+                        {/* Open in a new tab so the reconciliation list stays put (no losing your place / back-button). */}
+                        <Link to={`/members/${m.memberId}`} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">{m.firstName} {m.lastName}</Link>
                         <span className="text-xs text-muted-foreground">· {m.unitName ?? 'Sans unité'}</span>
                         <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-destructive"
                           onClick={() => setUnlinkTarget({ id: m.memberId, name: `${m.firstName} ${m.lastName}` })}
@@ -371,7 +379,7 @@ function ConfirmedTab() {
                         </Button>
                       </span>
                     ))}
-                    <Link to={`/members/${g.members[0]?.memberId}`} className="ml-auto text-muted-foreground hover:text-foreground" title="Ouvrir">
+                    <Link to={`/members/${g.members[0]?.memberId}`} target="_blank" rel="noopener noreferrer" className="ml-auto text-muted-foreground hover:text-foreground" title="Ouvrir">
                       <ChevronRight className="h-4 w-4" />
                     </Link>
                   </CardContent>
@@ -462,7 +470,7 @@ function DuplicatesTab() {
                     <div key={m.memberId} className="rounded-md border bg-muted/20 p-2.5">
                       <div className="flex items-center gap-1.5">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">{(m.firstName[0] ?? '').toUpperCase()}</span>
-                        <Link to={`/members/${m.memberId}`} className="truncate font-medium hover:underline">{m.firstName} {m.lastName}</Link>
+                        <Link to={`/members/${m.memberId}`} target="_blank" rel="noopener noreferrer" className="truncate font-medium hover:underline">{m.firstName} {m.lastName}</Link>
                       </div>
                       <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
                         {bits.map((b, k) => <span key={k}>{b}</span>)}

@@ -237,11 +237,12 @@ export interface DemandeAccount {
 }
 
 // GET /demandes/accounts → applicant accounts (incl. unverified ones with no demande, so a parent whose
-// verification email failed is visible). Optional unverifiedOnly + search.
-export function useDemandeAccounts(unverifiedOnly: boolean, search: string) {
+// verification email failed is visible). Optional unverifiedOnly + notSubmittedOnly + search.
+// notSubmittedOnly = accounts with no submitted demande (the "Relancer les non-soumis" audience).
+export function useDemandeAccounts(unverifiedOnly: boolean, search: string, notSubmittedOnly = false) {
   return useQuery({
-    queryKey: ['demandes', 'accounts', unverifiedOnly, search],
-    queryFn: () => apiClient.get<DemandeAccount[]>('/demandes/accounts', { params: { unverifiedOnly, search: search || undefined } }).then((r) => r.data),
+    queryKey: ['demandes', 'accounts', unverifiedOnly, search, notSubmittedOnly],
+    queryFn: () => apiClient.get<DemandeAccount[]>('/demandes/accounts', { params: { unverifiedOnly, notSubmittedOnly, search: search || undefined } }).then((r) => r.data),
   })
 }
 

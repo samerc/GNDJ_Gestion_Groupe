@@ -22,8 +22,10 @@ public record DemandeAccountDto(
     int SubmittedCount,      // demandes actually submitted (not drafts)
     DateTime CreatedAt);
 
-// List applicant accounts, optionally only the ones still unverified (the ones a CG would fix).
-public record GetDemandeAccountsQuery(bool UnverifiedOnly = false, string? Search = null)
+// List applicant accounts. UnverifiedOnly = only the ones still email-unverified (a CG would fix).
+// NotSubmittedOnly = only accounts that registered but have NO submitted demande (the "Relancer les non-soumis"
+// audience) — so the CG can SEE exactly who those are, not just email them.
+public record GetDemandeAccountsQuery(bool UnverifiedOnly = false, string? Search = null, bool NotSubmittedOnly = false)
     : IRequest<Result<IReadOnlyList<DemandeAccountDto>>>;
 
 public class GetDemandeAccountsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
@@ -38,6 +40,10 @@ public class GetDemandeAccountsQueryHandler(IApplicationDbContext context, ICurr
         var q = context.ApplicantAccounts.AsQueryable();
         if (request.UnverifiedOnly)
             q = q.Where(a => !a.EmailVerified);
+        // "Non soumis" = the account has no demande that was actually submitted (only drafts, or none) —
+        // the same audience as the "Relancer les non-soumis" reminder button, so the CG can review the list.
+        if (request.NotSubmittedOnly)
+            q = q.Where(a => !a.Demandes.Any(d => d.SubmittedAt != null));
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var term = request.Search.Trim().ToLower();

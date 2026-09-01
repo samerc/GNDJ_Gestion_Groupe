@@ -176,9 +176,9 @@ public class DemandesController : BaseApiController
     /// parent whose verification email failed. Optional unverifiedOnly + search. Requires demande.view.</summary>
     [HttpGet("accounts")]
     [HasPermission(Permissions.DemandeView)]
-    public async Task<IActionResult> Accounts([FromQuery] bool unverifiedOnly = false, [FromQuery] string? search = null)
+    public async Task<IActionResult> Accounts([FromQuery] bool unverifiedOnly = false, [FromQuery] string? search = null, [FromQuery] bool notSubmittedOnly = false)
     {
-        var result = await Mediator.Send(new GetDemandeAccountsQuery(unverifiedOnly, search));
+        var result = await Mediator.Send(new GetDemandeAccountsQuery(unverifiedOnly, search, notSubmittedOnly));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }
