@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { API_BASE_URL } from './constants'
+import { getAccessToken, getRefreshToken, setTokens, clearTokens, getRemember } from './token-storage'
 
 // Isolated axios client for the public applicant portal. Uses its own token storage so it never
 // interferes with the member/admin session.
@@ -8,7 +9,7 @@ const applicantApi = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Separate localStorage keys from the member realm so the two sessions coexist on one browser.
+// Kept for back-compat with any importers; the actual storage keys/backing live in token-storage.
 export const APPLICANT_ACCESS_KEY = 'applicantAccessToken'
 export const APPLICANT_REFRESH_KEY = 'applicantRefreshToken'
 
@@ -22,7 +23,7 @@ function flush(error: unknown, token: string | null) {
 }
 
 applicantApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem(APPLICANT_ACCESS_KEY)
+  const token = getAccessToken('applicant')
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
@@ -37,9 +38,9 @@ applicantApi.interceptors.response.use(
     const isAuthEndpoint = /\/applicant\/(login|register|refresh)/.test(original?.url ?? '')
     if (error.response?.status !== 401 || original._retry || isAuthEndpoint) return Promise.reject(error)
 
-    const refreshToken = localStorage.getItem(APPLICANT_REFRESH_KEY)
+    const refreshToken = getRefreshToken('applicant')
     if (!refreshToken) {
-      localStorage.removeItem(APPLICANT_ACCESS_KEY)
+      clearTokens('applicant')
       window.location.href = '/inscription/login'
       return Promise.reject(error)
     }
@@ -54,16 +55,14 @@ applicantApi.interceptors.response.use(
     isRefreshing = true
     original._retry = true
     try {
-      const { data } = await axios.post(`${API_BASE_URL}/applicant/refresh`, { refreshToken }, { headers: { 'Content-Type': 'application/json' } })
-      localStorage.setItem(APPLICANT_ACCESS_KEY, data.accessToken)
-      localStorage.setItem(APPLICANT_REFRESH_KEY, data.refreshToken)
+      const { data } = await axios.post(`${API_BASE_URL}/applicant/refresh`, { refreshToken, rememberMe: getRemember('applicant') }, { headers: { 'Content-Type': 'application/json' } })
+      setTokens('applicant', data.accessToken, data.refreshToken)
       flush(null, data.accessToken)
       original.headers.Authorization = `Bearer ${data.accessToken}`
       return applicantApi(original)
     } catch (e) {
       flush(e, null)
-      localStorage.removeItem(APPLICANT_ACCESS_KEY)
-      localStorage.removeItem(APPLICANT_REFRESH_KEY)
+      clearTokens('applicant')
       window.location.href = '/inscription/login'
       return Promise.reject(e)
     } finally {

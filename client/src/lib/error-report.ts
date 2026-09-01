@@ -1,3 +1,5 @@
+import { getAccessToken } from './token-storage'
+
 // Reports a client-side error to the backend (which alerts the super-admin) and returns the reference the
 // user can quote. Best-effort: never throws. Uses a bare fetch (not the axios client) so its own failure —
 // or a 401 — can't trigger the client's refresh/redirect interceptors. Throttled by message signature so a
@@ -13,7 +15,7 @@ export interface ClientErrorInput {
 
 export async function reportClientError(input: ClientErrorInput): Promise<string | null> {
   try {
-    const token = localStorage.getItem('accessToken')
+    const token = getAccessToken('member')
     if (!token) return null // the report endpoint is auth-only; skip for signed-out sessions
 
     const sig = (input.message || '').slice(0, 120)

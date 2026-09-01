@@ -9,5 +9,6 @@ public interface ITokenService
     // claims, so it can never reach the member/admin areas.
     string GenerateApplicantToken(ApplicantAccount account);
     string GenerateRefreshToken();
-    DateTime GetRefreshTokenExpiry();
+    // rememberMe=true → long-lived refresh window (~30 days), false → short session window (~7 days).
+    DateTime GetRefreshTokenExpiry(bool rememberMe = false);
 }

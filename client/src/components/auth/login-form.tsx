@@ -17,6 +17,7 @@ export function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [website, setWebsite] = useState('') // honeypot — must stay empty (bots fill it → server rejects)
+  const [rememberMe, setRememberMe] = useState(true) // "Rester connecté" — default ON
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -26,7 +27,7 @@ export function LoginForm() {
     setLoading(true)
 
     try {
-      await login({ email, password, website })
+      await login({ email, password, website }, rememberMe)
       navigate('/dashboard')
     } catch (err) {
       const axiosError = err as AxiosError<ApiError>
@@ -78,6 +79,16 @@ export function LoginForm() {
               autoComplete="current-password"
             />
           </div>
+          {/* "Rester connecté" (default ON): persists the session ~30 jours; décochez sur un appareil partagé. */}
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground select-none">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="h-4 w-4 rounded border-input accent-primary"
+            />
+            Rester connecté sur cet appareil
+          </label>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Connexion...' : 'Se connecter'}
           </Button>

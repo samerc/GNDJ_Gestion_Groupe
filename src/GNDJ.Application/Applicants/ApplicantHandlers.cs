@@ -327,7 +327,8 @@ public class VerifyApplicantEmailCommandHandler(IApplicationDbContext context) :
     }
 }
 
-public record LoginApplicantCommand(string Email, string Password) : IRequest<Result<ApplicantAuthDto>>;
+// RememberMe ("Rester connecté") → a long-lived refresh token (~30 days) instead of the short session window.
+public record LoginApplicantCommand(string Email, string Password, bool RememberMe = false) : IRequest<Result<ApplicantAuthDto>>;
 
 public class LoginApplicantCommandValidator : AbstractValidator<LoginApplicantCommand>
 {
@@ -355,7 +356,7 @@ public class LoginApplicantCommandHandler(IApplicationDbContext context, IPasswo
 
         var refresh = tokens.GenerateRefreshToken();
         account.RefreshToken = hasher.HashToken(refresh);
-        account.RefreshTokenExpiry = tokens.GetRefreshTokenExpiry();
+        account.RefreshTokenExpiry = tokens.GetRefreshTokenExpiry(request.RememberMe);
         account.LastLoginAt = DateTime.UtcNow;
         account.LastActivityAt = DateTime.UtcNow;
         await context.SaveChangesAsync(ct);
@@ -365,7 +366,8 @@ public class LoginApplicantCommandHandler(IApplicationDbContext context, IPasswo
     }
 }
 
-public record RefreshApplicantTokenCommand(string RefreshToken) : IRequest<Result<ApplicantAuthDto>>;
+// RememberMe carries the "Rester connecté" choice through rotation (long vs short refresh window).
+public record RefreshApplicantTokenCommand(string RefreshToken, bool RememberMe = false) : IRequest<Result<ApplicantAuthDto>>;
 
 public class RefreshApplicantTokenCommandValidator : AbstractValidator<RefreshApplicantTokenCommand>
 {
@@ -384,7 +386,7 @@ public class RefreshApplicantTokenCommandHandler(IApplicationDbContext context, 
 
         var refresh = tokens.GenerateRefreshToken();
         account.RefreshToken = hasher.HashToken(refresh);
-        account.RefreshTokenExpiry = tokens.GetRefreshTokenExpiry();
+        account.RefreshTokenExpiry = tokens.GetRefreshTokenExpiry(request.RememberMe);
         account.LastActivityAt = DateTime.UtcNow; // ~15-min heartbeat while active
 
         await context.SaveChangesAsync(ct);

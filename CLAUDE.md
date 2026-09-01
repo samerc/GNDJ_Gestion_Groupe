@@ -3458,6 +3458,37 @@ Cloudflare; apex `@`+`www` were DNS-only pointing at the disposable **old** stat
       makes the Origin-cert CF-only caveat moot); (b) **retire `new.gndj.org`** (DNS + Page Rule + drop from
       AllowedHosts) after the activation-link overlap; (c) optional one-time Cloudflare cache purge.
 
+### "Rester connecté" (remember me) + support-email help note (2026-09-01)
+Two login-experience items (all on main, pushed; DEV until deploy). Verified live.
+- **Support-email help note.** New setting **`demande.support_email`** (default `demande@gndj.org`, category
+      demande, CG-editable in Paramètres → Inscriptions; empty = hide) exposed via **both** `PublicSiteConfigDto`
+      (member login) + `ApplicantConfigDto` (portal). New `<SupportNote>` component renders "Un problème de
+      connexion ou d'inscription ? Écrivez-nous à …" on the member `/login` and ALL applicant auth pages (via
+      `ApplicantAuthShell` — login/register/verify/closed-landing). Motivated by a flood of "Échec connexion"
+      audit rows during enrollment (parents on the wrong login page / wrong email). Diagnostic query
+      **`deploy/diagnostics/failed-logins.sql`** (read-only, run on prod) classifies each failing email from the
+      audit log: valid member login (wrong pw) / has an INSCRIPTION account (wrong page) / member typing personal
+      email vs synthetic username / unknown. The `LoginFailed` audit already stores `{Email, Reason}` in new_values.
+- **"Rester connecté" (remember me), default ON, BOTH realms.** Model reminder: 15-min access JWT + one rotating
+      refresh token per account. Levers changed:
+  - **Idle timeout 15 → 30 min** (member `SessionWarning`; the applicant portal has no idle timer). When
+        "remember me" is ON the idle-logout is **suppressed** (silent refresh instead — `keepAlive = active ||
+        remembered`); the 30-min idle-logout + countdown warning apply only to a NOT-remembered session.
+  - **Refresh window**: `ITokenService.GetRefreshTokenExpiry(bool rememberMe)` → **30 days** remembered (config
+        `Jwt:RememberMeExpirationDays`, default 30) vs **7 days** session. `LoginCommand`/`RefreshTokenCommand`/
+        `LoginApplicantCommand`/`RefreshApplicantTokenCommand` gained `RememberMe` (register stays 7-day); the
+        frontend sends it on login AND on every refresh so rotation keeps the right window. Verified live: login
+        rememberMe=true → refresh_token_expiry +30d, false → +7d.
+  - **Token storage centralized** in `client/src/lib/token-storage.ts` (realm = member|applicant): ON → tokens in
+        **localStorage** (persist across restart); OFF → **sessionStorage** (cleared on browser close = shared-device
+        mode). The remember flag persists in localStorage so reads/refresh use the same backing store; reads check
+        sessionStorage first then localStorage; writes clear BOTH first so exactly one store holds tokens. Both api
+        clients (`api-client`/`applicant-api-client`), both auth stores, `session-warning` and `error-report` all
+        read/write through the helper (no direct `localStorage.getItem('accessToken')` left). **Deploy-safe:**
+        existing sessions have no flag → default remembered → localStorage → keep working, no forced logout.
+  - Checkbox "Rester connecté sur cet appareil" on both login forms (`login-form.tsx`, `inscription/login.tsx`),
+        default checked. Build clean (dotnet 0/0, tsc + eslint + vite), migration-free.
+
 ### CG feedback: public maîtrise phones + dedup (2026-08-29)
 Two items from the CG's live test of the public site.
 - **Maîtrise phone on the public unit page — DATA, no code needed.** The backend `LeaderPhone`

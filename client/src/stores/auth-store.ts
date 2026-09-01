@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import apiClient from '@/lib/api-client'
 import { queryClient } from '@/lib/query-client'
+import { getAccessToken, setTokens, clearTokens, setRemember } from '@/lib/token-storage'
 import type { AuthResponse, LoginRequest, MeResponse, RegisterRequest, UnitAccess } from '@/types/auth'
 import type { SettingDto } from '@/services/settings-service'
 
@@ -19,7 +20,9 @@ interface AuthState {
   user: MeResponse | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (data: LoginRequest) => Promise<void>
+  // rememberMe (default true): true → tokens persist in localStorage for ~30 days; false → sessionStorage
+  // (cleared on browser close) for a shared device. Also sent to the server to pick the refresh-token window.
+  login: (data: LoginRequest, rememberMe?: boolean) => Promise<void>
   register: (data: RegisterRequest) => Promise<void>
   applyTokens: (accessToken: string, refreshToken: string) => void
   logout: () => Promise<void>
@@ -28,18 +31,21 @@ interface AuthState {
   canAccessUnit: (unitId: string) => boolean
 }
 
-// Auth state for the member/chef/admin realm. Tokens live in localStorage (read by api-client's
-// interceptors); this store holds the decoded `user` (MeResponse) and exposes the client-side authz
-// helpers. isAuthenticated is seeded optimistically from a present token, then confirmed by loadUser.
+// Auth state for the member/chef/admin realm. Tokens live in local/sessionStorage per the "Rester
+// connecté" choice (see lib/token-storage; read by api-client's interceptors); this store holds the
+// decoded `user` (MeResponse) and the client-side authz helpers. isAuthenticated is seeded optimistically
+// from a present token, then confirmed by loadUser.
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  isAuthenticated: !!localStorage.getItem('accessToken'),
+  isAuthenticated: !!getAccessToken('member'),
   isLoading: false,
 
-  login: async (data: LoginRequest) => {
-    const { data: response } = await apiClient.post<AuthResponse>('/auth/login', data)
-    localStorage.setItem('accessToken', response.accessToken)
-    localStorage.setItem('refreshToken', response.refreshToken)
+  login: async (data: LoginRequest, rememberMe = true) => {
+    // Record the choice BEFORE storing tokens so setTokens writes to the right backing store, and pass
+    // it to the server so it issues a long (remembered) vs short (session) refresh token.
+    setRemember('member', rememberMe)
+    const { data: response } = await apiClient.post<AuthResponse>('/auth/login', { ...data, rememberMe })
+    setTokens('member', response.accessToken, response.refreshToken)
     // Drop any cached data from a previous session so one account never sees another's data (defense-in-depth
     // alongside the logout clear — covers a direct account switch without an intervening logout).
     queryClient.clear()
@@ -48,9 +54,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   register: async (data: RegisterRequest) => {
+    setRemember('member', true)
     const { data: response } = await apiClient.post<AuthResponse>('/auth/register', data)
-    localStorage.setItem('accessToken', response.accessToken)
-    localStorage.setItem('refreshToken', response.refreshToken)
+    setTokens('member', response.accessToken, response.refreshToken)
     queryClient.clear()
     set({ isAuthenticated: true })
     await get().loadUser()
@@ -59,8 +65,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // Persist a freshly-rotated token pair (e.g. after "sign out other devices") so this device keeps its
   // session while the previous refresh token — held by other devices — is now dead.
   applyTokens: (accessToken: string, refreshToken: string) => {
-    localStorage.setItem('accessToken', accessToken)
-    localStorage.setItem('refreshToken', refreshToken)
+    setTokens('member', accessToken, refreshToken)
     set({ isAuthenticated: true })
   },
 
@@ -70,8 +75,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
       // Ignore errors on logout
     }
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
+    clearTokens('member')
     // Wipe the TanStack Query cache so the NEXT user in this tab never sees the previous user's data (SPA
     // login/logout doesn't reload the page, so the cache would otherwise persist across accounts).
     queryClient.clear()
@@ -94,8 +98,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       queryClient.setQueryData(['change-requests', 'pending', 'count'], data.pendingChangeRequests)
     } catch {
       set({ user: null, isAuthenticated: false, isLoading: false })
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('refreshToken')
+      clearTokens('member')
     }
   },
 

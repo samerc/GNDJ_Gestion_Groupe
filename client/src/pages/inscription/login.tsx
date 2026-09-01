@@ -17,6 +17,7 @@ export default function ApplicantLoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [website, setWebsite] = useState('') // honeypot anti-bot field
+  const [rememberMe, setRememberMe] = useState(true) // "Rester connecté" — default ON
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -25,7 +26,7 @@ export default function ApplicantLoginPage() {
     setError('')
     setLoading(true)
     try {
-      await login(email, password, website)
+      await login(email, password, website, rememberMe)
       navigate('/inscription/portail')
     } catch (err) {
       setError(parseApiError(err))
@@ -56,6 +57,11 @@ export default function ApplicantLoginPage() {
               </div>
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
             </div>
+            {/* "Rester connecté" (default ON): garde la session ~30 jours; décochez sur un appareil partagé. */}
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground select-none">
+              <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="h-4 w-4 rounded border-input accent-primary" />
+              Rester connecté sur cet appareil
+            </label>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Connexion...' : 'Se connecter'}
             </Button>

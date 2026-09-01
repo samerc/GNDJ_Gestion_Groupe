@@ -88,9 +88,13 @@ public class TokenService : ITokenService
         return Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
     }
 
-    public DateTime GetRefreshTokenExpiry()
+    // rememberMe=true ("Rester connecté") issues a long-lived refresh token (default 30 days) so the user
+    // stays signed in across restarts; false = the short session window (default 7 days).
+    public DateTime GetRefreshTokenExpiry(bool rememberMe = false)
     {
-        var days = int.Parse(_configuration["Jwt:RefreshTokenExpirationDays"] ?? "7");
+        var key = rememberMe ? "Jwt:RememberMeExpirationDays" : "Jwt:RefreshTokenExpirationDays";
+        var fallback = rememberMe ? "30" : "7";
+        var days = int.Parse(_configuration[key] ?? fallback);
         return DateTime.UtcNow.AddDays(days);
     }
 }

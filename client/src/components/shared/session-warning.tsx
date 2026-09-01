@@ -1,15 +1,16 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import apiClient from '@/lib/api-client'
+import { getAccessToken, getRefreshToken, setTokens, getRemember } from '@/lib/token-storage'
 import { Button } from '@/components/ui/button'
 
-const IDLE_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes idle → show warning / logout
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes idle → show warning / logout (only when NOT "remember me")
 const REFRESH_BUFFER_MS = 3 * 60 * 1000  // Auto-refresh when < 3 min remaining
 const CHECK_INTERVAL_MS = 30 * 1000
 
 // Decode the JWT `exp` (ms epoch) without verifying — just to time the refresh/warning locally.
 function getTokenExpiry(): number | null {
-  const token = localStorage.getItem('accessToken')
+  const token = getAccessToken('member')
   if (!token) return null
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
@@ -18,12 +19,11 @@ function getTokenExpiry(): number | null {
 }
 
 async function refreshSession(): Promise<boolean> {
-  const refreshToken = localStorage.getItem('refreshToken')
+  const refreshToken = getRefreshToken('member')
   if (!refreshToken) return false
   try {
-    const { data } = await apiClient.post('/auth/refresh', { refreshToken })
-    localStorage.setItem('accessToken', data.accessToken)
-    localStorage.setItem('refreshToken', data.refreshToken)
+    const { data } = await apiClient.post('/auth/refresh', { refreshToken, rememberMe: getRemember('member') })
+    setTokens('member', data.accessToken, data.refreshToken)
     return true
   } catch {
     return false
@@ -68,10 +68,14 @@ export function SessionWarning() {
       const remaining = expiry - Date.now()
       const idleTime = Date.now() - lastActivityRef.current
       const isUserActive = idleTime < IDLE_TIMEOUT_MS
+      // "Rester connecté": keep the session alive silently regardless of idle (no forced logout). Only a
+      // NOT-remembered session times out after IDLE_TIMEOUT of inactivity (shared-device safety).
+      const remembered = getRemember('member')
+      const keepAlive = isUserActive || remembered
 
       // Token expired
       if (remaining <= 0) {
-        if (isUserActive) {
+        if (keepAlive) {
           const ok = await refreshSession()
           if (ok) { setShowWarning(false); return }
         }
@@ -79,14 +83,14 @@ export function SessionWarning() {
         return
       }
 
-      // Token expiring soon + user active → auto-refresh silently
-      if (remaining <= REFRESH_BUFFER_MS && isUserActive) {
+      // Token expiring soon + still keeping the session → auto-refresh silently
+      if (remaining <= REFRESH_BUFFER_MS && keepAlive) {
         const ok = await refreshSession()
         if (ok) { setShowWarning(false); return }
       }
 
-      // Token expiring soon + user idle → show warning
-      if (remaining <= 5 * 60 * 1000 && !isUserActive) {
+      // Token expiring soon + idle + NOT remembered → show the countdown warning
+      if (remaining <= 5 * 60 * 1000 && !isUserActive && !remembered) {
         setShowWarning(true)
         setMinutesLeft(Math.ceil(remaining / 60000))
       } else {
