@@ -396,9 +396,10 @@ function ConfirmedTab() {
 
 // ── Doublons (duplicate members: members sharing the selected criteria = likely the same person twice) ──
 function DuplicatesTab() {
-  // Configurable match criteria (default = Nom + Prénom + Date de naissance). A member is grouped with another
-  // only when they share ALL the checked fields.
-  const [keys, setKeys] = useState<string[]>(['lastName', 'firstName', 'dob'])
+  // Configurable match criteria (default = Nom + Prénom — DOB left off so import duplicates with a missing/
+  // wrong birth date still surface; the CG confirms via the richer per-member info below). A member is grouped
+  // with another only when they share ALL the checked fields.
+  const [keys, setKeys] = useState<string[]>(['lastName', 'firstName'])
   const { data: groups, isLoading } = useDuplicateSuggestions(keys)
   const [merging, setMerging] = useState<DuplicateGroup | null>(null)
 
@@ -435,16 +436,41 @@ function DuplicatesTab() {
       <div className="space-y-3">
         {groups.map((g, i) => (
           <Card key={i} className="overflow-hidden">
-            <CardContent className="flex flex-wrap items-center gap-2 p-4">
-              <span className="mr-1 inline-flex items-center gap-1 text-xs text-muted-foreground"><Copy className="h-3.5 w-3.5" />{g.evidence}</span>
-              {g.members.map((m) => (
-                <span key={m.memberId} className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 py-1 pl-1 pr-2.5 text-sm">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">{(m.firstName[0] ?? '').toUpperCase()}</span>
-                  <Link to={`/members/${m.memberId}`} className="font-medium hover:underline">{m.firstName} {m.lastName}</Link>
-                  <span className="text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}{m.isActiveMember ? '' : ' · ancien'}{m.hasAccount ? ' · compte' : ''}</span>
-                </span>
-              ))}
-              <Button size="sm" className="ml-auto" onClick={() => setMerging(g)}><GitMerge className="mr-1 h-4 w-4" />Fusionner</Button>
+            <CardContent className="p-4">
+              <div className="mb-2.5 flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Copy className="h-3.5 w-3.5" />{g.evidence}</span>
+                <Button size="sm" onClick={() => setMerging(g)}><GitMerge className="mr-1 h-4 w-4" />Fusionner</Button>
+              </div>
+              {/* Richer per-member info so the CG can decide if these really are the same person (same-name people
+                  aren't always duplicates). DOB/matricule/n° carte/école/unité/statut/nb d'affectations. */}
+              <div className="grid gap-2 sm:grid-cols-2">
+                {g.members.map((m) => {
+                  const age = computeAge(m.dateOfBirth)
+                  const bits = [
+                    m.dateOfBirth ? `${new Date(m.dateOfBirth).toLocaleDateString('fr-FR')}${age != null ? ` (${age} ans)` : ''}` : 'Naissance ?',
+                    m.gender ? m.gender[0] : null,
+                    m.cardNumber ? `Mat. ${m.cardNumber}` : null,
+                    m.externalCardNumber ? `N° ${m.externalCardNumber}` : null,
+                    m.school,
+                    m.classe,
+                    m.unitName ?? 'Sans unité',
+                    m.isActiveMember ? 'actif' : 'ancien',
+                    m.hasAccount ? 'compte' : null,
+                    `${m.assignmentCount} affect.`,
+                  ].filter(Boolean) as string[]
+                  return (
+                    <div key={m.memberId} className="rounded-md border bg-muted/20 p-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">{(m.firstName[0] ?? '').toUpperCase()}</span>
+                        <Link to={`/members/${m.memberId}`} className="truncate font-medium hover:underline">{m.firstName} {m.lastName}</Link>
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                        {bits.map((b, k) => <span key={k}>{b}</span>)}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </CardContent>
           </Card>
         ))}
