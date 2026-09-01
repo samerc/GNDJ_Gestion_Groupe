@@ -69,7 +69,7 @@ export function LeaderContactVerification() {
             <div className="space-y-1.5">
               <Label htmlFor="lev-phone">Votre téléphone personnel <span className="font-normal text-muted-foreground">(facultatif)</span></Label>
               <div className="flex gap-2">
-                <Input aria-label="Indicatif" value={countryCode} onChange={(e) => setCountryCode(e.target.value)} className="w-20 shrink-0" placeholder="+961" />
+                <Input aria-label="Indicatif" value={countryCode} onChange={(e) => setCountryCode(e.target.value)} maxLength={6} className="w-20 shrink-0" placeholder="+961" />
                 <PhoneInput id="lev-phone" dialCode={countryCode} value={phone} onChange={setPhone} autoComplete="tel" placeholder="03 123 456" className="flex-1" />
               </div>
               {!user?.suggestedPhone && (

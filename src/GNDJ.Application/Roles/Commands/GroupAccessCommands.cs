@@ -139,11 +139,16 @@ public class SetGroupFunctionAccessCommandHandler(IApplicationDbContext context,
         newPerms.ExceptWith(GroupAccessAreas.NonDelegatable);
         if (!isSuper) newPerms.IntersectWith(callerPerms);
 
-        // Replace the target profile's permissions.
-        context.SecurityProfilePermissions.RemoveRange(target.Permissions);
-        target.Permissions.Clear();
-        foreach (var p in newPerms)
-            target.Permissions.Add(new SecurityProfilePermission { SecurityProfileId = target.Id, Permission = p });
+        // Replace the target profile's permissions by DIFF, not clear-and-re-add: only remove the perms no
+        // longer wanted and add the genuinely new ones, all via the DbSet — never mutate the tracked
+        // target.Permissions nav collection. Clearing + re-adding the same (profile, permission) keys in one
+        // SaveChanges churns the tracked join entities and throws a DbUpdateConcurrencyException (the exact
+        // "concurrency conflict" the CG saw). Same gotcha/fix as member-groups + sibling contacts.
+        var existing = target.Permissions.ToList();
+        var existingSet = existing.Select(p => p.Permission).ToHashSet();
+        context.SecurityProfilePermissions.RemoveRange(existing.Where(p => !newPerms.Contains(p.Permission)));
+        foreach (var p in newPerms.Where(p => !existingSet.Contains(p)))
+            context.SecurityProfilePermissions.Add(new SecurityProfilePermission { SecurityProfileId = target.Id, Permission = p });
 
         await context.SaveChangesAsync(ct);
         await audit.LogAsync("SetGroupAccess", "FunctionalRole", role.Id,

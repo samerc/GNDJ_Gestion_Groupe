@@ -47,7 +47,7 @@ public class GuardianPhoneConfiguration : IEntityTypeConfiguration<GuardianPhone
     {
         builder.ToTable("guardian_phones");
         builder.HasKey(e => e.Id);
-        builder.Property(e => e.CountryCode).HasMaxLength(5).IsRequired();
+        builder.Property(e => e.CountryCode).HasMaxLength(10).IsRequired(); // matches the validators (was 5 → overflowed on a typed indicatif)
         builder.Property(e => e.Number).HasMaxLength(30).IsRequired();
         builder.Property(e => e.Type).HasMaxLength(50).IsRequired();
 
