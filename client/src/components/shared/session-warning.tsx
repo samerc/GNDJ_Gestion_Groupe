@@ -75,10 +75,13 @@ export function SessionWarning() {
 
       // Token expired
       if (remaining <= 0) {
-        if (keepAlive) {
-          const ok = await refreshSession()
-          if (ok) { setShowWarning(false); return }
-        }
+        const ok = keepAlive ? await refreshSession() : false
+        if (ok) { setShowWarning(false); return }
+        // A "remembered" session must NEVER be hard-logged-out by this timer: a failed refresh here is
+        // almost always a transient network blip (mobile radio asleep), and the refresh token is valid
+        // server-side for ~30 days. Keep the session and retry on the next tick; a genuine revocation
+        // surfaces as a 401 on the next real API request (handled by the api-client interceptor).
+        if (remembered) return
         logout()
         return
       }

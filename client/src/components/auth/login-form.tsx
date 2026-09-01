@@ -68,12 +68,16 @@ export function LoginForm() {
             <Label htmlFor="email">Nom d'utilisateur</Label>
             <Input
               id="email"
+              name="username"
               type="email"
               placeholder="prenom.nom@scouts.gndj"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              autoComplete="email"
+              // The login is a synthetic username (prenom.nom@scouts.gndj), not a personal inbox — password
+              // managers (Dashlane, iCloud Keychain…) map their stored login to autocomplete="username",
+              // not "email", so use that token + name="username" so they offer to fill the identifier.
+              autoComplete="username"
               autoFocus
             />
             {/* Members often mistype their personal email — clarify the synthetic login format. */}
@@ -92,6 +96,7 @@ export function LoginForm() {
             <Label htmlFor="password">Mot de passe</Label>
             <Input
               id="password"
+              name="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

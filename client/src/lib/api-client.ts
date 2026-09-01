@@ -87,10 +87,26 @@ apiClient.interceptors.response.use(
       originalRequest.headers.Authorization = `Bearer ${data.accessToken}`
       return apiClient(originalRequest)
     } catch (refreshError) {
-      // Refresh failed (expired/revoked): reject the queue and force re-login.
       processQueue(refreshError, null)
-      clearTokens('member')
-      window.location.href = '/login'
+      // Only END the session when the SERVER rejects the refresh token (401/403 = expired/revoked).
+      // A network error / timeout / 5xx — extremely common on a mobile radio waking from sleep — must
+      // NOT log the user out: keep the tokens and let the next request retry. Otherwise a flaky signal
+      // logs the user out every few minutes despite "remember me" (the 30-day window is never consulted
+      // because we bailed before reaching the server).
+      const status = axios.isAxiosError(refreshError) ? refreshError.response?.status : undefined
+      if (status === 401 || status === 403) {
+        // The refresh token may have just been ROTATED by another tab / PWA sharing this login. If storage
+        // now holds a newer refresh token than the one we tried, replay the original request once with the
+        // fresh access token instead of logging out (fixes spurious logouts when the site is open twice).
+        const rotated = getRefreshToken('member')
+        const fresh = getAccessToken('member')
+        if (rotated && rotated !== refreshToken && fresh) {
+          originalRequest.headers.Authorization = `Bearer ${fresh}`
+          return apiClient(originalRequest)
+        }
+        clearTokens('member')
+        window.location.href = '/login'
+      }
       return Promise.reject(refreshError)
     } finally {
       isRefreshing = false

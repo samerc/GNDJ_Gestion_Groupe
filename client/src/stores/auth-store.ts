@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import axios from 'axios'
 import apiClient from '@/lib/api-client'
 import { queryClient } from '@/lib/query-client'
 import { getAccessToken, setTokens, clearTokens, setRemember } from '@/lib/token-storage'
@@ -96,9 +97,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (data.scoutYear) queryClient.setQueryData(['settings', 'passage.scout_year'], data.scoutYear)
       queryClient.setQueryData(['demandes', 'pending-count'], data.pendingDemandes)
       queryClient.setQueryData(['change-requests', 'pending', 'count'], data.pendingChangeRequests)
-    } catch {
-      set({ user: null, isAuthenticated: false, isLoading: false })
-      clearTokens('member')
+    } catch (e) {
+      set({ isLoading: false })
+      // Only drop the session on a genuine auth rejection (401/403 — the api-client already tried to
+      // refresh first). A network error / timeout (common on mobile) must NOT wipe the tokens: keep the
+      // optimistically-authenticated state and let the queries retry, otherwise a flaky connection logs
+      // the user out on every app resume despite "remember me".
+      if (axios.isAxiosError(e) && (e.response?.status === 401 || e.response?.status === 403)) {
+        set({ user: null, isAuthenticated: false })
+        clearTokens('member')
+      }
     }
   },
 

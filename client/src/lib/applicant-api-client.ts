@@ -62,8 +62,20 @@ applicantApi.interceptors.response.use(
       return applicantApi(original)
     } catch (e) {
       flush(e, null)
-      clearTokens('applicant')
-      window.location.href = '/inscription/login'
+      // Only end the session on a genuine server rejection (401/403). A network/timeout/5xx on a mobile
+      // connection must NOT log the parent out mid-enrolment — keep the tokens and let the next request
+      // retry. A rotated token (site open twice) → replay the original request with the fresh one.
+      const status = axios.isAxiosError(e) ? e.response?.status : undefined
+      if (status === 401 || status === 403) {
+        const rotated = getRefreshToken('applicant')
+        const fresh = getAccessToken('applicant')
+        if (rotated && rotated !== refreshToken && fresh) {
+          original.headers.Authorization = `Bearer ${fresh}`
+          return applicantApi(original)
+        }
+        clearTokens('applicant')
+        window.location.href = '/inscription/login'
+      }
       return Promise.reject(e)
     } finally {
       isRefreshing = false

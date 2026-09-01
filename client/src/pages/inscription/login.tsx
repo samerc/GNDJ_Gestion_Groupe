@@ -60,7 +60,7 @@ export default function ApplicantLoginPage() {
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
             <div className="space-y-2">
               <Label htmlFor="email">Adresse email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" autoFocus />
+              <Input id="email" name="username" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="username" autoFocus />
               {/* A member-domain email → probably a chef on the wrong screen: point to the member space. */}
               {suggestMember && (
                 <Link to="/login" className="mt-1 flex items-start gap-2 rounded-md border bg-muted/40 px-3 py-2 text-xs">
@@ -74,7 +74,7 @@ export default function ApplicantLoginPage() {
                 <Label htmlFor="password">Mot de passe</Label>
                 <Link to="/inscription/forgot-password" className="text-sm text-primary hover:underline">Mot de passe oublié ?</Link>
               </div>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+              <Input id="password" name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
             </div>
             {/* "Rester connecté" (default ON): garde la session ~30 jours; décochez sur un appareil partagé. */}
             <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground select-none">
