@@ -34,6 +34,48 @@ function SortHeader({ label, field, current, dir, onSort, className }: { label: 
   )
 }
 
+// Email-verified badge — shared by the desktop table + the mobile cards.
+function StatusBadge({ verified }: { verified: boolean }) {
+  return verified ? (
+    <Badge variant="outline" className="shrink-0 border-emerald-300 bg-emerald-50 text-emerald-700">
+      <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Vérifié
+    </Badge>
+  ) : (
+    <Badge variant="outline" className="shrink-0 border-amber-300 bg-amber-50 text-amber-700">
+      <MailWarning className="mr-1 h-3.5 w-3.5" /> Non vérifié
+    </Badge>
+  )
+}
+
+// The per-account action buttons — shared by the desktop table cell (justify-end) and the mobile card
+// (flex-wrap). stopPropagation so a button tap doesn't also trigger the row/card click (→ view demandes).
+function AccountActions({ a, clickable, onView, onReset, onVerify, onDelete, className }: {
+  a: DemandeAccount; clickable: boolean
+  onView: (a: DemandeAccount) => void; onReset: (a: DemandeAccount) => void
+  onVerify: (a: DemandeAccount) => void; onDelete: (a: DemandeAccount) => void; className?: string
+}) {
+  return (
+    <div className={`flex gap-1.5 ${className ?? ''}`} onClick={(e) => e.stopPropagation()}>
+      {clickable && (
+        <Tip content="Voir les demandes de ce compte">
+          <Button size="sm" variant="outline" onClick={() => onView(a)}><FileText className="mr-1 h-4 w-4" />Demandes</Button>
+        </Tip>
+      )}
+      <Tip content="Réinitialiser le mot de passe du portail">
+        <Button size="sm" variant="outline" onClick={() => onReset(a)}><KeyRound className="mr-1 h-4 w-4" />Mot de passe</Button>
+      </Tip>
+      {!a.emailVerified && (
+        <Button size="sm" variant="outline" onClick={() => onVerify(a)}>Vérifier</Button>
+      )}
+      <Tip content="Supprimer ce compte et toutes ses demandes">
+        <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => onDelete(a)} aria-label="Supprimer le compte">
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </Tip>
+    </div>
+  )
+}
+
 export default function DemandeAccountsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
@@ -163,76 +205,60 @@ export default function DemandeAccountsPage() {
       ) : sorted.length === 0 ? (
         <EmptyState icon={ShieldCheck} title="Aucun compte" description="Aucun compte d'inscription à afficher." />
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              {/* Compact header; every column is click-to-sort. */}
-              <TableRow>
-                <TableHead className="h-9"><SortHeader label="Email" field="email" current={sortBy} dir={sortDir} onSort={handleSort} /></TableHead>
-                <TableHead className="h-9"><SortHeader label="Contact" field="contact" current={sortBy} dir={sortDir} onSort={handleSort} /></TableHead>
-                <TableHead className="h-9"><SortHeader label="Statut email" field="status" current={sortBy} dir={sortDir} onSort={handleSort} /></TableHead>
-                <TableHead className="h-9"><SortHeader label="Demandes" field="demandes" current={sortBy} dir={sortDir} onSort={handleSort} className="justify-center" /></TableHead>
-                <TableHead className="h-9 text-right text-xs uppercase text-muted-foreground">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sorted.map((a) => {
-                const clickable = a.demandeCount > 0
-                return (
-                  <TableRow
-                    key={a.id}
-                    className={clickable ? 'cursor-pointer' : ''}
-                    onClick={() => viewDemandes(a)}
-                  >
-                    <TableCell className="py-1.5 text-sm font-medium break-all">{a.email}</TableCell>
-                    <TableCell className="py-1.5 text-sm">{a.contactName || <span className="text-muted-foreground">—</span>}</TableCell>
-                    <TableCell className="py-1.5">
-                      {a.emailVerified ? (
-                        <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700">
-                          <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Vérifié
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
-                          <MailWarning className="mr-1 h-3.5 w-3.5" /> Non vérifié
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-1.5 text-center text-sm tabular-nums">
-                      {a.submittedCount}/{a.demandeCount}
-                    </TableCell>
-                    {/* Stop row-click propagation so the action buttons don't also navigate. */}
-                    <TableCell className="py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex justify-end gap-1.5">
-                        {clickable && (
-                          <Tip content="Voir les demandes de ce compte">
-                            <Button size="sm" variant="outline" onClick={() => viewDemandes(a)}>
-                              <FileText className="mr-1 h-4 w-4" />Demandes
-                            </Button>
-                          </Tip>
-                        )}
-                        <Tip content="Réinitialiser le mot de passe du portail">
-                          <Button size="sm" variant="outline" onClick={() => setToReset(a)}>
-                            <KeyRound className="mr-1 h-4 w-4" />Mot de passe
-                          </Button>
-                        </Tip>
-                        {!a.emailVerified && (
-                          <Button size="sm" variant="outline" onClick={() => setToVerify(a)}>
-                            Vérifier
-                          </Button>
-                        )}
-                        <Tip content="Supprimer ce compte et toutes ses demandes">
-                          <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setToDelete(a)} aria-label="Supprimer le compte">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </Tip>
+        <>
+          {/* Desktop: sortable table. */}
+          <div className="hidden overflow-x-auto rounded-lg border md:block">
+            <Table>
+              <TableHeader>
+                {/* Compact header; every column is click-to-sort. */}
+                <TableRow>
+                  <TableHead className="h-9"><SortHeader label="Email" field="email" current={sortBy} dir={sortDir} onSort={handleSort} /></TableHead>
+                  <TableHead className="h-9"><SortHeader label="Contact" field="contact" current={sortBy} dir={sortDir} onSort={handleSort} /></TableHead>
+                  <TableHead className="h-9"><SortHeader label="Statut email" field="status" current={sortBy} dir={sortDir} onSort={handleSort} /></TableHead>
+                  <TableHead className="h-9"><SortHeader label="Demandes" field="demandes" current={sortBy} dir={sortDir} onSort={handleSort} className="justify-center" /></TableHead>
+                  <TableHead className="h-9 text-right text-xs uppercase text-muted-foreground">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sorted.map((a) => {
+                  const clickable = a.demandeCount > 0
+                  return (
+                    <TableRow key={a.id} className={clickable ? 'cursor-pointer' : ''} onClick={() => viewDemandes(a)}>
+                      <TableCell className="py-1.5 text-sm font-medium break-all">{a.email}</TableCell>
+                      <TableCell className="py-1.5 text-sm">{a.contactName || <span className="text-muted-foreground">—</span>}</TableCell>
+                      <TableCell className="py-1.5"><StatusBadge verified={a.emailVerified} /></TableCell>
+                      <TableCell className="py-1.5 text-center text-sm tabular-nums">{a.submittedCount}/{a.demandeCount}</TableCell>
+                      <TableCell className="py-1.5 text-right">
+                        <AccountActions a={a} clickable={clickable} onView={viewDemandes} onReset={(x) => setToReset(x)} onVerify={(x) => setToVerify(x)} onDelete={(x) => setToDelete(x)} className="justify-end" />
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile: card list (the table columns squeeze the email into unreadable character-wrapping). */}
+          <div className="space-y-2 md:hidden">
+            {sorted.map((a) => {
+              const clickable = a.demandeCount > 0
+              return (
+                <div key={a.id} className={`rounded-lg border p-3 ${clickable ? 'cursor-pointer' : ''}`} onClick={() => viewDemandes(a)}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="break-all text-sm font-medium leading-snug">{a.email}</div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        {a.contactName || '—'} · <span className="tabular-nums">{a.submittedCount}/{a.demandeCount}</span> demande{a.demandeCount > 1 ? 's' : ''}
                       </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                    </div>
+                    <StatusBadge verified={a.emailVerified} />
+                  </div>
+                  <AccountActions a={a} clickable={clickable} onView={viewDemandes} onReset={(x) => setToReset(x)} onVerify={(x) => setToVerify(x)} onDelete={(x) => setToDelete(x)} className="mt-2.5 flex-wrap" />
+                </div>
+              )
+            })}
+          </div>
+        </>
       )}
 
       <ConfirmDialog
