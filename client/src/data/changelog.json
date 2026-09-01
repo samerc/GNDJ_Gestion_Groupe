@@ -3,6 +3,7 @@
     "version": "3.0.0",
     "date": "2026-08-27",
     "changes": [
+      "Trombinoscope — visible par les membres (au choix) : lors de la génération, une case « Rendre visible par les membres » décide si le trombinoscope apparaît sur la page Trombinoscope des membres. Décochée, il est enregistré et téléchargé pour un usage interne (ex. un aperçu de l'unité SANS les photos) sans être montré aux membres. Sur la version enregistrée, un bouton permet de « Masquer aux membres » / « Rendre visible aux membres » à tout moment, sans régénérer. Les trombinoscopes déjà enregistrés restent visibles (inchangé).",
       "Accès maîtrise — correction : enregistrer l'accès d'une fonction de groupe (ex. Trésorier, Assistant Chef de Groupe) échouait avec une « erreur de concurrence » (500). Corrigé — l'enregistrement fonctionne à chaque fois.",
       "Coordonnées — correction : dans certains cas, confirmer/ajouter un numéro de téléphone échouait (erreur serveur) lorsque l'indicatif saisi dépassait la limite technique de la base. La limite a été alignée (l'indicatif accepte désormais jusqu'à 10 caractères, comme la validation) — plus d'erreur.",
       "Fonctions (toutes les fonctions) : ajout d'un filtre par type d'unité (Tous / Global / une branche précise) avec un compteur, et refonte de l'affichage sur mobile — un tableau illisible et débordant est remplacé par des cartes claires (nom, code, type d'unité, profil, nombre de membres, modifier/supprimer), avec une bande de couleur du type d'unité sur le côté.",

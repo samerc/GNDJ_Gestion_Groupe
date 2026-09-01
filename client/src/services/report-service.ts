@@ -7,16 +7,22 @@ import apiClient from '@/lib/api-client'
 // server-side for API integrations, but the app doesn't call it.
 
 // Status of a SAVED (frozen) trombinoscope for a unit + year.
-export interface TrombinoscopeArchiveInfo { exists: boolean; fileName: string | null; savedAt: string | null; memberCount: number }
+export interface TrombinoscopeArchiveInfo { exists: boolean; fileName: string | null; savedAt: string | null; memberCount: number; published: boolean }
 
 // POST /reports/trombinoscope/archive → freeze (save) the current-roster trombinoscope for a unit + year.
-export function archiveTrombinoscope(data: { unitId: string; scoutYear: string; includePhotos: boolean; teamIds?: string[] | null }) {
+// publish = make it visible to members (else it's a CU-only internal overview).
+export function archiveTrombinoscope(data: { unitId: string; scoutYear: string; includePhotos: boolean; teamIds?: string[] | null; publish: boolean }) {
   return apiClient.post<TrombinoscopeArchiveInfo>('/reports/trombinoscope/archive', data).then(r => r.data)
 }
 
 // GET /reports/trombinoscope/archive → whether a saved trombinoscope exists (and when it was saved).
 export function getTrombinoscopeArchiveInfo(unitId: string, scoutYear: string) {
   return apiClient.get<TrombinoscopeArchiveInfo>('/reports/trombinoscope/archive', { params: { unitId, scoutYear } }).then(r => r.data)
+}
+
+// POST /reports/trombinoscope/archive/publish → publish/unpublish a saved trombinoscope (no regeneration).
+export function setTrombinoscopePublished(unitId: string, scoutYear: string, published: boolean) {
+  return apiClient.post<TrombinoscopeArchiveInfo>('/reports/trombinoscope/archive/publish', { unitId, scoutYear, published }).then(r => r.data)
 }
 
 // GET /reports/trombinoscope/archive/download → the saved PDF blob.

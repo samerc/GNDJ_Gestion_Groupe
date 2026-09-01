@@ -16,4 +16,7 @@ public class TrombinoscopeArchive : BaseEntity
     public string FileName { get; set; } = string.Empty;  // friendly download name captured at save time
     public byte[] PdfData { get; set; } = [];             // the frozen PDF bytes (bytea)
     public int MemberCount { get; set; }                  // roster size at save time (shown in the CU status)
+    // Whether members may see this on their Trombinoscope page. The CU can generate/save an internal overview
+    // (e.g. without photos) WITHOUT publishing it — only published archives are served to members.
+    public bool IsPublished { get; set; }
 }

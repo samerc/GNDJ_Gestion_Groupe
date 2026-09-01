@@ -46,6 +46,16 @@ public class ReportsController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>Publishes/unpublishes a saved trombinoscope (member visibility) without regenerating it. Requires members.edit.</summary>
+    [HttpPost("trombinoscope/archive/publish")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> SetTrombinoscopePublished([FromBody] SetTrombinoscorePublishedCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     /// <summary>Re-downloads the saved trombinoscope PDF for a unit + scout year. Requires members.edit.</summary>
     [HttpGet("trombinoscope/archive/download")]
     [HasPermission(Permissions.MembersEdit)]

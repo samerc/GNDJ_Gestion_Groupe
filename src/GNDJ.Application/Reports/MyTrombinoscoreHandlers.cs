@@ -38,10 +38,10 @@ public class GetMyTrombinoscoreYearsHandler(IApplicationDbContext context, ICurr
             .DistinctBy(r => new { r.ScoutYear, r.UnitId })
             .ToList();
 
-        // Which of the member's (unit, year) pairs have a saved trombinoscope.
+        // Which of the member's (unit, year) pairs have a PUBLISHED trombinoscope (unpublished = CU-only overview).
         var unitIds = pairs.Select(p => p.UnitId).Distinct().ToList();
         var archived = await context.TrombinoscopeArchives
-            .Where(t => unitIds.Contains(t.UnitId))
+            .Where(t => unitIds.Contains(t.UnitId) && t.IsPublished)
             .Select(t => new { t.UnitId, t.ScoutYear })
             .ToListAsync(ct);
         var archivedSet = archived.Select(a => $"{a.UnitId}|{a.ScoutYear}").ToHashSet();
@@ -75,9 +75,10 @@ public class GenerateMyTrombinoscoreHandler(IApplicationDbContext context, ICurr
         if (!wasInUnit)
             return Result<TrombinoscorePdf>.Failure("Vous n'avez pas fait partie de cette unité cette année-là.");
 
-        // Serve the frozen file the leader published for that year (photos as they were).
+        // Serve the frozen file the leader PUBLISHED for that year (photos as they were). An unpublished
+        // archive (CU-only overview) is treated as not-yet-available to members.
         var archive = await context.TrombinoscopeArchives
-            .Where(t => t.UnitId == request.UnitId && t.ScoutYear == request.ScoutYear)
+            .Where(t => t.UnitId == request.UnitId && t.ScoutYear == request.ScoutYear && t.IsPublished)
             .Select(t => new { t.PdfData, t.FileName })
             .FirstOrDefaultAsync(ct);
         if (archive is null)

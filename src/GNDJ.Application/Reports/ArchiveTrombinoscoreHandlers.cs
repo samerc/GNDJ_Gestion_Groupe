@@ -14,7 +14,8 @@ namespace GNDJ.Application.Reports;
 // file, so photos are frozen and it isn't regenerated on each view. Re-saving overwrites the stored bytes.
 
 // Small status/metadata about a saved trombinoscope (drives the CU dialog's "already saved" hint).
-public record TrombinoscoreArchiveInfo(bool Exists, string? FileName, DateTime? SavedAt, int MemberCount);
+// Published = whether members can see it on their Trombinoscope page.
+public record TrombinoscoreArchiveInfo(bool Exists, string? FileName, DateTime? SavedAt, int MemberCount, bool Published = false);
 
 // Shared roster builder for the CURRENT-roster trombinoscope (used by both the live CU report and the
 // archive save). Groups a unit's active assignments by team (Maîtrise first). UnitName is null if the unit
@@ -62,7 +63,8 @@ public static class TrombinoscoreRoster
 }
 
 // Save (or overwrite) the trombinoscope for (unit, scout year) with the current roster + photos.
-public record ArchiveTrombinoscoreCommand(Guid UnitId, string ScoutYear, bool IncludePhotos, List<Guid>? TeamIds)
+// Publish = make it visible to members (else it's an internal CU-only overview).
+public record ArchiveTrombinoscoreCommand(Guid UnitId, string ScoutYear, bool IncludePhotos, List<Guid>? TeamIds, bool Publish = false)
     : IRequest<Result<TrombinoscoreArchiveInfo>>;
 
 public class ArchiveTrombinoscoreCommandHandler(
@@ -98,9 +100,10 @@ public class ArchiveTrombinoscoreCommandHandler(
         existing.FileName = fileName;
         existing.PdfData = pdf;
         existing.MemberCount = memberCount;
+        existing.IsPublished = request.Publish;
         await context.SaveChangesAsync(ct);
 
-        return Result<TrombinoscoreArchiveInfo>.Success(new TrombinoscoreArchiveInfo(true, fileName, existing.UpdatedAt, memberCount));
+        return Result<TrombinoscoreArchiveInfo>.Success(new TrombinoscoreArchiveInfo(true, fileName, existing.UpdatedAt, memberCount, request.Publish));
     }
 }
 
@@ -117,13 +120,35 @@ public class GetTrombinoscoreArchiveInfoQueryHandler(IApplicationDbContext conte
 
         var a = await context.TrombinoscopeArchives
             .Where(t => t.UnitId == request.UnitId && t.ScoutYear == request.ScoutYear)
-            .Select(t => new { t.FileName, t.UpdatedAt, t.MemberCount })
+            .Select(t => new { t.FileName, t.UpdatedAt, t.MemberCount, t.IsPublished })
             .FirstOrDefaultAsync(ct);
 
         return Result<TrombinoscoreArchiveInfo>.Success(
             a is null
                 ? new TrombinoscoreArchiveInfo(false, null, null, 0)
-                : new TrombinoscoreArchiveInfo(true, a.FileName, a.UpdatedAt, a.MemberCount));
+                : new TrombinoscoreArchiveInfo(true, a.FileName, a.UpdatedAt, a.MemberCount, a.IsPublished));
+    }
+}
+
+// Publish / unpublish a saved trombinoscope WITHOUT regenerating it (just flips member visibility).
+public record SetTrombinoscorePublishedCommand(Guid UnitId, string ScoutYear, bool Published) : IRequest<Result<TrombinoscoreArchiveInfo>>;
+
+public class SetTrombinoscorePublishedCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<SetTrombinoscorePublishedCommand, Result<TrombinoscoreArchiveInfo>>
+{
+    public async ValueTask<Result<TrombinoscoreArchiveInfo>> Handle(SetTrombinoscorePublishedCommand request, CancellationToken ct)
+    {
+        if (!TrombinoscoreRoster.CanManageUnit(currentUser, request.UnitId))
+            return Result<TrombinoscoreArchiveInfo>.Failure("Accès non autorisé à cette unité.");
+
+        var a = await context.TrombinoscopeArchives
+            .FirstOrDefaultAsync(t => t.UnitId == request.UnitId && t.ScoutYear == request.ScoutYear, ct);
+        if (a is null)
+            return Result<TrombinoscoreArchiveInfo>.Failure("Aucun trombinoscope enregistré pour cette année.");
+
+        a.IsPublished = request.Published;
+        await context.SaveChangesAsync(ct);
+        return Result<TrombinoscoreArchiveInfo>.Success(new TrombinoscoreArchiveInfo(true, a.FileName, a.UpdatedAt, a.MemberCount, a.IsPublished));
     }
 }
 
