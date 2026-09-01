@@ -321,7 +321,9 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
                 // Super-admin state of the linked account — surfaced ONLY to a super-admin viewer (drives the panel
                 // toggle); always false for anyone else so a CU can't learn who's super-admin.
                 _currentUser.IsSuperAdmin
-                    && _context.Users.Any(u => u.MemberId == m.Id && !u.IsDeleted && u.IsSuperAdmin)
+                    && _context.Users.Any(u => u.MemberId == m.Id && !u.IsDeleted && u.IsSuperAdmin),
+                // Last sign-in of the linked account (correlated subquery); null if it never logged in / no account.
+                _context.Users.Where(u => u.MemberId == m.Id && !u.IsDeleted).Select(u => u.LastLoginAt).FirstOrDefault()
             ))
             .FirstOrDefaultAsync(cancellationToken);
     }

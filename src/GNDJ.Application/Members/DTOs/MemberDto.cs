@@ -63,7 +63,10 @@ public record MemberDetailDto(
     bool ShowProfession,
     // Whether the member's login account is a super-admin. Only meaningful (populated true) when the VIEWER is a
     // super-admin — always false otherwise, so a CU can't learn who holds super-admin. Drives the panel toggle.
-    bool IsSuperAdmin
+    bool IsSuperAdmin,
+    // Last time the linked user account signed in (null = a linked account that has NEVER logged in, or no account
+    // at all — the panel distinguishes the two via Username). Shown in the panel header under the identifiant.
+    DateTime? LastLoginAt
 );
 
 // Counts shown as tab badges on the member detail panel — folded into the detail query so opening a member

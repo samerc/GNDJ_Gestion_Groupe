@@ -303,17 +303,20 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
           <MemberPhoto memberId={memberId} name={`${member.firstName} ${member.lastName}`} photoPath={member.photoPath} size={48} editable />
           <div className="flex-1 min-w-0">
             <h2 className="font-bold">{member.firstName} {member.lastName}</h2>
+            {/* Header focuses on the login account (card N°/genre/DOB live in the Informations tab). Line 2 =
+                identifiant; line 3 = last sign-in, or "Jamais connecté" for an account that never logged in. */}
             <p className="text-xs text-muted-foreground">
-              {member.cardNumber && `N° ${member.cardNumber}`}
-              {member.cardNumber && member.gender && ' — '}
-              {member.gender}
-              {member.dateOfBirth && ` — Né(e) le ${new Date(member.dateOfBirth).toLocaleDateString('fr-FR')}`}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
               {member.username
                 ? <>Identifiant : <span className="font-medium text-foreground">{member.username}</span></>
                 : <span className="italic">Aucun compte utilisateur</span>}
             </p>
+            {member.username && (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {member.lastLoginAt
+                  ? <>Dernière connexion : {new Date(member.lastLoginAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</>
+                  : <span className="font-medium text-amber-600">Jamais connecté</span>}
+              </p>
+            )}
             {/* Access delegation badge — visible to the CG so they know this member holds hidden extra access. */}
             {member.hasDelegatedAccess && (
               <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
