@@ -18,7 +18,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Tip } from '@/components/ui/tooltip'
-import { CheckCircle2, MailWarning, Search, ShieldCheck, X, FileText, KeyRound, Copy, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { CheckCircle2, MailWarning, Search, ShieldCheck, X, FileText, KeyRound, Copy, Trash2, ArrowUp, ArrowDown, ArrowUpDown, MailCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DemandeAccount } from '@/services/demande-admin-service'
 
@@ -47,26 +47,44 @@ function StatusBadge({ verified }: { verified: boolean }) {
   )
 }
 
+// Compact, labelled summary of an account's demandes — replaces the cryptic "1/3" ratio.
+// Shows how many are SUBMITTED (ready for the CG to review) vs still DRAFTS (not yet soumises).
+function DemandesSummary({ submitted, total, className }: { submitted: number; total: number; className?: string }) {
+  if (total === 0) return <span className={`text-sm text-muted-foreground ${className ?? ''}`}>Aucune</span>
+  const drafts = total - submitted
+  return (
+    <span className={`text-sm ${className ?? ''}`}>
+      {submitted > 0
+        ? <span className="font-medium text-emerald-700">{submitted} soumise{submitted > 1 ? 's' : ''}</span>
+        : <span className="text-muted-foreground">0 soumise</span>}
+      {drafts > 0 && <span className="text-muted-foreground"> · {drafts} brouillon{drafts > 1 ? 's' : ''}</span>}
+    </span>
+  )
+}
+
 // The per-account action buttons — shared by the desktop table cell (justify-end) and the mobile card
-// (flex-wrap). stopPropagation so a button tap doesn't also trigger the row/card click (→ view demandes).
+// (flex-wrap). "Demandes" is the PRIMARY action (the only way into a account's demandes now that the row
+// isn't clickable) so it's filled; the rest are outline utilities. Each has a tooltip explaining what it does.
 function AccountActions({ a, clickable, onView, onReset, onVerify, onDelete, className }: {
   a: DemandeAccount; clickable: boolean
   onView: (a: DemandeAccount) => void; onReset: (a: DemandeAccount) => void
   onVerify: (a: DemandeAccount) => void; onDelete: (a: DemandeAccount) => void; className?: string
 }) {
   return (
-    <div className={`flex gap-1.5 ${className ?? ''}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`flex gap-1.5 ${className ?? ''}`}>
       {clickable && (
-        <Tip content="Voir les demandes de ce compte">
-          <Button size="sm" variant="outline" onClick={() => onView(a)}><FileText className="mr-1 h-4 w-4" />Demandes</Button>
+        <Tip content="Voir les demandes (enfants) de ce compte">
+          <Button size="sm" onClick={() => onView(a)}><FileText className="mr-1 h-4 w-4" />Voir les demandes</Button>
         </Tip>
       )}
-      <Tip content="Réinitialiser le mot de passe du portail">
+      {!a.emailVerified && (
+        <Tip content="Marquer l'email comme vérifié (si le lien de vérification n'est jamais arrivé)">
+          <Button size="sm" variant="outline" onClick={() => onVerify(a)}><MailCheck className="mr-1 h-4 w-4" />Vérifier l'email</Button>
+        </Tip>
+      )}
+      <Tip content="Réinitialiser le mot de passe du portail (affiché une fois, à communiquer au parent)">
         <Button size="sm" variant="outline" onClick={() => onReset(a)}><KeyRound className="mr-1 h-4 w-4" />Mot de passe</Button>
       </Tip>
-      {!a.emailVerified && (
-        <Button size="sm" variant="outline" onClick={() => onVerify(a)}>Vérifier</Button>
-      )}
       <Tip content="Supprimer ce compte et toutes ses demandes">
         <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => onDelete(a)} aria-label="Supprimer le compte">
           <Trash2 className="h-4 w-4" />
@@ -166,8 +184,9 @@ export default function DemandeAccountsPage() {
       <div>
         <h1 className="text-2xl font-bold">Comptes d'inscription</h1>
         <p className="text-sm text-muted-foreground">
-          Comptes des parents. Cliquez sur une ligne pour voir ses demandes. Un parent dont l'email de
-          vérification n'est jamais arrivé peut être vérifié manuellement, et son mot de passe réinitialisé.
+          Comptes des parents. Chaque compte peut déposer une demande par enfant (« soumise » = prête à traiter,
+          « brouillon » = pas encore soumise). Utilisez « Voir les demandes » pour les ouvrir. Un parent dont l'email
+          de vérification n'est jamais arrivé peut être vérifié manuellement, et son mot de passe réinitialisé.
         </p>
       </div>
 
@@ -223,11 +242,11 @@ export default function DemandeAccountsPage() {
                 {sorted.map((a) => {
                   const clickable = a.demandeCount > 0
                   return (
-                    <TableRow key={a.id} className={clickable ? 'cursor-pointer' : ''} onClick={() => viewDemandes(a)}>
+                    <TableRow key={a.id}>
                       <TableCell className="py-1.5 text-sm font-medium break-all">{a.email}</TableCell>
                       <TableCell className="py-1.5 text-sm">{a.contactName || <span className="text-muted-foreground">—</span>}</TableCell>
                       <TableCell className="py-1.5"><StatusBadge verified={a.emailVerified} /></TableCell>
-                      <TableCell className="py-1.5 text-center text-sm tabular-nums">{a.submittedCount}/{a.demandeCount}</TableCell>
+                      <TableCell className="py-1.5 text-center"><DemandesSummary submitted={a.submittedCount} total={a.demandeCount} /></TableCell>
                       <TableCell className="py-1.5 text-right">
                         <AccountActions a={a} clickable={clickable} onView={viewDemandes} onReset={(x) => setToReset(x)} onVerify={(x) => setToVerify(x)} onDelete={(x) => setToDelete(x)} className="justify-end" />
                       </TableCell>
@@ -243,13 +262,12 @@ export default function DemandeAccountsPage() {
             {sorted.map((a) => {
               const clickable = a.demandeCount > 0
               return (
-                <div key={a.id} className={`rounded-lg border p-3 ${clickable ? 'cursor-pointer' : ''}`} onClick={() => viewDemandes(a)}>
+                <div key={a.id} className="rounded-lg border p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="break-all text-sm font-medium leading-snug">{a.email}</div>
-                      <div className="mt-0.5 text-xs text-muted-foreground">
-                        {a.contactName || '—'} · <span className="tabular-nums">{a.submittedCount}/{a.demandeCount}</span> demande{a.demandeCount > 1 ? 's' : ''}
-                      </div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">{a.contactName || '—'}</div>
+                      <div className="mt-1"><DemandesSummary submitted={a.submittedCount} total={a.demandeCount} className="text-xs" /></div>
                     </div>
                     <StatusBadge verified={a.emailVerified} />
                   </div>
