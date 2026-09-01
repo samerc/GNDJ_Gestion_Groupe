@@ -67,12 +67,26 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkConfirm, setBulkConfirm] = useState(false)
   const [bulkBusy, setBulkBusy] = useState(false)
+  const [unitTypeFilter, setUnitTypeFilter] = useState('') // all-types view only: '' = all, 'global' = no type, else a unit-type id
   const [form, setForm] = useState<FunctionalRoleFormData>({ name: '', code: '', securityProfileId: '' })
   const [error, setError] = useState('')
   const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
 
+  // All-types table view can be filtered by unit type (Tous / Global / a specific type). Other views ignore it.
+  const visibleRoles = !roles ? [] : (!showUnitTypeColumn || unitTypeFilter === '')
+    ? roles
+    : unitTypeFilter === 'global' ? roles.filter(r => !r.unitTypeId) : roles.filter(r => r.unitTypeId === unitTypeFilter)
+
   const toggleOne = (id: string) => setSelected(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
-  const toggleAll = () => setSelected(s => s.size === (roles?.length ?? 0) ? new Set() : new Set(roles?.map(r => r.id)))
+  // Select-all operates on the currently-VISIBLE (filtered) rows only.
+  const allVisibleSelected = visibleRoles.length > 0 && visibleRoles.every(r => selected.has(r.id))
+  const someVisibleSelected = visibleRoles.some(r => selected.has(r.id))
+  const toggleAll = () => setSelected(s => {
+    const n = new Set(s)
+    if (visibleRoles.length > 0 && visibleRoles.every(r => n.has(r.id))) visibleRoles.forEach(r => n.delete(r.id))
+    else visibleRoles.forEach(r => n.add(r.id))
+    return n
+  })
   const selectedCount = selected.size
 
   const handleUnarchive = async (role: FunctionalRoleDto) => {
@@ -254,49 +268,101 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
             <p className="text-sm text-muted-foreground">Aucune fonction définie.</p>
           ) : (
             // ── Table view (all-types admin page) ──
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-left">
-                    <th className="w-10 px-3 py-2">
-                      <input type="checkbox" className="h-4 w-4 align-middle accent-primary" aria-label="Tout sélectionner"
-                        checked={(roles?.length ?? 0) > 0 && selectedCount === roles?.length}
-                        ref={el => { if (el) el.indeterminate = selectedCount > 0 && selectedCount < (roles?.length ?? 0) }}
-                        onChange={toggleAll} />
-                    </th>
-                    <th className="px-3 py-2 font-medium">Nom</th>
-                    <th className="px-3 py-2 font-medium">Code</th>
-                    {showUnitTypeColumn && <th className="px-3 py-2 font-medium">Type d'unité</th>}
-                    <th className="px-3 py-2 font-medium">Profil</th>
-                    <th className="px-3 py-2 text-center font-medium">Membres</th>
-                    <th className="w-20" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {roles.map((role, idx) => (
-                    <tr key={role.id} className={`border-b border-l-4 hover:bg-muted/30 transition-colors ${idx % 2 === 1 ? 'bg-muted/10' : ''} ${role.isArchived ? 'opacity-60' : ''}`} style={{ borderLeftColor: role.unitTypeColor ?? '#d1d5db' }}>
-                      <td className="px-3 py-2.5">
-                        <input type="checkbox" className="h-4 w-4 align-middle accent-primary" aria-label={`Sélectionner ${role.name}`} checked={selected.has(role.id)} onChange={() => toggleOne(role.id)} />
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <span className="font-medium">{role.name}</span>
-                        {role.isDefaultForNewMembers && <Star className="ml-1.5 inline h-3.5 w-3.5 fill-amber-400 align-text-bottom text-amber-400" />}
-                        {role.isArchived && <Badge variant="outline" className="ml-2 text-[10px]">Archivée</Badge>}
-                        {role.description && <p className="text-xs text-muted-foreground mt-0.5">{role.description}</p>}
-                      </td>
-                      <td className="px-3 py-2.5"><Badge variant="outline" className="text-xs font-mono">{role.code}</Badge></td>
-                      {showUnitTypeColumn && (
-                        <td className="px-3 py-2.5 text-muted-foreground">{role.unitTypeName ?? <span className="italic">Global</span>}</td>
-                      )}
-                      <td className="px-3 py-2.5"><Badge variant="secondary" className="text-xs">{role.securityProfileName}</Badge></td>
-                      <td className="px-3 py-2.5 text-center">
-                        {role.assignmentCount > 0 ? <span className="font-medium">{role.assignmentCount}</span> : <span className="text-muted-foreground">—</span>}
-                      </td>
-                      <td className="px-3 py-2.5"><RowActions role={role} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-3">
+              {/* Filter by unit type (Tous / Global / a specific type). */}
+              {showUnitTypeColumn && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select value={unitTypeFilter || 'all'} onValueChange={(v) => { setUnitTypeFilter(v === 'all' ? '' : v); setSelected(new Set()) }}>
+                    <SelectTrigger className="h-9 w-full sm:w-72"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les types d'unité</SelectItem>
+                      <SelectItem value="global">Global (tous les types)</SelectItem>
+                      {unitTypes?.items.map(ut => <SelectItem key={ut.id} value={ut.id}>{ut.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">{visibleRoles.length} fonction{visibleRoles.length > 1 ? 's' : ''}</span>
+                </div>
+              )}
+
+              {visibleRoles.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Aucune fonction pour ce filtre.</p>
+              ) : (
+                <>
+                  {/* Desktop: table */}
+                  <div className="hidden overflow-x-auto md:block">
+                    <table className="w-full min-w-[640px] text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/40 text-left">
+                          <th className="w-10 px-3 py-2">
+                            <input type="checkbox" className="h-4 w-4 align-middle accent-primary" aria-label="Tout sélectionner"
+                              checked={allVisibleSelected}
+                              ref={el => { if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected }}
+                              onChange={toggleAll} />
+                          </th>
+                          <th className="px-3 py-2 font-medium">Nom</th>
+                          <th className="px-3 py-2 font-medium">Code</th>
+                          {showUnitTypeColumn && <th className="px-3 py-2 font-medium">Type d'unité</th>}
+                          <th className="px-3 py-2 font-medium">Profil</th>
+                          <th className="px-3 py-2 text-center font-medium">Membres</th>
+                          <th className="w-20" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleRoles.map((role, idx) => (
+                          <tr key={role.id} className={`border-b border-l-4 hover:bg-muted/30 transition-colors ${idx % 2 === 1 ? 'bg-muted/10' : ''} ${role.isArchived ? 'opacity-60' : ''}`} style={{ borderLeftColor: role.unitTypeColor ?? '#d1d5db' }}>
+                            <td className="px-3 py-2.5">
+                              <input type="checkbox" className="h-4 w-4 align-middle accent-primary" aria-label={`Sélectionner ${role.name}`} checked={selected.has(role.id)} onChange={() => toggleOne(role.id)} />
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <span className="font-medium">{role.name}</span>
+                              {role.isDefaultForNewMembers && <Star className="ml-1.5 inline h-3.5 w-3.5 fill-amber-400 align-text-bottom text-amber-400" />}
+                              {role.isArchived && <Badge variant="outline" className="ml-2 text-[10px]">Archivée</Badge>}
+                              {role.description && <p className="text-xs text-muted-foreground mt-0.5">{role.description}</p>}
+                            </td>
+                            <td className="px-3 py-2.5"><Badge variant="outline" className="text-xs font-mono">{role.code}</Badge></td>
+                            {showUnitTypeColumn && (
+                              <td className="px-3 py-2.5 text-muted-foreground">{role.unitTypeName ?? <span className="italic">Global</span>}</td>
+                            )}
+                            <td className="px-3 py-2.5"><Badge variant="secondary" className="text-xs">{role.securityProfileName}</Badge></td>
+                            <td className="px-3 py-2.5 text-center">
+                              {role.assignmentCount > 0 ? <span className="font-medium">{role.assignmentCount}</span> : <span className="text-muted-foreground">—</span>}
+                            </td>
+                            <td className="px-3 py-2.5"><RowActions role={role} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile: card list (the table squeezes the columns into unreadable wrapping). */}
+                  <div className="space-y-2 md:hidden">
+                    {visibleRoles.map(role => (
+                      <div key={role.id} className={cn('rounded-lg border border-l-4 p-3', role.isArchived && 'opacity-60')} style={{ borderLeftColor: role.unitTypeColor ?? '#d1d5db' }}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex min-w-0 items-start gap-2">
+                            <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-primary" aria-label={`Sélectionner ${role.name}`} checked={selected.has(role.id)} onChange={() => toggleOne(role.id)} />
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium leading-snug">
+                                {role.name}
+                                {role.isDefaultForNewMembers && <Star className="ml-1.5 inline h-3.5 w-3.5 fill-amber-400 align-text-bottom text-amber-400" />}
+                                {role.isArchived && <Badge variant="outline" className="ml-2 text-[10px]">Archivée</Badge>}
+                              </div>
+                              {role.description && <p className="mt-0.5 text-xs text-muted-foreground">{role.description}</p>}
+                            </div>
+                          </div>
+                          <div className="shrink-0"><RowActions role={role} /></div>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <Badge variant="outline" className="font-mono text-xs">{role.code}</Badge>
+                          <span className="text-xs text-muted-foreground">{role.unitTypeName ?? 'Global'}</span>
+                          <Badge variant="secondary" className="text-xs">{role.securityProfileName}</Badge>
+                          {role.assignmentCount > 0 && <span className="text-xs text-muted-foreground">· {role.assignmentCount} membre{role.assignmentCount > 1 ? 's' : ''}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </CardContent>
