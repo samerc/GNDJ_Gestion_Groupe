@@ -36,11 +36,16 @@ export function AppLayout() {
 
   // Maintenance kill-switch: when the whole site or the "membres" module is off, everyone but the super-admin
   // (who needs access to turn it back off) sees the maintenance page. The super-admin sees a warning banner.
+  // Guard on `user` being LOADED (`user && …`) — never decide from a not-yet-known profile. ProtectedRoute
+  // already holds this layout behind a spinner until the profile loads, but being explicit means a mid-load
+  // render can never flash the maintenance page to a super-admin (the lockout risk). The server also bypasses
+  // maintenance for a super-admin via the signed `is_super_admin` token claim, so a fresh login always restores
+  // access even under maintenance; the ultimate escape hatch is deploy/diagnostics/disable-maintenance.sql.
   const user = useAuthStore((s) => s.user)
   const isManager = useIsManager()
   const { data: maint } = useMaintenance()
   const inMaintenance = !!maint && (maint.site || maint.membres)
-  if (inMaintenance && !user?.isSuperAdmin) return <MaintenancePage message={maint?.message} />
+  if (inMaintenance && user && !user.isSuperAdmin) return <MaintenancePage message={maint?.message} />
 
   // Forced first-login password change: block the entire app (no sidebar/routes) until the user sets their own
   // password. Applies to temp/imported/leader-reset accounts (mustChangePassword); those who activated via the
