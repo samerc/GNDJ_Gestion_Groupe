@@ -48,6 +48,12 @@ export default function DemandeResultPage() {
         <ArrowLeft className="mr-1 h-4 w-4" />Retour à mes demandes
       </Button>
 
+      {demande.serialNumber && (
+        <p className="text-sm text-muted-foreground">
+          Demande N° <span className="font-mono font-semibold text-foreground">{demande.serialNumber}</span>
+        </p>
+      )}
+
       {/* ── DECLINED ────────────────────────────────────────────────────────────── */}
       {!accepted && (
         <Card className="border-l-4 border-l-red-500">

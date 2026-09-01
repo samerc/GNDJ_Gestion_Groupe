@@ -53,6 +53,7 @@ const MODULE_VARIABLES: Record<string, { key: string; label: string }[]> = {
   ],
   demande: [
     { key: 'contactName', label: 'Nom du parent / contact' },
+    { key: 'demandeNumber', label: 'Numéro de demande (INS-…)' },
     { key: 'verifyLink', label: "Lien de vérification de l'email" },
     { key: 'expiryDays', label: 'Validité du lien (jours)' },
     { key: 'childName', label: "Nom de l'enfant" },

@@ -554,6 +554,7 @@ export default function DemandeValidationPage() {
                         {d.lastName} {d.firstName}
                         {miss.length > 0 && <span title={`Dossier incomplet : ${miss.join(', ')}`}><AlertTriangle className="h-3.5 w-3.5 text-amber-500" /></span>}
                       </span>
+                      {d.serialNumber && <div className="font-mono text-xs font-normal text-muted-foreground">{d.serialNumber}</div>}
                     </TableCell>
                     <TableCell className="text-center text-muted-foreground">{d.age ?? '—'}</TableCell>
                     <TableCell className="text-center text-muted-foreground">{genderShort(d.gender)}</TableCell>
@@ -891,6 +892,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
           {d.firstName} {d.lastName}
           {miss.length > 0 && <span title={`Dossier incomplet : ${miss.join(', ')}`}><AlertTriangle className="h-4 w-4 text-amber-500" /></span>}
         </h2>
+        {d.serialNumber && <p className="font-mono text-xs text-muted-foreground">Demande N° {d.serialNumber}</p>}
         <p className="text-sm text-muted-foreground">
           {d.age != null ? `${d.age} ans` : 'âge inconnu'}
           {d.dateOfBirth ? ` (${new Date(d.dateOfBirth).toLocaleDateString('fr-FR')})` : ''} · {d.gender}

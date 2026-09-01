@@ -78,6 +78,7 @@ export interface Demande {
   hasPreviousDemande?: boolean
   previousDemandeYear?: string | null
   status: string
+  serialNumber?: string | null // human-facing reference (INS-YYYY-NNNN); null for an unsubmitted draft
   decisionNotes?: string | null
   submittedAt?: string | null
   responseSentAt?: string | null

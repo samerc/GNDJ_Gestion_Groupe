@@ -150,6 +150,9 @@ export default function ApplicantPortalPage() {
                     {/* Coloured left bar = status at a glance */}
                     <td className={`border-l-4 ${border} px-4 py-3`}>
                       <div className="font-medium">{d.firstName} {d.lastName}</div>
+                      {d.serialNumber && (
+                        <div className="font-mono text-xs text-muted-foreground">N° {d.serialNumber}</div>
+                      )}
                       {/* On small screens DOB/école are hidden as columns — show DOB inline here */}
                       <div className="text-xs text-muted-foreground sm:hidden">
                         {d.dateOfBirth ? new Date(d.dateOfBirth).toLocaleDateString('fr-FR') : 'Naissance non renseignée'}

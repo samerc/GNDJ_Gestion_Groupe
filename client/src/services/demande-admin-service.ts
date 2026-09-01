@@ -10,6 +10,7 @@ export interface Sibling { id: string; firstName: string; lastName: string; stat
 export interface DemandeReview {
   id: string
   scoutYear: string
+  serialNumber: string | null // human-facing reference (INS-YYYY-NNNN); null for an unsubmitted draft
   firstName: string
   lastName: string
   dateOfBirth: string | null

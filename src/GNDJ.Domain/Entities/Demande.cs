@@ -8,6 +8,11 @@ public class Demande : BaseEntity
     public Guid ApplicantAccountId { get; set; }
     public string ScoutYear { get; set; } = string.Empty;
 
+    // Human-facing reference (INS-YYYY-NNNN), assigned on the FIRST submission (drafts stay null so an
+    // abandoned draft never burns a number). Sequence is per scout year; unique. Shown to the parent +
+    // CG and included in the demande emails ({{demandeNumber}}).
+    public string? SerialNumber { get; set; }
+
     // Applicant (member) fields
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;

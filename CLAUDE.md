@@ -3798,6 +3798,27 @@ reconcile but for a SINGLE person entered twice. All on main, DEV until deploy; 
       **name+DOB only** — two records of the same person with a mismatched/missing DOB aren't auto-flagged (a
       manual "merge any two members" entry could be added later if needed).
 
+### Demande serial number (INS-YYYY-NNNN) (2026-09-01)
+Each demande gets a human-facing reference. Format (CG's choice): **`INS-2026-0001`** — `INS-` prefix +
+scout-year start year + 4-digit sequence, **per scout year** (resets each campaign).
+- **Assigned on the FIRST submission** (Draft→Submitted) only — drafts stay `null` so an abandoned draft
+      never burns a number. `Demande.SerialNumber` (migration `AddDemandeSerialNumber`, **unique** index;
+      Postgres NULLs distinct so drafts don't collide). `Common/DemandeSerial.NextAsync` = read-max+1 per scout
+      year; `SubmitDemandeCommandHandler` assigns it and **retries on the unique index** (two parents submitting
+      the same instant race the read-max+1 — bounded 5-retry loop, Status/SubmittedAt ride along).
+- **Shown:** parent portail (mono line under the child), the result page (Demande N° …), and the CG review
+      **table** (under the name) + detail drawer. `DemandeDto`/`DemandeReviewDto` carry `SerialNumber`.
+- **Email:** new **`{{demandeNumber}}`** variable added to the demande templates' send dicts (submitted /
+      approved / declined) + the frontend `MODULE_VARIABLES.demande` dropdown (email-settings) so the CG can place
+      it in the template. (The dropdown is driven by MODULE_VARIABLES, not the stored template JSON — no template
+      patch needed; the value is always supplied at send time.)
+- **Backfill:** data patch **`012_demande_serial_numbers.sql`** numbers already-SUBMITTED demandes per scout
+      year ordered by `submitted_at` (idempotent, only-if-null, skips Drafts). Runs on prod at next deploy after
+      the migration adds the column.
+- Verified live: backfill → INS-2026-0001…0006 in submission order; a new submit → INS-2026-0007; the review DTO
+      + applicant profile return it; the `demande_submitted` outbox row carries the number. Build clean
+      (dotnet + tsc + eslint). DEV until deploy (migration + patch apply on prod startup).
+
 ### Unit-type Gender field + demande suggestion fix (2026-09-01)
 Enrollment went live and the CG saw **girls suggested into a Troupe** (boys). Root cause: `unit_types.gender`
 was **blank for every branch**, and there was **no field in the admin UI to set it**. The demande unit-suggester

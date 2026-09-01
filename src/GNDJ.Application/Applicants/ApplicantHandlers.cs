@@ -56,6 +56,7 @@ public record DemandeDto(Guid Id, string ScoutYear, string FirstName, string Las
     string? PhoneCountryCode, string? PhoneNumber, string? Email, string? ParentNotes,
     string Status, string? DecisionNotes, DateTime? SubmittedAt, DateTime? ResponseSentAt,
     bool HasPreviousDemande = false, string? PreviousDemandeYear = null,
+    string? SerialNumber = null, // human-facing reference (INS-YYYY-NNNN); null for an unsubmitted draft
     // Result-page fields — populated only once the response is SENT (never leak a staged decision):
     // Converted = an accepted demande that produced a member account; DecidedUnitName = the admitted unit;
     // MemberUsername = that member's login; MemberHasLoggedIn = they've already entered the member area
@@ -192,7 +193,7 @@ static class ApplicantHelpers
         return new(
             d.Id, d.ScoutYear, d.FirstName, d.LastName, d.DateOfBirth, d.Gender, d.Nationality, d.School, d.Classe, d.Section,
             d.BloodType, d.MedicalNotes, d.Allergies, d.PhoneCountryCode, d.PhoneNumber, d.Email, d.ParentNotes,
-            status, notes, d.SubmittedAt, d.ResponseSentAt, d.HasPreviousDemande, d.PreviousDemandeYear);
+            status, notes, d.SubmittedAt, d.ResponseSentAt, d.HasPreviousDemande, d.PreviousDemandeYear, d.SerialNumber);
     }
 
     public static void Apply(Demande d, DemandeInput i)
@@ -1064,7 +1065,19 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
         var wasSubmitted = demande.Status == DemandeStatus.Submitted;
         demande.Status = DemandeStatus.Submitted;
         demande.SubmittedAt = DateTime.UtcNow;
-        await context.SaveChangesAsync(ct);
+        // Assign the human-facing reference on the first submission only (drafts stay unnumbered). Retry on the
+        // unique index in case two parents submit at the same instant and race the read-max+1 (the Status/
+        // SubmittedAt changes ride along and persist on the successful save).
+        if (demande.SerialNumber is null)
+            demande.SerialNumber = await DemandeSerial.NextAsync(context, demande.ScoutYear, ct);
+        for (var attempt = 0; ; attempt++)
+        {
+            try { await context.SaveChangesAsync(ct); break; }
+            catch (DbUpdateException) when (attempt < 5 && demande.SerialNumber is not null)
+            {
+                demande.SerialNumber = await DemandeSerial.NextAsync(context, demande.ScoutYear, ct);
+            }
+        }
 
         // "We received your demande" confirmation email (configurable template) to the account holder — queued in
         // the background (best-effort; never fails the submit).
@@ -1074,6 +1087,7 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
                 ["contactName"] = account.ContactName ?? "",
                 ["childName"] = $"{demande.FirstName} {demande.LastName}".Trim(),
                 ["scoutYear"] = demande.ScoutYear,
+                ["demandeNumber"] = demande.SerialNumber ?? "",
             }), ct);
 
         return Result<bool>.Success(true);

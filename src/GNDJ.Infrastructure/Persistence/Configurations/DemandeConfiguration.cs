@@ -12,6 +12,9 @@ public class DemandeConfiguration : IEntityTypeConfiguration<Demande>
         builder.ToTable("demandes");
         builder.HasKey(e => e.Id);
         builder.Property(e => e.ScoutYear).HasMaxLength(20);
+        builder.Property(e => e.SerialNumber).HasMaxLength(30);
+        // Unique per demande. Postgres treats NULLs as distinct, so unnumbered drafts never collide.
+        builder.HasIndex(e => e.SerialNumber).IsUnique();
         builder.Property(e => e.FirstName).HasMaxLength(100);
         builder.Property(e => e.LastName).HasMaxLength(100);
         builder.Property(e => e.Gender).HasMaxLength(20);

@@ -36,7 +36,7 @@ public record DemandeReviewDto(
     IReadOnlyList<ApplicantGuardianDto> Guardians, IReadOnlyList<ApplicantScoutRelationDto> ScoutRelations,
     IReadOnlyList<SiblingDto> Siblings,
     bool HasPreviousDemande = false, string? PreviousDemandeYear = null,
-    string? ParentsSituation = null);
+    string? ParentsSituation = null, string? SerialNumber = null);
 
 // Per-unit capacity card for the CG: current active members, Projected (after applying this year's
 // passage moves in/out), the editable intake Quota, and how many demandes are already Accepted into it.
@@ -176,7 +176,7 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context, ICu
                     return new ApplicantScoutRelationDto(r.Id, r.Status, r.Relationship, r.RelatedMemberId, r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName,
                         r.OtherGroupIsFormer, match.Name, match.Unit);
                 }).ToList(),
-                sibs, d.HasPreviousDemande, d.PreviousDemandeYear, acc?.ParentsSituation);
+                sibs, d.HasPreviousDemande, d.PreviousDemandeYear, acc?.ParentsSituation, d.SerialNumber);
         });
 
         // Age filter (computed) in-memory
@@ -764,6 +764,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             {
                 ["contactName"] = acc?.ContactName ?? "",
                 ["childName"] = $"{d.FirstName} {d.LastName}",
+                ["demandeNumber"] = d.SerialNumber ?? "",
                 ["unitName"] = unitNames.GetValueOrDefault(unitId, ""),
                 ["username"] = username,
                 ["activationLink"] = activationLink,
@@ -782,6 +783,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             {
                 ["contactName"] = acc?.ContactName ?? "",
                 ["childName"] = $"{d.FirstName} {d.LastName}",
+                ["demandeNumber"] = d.SerialNumber ?? "",
                 ["reason"] = string.IsNullOrWhiteSpace(d.DecisionNotes) ? "" : d.DecisionNotes!,
             };
             foreach (var to in Recipients(d, acc))
