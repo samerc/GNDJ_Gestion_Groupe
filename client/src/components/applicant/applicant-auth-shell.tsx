@@ -1,6 +1,8 @@
 import { Link } from 'react-router'
 import { UserPlus, Compass, ArrowLeft } from 'lucide-react'
 import { Toaster } from 'sonner'
+import { useApplicantConfig } from '@/services/applicant-service'
+import { SupportNote } from '@/components/support-note'
 
 // ROLE: branded centered card shell for the UNAUTHENTICATED applicant pages
 // (register / login / verify-email). Mounts its own Sonner <Toaster> — same
@@ -11,6 +13,7 @@ import { Toaster } from 'sonner'
 // confuses the two nearly-identical login screens. A cross-link to the member espace sits at the bottom
 // of every applicant auth page for anyone who landed in the wrong place.
 export function ApplicantAuthShell({ children, subtitle }: { children: React.ReactNode; subtitle?: string }) {
+  const { data: config } = useApplicantConfig()
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-4">
       <Toaster richColors position="top-center" />
@@ -31,6 +34,9 @@ export function ApplicantAuthShell({ children, subtitle }: { children: React.Rea
           <p className="mt-1 text-sm text-muted-foreground">{subtitle ?? "Inscrire un enfant au groupe — GNDJ Scout"}</p>
         </div>
         {children}
+
+        {/* Help line for parents who hit a login/registration problem (configurable via demande.support_email). */}
+        <SupportNote email={config?.supportEmail} />
 
         {/* Cross-link for anyone who is actually an existing member/chef. */}
         <Link

@@ -24,6 +24,7 @@ export interface ApplicantConfig {
   resultTextAccepted: string | null // editable result-page wording (accepted)
   resultTextDeclined: string | null // editable result-page wording (declined)
   activationLinkDays: number        // how long an accepted member's set-password link stays valid
+  supportEmail: string | null       // demande.support_email — shown on the inscription pages for help (empty = hide)
 }
 
 export interface ApplicantGuardian {

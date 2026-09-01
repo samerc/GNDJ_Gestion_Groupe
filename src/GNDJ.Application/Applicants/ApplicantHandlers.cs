@@ -38,7 +38,9 @@ public record ApplicantConfigDto(bool IsOpen, bool SubmissionsOpen, string Scout
     // exposed so the landing/portal can show "ouvre le …" / "clôture le …". ResultText* = editable result-page
     // copy. ActivationLinkDays = how long an accepted member's set-password link stays valid.
     string? SubmissionStart = null, string? SubmissionDeadline = null,
-    string? ResultTextAccepted = null, string? ResultTextDeclined = null, int ActivationLinkDays = 30);
+    string? ResultTextAccepted = null, string? ResultTextDeclined = null, int ActivationLinkDays = 30,
+    // Support address shown on the inscription pages ("en cas de problème, écrivez à …"). Empty/null = hide.
+    string? SupportEmail = null);
 
 public record ApplicantGuardianDto(Guid? Id, string Relationship, string FirstName, string LastName, string? Profession, string? ProfessionDomain,
     string? PhoneCountryCode, string? PhoneNumber, string? Email, bool IsDeceased, bool IsPrimaryContact, bool IsEmergencyContact);
@@ -109,7 +111,8 @@ static class ApplicantHelpers
         "demande.enabled", "demande.submissions_open", "demande.scout_year", "passage.scout_year", "demande.max_per_account",
         "demande.notes_max_length", "demande.require_email_verification",
         "demande.max_scout_relations", "demande.terms", "demande.excluded_classe", "member.schools", "member.classes", "member.cities", "member.profession_domains",
-        "demande.submission_start", "demande.submission_deadline", "demande.result_text_accepted", "demande.result_text_declined", "member.activation_link_days"
+        "demande.submission_start", "demande.submission_deadline", "demande.result_text_accepted", "demande.result_text_declined", "member.activation_link_days",
+        "demande.support_email"
     ];
 
     // Parses a yyyy-MM-dd setting into a DateOnly (null if empty/invalid).
@@ -165,7 +168,8 @@ static class ApplicantHelpers
         var units = await ctx.Units.Where(u => u.IsActive).OrderBy(u => u.Name).Select(u => u.Name).ToListAsync(ct);
 
         return new ApplicantConfigDto(enabled, submissionsOpen, year, max, notesLen, requireVerify, schools, classes, cities, units, maxRelations, professionDomains, terms, excludedClasse,
-            Get("demande.submission_start"), Get("demande.submission_deadline"), Get("demande.result_text_accepted"), Get("demande.result_text_declined"), activationDays);
+            Get("demande.submission_start"), Get("demande.submission_deadline"), Get("demande.result_text_accepted"), Get("demande.result_text_declined"), activationDays,
+            Get("demande.support_email"));
     }
 
     // Returns an error message if the applicant may NOT submit/edit right now (portal closed, or the submission

@@ -28,7 +28,8 @@ public record SiteFooterContent(string Tagline, string? Instagram = null, string
 public record SiteContactContent(string Intro, string Address);
 public record SiteContentDto(SiteHomeContent Home, SiteFooterContent Footer, SiteContactContent Contact);
 
-public record PublicSiteConfigDto(bool InscriptionsOpen, SiteContentDto Content);
+// SupportEmail = demande.support_email — shown on the member login page ("en cas de problème, écrivez à …").
+public record PublicSiteConfigDto(bool InscriptionsOpen, SiteContentDto Content, string? SupportEmail = null);
 
 public static class SiteContentDefaults
 {
@@ -86,10 +87,14 @@ public class GetPublicSiteConfigQueryHandler(IApplicationDbContext context) : IR
 {
     public async ValueTask<PublicSiteConfigDto> Handle(GetPublicSiteConfigQuery request, CancellationToken ct)
     {
-        var enabled = await context.Settings.Where(s => s.Key == "demande.enabled")
-            .Select(s => s.Value).FirstOrDefaultAsync(ct);
+        var settings = await context.Settings
+            .Where(s => s.Key == "demande.enabled" || s.Key == "demande.support_email")
+            .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
+        var enabled = settings.GetValueOrDefault("demande.enabled");
+        var support = settings.GetValueOrDefault("demande.support_email");
         var content = await SiteContentStore.ReadAsync(context, ct);
-        return new PublicSiteConfigDto(string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase), content);
+        return new PublicSiteConfigDto(string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase), content,
+            string.IsNullOrWhiteSpace(support) ? null : support);
     }
 }
 

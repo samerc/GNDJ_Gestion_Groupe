@@ -3,6 +3,7 @@ import { Compass, UserPlus, ArrowLeft } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePublicSiteConfig } from '@/services/public-service'
 import { LoginForm } from '@/components/auth/login-form'
+import { SupportNote } from '@/components/support-note'
 
 // "Espace membres" — login screen for existing members/chefs (JWT auth).
 // Anonymous-only: an already-authenticated user is bounced to /dashboard.
@@ -52,6 +53,8 @@ export default function LoginPage() {
             </span>
           </Link>
         )}
+        {/* Help line for members/parents who can't log in (configurable via demande.support_email). */}
+        <SupportNote email={config?.supportEmail} />
         {/* Back to the public group site (this page is outside the public shell, so there's no header nav). */}
         <Link to="/" className="mt-6 flex items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Retour au site

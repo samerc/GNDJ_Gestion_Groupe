@@ -39,7 +39,7 @@ export interface SiteContent {
   footer: { tagline: string; instagram?: string; facebook?: string; email?: string; phone?: string }
   contact: { intro: string; address: string }
 }
-export interface PublicSiteConfig { inscriptionsOpen: boolean; content: SiteContent }
+export interface PublicSiteConfig { inscriptionsOpen: boolean; content: SiteContent; supportEmail?: string | null }
 
 // GET /public/site-config (anonymous) → inscriptionsOpen flag (= demande.enabled) + editable site texts; 60s staleTime.
 export function usePublicSiteConfig() {
