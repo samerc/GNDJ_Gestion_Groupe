@@ -9,7 +9,7 @@ namespace GNDJ.Application.UnitTypes.Commands.UpdateUnitType;
 
 // Update a unit type. Code + Color stay unique (across other types); see CreateUnitTypeCommand for
 // what NumberOfYears / Color / PublicDescription drive elsewhere.
-public record UpdateUnitTypeCommand(Guid Id, string Name, string Code, string? Description, int? NumberOfYears, int? AgeMin, int? AgeMax, string? Color, string? PublicDescription = null) : IRequest<Result<bool>>;
+public record UpdateUnitTypeCommand(Guid Id, string Name, string Code, string? Description, int? NumberOfYears, int? AgeMin, int? AgeMax, string? Color, string? PublicDescription = null, string? Gender = null) : IRequest<Result<bool>>;
 
 public class UpdateUnitTypeCommandValidator : AbstractValidator<UpdateUnitTypeCommand>
 {
@@ -25,6 +25,8 @@ public class UpdateUnitTypeCommandValidator : AbstractValidator<UpdateUnitTypeCo
         RuleFor(x => x.AgeMax).InclusiveBetween(3, 99).When(x => x.AgeMax.HasValue);
         RuleFor(x => x).Must(x => x.AgeMin <= x.AgeMax).When(x => x.AgeMin.HasValue && x.AgeMax.HasValue)
             .WithMessage("L'âge minimum doit être inférieur ou égal à l'âge maximum.");
+        RuleFor(x => x.Gender).Must(g => string.IsNullOrEmpty(g) || g == "Masculin" || g == "Féminin" || g == "Mixte")
+            .WithMessage("Genre invalide.");
     }
 }
 
@@ -56,7 +58,7 @@ public class UpdateUnitTypeCommandHandler : IRequestHandler<UpdateUnitTypeComman
                 return Result<bool>.Failure("Cette couleur est déjà utilisée par un autre type d'unité.");
         }
 
-        var oldValues = new { entity.Name, entity.Code, entity.Description, entity.NumberOfYears };
+        var oldValues = new { entity.Name, entity.Code, entity.Description, entity.NumberOfYears, entity.Gender };
 
         entity.Name = request.Name;
         entity.Code = request.Code;
@@ -66,9 +68,10 @@ public class UpdateUnitTypeCommandHandler : IRequestHandler<UpdateUnitTypeComman
         entity.AgeMax = request.AgeMax;
         entity.Color = request.Color;
         entity.PublicDescription = string.IsNullOrWhiteSpace(request.PublicDescription) ? null : request.PublicDescription.Trim();
+        entity.Gender = string.IsNullOrWhiteSpace(request.Gender) ? null : request.Gender;
 
         await _context.SaveChangesAsync(cancellationToken);
-        await _auditService.LogAsync("Update", "UnitType", entity.Id, oldValues: oldValues, newValues: new { entity.Name, entity.Code, entity.Description, entity.NumberOfYears }, cancellationToken: cancellationToken);
+        await _auditService.LogAsync("Update", "UnitType", entity.Id, oldValues: oldValues, newValues: new { entity.Name, entity.Code, entity.Description, entity.NumberOfYears, entity.Gender }, cancellationToken: cancellationToken);
 
         return Result<bool>.Success(true);
     }

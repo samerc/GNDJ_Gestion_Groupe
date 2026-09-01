@@ -3,6 +3,7 @@
     "version": "3.0.0",
     "date": "2026-08-27",
     "changes": [
+      "Demandes — suggestions par genre : chaque type d'unité (branche) a désormais un champ « Genre » (Garçons / Filles / Mixte / Non précisé), modifiable dans Types d'unité → Informations. Les suggestions d'unité à la validation des demandes respectent enfin le genre — une fille n'est plus proposée dans une Troupe (garçons). Les genres des branches ont été pré-remplis (Garçons : Meute/Troupe/Clan · Filles : Ronde/Compagnie/Caravelles/Feu/Noyau/JEM · Mixte : Groupe).",
       "Maîtrises : un membre qui occupe plusieurs fonctions dans une même unité (ex. Assistant de Groupe + Trésorier de Groupe) apparaît désormais une SEULE fois, avec toutes ses fonctions listées — chacune gardant ses propres boutons « Transférer » / « Retirer ». Le compteur de membres ne compte plus les doublons.",
       "Réunions & absences : dans la fenêtre « Présences », une barre de recherche permet de retrouver rapidement un membre par son nom (insensible aux accents et à la casse) — pratique pour les grandes unités.",
       "Sessions actives : nouvelle page (super-administrateur, menu Système) qui montre qui est connecté en ce moment — membres/chefs ET parents du portail d'inscription — depuis combien de temps, leur dernière activité (« en ligne » = actif dans les 20 dernières minutes) et l'expiration de la session. On peut « Déconnecter » une session : la personne ne peut plus rester connectée et sera déconnectée dans un délai maximum de 15 minutes (le jeton d'accès n'est pas révocable instantanément).",

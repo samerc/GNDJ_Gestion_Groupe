@@ -15,6 +15,7 @@ export interface UnitTypeDto {
   unitCount: number
   createdAt: string
   publicDescription: string | null
+  gender: string | null // Masculin | Féminin | Mixte | null — drives demande unit eligibility/suggestions
 }
 
 export interface UnitTypeFormData {
@@ -26,6 +27,7 @@ export interface UnitTypeFormData {
   ageMax?: number | null
   color?: string | null
   publicDescription?: string | null
+  gender?: string | null
 }
 
 // Paginated unit-types list (GET /unit-types); optional search. Keyed ['unitTypes', params].

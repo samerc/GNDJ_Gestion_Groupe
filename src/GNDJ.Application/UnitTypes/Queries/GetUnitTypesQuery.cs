@@ -29,7 +29,7 @@ public class GetUnitTypesQueryHandler : IRequestHandler<GetUnitTypesQuery, Pagin
             ut.Id, ut.Name, ut.Code, ut.Description, ut.NumberOfYears,
             ut.AgeMin, ut.AgeMax, ut.Color,
             ut.Units.Count(u => !u.IsDeleted),
-            ut.CreatedAt, ut.PublicDescription
+            ut.CreatedAt, ut.PublicDescription, ut.Gender
         ));
 
         return await PaginatedList<UnitTypeDto>.CreateAsync(projected, request.Page, request.PageSize, cancellationToken);
@@ -49,7 +49,7 @@ public class GetUnitTypeByIdQueryHandler : IRequestHandler<GetUnitTypeByIdQuery,
     {
         return await _context.UnitTypes
             .Where(ut => ut.Id == request.Id)
-            .Select(ut => new UnitTypeDetailDto(ut.Id, ut.Name, ut.Code, ut.Description, ut.NumberOfYears, ut.AgeMin, ut.AgeMax, ut.Color, ut.CreatedAt, ut.UpdatedAt, ut.PublicDescription))
+            .Select(ut => new UnitTypeDetailDto(ut.Id, ut.Name, ut.Code, ut.Description, ut.NumberOfYears, ut.AgeMin, ut.AgeMax, ut.Color, ut.CreatedAt, ut.UpdatedAt, ut.PublicDescription, ut.Gender))
             .FirstOrDefaultAsync(cancellationToken);
     }
 }

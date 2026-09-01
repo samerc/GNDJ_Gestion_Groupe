@@ -3798,6 +3798,28 @@ reconcile but for a SINGLE person entered twice. All on main, DEV until deploy; 
       **name+DOB only** — two records of the same person with a mismatched/missing DOB aren't auto-flagged (a
       manual "merge any two members" entry could be added later if needed).
 
+### Unit-type Gender field + demande suggestion fix (2026-09-01)
+Enrollment went live and the CG saw **girls suggested into a Troupe** (boys). Root cause: `unit_types.gender`
+was **blank for every branch**, and there was **no field in the admin UI to set it**. The demande unit-suggester
+(`demande-validation.tsx` `eligible()`: `!u.gender || u.gender==='Mixte' || u.gender===d.gender`) treats blank
+as "matches any gender", so it fell back to age+balance only. (The suggestion is only a one-click chip — the CG
+still picks the real unit; nothing auto-applied.)
+- **Fix = expose + populate `UnitType.Gender`** (values `Masculin`/`Féminin`/`Mixte`/null). Added it to
+      `UnitTypeDto`/`UnitTypeDetailDto`, `CreateUnitTypeCommand`/`UpdateUnitTypeCommand` (+ allowed-set validator)
+      and the `GetUnitTypes` projections; the unit-type detail form (Types d'unité → Informations) got a **Genre**
+      select (Garçons/Filles/Mixte/Non précisé) + a read-only row. The occupancy query (`DemandeAdminHandlers`
+      L249) already projected `u.UnitType.Gender`, and the frontend `eligible()` already filtered on it — **so the
+      only thing missing was the data**.
+- **Data (mapping confirmed with the CG):** Garçons = Meute/Troupe/Clan · Filles = Ronde/Compagnie/Caravelles/
+      Pionnières/Feu/Noyau/JEM · Mixte = Groupe. Set on dev + **data patch `011_unit_type_genders.sql`** (idempotent,
+      only sets a still-NULL branch so a later UI edit isn't overwritten).
+- **PROD note:** the suggester logic + occupancy gender projection are ALREADY deployed — only the data was blank.
+      So prod suggestions can be fixed WITHOUT a full deploy by running `011`'s three UPDATEs on the prod DB
+      (`PGCLIENTENCODING=UTF8 psql -f deploy/patches/011_unit_type_genders.sql`); otherwise patch 011 auto-runs on
+      the next deploy (idempotent). The new **Genre form field** ships with that deploy.
+- Verified live: list/detail/occupancy return the genders; a girl no longer matches a Troupe (Masculin≠Féminin);
+      PUT round-trips gender. Build clean (dotnet + tsc + eslint). DEV until deploy (data patch on prod startup).
+
 ### Active sessions — "Sessions actives" viewer + force-disconnect (2026-08-31)
 Super-admin page (`/admin/sessions`, sidebar Système) to see who currently holds a live session + kick one.
 - **Model reminder:** stateless 15-min access token + ONE rotating 7-day refresh token per account (no

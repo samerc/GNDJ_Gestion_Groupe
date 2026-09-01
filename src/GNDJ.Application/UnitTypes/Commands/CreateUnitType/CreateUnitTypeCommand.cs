@@ -11,10 +11,13 @@ namespace GNDJ.Application.UnitTypes.Commands.CreateUnitType;
 // Create a unit type (branch: Meute, Troupe…). Code is unique; Color is unique per type (drives the
 // colour-coding in functions/diagrams). NumberOfYears also feeds the Camp BP note multiplier;
 // PublicDescription is the shared text shown for this branch on the public site.
-public record CreateUnitTypeCommand(string Name, string Code, string? Description, int? NumberOfYears, int? AgeMin, int? AgeMax, string? Color, string? PublicDescription = null) : IRequest<Result<Guid>>;
+public record CreateUnitTypeCommand(string Name, string Code, string? Description, int? NumberOfYears, int? AgeMin, int? AgeMax, string? Color, string? PublicDescription = null, string? Gender = null) : IRequest<Result<Guid>>;
 
 public class CreateUnitTypeCommandValidator : AbstractValidator<CreateUnitTypeCommand>
 {
+    // Allowed genders for a branch (empty = "non précisé", matches any gender in demande suggestions).
+    internal static readonly string[] AllowedGenders = ["Masculin", "Féminin", "Mixte"];
+
     public CreateUnitTypeCommandValidator()
     {
         RuleFor(x => x.Name).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
@@ -27,6 +30,8 @@ public class CreateUnitTypeCommandValidator : AbstractValidator<CreateUnitTypeCo
         RuleFor(x => x.AgeMax).InclusiveBetween(3, 99).When(x => x.AgeMax.HasValue);
         RuleFor(x => x).Must(x => x.AgeMin <= x.AgeMax).When(x => x.AgeMin.HasValue && x.AgeMax.HasValue)
             .WithMessage("L'âge minimum doit être inférieur ou égal à l'âge maximum.");
+        RuleFor(x => x.Gender).Must(g => string.IsNullOrEmpty(g) || AllowedGenders.Contains(g))
+            .WithMessage("Genre invalide.");
     }
 }
 
@@ -63,7 +68,8 @@ public class CreateUnitTypeCommandHandler : IRequestHandler<CreateUnitTypeComman
             AgeMin = request.AgeMin,
             AgeMax = request.AgeMax,
             Color = request.Color,
-            PublicDescription = string.IsNullOrWhiteSpace(request.PublicDescription) ? null : request.PublicDescription.Trim()
+            PublicDescription = string.IsNullOrWhiteSpace(request.PublicDescription) ? null : request.PublicDescription.Trim(),
+            Gender = string.IsNullOrWhiteSpace(request.Gender) ? null : request.Gender
         };
 
         _context.UnitTypes.Add(entity);

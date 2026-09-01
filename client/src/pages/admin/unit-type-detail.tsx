@@ -11,6 +11,7 @@ import { FunctionalRolesList } from '@/components/shared/functional-roles-list'
 import { StagesLadder, BadgesGrid } from '@/pages/admin/progression'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -25,11 +26,15 @@ import { ArrowLeft, Shield, Star, Award, Pencil, ChevronDown, ChevronRight, Info
 interface UnitTypeDetail {
   id: string; name: string; code: string; description: string | null
   numberOfYears: number | null; ageMin: number | null; ageMax: number | null
-  color: string | null; publicDescription: string | null
+  color: string | null; publicDescription: string | null; gender: string | null
   createdAt: string; updatedAt: string
 }
 
-const EMPTY: UnitTypeFormData = { name: '', code: '', description: '', numberOfYears: null, ageMin: null, ageMax: null, color: '', publicDescription: '' }
+const EMPTY: UnitTypeFormData = { name: '', code: '', description: '', numberOfYears: null, ageMin: null, ageMax: null, color: '', publicDescription: '', gender: null }
+
+// Branch gender — drives which units a boy/girl demande is eligible for + suggested. '' = non précisé (matches any).
+const GENDER_NONE = '__none__'
+const GENDER_LABELS: Record<string, string> = { Masculin: 'Garçons', Féminin: 'Filles', Mixte: 'Mixte' }
 
 export default function UnitTypeDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -60,6 +65,7 @@ export default function UnitTypeDetailPage() {
       name: unitType.name, code: unitType.code, description: unitType.description ?? '',
       numberOfYears: unitType.numberOfYears, ageMin: unitType.ageMin, ageMax: unitType.ageMax,
       color: unitType.color ?? '', publicDescription: unitType.publicDescription ?? '',
+      gender: unitType.gender ?? null,
     })
     setError(''); clearAll()
     setEditing(true)
@@ -156,6 +162,19 @@ export default function UnitTypeDetailPage() {
                 </div>
               </div>
               <div className="space-y-2">
+                <RequiredLabel htmlFor="gender">Genre</RequiredLabel>
+                <Select value={form.gender || GENDER_NONE} onValueChange={(v) => setForm(f => ({ ...f, gender: v === GENDER_NONE ? null : v }))}>
+                  <SelectTrigger id="gender"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={GENDER_NONE}>Non précisé</SelectItem>
+                    <SelectItem value="Masculin">Garçons</SelectItem>
+                    <SelectItem value="Féminin">Filles</SelectItem>
+                    <SelectItem value="Mixte">Mixte</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Détermine les unités proposées à un garçon / une fille lors d'une demande d'inscription. « Non précisé » correspond à toute personne.</p>
+              </div>
+              <div className="space-y-2">
                 <RequiredLabel htmlFor="color">Couleur</RequiredLabel>
                 <div className="flex items-center gap-2">
                   <Input id="color" type="color" value={form.color || '#3B82F6'} onChange={(e) => setForm(f => ({ ...f, color: e.target.value }))} className="h-9 w-14 cursor-pointer p-1" />
@@ -195,6 +214,7 @@ export default function UnitTypeDetailPage() {
                 <Info label="Nombre d'années" value={unitType!.numberOfYears != null ? `${unitType!.numberOfYears} an${unitType!.numberOfYears > 1 ? 's' : ''}` : '—'} />
                 <Info label="Âge min" value={unitType!.ageMin != null ? `${unitType!.ageMin} ans` : '—'} />
                 <Info label="Âge max" value={unitType!.ageMax != null ? `${unitType!.ageMax} ans` : '—'} />
+                <Info label="Genre" value={unitType!.gender ? (GENDER_LABELS[unitType!.gender] ?? unitType!.gender) : '—'} />
                 <Info label="Description" value={unitType!.description || '—'} className="sm:col-span-2" />
                 <Info label="Description publique (site)" value={unitType!.publicDescription || '—'} className="sm:col-span-2" />
               </dl>

@@ -12,7 +12,8 @@ public record UnitTypeDto(
     string? Color,
     int UnitCount,
     DateTime CreatedAt,
-    string? PublicDescription
+    string? PublicDescription,
+    string? Gender // Masculin | Féminin | Mixte | null — drives demande unit eligibility/suggestions
 );
 
 // Full unit-type record for the edit/detail view.
@@ -27,5 +28,6 @@ public record UnitTypeDetailDto(
     string? Color,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    string? PublicDescription
+    string? PublicDescription,
+    string? Gender
 );
