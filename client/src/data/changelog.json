@@ -3,6 +3,7 @@
     "version": "3.0.0",
     "date": "2026-08-27",
     "changes": [
+      "Cotisations (Paramètres) — cotisations association & maîtrise : dans Paramètres → Cotisations, deux nouveaux réglages internes (non visibles par les membres) : « Cotisation par association » (un montant par association, pour calculer ce que le groupe doit reverser à chaque association) et « Cotisation de la maîtrise » (le montant payé par chaque chef). Réservés au chef de groupe / super-administrateur.",
       "Fiche membre — Situation des parents : nouveau champ « Situation des parents » — une liste déroulante (Unis / Séparés / Divorcés, ou « Non précisé »), dans la section Identité. Rempli automatiquement depuis la demande d'inscription à la création du membre, modifiable par les chefs ET par le membre lui-même sur « Ma fiche ».",
       "Journal d'audit — navigateur : le détail d'une entrée affiche désormais le navigateur / l'appareil utilisé (en plus de l'adresse IP), pratique pour diagnostiquer un problème de connexion. L'information était déjà enregistrée à chaque connexion, elle est maintenant visible.",
       "Fiche membre — en-tête axé sur le compte : sous le nom, on affiche maintenant l'identifiant de connexion en 2ᵉ ligne, puis en 3ᵉ ligne la « Dernière connexion » (date + heure) — ou « Jamais connecté » si le membre ne s'est encore jamais connecté. La ligne N° de carte / sexe / date de naissance a été retirée de l'en-tête (ces informations restent dans l'onglet Informations). Pratique pour suivre qui a activé son accès.",

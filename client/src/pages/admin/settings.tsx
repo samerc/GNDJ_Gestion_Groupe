@@ -7,6 +7,7 @@
 import { parseApiError } from '@/lib/error-utils'
 import { useState, useMemo, lazy, Suspense } from 'react'
 import { useSettings, useUpdateSetting, type SettingDto } from '@/services/settings-service'
+import { useAssociations } from '@/services/association-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -130,6 +131,44 @@ function ExchangeRateEditor({ value, onChange }: { value: string; onChange: (jso
   )
 }
 
+// Per-association dues editor (cotisation.association_amounts). Lists every association with an amount input;
+// stores { "<associationId>": amount } (keyed by id so a rename doesn't break it). Blank = not set (dropped).
+// Internal figure — used to compute what the group owes each association per member; never shown to members.
+function AssociationAmountsEditor({ value, onChange }: { value: string; onChange: (json: string) => void }) {
+  const { data } = useAssociations({ pageSize: 100 })
+  const associations = data?.items ?? []
+  const parse = (v: string): Record<string, string> => {
+    try { return Object.fromEntries(Object.entries(JSON.parse(v || '{}') as Record<string, number | string>).map(([k, val]) => [k, String(val)])) }
+    catch { return {} }
+  }
+  const [amounts, setAmounts] = useState<Record<string, string>>(() => parse(value))
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) { setPrevValue(value); setAmounts(parse(value)) }
+
+  const commit = (next: Record<string, string>) => {
+    setAmounts(next)
+    const obj: Record<string, number> = {}
+    for (const [k, v] of Object.entries(next)) { const n = Number(v); if (v.trim() !== '' && !Number.isNaN(n)) obj[k] = n }
+    onChange(JSON.stringify(obj))
+  }
+
+  if (associations.length === 0)
+    return <p className="text-sm text-muted-foreground">Aucune association. Créez-en d'abord dans Paramètres → Associations.</p>
+
+  return (
+    <div className="space-y-2">
+      {associations.map(a => (
+        <div key={a.id} className="flex items-center gap-2">
+          <span className="w-48 shrink-0 truncate text-sm" title={a.name}>{a.name}</span>
+          <Input className="w-40" type="number" step="any" placeholder="Montant"
+            value={amounts[a.id] ?? ''} onChange={(e) => commit({ ...amounts, [a.id]: e.target.value })} />
+        </div>
+      ))}
+      <p className="text-xs text-muted-foreground">Montant dû à chaque association par membre (dans la devise par défaut). Interne — non visible par les membres.</p>
+    </div>
+  )
+}
+
 // Add-a-value input for json_array settings without a fixed options list (Enter or button adds).
 function ArrayFreeTextInput({ onAdd }: { onAdd: (val: string) => void }) {
   const [text, setText] = useState('')
@@ -216,6 +255,7 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
   const isNumber = setting.valueType === 'number'
   const isDate = setting.valueType === 'date'
   const isExchangeRates = setting.key === 'cotisation.exchange_rates'
+  const isAssociationAmounts = setting.key === 'cotisation.association_amounts'
   // Long free-text settings → a roomy textarea instead of a cramped one-line input. Match the message/text
   // keys (intro/result messages, terms, maintenance message…); a length fallback catches any future long value.
   const isLongText = /(text|terms|message|tagline)/i.test(setting.key) || (setting.value?.length ?? 0) > 80
@@ -282,6 +322,8 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
               : <ManagedListEditor settingKey={setting.key} />
           ) : isExchangeRates ? (
             <ExchangeRateEditor value={value} onChange={setValue} />
+          ) : isAssociationAmounts ? (
+            <AssociationAmountsEditor value={value} onChange={setValue} />
           ) : isSelectSingle ? (
             <div className="max-w-sm">
               <SearchableSelect value={value} onValueChange={setValue} options={options} placeholder="Sélectionner..." searchPlaceholder="Rechercher..." />
