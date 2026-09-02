@@ -25,7 +25,7 @@ import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
 import { useSettingArray, useSettingValue, useCities } from '@/services/settings-service'
 import { parseApiError } from '@/lib/error-utils'
-import { BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
+import { BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS, PARENTS_SITUATION_OPTIONS } from '@/lib/options'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
 import { PERMISSIONS } from '@/lib/constants'
 import { Tip } from '@/components/ui/tooltip'
@@ -139,7 +139,7 @@ export default function MyProfilePage() {
       nationality: member.nationality ?? '', school: member.school ?? '',
       classe: member.classe ?? '', professionDomain: member.professionDomain ?? '', profession: member.profession ?? '', section: member.section ?? '',
       medicalNotes: member.medicalNotes ?? '', allergies: member.allergies ?? '',
-      notes: member.notes ?? '',
+      notes: member.notes ?? '', parentsSituation: member.parentsSituation ?? '',
     })
     setSituation(member.showProfession && (member.professionDomain || member.profession) ? 'working' : 'student')
     setError('')
@@ -160,6 +160,7 @@ export default function MyProfilePage() {
         professionDomain: situation === 'working' ? (form.professionDomain || null) : null,
         profession: situation === 'working' ? (form.profession || null) : null,
         bloodType: form.bloodType || null,
+        parentsSituation: form.parentsSituation || null,
         allergies: form.allergies || null,
         medicalNotes: form.medicalNotes || null,
       })
@@ -272,6 +273,16 @@ export default function MyProfilePage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
+                    <RequiredLabel>Situation des parents</RequiredLabel>
+                    <Select value={form.parentsSituation || ''} onValueChange={(v) => setForm(f => ({ ...f, parentsSituation: v === '__clear__' ? '' : v }))}>
+                      <SelectTrigger><SelectValue placeholder="Non précisé" /></SelectTrigger>
+                      <SelectContent>
+                        {form.parentsSituation && <SelectItem value="__clear__">— Non précisé —</SelectItem>}
+                        {PARENTS_SITUATION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <RequiredLabel required>École</RequiredLabel>
                     {(() => {
                       const isOtherSchool = form.school ? !schools.includes(form.school) : false
@@ -362,6 +373,7 @@ export default function MyProfilePage() {
                   <Field label="Numéro de carte" value={member.externalCardNumber} />
                   <Field label="Nationalité" value={member.nationality} />
                   <Field label="Groupe sanguin" value={member.bloodType} />
+                  <Field label="Situation des parents" value={member.parentsSituation} />
                   <Field label="École" value={member.school} />
                   {(member.showProfession && (member.professionDomain || member.profession)) ? (
                     <>

@@ -14,6 +14,7 @@ export interface MyProfileUpdate {
   professionDomain?: string | null
   profession?: string | null
   section?: string | null
+  parentsSituation?: string | null // Unis / Séparés / Divorcés
   bloodType?: string | null
   allergies?: string | null
   medicalNotes?: string | null

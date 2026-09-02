@@ -13,7 +13,7 @@ namespace GNDJ.Application.Members.Commands.UpdateMyProfile;
 public record UpdateMyProfileCommand(
     string? Nationality, string? School, string? Classe, string? Section,
     string? BloodType, string? Allergies, string? MedicalNotes, string? ProfessionDomain = null,
-    string? Profession = null
+    string? Profession = null, string? ParentsSituation = null
 ) : IRequest<Result<bool>>;
 
 public class UpdateMyProfileCommandValidator : AbstractValidator<UpdateMyProfileCommand>
@@ -33,6 +33,7 @@ public class UpdateMyProfileCommandValidator : AbstractValidator<UpdateMyProfile
         RuleFor(x => x.Profession).MaximumLength(150)
             .Must(NoHtml).WithMessage("La profession contient des caractères invalides.");
         RuleFor(x => x.Section).MaximumLength(5).WithMessage("La section ne doit pas dépasser 5 caractères.");
+        RuleFor(x => x.ParentsSituation).MaximumLength(50).Must(NoHtml).WithMessage("La situation des parents contient des caractères invalides.");
         RuleFor(x => x.BloodType).MaximumLength(10);
         RuleFor(x => x.Allergies).MaximumLength(2000).Must(NoHtml).WithMessage("Les allergies contiennent des caractères invalides.");
         RuleFor(x => x.MedicalNotes).MaximumLength(2000).Must(NoHtml).WithMessage("Les notes médicales contiennent des caractères invalides.");
@@ -62,6 +63,7 @@ public class UpdateMyProfileCommandHandler(IApplicationDbContext context, IAudit
         entity.ProfessionDomain = request.ProfessionDomain;
         entity.Profession = request.Profession;
         entity.Section = request.Section;
+        entity.ParentsSituation = string.IsNullOrWhiteSpace(request.ParentsSituation) ? null : request.ParentsSituation.Trim();
         entity.BloodType = request.BloodType;
         entity.Allergies = request.Allergies;
         entity.MedicalNotes = request.MedicalNotes;
