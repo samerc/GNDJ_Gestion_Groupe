@@ -12,7 +12,10 @@ public record AuditLogDto(
     Guid Id, Guid? UserId, string? UserEmail,
     string Action, string EntityType, Guid? EntityId,
     string? OldValues, string? NewValues,
-    string? IpAddress, DateTime Timestamp
+    string? IpAddress, DateTime Timestamp,
+    // Browser / device string captured on every action (incl. Login/LoginFailed) — for troubleshooting a
+    // login issue: which device/browser the attempt came from. Already stored; surfaced in the detail dialog.
+    string? UserAgent
 );
 
 // Paginated audit-log query with entity-type / action / user / date-range filters (newest first).
@@ -53,7 +56,7 @@ public class GetAuditLogsQueryHandler(IApplicationDbContext context) : IRequestH
                 a.Id, a.UserId, a.User != null ? a.User.Email : null,
                 a.Action, a.EntityType, a.EntityId,
                 a.OldValues, a.NewValues,
-                a.IpAddress, a.Timestamp
+                a.IpAddress, a.Timestamp, a.UserAgent
             ));
 
         return await PaginatedList<AuditLogDto>.CreateAsync(projected, request.Page, request.PageSize, ct);

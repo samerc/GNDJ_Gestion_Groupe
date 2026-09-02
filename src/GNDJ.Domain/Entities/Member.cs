@@ -31,6 +31,10 @@ public class Member : BaseEntity
     public string? MedicalNotes { get; set; }
     public string? Allergies { get; set; }
     public string? Notes { get; set; }
+    // Parents' relationship status (Unis / Séparés / Divorcés) — a household attribute leaders find useful.
+    // Collected in the demande wizard (ApplicantAccount.ParentsSituation) and carried onto the member on
+    // conversion; also editable on the member fiche. Migrated from WEBDEV Parents_SeparesOuDivorces.
+    public string? ParentsSituation { get; set; }
     public string? PhotoPath { get; set; }
     // Designated "primary contact email" for member-facing mail (password reset, etc.). Chosen from the
     // member's own emails or a guardian's; null = auto-resolve (member's own email first, else a guardian's).

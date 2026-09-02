@@ -348,6 +348,13 @@ for (int r = 2; r <= wsMembers.LastRowUsed()!.RowNumber(); r++)
     if (nameOverrides.TryGetValue(oldId, out var nameFix)) { firstName = nameFix.First; lastName = nameFix.Last; }
     var dob = ParseDate(Cell(wsMembers, r, 6));
     var gender = Cell(wsMembers, r, 14) == "F" ? "Féminin" : Cell(wsMembers, r, 14) == "M" ? "Masculin" : null;
+    // WEBDEV Parents_SeparesOuDivorces (col 15) → member.parents_situation. INFERRED legend (CONFIRM against
+    // the source): U = Unis, S = Séparés, D = Divorcés. NOTE: the ORIGINAL migration read "U" as *separated*
+    // and stamped "Parents séparés/divorcés" onto the guardian notes — that was BACKWARDS ("U" is the ~95%
+    // majority = Unis), which is why the live guardian notes can't be trusted for this. Now stored correctly
+    // on the member; the guardian note is no longer written (see STEP 7).
+    var pcode = Cell(wsMembers, r, 15).Trim().ToUpperInvariant();
+    var parentsSituation = pcode == "U" ? "Unis" : pcode == "S" ? "Séparés" : pcode == "D" ? "Divorcés" : null;
     var bloodType = NullIfEmpty(Cell(wsMembers, r, 16));
     var nationality = ExpandNationality(Cell(wsMembers, r, 17));
     var photo = NullIfEmpty(Cell(wsMembers, r, 18));
@@ -375,15 +382,15 @@ for (int r = 2; r <= wsMembers.LastRowUsed()!.RowNumber(); r++)
     var id = NewId();
     memberIdMap[oldId] = id;
 
-    await Exec(conn, @"INSERT INTO members (id, first_name, last_name, date_of_birth, gender, card_number, blood_type, nationality, school, classe, section, photo_path, medical_notes, allergies, notes, external_card_number, created_at, updated_at, is_deleted)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $17, $16, $16, false)",
+    await Exec(conn, @"INSERT INTO members (id, first_name, last_name, date_of_birth, gender, card_number, blood_type, nationality, school, classe, section, photo_path, medical_notes, allergies, notes, external_card_number, parents_situation, created_at, updated_at, is_deleted)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $17, $18, $16, $16, false)",
         id, firstName, lastName, dob.HasValue ? dob.Value : DBNull.Value,
         gender ?? (object)DBNull.Value, cardNumber, bloodType ?? (object)DBNull.Value,
         NullIfEmpty(nationality) ?? (object)DBNull.Value, NullIfEmpty(school) ?? (object)DBNull.Value,
         classe ?? (object)DBNull.Value, section ?? (object)DBNull.Value,
         photo != null ? $"photos/{photo}" : (object)DBNull.Value,
         (object)DBNull.Value, (object)DBNull.Value, (object)DBNull.Value, now,
-        externalCard ?? (object)DBNull.Value);
+        externalCard ?? (object)DBNull.Value, parentsSituation ?? (object)DBNull.Value);
 
     var lk = Norm(lastName);
     if (!memberByLast.TryGetValue(lk, out var nmList)) { nmList = new(); memberByLast[lk] = nmList; }
@@ -403,7 +410,8 @@ for (int r = 2; r <= wsMembers.LastRowUsed()!.RowNumber(); r++)
     if (oldId == 0 || !memberIdMap.ContainsKey(oldId)) continue;
     var memberId = memberIdMap[oldId];
     var memberLastName = Cell(wsMembers, r, 4);
-    var separated = Cell(wsMembers, r, 15); // U = separated
+    // Parents' situation now lives on the member (see STEP 6). We no longer stamp a guardian note for it —
+    // the old "separated == U" note was inverted (U = Unis) and polluted every united family's guardians.
 
     // Father
     var fatherFirst = Cell(wsMembers, r, 7);
@@ -417,7 +425,7 @@ for (int r = 2; r <= wsMembers.LastRowUsed()!.RowNumber(); r++)
         await Exec(conn, @"INSERT INTO guardians (id, first_name, last_name, profession, is_deceased, notes, created_at, updated_at, is_deleted)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $7, false)",
             gid, fatherFirst, memberLastName, fatherProf ?? (object)DBNull.Value,
-            fatherDeceased, separated == "U" ? "Parents séparés/divorcés" : (object)DBNull.Value, now);
+            fatherDeceased, (object)DBNull.Value, now);
 
         var linkId = NewId();
         var relType = "Pere";
@@ -440,7 +448,7 @@ for (int r = 2; r <= wsMembers.LastRowUsed()!.RowNumber(); r++)
         await Exec(conn, @"INSERT INTO guardians (id, first_name, last_name, profession, is_deceased, notes, created_at, updated_at, is_deleted)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $7, false)",
             gid, motherFirst, motherLast, motherProf ?? (object)DBNull.Value,
-            motherDeceased, separated == "U" ? "Parents séparés/divorcés" : (object)DBNull.Value, now);
+            motherDeceased, (object)DBNull.Value, now);
 
         var linkId = NewId();
         await Exec(conn, @"INSERT INTO guardian_links (id, member_id, guardian_id, relationship_type, is_primary_contact, is_emergency_contact, created_at, updated_at, is_deleted)

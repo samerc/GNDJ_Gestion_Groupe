@@ -42,6 +42,7 @@ export interface MemberDetailDto {
   medicalNotes: string | null
   allergies: string | null
   notes: string | null
+  parentsSituation: string | null // parents' relationship status (Unis / Séparés / Divorcés)
   photoPath: string | null
   phones: MemberPhoneDto[]
   emails: MemberEmailDto[]
@@ -90,6 +91,7 @@ export interface MemberFormData {
   medicalNotes?: string | null
   allergies?: string | null
   notes?: string | null
+  parentsSituation?: string | null // Unis / Séparés / Divorcés
   // Optional parents captured on manual creation → create Père/Mère guardians (ignored on update).
   fatherName?: string | null
   motherName?: string | null

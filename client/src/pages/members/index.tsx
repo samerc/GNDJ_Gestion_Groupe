@@ -45,7 +45,7 @@ import { MemberCustomFields } from '@/components/members/member-custom-fields'
 // Data hooks reused (React Query dedupes by key with the tab components) to show item counts on the tabs.
 import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
-import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '@/lib/options'
+import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS, PARENTS_SITUATION_OPTIONS } from '@/lib/options'
 import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
@@ -204,6 +204,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
       school: member.school ?? '', classe: member.classe ?? '', section: member.section ?? '',
       professionDomain: member.professionDomain ?? '', profession: member.profession ?? '',
       medicalNotes: member.medicalNotes ?? '', allergies: member.allergies ?? '', notes: member.notes ?? '',
+      parentsSituation: member.parentsSituation ?? '',
     })
     // A member with a profession filled is "working"; otherwise default to "student". Youth branches never
     // offer profession (member.showProfession = false), so force "student" there.
@@ -237,6 +238,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
         professionDomain: situation === 'working' ? (form.professionDomain || null) : null,
         profession: situation === 'working' ? (form.profession || null) : null,
         medicalNotes: form.medicalNotes || null, allergies: form.allergies || null, notes: form.notes || null,
+        parentsSituation: form.parentsSituation || null,
       })
       toast.success('Membre modifié')
       setEditing(false)
@@ -439,6 +441,17 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                   </div>
                   <div className="space-y-1.5"><RequiredLabel>Matricule</RequiredLabel><Input value={form.cardNumber ?? ''} onChange={(e) => setForm(f => ({ ...f, cardNumber: e.target.value }))} /></div>
                   <div className="space-y-1.5"><RequiredLabel>Numéro de carte (SDL/GDL)</RequiredLabel><Input value={form.externalCardNumber ?? ''} onChange={(e) => setForm(f => ({ ...f, externalCardNumber: e.target.value }))} placeholder="Optionnel" maxLength={50} /></div>
+                  {/* Situation des parents (household attribute; from the demande wizard, editable here). */}
+                  <div className="space-y-1.5">
+                    <RequiredLabel>Situation des parents</RequiredLabel>
+                    <Select value={form.parentsSituation || ''} onValueChange={(v) => setForm(f => ({ ...f, parentsSituation: v === '__clear__' ? '' : v }))}>
+                      <SelectTrigger><SelectValue placeholder="Non précisé" /></SelectTrigger>
+                      <SelectContent>
+                        {form.parentsSituation && <SelectItem value="__clear__">— Non précisé —</SelectItem>}
+                        {PARENTS_SITUATION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               ) : (
                 <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -449,6 +462,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                   <Field label="Nationalité" value={member.nationality} />
                   <Field label="Matricule" value={member.cardNumber} />
                   <Field label="Numéro de carte (SDL/GDL)" value={member.externalCardNumber} />
+                  <Field label="Situation des parents" value={member.parentsSituation} />
                 </div>
               )}
             </Section>

@@ -14,6 +14,7 @@ export interface AuditLogDto {
   newValues: string | null
   ipAddress: string | null
   timestamp: string
+  userAgent: string | null // browser/device string (for troubleshooting a login)
 }
 
 export interface AuditFilterOptionsDto {

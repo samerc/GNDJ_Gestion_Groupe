@@ -43,6 +43,7 @@ public record MemberDetailDto(
     string? MedicalNotes,
     string? Allergies,
     string? Notes,
+    string? ParentsSituation, // parents' relationship status (Unis / Séparés / Divorcés)
     string? PhotoPath,
     IReadOnlyList<MemberPhoneDto> Phones,
     IReadOnlyList<MemberEmailDto> Emails,

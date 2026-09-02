@@ -13,7 +13,8 @@ public record UpdateMemberCommand(
     string? CardNumber, string? ExternalCardNumber, string? BloodType, string? Nationality, string? School,
     string? Classe, string? Section,
     string? MedicalNotes, string? Allergies, string? Notes,
-    string? ProfessionDomain = null, string? Profession = null
+    string? ProfessionDomain = null, string? Profession = null,
+    string? ParentsSituation = null // Unis / Séparés / Divorcés
 ) : IRequest<Result<bool>>;
 
 public class UpdateMemberCommandValidator : AbstractValidator<UpdateMemberCommand>
@@ -52,6 +53,8 @@ public class UpdateMemberCommandValidator : AbstractValidator<UpdateMemberComman
         RuleFor(x => x.MedicalNotes).MaximumLength(2000);
         RuleFor(x => x.Allergies).MaximumLength(2000);
         RuleFor(x => x.Notes).MaximumLength(2000);
+        RuleFor(x => x.ParentsSituation).MaximumLength(50)
+            .Must(n => n == null || !n.Contains('<') && !n.Contains('>')).WithMessage("La situation des parents contient des caractères invalides.");
     }
 }
 
@@ -105,6 +108,7 @@ public class UpdateMemberCommandHandler : IRequestHandler<UpdateMemberCommand, R
         entity.MedicalNotes = request.MedicalNotes;
         entity.Allergies = request.Allergies;
         entity.Notes = request.Notes;
+        entity.ParentsSituation = string.IsNullOrWhiteSpace(request.ParentsSituation) ? null : request.ParentsSituation.Trim();
 
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Update", "Member", entity.Id, oldValues: oldValues, newValues: new { entity.FirstName, entity.LastName, entity.CardNumber }, cancellationToken: cancellationToken);

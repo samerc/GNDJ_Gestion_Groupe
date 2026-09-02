@@ -710,6 +710,10 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             if (!string.IsNullOrWhiteSpace(acc?.PrimaryContactEmail))
                 member.PrimaryContactEmail = acc.PrimaryContactEmail.Trim();
 
+            // Parents' relationship status (Unis / Séparés / Divorcés) collected in the wizard → onto the member.
+            if (!string.IsNullOrWhiteSpace(acc?.ParentsSituation))
+                member.ParentsSituation = acc.ParentsSituation.Trim();
+
             // guardians (dedup by email/phone, reuse across siblings)
             foreach (var ag in acctGuardians.GetValueOrDefault(d.ApplicantAccountId) ?? [])
             {

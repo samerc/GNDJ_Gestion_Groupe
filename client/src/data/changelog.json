@@ -3,6 +3,8 @@
     "version": "3.0.0",
     "date": "2026-08-27",
     "changes": [
+      "Fiche membre — Situation des parents : nouveau champ « Situation des parents » (Unis / Séparés / Divorcés) dans la section Identité. Il est rempli automatiquement depuis la demande d'inscription lors de la création du membre, et reste modifiable sur la fiche.",
+      "Journal d'audit — navigateur : le détail d'une entrée affiche désormais le navigateur / l'appareil utilisé (en plus de l'adresse IP), pratique pour diagnostiquer un problème de connexion. L'information était déjà enregistrée à chaque connexion, elle est maintenant visible.",
       "Fiche membre — en-tête axé sur le compte : sous le nom, on affiche maintenant l'identifiant de connexion en 2ᵉ ligne, puis en 3ᵉ ligne la « Dernière connexion » (date + heure) — ou « Jamais connecté » si le membre ne s'est encore jamais connecté. La ligne N° de carte / sexe / date de naissance a été retirée de l'en-tête (ces informations restent dans l'onglet Informations). Pratique pour suivre qui a activé son accès.",
       "Comptes d'inscription — voir les « non-soumis » : nouveau filtre « Non soumis uniquement » qui affiche exactement les comptes parents qui se sont inscrits mais n'ont soumis aucune demande (les mêmes que ceux visés par le bouton « Relancer les non-soumis »). On peut ainsi voir la liste avant/après de les relancer.",
       "Fratries (onglet Doublons) — correction de navigation : l'onglet actif est mémorisé dans l'adresse, donc revenir en arrière depuis une fiche membre ramène au BON onglet (Doublons) au lieu de repartir sur « Suggestions ». De plus, cliquer sur un membre depuis les Fratries ouvre sa fiche dans un NOUVEL onglet, pour ne pas perdre votre place dans la liste.",

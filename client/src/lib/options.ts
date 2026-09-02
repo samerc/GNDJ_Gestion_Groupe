@@ -6,6 +6,9 @@ export const GENDER_OPTIONS = [
   { value: 'Féminin', label: 'Féminin' },
 ]
 
+// Parents' relationship status (household attribute). Same set the demande wizard uses; shown on the fiche.
+export const PARENTS_SITUATION_OPTIONS = ['Unis', 'Séparés', 'Divorcés']
+
 export const BLOOD_TYPE_OPTIONS = [
   { value: 'A+', label: 'A+' },
   { value: 'A-', label: 'A-' },

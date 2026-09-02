@@ -308,6 +308,8 @@ export default function AuditLogsPage() {
                 <div><span className="text-muted-foreground">Entité :</span> {ENTITY_LABELS[detail.entityType] ?? detail.entityType}{(() => { const s = entitySummary(detail); return s ? ` — ${s}` : '' })()}</div>
                 <div><span className="text-muted-foreground">ID Entité :</span> <span className="font-mono text-xs">{detail.entityId ?? '—'}</span></div>
                 <div><span className="text-muted-foreground">IP :</span> {detail.ipAddress ?? '—'}</div>
+                {/* Browser / device string — helpful to troubleshoot a login (which device the attempt came from). */}
+                <div className="col-span-2 break-words"><span className="text-muted-foreground">Navigateur :</span> <span className="text-xs">{detail.userAgent ?? '—'}</span></div>
               </div>
 
               {(detail.oldValues || detail.newValues) && (
