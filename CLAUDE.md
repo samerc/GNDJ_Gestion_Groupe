@@ -3950,7 +3950,31 @@ audit + an orphan-file scan). Verdict: the codebase is very clean (prior dead-co
       vulns, all `@tiptap/react`-related** — pre-existing advisory drift since the 2026-07-19 "0 vulns" check, NOT
       caused by this removal (verified: lockfile diff only dropped react-day-picker). Needs its own dependency-review
       pass (a blind `npm audit fix` risks breaking the TipTap editor — the 3.27.3 pin is deliberate, see the
-      2026-07-19 dep note). Backend NuGet still 0 vulns.
+      2026-07-19 dep note). Backend NuGet still 0 vulns. **→ RESOLVED same day, see below.**
+
+### Dependency update — all in-range + TipTap security fix (2026-09-03)
+Updated every dependency that could move without a known-breaking major, both stacks. Result: **npm 0 vulns,
+NuGet 0 vulns**, builds + 102 tests all clean. All on main, DEV until deploy.
+- **Frontend — TipTap security fix:** the 31 moderate `@tiptap/core` vulns (GHSA-cp6q-959q-f8rh, `mergeAttributes`
+      prototype-pollution, fixed >3.30.3) cleared by moving **all 9 `@tiptap/*` 3.27.3 → 3.31.2 TOGETHER** (single
+      `@tiptap/core@3.31.2`, no fragmentation — the exact failure mode the old 3.27.3 pin guarded against). npm's
+      incremental peer resolver ERESOLVE'd on a one-at-a-time upgrade of the interdependent peers → fixed by bumping
+      all `@tiptap` ranges to `^3.31.2` in package.json + a **clean `rm -rf node_modules package-lock.json && npm
+      install`** (also the `npm ci` deploy path), which resolves the graph at once AND moves every other `^` dep to
+      its latest in-range.
+- **Frontend — everything else in-range** (via the clean regenerate): @hookform/resolvers 5.4→5.9, react-query
+      5.101→5.102, @types/node 26.1→26.4, @vitejs/plugin-react 6.0→6.1, axios 1.18→1.20, dompurify 3.4.13→3.4.14,
+      eslint 10.8→10.9, lucide-react 1.26→1.40, react-hook-form 7.83→7.87, react-router 8.3.0→8.3.1, sonner 2.0.7→
+      2.0.8, typescript-eslint 8.65→8.69, vite 8.1.5→8.2.2, zod 4.4→4.5, zustand 5.0.14→5.0.15. tsc + eslint + vite
+      all clean.
+- **Backend — patch/minor + one test-tool major:** EF Core + AspNetCore (EntityFrameworkCore/.Design/.Relational/
+      .Tools, OpenApi, JwtBearer) **10.0.10 → 10.0.11**; ClosedXML 0.105.0→0.105.1; QuestPDF 2026.7.1→2026.8.0;
+      System.IdentityModel.Tokens.Jwt 8.21→8.22; Microsoft.NET.Test.Sdk 18.8.1→18.9.0; **xunit.runner.visualstudio
+      3.1.5 → 4.0.0 (major, test-only)**. Build 0/0, **102 tests pass** (validates the runner major), live login +
+      EF reads OK.
+- **DEFERRED (unchanged, known blocker):** TypeScript **6 → 7** — `typescript-eslint` still hard-fails on TS 7, so
+      the bump would break `eslint`/CI. Revisit when typescript-eslint ships TS 7 support (then it's a ~5-min bump).
+      Backend xunit core stays 2.9.3 (v3 is a migration, not a plain update).
 
 ### Login-screen announcement banners (2026-09-03)
 Configurable message shown prominently at the top of each login screen — member (`/login`) and applicant portal
