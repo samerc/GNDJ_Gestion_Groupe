@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { usePublicSiteConfig } from '@/services/public-service'
 import { LoginForm } from '@/components/auth/login-form'
 import { SupportNote } from '@/components/support-note'
+import { LoginAnnouncement } from '@/components/login-announcement'
 
 // "Espace membres" — login screen for existing members/chefs (JWT auth).
 // Anonymous-only: an already-authenticated user is bounced to /dashboard.
@@ -36,6 +37,8 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold tracking-tight">Espace membres</h1>
           <p className="mt-1 text-sm text-muted-foreground">Réservé aux membres déjà inscrits</p>
         </div>
+        {/* Admin-editable announcement banner (login.member_message) — shown prominently above the form. */}
+        <LoginAnnouncement message={config?.loginMessage} tone="primary" />
         <LoginForm />
         {/* Cross-link for parents who want to enroll a child (only while enrollment is open). Accent-tinted
             to echo the distinct teal theme of the "Demande d'inscription" space. */}

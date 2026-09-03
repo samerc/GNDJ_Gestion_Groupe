@@ -70,6 +70,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   cotisations: 'Cotisations',
   passage: 'Passage',
   demande: 'Inscriptions',
+  login: 'Connexion',
   general: 'Général',
   reports: 'Rapports',
   site: 'Site public',
@@ -78,7 +79,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   maintenance: 'Maintenance',
   advanced: 'Avancé',
 }
-const CATEGORY_ORDER = ['members', 'famille', 'documents', 'cotisations', 'passage', 'demande', 'email', 'security', 'general', 'reports', 'site', 'maintenance', 'advanced']
+const CATEGORY_ORDER = ['members', 'famille', 'documents', 'cotisations', 'passage', 'demande', 'login', 'email', 'security', 'general', 'reports', 'site', 'maintenance', 'advanced']
 
 // Keys pinned to the top of their category tab (rest keep their natural order). The two inscription
 // period switches (portal open + submission window) lead the "Inscriptions" tab so the CG sees them first.

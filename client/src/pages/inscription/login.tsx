@@ -5,6 +5,7 @@ import { useApplicantStore } from '@/stores/applicant-store'
 import { useApplicantConfig } from '@/services/applicant-service'
 import { emailDomain } from '@/lib/email-domain'
 import { ApplicantAuthShell } from '@/components/applicant/applicant-auth-shell'
+import { LoginAnnouncement } from '@/components/login-announcement'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -49,6 +50,8 @@ export default function ApplicantLoginPage() {
 
   return (
     <ApplicantAuthShell subtitle="Suivre votre demande d'inscription — GNDJ Scout">
+      {/* Admin-editable announcement banner (login.applicant_message) — shown prominently above the card. */}
+      <LoginAnnouncement message={config?.loginMessage} tone="accent" />
       <Card className="shadow-elevated">
         <CardHeader>
           <CardTitle className="text-2xl">Se connecter à votre demande</CardTitle>

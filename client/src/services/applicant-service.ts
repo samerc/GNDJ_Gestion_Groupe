@@ -26,6 +26,7 @@ export interface ApplicantConfig {
   activationLinkDays: number        // how long an accepted member's set-password link stays valid
   supportEmail: string | null       // demande.support_email — shown on the inscription pages for help (empty = hide)
   userDomain: string | null         // user_domain (e.g. "scouts.gndj") — to suggest the member portal for a chef's email
+  loginMessage: string | null       // login.applicant_message — announcement banner shown on the portal login (empty = none)
 }
 
 export interface ApplicantGuardian {

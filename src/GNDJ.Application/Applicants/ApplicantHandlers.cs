@@ -43,7 +43,10 @@ public record ApplicantConfigDto(bool IsOpen, bool SubmissionsOpen, string Scout
     string? SupportEmail = null,
     // Member-login email domain (user_domain, e.g. "scouts.gndj") — the portal login uses it to suggest the
     // member space when a typed email matches it (a chef on the wrong portal).
-    string? UserDomain = null);
+    string? UserDomain = null,
+    // LoginMessage = login.applicant_message — a free announcement banner shown at the top of the applicant
+    // portal login/register screens (empty/null = no banner).
+    string? LoginMessage = null);
 
 public record ApplicantGuardianDto(Guid? Id, string Relationship, string FirstName, string LastName, string? Profession, string? ProfessionDomain,
     string? PhoneCountryCode, string? PhoneNumber, string? Email, bool IsDeceased, bool IsPrimaryContact, bool IsEmergencyContact);
@@ -115,7 +118,7 @@ static class ApplicantHelpers
         "demande.notes_max_length", "demande.require_email_verification",
         "demande.max_scout_relations", "demande.terms", "demande.excluded_classe", "member.schools", "member.classes", "member.cities", "member.profession_domains",
         "demande.submission_start", "demande.submission_deadline", "demande.result_text_accepted", "demande.result_text_declined", "member.activation_link_days",
-        "demande.support_email", "user_domain"
+        "demande.support_email", "user_domain", "login.applicant_message"
     ];
 
     // Parses a yyyy-MM-dd setting into a DateOnly (null if empty/invalid).
@@ -170,9 +173,11 @@ static class ApplicantHelpers
         // indicate which unit a current-member relative belongs to, easing family matching for the CG.
         var units = await ctx.Units.Where(u => u.IsActive).OrderBy(u => u.Name).Select(u => u.Name).ToListAsync(ct);
 
+        var loginMessage = Get("login.applicant_message");
         return new ApplicantConfigDto(enabled, submissionsOpen, year, max, notesLen, requireVerify, schools, classes, cities, units, maxRelations, professionDomains, terms, excludedClasse,
             Get("demande.submission_start"), Get("demande.submission_deadline"), Get("demande.result_text_accepted"), Get("demande.result_text_declined"), activationDays,
-            Get("demande.support_email"), Get("user_domain"));
+            Get("demande.support_email"), Get("user_domain"),
+            string.IsNullOrWhiteSpace(loginMessage) ? null : loginMessage);
     }
 
     // Returns an error message if the applicant may NOT submit/edit right now (portal closed, or the submission

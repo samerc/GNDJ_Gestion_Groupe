@@ -18,6 +18,8 @@ public static class SettingsAccess
     private static readonly IReadOnlySet<string> CgCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         "demande", "documents", "cotisations", "passage", "members", "reports",
+        // "login" = the two login-screen announcement banners — an operational communication tool for the CG.
+        "login",
     };
 
     // True for a full admin (super-admin or associations.manage) — sees/edits everything.

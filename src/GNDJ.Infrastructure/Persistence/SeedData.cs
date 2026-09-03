@@ -693,6 +693,11 @@ public static class SeedData
             new() { Key = "demande.excluded_classe", Value = "6ème", Category = "demande", Label = "Classe non éligible (demande)", Description = "Classe exclue du formulaire de demande : un enfant dans cette classe ne peut pas s'inscrire (masquée du menu Classe + refusée à la soumission). Laisser vide pour ne pas exclure de classe.", ValueType = "string" },
             // Support address shown on the login + inscription pages ("en cas de problème, écrivez à …"). Empty = hide.
             new() { Key = "demande.support_email", Value = "demande@gndj.org", Category = "demande", Label = "Email d'aide (connexion / inscription)", Description = "Adresse affichée sur les pages de connexion et d'inscription en cas de problème (« pour toute difficulté, écrivez à … »). Laisser vide pour masquer le message.", ValueType = "string" },
+            // Free announcement banners shown at the top of the two login screens. Independent (member vs
+            // applicant portal) so the CG can show a message on one, the other, or both — same or different.
+            // Empty = no banner. Category "login" is CG-editable (Paramètres → Connexion).
+            new() { Key = "login.member_message", Value = "", Category = "login", Label = "Message — connexion membres", Description = "Message affiché bien en évidence en haut de l'écran de connexion des membres et chefs (« Espace membres »). Laisser vide pour ne rien afficher.", ValueType = "string" },
+            new() { Key = "login.applicant_message", Value = "", Category = "login", Label = "Message — connexion inscriptions", Description = "Message affiché bien en évidence en haut de l'écran de connexion du portail des inscriptions (parents / « Demande d'inscription »). Laisser vide pour ne rien afficher.", ValueType = "string" },
             // Managed list of rejection reasons (code + libellé + texte, one default). The CG edits it on the
             // "Motifs de refus" page; the Excel Décision column and the web decline dialog pick a reason by code.
             // The picked reason's text is stored as the demande's DecisionNotes and emailed as {{reason}}.

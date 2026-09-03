@@ -3933,6 +3933,22 @@ until deploy; verified live end-to-end.
       maîtrise off → unpaid 1076→1005 (71 maîtrise dropped), summary exempt 1→72, dues maîtrise line → 0; settings
       restored to defaults. Build clean (dotnet 0/0, tsc + eslint). Migration-free; setting seeds on prod startup.
 
+### Login-screen announcement banners (2026-09-03)
+Configurable message shown prominently at the top of each login screen — member (`/login`) and applicant portal
+(`/inscription/login`). Two INDEPENDENT settings so the CG can show a message on one, the other, or both, same or
+different. All on main, DEV until deploy; verified live.
+- **Settings `login.member_message` + `login.applicant_message`** (string, empty default = no banner) in a NEW
+      **`login` category** ("Connexion" tab, added to CATEGORY_ORDER/LABELS) that is **CG-editable**
+      (`SettingsAccess.CgCategories` += "login"). The `*message*` key auto-renders as a textarea (multi-line ok).
+- **Exposed via each screen's anonymous config:** member = `PublicSiteConfigDto.LoginMessage`
+      (`GET /public/site-config`); applicant = `ApplicantConfigDto.LoginMessage` (`GET /applicant/config`, added to
+      `ConfigKeys` + BuildConfig). Empty → null (banner hidden).
+- **Frontend:** shared `components/login-announcement.tsx` (`<LoginAnnouncement message tone>`) — a prominent
+      Megaphone callout (border-2 + shadow, whitespace-pre-line, break-words), `tone="primary"` on the member login
+      (navy) / `tone="accent"` on the applicant login (teal), rendered above the form; renders null when empty.
+- Verified live: setting each message → surfaces on the matching anonymous config endpoint; empty → null; builds
+      clean (dotnet 0/0, tsc + eslint + vite). Migration-free (settings seed on prod startup via SeedMissingSettings).
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a
