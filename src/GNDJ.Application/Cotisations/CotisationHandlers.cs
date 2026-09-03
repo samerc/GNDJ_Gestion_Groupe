@@ -585,8 +585,11 @@ public class GetAssociationDuesQueryHandler(IApplicationDbContext context, ICurr
 {
     public async ValueTask<AssociationDuesDto> Handle(GetAssociationDuesQuery request, CancellationToken ct)
     {
-        // Scope to the caller's units (a CG holds all units; super-admin bypasses) — same as the summary.
-        var query = context.MemberAssignments.Where(a => a.EndDate == null);
+        // Active members only = an OPEN assignment (EndDate == null) whose member isn't soft-deleted. This query
+        // never projects a.Member, so EF's soft-delete filter on the member wouldn't otherwise apply — spell it out
+        // so a member sitting in the Corbeille (soft-deleted, not yet purged) with a still-open assignment can't
+        // inflate the association dues.
+        var query = context.MemberAssignments.Where(a => a.EndDate == null && !a.Member.IsDeleted);
         if (!currentUser.IsSuperAdmin)
         {
             var authorized = currentUser.AuthorizedUnitIds;
