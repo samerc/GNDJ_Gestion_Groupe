@@ -3909,6 +3909,30 @@ Super-admin page (`/admin/sessions`, sidebar Système) to see who currently hold
       GET and disconnect; disconnecting a session → the account's next refresh **401** (session truly ended);
       re-login restores. Build clean (dotnet 0/0, tsc + eslint). Migration applies on prod startup; DEV until deploy.
 
+### Cotisation — « Dû aux associations » report + maîtrise-doesn't-pay toggle (2026-09-03)
+Completed the cotisation-per-association work (prior session added only the input settings). All on main, DEV
+until deploy; verified live end-to-end.
+- **New setting `cotisation.maitrise_pays`** (boolean, default true, category cotisations, auto-seeds via
+      SeedMissingSettings). A single global toggle "La maîtrise paie une cotisation". When OFF: maîtrise members
+      (any active `FunctionalRole.IsMaitrise` role) drop off the "à relancer"/impayés lists (counted as exempt in
+      the summary), the association-dues maîtrise line goes to 0, and their Ma fiche hides the cotisation. The
+      per-member "ne paiera pas" flag still works independently (for when the maîtrise DOES owe but one chef is
+      exempt).
+- **`GET /cotisations/association-dues?scoutYear=`** (`GetAssociationDuesQuery`, gated `maitrise.manage` — CG-only
+      internal figure). Per association: `amountPerMember` (from `cotisation.association_amounts`) × distinct YOUTH
+      members whose active unit belongs to that association, with two counts — ALL members vs those who PAID (≥1
+      payment line). **Maîtrise is a SEPARATE line** at `cotisation.maitrise_amount` (never mixed into an
+      association total); `pays=false` zeroes it. A member is "maîtrise" if ANY active role is IsMaitrise (excluded
+      from youth association counts). Scoped to the caller's units like the summary (CG holds all).
+- **Frontend:** new "Dû aux associations" card on `/admin/cotisations` (`cotisation-dashboard.tsx`) — a
+      Tous/Membres-ayant-payé segmented toggle + a table (Association · cotisation/membre · membres · total dû) +
+      Maîtrise row ("ne paie pas cette année" when off) + grand total. `MeResponse.IsMaitrise` added (via GetMeQuery)
+      so `MemberCotisations` (with a new `selfView` prop, set only from `/my-documents`) hides the "cotisation
+      attendue" banner for a maîtrise member when `cotisation.maitrise_pays=false`.
+- **Verified live:** dues math (GDL 12×513=6156, SDL 10×496=4960 [paid 3×10=30], Maîtrise 25×71=1775); toggling
+      maîtrise off → unpaid 1076→1005 (71 maîtrise dropped), summary exempt 1→72, dues maîtrise line → 0; settings
+      restored to defaults. Build clean (dotnet 0/0, tsc + eslint). Migration-free; setting seeds on prod startup.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

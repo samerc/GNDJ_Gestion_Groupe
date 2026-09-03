@@ -28,6 +28,23 @@ static class CotisationAccessHelper
         => MemberAccess.CanAccessMemberAsync(context, currentUser, memberId, ct);
 }
 
+// Maîtrise cotisation helpers. A "maîtrise member" = holds an active leadership (IsMaitrise) role; they pay
+// the maîtrise cotisation, not the youth one. The CG can globally turn the maîtrise cotisation off for the year
+// (cotisation.maitrise_pays = false) — then maîtrise members drop off the "à relancer"/impayés counts and the
+// association-dues report treats them as not paying.
+static class MaitriseCotisation
+{
+    // Is the maîtrise expected to pay this year? Defaults to true when the setting is missing.
+    public static async Task<bool> PaysAsync(IApplicationDbContext ctx, CancellationToken ct)
+        => (await ctx.Settings.Where(s => s.Key == "cotisation.maitrise_pays").Select(s => s.Value).FirstOrDefaultAsync(ct)) != "false";
+
+    // Of the given (active) members, which hold a maîtrise role. One query; returned as a set for in-memory use.
+    public static async Task<HashSet<Guid>> MemberIdsAsync(IApplicationDbContext ctx, ICollection<Guid> memberIds, CancellationToken ct)
+        => (await ctx.MemberAssignments
+            .Where(a => a.EndDate == null && a.FunctionalRole.IsMaitrise && memberIds.Contains(a.MemberId))
+            .Select(a => a.MemberId).Distinct().ToListAsync(ct)).ToHashSet();
+}
+
 // Get cotisations for a member
 public record GetMemberCotisationsQuery(Guid MemberId) : IRequest<Result<IReadOnlyList<MemberCotisationDto>>>;
 
@@ -389,6 +406,12 @@ public class GetCotisationSummaryQueryHandler(IApplicationDbContext context, ICu
         var paidSet = cotisations.Where(c => c.Payments.Count > 0).Select(c => c.MemberId).Distinct().ToHashSet();
         var exemptSet = cotisations.Where(c => c.WillNotPay && c.Payments.Count == 0).Select(c => c.MemberId).Distinct().ToHashSet();
 
+        // When "la maîtrise ne paie pas" is toggled off for the year, treat every (unpaid) maîtrise member as
+        // exempt so they don't read as "impayés" on the dashboard (mirrors the per-member "ne paiera pas").
+        if (!await MaitriseCotisation.PaysAsync(context, ct))
+            foreach (var id in await MaitriseCotisation.MemberIdsAsync(context, activeMemberIds, ct))
+                if (!paidSet.Contains(id)) exemptSet.Add(id);
+
         var totalsByCurrency = payments
             .GroupBy(p => p.Currency)
             .Select(g => new CurrencyTotalDto(g.Key, g.Sum(p => p.Amount), g.Count()))
@@ -453,6 +476,13 @@ public class GetUnpaidCotisationsQueryHandler(IApplicationDbContext context, ICu
             .Where(c => c.ScoutYear == request.ScoutYear && (c.WillNotPay || c.Payments.Any(p => !p.IsDeleted)))
             .Select(c => c.MemberId)
             .ToListAsync(ct);
+
+        // When the maîtrise doesn't pay this year, its members aren't "à relancer" — drop them from the list.
+        if (!await MaitriseCotisation.PaysAsync(context, ct))
+        {
+            var maitriseIds = await query.Where(a => a.FunctionalRole.IsMaitrise).Select(a => a.MemberId).Distinct().ToListAsync(ct);
+            settledMemberIds = settledMemberIds.Union(maitriseIds).ToList();
+        }
 
         // Materialize then dedup in memory — a member with two active assignments would appear twice.
         var rows = await query
@@ -531,6 +561,109 @@ public class GetPaidCotisationsQueryHandler(IApplicationDbContext context, ICurr
             })
             .OrderBy(r => r.UnitName).ThenBy(r => r.MemberName)
             .ToList();
+    }
+}
+
+// Association dues report: what the group owes each association for this scout year. Per association =
+// (its per-member amount, set in Settings) × (number of that association's youth members). "Maîtrise" is a
+// SEPARATE line at the maîtrise rate (cotisation.maitrise_amount), never mixed into an association total.
+// Two counts per row — ALL members vs members who PAID — so the CG can owe on the whole roster or only on
+// those who actually paid their cotisation. CG-only figure (the page is maitrise.manage-gated).
+public record GetAssociationDuesQuery(string ScoutYear) : IRequest<AssociationDuesDto>;
+
+public record AssociationDueRowDto(
+    Guid AssociationId, string AssociationName, decimal AmountPerMember,
+    int MembersAll, int MembersPaid, decimal TotalAll, decimal TotalPaid);
+// Maîtrise line. Pays = false when "la maîtrise ne paie pas" is toggled off (then the amount/totals are 0).
+public record MaitriseDueRowDto(
+    bool Pays, decimal AmountPerMember,
+    int MembersAll, int MembersPaid, decimal TotalAll, decimal TotalPaid);
+public record AssociationDuesDto(
+    string Currency, List<AssociationDueRowDto> Associations, MaitriseDueRowDto Maitrise);
+
+public class GetAssociationDuesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetAssociationDuesQuery, AssociationDuesDto>
+{
+    public async ValueTask<AssociationDuesDto> Handle(GetAssociationDuesQuery request, CancellationToken ct)
+    {
+        // Scope to the caller's units (a CG holds all units; super-admin bypasses) — same as the summary.
+        var query = context.MemberAssignments.Where(a => a.EndDate == null);
+        if (!currentUser.IsSuperAdmin)
+        {
+            var authorized = currentUser.AuthorizedUnitIds;
+            query = query.Where(a => authorized.Contains(a.UnitId));
+        }
+
+        // One active-assignment row per (member, unit): the member's association (from the unit) and whether the
+        // role is maîtrise. A member counts once per association (deduped below).
+        var rows = await query
+            .Select(a => new { a.MemberId, AssociationId = a.Unit.AssociationId, IsMaitrise = a.FunctionalRole.IsMaitrise })
+            .Distinct()
+            .ToListAsync(ct);
+
+        // A member is "maîtrise" if ANY active role is a leadership role — such members are counted only on the
+        // maîtrise line, never in a youth association total.
+        var maitriseSet = rows.Where(r => r.IsMaitrise).Select(r => r.MemberId).Distinct().ToHashSet();
+        var allMemberIds = rows.Select(r => r.MemberId).Distinct().ToList();
+
+        // Paid = a cotisation with ≥1 payment line this year (same definition used across the dashboard).
+        var paidSet = (await context.MemberCotisations
+            .Where(c => c.ScoutYear == request.ScoutYear && allMemberIds.Contains(c.MemberId) && c.Payments.Any(p => !p.IsDeleted))
+            .Select(c => c.MemberId).Distinct().ToListAsync(ct)).ToHashSet();
+
+        // Settings: per-association amounts, maîtrise amount + pays toggle, and the display currency.
+        var settings = await context.Settings
+            .Where(s => s.Key == "cotisation.association_amounts" || s.Key == "cotisation.maitrise_amount"
+                     || s.Key == "cotisation.maitrise_pays" || s.Key == "cotisation.default_currency")
+            .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
+
+        var currency = settings.GetValueOrDefault("cotisation.default_currency", "USD");
+        var maitrisePays = settings.GetValueOrDefault("cotisation.maitrise_pays", "true") != "false";
+        decimal.TryParse(settings.GetValueOrDefault("cotisation.maitrise_amount", "0"),
+            System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var maitriseAmount);
+
+        var assocAmounts = new Dictionary<Guid, decimal>();
+        if (settings.TryGetValue("cotisation.association_amounts", out var amountsJson) && !string.IsNullOrWhiteSpace(amountsJson))
+        {
+            try
+            {
+                var parsed = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, decimal>>(amountsJson);
+                if (parsed is not null)
+                    foreach (var (k, v) in parsed)
+                        if (Guid.TryParse(k, out var gid)) assocAmounts[gid] = v;
+            }
+            catch { /* ignore malformed json — treat as no amounts */ }
+        }
+
+        var associationNames = (await context.Associations.Select(a => new { a.Id, a.Name }).ToListAsync(ct))
+            .ToDictionary(a => a.Id, a => a.Name);
+
+        // Youth members grouped by association (maîtrise excluded; null-association assignments ignored). A member
+        // in two units of the same association is counted once; two different associations → counted in each.
+        var youthByAssoc = rows
+            .Where(r => r.AssociationId != null && !maitriseSet.Contains(r.MemberId))
+            .GroupBy(r => r.AssociationId!.Value)
+            .Select(g =>
+            {
+                var ids = g.Select(r => r.MemberId).Distinct().ToList();
+                var all = ids.Count;
+                var paid = ids.Count(id => paidSet.Contains(id));
+                var amount = assocAmounts.GetValueOrDefault(g.Key, 0m);
+                return new AssociationDueRowDto(
+                    g.Key, associationNames.GetValueOrDefault(g.Key, "Association"),
+                    amount, all, paid, all * amount, paid * amount);
+            })
+            .OrderBy(r => r.AssociationName)
+            .ToList();
+
+        // Maîtrise line (separate rate). When the maîtrise doesn't pay, amount/totals are 0.
+        var maitriseAll = maitriseSet.Count;
+        var maitrisePaid = maitriseSet.Count(id => paidSet.Contains(id));
+        var effAmount = maitrisePays ? maitriseAmount : 0m;
+        var maitriseRow = new MaitriseDueRowDto(
+            maitrisePays, effAmount, maitriseAll, maitrisePaid,
+            maitriseAll * effAmount, maitrisePaid * effAmount);
+
+        return new AssociationDuesDto(currency, youthByAssoc, maitriseRow);
     }
 }
 

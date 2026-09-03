@@ -47,7 +47,7 @@ export default function MyDocumentsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <MemberCotisations memberId={memberId} bare />
+          <MemberCotisations memberId={memberId} bare selfView />
         </CardContent>
       </Card>
     </div>

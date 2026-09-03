@@ -10,7 +10,7 @@ import { saveBlob } from '@/lib/download'
 import { useNavigate } from 'react-router'
 import {
   useCotisationSummary, useUnpaidCotisations, usePaidCotisations, useCreateCotisation, useSetCotisationExempt,
-  downloadReceipt, type UnpaidCotisationDto, type PaidCotisationDto,
+  useAssociationDues, downloadReceipt, type UnpaidCotisationDto, type PaidCotisationDto,
 } from '@/services/cotisation-service'
 import { useSettingValue } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { Receipt, Users, AlertTriangle, CheckCircle, Mail, Phone, Ban, Printer, Download, ChevronRight, Trash2, Plus } from 'lucide-react'
+import { Receipt, Users, AlertTriangle, CheckCircle, Mail, Phone, Ban, Printer, Download, ChevronRight, Trash2, Plus, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 
@@ -39,6 +39,10 @@ export default function CotisationDashboardPage() {
   const { data: summary, isLoading } = useCotisationSummary(scoutYear)
   const { data: unpaid } = useUnpaidCotisations(scoutYear)
   const { data: paid } = usePaidCotisations(scoutYear)
+  // Association dues report (what the group owes each association). "all" = owe for every member; "paid" =
+  // owe only for members who actually paid their cotisation.
+  const { data: dues } = useAssociationDues(scoutYear)
+  const [duesMode, setDuesMode] = useState<'all' | 'paid'>('all')
 
   // Shared mutations for the inline row actions (memberId passed per-call; queries invalidated below).
   const createCotisation = useCreateCotisation('')
@@ -145,6 +149,17 @@ export default function CotisationDashboardPage() {
     }
     return groups
   }, [paid])
+
+  // Grand totals for the association-dues table (association rows + the maîtrise line), in the selected mode.
+  const duesGrand = useMemo(() => {
+    if (!dues) return { members: 0, total: 0 }
+    const pick = <T,>(all: T, paid: T) => (duesMode === 'all' ? all : paid)
+    let members = 0, total = 0
+    for (const a of dues.associations) { members += pick(a.membersAll, a.membersPaid); total += pick(a.totalAll, a.totalPaid) }
+    members += pick(dues.maitrise.membersAll, dues.maitrise.membersPaid)
+    total += pick(dues.maitrise.totalAll, dues.maitrise.totalPaid)
+    return { members, total }
+  }, [dues, duesMode])
 
   const exportCsv = () => {
     if (!unpaid || unpaid.length === 0) return
@@ -454,6 +469,84 @@ export default function CotisationDashboardPage() {
             </CardContent>
           </Card>
         </>
+      )}
+
+      {/* Dû aux associations — what the group owes each association (per-member amount × members) + a separate
+          maîtrise line. Toggle between owing for ALL members vs only members who PAID. Internal CG figure. */}
+      {dues && (
+        <Card className="print-area">
+          <CardHeader>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" /> Dû aux associations</CardTitle>
+              {/* Segmented toggle: base the amount owed on everyone, or only on those who paid. */}
+              <div className="inline-flex rounded-md border no-print">
+                <Button variant={duesMode === 'all' ? 'default' : 'ghost'} size="sm" className="rounded-r-none"
+                  onClick={() => setDuesMode('all')}>Tous les membres</Button>
+                <Button variant={duesMode === 'paid' ? 'default' : 'ghost'} size="sm" className="rounded-l-none border-l"
+                  onClick={() => setDuesMode('paid')}>Membres ayant payé</Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Montant que le groupe verse à chaque association&nbsp;: cotisation par membre × nombre de membres
+              {duesMode === 'all' ? ' (tous les membres actifs)' : ' (uniquement ceux ayant payé leur cotisation)'}.
+              Configurez les montants dans Paramètres → Cotisations.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[480px]">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="px-3 py-2 font-medium">Association</th>
+                    <th className="px-3 py-2 font-medium text-right">Cotisation / membre</th>
+                    <th className="px-3 py-2 font-medium text-center">Membres</th>
+                    <th className="px-3 py-2 font-medium text-right">Total dû</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dues.associations.map((a, idx) => {
+                    const members = duesMode === 'all' ? a.membersAll : a.membersPaid
+                    const total = duesMode === 'all' ? a.totalAll : a.totalPaid
+                    return (
+                      <tr key={a.associationId} className={`border-b ${idx % 2 === 1 ? 'bg-muted/10' : ''}`}>
+                        <td className="px-3 py-2 font-medium">{a.associationName}</td>
+                        <td className="px-3 py-2 text-right">
+                          {a.amountPerMember > 0
+                            ? formatMoney(a.amountPerMember, dues.currency)
+                            : <span className="text-orange-600" title="Aucun montant configuré pour cette association">— à définir</span>}
+                        </td>
+                        <td className="px-3 py-2 text-center">{members}</td>
+                        <td className="px-3 py-2 text-right font-semibold">{formatMoney(total, dues.currency)}</td>
+                      </tr>
+                    )
+                  })}
+                  {/* Maîtrise line — its own rate; shows "Ne paie pas cette année" when the toggle is off. */}
+                  <tr className="border-b bg-primary/5">
+                    <td className="px-3 py-2 font-medium">
+                      Maîtrise
+                      {!dues.maitrise.pays && <span className="ml-2 text-xs text-slate-500">(ne paie pas cette année)</span>}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      {dues.maitrise.pays ? formatMoney(dues.maitrise.amountPerMember, dues.currency) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-3 py-2 text-center">{duesMode === 'all' ? dues.maitrise.membersAll : dues.maitrise.membersPaid}</td>
+                    <td className="px-3 py-2 text-right font-semibold">
+                      {formatMoney(duesMode === 'all' ? dues.maitrise.totalAll : dues.maitrise.totalPaid, dues.currency)}
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 font-semibold">
+                    <td className="px-3 py-2">Total</td>
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2 text-center">{duesGrand.members}</td>
+                    <td className="px-3 py-2 text-right text-primary">{formatMoney(duesGrand.total, dues.currency)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Record-payment dialog — one date, one or more payment lines (amount + currency + method) */}

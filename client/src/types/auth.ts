@@ -37,6 +37,9 @@ export interface MeResponse {
   // True once the member has seen the first-login welcome tour (server flag). The client shows the carousel to
   // regular members (not chefs) while this is false. Set optimistically after the tour is dismissed/finished.
   hasSeenOnboarding?: boolean
+  // True when the member holds an active maîtrise (leadership) role — pays the maîtrise cotisation, not the
+  // youth one. Lets Ma fiche hide the cotisation when "la maîtrise ne paie pas" is toggled off.
+  isMaitrise?: boolean
 }
 
 export interface UnitAccess {

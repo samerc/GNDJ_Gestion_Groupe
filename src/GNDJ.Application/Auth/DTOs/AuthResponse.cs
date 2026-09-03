@@ -42,7 +42,10 @@ public record MeResponse(
     string? SuggestedPhone = null,
     // True once the member has seen the first-login welcome tour (server flag). The client shows the carousel
     // to regular members (not chefs) while this is false; chefs get the printed guide instead.
-    bool HasSeenOnboarding = false
+    bool HasSeenOnboarding = false,
+    // True when the member holds at least one active maîtrise (leadership) role — i.e. pays the maîtrise
+    // cotisation, not the youth one. Lets Ma fiche hide the cotisation when "la maîtrise ne paie pas" is on.
+    bool IsMaitrise = false
 );
 
 public record UnitAccessDto(

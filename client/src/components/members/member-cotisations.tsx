@@ -40,10 +40,17 @@ interface Props {
   // When true, render the list/controls WITHOUT the self-contained Card + "Cotisations" title, so a
   // parent page can provide its own section header (e.g. the member "Mes documents" page). Default: card.
   bare?: boolean
+  // True only on the member's OWN Ma fiche (not a leader viewing a member). When set, a maîtrise member's
+  // "cotisation attendue" banner is hidden if the CG turned the maîtrise cotisation off for the year.
+  selfView?: boolean
 }
 
-export function MemberCotisations({ memberId, memberName, bare }: Props) {
-  const { hasPermission } = useAuthStore()
+export function MemberCotisations({ memberId, memberName, bare, selfView }: Props) {
+  const { hasPermission, user } = useAuthStore()
+  // "La maîtrise ne paie pas cette année" — hide the expected-cotisation banner on a maîtrise member's own
+  // fiche (they aren't nagged). Only affects the self view; a receipt they DID pay still shows.
+  const maitrisePays = useSettingValue('cotisation.maitrise_pays')
+  const hideMaitriseExpected = !!selfView && !!user?.isMaitrise && maitrisePays === 'false'
   const { data: cotisations, isLoading } = useMemberCotisations(memberId)
   const defaultAmount = useSettingValue('cotisation.default_amount')
   const currentScoutYear = useCurrentScoutYear()
@@ -210,7 +217,7 @@ export function MemberCotisations({ memberId, memberName, bare }: Props) {
                   <CheckCircle2 className="h-4 w-4" />Cotisation payée pour {year}
                 </span>
               </div>
-            ) : (
+            ) : hideMaitriseExpected ? null : (
               <div className="mb-3 flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
                 <span className="flex items-center gap-2 text-sm">
                   <Ban className={`h-4 w-4 ${isExempt ? 'text-slate-600' : 'text-muted-foreground'}`} />
@@ -226,9 +233,9 @@ export function MemberCotisations({ memberId, memberName, bare }: Props) {
             // Drop exemption marker rows (no payments) — only show actual paid cotisations.
             const realCotisations = (cotisations ?? []).filter(c => c.payments.length > 0)
             return realCotisations.length === 0 ? (
-            // When the member is exempt ("ne paiera pas"), the status banner already says so —
-            // don't also show the "no cotisation recorded" line (it reads as a contradiction).
-            isExempt ? null : <p className="text-sm text-muted-foreground">Aucune cotisation enregistrée.</p>
+            // When the member is exempt ("ne paiera pas") — or a maîtrise member the year the maîtrise doesn't
+            // pay — don't show the "no cotisation recorded" line (it reads as a contradiction / a nag).
+            (isExempt || hideMaitriseExpected) ? null : <p className="text-sm text-muted-foreground">Aucune cotisation enregistrée.</p>
           ) : (
             <div className="space-y-3">
               {realCotisations.map(c => (

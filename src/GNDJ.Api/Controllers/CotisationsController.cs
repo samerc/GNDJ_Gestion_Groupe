@@ -123,4 +123,19 @@ public class CotisationsController : BaseApiController
         var result = await Mediator.Send(new GetCotisationSummaryQuery(scoutYear));
         return Ok(result);
     }
+
+    /// <summary>
+    /// What the group owes each association for the scout year (per-member amount × members), plus a separate
+    /// maîtrise line. Internal CG figure — requires maitrise.manage (Chef de Groupe / super-admin).
+    /// </summary>
+    /// <param name="scoutYear">Required scout year (e.g. "2025-2026").</param>
+    [HttpGet("association-dues")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> GetAssociationDues([FromQuery] string scoutYear)
+    {
+        if (string.IsNullOrWhiteSpace(scoutYear))
+            return BadRequest(new { error = "L'année scoute est requise." });
+        var result = await Mediator.Send(new GetAssociationDuesQuery(scoutYear));
+        return Ok(result);
+    }
 }

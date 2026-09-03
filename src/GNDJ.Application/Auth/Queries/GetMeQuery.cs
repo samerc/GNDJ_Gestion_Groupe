@@ -51,6 +51,12 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
             a.MemberId == user.MemberId && a.EndDate == null && a.TeamId != null && a.FunctionalRole.IsTeamLeader,
             cancellationToken);
 
+        // Does this member hold a maîtrise (leadership) role? Drives whether their cotisation is the maîtrise one
+        // (hidden from Ma fiche when "la maîtrise ne paie pas" is toggled off).
+        var isMaitrise = await _context.MemberAssignments.AnyAsync(a =>
+            a.MemberId == user.MemberId && a.EndDate == null && a.FunctionalRole.IsMaitrise,
+            cancellationToken);
+
         // Leader first-login contact check: a real leader (holds a leadership OR group-level role — NOT a
         // super-admin by flag) who hasn't confirmed their personal email + phone is prompted once to verify them.
         var isLeader = unitAccess.Any(u => u.IsLeader || u.IsGroupLevel);
@@ -85,7 +91,8 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
             suggestedEmail,
             suggestedPhoneCountry,
             suggestedPhone,
-            user.Member.OnboardingSeenAt != null
+            user.Member.OnboardingSeenAt != null,
+            isMaitrise
         ));
     }
 }

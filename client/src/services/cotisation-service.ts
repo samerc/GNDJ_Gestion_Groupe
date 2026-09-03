@@ -184,6 +184,41 @@ export function usePaidCotisations(scoutYear: string) {
   })
 }
 
+// ── Association dues report (what the group owes each association) ─────────────────────────────────
+// Per association: per-member amount × members (two counts: all vs paid). Maîtrise is a separate line at
+// the maîtrise rate. Internal CG figure (maitrise.manage).
+export interface AssociationDueRowDto {
+  associationId: string
+  associationName: string
+  amountPerMember: number
+  membersAll: number
+  membersPaid: number
+  totalAll: number
+  totalPaid: number
+}
+export interface MaitriseDueRowDto {
+  pays: boolean
+  amountPerMember: number
+  membersAll: number
+  membersPaid: number
+  totalAll: number
+  totalPaid: number
+}
+export interface AssociationDuesDto {
+  currency: string
+  associations: AssociationDueRowDto[]
+  maitrise: MaitriseDueRowDto
+}
+
+// GET /cotisations/association-dues — dues owed per association + maîtrise line for the year; requires scoutYear.
+export function useAssociationDues(scoutYear: string) {
+  return useQuery({
+    queryKey: ['cotisations', 'association-dues', scoutYear],
+    queryFn: () => apiClient.get<AssociationDuesDto>('/cotisations/association-dues', { params: { scoutYear } }).then(r => r.data),
+    enabled: !!scoutYear,
+  })
+}
+
 // GET /cotisations/{id}/receipt — receipt PDF as a blob (not a hook).
 export function downloadReceipt(id: string) {
   return apiClient.get(`/cotisations/${id}/receipt`, { responseType: 'blob' })
