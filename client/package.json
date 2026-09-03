@@ -46,7 +46,6 @@
     "libphonenumber-js": "^1.13.12",
     "lucide-react": "^1.23.0",
     "react": "^19.2.6",
-    "react-day-picker": "^10.0.1",
     "react-dom": "^19.2.6",
     "react-hook-form": "^7.77.0",
     "react-resizable-panels": "^4.11.2",

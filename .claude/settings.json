@@ -35,7 +35,9 @@
       "Bash(curl -s -o /dev/null -w \"api=%{http_code}\\\\n\" http://localhost:5000/health)",
       "Bash(rm -f temp/groups_page.png)",
       "Bash(npx vite *)",
-      "Bash(git reset *)"
+      "Bash(git reset *)",
+      "Bash(grep -E \"Command$|Query$\" /tmp/all_records.txt | wc -l)",
+      "Read(//tmp/**)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Administrator\\Desktop\\BP 2026",

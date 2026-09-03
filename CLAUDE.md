@@ -3933,6 +3933,25 @@ until deploy; verified live end-to-end.
       maîtrise off → unpaid 1076→1005 (71 maîtrise dropped), summary exempt 1→72, dues maîtrise line → 0; settings
       restored to defaults. Build clean (dotnet 0/0, tsc + eslint). Migration-free; setting seeds on prod startup.
 
+### Dead-code / unused audit + 2 unused-dep removals (2026-09-03)
+Full codebase sweep for anything unused (2 parallel Explore agents [frontend + backend] + a scripted settings
+audit + an orphan-file scan). Verdict: the codebase is very clean (prior dead-code passes hold). Findings:
+- **Removed `AutoMapper`** (NuGet, GNDJ.Application.csproj) — 0 uses in src + tests, no `AddAutoMapper`/Profile/
+      IMapper anywhere (the app maps manually + projects to DTOs). **Removed `react-day-picker`** (npm,
+      client/package.json) — 0 imports (orphaned when `ui/calendar.tsx` was deleted 2026-07-06; dropped it + its
+      unique transitive `@date-fns/tz`, 34 lockfile deletions, nothing added). Both builds clean after removal
+      (dotnet 0/0, tsc+eslint+vite).
+- **Settings: all 70 seeded keys are referenced** (scripted key-vs-usage check) — no orphan settings (the team
+      already prunes dead ones, e.g. `demande.intro_text` via patch 010).
+- **No dead frontend files** (orphan-file scan corrected for `React.lazy(()=>import())` → 0), no unused
+      exports/routes; **no orphan backend commands/queries/DTOs/services/entities/DbSets** (every IRequest is Sent
+      by a controller; all ~76 DbSets queried).
+- **FLAGGED (separate, NOT fixed — out of scope of this cleanup):** `npm audit` now reports **31 moderate prod
+      vulns, all `@tiptap/react`-related** — pre-existing advisory drift since the 2026-07-19 "0 vulns" check, NOT
+      caused by this removal (verified: lockfile diff only dropped react-day-picker). Needs its own dependency-review
+      pass (a blind `npm audit fix` risks breaking the TipTap editor — the 3.27.3 pin is deliberate, see the
+      2026-07-19 dep note). Backend NuGet still 0 vulns.
+
 ### Login-screen announcement banners (2026-09-03)
 Configurable message shown prominently at the top of each login screen — member (`/login`) and applicant portal
 (`/inscription/login`). Two INDEPENDENT settings so the CG can show a message on one, the other, or both, same or
