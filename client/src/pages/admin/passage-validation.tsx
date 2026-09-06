@@ -18,6 +18,7 @@ import {
   useFinalizePassages,
   type PassageDto,
 } from '@/services/passage-service'
+import { PassageProjection } from '@/components/passage/passage-projection'
 import { useUnits } from '@/services/unit-service'
 import { useTeams, teamsForSelect } from '@/services/team-service'
 import { useFunctionalRoles } from '@/services/role-service'
@@ -389,6 +390,9 @@ export default function PassageValidationPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Next-year projection (CG simulation — assumes all lines approved, toggle to réel) */}
+      <PassageProjection scoutYear={scoutYear} />
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">

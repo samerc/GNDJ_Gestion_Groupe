@@ -3952,6 +3952,31 @@ audit + an orphan-file scan). Verdict: the codebase is very clean (prior dead-co
       pass (a blind `npm audit fix` risks breaking the TipTap editor — the 3.27.3 pin is deliberate, see the
       2026-07-19 dep note). Backend NuGet still 0 vulns. **→ RESOLVED same day, see below.**
 
+### Passage — "next year" projection / simulation (2026-09-06)
+CG can preview each unit's coming-year roster on `/admin/passage-validation` BEFORE doing the approval work.
+Requested because the real rosters only change on FINALIZE (approved lines). All on main, DEV until deploy;
+verified live.
+- **Backend** `GetPassageProjectionQuery(scoutYear)` (`GET /passages/projection`, `[HasPermission(PassageManage)]`
+      + IsSuperAdmin handler gate — same as the sibling GetAllPassages/GetPassageSummary, so consistent with the
+      super-admin-only passage page). Returns RAW per-member movement + unit metadata (not precomputed per mode) so
+      the client computes BOTH modes with no refetch: each active member → `{currentUnitId, lineStatus
+      (None/Pending/Approved/Rejected), isLeaving, destUnitId=Final??Proposed}`; plus units (code/name/type/quota/
+      age) + `missingLines`. Universe = active members; a member with no line (or a Rejected one) is assumed to STAY;
+      **Finalized lines are skipped** (already applied to the assignment).
+- **Frontend** `components/passage/passage-projection.tsx` — a collapsible "Projection de l'année prochaine" panel
+      (lazy-fetched on open) after the summary cards. **Mode toggle**: Simulation (default — Pending+Approved all
+      treated as approved) vs Réel (Approved only; Pending = member stays). Per-unit table Actuel → Arrivées(+) /
+      Départs(−) → Projeté (red when > quota); click a unit to expand **Restent / Arrivent (depuis X) / Partent
+      (→ Y or quitte le groupe)** member lists. Group totals (now / next year / quittent) + a "N sans proposition,
+      supposés rester" caveat. `effectiveDest(member, mode)` is the whole rule (Approved always applies; Pending
+      only in simulation; None/Rejected stay).
+- **Verified live:** CU (no passage.manage) → 403; super-admin → 17 units / 1080 members / 1072 assumed-stay; the
+      real M2 lines (1 move → T10, 1 leaver) give M2 75→73, T10 80→81; a temp Pending move proved SIM counts it
+      (M2 72 / T10 82) while RÉEL doesn't (M2 73 / T10 81), then reverted. Builds clean (dotnet 0/0, tsc+eslint+vite).
+- NOTE: the passage page (GetAllPassages/GetPassageSummary/projection) is **super-admin-only** at the handler
+      level despite the `passage.manage` controller attribute — a pre-existing inconsistency, kept as-is (the
+      projection matches it). If passage is ever opened to a non-super-admin CG, relax all three together.
+
 ### Dependency update — all in-range + TipTap security fix (2026-09-03)
 Updated every dependency that could move without a known-breaking major, both stacks. Result: **npm 0 vulns,
 NuGet 0 vulns**, builds + 102 tests all clean. All on main, DEV until deploy.

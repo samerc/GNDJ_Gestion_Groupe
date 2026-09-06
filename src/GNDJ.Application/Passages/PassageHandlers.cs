@@ -240,6 +240,92 @@ public class GetPassageSummaryQueryHandler(IApplicationDbContext context, ICurre
     }
 }
 
+// ============================================================
+// 3b. GetPassageProjection — CG "next year" simulation (super-admin, like the summary/review queries).
+// Lets the CG preview each unit's roster for the COMING year before doing all the approval work. Returns the
+// raw per-member movement + unit metadata so the client can compute BOTH modes without a refetch:
+//   • Simulation (default): treat every PENDING and APPROVED line as approved (the "what-if all approved").
+//   • Réel: apply only APPROVED lines — a pending line = not yet decided, so the member is still counted where
+//     they are now.
+// Members with NO line (or a REJECTED one) are assumed to STAY in their current unit. FINALIZED lines are
+// skipped (already applied — the member's active assignment is the new unit). MissingLines is surfaced as a
+// caveat (how many active members have no proposal yet, all assumed to stay).
+// ============================================================
+public record GetPassageProjectionQuery(string ScoutYear) : IRequest<Result<PassageProjectionDto>>;
+
+public record PassageProjectionUnitDto(
+    Guid UnitId, string UnitCode, string UnitName, Guid UnitTypeId, string? UnitTypeName,
+    int? Quota, int? AgeMin, int? AgeMax);
+// LineStatus: "None" | "Pending" | "Approved" | "Rejected". DestUnitId = FinalUnitId ?? ProposedUnitId
+// (null when leaving or no line). IsLeaving = the member quits the group next year.
+public record PassageProjectionMemberDto(
+    Guid MemberId, string MemberName, Guid CurrentUnitId,
+    string LineStatus, bool IsLeaving, Guid? DestUnitId);
+public record PassageProjectionDto(
+    string ScoutYear, int MissingLines,
+    IReadOnlyList<PassageProjectionUnitDto> Units,
+    IReadOnlyList<PassageProjectionMemberDto> Members);
+
+public class GetPassageProjectionQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetPassageProjectionQuery, Result<PassageProjectionDto>>
+{
+    public async ValueTask<Result<PassageProjectionDto>> Handle(GetPassageProjectionQuery request, CancellationToken ct)
+    {
+        // Group-wide preview — same access as the summary/review queries on this page.
+        if (!currentUser.IsSuperAdmin)
+            return Result<PassageProjectionDto>.Failure("Accès réservé aux super administrateurs.");
+
+        // Who's active now (the projection universe) with name + current unit.
+        var active = await context.MemberAssignments
+            .Where(a => a.EndDate == null)
+            .Select(a => new { a.MemberId, Name = a.Member.FirstName + " " + a.Member.LastName, a.UnitId })
+            .ToListAsync(ct);
+
+        // This year's lines that still represent a pending movement/decision. Finalized = already applied
+        // (skip — the assignment already moved); rejected kept so we can show the member as "stays".
+        var lines = await context.Passages
+            .Where(p => p.ScoutYear == request.ScoutYear && p.Status != PassageStatus.Finalized)
+            .Select(p => new { p.MemberId, p.CurrentUnitId, p.Status, p.IsLeaving, Dest = p.FinalUnitId ?? p.ProposedUnitId })
+            .ToListAsync(ct);
+        var lineByMember = lines.GroupBy(l => l.MemberId).ToDictionary(g => g.Key, g => g.First());
+
+        // One projection row per active member (a member with >1 active assignment uses their line's current
+        // unit if present, else their first assignment unit).
+        var members = active
+            .GroupBy(a => a.MemberId)
+            .Select(g =>
+            {
+                var line = lineByMember.GetValueOrDefault(g.Key);
+                var currentUnit = line?.CurrentUnitId ?? g.First().UnitId;
+                var status = line?.Status ?? "None";
+                var isLeaving = line?.IsLeaving ?? false;
+                Guid? dest = (line is not null && !isLeaving) ? line.Dest : null;
+                return new PassageProjectionMemberDto(g.Key, g.First().Name, currentUnit, status, isLeaving, dest);
+            })
+            .ToList();
+
+        var missingLines = members.Count(m => m.LineStatus == "None");
+
+        // Unit metadata: every active unit + any unit referenced as a current/destination unit.
+        var quotas = await context.UnitIntakeQuotas.Where(q => q.ScoutYear == request.ScoutYear)
+            .ToDictionaryAsync(q => q.UnitId, q => q.Quota, ct);
+        var referenced = members.Select(m => m.CurrentUnitId)
+            .Concat(members.Where(m => m.DestUnitId is not null).Select(m => m.DestUnitId!.Value))
+            .Distinct().ToHashSet();
+        var unitRows = await context.Units
+            .Where(u => u.IsActive || referenced.Contains(u.Id))
+            .Select(u => new { u.Id, u.Code, u.Name, u.UnitTypeId, TypeName = u.UnitType.Name, u.UnitType.AgeMin, u.UnitType.AgeMax })
+            .ToListAsync(ct);
+        var units = unitRows
+            .Select(u => new PassageProjectionUnitDto(u.Id, u.Code, u.Name, u.UnitTypeId, u.TypeName,
+                quotas.TryGetValue(u.Id, out var q) ? q : (int?)null, u.AgeMin, u.AgeMax))
+            .OrderBy(u => u.UnitCode)
+            .ToList();
+
+        return Result<PassageProjectionDto>.Success(new PassageProjectionDto(
+            request.ScoutYear, missingLines, units, members));
+    }
+}
+
 // 4. IsPassageOpen — Checks if passage is enabled for this year
 public record IsPassageOpenQuery(string ScoutYear) : IRequest<Result<PassageStatusDto>>;
 public record PassageStatusDto(bool IsOpen, string ScoutYear);

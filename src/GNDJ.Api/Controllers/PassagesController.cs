@@ -56,6 +56,23 @@ public class PassagesController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>
+    /// CG "next year" projection: per-unit roster preview for the coming year. Returns raw per-member movement +
+    /// unit metadata so the client can toggle between simulation (all pending+approved lines applied) and réel
+    /// (approved only). Requires passage.manage.
+    /// </summary>
+    /// <param name="scoutYear">Required scout year scoping the round.</param>
+    [HttpGet("projection")]
+    [HasPermission(Permissions.PassageManage)]
+    public async Task<IActionResult> GetPassageProjection([FromQuery] string scoutYear)
+    {
+        if (string.IsNullOrWhiteSpace(scoutYear))
+            return BadRequest(new { error = "L'année scoute est requise." });
+        var result = await Mediator.Send(new GetPassageProjectionQuery(scoutYear));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     /// <summary>Reports whether the CG has opened the passage round for the year. Auth-only (no permission required).</summary>
     /// <param name="scoutYear">Scout year to check.</param>
     [HttpGet("status")]

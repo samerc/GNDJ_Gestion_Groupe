@@ -66,6 +66,33 @@ export interface PassageStatusDto {
   scoutYear: string
 }
 
+// ── "Next year" projection (CG simulation) ────────────────────────────────────────────────────────
+export interface PassageProjectionUnit {
+  unitId: string
+  unitCode: string
+  unitName: string
+  unitTypeId: string
+  unitTypeName: string | null
+  quota: number | null
+  ageMin: number | null
+  ageMax: number | null
+}
+// lineStatus: 'None' | 'Pending' | 'Approved' | 'Rejected'. destUnitId = final ?? proposed (null if leaving/no line).
+export interface PassageProjectionMember {
+  memberId: string
+  memberName: string
+  currentUnitId: string
+  lineStatus: string
+  isLeaving: boolean
+  destUnitId: string | null
+}
+export interface PassageProjectionDto {
+  scoutYear: string
+  missingLines: number
+  units: PassageProjectionUnit[]
+  members: PassageProjectionMember[]
+}
+
 // GET /passages/unit/{unitId} — passage lines for one unit (CU page); requires scoutYear. Unit-scoped.
 export function usePassagesByUnit(unitId: string, scoutYear: string) {
   return useQuery({
@@ -90,6 +117,15 @@ export function usePassageSummary(scoutYear: string) {
     queryKey: ['passages', 'summary', scoutYear],
     queryFn: () => apiClient.get<PassageSummaryDto>(`/passages/summary`, { params: { scoutYear } }).then(r => r.data),
     enabled: !!scoutYear,
+  })
+}
+
+// GET /passages/projection — CG "next year" preview (raw movement + unit meta; client computes both modes).
+export function usePassageProjection(scoutYear: string, enabled = true) {
+  return useQuery({
+    queryKey: ['passages', 'projection', scoutYear],
+    queryFn: () => apiClient.get<PassageProjectionDto>('/passages/projection', { params: { scoutYear } }).then(r => r.data),
+    enabled: !!scoutYear && enabled,
   })
 }
 
