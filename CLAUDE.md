@@ -3973,9 +3973,16 @@ verified live.
 - **Verified live:** CU (no passage.manage) → 403; super-admin → 17 units / 1080 members / 1072 assumed-stay; the
       real M2 lines (1 move → T10, 1 leaver) give M2 75→73, T10 80→81; a temp Pending move proved SIM counts it
       (M2 72 / T10 82) while RÉEL doesn't (M2 73 / T10 81), then reverted. Builds clean (dotnet 0/0, tsc+eslint+vite).
-- NOTE: the passage page (GetAllPassages/GetPassageSummary/projection) is **super-admin-only** at the handler
-      level despite the `passage.manage` controller attribute — a pre-existing inconsistency, kept as-is (the
-      projection matches it). If passage is ever opened to a non-super-admin CG, relax all three together.
+- **Passage page opened to the CG (2026-09-06, same session):** the whole passage flow had a redundant
+      `IsSuperAdmin` handler gate on top of the `[HasPermission(PassageManage)]` controller attribute — so a real
+      Chef de Groupe (passage.manage, not super-admin) got "Accès réservé aux super administrateurs" (400) on the
+      page despite the frontend route + sidebar already being passage.manage-gated. The passage page is a **CG
+      tool** (confirmed by the user), so all 7 handlers (GetAllPassages, GetPassageSummary, GetPassageProjection,
+      ReviewPassage, BulkReviewPassage, FinalizePassages, TogglePassage) now gate on
+      `IsSuperAdmin || Permissions.Contains(PassageManage)` (defense-in-depth behind the controller attribute; all
+      passage.manage holders are group-level = all units, so the group-wide views are appropriate). Verified live:
+      a real CG (thea-maria.tayar) gets 200 on list/summary/projection + passes review/finalize auth; a CU without
+      passage.manage stays 403 at the controller.
 
 ### Dependency update — all in-range + TipTap security fix (2026-09-03)
 Updated every dependency that could move without a known-breaking major, both stacks. Result: **npm 0 vulns,

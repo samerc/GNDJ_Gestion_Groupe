@@ -122,8 +122,11 @@ public class GetAllPassagesQueryHandler(IApplicationDbContext context, ICurrentU
 {
     public async ValueTask<Result<IReadOnlyList<PassageDto>>> Handle(GetAllPassagesQuery request, CancellationToken ct)
     {
-        if (!currentUser.IsSuperAdmin)
-            return Result<IReadOnlyList<PassageDto>>.Failure("Accès réservé aux super administrateurs.");
+        // CG-level view: the passage page is for the Chef de Groupe (passage.manage). Enforced by the
+        // controller [HasPermission]; kept here as defense-in-depth. All passage.manage holders are group-level
+        // (granted all units at login), so this group-wide read is appropriate.
+        if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.PassageManage))
+            return Result<IReadOnlyList<PassageDto>>.Failure("Accès réservé à la maîtrise de groupe.");
 
         var today = LebanonClock.Today;
 
@@ -171,8 +174,9 @@ public class GetPassageSummaryQueryHandler(IApplicationDbContext context, ICurre
 {
     public async ValueTask<Result<PassageSummaryDto>> Handle(GetPassageSummaryQuery request, CancellationToken ct)
     {
-        if (!currentUser.IsSuperAdmin)
-            return Result<PassageSummaryDto>.Failure("Accès réservé aux super administrateurs.");
+        // CG-level view (passage.manage) — see GetAllPassages note. Controller-gated; defense-in-depth here.
+        if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.PassageManage))
+            return Result<PassageSummaryDto>.Failure("Accès réservé à la maîtrise de groupe.");
 
         var passages = await context.Passages
             .Where(p => p.ScoutYear == request.ScoutYear)
@@ -270,9 +274,9 @@ public class GetPassageProjectionQueryHandler(IApplicationDbContext context, ICu
 {
     public async ValueTask<Result<PassageProjectionDto>> Handle(GetPassageProjectionQuery request, CancellationToken ct)
     {
-        // Group-wide preview — same access as the summary/review queries on this page.
-        if (!currentUser.IsSuperAdmin)
-            return Result<PassageProjectionDto>.Failure("Accès réservé aux super administrateurs.");
+        // Group-wide preview — CG-level (passage.manage). Controller-gated; defense-in-depth here.
+        if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.PassageManage))
+            return Result<PassageProjectionDto>.Failure("Accès réservé à la maîtrise de groupe.");
 
         // Who's active now (the projection universe) with name + current unit.
         var active = await context.MemberAssignments
@@ -643,8 +647,9 @@ public class ReviewPassageCommandHandler(IApplicationDbContext context, ICurrent
 {
     public async ValueTask<Result<bool>> Handle(ReviewPassageCommand request, CancellationToken ct)
     {
-        if (!currentUser.IsSuperAdmin)
-            return Result<bool>.Failure("Accès réservé aux super administrateurs.");
+        // CG-level operation (passage.manage) — controller-gated; defense-in-depth here.
+        if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.PassageManage))
+            return Result<bool>.Failure("Accès réservé à la maîtrise de groupe.");
 
         var passage = await context.Passages.FindAsync([request.Id], ct);
         if (passage is null)
@@ -719,8 +724,9 @@ public class BulkReviewPassageCommandHandler(IApplicationDbContext context, ICur
 {
     public async ValueTask<Result<int>> Handle(BulkReviewPassageCommand request, CancellationToken ct)
     {
-        if (!currentUser.IsSuperAdmin)
-            return Result<int>.Failure("Accès réservé aux super administrateurs.");
+        // CG-level operation (passage.manage) — controller-gated; defense-in-depth here.
+        if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.PassageManage))
+            return Result<int>.Failure("Accès réservé à la maîtrise de groupe.");
 
         if (request.Status != PassageStatus.Approved && request.Status != PassageStatus.Rejected)
             return Result<int>.Failure("Le statut doit être 'Approved' ou 'Rejected'.");
@@ -773,8 +779,9 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
 {
     public async ValueTask<Result<int>> Handle(FinalizePassagesCommand request, CancellationToken ct)
     {
-        if (!currentUser.IsSuperAdmin)
-            return Result<int>.Failure("Accès réservé aux super administrateurs.");
+        // CG-level operation (passage.manage) — controller-gated; defense-in-depth here.
+        if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.PassageManage))
+            return Result<int>.Failure("Accès réservé à la maîtrise de groupe.");
 
         var today = LebanonClock.Today;
         // "Date du passage" setting drives the effective date: old assignments end on it and the new
@@ -921,8 +928,9 @@ public class TogglePassageCommandHandler(IApplicationDbContext context, ICurrent
 {
     public async ValueTask<Result<bool>> Handle(TogglePassageCommand request, CancellationToken ct)
     {
-        if (!currentUser.IsSuperAdmin)
-            return Result<bool>.Failure("Accès réservé aux super administrateurs.");
+        // CG-level operation (passage.manage) — controller-gated; defense-in-depth here.
+        if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.PassageManage))
+            return Result<bool>.Failure("Accès réservé à la maîtrise de groupe.");
 
         var enabledSetting = await context.Settings.FirstOrDefaultAsync(s => s.Key == "passage.enabled", ct);
         var yearSetting = await context.Settings.FirstOrDefaultAsync(s => s.Key == "passage.scout_year", ct);
