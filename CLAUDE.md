@@ -3952,6 +3952,22 @@ audit + an orphan-file scan). Verdict: the codebase is very clean (prior dead-co
       pass (a blind `npm audit fix` risks breaking the TipTap editor — the 3.27.3 pin is deliberate, see the
       2026-07-19 dep note). Backend NuGet still 0 vulns. **→ RESOLVED same day, see below.**
 
+### Dev data sync from prod — repeatable, email-safe (2026-09-07)
+`deploy/dev-sync-from-prod.ps1` refreshes the LOCAL dev DB from a prod pg_dump snapshot while guaranteeing dev
+can never send real email — run it periodically to test against fresh real data. Uses the dev `gndj_admin` role
+(owns the DB + CREATEDB, so NO postgres superuser / no `iisreset` — unlike the prod `reset-to-import.ps1`).
+Order is deliberate: (1) stop the dev API; (2) back up the current dev DB to `C:\gndj-dev-backups` + capture the
+current dev `smtp_servers`; (3) drop/recreate `gndj` + restore the dump; (4) **NEUTRALIZE email BEFORE restarting
+the app** — unbind templates, clear the outbox, DELETE all prod SMTP servers (the real active providers
+SMTP2GO/Mailgun/SendPulse), re-insert the captured dev smtp4dev, set `app.base_url`→localhost, clear
+`email.override_recipient`; (5) print a safety check (internet-capable active providers MUST be 0). Then YOU start
+the dev API (`dotnet run`) so EF applies pending migrations on the prod data. **Why neutralize before startup:**
+the outbox worker drains queued mail on boot — with prod's active real providers live it would send prod's queued
+emails to real families. Verified live 2026-09-07 (dump `gndj_20260907_0300.dump`): 2440 members, 3 real active
+providers removed, 615 queued outbox mails cleared, migrations applied (parents_situation col added), login OK,
+`ErrorAlerts:Smtp` host empty in dev appsettings (the one direct-send bypass — real creds live only in
+appsettings.Production.json, not loaded under Development). See memory [[reference-dev-sync-from-prod]].
+
 ### Passage — "next year" projection / simulation (2026-09-06)
 CG can preview each unit's coming-year roster on `/admin/passage-validation` BEFORE doing the approval work.
 Requested because the real rosters only change on FINALIZE (approved lines). All on main, DEV until deploy;
