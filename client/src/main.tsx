@@ -1,3 +1,4 @@
+import './lib/translate-guard' // must run BEFORE React mounts — hardens the DOM against translation extensions
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClientProvider } from '@tanstack/react-query'

@@ -1,7 +1,7 @@
 import { Component, type ReactNode } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { reportClientError } from '@/lib/error-report'
+import { reportClientError, isBenignError } from '@/lib/error-report'
 
 // Catches render-time crashes anywhere below it so the user sees a clear, reassuring page instead of a
 // white screen — and auto-reports the crash to the backend (which alerts the super-admin) and shows the
@@ -17,6 +17,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack?: string | null }) {
+    // Don't alert the admin for benign browser noise (e.g. translation-extension DOM races) — the guard in
+    // translate-guard.ts should keep these from ever reaching here, but skip reporting if one slips through.
+    if (isBenignError(error)) return
     this.setState({ reporting: true })
     reportClientError({
       message: error?.message || String(error),

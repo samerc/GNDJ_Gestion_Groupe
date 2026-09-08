@@ -49,5 +49,8 @@ export function isBenignError(reason: unknown): boolean {
   if (r.isAxiosError || r.config || r.response) return true // an axios/API error — handled in the UI layer
   const msg = String(r.message ?? reason)
   if (msg.includes('ResizeObserver')) return true // harmless layout-loop warning browsers emit
+  // DOM mutations by browser translation extensions (Google Translate / "Traduire cette page") race React's
+  // commit and throw these — not our bug (see translate-guard.ts, which also stops them crashing the page).
+  if (msg.includes("insertBefore' on 'Node'") || msg.includes("removeChild' on 'Node'")) return true
   return false
 }

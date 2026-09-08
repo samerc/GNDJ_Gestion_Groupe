@@ -4063,6 +4063,21 @@ fills, and uploads back. Not mandatory (null = no template, unchanged). All on m
       binary-upload artifact (exit 26 / http 000) is an MSYS-path issue, not the endpoint — the existing
       `/content/files` behaves identically; a Windows-path upload succeeds.
 
+### Translation-extension crash guard (2026-09-08)
+Prod error log showed repeated client errors on `/inscription/register`: `Failed to execute 'insertBefore' /
+'removeChild' on 'Node': ... not a child of this node.` These are the classic signature of a **browser
+page-translation feature** (Google Translate / Chrome-Edge "Traduire cette page") wrapping/moving text nodes on
+the French page — React's next commit then calls insertBefore/removeChild against a node the translator already
+relocated → throw → white-screen. NOT our bug (a Lebanese-ISP user auto-translating). Fixed both symptoms:
+- **`client/src/lib/translate-guard.ts`** (imported FIRST in `main.tsx`, before React mounts): patches
+      `Node.prototype.removeChild`/`insertBefore` to NO-OP safely when the child/reference isn't actually a child of
+      the parent — i.e. exactly the already-broken path that would have thrown. Normal ops untouched, so React
+      recovers on its next render instead of crashing. Standard mitigation for translated React apps.
+- **Stop logging the noise:** `isBenignError` (error-report.ts) now also treats `insertBefore' on 'Node'` /
+      `removeChild' on 'Node'` messages as benign, and the `ErrorBoundary.componentDidCatch` skips reporting benign
+      errors — so even any that slip past the guard never hit the Journal des erreurs / admin alert.
+- Frontend-only, tsc + eslint + vite clean. DEV until deploy.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a
