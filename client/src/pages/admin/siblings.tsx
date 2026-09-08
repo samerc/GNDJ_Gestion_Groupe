@@ -210,7 +210,8 @@ function ReconcileDialog({ suggestion, onClose }: { suggestion: SiblingSuggestio
 
   const chosenFather = data && father !== NONE ? guardianName(data.fathers, father) : null
   const chosenMother = data && mother !== NONE ? guardianName(data.mothers, mother) : null
-  const chosenAddr = data && address !== NONE ? addrLabel(data.addresses.find((a) => a.addressId === address)!) : null
+  const chosenAddrRec = data && address !== NONE ? data.addresses.find((a) => a.addressId === address) : null
+  const chosenAddr = chosenAddrRec ? addrLabel(chosenAddrRec) : null
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>

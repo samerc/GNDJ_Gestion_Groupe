@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { useReportTemplates, useCreateReportTemplate, useUpdateReportTemplate, useDeleteReportTemplate, type ReportTemplateDto, type ReportTemplateFormData } from '@/services/report-template-service'
 import { parseApiError } from '@/lib/error-utils'
+import { safeJsonArray } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -91,7 +92,7 @@ export default function ReportTemplatesPage() {
 
   const openEdit = (item: ReportTemplateDto) => {
     setEditing(item)
-    const cols: string[] = JSON.parse(item.columnsJson) // hydrate the column Set from the saved JSON
+    const cols = safeJsonArray(item.columnsJson) // hydrate the column Set from the saved JSON (safe on a bad row)
     setForm({
       name: item.name, description: item.description, reportType: item.reportType,
       format: item.format, columnsJson: item.columnsJson, isActive: item.isActive,
@@ -149,7 +150,8 @@ export default function ReportTemplatesPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map(t => {
-            const cols: string[] = JSON.parse(t.columnsJson)
+            // Parse defensively during render — a malformed/empty columnsJson row must not white-screen the page.
+            const cols = safeJsonArray(t.columnsJson)
             return (
               <Card key={t.id} className={!t.isActive ? 'opacity-60' : ''}>
                 <CardHeader className="pb-2">

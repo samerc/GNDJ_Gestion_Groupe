@@ -24,6 +24,19 @@ export function formatDateLong(d: string | null | undefined): string {
   return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+// Parse a JSON array string defensively, returning [] on null/empty/malformed input instead of throwing.
+// Use for DB-sourced JSON columns (e.g. a report template's columnsJson) read DURING RENDER — a legacy,
+// empty, or hand-edited row must not white-screen the page with an uncaught SyntaxError.
+export function safeJsonArray<T = string>(json: string | null | undefined): T[] {
+  if (!json) return []
+  try {
+    const v = JSON.parse(json)
+    return Array.isArray(v) ? (v as T[]) : []
+  } catch {
+    return []
+  }
+}
+
 // A cotisation amount with its currency symbol ($, €, or ل.ل for LBP), fr-FR grouping, 2 decimals.
 export function formatMoney(amount: number, currency: string): string {
   const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'ل.ل'
