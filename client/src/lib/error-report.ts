@@ -15,8 +15,11 @@ export interface ClientErrorInput {
 
 export async function reportClientError(input: ClientErrorInput): Promise<string | null> {
   try {
-    const token = getAccessToken('member')
-    if (!token) return null // the report endpoint is auth-only; skip for signed-out sessions
+    // The report endpoint accepts any signed-in JWT. Prefer the member token, but fall back to the applicant
+    // token so crashes on the PUBLIC inscription portal (parents, the surface most likely to hit an extension/
+    // translation crash) are reported too — otherwise they'd be invisible. Skip only when fully signed out.
+    const token = getAccessToken('member') ?? getAccessToken('applicant')
+    if (!token) return null
 
     const sig = (input.message || '').slice(0, 120)
     const now = Date.now()
