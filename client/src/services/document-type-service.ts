@@ -14,6 +14,8 @@ export interface DocumentTypeDto {
   isActive: boolean
   displayOrder: number
   documentCount: number
+  templateFileUrl: string | null
+  templateFileName: string | null
   createdAt: string
 }
 
@@ -23,6 +25,8 @@ export interface DocumentTypeListDto {
   code: string
   requiresExpiry: boolean
   requiresApproval: boolean
+  templateFileUrl: string | null
+  templateFileName: string | null
 }
 
 export interface DocumentTypeFormData {
@@ -33,6 +37,19 @@ export interface DocumentTypeFormData {
   requiresApproval: boolean
   isActive: boolean
   displayOrder: number
+  templateFileUrl?: string | null
+  templateFileName?: string | null
+}
+
+// POST /document-types/template — upload the optional blank form (PDF/Word/Excel/image) a member downloads
+// to fill. Returns the served URL + original name to store on the document type.
+export async function uploadDocumentTypeTemplate(file: File): Promise<{ url: string; name: string; size: number }> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const { data } = await apiClient.post<{ url: string; name: string; size: number }>('/document-types/template', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
 }
 
 // GET /document-types — paginated admin list (search/page). Keyed ['document-types', params].

@@ -341,6 +341,13 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                   {!doc && (
                     <p className="mt-1 text-xs text-muted-foreground">Aucun document envoyé</p>
                   )}
+                  {/* Optional blank form to download, fill, and upload back (set per document type by the admin). */}
+                  {dt.templateFileUrl && (
+                    <a href={dt.templateFileUrl} download={dt.templateFileName ?? undefined} target="_blank" rel="noreferrer"
+                      className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                      <Download className="h-3 w-3" />Télécharger le modèle à remplir
+                    </a>
+                  )}
                 </div>
 
                 {/* Actions — full-width below the content on mobile (stacked), inline on the right on ≥sm. */}

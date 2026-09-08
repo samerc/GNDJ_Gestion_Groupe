@@ -12,9 +12,10 @@ namespace GNDJ.Application.DocumentTypes;
 // expiry date on upload; RequiresApproval routes uploads through the Pending→Approved review flow.
 
 // DTOs
-public record DocumentTypeDto(Guid Id, string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, int DocumentCount, DateTime CreatedAt);
-public record DocumentTypeDetailDto(Guid Id, string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, DateTime CreatedAt, DateTime UpdatedAt);
-public record DocumentTypeListDto(Guid Id, string Name, string Code, bool RequiresExpiry, bool RequiresApproval);
+public record DocumentTypeDto(Guid Id, string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, int DocumentCount, string? TemplateFileUrl, string? TemplateFileName, DateTime CreatedAt);
+public record DocumentTypeDetailDto(Guid Id, string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, string? TemplateFileUrl, string? TemplateFileName, DateTime CreatedAt, DateTime UpdatedAt);
+// TemplateFileUrl/Name are included so the member upload screen can offer a "Télécharger le modèle" link per type.
+public record DocumentTypeListDto(Guid Id, string Name, string Code, bool RequiresExpiry, bool RequiresApproval, string? TemplateFileUrl, string? TemplateFileName);
 
 // GetAll (admin — shows all including inactive)
 public record GetDocumentTypesQuery(string? Search, int Page = 1, int PageSize = 20) : IRequest<PaginatedList<DocumentTypeDto>>;
@@ -34,6 +35,7 @@ public class GetDocumentTypesQueryHandler(IApplicationDbContext context) : IRequ
         var projected = query.OrderBy(dt => dt.DisplayOrder).ThenBy(dt => dt.Name).Select(dt => new DocumentTypeDto(
             dt.Id, dt.Name, dt.Code, dt.Description, dt.RequiresExpiry, dt.RequiresApproval, dt.IsActive, dt.DisplayOrder,
             dt.Documents.Count(d => !d.IsDeleted),
+            dt.TemplateFileUrl, dt.TemplateFileName,
             dt.CreatedAt
         ));
 
@@ -50,7 +52,7 @@ public class GetDocumentTypeByIdQueryHandler(IApplicationDbContext context) : IR
     {
         return await context.DocumentTypes
             .Where(dt => dt.Id == request.Id)
-            .Select(dt => new DocumentTypeDetailDto(dt.Id, dt.Name, dt.Code, dt.Description, dt.RequiresExpiry, dt.RequiresApproval, dt.IsActive, dt.DisplayOrder, dt.CreatedAt, dt.UpdatedAt))
+            .Select(dt => new DocumentTypeDetailDto(dt.Id, dt.Name, dt.Code, dt.Description, dt.RequiresExpiry, dt.RequiresApproval, dt.IsActive, dt.DisplayOrder, dt.TemplateFileUrl, dt.TemplateFileName, dt.CreatedAt, dt.UpdatedAt))
             .FirstOrDefaultAsync(ct);
     }
 }
@@ -65,13 +67,13 @@ public class GetDocumentTypeListQueryHandler(IApplicationDbContext context) : IR
         return await context.DocumentTypes
             .Where(dt => dt.IsActive)
             .OrderBy(dt => dt.DisplayOrder).ThenBy(dt => dt.Name)
-            .Select(dt => new DocumentTypeListDto(dt.Id, dt.Name, dt.Code, dt.RequiresExpiry, dt.RequiresApproval))
+            .Select(dt => new DocumentTypeListDto(dt.Id, dt.Name, dt.Code, dt.RequiresExpiry, dt.RequiresApproval, dt.TemplateFileUrl, dt.TemplateFileName))
             .ToListAsync(ct);
     }
 }
 
 // Create
-public record CreateDocumentTypeCommand(string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder) : IRequest<Result<Guid>>;
+public record CreateDocumentTypeCommand(string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, string? TemplateFileUrl, string? TemplateFileName) : IRequest<Result<Guid>>;
 
 public class CreateDocumentTypeCommandValidator : AbstractValidator<CreateDocumentTypeCommand>
 {
@@ -81,6 +83,8 @@ public class CreateDocumentTypeCommandValidator : AbstractValidator<CreateDocume
         RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
         RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
         RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
+        RuleFor(x => x.TemplateFileUrl).MaximumLength(500).NoHtml();
+        RuleFor(x => x.TemplateFileName).MaximumLength(255).NoHtml();
     }
 }
 
@@ -100,7 +104,9 @@ public class CreateDocumentTypeCommandHandler(IApplicationDbContext context, IAu
             RequiresExpiry = request.RequiresExpiry,
             RequiresApproval = request.RequiresApproval,
             IsActive = request.IsActive,
-            DisplayOrder = request.DisplayOrder
+            DisplayOrder = request.DisplayOrder,
+            TemplateFileUrl = request.TemplateFileUrl,
+            TemplateFileName = request.TemplateFileName
         };
 
         context.DocumentTypes.Add(entity);
@@ -112,7 +118,7 @@ public class CreateDocumentTypeCommandHandler(IApplicationDbContext context, IAu
 }
 
 // Update
-public record UpdateDocumentTypeCommand(Guid Id, string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder) : IRequest<Result<bool>>;
+public record UpdateDocumentTypeCommand(Guid Id, string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, string? TemplateFileUrl, string? TemplateFileName) : IRequest<Result<bool>>;
 
 public class UpdateDocumentTypeCommandValidator : AbstractValidator<UpdateDocumentTypeCommand>
 {
@@ -122,6 +128,8 @@ public class UpdateDocumentTypeCommandValidator : AbstractValidator<UpdateDocume
         RuleFor(x => x.Code).NotEmpty().WithMessage("Le code est requis.").MaximumLength(50).NoHtml();
         RuleFor(x => x.Description).MaximumLength(1000).NoHtml();
         RuleFor(x => x.DisplayOrder).InclusiveBetween(0, 9999);
+        RuleFor(x => x.TemplateFileUrl).MaximumLength(500).NoHtml();
+        RuleFor(x => x.TemplateFileName).MaximumLength(255).NoHtml();
     }
 }
 
@@ -146,6 +154,8 @@ public class UpdateDocumentTypeCommandHandler(IApplicationDbContext context, IAu
         entity.RequiresApproval = request.RequiresApproval;
         entity.IsActive = request.IsActive;
         entity.DisplayOrder = request.DisplayOrder;
+        entity.TemplateFileUrl = request.TemplateFileUrl;
+        entity.TemplateFileName = request.TemplateFileName;
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Update", "DocumentType", entity.Id, oldValues: oldValues, newValues: new { entity.Name, entity.Code, entity.IsActive }, cancellationToken: ct);

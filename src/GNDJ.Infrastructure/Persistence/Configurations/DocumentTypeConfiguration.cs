@@ -14,6 +14,8 @@ public class DocumentTypeConfiguration : IEntityTypeConfiguration<DocumentType>
         builder.Property(e => e.Name).HasMaxLength(100).IsRequired();
         builder.Property(e => e.Code).HasMaxLength(50).IsRequired();
         builder.Property(e => e.Description).HasColumnType("text");
+        builder.Property(e => e.TemplateFileUrl).HasMaxLength(500);
+        builder.Property(e => e.TemplateFileName).HasMaxLength(255);
 
         builder.HasIndex(e => e.Code).IsUnique().HasFilter("is_deleted = false");
         builder.HasIndex(e => e.DisplayOrder);

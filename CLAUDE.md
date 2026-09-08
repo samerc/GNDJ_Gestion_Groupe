@@ -4040,6 +4040,29 @@ different. All on main, DEV until deploy; verified live.
 - Verified live: setting each message → surfaces on the matching anonymous config endpoint; empty → null; builds
       clean (dotnet 0/0, tsc + eslint + vite). Migration-free (settings seed on prod startup via SeedMissingSettings).
 
+### Document-type template (blank form to download) (2026-09-08)
+Each document type can carry an OPTIONAL template — a blank form (PDF/Word/Excel/image) the member downloads,
+fills, and uploads back. Not mandatory (null = no template, unchanged). All on main, DEV until deploy; verified live.
+- **Model:** `DocumentType.TemplateFileUrl` + `TemplateFileName` (nullable; migration `AddDocumentTypeTemplate`,
+      varchar 500/255). Carried through Create/Update commands + validators (MaxLength + NoHtml) and ALL three DTOs —
+      incl. `DocumentTypeListDto` (the slim list the MEMBER upload screen reads) so the download link surfaces to members.
+- **Upload:** new `POST /document-types/template` (gated `document_types.manage`, `upload` rate-limit, 15 MB) —
+      own allowed set **pdf/jpg/jpeg/png/webp/gif/doc/docx/xls/xlsx** + magic-byte check (Office Open XML docx/xlsx =
+      ZIP `PK\x03\x04`; legacy doc/xls = OLE `D0 CF 11 E0 A1 B1 1A E1`). Stores in `uploads/content`, returns the
+      `/api/v1/content/files/{guid}.ext` URL + original name. Served by the existing anonymous `ContentFilesController.Get`
+      (a blank form is non-sensitive) — which I extended to map Office/PDF MIME types + default to
+      `application/octet-stream` (was `image/jpeg`, which would misrender a downloaded .docx).
+- **Admin** (`document-types.tsx`): a "Modèle à télécharger (optionnel)" uploader in the create/edit form (upload →
+      stores url+name on the form, persisted with Save; shows the current file + a Remove X); a "Modèle" download badge
+      on the list row. `uploadDocumentTypeTemplate` in `document-type-service.ts` (mirrors `content-image-service`).
+- **Member** (`member-documents.tsx`): a "Télécharger le modèle à remplir" link per doc type that has a template
+      (plain anchor to the anonymous URL with `download`), shown regardless of upload status.
+- Verified live: template upload → 200 (url+name+size); fake docx / disallowed .txt → 400 (magic + ext guards);
+      served .pdf → `content-type: application/pdf`; create-with-template → `/document-types/list` returns the
+      template url+name; delete cleanup 204. Build clean (dotnet 0/0, tsc + eslint + vite). NOTE: the curl `/tmp`
+      binary-upload artifact (exit 26 / http 000) is an MSYS-path issue, not the endpoint — the existing
+      `/content/files` behaves identically; a Windows-path upload succeeds.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

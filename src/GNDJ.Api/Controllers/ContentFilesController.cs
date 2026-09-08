@@ -85,7 +85,13 @@ public class ContentFilesController : BaseApiController
             "gif" => "image/gif",
             "webp" => "image/webp",
             "mp3" => "audio/mpeg",
-            _ => "image/jpeg",
+            "jpg" or "jpeg" => "image/jpeg",
+            // Office document-type templates (Word/Excel) — correct MIME so the browser downloads them properly.
+            "doc" => "application/msword",
+            "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "xls" => "application/vnd.ms-excel",
+            "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            _ => "application/octet-stream",
         };
         // File names are content-addressed GUIDs (never re-used), so the bytes for a given URL never change —
         // let the browser + Cloudflare edge cache them for a year instead of re-fetching on every page view.

@@ -4,11 +4,11 @@
 // cette année" — toggles whether it's expected this scout year). The list order is set by drag-and-drop
 // (like Étapes/Badges/Pages) and drives the checklist/matrix ordering — no manual order field.
 import { parseApiError } from '@/lib/error-utils'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useDocumentTypes, useCreateDocumentType, useUpdateDocumentType, useDeleteDocumentType, useReorderDocumentTypes, type DocumentTypeDto, type DocumentTypeFormData } from '@/services/document-type-service'
+import { useDocumentTypes, useCreateDocumentType, useUpdateDocumentType, useDeleteDocumentType, useReorderDocumentTypes, uploadDocumentTypeTemplate, type DocumentTypeDto, type DocumentTypeFormData } from '@/services/document-type-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RequiredLabel } from '@/components/shared/required-label'
@@ -17,7 +17,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pencil, Trash2, Search, FileText, GripVertical, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, FileText, GripVertical, X, Upload, Download } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -25,7 +25,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-const defaultForm: DocumentTypeFormData = { name: '', code: '', description: '', requiresExpiry: false, requiresApproval: true, isActive: true, displayOrder: 0 }
+const defaultForm: DocumentTypeFormData = { name: '', code: '', description: '', requiresExpiry: false, requiresApproval: true, isActive: true, displayOrder: 0, templateFileUrl: null, templateFileName: null }
 
 export default function DocumentTypesPage() {
   const [search, setSearch] = useState('')
@@ -35,6 +35,8 @@ export default function DocumentTypesPage() {
   const [deleting, setDeleting] = useState<DocumentTypeDto | null>(null)
   const [form, setForm] = useState<DocumentTypeFormData>(defaultForm)
   const [error, setError] = useState('')
+  const [uploadingTemplate, setUploadingTemplate] = useState(false)
+  const templateInputRef = useRef<HTMLInputElement>(null)
   const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
 
   // Doc types are few — fetch them all (pageSize 100) so the whole set is a single drag-orderable list.
@@ -66,9 +68,22 @@ export default function DocumentTypesPage() {
 
   const openEdit = (item: DocumentTypeDto) => {
     setEditing(item)
-    setForm({ name: item.name, code: item.code, description: item.description ?? '', requiresExpiry: item.requiresExpiry, requiresApproval: item.requiresApproval, isActive: item.isActive, displayOrder: item.displayOrder })
+    setForm({ name: item.name, code: item.code, description: item.description ?? '', requiresExpiry: item.requiresExpiry, requiresApproval: item.requiresApproval, isActive: item.isActive, displayOrder: item.displayOrder, templateFileUrl: item.templateFileUrl, templateFileName: item.templateFileName })
     setError(''); clearAll()
     setFormOpen(true)
+  }
+
+  // Upload the optional blank-form template; on success stash its URL + name on the form (persisted with Save).
+  const handleTemplateUpload = async (file: File) => {
+    setUploadingTemplate(true)
+    try {
+      const { url, name } = await uploadDocumentTypeTemplate(file)
+      setForm(f => ({ ...f, templateFileUrl: url, templateFileName: name }))
+    } catch (err) {
+      toast.error(parseApiError(err))
+    } finally {
+      setUploadingTemplate(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -189,6 +204,32 @@ export default function DocumentTypesPage() {
               <RequiredLabel htmlFor="description">Description</RequiredLabel>
               <Input id="description" value={form.description ?? ''} onChange={(e) => setForm(f => ({ ...f, description: e.target.value || null }))} />
             </div>
+            {/* Optional template (blank form) the member downloads to fill and upload back. Not mandatory. */}
+            <div className="space-y-2">
+              <RequiredLabel>Modèle à télécharger (optionnel)</RequiredLabel>
+              <p className="text-xs text-muted-foreground">Un formulaire vierge (PDF, Word, Excel…) que le membre pourra télécharger, remplir, puis envoyer.</p>
+              {form.templateFileUrl ? (
+                <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-2 text-sm">
+                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <a href={form.templateFileUrl} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-primary hover:underline">{form.templateFileName ?? 'Modèle'}</a>
+                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" aria-label="Retirer le modèle"
+                    onClick={() => setForm(f => ({ ...f, templateFileUrl: null, templateFileName: null }))}>
+                    <X className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ) : (
+                <Button type="button" variant="outline" size="sm" disabled={uploadingTemplate} onClick={() => templateInputRef.current?.click()}>
+                  <Upload className="mr-1.5 h-4 w-4" />{uploadingTemplate ? 'Envoi…' : 'Choisir un fichier'}
+                </Button>
+              )}
+              <input
+                ref={templateInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.gif"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTemplateUpload(f); e.target.value = '' }}
+              />
+            </div>
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.isActive} onChange={(e) => setForm(f => ({ ...f, isActive: e.target.checked }))} />
@@ -261,6 +302,13 @@ function SortableTypeRow({ item, canReorder, onEdit, onDelete }: { item: Documen
           {item.requiresApproval && (
             <Tip content="Ce document doit être validé par un chef après l'envoi (il reste « en attente » jusque-là).">
               <span className="inline-flex"><Badge variant="outline">Validation par un chef</Badge></span>
+            </Tip>
+          )}
+          {item.templateFileUrl && (
+            <Tip content={`Modèle à télécharger : ${item.templateFileName ?? 'formulaire'}`}>
+              <a href={item.templateFileUrl} target="_blank" rel="noreferrer" className="inline-flex">
+                <Badge variant="outline" className="gap-1 text-primary"><Download className="h-3 w-3" />Modèle</Badge>
+              </a>
             </Tip>
           )}
         </div>
