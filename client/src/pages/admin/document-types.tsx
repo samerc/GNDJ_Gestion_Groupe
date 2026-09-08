@@ -8,7 +8,8 @@ import { useState, useRef } from 'react'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useDocumentTypes, useCreateDocumentType, useUpdateDocumentType, useDeleteDocumentType, useReorderDocumentTypes, uploadDocumentTypeTemplate, type DocumentTypeDto, type DocumentTypeFormData } from '@/services/document-type-service'
+import { useDocumentTypes, useCreateDocumentType, useUpdateDocumentType, useDeleteDocumentType, useReorderDocumentTypes, uploadDocumentTypeTemplate, useDocumentTypeDetail, type DocumentTypeDto, type DocumentTypeFormData } from '@/services/document-type-service'
+import { DocumentTemplateBuilder } from '@/components/admin/document-template-builder'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RequiredLabel } from '@/components/shared/required-label'
@@ -17,7 +18,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pencil, Trash2, Search, FileText, GripVertical, X, Upload, Download } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, FileText, GripVertical, X, Upload, Download, FileSignature } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -25,7 +26,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-const defaultForm: DocumentTypeFormData = { name: '', code: '', description: '', requiresExpiry: false, requiresApproval: true, isActive: true, displayOrder: 0, templateFileUrl: null, templateFileName: null }
+const defaultForm: DocumentTypeFormData = { name: '', code: '', description: '', requiresExpiry: false, requiresApproval: true, isActive: true, displayOrder: 0, templateFileUrl: null, templateFileName: null, templateHtml: null }
 
 export default function DocumentTypesPage() {
   const [search, setSearch] = useState('')
@@ -36,8 +37,19 @@ export default function DocumentTypesPage() {
   const [form, setForm] = useState<DocumentTypeFormData>(defaultForm)
   const [error, setError] = useState('')
   const [uploadingTemplate, setUploadingTemplate] = useState(false)
+  const [builderOpen, setBuilderOpen] = useState(false)
   const templateInputRef = useRef<HTMLInputElement>(null)
   const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
+
+  // The list DTO doesn't carry the (potentially large) templateHtml — fetch the detail when editing to seed it,
+  // so saving doesn't wipe an existing template. Save is gated until it loads (templateLoading).
+  const [seededTemplateFor, setSeededTemplateFor] = useState<string | null>(null)
+  const { data: editDetail } = useDocumentTypeDetail(formOpen && editing ? editing.id : undefined)
+  if (editDetail && editing && editDetail.id === editing.id && seededTemplateFor !== editing.id) {
+    setSeededTemplateFor(editing.id)
+    setForm(f => ({ ...f, templateHtml: editDetail.templateHtml ?? null }))
+  }
+  const templateLoading = !!editing && seededTemplateFor !== editing.id
 
   // Doc types are few — fetch them all (pageSize 100) so the whole set is a single drag-orderable list.
   const { data, isLoading } = useDocumentTypes({ search: debouncedSearch || undefined, page: 1, pageSize: 100 })
@@ -60,6 +72,7 @@ export default function DocumentTypesPage() {
 
   const openCreate = () => {
     setEditing(null)
+    setSeededTemplateFor(null)
     // New types append to the end of the order.
     setForm({ ...defaultForm, displayOrder: data?.totalCount ?? 0 })
     setError(''); clearAll()
@@ -68,7 +81,8 @@ export default function DocumentTypesPage() {
 
   const openEdit = (item: DocumentTypeDto) => {
     setEditing(item)
-    setForm({ name: item.name, code: item.code, description: item.description ?? '', requiresExpiry: item.requiresExpiry, requiresApproval: item.requiresApproval, isActive: item.isActive, displayOrder: item.displayOrder, templateFileUrl: item.templateFileUrl, templateFileName: item.templateFileName })
+    setSeededTemplateFor(null) // templateHtml is filled by the detail query once it loads
+    setForm({ name: item.name, code: item.code, description: item.description ?? '', requiresExpiry: item.requiresExpiry, requiresApproval: item.requiresApproval, isActive: item.isActive, displayOrder: item.displayOrder, templateFileUrl: item.templateFileUrl, templateFileName: item.templateFileName, templateHtml: null })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -230,6 +244,27 @@ export default function DocumentTypesPage() {
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTemplateUpload(f); e.target.value = '' }}
               />
             </div>
+            {/* In-app template builder (optional): the CG writes a document with member {{champs}} that pre-fill
+                when the member downloads it as a PDF. Supersedes the static file above on the member screen. */}
+            <div className="space-y-2">
+              <RequiredLabel>Modèle à générer dans l'application (optionnel)</RequiredLabel>
+              <p className="text-xs text-muted-foreground">Rédigez un document (autorisation, fiche médicale…) avec des champs qui se remplissent automatiquement avec les données de chaque membre. Le membre télécharge alors un PDF pré-rempli.</p>
+              {form.templateHtml ? (
+                <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-2 text-sm">
+                  <FileSignature className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1 truncate">Modèle défini</span>
+                  <Button type="button" variant="outline" size="sm" disabled={templateLoading} onClick={() => setBuilderOpen(true)}>Modifier</Button>
+                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" aria-label="Retirer le modèle"
+                    onClick={() => setForm(f => ({ ...f, templateHtml: null }))}>
+                    <X className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ) : (
+                <Button type="button" variant="outline" size="sm" disabled={templateLoading} onClick={() => setBuilderOpen(true)}>
+                  <FileSignature className="mr-1.5 h-4 w-4" />{templateLoading ? 'Chargement…' : 'Créer un modèle'}
+                </Button>
+              )}
+            </div>
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.isActive} onChange={(e) => setForm(f => ({ ...f, isActive: e.target.checked }))} />
@@ -252,11 +287,20 @@ export default function DocumentTypesPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={isSaving || templateLoading}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* In-app template builder — edits form.templateHtml (persisted with the doc type on Save). */}
+      <DocumentTemplateBuilder
+        open={builderOpen}
+        onOpenChange={setBuilderOpen}
+        initialHtml={form.templateHtml ?? ''}
+        documentName={form.name}
+        onSave={(html) => setForm(f => ({ ...f, templateHtml: html || null }))}
+      />
 
       <ConfirmDialog
         open={!!deleting}
@@ -309,6 +353,11 @@ function SortableTypeRow({ item, canReorder, onEdit, onDelete }: { item: Documen
               <a href={item.templateFileUrl} target="_blank" rel="noreferrer" className="inline-flex">
                 <Badge variant="outline" className="gap-1 text-primary"><Download className="h-3 w-3" />Modèle</Badge>
               </a>
+            </Tip>
+          )}
+          {item.hasHtmlTemplate && (
+            <Tip content="Modèle généré dans l'application (PDF pré-rempli avec les données du membre).">
+              <span className="inline-flex"><Badge variant="outline" className="gap-1 text-primary"><FileSignature className="h-3 w-3" />Modèle app</Badge></span>
             </Tip>
           )}
         </div>

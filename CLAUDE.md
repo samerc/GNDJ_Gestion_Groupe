@@ -4108,6 +4108,47 @@ relocated → throw → white-screen. NOT our bug (a Lebanese-ISP user auto-tran
       errors — so even any that slip past the guard never hit the Journal des erreurs / admin alert.
 - Frontend-only, tsc + eslint + vite clean. DEV until deploy.
 
+### In-app document-template builder — per-member prefilled PDF (2026-09-09)
+A GENERAL "create any document we want" builder: a CG authors a document (autorisation, fiche médicale, décharge…)
+IN the app as rich text, inserts {{champs}} that pre-fill with each member's data, and the member downloads a
+server-generated PDF filled with THEIR own info (unpicked fields left blank to complete/sign). Supersedes the
+static file-upload template on the member screen when set. All on main; DEV until deploy (migration applies on prod startup).
+- **Model:** `DocumentType.TemplateHtml` (nullable text; migration `AddDocumentTypeTemplateHtml`) alongside the
+      existing `TemplateFileUrl/Name`. `DocumentTypeDetailDto` carries `TemplateHtml` (for the editor); the list DTOs
+      (admin + member `/list`) carry a slim **`HasHtmlTemplate`** flag only (the 100k HTML is never sent to members —
+      just the flag that routes the member download to the PDF endpoint). Create/Update commands + validators carry
+      `TemplateHtml` (MaxLength 100k, NOT NoHtml — it IS author HTML).
+- **Renderer** (`Infrastructure/Services/DocumentTemplateRenderer.cs`, singleton `IDocumentTemplateRenderer`):
+      **HtmlAgilityPack** parse → **QuestPDF** layout (A4). Supports ONLY the TipTap subset the editor can produce
+      (p/h1-h4/ul/ol/li/hr/br, strong/b·em/i·u·s, span/a, `style="text-align:…"`) — anything else falls through to
+      its text so a template never fails to render. `{{key}}` tokens (same syntax as email templates) are substituted
+      per text-node; a missing/blank value → empty string (the "pick which fields prefill" behaviour). Empty `<p></p>`
+      → a preserved blank line (signature spacing). NOTE: QuestPDF is `Justify()` not `AlignJustify()`.
+- **Placeholder catalog** (`Application/DocumentTypes/DocumentTemplateFields.cs`) = ONE source of truth (key +
+      French label + sample): the editor's **"Variable" dropdown** (the RichTextEditor's built-in variable inserter,
+      reused — no custom UI) fetches it via `GET /document-types/template-fields`, the per-member resolver fills each
+      key, and the CG "Aperçu PDF" uses the samples. 23 fields: prénom/nom/nomComplet/DOB/genre/groupe sanguin/
+      nationalité/école/classe/section/matricule/n° carte/unité/équipe/fonction/prénom+nom+tél du père & de la mère/
+      année scoute/date du jour. Father/mother resolved from `GuardianLink.RelationshipType == "Père"/"Mère"`; unit/
+      team/role from the active assignment; scout year via `ScoutYearHelper.Of(assignment start)`.
+- **Endpoints** (`DocumentTypesController`): `GET /template-fields` (document_types.manage) · `POST /template-preview`
+      `{html,name}` → PDF with SAMPLE values (document_types.manage — POST so the "Aperçu" reflects the CG's live
+      **unsaved** edits, not the last save) · `GET /{id}/member-pdf/{memberId}` → the member's prefilled PDF, gated by
+      **`MemberAccess.CanAccessMemberAsync`** (own record OR a members.edit leader of the member's unit — same rule as
+      the member card). `DocumentTemplatePdf(Data,FileName)`; file name = doc-type name (+ member name).
+- **Frontend:** doc-type form gained a "Modèle à générer dans l'application (optionnel)" section → opens
+      `components/admin/document-template-builder.tsx` (a wider dialog wrapping the shared RichTextEditor + "Aperçu
+      PDF" that opens the sample PDF in a new tab). The list DTO omits templateHtml, so **editing fetches the detail**
+      (`useDocumentTypeDetail`) to seed it and **Save is gated** (`templateLoading`) until it loads so a save can't
+      wipe an existing template. Member screen (`member-documents.tsx`): a doc type with `hasHtmlTemplate` shows
+      **"Télécharger le modèle pré-rempli"** (downloads the per-member PDF via `downloadMemberTemplatePdf`) INSTEAD of
+      the static-file link (in-app template takes precedence). Admin list row shows a "Modèle app" badge.
+- **Verified live end-to-end** (super-admin): fields catalog (23) · preview PDF (28 KB, sample values, centered
+      heading) · create doc type with template → list `hasHtmlTemplate=true` + detail carries the HTML · per-member
+      PDF (22 KB) whose text = "Angela ABBOUD · Noyau · Assistante de Noyau · 01/01/2009", father fields (no data)
+      left blank · deleted the test type. Build clean (dotnet 0/0 + tsc + eslint + vite). NOTE: HtmlAgilityPack 1.12.4
+      added to Infrastructure. The Word forms generated to the Desktop earlier are superseded by this in-app builder.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

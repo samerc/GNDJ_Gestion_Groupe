@@ -3,7 +3,7 @@ import { saveBlob } from '@/lib/download'
 import { toast } from 'sonner'
 import { useState, useRef } from 'react'
 import { useMemberDocuments, useUploadDocument, useReviewDocument, useDeleteDocument, useAddDocumentPages, useDeleteDocumentPage, downloadDocument, downloadDocumentPage, type MemberDocumentDto, type DocumentPageDto } from '@/services/document-service'
-import { useDocumentTypeList, type DocumentTypeListDto } from '@/services/document-type-service'
+import { useDocumentTypeList, downloadMemberTemplatePdf, type DocumentTypeListDto } from '@/services/document-type-service'
 import { useSettingValue, useSettingArray } from '@/services/settings-service'
 import { useDocumentCampaign } from '@/services/documents-campaign-service'
 import { useAuthStore } from '@/stores/auth-store'
@@ -185,6 +185,20 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
     }
   }
 
+  // Download the in-app template as a PDF pre-filled with THIS member's data (server-generated).
+  const [templatePdfLoadingId, setTemplatePdfLoadingId] = useState<string | null>(null)
+  const handleDownloadMemberTemplate = async (dt: DocumentTypeListDto) => {
+    setTemplatePdfLoadingId(dt.id)
+    try {
+      const response = await downloadMemberTemplatePdf(dt.id, memberId)
+      saveBlob(response.data, `${dt.name}.pdf`, 'application/pdf')
+    } catch (err) {
+      toast.error(await parseBlobError(err))
+    } finally {
+      setTemplatePdfLoadingId(null)
+    }
+  }
+
   const handleDownload = async (doc: MemberDocumentDto) => {
     try {
       const response = await downloadDocument(doc.id)
@@ -342,8 +356,15 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                     <p className="mt-1 text-xs text-muted-foreground">Aucun document envoyé</p>
                   )}
                   {/* Optional blank form to download, fill, and upload back (set per document type by the admin).
-                      Styled as a tinted pill button so it stands out from the row's muted metadata. */}
-                  {dt.templateFileUrl && (
+                      Styled as a tinted pill button so it stands out from the row's muted metadata. An IN-APP
+                      template (hasHtmlTemplate) downloads a server-generated PDF pre-filled with the member's own
+                      data; otherwise a static uploaded file. The in-app template takes precedence. */}
+                  {dt.hasHtmlTemplate ? (
+                    <button type="button" onClick={() => handleDownloadMemberTemplate(dt)} disabled={templatePdfLoadingId === dt.id}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary shadow-sm transition-colors hover:bg-primary/20 disabled:opacity-60">
+                      <Download className="h-4 w-4" />{templatePdfLoadingId === dt.id ? 'Préparation…' : 'Télécharger le modèle pré-rempli'}
+                    </button>
+                  ) : dt.templateFileUrl && (
                     <a href={dt.templateFileUrl} download={dt.templateFileName ?? undefined} target="_blank" rel="noreferrer"
                       className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary shadow-sm transition-colors hover:bg-primary/20">
                       <Download className="h-4 w-4" />Télécharger le modèle à remplir

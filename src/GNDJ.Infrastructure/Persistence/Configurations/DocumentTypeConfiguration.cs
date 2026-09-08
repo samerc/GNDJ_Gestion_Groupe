@@ -16,6 +16,7 @@ public class DocumentTypeConfiguration : IEntityTypeConfiguration<DocumentType>
         builder.Property(e => e.Description).HasColumnType("text");
         builder.Property(e => e.TemplateFileUrl).HasMaxLength(500);
         builder.Property(e => e.TemplateFileName).HasMaxLength(255);
+        builder.Property(e => e.TemplateHtml).HasColumnType("text"); // in-app rich-text template (nullable)
 
         builder.HasIndex(e => e.Code).IsUnique().HasFilter("is_deleted = false");
         builder.HasIndex(e => e.DisplayOrder);

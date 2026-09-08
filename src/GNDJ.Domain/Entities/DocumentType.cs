@@ -20,5 +20,12 @@ public class DocumentType : BaseEntity
     public string? TemplateFileUrl { get; set; }
     public string? TemplateFileName { get; set; }
 
+    // Optional IN-APP document template — rich-text/HTML authored by the CG in the doc-type editor. When set,
+    // the member downloads a server-generated PDF pre-filled with THEIR own data (the {{champs}} the author
+    // inserted resolve to the member's fields; non-inserted fields are left as blanks to complete + sign).
+    // This is the general "create any document we want" builder: an authorisation, a fiche médicale, etc.
+    // Takes precedence over TemplateFileUrl on the member screen. Null = no in-app template.
+    public string? TemplateHtml { get; set; }
+
     public ICollection<MemberDocument> Documents { get; set; } = [];
 }

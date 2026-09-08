@@ -1,0 +1,201 @@
+using System.Text.RegularExpressions;
+using GNDJ.Application.Common.Interfaces;
+using HtmlAgilityPack;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+
+namespace GNDJ.Infrastructure.Services;
+
+// Renders a CG-authored in-app document template (the TipTap HTML subset) to an A4 PDF, substituting {{champs}}
+// with a member's resolved values. Deliberately supports ONLY what the rich-text editor can produce
+// (p, h1-h4, ul/ol/li, hr, br, strong/b, em/i, u, s, span, a, text-align) — anything else falls through to its
+// text so a template never fails to render. A missing/blank value renders as an empty string, leaving a blank
+// line the member fills and signs by hand (the "pick which fields prefill" behaviour).
+public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
+{
+    // {{key}} tokens (same syntax as the email templates). Keys are [a-zA-Z0-9_].
+    [GeneratedRegex(@"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")]
+    private static partial Regex TokenRegex();
+
+    public byte[] Render(string html, IReadOnlyDictionary<string, string?> values, string? title = null)
+    {
+        var doc = new HtmlDocument();
+        doc.LoadHtml(html ?? string.Empty);
+        // The editor emits a fragment (no <body>); DocumentNode is the common parent either way.
+        var root = doc.DocumentNode;
+
+        return Document.Create(container => container.Page(page =>
+        {
+            page.Size(PageSizes.A4);
+            page.Margin(40);
+            page.DefaultTextStyle(x => x.FontSize(11).LineHeight(1.35f).FontColor(Colors.Black));
+
+            page.Content().Column(col =>
+            {
+                if (!string.IsNullOrWhiteSpace(title))
+                    col.Item().PaddingBottom(10).Text(title).FontSize(16).Bold();
+                RenderBlocks(col, root, values);
+            });
+
+            page.Footer().AlignRight().DefaultTextStyle(x => x.FontSize(7).FontColor(Colors.Grey.Medium))
+                .Text(t => { t.Span("Page "); t.CurrentPageNumber(); t.Span(" / "); t.TotalPages(); });
+        })).GeneratePdf();
+    }
+
+    // A block-level walk: each child of `parent` becomes a Column item (paragraph, heading, list, rule…).
+    private static void RenderBlocks(ColumnDescriptor col, HtmlNode parent, IReadOnlyDictionary<string, string?> values)
+    {
+        foreach (var node in parent.ChildNodes)
+        {
+            var name = node.Name.ToLowerInvariant();
+            switch (name)
+            {
+                case "p":
+                case "div":
+                    if (HasVisibleContent(node, values))
+                        col.Item().PaddingBottom(6).Text(t => { ApplyAlign(t, node); RenderInline(t, node, values, new InlineStyle()); });
+                    else
+                        col.Item().Height(11); // preserve an intentional blank line (signature spacing etc.)
+                    break;
+
+                case "h1": Heading(col, node, values, 20); break;
+                case "h2": Heading(col, node, values, 16); break;
+                case "h3": Heading(col, node, values, 13); break;
+                case "h4":
+                case "h5":
+                case "h6": Heading(col, node, values, 11); break;
+
+                case "ul": RenderList(col, node, values, ordered: false); break;
+                case "ol": RenderList(col, node, values, ordered: true); break;
+
+                case "hr":
+                    col.Item().PaddingVertical(6).LineHorizontal(0.75f).LineColor(Colors.Grey.Lighten1);
+                    break;
+
+                case "br":
+                    col.Item().Height(11);
+                    break;
+
+                case "#text":
+                    var text = Decode(node.InnerText);
+                    if (!string.IsNullOrWhiteSpace(text))
+                        col.Item().PaddingBottom(6).Text(t => RenderInline(t, node, values, new InlineStyle()));
+                    break;
+
+                default:
+                    // Unknown/container element (blockquote, table wrappers, TipTap wrappers…): recurse so its
+                    // block children still render; if it has none, emit its text as a paragraph.
+                    if (node.ChildNodes.Any(c => IsBlock(c.Name)))
+                        RenderBlocks(col, node, values);
+                    else if (HasVisibleContent(node, values))
+                        col.Item().PaddingBottom(6).Text(t => { ApplyAlign(t, node); RenderInline(t, node, values, new InlineStyle()); });
+                    break;
+            }
+        }
+    }
+
+    private static void Heading(ColumnDescriptor col, HtmlNode node, IReadOnlyDictionary<string, string?> values, float size) =>
+        col.Item().PaddingTop(4).PaddingBottom(4).Text(t =>
+        {
+            t.DefaultTextStyle(x => x.FontSize(size).Bold());
+            ApplyAlign(t, node);
+            RenderInline(t, node, values, new InlineStyle());
+        });
+
+    private static void RenderList(ColumnDescriptor col, HtmlNode listNode, IReadOnlyDictionary<string, string?> values, bool ordered)
+    {
+        var index = 1;
+        foreach (var li in listNode.ChildNodes.Where(n => n.Name.Equals("li", StringComparison.OrdinalIgnoreCase)))
+        {
+            var prefix = ordered ? $"{index}." : "•";
+            col.Item().PaddingBottom(3).Row(row =>
+            {
+                row.ConstantItem(18).AlignTop().Text(prefix);
+                row.RelativeItem().Text(t => RenderInline(t, li, values, new InlineStyle()));
+            });
+            index++;
+        }
+    }
+
+    // Inline walk: emit a QuestPDF Span per text run, carrying the accumulated bold/italic/underline/strike style.
+    private static void RenderInline(TextDescriptor text, HtmlNode node, IReadOnlyDictionary<string, string?> values, InlineStyle style)
+    {
+        foreach (var child in node.ChildNodes)
+        {
+            var name = child.Name.ToLowerInvariant();
+            switch (name)
+            {
+                case "#text":
+                    var raw = Decode(child.InnerText);
+                    var resolved = Substitute(raw, values);
+                    if (resolved.Length > 0)
+                    {
+                        var span = text.Span(resolved);
+                        if (style.Bold) span = span.Bold();
+                        if (style.Italic) span = span.Italic();
+                        if (style.Underline) span = span.Underline();
+                        if (style.Strike) span = span.Strikethrough();
+                    }
+                    break;
+
+                case "br":
+                    text.Span("\n");
+                    break;
+
+                case "b":
+                case "strong":
+                    RenderInline(text, child, values, style with { Bold = true });
+                    break;
+                case "i":
+                case "em":
+                    RenderInline(text, child, values, style with { Italic = true });
+                    break;
+                case "u":
+                    RenderInline(text, child, values, style with { Underline = true });
+                    break;
+                case "s":
+                case "strike":
+                case "del":
+                    RenderInline(text, child, values, style with { Strike = true });
+                    break;
+
+                default:
+                    // span, a, font, and any other inline wrapper: recurse, keeping the current style.
+                    RenderInline(text, child, values, style);
+                    break;
+            }
+        }
+    }
+
+    // Reads text-align from a block node's inline style (the editor writes style="text-align:center").
+    private static void ApplyAlign(TextDescriptor text, HtmlNode node)
+    {
+        var style = node.GetAttributeValue("style", "").ToLowerInvariant();
+        if (style.Contains("text-align:center")) text.AlignCenter();
+        else if (style.Contains("text-align:right")) text.AlignRight();
+        else if (style.Contains("text-align:justify")) text.Justify();
+        else text.AlignLeft();
+    }
+
+    // Replace {{key}} with the resolved value (missing/null → empty string, i.e. a blank to fill by hand).
+    private static string Substitute(string input, IReadOnlyDictionary<string, string?> values) =>
+        TokenRegex().Replace(input, m =>
+            values.TryGetValue(m.Groups[1].Value, out var v) ? v ?? string.Empty : string.Empty);
+
+    private static string Decode(string s) => HtmlEntity.DeEntitize(s) ?? string.Empty;
+
+    private static bool IsBlock(string name) => name.ToLowerInvariant() is
+        "p" or "div" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6" or "ul" or "ol" or "hr" or "table";
+
+    // Does this block have any text (after decoding) OR a placeholder that resolves to a non-empty value?
+    // A paragraph that is only whitespace is treated as a blank line (preserved spacing), not skipped-with-content.
+    private static bool HasVisibleContent(HtmlNode node, IReadOnlyDictionary<string, string?> values)
+    {
+        var text = Substitute(Decode(node.InnerText), values);
+        return !string.IsNullOrWhiteSpace(text);
+    }
+
+    // Accumulated inline formatting as we descend the tree.
+    private readonly record struct InlineStyle(bool Bold = false, bool Italic = false, bool Underline = false, bool Strike = false);
+}

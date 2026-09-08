@@ -104,6 +104,45 @@ public class DocumentTypesController : BaseApiController
         return Ok(new { url = $"/api/v1/content/files/{fileName}", name = Path.GetFileName(file.FileName), size = file.Length });
     }
 
+    /// <summary>
+    /// The member-field placeholders a CG can insert into an in-app document template (key + French label +
+    /// sample). Drives the "Insérer un champ" dropdown in the doc-type editor. Requires document_types.manage.
+    /// </summary>
+    [HttpGet("template-fields")]
+    [HasPermission(Permissions.DocumentTypesManage)]
+    public async Task<IActionResult> GetTemplateFields()
+        => Ok(await Mediator.Send(new GetDocumentTemplateFieldsQuery()));
+
+    /// <summary>
+    /// Renders the CURRENT (possibly unsaved) template HTML to a preview PDF using realistic SAMPLE values,
+    /// so the CG can check the layout live while editing before members download prefilled copies. POST so it
+    /// reflects the in-editor content rather than the last save. Requires document_types.manage.
+    /// </summary>
+    /// <response code="400">Empty or oversized template.</response>
+    [HttpPost("template-preview")]
+    [HasPermission(Permissions.DocumentTypesManage)]
+    public async Task<IActionResult> TemplatePreview([FromBody] PreviewDocumentTemplateQuery command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return File(result.Value!.Data, "application/pdf", result.Value.FileName);
+    }
+
+    /// <summary>
+    /// Renders the doc type's IN-APP template to a PDF pre-filled with a MEMBER's data (the {{champs}} the author
+    /// inserted resolve to the member's fields; the rest stay blank to complete + sign). Access: the member
+    /// themselves, or a members.edit leader of the member's active unit (same rule as the member card). Auth only
+    /// (the handler enforces member access).
+    /// </summary>
+    /// <response code="400">No template, member/type not found, or access denied.</response>
+    [HttpGet("{id:guid}/member-pdf/{memberId:guid}")]
+    public async Task<IActionResult> MemberTemplatePdf(Guid id, Guid memberId)
+    {
+        var result = await Mediator.Send(new GenerateMemberDocumentTemplateQuery(memberId, id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return File(result.Value!.Data, "application/pdf", result.Value.FileName);
+    }
+
     /// <summary>Creates a document type. Requires document_types.manage.</summary>
     [HttpPost]
     [ProducesResponseType(201)]
