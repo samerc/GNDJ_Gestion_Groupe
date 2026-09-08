@@ -341,11 +341,12 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                   {!doc && (
                     <p className="mt-1 text-xs text-muted-foreground">Aucun document envoyé</p>
                   )}
-                  {/* Optional blank form to download, fill, and upload back (set per document type by the admin). */}
+                  {/* Optional blank form to download, fill, and upload back (set per document type by the admin).
+                      Styled as a tinted pill button so it stands out from the row's muted metadata. */}
                   {dt.templateFileUrl && (
                     <a href={dt.templateFileUrl} download={dt.templateFileName ?? undefined} target="_blank" rel="noreferrer"
-                      className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                      <Download className="h-3 w-3" />Télécharger le modèle à remplir
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary shadow-sm transition-colors hover:bg-primary/20">
+                      <Download className="h-4 w-4" />Télécharger le modèle à remplir
                     </a>
                   )}
                 </div>
