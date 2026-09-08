@@ -432,6 +432,7 @@ public static class SeedData
         var cfgMaitrises = Add("Confirmer les maîtrises (CU/ACU de chaque unité)", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-maitrises", null, null);
         Add("Envoyer l'email d'accueil aux chefs", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-communications", null, null, cfgMaitrises);
         Add("Vérifier les textes des emails", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-email", null, null);
+        Add("Mettre à jour les modèles de documents (autorisation, fiche médicale…)", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-document-types", null, null);
         var emailAttach = Add("Mettre à jour les pièces jointes des modèles d'email", "Configuration", CG, false, "4ᵉ sem. septembre", "goto-email", null, null);
         Add("Arranger le document des tenues et le mettre en ligne", "Configuration", CG, false, "septembre", null, null, null);
         Add("Confirmer les étapes et badges de l'année", "Configuration", CG, false, "octobre", "goto-progression", null, null);
@@ -549,6 +550,7 @@ public static class SeedData
         var extras = new (string Title, string Phase, string Deadline, string Action)[]
         {
             ("Mettre à jour les pièces jointes des modèles d'email", "Configuration", "4ᵉ sem. septembre", "goto-email"),
+            ("Mettre à jour les modèles de documents (autorisation, fiche médicale…)", "Configuration", "4ᵉ sem. septembre", "goto-document-types"),
             ("Rédiger la lettre de refus (pièce jointe du modèle « demande refusée »)", "Demandes", "septembre", "goto-email"),
             ("Relancer les familles qui n'ont pas soumis leur demande", "Demandes", "octobre", "goto-demandes"),
             ("Relancer les accès non activés", "Dossiers membres", "novembre", "goto-send-access"),
@@ -1026,6 +1028,21 @@ public static class SeedData
                 Subject = "Votre accès à l'espace GNDJ",
                 BodyHtml = "<h2>Bonjour {{memberName}},</h2><p>Votre espace personnel GNDJ est prêt. Voici comment y accéder :</p><ul><li><strong>Votre identifiant :</strong> {{username}}</li></ul><p>Cliquez sur le bouton ci-dessous pour choisir votre mot de passe et activer votre compte :</p><p><a href=\"{{activationLink}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Activer mon compte</a></p><p>Ce lien est valable {{expiryDays}} jours. Conservez bien votre identifiant : il vous servira à chaque connexion.</p><p>Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br><span style=\"font-size:12px;color:#555;\">{{activationLink}}</span></p><p>— L'équipe GNDJ</p>",
                 Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"username\",\"label\":\"Identifiant\"},{\"key\":\"activationLink\",\"label\":\"Lien d'activation\"},{\"key\":\"expiryDays\",\"label\":\"Validité (jours)\"}]",
+                IsActive = true
+            });
+
+        // Re-inscription letter for a RETURNING member (already has an account): the SAME rentrée message as the
+        // activation email but WITHOUT a set-password link — they log in with their existing account. Picked in
+        // "Envoyer les accès" via the template selector; because it has no {{activationLink}}, the handler sends it
+        // link-free (no token stamped) and provides {{loginUrl}} instead. Used next year for returning members
+        // (new members keep the with-link account_activation). Editable in Admin → Email.
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "reinscription_returning"))
+            toAdd.Add(new EmailTemplate
+            {
+                Name = "Réinscription — membre déjà inscrit (sans lien)", Code = "reinscription_returning", Module = "auth",
+                Subject = "Réinscription scoute {{scoutYear}} — GNDJ",
+                BodyHtml = "<h2>Bonjour,</h2><p>La réinscription scoute pour l'année <strong>{{scoutYear}}</strong> est ouverte. Pour <strong>{{memberName}}</strong>, tout se passe désormais en ligne sur la plateforme du Groupe.</p><h3>Se connecter</h3><ul><li><strong>Votre identifiant :</strong> {{username}}</li></ul><p>Connectez-vous avec votre identifiant et le mot de passe que vous avez déjà défini :</p><p><a href=\"{{loginUrl}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Se connecter</a></p><p>Mot de passe oublié ? Utilisez le lien « Mot de passe oublié ? » sur la page de connexion (ou « Identifiant oublié ? » si besoin).</p><h3>À faire pour la réinscription</h3><ol><li><strong>Vérifiez la fiche</strong> de {{memberName}} et mettez à jour ce qui a changé (école, classe, coordonnées…).</li><li><strong>Téléversez les documents</strong> demandés (autorisation, certificat médical…) depuis « Mes documents » — certains modèles pré-remplis sont téléchargeables directement.</li><li><strong>Réglez la cotisation</strong> selon les modalités communiquées par la maîtrise.</li></ol><p>Merci et bonne année scoute !<br>— La Maîtrise GNDJ</p>",
+                Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"username\",\"label\":\"Identifiant\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"}]",
                 IsActive = true
             });
 

@@ -4149,6 +4149,35 @@ static file-upload template on the member screen when set. All on main; DEV unti
       left blank · deleted the test type. Build clean (dotnet 0/0 + tsc + eslint + vite). NOTE: HtmlAgilityPack 1.12.4
       added to Infrastructure. The Word forms generated to the Desktop earlier are superseded by this in-app builder.
 
+### "Envoyer les accès" — re-inscription email choice (with / without link) (2026-09-09)
+Second half of the re-inscription request (page 1 = the email): the rollout tool now sends ONE of two emails,
+template-driven. All on main; DEV until deploy.
+- **`SendAccessEmailsCommand.TemplateCode`** (default `account_activation`; whitelisted to
+      {account_activation, reinscription_returning} so the tool can't send an arbitrary template). Behaviour is
+      **template-driven**: the handler loads the chosen template and, **if its body/subject contains
+      `{{activationLink}}`**, stamps a set-password token + sends the link (new / first-time member); **otherwise**
+      it sends link-free (NO token) with `{{loginUrl}}` (returning member logs in with their existing account). So
+      next year the CG sends with-link to new members, without-link to returning ones. Vars now include
+      loginUrl + scoutYear (from `passage.scout_year`) alongside memberName/username(/activationLink/expiryDays).
+      `SendAccessRequest` + `POST /members/send-access` carry TemplateCode; audit records the template.
+- **New seeded template `reinscription_returning`** (module auth, idempotent in `SeedMemberEmailTemplatesAsync`):
+      the same rentrée letter as `account_activation` but link-free — "connectez-vous avec votre identifiant + votre
+      mot de passe", `{{loginUrl}}`, mot-de-passe-oublié hint, a to-do list (vérifier la fiche / téléverser les
+      documents [mentions the new prefilled templates] / cotisation). Editable in Admin → Email. `account_activation`
+      left untouched (no seeder rewrite → a CG-edited prod body is safe).
+- **Frontend** (`send-access.tsx`): an "Email à envoyer" `Select` (Activation vs Réinscription) → passes
+      `templateCode`; the info banner adapts (link-free wording for réinscription); `useSendAccess` body carries it.
+- **Rentrée:** new task **"Mettre à jour les modèles de documents (autorisation, fiche médicale…)"** (Configuration
+      phase, CG, action `goto-document-types`) — added to the master template AND the idempotent
+      `SeedRentreeExtraTasksAsync` (backfills existing DBs). New rentrée action **`goto-document-types`** →
+      `/admin/document-types` (backend allowed-set + frontend `rentree-actions.ts`).
+- **Verified live** (super-admin, member Rhea HARFOUCHE): réinscription send → sent=1, **no token stamped**, outbox
+      row `reinscription_returning`; activation send → sent=1, **token stamped**, outbox `account_activation`;
+      invalid template (`error_alert`) → 400 "Modèle d'email non autorisé"; both templates seeded (link detection
+      t/f); rentrée task backfilled (1 template). Test token + outbox rows cleaned up. Build clean (dotnet 0/0 +
+      tsc + eslint). NOTE: same go-live caveat as all app mail — delivery needs an active SMTP + `email.override_recipient`
+      cleared (see [[project-email-golive]]).
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

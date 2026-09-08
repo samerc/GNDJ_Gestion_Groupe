@@ -222,11 +222,13 @@ export function useAccessCandidates(unitId: string | undefined) {
   })
 }
 
-// Send activation emails to a whole unit or to an explicit member list (single-member resend).
+// Send access/re-inscription emails to a whole unit or to an explicit member list (single-member resend).
+// templateCode picks the email: "account_activation" (with the set-password link, default) or
+// "reinscription_returning" (link-free letter for members who already have an account).
 export function useSendAccess() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { unitId?: string; memberIds?: string[]; onlyNeverLoggedIn?: boolean }) =>
+    mutationFn: (body: { unitId?: string; memberIds?: string[]; onlyNeverLoggedIn?: boolean; templateCode?: string }) =>
       apiClient.post<SendAccessResult>('/members/send-access', body).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['members', 'access-candidates'] }),
   })

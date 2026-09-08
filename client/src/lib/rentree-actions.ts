@@ -30,6 +30,7 @@ export const RENTREE_ACTIONS: Record<string, RentreeActionDef> = {
   'goto-email': { label: 'Modèles d\'email / pièces jointes', kind: 'goto', route: '/admin/email-settings' },
   'goto-send-access': { label: 'Envoyer les accès', kind: 'goto', route: '/admin/communications-acces?tab=acces' },
   'goto-demande-archives': { label: 'Archives des demandes', kind: 'goto', route: '/admin/demande-archives' },
+  'goto-document-types': { label: 'Types de documents (modèles)', kind: 'goto', route: '/admin/document-types' },
 }
 
 // Options for the template-editor dropdown ("Aucune action" first).

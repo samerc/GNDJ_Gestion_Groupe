@@ -25,6 +25,10 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
   const [onlyNever, setOnlyNever] = useState(true)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [result, setResult] = useState<SendAccessResult | null>(null)
+  // Which email to send: activation (with the set-password link, for new/first-time members) or the link-free
+  // re-inscription letter (returning members who already have an account). This year: activation for everyone.
+  const [templateCode, setTemplateCode] = useState<'account_activation' | 'reinscription_returning'>('account_activation')
+  const withLink = templateCode === 'account_activation'
 
   const { data: candidates, isLoading } = useAccessCandidates(unitId || undefined)
   const send = useSendAccess()
@@ -46,8 +50,8 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
     try {
       // If rows are checked → send to exactly those; otherwise send to the whole unit (respecting the toggle).
       const body = selected.size > 0
-        ? { memberIds: [...selected] }
-        : { unitId, onlyNeverLoggedIn: onlyNever }
+        ? { memberIds: [...selected], templateCode }
+        : { unitId, onlyNeverLoggedIn: onlyNever, templateCode }
       const res = await send.mutateAsync(body)
       setResult(res)
       setSelected(new Set())
@@ -76,9 +80,29 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
       <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground sm:flex-row sm:items-start">
         <Info className="h-4 w-4 shrink-0 text-primary sm:mt-0.5" />
         <span>
-          Le lien d'activation est valable 30 jours. L'application indique seulement que l'email a été <em>envoyé</em> —
+          {withLink
+            ? <>Le lien d'activation est valable 30 jours. </>
+            : <>Cet email ne contient <strong>pas</strong> de lien : le membre se connecte avec son compte existant (il utilisera « Mot de passe oublié ? » si besoin). </>}
+          L'application indique seulement que l'email a été <em>envoyé</em> —
           les détails de livraison (reçu, spam, rebond) sont dans le tableau de bord de votre fournisseur SMTP.
         </span>
+      </div>
+
+      {/* Email template picker: with the set-password link (activation) vs the link-free re-inscription letter. */}
+      <div className="space-y-1">
+        <label className="text-sm font-medium">Email à envoyer</label>
+        <Select value={templateCode} onValueChange={(v) => setTemplateCode(v as typeof templateCode)}>
+          <SelectTrigger className="w-full sm:w-[30rem]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="account_activation">Activation — avec lien pour choisir le mot de passe (nouveaux membres)</SelectItem>
+            <SelectItem value="reinscription_returning">Réinscription — sans lien, connexion avec le compte existant (membres déjà inscrits)</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Cette année, choisissez « Activation » pour tout le monde (première connexion). Les années suivantes,
+          « Réinscription » pour les membres déjà inscrits et « Activation » pour les nouveaux. Le contenu des deux
+          emails se modifie dans <span className="font-medium">Admin → Email</span>.
+        </p>
       </div>
 
       {/* Unit picker + options */}

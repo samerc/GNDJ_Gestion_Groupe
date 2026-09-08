@@ -189,12 +189,14 @@ public class MembersController : BaseApiController
     public async Task<IActionResult> SendAccess([FromBody] SendAccessRequest body)
     {
         var result = await Mediator.Send(new GNDJ.Application.Members.SendAccessEmailsCommand(
-            body?.UnitId, body?.MemberIds, body?.OnlyNeverLoggedIn ?? false));
+            body?.UnitId, body?.MemberIds, body?.OnlyNeverLoggedIn ?? false, body?.TemplateCode));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }
 
-    public record SendAccessRequest(Guid? UnitId, List<Guid>? MemberIds, bool OnlyNeverLoggedIn);
+    // TemplateCode picks the email: null/"account_activation" = with the set-password link (activation),
+    // "reinscription_returning" = the link-free re-inscription letter for members who already have an account.
+    public record SendAccessRequest(Guid? UnitId, List<Guid>? MemberIds, bool OnlyNeverLoggedIn, string? TemplateCode);
 
     /// <summary>Sets (or clears with an empty body) the member's primary contact email — the recipient for member-facing mail. Requires members.edit.</summary>
     [HttpPut("{id:guid}/primary-email")]

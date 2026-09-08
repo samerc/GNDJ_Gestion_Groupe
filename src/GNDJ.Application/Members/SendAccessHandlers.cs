@@ -70,16 +70,29 @@ public class GetAccessCandidatesQueryHandler(IApplicationDbContext context, ICur
 public record SendAccessItem(Guid MemberId, string MemberName, string Status, string? Email);
 public record SendAccessResult(int Sent, int NoEmail, int NoAccount, int NoAccess, int Skipped, List<SendAccessItem> Details);
 
-// Send activation emails: either to every active member of UnitId, or to an explicit MemberIds list
+// Send access/re-inscription emails: either to every active member of UnitId, or to an explicit MemberIds list
 // (used for the single-member "Renvoyer l'accès"). OnlyNeverLoggedIn skips members who already signed in.
-public record SendAccessEmailsCommand(Guid? UnitId, List<Guid>? MemberIds, bool OnlyNeverLoggedIn) : IRequest<Result<SendAccessResult>>;
+// TemplateCode picks WHICH email (default = "account_activation", the with-link activation letter). The behaviour
+// is template-driven: if the chosen template contains {{activationLink}}, we stamp a set-password token and send
+// the link (first-time activation / new member); otherwise we send a link-free re-inscription letter (a RETURNING
+// member who already has an account) with {{loginUrl}} instead. So next year the CG sends the with-link template
+// to new members and the without-link one to returning members. Only the two re-inscription codes are allowed.
+public record SendAccessEmailsCommand(Guid? UnitId, List<Guid>? MemberIds, bool OnlyNeverLoggedIn, string? TemplateCode = null) : IRequest<Result<SendAccessResult>>;
 
 public class SendAccessEmailsCommandHandler(
     IApplicationDbContext context, ICurrentUserService currentUser, IEmailQueue emailQueue, IAuditService audit)
     : IRequestHandler<SendAccessEmailsCommand, Result<SendAccessResult>>
 {
+    // The only templates this rollout tool may send (guards against sending an arbitrary template to members).
+    private static readonly HashSet<string> AllowedTemplates = new(StringComparer.OrdinalIgnoreCase)
+        { "account_activation", "reinscription_returning" };
+
     public async ValueTask<Result<SendAccessResult>> Handle(SendAccessEmailsCommand request, CancellationToken ct)
     {
+        var templateCode = string.IsNullOrWhiteSpace(request.TemplateCode) ? "account_activation" : request.TemplateCode!.Trim();
+        if (!AllowedTemplates.Contains(templateCode))
+            return Result<SendAccessResult>.Failure("Modèle d'email non autorisé.");
+
         // ── Resolve the target member set + enforce unit-scoped access ──
         List<Guid> targetIds;
         int noAccess = 0;
@@ -128,6 +141,17 @@ public class SendAccessEmailsCommandHandler(
         // Activation-link validity is configurable (member.activation_link_days, default 30) — a long rollout
         // window so a busy parent has time to click.
         var activationExpiryDays = int.TryParse(await context.Settings.Where(s => s.Key == "member.activation_link_days").Select(s => s.Value).FirstOrDefaultAsync(ct), out var ad) && ad > 0 ? ad : 30;
+        var scoutYear = await context.Settings.Where(s => s.Key == "passage.scout_year").Select(s => s.Value).FirstOrDefaultAsync(ct) ?? "";
+
+        // Whether the chosen template needs a set-password link (drives whether we stamp a token). Template-driven:
+        // a CG can remove/add the {{activationLink}} in the editor and the behaviour follows.
+        var tpl = await context.EmailTemplates.IgnoreQueryFilters()
+            .Where(t => t.Code == templateCode)
+            .Select(t => new { t.Subject, t.BodyHtml, t.IsActive, t.IsDeleted })
+            .FirstOrDefaultAsync(ct);
+        if (tpl is null || tpl.IsDeleted || !tpl.IsActive)
+            return Result<SendAccessResult>.Failure("Le modèle d'email est introuvable ou inactif.");
+        var needsLink = (tpl.BodyHtml + " " + tpl.Subject).Contains("{{activationLink}}");
 
         var details = new List<SendAccessItem>();
         var jobs = new List<EmailJob>();
@@ -151,20 +175,28 @@ public class SendAccessEmailsCommandHandler(
                 noEmail++; details.Add(new(m.Id, name, "no-email", null)); continue;
             }
 
-            // Reuse the reset-token fields (raw in DB, compared on redemption at /reset-password).
-            var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "").Replace("/", "").Replace("=", "");
-            user.PasswordResetToken = token;
-            user.PasswordResetTokenExpiry = expiry;
-
-            // setup=1 switches the reset page copy to "activation" wording (first-time password set).
-            var link = $"{baseUrl}/reset-password?token={token}&email={Uri.EscapeDataString(user.Email)}&setup=1";
-            jobs.Add(new EmailJob("account_activation", email!, new Dictionary<string, string>
+            var vars = new Dictionary<string, string>
             {
                 ["memberName"] = name,
                 ["username"] = user.Email,
-                ["activationLink"] = link,
-                ["expiryDays"] = activationExpiryDays.ToString(),
-            }));
+                ["loginUrl"] = baseUrl,
+                ["scoutYear"] = scoutYear,
+            };
+
+            if (needsLink)
+            {
+                // Reuse the reset-token fields (raw in DB, compared on redemption at /reset-password).
+                var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "").Replace("/", "").Replace("=", "");
+                user.PasswordResetToken = token;
+                user.PasswordResetTokenExpiry = expiry;
+                // setup=1 switches the reset page copy to "activation" wording (first-time password set).
+                vars["activationLink"] = $"{baseUrl}/reset-password?token={token}&email={Uri.EscapeDataString(user.Email)}&setup=1";
+                vars["expiryDays"] = activationExpiryDays.ToString();
+            }
+            // A link-free re-inscription letter (returning member) needs no token — they log in with their
+            // existing account; {{loginUrl}} points them at the sign-in page.
+
+            jobs.Add(new EmailJob(templateCode, email!, vars));
             sent++; details.Add(new(m.Id, name, "sent", email));
         }
 
@@ -172,7 +204,7 @@ public class SendAccessEmailsCommandHandler(
         await context.SaveChangesAsync(ct);
         await emailQueue.EnqueueManyAsync(jobs, ct);
         await audit.LogAsync("SendAccess", "Member", null,
-            newValues: new { sent, noEmail, noAccount, skipped, unit = request.UnitId }, cancellationToken: ct);
+            newValues: new { sent, noEmail, noAccount, skipped, unit = request.UnitId, template = templateCode }, cancellationToken: ct);
 
         return Result<SendAccessResult>.Success(new SendAccessResult(sent, noEmail, noAccount, noAccess, skipped, details));
     }
