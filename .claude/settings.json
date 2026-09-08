@@ -37,7 +37,11 @@
       "Bash(npx vite *)",
       "Bash(git reset *)",
       "Bash(grep -E \"Command$|Query$\" /tmp/all_records.txt | wc -l)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "PowerShell(Get-Process GNDJ.Api,dotnet -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep 2; $env:PATH=\"C:\\\\Program Files\\\\dotnet;$env:PATH\"; dotnet build src/GNDJ.Api/GNDJ.Api.csproj -c Debug --nologo -v q 2>&1 | Select-Object -Last 20)",
+      "Bash(python -)",
+      "PowerShell($env:PATH=\"C:\\\\Program Files\\\\dotnet;$env:PATH\"; dotnet build src/GNDJ.Api/GNDJ.Api.csproj -c Debug --nologo -v q 2>&1 | Select-Object -Last 12)",
+      "PowerShell($env:PATH=\"C:\\\\Program Files\\\\dotnet;$env:PATH\"; dotnet build \"C:\\\\Users\\\\Administrator\\\\Documents\\\\coding\\\\GNDJ_Gestion_Groupe\\\\src\\\\GNDJ.Api\\\\GNDJ.Api.csproj\" -c Debug --nologo -v q 2>&1 | Select-Object -Last 15)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Administrator\\Desktop\\BP 2026",

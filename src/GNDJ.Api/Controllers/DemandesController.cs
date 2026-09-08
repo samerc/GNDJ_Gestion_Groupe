@@ -90,6 +90,30 @@ public class DemandesController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Lists groups of duplicate demandes (same child submitted more than once) for the scout year, so
+    /// the CG can merge them. Only mergeable demandes (not yet converted/sent). Requires demande.view.</summary>
+    [HttpGet("duplicates")]
+    [HasPermission(Permissions.DemandeView)]
+    public async Task<IActionResult> Duplicates([FromQuery] string scoutYear)
+    {
+        if (string.IsNullOrWhiteSpace(scoutYear)) return BadRequest(new { error = "L'année scoute est requise." });
+        var result = await Mediator.Send(new GetDuplicateDemandeSuggestionsQuery(scoutYear));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>Merges duplicate demandes onto a keeper (chosen child fields + item-by-item parents/proches),
+    /// deletes the loser demande(s) and any now-empty applicant account, optionally emails the accounts.
+    /// Requires demande.manage.</summary>
+    [HttpPost("merge")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> Merge([FromBody] MergeDemandesCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     /// <summary>Saves the pre-selected unit for a demande WITHOUT deciding (staged). Requires demande.manage.</summary>
     [HttpPut("{id:guid}/unit")]
     [HasPermission(Permissions.DemandeManage)]

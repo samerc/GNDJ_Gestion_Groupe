@@ -36,7 +36,8 @@ public record DemandeReviewDto(
     IReadOnlyList<ApplicantGuardianDto> Guardians, IReadOnlyList<ApplicantScoutRelationDto> ScoutRelations,
     IReadOnlyList<SiblingDto> Siblings,
     bool HasPreviousDemande = false, string? PreviousDemandeYear = null,
-    string? ParentsSituation = null, string? SerialNumber = null);
+    string? ParentsSituation = null, string? SerialNumber = null,
+    string? PhoneCountryCode = null); // carried so the merge tool can keep the phone's country code intact
 
 // Per-unit capacity card for the CG: current active members, Projected (after applying this year's
 // passage moves in/out), the editable intake Quota, and how many demandes are already Accepted into it.
@@ -125,6 +126,24 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context, ICu
 
         var demandes = await query.OrderBy(d => d.LastName).ThenBy(d => d.FirstName).ToListAsync(ct);
 
+        IEnumerable<DemandeReviewDto> result = await DemandeReviewProjection.BuildAsync(context, demandes, request.ScoutYear, today, ct);
+
+        // Age filter (computed) in-memory
+        if (request.AgeMin.HasValue) result = result.Where(d => d.Age >= request.AgeMin.Value);
+        if (request.AgeMax.HasValue) result = result.Where(d => d.Age <= request.AgeMax.Value);
+
+        return Result<IReadOnlyList<DemandeReviewDto>>.Success(result.ToList());
+    }
+}
+
+// Shared builder: turns a set of Demande entities into full DemandeReviewDto files (child fields + the account's
+// shared household + sibling context + auto-matched relatives). Used by the review list AND the duplicate-merge
+// query so both surface the exact same file shape.
+static class DemandeReviewProjection
+{
+    public static async Task<List<DemandeReviewDto>> BuildAsync(
+        IApplicationDbContext context, IReadOnlyList<Demande> demandes, string scoutYear, DateOnly today, CancellationToken ct)
+    {
         var accountIds = demandes.Select(d => d.ApplicantAccountId).Distinct().ToList();
         var accounts = await context.ApplicantAccounts.Where(a => accountIds.Contains(a.Id))
             .ToDictionaryAsync(a => a.Id, ct);
@@ -133,7 +152,7 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context, ICu
         var relations = (await context.ApplicantScoutRelations.Where(r => accountIds.Contains(r.ApplicantAccountId)).ToListAsync(ct))
             .GroupBy(r => r.ApplicantAccountId).ToDictionary(g => g.Key, g => g.ToList());
         // All demandes per account (this year) for sibling context
-        var allByAccount = (await context.Demandes.Where(d => accountIds.Contains(d.ApplicantAccountId) && d.ScoutYear == request.ScoutYear && d.Status != DemandeStatus.Draft).ToListAsync(ct))
+        var allByAccount = (await context.Demandes.Where(d => accountIds.Contains(d.ApplicantAccountId) && d.ScoutYear == scoutYear && d.Status != DemandeStatus.Draft).ToListAsync(ct))
             .GroupBy(d => d.ApplicantAccountId).ToDictionary(g => g.Key, g => g.ToList());
 
         var unitNames = await context.Units.ToDictionaryAsync(u => u.Id, u => u.Name, ct);
@@ -154,7 +173,7 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context, ICu
                 })
                 .ToDictionaryAsync(x => x.Id, x => (x.Name, x.Unit), ct);
 
-        var result = demandes.Select(d =>
+        return demandes.Select(d =>
         {
             var acc = accounts.GetValueOrDefault(d.ApplicantAccountId);
             var gs = guardians.GetValueOrDefault(d.ApplicantAccountId) ?? [];
@@ -176,14 +195,8 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context, ICu
                     return new ApplicantScoutRelationDto(r.Id, r.Status, r.Relationship, r.RelatedMemberId, r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName,
                         r.OtherGroupIsFormer, match.Name, match.Unit);
                 }).ToList(),
-                sibs, d.HasPreviousDemande, d.PreviousDemandeYear, acc?.ParentsSituation, d.SerialNumber);
-        });
-
-        // Age filter (computed) in-memory
-        if (request.AgeMin.HasValue) result = result.Where(d => d.Age >= request.AgeMin.Value);
-        if (request.AgeMax.HasValue) result = result.Where(d => d.Age <= request.AgeMax.Value);
-
-        return Result<IReadOnlyList<DemandeReviewDto>>.Success(result.ToList());
+                sibs, d.HasPreviousDemande, d.PreviousDemandeYear, acc?.ParentsSituation, d.SerialNumber, d.PhoneCountryCode);
+        }).ToList();
     }
 }
 
@@ -346,6 +359,277 @@ public class DeleteDemandeCommandHandler(IApplicationDbContext context, IAuditSe
             oldValues: new { demande.FirstName, demande.LastName, demande.ScoutYear, demande.Status },
             cancellationToken: ct);
         return Result<bool>.Success(true);
+    }
+}
+
+// ============================================================
+// Duplicate demandes — detect the same child submitted more than once, then MERGE onto one keeper.
+// Same idea as the duplicate-MEMBERS tool: identical fields are kept automatically; the CG decides the ones
+// that differ (incl. the proches). Only mergeable demandes are surfaced (this scout year, submitted/decided
+// but NOT yet converted to a member or sent). Group-manager only.
+// ============================================================
+
+// A set of demandes that look like the same child.
+public record DuplicateDemandeGroupDto(IReadOnlyList<DemandeReviewDto> Demandes, string Evidence);
+
+public record GetDuplicateDemandeSuggestionsQuery(string ScoutYear) : IRequest<Result<IReadOnlyList<DuplicateDemandeGroupDto>>>;
+
+public class GetDuplicateDemandeSuggestionsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetDuplicateDemandeSuggestionsQuery, Result<IReadOnlyList<DuplicateDemandeGroupDto>>>
+{
+    private const int MaxGroups = 200;
+    private const int MaxGroupSize = 10; // a bigger bucket is a generic name collision, not a real duplicate — skipped
+
+    public async ValueTask<Result<IReadOnlyList<DuplicateDemandeGroupDto>>> Handle(GetDuplicateDemandeSuggestionsQuery request, CancellationToken ct)
+    {
+        // Group-wide enrolment PII (children + parents) — restrict to a whole-group manager, like the review list.
+        if (!MemberAccess.IsGroupManager(currentUser))
+            return Result<IReadOnlyList<DuplicateDemandeGroupDto>>.Failure("Accès refusé.");
+
+        var today = LebanonClock.Today;
+
+        // Mergeable candidates only: submitted/decided (never drafts), NOT yet converted (no member) or sent.
+        var candidates = await context.Demandes
+            .Where(d => d.ScoutYear == request.ScoutYear && d.Status != DemandeStatus.Draft
+                && d.CreatedMemberId == null && d.ResponseSentAt == null)
+            .ToListAsync(ct);
+
+        // Key = normalized full name + date of birth (blank DOB → grouped on name alone). Two genuinely-different
+        // children with the same name but different DOB stay separate; a re-submit (same name+DOB, or both blank) groups.
+        static string Key(Demande d)
+            => TextNormalization.NormalizeKey((d.FirstName ?? "") + " " + (d.LastName ?? ""))
+               + "|" + (d.DateOfBirth?.ToString("yyyy-MM-dd") ?? "");
+
+        var groupsOfIds = candidates
+            .GroupBy(Key)
+            .Where(g => g.Count() >= 2 && g.Count() <= MaxGroupSize)
+            .Select(g => g.OrderBy(d => d.SubmittedAt ?? DateTime.MaxValue).ThenBy(d => d.Id).ToList())
+            .OrderBy(g => g[0].LastName).ThenBy(g => g[0].FirstName)
+            .Take(MaxGroups)
+            .ToList();
+
+        if (groupsOfIds.Count == 0)
+            return Result<IReadOnlyList<DuplicateDemandeGroupDto>>.Success([]);
+
+        // Build the full reviewable file for every grouped demande in one pass, then slot them back into groups.
+        var flat = groupsOfIds.SelectMany(g => g).ToList();
+        var dtos = (await DemandeReviewProjection.BuildAsync(context, flat, request.ScoutYear, today, ct))
+            .ToDictionary(x => x.Id);
+
+        var result = groupsOfIds.Select(g =>
+        {
+            var members = g.Select(d => dtos[d.Id]).ToList();
+            var evidence = members.All(m => m.DateOfBirth is not null)
+                ? "Même nom et date de naissance"
+                : "Même nom";
+            return new DuplicateDemandeGroupDto(members, evidence);
+        }).ToList();
+
+        return Result<IReadOnlyList<DuplicateDemandeGroupDto>>.Success(result);
+    }
+}
+
+// The child + household field VALUES the CG chose to keep on the merged (keeper) demande. Sent explicitly so the
+// keeper ends up with exactly these — identical fields are simply the same value on every source (auto-merged).
+public record DemandeMergeFields(
+    string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender, string? Nationality,
+    string? School, string? Classe, string? Section, string? BloodType, string? MedicalNotes, string? Allergies,
+    string? PhoneCountryCode, string? PhoneNumber, string? Email, string? ParentNotes,
+    bool HasPreviousDemande, string? PreviousDemandeYear,
+    string? AddressCountry, string? AddressCity, string? AddressDetails, string? ParentsSituation);
+
+public record MergeDemandesResult(int LosersMerged, int AccountsDeleted, int EmailsQueued);
+
+// Merge duplicate demandes onto a keeper. The keeper demande gets the chosen child fields; its account gets the
+// chosen household fields + the ticked parents (guardians) & proches (scout relations) — a ticked item from a
+// loser account is COPIED onto the keeper account (safe: never removes it from a source that still has a sibling
+// demande). Each loser demande is then deleted; a loser account left with NO other demande is hard-deleted with
+// all its data. Optionally emails every involved account to say which demande was kept vs removed. Group-manager only.
+public record MergeDemandesCommand(
+    Guid KeeperId, IReadOnlyList<Guid> LoserIds, DemandeMergeFields Fields,
+    IReadOnlyList<Guid> KeepGuardianIds, IReadOnlyList<Guid> KeepScoutRelationIds, bool SendEmail)
+    : IRequest<Result<MergeDemandesResult>>;
+
+public class MergeDemandesCommandValidator : AbstractValidator<MergeDemandesCommand>
+{
+    public MergeDemandesCommandValidator()
+    {
+        RuleFor(x => x.KeeperId).NotEmpty();
+        RuleFor(x => x.LoserIds).NotEmpty().Must(l => l.Count <= 20).WithMessage("Trop de doublons.");
+        RuleFor(x => x.KeepGuardianIds).NotNull().Must(l => l.Count <= 50);
+        RuleFor(x => x.KeepScoutRelationIds).NotNull().Must(l => l.Count <= 50);
+        RuleFor(x => x.Fields).NotNull();
+        RuleFor(x => x.Fields.FirstName).NotEmpty().MaximumLength(100).NoHtml();
+        RuleFor(x => x.Fields.LastName).NotEmpty().MaximumLength(100).NoHtml();
+        RuleFor(x => x.Fields.MedicalNotes).MaximumLength(2000).NoHtml();
+        RuleFor(x => x.Fields.Allergies).MaximumLength(2000).NoHtml();
+        RuleFor(x => x.Fields.ParentNotes).MaximumLength(2000).NoHtml();
+        RuleFor(x => x.Fields.AddressDetails).MaximumLength(500).NoHtml();
+    }
+}
+
+public class MergeDemandesCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit, IEmailQueue emailQueue)
+    : IRequestHandler<MergeDemandesCommand, Result<MergeDemandesResult>>
+{
+    public async ValueTask<Result<MergeDemandesResult>> Handle(MergeDemandesCommand request, CancellationToken ct)
+    {
+        if (!MemberAccess.IsGroupManager(currentUser))
+            return Result<MergeDemandesResult>.Failure("Accès non autorisé.");
+
+        var loserIds = request.LoserIds.Where(id => id != request.KeeperId).Distinct().ToList();
+        if (loserIds.Count == 0) return Result<MergeDemandesResult>.Failure("Sélectionnez au moins un doublon à fusionner.");
+
+        var allIds = loserIds.Append(request.KeeperId).ToList();
+        var demandes = await context.Demandes.Where(d => allIds.Contains(d.Id)).ToListAsync(ct);
+        var keeper = demandes.FirstOrDefault(d => d.Id == request.KeeperId);
+        if (keeper is null) return Result<MergeDemandesResult>.Failure("La demande à conserver est introuvable.");
+        var losers = demandes.Where(d => loserIds.Contains(d.Id)).ToList();
+        if (losers.Count != loserIds.Count) return Result<MergeDemandesResult>.Failure("Une ou plusieurs demandes sont introuvables.");
+
+        // Guardrails: same scout year, and nothing already converted/sent (those are locked, like a single delete).
+        if (demandes.Any(d => d.ScoutYear != keeper.ScoutYear))
+            return Result<MergeDemandesResult>.Failure("Les demandes doivent être de la même année scoute.");
+        if (demandes.Any(d => d.CreatedMemberId != null || d.ResponseSentAt != null))
+            return Result<MergeDemandesResult>.Failure("Une demande déjà convertie en membre ou déjà envoyée ne peut pas être fusionnée.");
+
+        var keeperAccountId = keeper.ApplicantAccountId;
+        var involvedAccountIds = demandes.Select(d => d.ApplicantAccountId).Distinct().ToList();
+
+        // Load every involved account up front — to modify the keeper's household AND to capture emails/contact
+        // names for the notification BEFORE any loser account is deleted.
+        var involvedAccounts = await context.ApplicantAccounts.Where(a => involvedAccountIds.Contains(a.Id)).ToListAsync(ct);
+        var keeperAccount = involvedAccounts.FirstOrDefault(a => a.Id == keeperAccountId);
+
+        var f = request.Fields;
+
+        await using var tx = await context.BeginTransactionAsync(ct);
+
+        // 1) Chosen child fields → keeper demande.
+        keeper.FirstName = f.FirstName.Trim();
+        keeper.LastName = f.LastName.Trim();
+        keeper.DateOfBirth = f.DateOfBirth;
+        keeper.Gender = f.Gender;
+        keeper.Nationality = f.Nationality;
+        keeper.School = f.School;
+        keeper.Classe = f.Classe;
+        keeper.Section = f.Section;
+        keeper.BloodType = f.BloodType;
+        keeper.MedicalNotes = f.MedicalNotes;
+        keeper.Allergies = f.Allergies;
+        keeper.PhoneCountryCode = f.PhoneCountryCode;
+        keeper.PhoneNumber = f.PhoneNumber;
+        keeper.Email = f.Email;
+        keeper.ParentNotes = f.ParentNotes;
+        keeper.HasPreviousDemande = f.HasPreviousDemande;
+        keeper.PreviousDemandeYear = f.PreviousDemandeYear;
+
+        // 2) Chosen household fields → keeper account.
+        if (keeperAccount is not null)
+        {
+            keeperAccount.AddressCountry = f.AddressCountry;
+            keeperAccount.AddressCity = f.AddressCity;
+            keeperAccount.AddressDetails = f.AddressDetails;
+            keeperAccount.ParentsSituation = f.ParentsSituation;
+            // PrimaryContactEmail is intentionally left as-is on the keeper account (not exposed to the merge UI).
+        }
+
+        // 3) Parents (guardians), item-by-item. A ticked keeper-account guardian stays; an unticked one is removed.
+        //    A ticked loser-account guardian is COPIED onto the keeper account (originals stay for any surviving
+        //    sibling demande on that account). Insert copies via the DbSet — never mutate a tracked parent's nav.
+        var keepG = request.KeepGuardianIds.ToHashSet();
+        var allGuardians = await context.ApplicantGuardians.Where(g => involvedAccountIds.Contains(g.ApplicantAccountId)).ToListAsync(ct);
+        foreach (var g in allGuardians)
+        {
+            var chosen = keepG.Contains(g.Id);
+            if (g.ApplicantAccountId == keeperAccountId)
+            {
+                if (!chosen) context.ApplicantGuardians.Remove(g); // soft-delete the keeper's un-kept parent
+            }
+            else if (chosen)
+            {
+                context.ApplicantGuardians.Add(new ApplicantGuardian
+                {
+                    ApplicantAccountId = keeperAccountId, Relationship = g.Relationship, FirstName = g.FirstName, LastName = g.LastName,
+                    Profession = g.Profession, ProfessionDomain = g.ProfessionDomain, PhoneCountryCode = g.PhoneCountryCode,
+                    PhoneNumber = g.PhoneNumber, Email = g.Email, IsDeceased = g.IsDeceased,
+                    IsPrimaryContact = g.IsPrimaryContact, IsEmergencyContact = g.IsEmergencyContact,
+                });
+            }
+        }
+
+        // 4) Proches (scout relations), same item-by-item logic.
+        var keepR = request.KeepScoutRelationIds.ToHashSet();
+        var allRelations = await context.ApplicantScoutRelations.Where(r => involvedAccountIds.Contains(r.ApplicantAccountId)).ToListAsync(ct);
+        foreach (var r in allRelations)
+        {
+            var chosen = keepR.Contains(r.Id);
+            if (r.ApplicantAccountId == keeperAccountId)
+            {
+                if (!chosen) context.ApplicantScoutRelations.Remove(r);
+            }
+            else if (chosen)
+            {
+                context.ApplicantScoutRelations.Add(new ApplicantScoutRelation
+                {
+                    ApplicantAccountId = keeperAccountId, Status = r.Status, Relationship = r.Relationship, RelatedMemberId = r.RelatedMemberId,
+                    FirstName = r.FirstName, LastName = r.LastName, LastUnit = r.LastUnit, LastFunction = r.LastFunction,
+                    OtherGroupName = r.OtherGroupName, OtherGroupIsFormer = r.OtherGroupIsFormer,
+                });
+            }
+        }
+
+        // 5) Soft-delete the loser demandes.
+        foreach (var l in losers) context.Demandes.Remove(l);
+
+        await context.SaveChangesAsync(ct);
+
+        // 6) A loser account left with NO remaining demande is a pure duplicate account → hard-delete it entirely.
+        //    An account that still has a sibling demande is kept (only the duplicate demande was removed).
+        var loserAccountIds = losers.Select(d => d.ApplicantAccountId).Distinct().Where(id => id != keeperAccountId).ToList();
+        int accountsDeleted = 0;
+        foreach (var accId in loserAccountIds)
+        {
+            // Query filter excludes the just-soft-deleted loser demande, so this counts real remaining demandes.
+            var remaining = await context.Demandes.CountAsync(d => d.ApplicantAccountId == accId, ct);
+            if (remaining > 0) continue;
+            await context.ApplicantScoutRelations.IgnoreQueryFilters().Where(r => r.ApplicantAccountId == accId).ExecuteDeleteAsync(ct);
+            await context.ApplicantGuardians.IgnoreQueryFilters().Where(g => g.ApplicantAccountId == accId).ExecuteDeleteAsync(ct);
+            await context.Demandes.IgnoreQueryFilters().Where(d => d.ApplicantAccountId == accId).ExecuteDeleteAsync(ct);
+            await context.ApplicantAccounts.IgnoreQueryFilters().Where(a => a.Id == accId).ExecuteDeleteAsync(ct);
+            accountsDeleted++;
+        }
+
+        await tx.CommitAsync(ct);
+
+        // 7) Optional notification — one email per involved account (keeper + losers), telling them which demande
+        //    was kept and which were removed. Queued AFTER commit (durable outbox) so it only fires on success.
+        int emailsQueued = 0;
+        if (request.SendEmail)
+        {
+            var childName = $"{keeper.FirstName} {keeper.LastName}".Trim();
+            var keptNumber = keeper.SerialNumber ?? "";
+            var deletedNumbers = string.Join(", ", losers.Select(l => l.SerialNumber).Where(s => !string.IsNullOrWhiteSpace(s)));
+            var jobs = new List<EmailJob>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var acc in involvedAccounts)
+            {
+                if (string.IsNullOrWhiteSpace(acc.Email) || !seen.Add(acc.Email.Trim())) continue;
+                jobs.Add(new EmailJob("demande_merged", acc.Email.Trim(), new Dictionary<string, string>
+                {
+                    ["contactName"] = acc.ContactName ?? "",
+                    ["childName"] = childName,
+                    ["keptNumber"] = keptNumber,
+                    ["deletedNumbers"] = deletedNumbers,
+                    ["scoutYear"] = keeper.ScoutYear,
+                }));
+            }
+            if (jobs.Count > 0) { await emailQueue.EnqueueManyAsync(jobs, ct); emailsQueued = jobs.Count; }
+        }
+
+        await audit.LogAsync("MergeDemandes", "Demande", keeper.Id,
+            newValues: new { request.KeeperId, LoserIds = loserIds, AccountsDeleted = accountsDeleted }, cancellationToken: ct);
+
+        return Result<MergeDemandesResult>.Success(new MergeDemandesResult(loserIds.Count, accountsDeleted, emailsQueued));
     }
 }
 

@@ -23,6 +23,7 @@ export interface DemandeReview {
   bloodType: string | null
   medicalNotes: string | null
   allergies: string | null
+  phoneCountryCode?: string | null // carried for the merge tool (kept null in the review table otherwise)
   phoneNumber: string | null
   email: string | null
   parentNotes: string | null
@@ -335,6 +336,45 @@ export function useImportDecisions() {
       fd.append('file', file)
       return apiClient.post<ImportDecisionsResult>('/demandes/import-decisions', fd).then((r) => r.data)
     },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['demandes'] }),
+  })
+}
+
+// ── Duplicate demandes (merge) ──────────────────────────────────────────────────────────────────────
+// A group of demandes that look like the same child submitted more than once.
+export interface DuplicateDemandeGroup { demandes: DemandeReview[]; evidence: string }
+
+// The field VALUES chosen to keep on the merged (keeper) demande + its account.
+export interface DemandeMergeFields {
+  firstName: string; lastName: string; dateOfBirth: string | null; gender: string | null; nationality: string | null
+  school: string | null; classe: string | null; section: string | null; bloodType: string | null
+  medicalNotes: string | null; allergies: string | null
+  phoneCountryCode: string | null; phoneNumber: string | null; email: string | null; parentNotes: string | null
+  hasPreviousDemande: boolean; previousDemandeYear: string | null
+  addressCountry: string | null; addressCity: string | null; addressDetails: string | null
+  parentsSituation: string | null
+}
+
+export interface MergeDemandesResult { losersMerged: number; accountsDeleted: number; emailsQueued: number }
+
+// GET /demandes/duplicates?scoutYear → groups of duplicate demandes to merge; requires scoutYear.
+export function useDuplicateDemandes(scoutYear: string) {
+  return useQuery({
+    queryKey: ['demandes', 'duplicates', scoutYear],
+    queryFn: () => apiClient.get<DuplicateDemandeGroup[]>('/demandes/duplicates', { params: { scoutYear } }).then((r) => r.data),
+    enabled: !!scoutYear,
+  })
+}
+
+// POST /demandes/merge → merge losers onto the keeper (chosen fields + item-by-item parents/proches), delete the
+// loser demande(s) + any now-empty account, optionally email. Invalidates ['demandes'].
+export function useMergeDemandes() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: {
+      keeperId: string; loserIds: string[]; fields: DemandeMergeFields
+      keepGuardianIds: string[]; keepScoutRelationIds: string[]; sendEmail: boolean
+    }) => apiClient.post<MergeDemandesResult>('/demandes/merge', data).then((r) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['demandes'] }),
   })
 }

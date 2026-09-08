@@ -4063,6 +4063,36 @@ fills, and uploads back. Not mandatory (null = no template, unchanged). All on m
       binary-upload artifact (exit 26 / http 000) is an MSYS-path issue, not the endpoint — the existing
       `/content/files` behaves identically; a Windows-path upload succeeds.
 
+### Merge duplicate demandes (2026-09-08)
+A CG tool to merge demandes for the same child submitted more than once (a parent re-submitted, or both parents
+each registered). Mirrors the duplicate-MEMBERS "Doublons" tool but for demandes + their applicant household.
+All on main, DEV until deploy; verified live end-to-end (throwaway year 9999, then cleaned up).
+- **Data model reminder:** child fields live on the **Demande**; parents (`ApplicantGuardian`), proches
+      (`ApplicantScoutRelation`), address, parents-situation live on the **ApplicantAccount** (shared across that
+      account's demandes). So same-account duplicates share the household; cross-account ones don't.
+- **Detection** `GetDuplicateDemandeSuggestionsQuery(scoutYear)` (`GET /demandes/duplicates`, IsGroupManager):
+      groups mergeable demandes (non-draft, **not converted / not sent**) by normalized full name + DOB (blank DOB →
+      name only). Returns `DuplicateDemandeGroupDto(Demandes: DemandeReviewDto[], Evidence)`. Refactored the review
+      DTO projection into shared `DemandeReviewProjection.BuildAsync` (used by the review list AND this) so both show
+      the identical file shape. Added `PhoneCountryCode` to `DemandeReviewDto` (was dropped) so the merge keeps the phone intact.
+- **Merge** `MergeDemandesCommand(KeeperId, LoserIds, DemandeMergeFields, KeepGuardianIds, KeepScoutRelationIds,
+      SendEmail)` (`POST /demandes/merge`, demande.manage + IsGroupManager). In one transaction: chosen child fields →
+      keeper demande; chosen household fields (address/parents-situation) → keeper account (**PrimaryContactEmail left
+      as-is** — not in the DTO); **parents/proches item-by-item** — a ticked keeper-account item stays, an unticked one
+      is soft-deleted, a ticked **loser-account** item is **COPIED** onto the keeper account (safe — never removes it
+      from an account that still has a sibling demande); loser demandes soft-deleted; a loser account **left with no
+      other demande is hard-deleted** entirely (cascade like DeleteApplicantAccount), one with siblings is kept. Optional
+      `demande_merged` email (seeded, idempotent) to every involved account (kept vs deleted serial numbers), queued after
+      commit. GOTCHA respected: insert guardian/relation copies via the DbSet, never mutate a tracked parent's nav.
+- **Frontend:** page `/admin/demande-duplicates` "Doublons de demandes" (sidebar Demandes, demande.manage). Per group:
+      pick a keeper (radio); child+household fields shown as **identical (auto, green ✓) vs a choice (radio)**; parents &
+      proches **deduped by signature** and pre-checked (untick to drop), loser-only items tagged "à ajouter"; a "send
+      email" checkbox. Merge dialog re-inits on keeper change (render-phase reset).
+- **Verified live:** detection finds a real dup (Chadi ABOU KHALIL, untouched); cross-account merge → chosen school
+      applied, identical parent deduped, loser parent+proche copied, loser demande+account hard-deleted, 2 emails queued;
+      same-account merge → account kept (accountsDeleted 0), unticked parent removed; sent/converted demande → 400. Build
+      clean (dotnet + tsc + eslint + vite). Migration-free (template seeds on prod startup via SeedDemandeEmailTemplatesAsync).
+
 ### Translation-extension crash guard (2026-09-08)
 Prod error log showed repeated client errors on `/inscription/register`: `Failed to execute 'insertBefore' /
 'removeChild' on 'Node': ... not a child of this node.` These are the classic signature of a **browser

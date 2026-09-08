@@ -830,6 +830,14 @@ public static class SeedData
             },
             new EmailTemplate
             {
+                Name = "Demandes fusionnées (doublon)", Code = "demande_merged", Module = "demande",
+                Subject = "Regroupement de votre demande d'inscription — GNDJ Scout",
+                BodyHtml = "<h2>Bonjour {{contactName}},</h2><p>Nous avons constaté que plusieurs demandes d'inscription avaient été présentées pour <strong>{{childName}}</strong> ({{scoutYear}}).</p><p>Afin d'éviter les doublons, nous avons regroupé ces demandes en une seule. Nous avons conservé la demande <strong>{{keptNumber}}</strong>. Les demandes en double ({{deletedNumbers}}) ont été supprimées.</p><p>Aucune action n'est requise de votre part : votre demande reste bien enregistrée et sera traitée normalement.</p><p>— L'équipe GNDJ</p>",
+                Variables = "[{\"key\":\"contactName\",\"label\":\"Nom du contact\"},{\"key\":\"childName\",\"label\":\"Nom de l'enfant\"},{\"key\":\"keptNumber\",\"label\":\"Demande conservée (numéro)\"},{\"key\":\"deletedNumbers\",\"label\":\"Demandes supprimées (numéros)\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"}]",
+                IsActive = true
+            },
+            new EmailTemplate
+            {
                 Name = "Rappel — demande non soumise", Code = "demande_submission_reminder", Module = "demande",
                 Subject = "N'oubliez pas de soumettre votre demande — GNDJ Scout",
                 BodyHtml = "<h2>Bonjour {{contactName}},</h2><p>Vous avez créé un compte pour inscrire un enfant au groupe scout GNDJ ({{scoutYear}}), mais votre demande n'a pas encore été <strong>soumise</strong>.</p><p>Merci de la compléter et de la soumettre avant le <strong>{{deadline}}</strong> : <a href=\"{{portalUrl}}\">{{portalUrl}}</a></p><p>Passé ce délai, les demandes non soumises ne pourront plus être traitées.</p><p>— L'équipe GNDJ</p>",

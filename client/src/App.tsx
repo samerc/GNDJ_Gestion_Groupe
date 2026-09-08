@@ -72,6 +72,7 @@ const DocumentsSuiviPage = lazy(() => import('@/pages/admin/documents-suivi'))
 const DemandeStatsPage = lazy(() => import('@/pages/admin/demande-stats'))
 const DemandeAccountsPage = lazy(() => import('@/pages/admin/demande-accounts'))
 const DemandeArchivesPage = lazy(() => import('@/pages/admin/demande-archives'))
+const DemandeDuplicatesPage = lazy(() => import('@/pages/admin/demande-duplicates'))
 const PassageValidationPage = lazy(() => import('@/pages/admin/passage-validation'))
 const CotisationDashboardPage = lazy(() => import('@/pages/admin/cotisation-dashboard'))
 const ProgressionPage = lazy(() => import('@/pages/admin/progression'))
@@ -221,6 +222,7 @@ export default function App() {
               <Route path="/admin/demande-stats" element={<DemandeStatsPage />} />
               <Route path="/admin/demande-accounts" element={<DemandeAccountsPage />} />
               <Route path="/admin/demande-archives" element={<DemandeArchivesPage />} />
+              <Route path="/admin/demande-duplicates" element={<DemandeDuplicatesPage />} />
             </Route>
             {/* Rejection motifs moved into Paramètres → Inscriptions tab; keep the old route as a redirect. */}
             <Route path="/admin/rejection-reasons" element={<Navigate to="/admin/settings" replace />} />

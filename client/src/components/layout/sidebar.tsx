@@ -46,6 +46,7 @@ import {
   AlertTriangle,
   LayoutGrid,
   Archive,
+  GitMerge,
   Palette,
   MonitorSmartphone,
 } from 'lucide-react'
@@ -124,6 +125,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/demandes', label: 'Demandes', icon: Inbox, permission: PERMISSIONS.DEMANDE_VIEW },
       { path: '/admin/demande-stats', label: 'Statistiques', icon: BarChart3, permission: PERMISSIONS.DEMANDE_VIEW },
       { path: '/admin/demande-accounts', label: 'Comptes d\'inscription', icon: MailCheck, permission: PERMISSIONS.DEMANDE_VIEW },
+      { path: '/admin/demande-duplicates', label: 'Doublons de demandes', icon: GitMerge, permission: PERMISSIONS.DEMANDE_MANAGE },
       { path: '/admin/demande-archives', label: 'Archives', icon: Archive, permission: PERMISSIONS.DEMANDE_VIEW },
       // Motifs de refus moved into Paramètres → Inscriptions tab (CG-editable there).
     ],
