@@ -217,3 +217,14 @@
   margin: 6px 0;
   min-height: 40px;
 }
+
+/* Form-builder spacer (vertical breathing room between paragraphs). A faint hover guide makes the empty block
+   visible + selectable in the editor; it renders as pure blank space in the PDF. */
+.gndj-spacer {
+  display: block;
+  border-radius: 2px;
+  transition: background 0.15s;
+}
+.gndj-spacer:hover {
+  background: oklch(0.95 0.02 255);
+}

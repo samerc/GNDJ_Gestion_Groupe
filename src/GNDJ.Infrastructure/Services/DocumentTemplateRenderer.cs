@@ -51,6 +51,11 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
             var name = node.Name.ToLowerInvariant();
             switch (name)
             {
+                // A spacer — vertical breathing room between paragraphs.
+                case "div" when node.Attributes.Contains("data-spacer"):
+                    col.Item().Height(node.GetAttributeValue("data-h", 20) * 0.75f);
+                    break;
+
                 // A "cadre à remplir" — a clean bordered box for a longer handwritten answer.
                 case "div" when node.Attributes.Contains("data-box"):
                     col.Item().PaddingVertical(2).Border(0.8f).BorderColor(Colors.Grey.Darken1)

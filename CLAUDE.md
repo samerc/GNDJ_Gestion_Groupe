@@ -4193,6 +4193,10 @@ static file-upload template on the member screen when set. All on main; DEV unti
       `MaxHeight(180).AlignCenter().Image().FitArea()` (fitted to width, height-capped so an oversized upload can't
       blow the layout). Reuses the existing content-images upload/serve endpoints (CG has content.manage). Verified
       live: a header image embeds as an Image XObject in the PDF (present with, absent without).
+- **Spacer (same day):** a `Spacer` block node (`<div data-spacer data-h>`) + a "Mise en page" insert group (Espace
+      petit/moyen/grand = 10/22/40 px) lets the CG add vertical breathing room between paragraphs; the renderer draws
+      it as `col.Item().Height(h*0.75)`. Editor shows a faint hover guide (`.gndj-spacer`) so the empty block is
+      visible/selectable. Verified: preview PDFs render with/without the gap, valid PDF.
 
 ### "Envoyer les accès" — re-inscription email choice (with / without link) (2026-09-09)
 Second half of the re-inscription request (page 1 = the email): the rollout tool now sends ONE of two emails,

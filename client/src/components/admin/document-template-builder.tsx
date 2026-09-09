@@ -52,6 +52,14 @@ export function DocumentTemplateBuilder({ open, onOpenChange, initialHtml, docum
         { label: 'Case à cocher', action: { kind: 'node', name: 'checkbox' } },
       ],
     },
+    {
+      label: 'Mise en page',
+      items: [
+        { label: 'Espace (petit)', action: { kind: 'node', name: 'spacer', attrs: { h: 10 } } },
+        { label: 'Espace (moyen)', action: { kind: 'node', name: 'spacer', attrs: { h: 22 } } },
+        { label: 'Espace (grand)', action: { kind: 'node', name: 'spacer', attrs: { h: 40 } } },
+      ],
+    },
   ], [fields])
 
   const isEmpty = !html || html === '<p></p>'

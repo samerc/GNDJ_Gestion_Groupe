@@ -79,6 +79,29 @@ export const CheckboxNode = Node.create({
   },
 })
 
+// A vertical spacer to add breathing room between paragraphs (attr h = pixel height). Block-level.
+export const SpacerNode = Node.create({
+  name: 'spacer',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  addAttributes() {
+    return {
+      h: {
+        default: 20,
+        parseHTML: (el) => parseInt(el.getAttribute('data-h') || '20', 10) || 20,
+        renderHTML: (attrs) => ({ 'data-h': attrs.h }),
+      },
+    }
+  },
+  parseHTML() {
+    return [{ tag: 'div[data-spacer]' }]
+  },
+  renderHTML({ HTMLAttributes, node }) {
+    return ['div', mergeAttributes(HTMLAttributes, { 'data-spacer': '1', class: 'gndj-spacer', style: `height:${node.attrs.h}px` })]
+  },
+})
+
 // A bordered box for longer handwritten answers (attr h = pixel height). Block-level.
 export const FillBoxNode = Node.create({
   name: 'fillBox',
@@ -103,4 +126,4 @@ export const FillBoxNode = Node.create({
 })
 
 // The bundle passed to the RichTextEditor's `extraExtensions` prop by the document-template builder.
-export const FORM_NODES = [MemberFieldNode, FillLineNode, CheckboxNode, FillBoxNode]
+export const FORM_NODES = [MemberFieldNode, FillLineNode, CheckboxNode, SpacerNode, FillBoxNode]
