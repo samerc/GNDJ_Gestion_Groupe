@@ -4148,6 +4148,22 @@ static file-upload template on the member screen when set. All on main; DEV unti
       PDF (22 KB) whose text = "Angela ABBOUD · Noyau · Assistante de Noyau · 01/01/2009", father fields (no data)
       left blank · deleted the test type. Build clean (dotnet 0/0 + tsc + eslint + vite). NOTE: HtmlAgilityPack 1.12.4
       added to Infrastructure. The Word forms generated to the Desktop earlier are superseded by this in-app builder.
+- **Form-builder upgrade (same day, per CG feedback "make it friendlier / no ugly dots / need checkboxes"):** the
+      editor is now a lightweight FORM BUILDER via 4 custom TipTap nodes (`components/admin/form-nodes.ts`): a
+      **memberField** pill (« Prénom » instead of raw `{{prenom}}`; serialises to `<span data-field="prenom">`), a
+      **fillLine** clean underline (short/long, `<span data-fill data-w>` — NOT dotted, the CG rejected dots), a
+      **fillBox** bordered box for longer answers (`<div data-box data-h>`), and a **checkbox** (`<span data-checkbox>`).
+      Inserted from ONE grouped **"Insérer un champ"** dropdown (Champs du membre / À remplir par le membre) — the CG
+      wanted a dropdown, not a row of chips. The shared `RichTextEditor` gained optional `extraExtensions` +
+      `insertMenu` (grouped, insert literal text OR a custom node) props — email/CMS editors pass neither, so they're
+      unaffected. Editor CSS (`.gndj-field/.gndj-fill/.gndj-checkbox/.gndj-box` in index.css) shows them as real form
+      controls. **Renderer** (`DocumentTemplateRenderer`): resolves `data-field` spans to the member value; **draws**
+      the underline (`TextDescriptor.Element(...).BorderBottom`), box (bordered `col.Item()`), and checkbox (bordered
+      square) — checkboxes MUST be drawn (the PDF font Lato has no ballot-box glyph — verified ☐ U+2610 renders blank,
+      while underscores/`[ ]` render fine). `HasVisibleContent` treats a fill/checkbox/field-only paragraph as
+      non-blank (XPath). Verified live: preview (fields→samples, drawn lines/box/checkboxes, valid PDF) + per-member
+      PDF (Angela ABBOUD/Noyau resolved, no-father pill→blank, checkbox+line drawn). Build clean (dotnet + tsc +
+      eslint + vite). DEV until deploy.
 
 ### "Envoyer les accès" — re-inscription email choice (with / without link) (2026-09-09)
 Second half of the re-inscription request (page 1 = the email): the rollout tool now sends ONE of two emails,

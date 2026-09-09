@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
+import type { Extensions } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
@@ -8,18 +9,29 @@ import Color from '@tiptap/extension-color'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectGroup, SelectLabel } from '@/components/ui/select'
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  List, ListOrdered, Link as LinkIcon, Undo, Redo, Variable, Image as ImageIcon, Loader2
+  List, ListOrdered, Link as LinkIcon, Undo, Redo, Variable, Image as ImageIcon, Loader2, Plus
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+// An "Insérer" dropdown action: insert literal text/token, or insert a custom node (form-builder elements).
+export type InsertAction =
+  | { kind: 'text'; value: string }
+  | { kind: 'node'; name: string; attrs?: Record<string, unknown> }
+export interface InsertMenuGroup {
+  label: string
+  items: { label: string; action: InsertAction }[]
+}
 
 interface Props {
   content: string
   onChange: (html: string) => void
   variables?: { key: string; label: string }[] // per-module {{placeholders}} for the "Variable" dropdown
+  insertMenu?: InsertMenuGroup[] // richer grouped "Insérer" dropdown (member fields + form elements)
+  extraExtensions?: Extensions // extra TipTap nodes/marks (e.g. the form-builder nodes)
   placeholder?: string
   className?: string
   onImageUpload?: (file: File) => Promise<string> // when provided, enables the image-insert button; returns the served URL
@@ -45,7 +57,7 @@ function ToolbarButton({ onClick, active, children, title }: { onClick: () => vo
 // TipTap-based WYSIWYG editor used by the email-template editor and the public CMS (news/pages).
 // Toolbar = formatting + lists + link + optional image upload + undo/redo + a module-specific
 // variable-insertion dropdown. Emits HTML via onChange.
-export function RichTextEditor({ content, onChange, variables, placeholder, className, onImageUpload }: Props) {
+export function RichTextEditor({ content, onChange, variables, insertMenu, extraExtensions, placeholder, className, onImageUpload }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const editor = useEditor({
@@ -58,6 +70,7 @@ export function RichTextEditor({ content, onChange, variables, placeholder, clas
       TextStyle,
       Image.configure({ inline: false, HTMLAttributes: { class: 'rounded-lg' } }),
       Placeholder.configure({ placeholder: placeholder ?? 'Commencez à écrire...' }),
+      ...(extraExtensions ?? []),
     ],
     content,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
@@ -75,6 +88,12 @@ export function RichTextEditor({ content, onChange, variables, placeholder, clas
   // Insert a {{key}} token at the cursor; the backend substitutes it when sending the email/rendering.
   const insertVariable = (variable: string) => {
     editor.chain().focus().insertContent(`{{${variable}}}`).run()
+  }
+
+  // Run an "Insérer" action from the grouped menu: literal text/token, or a custom node (form element).
+  const runInsert = (action: InsertAction) => {
+    if (action.kind === 'text') editor.chain().focus().insertContent(action.value).run()
+    else editor.chain().focus().insertContent({ type: action.name, attrs: action.attrs ?? {} }).run()
   }
 
   const handleImagePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,7 +182,7 @@ export function RichTextEditor({ content, onChange, variables, placeholder, clas
           <Redo className="h-4 w-4" />
         </ToolbarButton>
 
-        {/* Variable insertion */}
+        {/* Variable insertion (email/CMS templates) */}
         {variables && variables.length > 0 && (
           <>
             <div className="w-px h-5 bg-border mx-1" />
@@ -175,6 +194,34 @@ export function RichTextEditor({ content, onChange, variables, placeholder, clas
               <SelectContent>
                 {variables.map(v => (
                   <SelectItem key={v.key} value={v.key}>{v.label} ({`{{${v.key}}}`})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
+
+        {/* Grouped "Insérer un champ" dropdown (form builder): member fields + fill-in elements. Controlled to ""
+            so re-selecting the same item (e.g. two blank lines) always fires. */}
+        {insertMenu && insertMenu.length > 0 && (
+          <>
+            <div className="w-px h-5 bg-border mx-1" />
+            <Select value="" onValueChange={(v) => {
+              const [gi, ii] = v.split(':').map(Number)
+              const action = insertMenu[gi]?.items[ii]?.action
+              if (action) runInsert(action)
+            }}>
+              <SelectTrigger className="h-8 w-auto gap-1 border-primary/40 bg-primary/5 text-xs font-medium text-primary hover:bg-primary/10">
+                <Plus className="h-3.5 w-3.5" />
+                <span>Insérer un champ</span>
+              </SelectTrigger>
+              <SelectContent>
+                {insertMenu.map((group, gi) => (
+                  <SelectGroup key={gi}>
+                    <SelectLabel>{group.label}</SelectLabel>
+                    {group.items.map((item, ii) => (
+                      <SelectItem key={`${gi}:${ii}`} value={`${gi}:${ii}`}>{item.label}</SelectItem>
+                    ))}
+                  </SelectGroup>
                 ))}
               </SelectContent>
             </Select>

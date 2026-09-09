@@ -2,9 +2,10 @@
 // text, inserting {{champs}} that pre-fill with each member's data when they download their PDF. Reuses the
 // shared RichTextEditor (its "Variable" dropdown inserts the member-field placeholders) + an "Aperçu PDF"
 // button that renders the CURRENT content with sample values so the CG checks the layout before saving.
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { RichTextEditor } from '@/components/shared/rich-text-editor'
+import { RichTextEditor, type InsertMenuGroup } from '@/components/shared/rich-text-editor'
+import { FORM_NODES } from '@/components/admin/form-nodes'
 import { useDocumentTemplateFields, previewDocumentTemplate } from '@/services/document-type-service'
 import { openBlob } from '@/lib/download'
 import { parseApiError } from '@/lib/error-utils'
@@ -32,8 +33,23 @@ export function DocumentTemplateBuilder({ open, onOpenChange, initialHtml, docum
     if (open) setHtml(initialHtml)
   }
 
-  // The RichTextEditor's "Variable" dropdown inserts {{key}} — feed it the member-field catalog.
-  const variables = fields?.map(f => ({ key: f.key, label: f.label }))
+  // One grouped "Insérer un champ" dropdown: member fields (auto-filled pills) + fill-in form elements
+  // (clean underline / bordered box / checkbox) — a lightweight form builder.
+  const insertMenu = useMemo<InsertMenuGroup[]>(() => [
+    {
+      label: 'Champs du membre (remplis automatiquement)',
+      items: (fields ?? []).map(f => ({ label: f.label, action: { kind: 'node', name: 'memberField', attrs: { field: f.key, label: f.label } } })),
+    },
+    {
+      label: 'À remplir par le membre',
+      items: [
+        { label: 'Ligne à remplir (courte)', action: { kind: 'node', name: 'fillLine', attrs: { w: 120 } } },
+        { label: 'Ligne à remplir (longue)', action: { kind: 'node', name: 'fillLine', attrs: { w: 300 } } },
+        { label: 'Cadre à remplir (grand)', action: { kind: 'node', name: 'fillBox', attrs: { h: 70 } } },
+        { label: 'Case à cocher', action: { kind: 'node', name: 'checkbox' } },
+      ],
+    },
+  ], [fields])
 
   const isEmpty = !html || html === '<p></p>'
 
@@ -61,16 +77,18 @@ export function DocumentTemplateBuilder({ open, onOpenChange, initialHtml, docum
         <DialogHeader>
           <DialogTitle>Modèle du document{documentName ? ` — ${documentName}` : ''}</DialogTitle>
           <DialogDescription>
-            Rédigez le document. Utilisez le menu <strong>« Variable »</strong> pour insérer un champ du membre
-            (prénom, unité, date de naissance…) : il sera automatiquement rempli quand le membre télécharge son
-            document. Laissez des espaces vides pour ce qui doit être complété à la main ou signé.
+            Rédigez le document, puis utilisez le menu <strong>« Insérer un champ »</strong> pour ajouter :
+            un <strong>champ du membre</strong> (prénom, unité…) qui se remplit tout seul, une <strong>ligne</strong>
+            ou un <strong>cadre à remplir</strong> à la main, ou une <strong>case à cocher</strong>. Aperçu PDF pour
+            vérifier le rendu.
           </DialogDescription>
         </DialogHeader>
 
         <RichTextEditor
           content={html}
           onChange={setHtml}
-          variables={variables}
+          insertMenu={insertMenu}
+          extraExtensions={FORM_NODES}
           placeholder="Rédigez votre document ici…"
         />
 

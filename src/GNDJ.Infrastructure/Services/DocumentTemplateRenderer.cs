@@ -51,12 +51,15 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
             var name = node.Name.ToLowerInvariant();
             switch (name)
             {
+                // A "cadre à remplir" — a clean bordered box for a longer handwritten answer.
+                case "div" when node.Attributes.Contains("data-box"):
+                    col.Item().PaddingVertical(3).Border(0.8f).BorderColor(Colors.Grey.Darken1)
+                        .Height(node.GetAttributeValue("data-h", 70) * 0.75f);
+                    break;
+
                 case "p":
                 case "div":
-                    if (HasVisibleContent(node, values))
-                        col.Item().PaddingBottom(6).Text(t => { ApplyAlign(t, node); RenderInline(t, node, values, new InlineStyle()); });
-                    else
-                        col.Item().Height(11); // preserve an intentional blank line (signature spacing etc.)
+                    RenderParagraph(col, node, values);
                     break;
 
                 case "h1": Heading(col, node, values, 20); break;
@@ -93,6 +96,14 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
                     break;
             }
         }
+    }
+
+    private static void RenderParagraph(ColumnDescriptor col, HtmlNode node, IReadOnlyDictionary<string, string?> values)
+    {
+        if (HasVisibleContent(node, values))
+            col.Item().PaddingBottom(6).Text(t => { ApplyAlign(t, node); RenderInline(t, node, values, new InlineStyle()); });
+        else
+            col.Item().Height(11); // preserve an intentional blank line (signature spacing etc.)
     }
 
     private static void Heading(ColumnDescriptor col, HtmlNode node, IReadOnlyDictionary<string, string?> values, float size) =>
@@ -161,8 +172,39 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
                     break;
 
                 default:
-                    // span, a, font, and any other inline wrapper: recurse, keeping the current style.
-                    RenderInline(text, child, values, style);
+                    // Form-builder elements (custom nodes) serialise to data-attributes on a span.
+                    if (child.Attributes.Contains("data-field"))
+                    {
+                        // An auto-filled member field: emit its resolved value (blank if the member has no data).
+                        var key = child.GetAttributeValue("data-field", "");
+                        var fieldValue = values.TryGetValue(key, out var fv) ? fv ?? string.Empty : string.Empty;
+                        if (fieldValue.Length > 0)
+                        {
+                            var span = text.Span(fieldValue);
+                            if (style.Bold) span = span.Bold();
+                            if (style.Italic) span = span.Italic();
+                            if (style.Underline) span = span.Underline();
+                            if (style.Strike) span = span.Strikethrough();
+                        }
+                    }
+                    else if (child.Attributes.Contains("data-fill"))
+                    {
+                        // A clean underline the member writes on (width in px → points). No dotted line.
+                        var w = child.GetAttributeValue("data-w", 200) * 0.75f;
+                        text.Element(e => e.PaddingHorizontal(2).Height(11).Width(w)
+                            .BorderBottom(0.8f).BorderColor(Colors.Grey.Darken2), TextInjectedElementAlignment.BelowBaseline);
+                    }
+                    else if (child.Attributes.Contains("data-checkbox"))
+                    {
+                        // A real checkbox drawn as an empty square (the PDF font has no ballot-box glyph).
+                        text.Element(e => e.PaddingHorizontal(1).Width(11).Height(11)
+                            .Border(0.9f).BorderColor(Colors.Black), TextInjectedElementAlignment.Middle);
+                    }
+                    else
+                    {
+                        // span, a, font, and any other inline wrapper: recurse, keeping the current style.
+                        RenderInline(text, child, values, style);
+                    }
                     break;
             }
         }
@@ -192,6 +234,9 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
     // A paragraph that is only whitespace is treated as a blank line (preserved spacing), not skipped-with-content.
     private static bool HasVisibleContent(HtmlNode node, IReadOnlyDictionary<string, string?> values)
     {
+        // A form element (fill line / checkbox / member field) counts as content even with no text.
+        if (node.SelectSingleNode(".//*[@data-fill or @data-checkbox or @data-field or @data-box]") != null)
+            return true;
         var text = Substitute(Decode(node.InnerText), values);
         return !string.IsNullOrWhiteSpace(text);
     }
