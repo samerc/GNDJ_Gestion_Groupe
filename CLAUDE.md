@@ -4164,6 +4164,16 @@ static file-upload template on the member screen when set. All on main; DEV unti
       non-blank (XPath). Verified live: preview (fields→samples, drawn lines/box/checkboxes, valid PDF) + per-member
       PDF (Angela ABBOUD/Noyau resolved, no-father pill→blank, checkbox+line drawn). Build clean (dotnet + tsc +
       eslint + vite). DEV until deploy.
+- **Starter templates (same day):** a **"Partir d'un exemple"** picker in the builder loads a ready-made template
+      so the CG edits instead of a blank page. `client/src/lib/document-starters.ts` = 4 presets built from the
+      form-node HTML (pills + fill-lines + boxes): **Document vierge, Autorisation des parents, Certificat médical,
+      Autorisation de sortie / camp**. **Autorisation + Certificat médical reproduce the Group's REAL 2026-2027 Word
+      forms** (`Document_Complet_Reinscription`, extracted per the user's request) — the fields we can auto-fill
+      (enfant/unité/parents/DOB/groupe sanguin/année) are pills, the rest (vaccins, antécédents, allergies,
+      signatures) clean blanks/boxes. They're EDITOR PRESETS (frontend only) — the CG opens their existing doc type
+      (dev has AUT/FM/CI, none had a template) → "Créer un modèle" → pick a starter → adapt → save; nothing to
+      seed/delete. Confirm-before-replace when the editor isn't empty. Verified live: both starters render through
+      the full parse→resolve→draw pipeline (fields→samples, list bullets, lines/box drawn, valid PDF).
 
 ### "Envoyer les accès" — re-inscription email choice (with / without link) (2026-09-09)
 Second half of the re-inscription request (page 1 = the email): the rollout tool now sends ONE of two emails,

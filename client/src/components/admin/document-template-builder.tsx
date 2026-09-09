@@ -1,17 +1,19 @@
 // The in-app document-template builder — a CG authors any document (authorisation, fiche médicale, …) as rich
-// text, inserting {{champs}} that pre-fill with each member's data when they download their PDF. Reuses the
-// shared RichTextEditor (its "Variable" dropdown inserts the member-field placeholders) + an "Aperçu PDF"
-// button that renders the CURRENT content with sample values so the CG checks the layout before saving.
+// text with a form-builder toolbar: insert auto-filled member fields (pills), write-on lines/boxes and checkboxes.
+// A "Partir d'un exemple" picker loads a ready-made template so the CG edits instead of starting blank. An
+// "Aperçu PDF" button renders the current content with sample values so the CG checks the layout before saving.
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { RichTextEditor, type InsertMenuGroup } from '@/components/shared/rich-text-editor'
 import { FORM_NODES } from '@/components/admin/form-nodes'
+import { DOCUMENT_STARTERS } from '@/lib/document-starters'
 import { useDocumentTemplateFields, previewDocumentTemplate } from '@/services/document-type-service'
 import { openBlob } from '@/lib/download'
 import { parseApiError } from '@/lib/error-utils'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { FileText, Loader2 } from 'lucide-react'
+import { FileText, Loader2, LayoutTemplate } from 'lucide-react'
 
 interface Props {
   open: boolean
@@ -66,6 +68,14 @@ export function DocumentTemplateBuilder({ open, onOpenChange, initialHtml, docum
     }
   }
 
+  // Load a ready-made starter into the editor. If there's already content, confirm before replacing it.
+  const applyStarter = (key: string) => {
+    const starter = DOCUMENT_STARTERS.find(s => s.key === key)
+    if (!starter) return
+    if (!isEmpty && !window.confirm('Remplacer le contenu actuel du modèle par cet exemple ?')) return
+    setHtml(starter.html || '<p></p>')
+  }
+
   const handleSave = () => {
     onSave(isEmpty ? '' : html)
     onOpenChange(false)
@@ -83,6 +93,19 @@ export function DocumentTemplateBuilder({ open, onOpenChange, initialHtml, docum
             vérifier le rendu.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Start from a ready-made example (loads into the editor, then editable). */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1.5 text-sm text-muted-foreground"><LayoutTemplate className="h-4 w-4" />Partir d'un exemple :</span>
+          <Select value="" onValueChange={applyStarter}>
+            <SelectTrigger className="h-9 w-full sm:w-72"><SelectValue placeholder="Choisir un modèle de départ…" /></SelectTrigger>
+            <SelectContent>
+              {DOCUMENT_STARTERS.map(s => (
+                <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <RichTextEditor
           content={html}
