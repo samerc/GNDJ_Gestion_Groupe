@@ -1,21 +1,36 @@
 import { useEffect, useRef, useState } from 'react'
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, useEditorState, EditorContent } from '@tiptap/react'
 import type { Extensions } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
 import Color from '@tiptap/extension-color'
-import { TextStyle } from '@tiptap/extension-text-style'
+import { TextStyle, FontFamily, FontSize } from '@tiptap/extension-text-style'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectGroup, SelectLabel } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select'
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Link as LinkIcon, Undo, Redo, Variable, Image as ImageIcon, Loader2, Plus
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+// Curated font choices for the document-template builder (widely-available Windows system fonts; the server
+// resolves them, falling back to the default if a family is missing). Value = the CSS/QuestPDF family name.
+const FONT_FAMILIES = [
+  { label: 'Par défaut', value: '__default__' },
+  { label: 'Arial', value: 'Arial' },
+  { label: 'Times New Roman', value: 'Times New Roman' },
+  { label: 'Georgia', value: 'Georgia' },
+  { label: 'Verdana', value: 'Verdana' },
+  { label: 'Tahoma', value: 'Tahoma' },
+  { label: 'Calibri', value: 'Calibri' },
+  { label: 'Courier New', value: 'Courier New' },
+]
+// Point sizes offered in the size dropdown (stored as "Npt" so the PDF size == the number chosen).
+const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24]
 
 // An "Insérer" dropdown action: insert literal text/token, or insert a custom node (form-builder elements).
 export type InsertAction =
@@ -32,6 +47,7 @@ interface Props {
   variables?: { key: string; label: string }[] // per-module {{placeholders}} for the "Variable" dropdown
   insertMenu?: InsertMenuGroup[] // richer grouped "Insérer" dropdown (member fields + form elements)
   extraExtensions?: Extensions // extra TipTap nodes/marks (e.g. the form-builder nodes)
+  enableFont?: boolean // show font-family + font-size dropdowns (document-template builder only)
   placeholder?: string
   className?: string
   onImageUpload?: (file: File) => Promise<string> // when provided, enables the image-insert button; returns the served URL
@@ -57,7 +73,7 @@ function ToolbarButton({ onClick, active, children, title }: { onClick: () => vo
 // TipTap-based WYSIWYG editor used by the email-template editor and the public CMS (news/pages).
 // Toolbar = formatting + lists + link + optional image upload + undo/redo + a module-specific
 // variable-insertion dropdown. Emits HTML via onChange.
-export function RichTextEditor({ content, onChange, variables, insertMenu, extraExtensions, placeholder, className, onImageUpload }: Props) {
+export function RichTextEditor({ content, onChange, variables, insertMenu, extraExtensions, enableFont, placeholder, className, onImageUpload }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const editor = useEditor({
@@ -68,6 +84,8 @@ export function RichTextEditor({ content, onChange, variables, insertMenu, extra
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Color,
       TextStyle,
+      // Font family + size marks (TextStyle-based) — only when the host opts in, so email/CMS output is unchanged.
+      ...(enableFont ? [FontFamily, FontSize] : []),
       Image.configure({ inline: false, HTMLAttributes: { class: 'rounded-lg' } }),
       Placeholder.configure({ placeholder: placeholder ?? 'Commencez à écrire...' }),
       ...(extraExtensions ?? []),
@@ -75,6 +93,18 @@ export function RichTextEditor({ content, onChange, variables, insertMenu, extra
     content,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
   })
+
+  // Reactively read the current run's font family/size from the editor state, so the toolbar dropdowns reflect
+  // the ACTUAL value at the cursor/selection (updates on every selection change, not just doc edits).
+  const fontState = useEditorState({
+    editor,
+    selector: ({ editor: e }) => ({
+      // The browser normalises a spaced family to the quoted form ("Times New Roman"); strip the quotes so the
+      // value matches a dropdown item (otherwise the box shows the placeholder instead of the real font).
+      fontFamily: ((e?.getAttributes('textStyle').fontFamily as string) || '').replace(/^["']|["']$/g, '') || '__default__',
+      fontSize: (e?.getAttributes('textStyle').fontSize as string) || '__default__',
+    }),
+  }) ?? { fontFamily: '__default__', fontSize: '__default__' }
 
   // Sync content when prop changes externally (e.g., loading template)
   useEffect(() => {
@@ -89,6 +119,23 @@ export function RichTextEditor({ content, onChange, variables, insertMenu, extra
   const insertVariable = (variable: string) => {
     editor.chain().focus().insertContent(`{{${variable}}}`).run()
   }
+
+  // Font family / size (TextStyle marks). "__default__" clears the mark. Reads the current run's value so the
+  // dropdowns reflect the selection. When NOTHING is selected, apply to the WHOLE document (then restore the
+  // cursor) — otherwise setMark on an empty selection only sets a stored mark (nothing visible/serialised), which
+  // is why "I changed the font but the preview didn't change" happens.
+  const currentFont = fontState.fontFamily
+  const currentSize = fontState.fontSize
+  const withScope = (build: (c: ReturnType<typeof editor.chain>) => ReturnType<typeof editor.chain>) => {
+    const { from, empty } = editor.state.selection
+    let c = editor.chain().focus()
+    if (empty) c = c.selectAll()
+    c = build(c)
+    if (empty) c = c.setTextSelection(from) // restore the cursor so the doc isn't left fully highlighted
+    c.run()
+  }
+  const setFont = (v: string) => withScope(c => (v === '__default__' ? c.unsetFontFamily() : c.setFontFamily(v)))
+  const setSize = (v: string) => withScope(c => (v === '__default__' ? c.unsetFontSize() : c.setFontSize(v)))
 
   // Run an "Insérer" action from the grouped menu: literal text/token, or a custom node (form element).
   const runInsert = (action: InsertAction) => {
@@ -127,6 +174,34 @@ export function RichTextEditor({ content, onChange, variables, insertMenu, extra
         <ToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} title="Barre">
           <Strikethrough className="h-4 w-4" />
         </ToolbarButton>
+
+        {/* Font family + size (document-template builder only) */}
+        {enableFont && (
+          <>
+            <div className="w-px h-5 bg-border mx-1" />
+            <Select value={currentFont} onValueChange={setFont}>
+              <SelectTrigger className="h-8 w-36 gap-1 text-xs" title="Police">
+                <SelectValue placeholder="Police" />
+              </SelectTrigger>
+              <SelectContent>
+                {FONT_FAMILIES.map(f => (
+                  <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value === '__default__' ? undefined : f.value }}>{f.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={currentSize} onValueChange={setSize}>
+              <SelectTrigger className="h-8 w-24 gap-1 text-xs" title="Taille du texte">
+                <SelectValue placeholder="Taille" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__default__">Par défaut</SelectItem>
+                {FONT_SIZES.map(s => (
+                  <SelectItem key={s} value={`${s}pt`}>{s} pt</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
 
         <div className="w-px h-5 bg-border mx-1" />
 

@@ -217,6 +217,17 @@
   margin: 6px 0;
   min-height: 40px;
 }
+/* Left/right split marker: shown as a small tag so the CG sees where the line breaks into two sides. */
+.gndj-split {
+  display: inline-block;
+  background: oklch(0.94 0.04 90);
+  color: oklch(0.5 0.12 75);
+  border-radius: 4px;
+  padding: 0 4px;
+  margin: 0 3px;
+  font-size: 0.8em;
+  vertical-align: baseline;
+}
 
 /* Form-builder spacer (vertical breathing room between paragraphs). A faint hover guide makes the empty block
    visible + selectable in the editor; it renders as pure blank space in the PDF. */

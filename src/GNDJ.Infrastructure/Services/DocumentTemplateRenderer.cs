@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using GNDJ.Application.Common.Interfaces;
 using HtmlAgilityPack;
@@ -143,59 +144,128 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
     // ends at the same right edge and none wraps below its label. Anything else is normal inline text.
     private static void RenderContent(IContainer container, HtmlNode node, IReadOnlyDictionary<string, string?> values)
     {
-        node = Unwrap(node); // TipTap wraps list-item content in a <p>; descend so the label-line detection sees it
-        if (IsLabelLine(node, out var fill))
+        var alignNode = node;         // text-align lives on the outer block, before we unwrap into it
+        var baseStyle = new InlineStyle();
+        node = Unwrap(node, ref baseStyle); // descend list-item <p> wrappers AND a document-wide font <span>
+
+        // A left/right split line: content before the ⇥ marker stays left, content after is pushed to the right
+        // margin (e.g. "Fait à …, le [date]  ⇥  Signature : ____"). The left region wraps; the right hugs the margin.
+        var kids = node.ChildNodes.ToList();
+        var splitIdx = kids.FindIndex(c => c.Attributes is not null && c.Attributes.Contains("data-split"));
+        if (splitIdx >= 0)
         {
+            var left = kids.Take(splitIdx).ToList();
+            var right = kids.Skip(splitIdx + 1).ToList();
             container.Row(row =>
             {
-                row.AutoItem().AlignBottom().Text(t => RenderInline(t, node, values, new InlineStyle(), skip: fill));
-                row.RelativeItem().AlignBottom().PaddingLeft(6).PaddingBottom(2)
-                    .LineHorizontal(0.7f).LineColor(Colors.Grey.Darken1);
+                row.RelativeItem().Text(t => RenderInlineChildren(t, left, values, baseStyle));
+                row.AutoItem().PaddingLeft(12).Text(t => RenderInlineChildren(t, right, values, baseStyle));
             });
+            return;
         }
-        else
+
+        // A form line ("Label : ____", possibly several side by side like "Nom : ___  Date : ___"): render each
+        // "label + growing underline" as an equal column so every blank sits ON the baseline and the underlines
+        // align — instead of dropping below the text (the old inline fixed-width fills did).
+        if (TryFieldSegments(node, out var segments))
         {
-            container.Text(t => { ApplyAlign(t, node); RenderInline(t, node, values, new InlineStyle()); });
+            RenderFieldLine(container, segments, values, baseStyle);
+            return;
+        }
+
+        container.Text(t => { ApplyAlign(t, alignNode); RenderInline(t, node, values, baseStyle); });
+    }
+
+    // Lays out a form line as a Row of equal columns, each = a label (auto width) + an underline that grows to the
+    // column's right edge. One fill → one full-width column (e.g. "Date : ______"); several → aligned side by side.
+    private static void RenderFieldLine(IContainer container, List<List<HtmlNode>> segments, IReadOnlyDictionary<string, string?> values, InlineStyle baseStyle)
+    {
+        container.Row(row =>
+        {
+            for (var i = 0; i < segments.Count; i++)
+            {
+                var seg = segments[i];
+                var cell = row.RelativeItem();
+                if (i < segments.Count - 1) cell = cell.PaddingRight(14); // gap between adjacent fields
+                cell.Row(inner =>
+                {
+                    inner.AutoItem().AlignBottom().Text(t => RenderInlineChildren(t, seg, values, baseStyle));
+                    inner.RelativeItem().AlignBottom().PaddingLeft(6).PaddingBottom(2)
+                        .LineHorizontal(0.7f).LineColor(Colors.Grey.Darken1);
+                });
+            }
+        });
+    }
+
+    // Descends through a LONE wrapper so block-level detection (split marker / form line) sees the real content:
+    //  • a single <p>/<div> — TipTap wraps a list item's content in a <p> (`<li><p>label : ___</p></li>`);
+    //  • a single plain <span> — a font/size mark applied to the WHOLE block (e.g. a document-wide font) wraps all
+    //    the content in one <span style="font-family:…">, which would otherwise hide the nested ⇥/fill markers.
+    //    Its font is folded into `baseStyle` so the unwrapped content still renders in the chosen font.
+    private static HtmlNode Unwrap(HtmlNode node, ref InlineStyle baseStyle)
+    {
+        while (true)
+        {
+            var significant = node.ChildNodes
+                .Where(c => !(c.Name == "#text" && string.IsNullOrWhiteSpace(c.InnerText)))
+                .ToList();
+            if (significant.Count != 1) return node;
+            var only = significant[0];
+            var n = only.Name.ToLowerInvariant();
+
+            if (n is "p" or "div" && !only.Attributes.Contains("data-box") && !only.Attributes.Contains("data-spacer"))
+            {
+                node = only;
+                continue;
+            }
+            if (n == "span"
+                && !only.Attributes.Contains("data-field") && !only.Attributes.Contains("data-fill")
+                && !only.Attributes.Contains("data-checkbox") && !only.Attributes.Contains("data-split"))
+            {
+                baseStyle = ApplyInlineFont(only, baseStyle);
+                node = only;
+                continue;
+            }
+            return node;
         }
     }
 
-    // Descends through a LONE block wrapper (a single <p>/<div> with no other significant siblings) — TipTap
-    // wraps a list item's content in a <p>, so `<li><p>label : ___</p></li>` must be seen as the label line.
-    private static HtmlNode Unwrap(HtmlNode node)
+    // Recognises a "form line": the block ENDS with a fill (ignoring trailing whitespace) and has no checkbox/box/
+    // split. Partitions the inline content into one segment per fill (the label text/pills preceding each). A block
+    // that ends with text (a blank in the MIDDLE of a flowing sentence) is NOT a form line → stays inline prose.
+    private static bool TryFieldSegments(HtmlNode node, out List<List<HtmlNode>> segments)
     {
-        var significant = node.ChildNodes
-            .Where(c => !(c.Name == "#text" && string.IsNullOrWhiteSpace(c.InnerText)))
-            .ToList();
-        if (significant.Count == 1
-            && significant[0].Name.ToLowerInvariant() is "p" or "div"
-            && !significant[0].Attributes.Contains("data-box")
-            && !significant[0].Attributes.Contains("data-spacer"))
-            return Unwrap(significant[0]);
-        return node;
-    }
+        segments = new List<List<HtmlNode>>();
+        if (node.SelectSingleNode(".//*[@data-checkbox or @data-box or @data-split]") is not null) return false;
 
-    // True when the block is "some label text/pills, then ONE fill-line as the last element, and no checkbox/box"
-    // — the pattern that should become a right-aligned growing underline.
-    private static bool IsLabelLine(HtmlNode node, out HtmlNode? fill)
-    {
-        fill = null;
-        var fills = node.ChildNodes.Where(c => c.Attributes is not null && c.Attributes.Contains("data-fill")).ToList();
-        if (fills.Count != 1) return false; // 0 = no line; ≥2 = multiple fields on the line → keep inline
-        if (node.SelectSingleNode(".//*[@data-checkbox or @data-box]") is not null) return false;
-        var last = node.ChildNodes.LastOrDefault(c => !(c.Name == "#text" && string.IsNullOrWhiteSpace(c.InnerText)));
-        if (last is null || last.Attributes is null || !last.Attributes.Contains("data-fill")) return false;
-        fill = fills[0];
-        return true;
+        var kids = node.ChildNodes.ToList();
+        var lastSig = kids.LastOrDefault(c => !(c.Name == "#text" && string.IsNullOrWhiteSpace(c.InnerText)));
+        if (lastSig?.Attributes is null || !lastSig.Attributes.Contains("data-fill")) return false;
+
+        var current = new List<HtmlNode>();
+        foreach (var c in kids)
+        {
+            if (c.Attributes is not null && c.Attributes.Contains("data-fill"))
+            {
+                segments.Add(current); // label before this fill = one field cell
+                current = new List<HtmlNode>();
+            }
+            else current.Add(c); // trailing whitespace after the last fill stays in `current` and is discarded
+        }
+        return segments.Count > 0;
     }
 
     // Inline walk: emit a QuestPDF Span per text run, carrying the accumulated bold/italic/underline/strike style.
     // `skip` (optional) is a child node to omit — used by the label-line layout to render the label without its
     // trailing fill-line (which is drawn separately as a growing underline).
-    private static void RenderInline(TextDescriptor text, HtmlNode node, IReadOnlyDictionary<string, string?> values, InlineStyle style, HtmlNode? skip = null)
+    private static void RenderInline(TextDescriptor text, HtmlNode node, IReadOnlyDictionary<string, string?> values, InlineStyle style)
+        => RenderInlineChildren(text, node.ChildNodes, values, style);
+
+    // Walks a sequence of inline nodes (a whole element's children, or one side of a left/right split).
+    private static void RenderInlineChildren(TextDescriptor text, IEnumerable<HtmlNode> children, IReadOnlyDictionary<string, string?> values, InlineStyle style)
     {
-        foreach (var child in node.ChildNodes)
+        foreach (var child in children)
         {
-            if (child == skip) continue;
             var name = child.Name.ToLowerInvariant();
             switch (name)
             {
@@ -203,13 +273,7 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
                     var raw = Decode(child.InnerText);
                     var resolved = Substitute(raw, values);
                     if (resolved.Length > 0)
-                    {
-                        var span = text.Span(resolved);
-                        if (style.Bold) span = span.Bold();
-                        if (style.Italic) span = span.Italic();
-                        if (style.Underline) span = span.Underline();
-                        if (style.Strike) span = span.Strikethrough();
-                    }
+                        StyleSpan(text.Span(resolved), style);
                     break;
 
                 case "br":
@@ -241,19 +305,15 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
                         var key = child.GetAttributeValue("data-field", "");
                         var fieldValue = values.TryGetValue(key, out var fv) ? fv ?? string.Empty : string.Empty;
                         if (fieldValue.Length > 0)
-                        {
-                            var span = text.Span(fieldValue);
-                            if (style.Bold) span = span.Bold();
-                            if (style.Italic) span = span.Italic();
-                            if (style.Underline) span = span.Underline();
-                            if (style.Strike) span = span.Strikethrough();
-                        }
+                            StyleSpan(text.Span(fieldValue), style);
                     }
                     else if (child.Attributes.Contains("data-fill"))
                     {
-                        // A clean underline the member writes on (width in px → points). No dotted line.
+                        // A clean underline for a blank in the MIDDLE of flowing prose (a form line's trailing blank
+                        // is handled by RenderFieldLine). Kept short in height so it sits just under the baseline
+                        // rather than dropping a full line-height below it. No dotted line.
                         var w = child.GetAttributeValue("data-w", 200) * 0.75f;
-                        text.Element(e => e.PaddingHorizontal(2).Height(11).Width(w)
+                        text.Element(e => e.PaddingHorizontal(2).Height(3).Width(w)
                             .BorderBottom(0.8f).BorderColor(Colors.Grey.Darken2), TextInjectedElementAlignment.BelowBaseline);
                     }
                     else if (child.Attributes.Contains("data-checkbox"))
@@ -262,20 +322,84 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
                         text.Element(e => e.PaddingHorizontal(1).Width(11).Height(11)
                             .Border(0.9f).BorderColor(Colors.Black), TextInjectedElementAlignment.Middle);
                     }
+                    else if (child.Attributes.Contains("data-split"))
+                    {
+                        // The left/right split marker is handled at the block level (RenderContent) — ignore inline.
+                    }
                     else
                     {
-                        // span, a, font, and any other inline wrapper: recurse, keeping the current style.
-                        RenderInline(text, child, values, style);
+                        // span, a, font, and any other inline wrapper: recurse, applying any font-family/size it sets.
+                        RenderInline(text, child, values, ApplyInlineFont(child, style));
                     }
                     break;
             }
         }
     }
 
-    // Reads text-align from a block node's inline style (the editor writes style="text-align:center").
+    // Applies the accumulated inline style to a QuestPDF span (bold/italic/underline/strike + font family/size).
+    private static void StyleSpan(TextSpanDescriptor span, InlineStyle style)
+    {
+        if (style.Bold) span.Bold();
+        if (style.Italic) span.Italic();
+        if (style.Underline) span.Underline();
+        if (style.Strike) span.Strikethrough();
+        if (style.FontFamily is not null) span.FontFamily(style.FontFamily);
+        if (style.FontSize is not null) span.FontSize(style.FontSize.Value);
+    }
+
+    // Reads font-family / font-size off a node's inline style (the editor writes them via TextStyle marks) and
+    // folds them into the accumulated style. Unsupported units (em/rem/%) are ignored (blank stays blank).
+    private static InlineStyle ApplyInlineFont(HtmlNode node, InlineStyle style)
+    {
+        // DECODE entities first: a spaced family name round-trips through the browser as the quoted form
+        // font-family: "Times New Roman", which serialises as &quot;Times New Roman&quot; — without decoding,
+        // the quotes stay as entities and the family name is never found (falls back to the default font).
+        var css = Decode(node.GetAttributeValue("style", ""));
+        if (string.IsNullOrEmpty(css)) return style;
+
+        var fam = ReadStyleValue(css, "font-family");
+        if (!string.IsNullOrWhiteSpace(fam))
+            style = style with { FontFamily = fam.Split(',')[0].Trim().Trim('"', '\'') };
+
+        var size = ReadStyleValue(css, "font-size");
+        if (!string.IsNullOrWhiteSpace(size))
+        {
+            var pt = ParsePointSize(size!);
+            if (pt.HasValue) style = style with { FontSize = pt };
+        }
+        return style;
+    }
+
+    // Extracts one declaration's value from an inline style string (exact property-name match, case-insensitive).
+    private static string? ReadStyleValue(string css, string property)
+    {
+        foreach (var decl in css.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var idx = decl.IndexOf(':');
+            if (idx <= 0) continue;
+            if (decl[..idx].Trim().Equals(property, StringComparison.OrdinalIgnoreCase))
+                return decl[(idx + 1)..].Trim();
+        }
+        return null;
+    }
+
+    // Parses a CSS font-size into PDF points: "12pt" → 12, "16px" → 12 (px×0.75), bare "12" → 12; em/rem/% → null.
+    private static float? ParsePointSize(string size)
+    {
+        size = size.Trim().ToLowerInvariant();
+        var mult = 1f;
+        if (size.EndsWith("px")) { mult = 0.75f; size = size[..^2]; }
+        else if (size.EndsWith("pt")) { size = size[..^2]; }
+        else if (size.EndsWith("em") || size.EndsWith("rem") || size.EndsWith("%")) return null;
+        return float.TryParse(size.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var n) && n > 0 && n < 200
+            ? n * mult : null;
+    }
+
+    // Reads text-align from a block node's inline style. The editor emits "text-align: center" (WITH a space after
+    // the colon), so strip whitespace before matching (a bare Contains("text-align:center") misses it).
     private static void ApplyAlign(TextDescriptor text, HtmlNode node)
     {
-        var style = node.GetAttributeValue("style", "").ToLowerInvariant();
+        var style = node.GetAttributeValue("style", "").ToLowerInvariant().Replace(" ", "");
         if (style.Contains("text-align:center")) text.AlignCenter();
         else if (style.Contains("text-align:right")) text.AlignRight();
         else if (style.Contains("text-align:justify")) text.Justify();
@@ -319,6 +443,8 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
         return !string.IsNullOrWhiteSpace(text);
     }
 
-    // Accumulated inline formatting as we descend the tree.
-    private readonly record struct InlineStyle(bool Bold = false, bool Italic = false, bool Underline = false, bool Strike = false);
+    // Accumulated inline formatting as we descend the tree (font family/size come from span style="font-family/size").
+    private readonly record struct InlineStyle(
+        bool Bold = false, bool Italic = false, bool Underline = false, bool Strike = false,
+        string? FontFamily = null, float? FontSize = null);
 }

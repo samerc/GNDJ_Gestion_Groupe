@@ -55,6 +55,7 @@ export function DocumentTemplateBuilder({ open, onOpenChange, initialHtml, docum
     {
       label: 'Mise en page',
       items: [
+        { label: 'Séparateur gauche / droite', action: { kind: 'node', name: 'splitPoint' } },
         { label: 'Espace (petit)', action: { kind: 'node', name: 'spacer', attrs: { h: 10 } } },
         { label: 'Espace (moyen)', action: { kind: 'node', name: 'spacer', attrs: { h: 22 } } },
         { label: 'Espace (grand)', action: { kind: 'node', name: 'spacer', attrs: { h: 40 } } },
@@ -98,8 +99,10 @@ export function DocumentTemplateBuilder({ open, onOpenChange, initialHtml, docum
           <DialogDescription>
             Rédigez le document, puis utilisez le menu <strong>« Insérer un champ »</strong> pour ajouter :
             un <strong>champ du membre</strong> (prénom, unité…) qui se remplit tout seul, une <strong>ligne</strong>
-            ou un <strong>cadre à remplir</strong> à la main, ou une <strong>case à cocher</strong>. L'icône image
-            insère un <strong>en-tête / logo</strong>. Aperçu PDF pour vérifier le rendu.
+            ou un <strong>cadre à remplir</strong> à la main, ou une <strong>case à cocher</strong>. Le
+            <strong> séparateur gauche / droite</strong> (⇥) pousse le texte qui suit vers la marge droite. Réglez
+            la <strong>police</strong> et la <strong>taille</strong> dans la barre d'outils. L'icône image insère un
+            <strong> en-tête / logo</strong>. Aperçu PDF pour vérifier le rendu.
           </DialogDescription>
         </DialogHeader>
 
@@ -121,6 +124,7 @@ export function DocumentTemplateBuilder({ open, onOpenChange, initialHtml, docum
           onChange={setHtml}
           insertMenu={insertMenu}
           extraExtensions={FORM_NODES}
+          enableFont
           onImageUpload={(file) => uploadContentImage(file).catch((e) => { toast.error(parseApiError(e)); throw e })}
           placeholder="Rédigez votre document ici…"
         />

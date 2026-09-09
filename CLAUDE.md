@@ -4204,6 +4204,34 @@ static file-upload template on the member screen when set. All on main; DEV unti
       the injected doc-type-name title** at the top of the PDF (it duplicated the template's own authored heading) —
       `IDocumentTemplateRenderer.Render` lost its `title` param; the doc-type name is still used only for the file name.
       Verified live: preview shows only the authored heading (no "Fiche Medicale" title); list renders clean.
+- **Font/size + left-right split + a batch of render fixes (2026-09-10):** the builder gained **font-family + size**
+      dropdowns (curated Windows fonts + 8–24 pt) via `@tiptap/extension-text-style`'s `FontFamily`/`FontSize` (v3
+      bundles them — no new dep), gated behind a new `enableFont` prop so email/CMS editors are unchanged. Applying a
+      font with an EMPTY selection targets the WHOLE document (then restores the cursor) — otherwise TipTap only sets
+      a *stored mark* (nothing visible/serialised). The dropdowns reflect the current run via `useEditorState`
+      (re-renders on selection), stripping the browser's quote-normalisation so a spaced family matches its item. New
+      **`SplitPointNode`** (`<span data-split>`, "Séparateur gauche / droite" under Mise en page) — the renderer splits
+      the paragraph's inline content at the ⇥ into a two-column Row (left wraps, right hugs the margin). RENDERER FIXES
+      (all found by rasterising previews with pymupdf + a headless-jsdom TipTap probe to get the REAL editor HTML):
+      (a) **Alignment** — TipTap emits `text-align: center` WITH a space; `ApplyAlign` matched the space-less form →
+      center/right/justify silently fell to left. Strip whitespace before matching. (b) **Font in PDF** — a spaced
+      family round-trips as the quoted form `font-family: "Times New Roman"` → serialises `&quot;…&quot;`;
+      HtmlAgilityPack returns the raw entities, so `ApplyInlineFont` now HTML-decodes the style first (else the quotes
+      survive and QuestPDF can't find the family → Lato fallback). (c) **Split/form-lines under a document-wide font**
+      — applying a font to the whole doc wraps ALL block content in one `<span style="font-family:…">`, nesting the
+      `data-split`/fill markers one level below where block detection looked. `Unwrap` now also descends a lone plain
+      style-`<span>`, folding its font into a threaded `baseStyle` so split + the aligned "label : ____" form-lines
+      (the old `IsLabelLine` was generalised to `TryFieldSegments` — any number of trailing-fill segments → equal
+      growing-underline columns, so multi-field signature lines align instead of dropping below the text) work AND
+      keep the chosen font. Verified end-to-end (font/size/align/split, and all combined under Times New Roman).
+      Backend + frontend, DEV until deploy.
+- **Template export → prod (`deploy/templates/`):** since a CG authored the AUT (Autorisation) + FM (Fiche
+      Médicale) templates in dev, `deploy/templates/document-templates.sql` (idempotent `UPDATE document_types SET
+      template_html=… WHERE code IN ('AUT','FM')`, generated via `format('%L')` so escaping/UTF-8/⇥ are safe) +
+      `content/*.jpg` (the two header images the templates reference) + README move them to the live prod DB
+      incrementally (a full dev→prod dump would clobber prod's live enrollment data). Apply AFTER the feature is
+      deployed to prod (the `template_html` column + fixed renderer must exist). Copy the images into
+      `C:\inetpub\www\gndj\uploads\content\`, run the SQL. Matched by `code` (AUT/FM must exist on prod).
 
 ### "Envoyer les accès" — re-inscription email choice (with / without link) (2026-09-09)
 Second half of the re-inscription request (page 1 = the email): the rollout tool now sends ONE of two emails,

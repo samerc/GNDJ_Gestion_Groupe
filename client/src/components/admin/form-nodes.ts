@@ -102,6 +102,23 @@ export const SpacerNode = Node.create({
   },
 })
 
+// A left/right split marker: everything BEFORE it on the paragraph stays left, everything AFTER is pushed to
+// the right margin (e.g. "Fait à Beyrouth, le [date]  ⇥  Signature : ____"). Inline atom; the PDF renderer
+// splits the paragraph's inline content at this marker into a two-column Row.
+export const SplitPointNode = Node.create({
+  name: 'splitPoint',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: true,
+  parseHTML() {
+    return [{ tag: 'span[data-split]' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['span', mergeAttributes(HTMLAttributes, { 'data-split': '1', class: 'gndj-split' }), '⇥']
+  },
+})
+
 // A bordered box for longer handwritten answers (attr h = pixel height). Block-level.
 export const FillBoxNode = Node.create({
   name: 'fillBox',
@@ -126,4 +143,4 @@ export const FillBoxNode = Node.create({
 })
 
 // The bundle passed to the RichTextEditor's `extraExtensions` prop by the document-template builder.
-export const FORM_NODES = [MemberFieldNode, FillLineNode, CheckboxNode, SpacerNode, FillBoxNode]
+export const FORM_NODES = [MemberFieldNode, FillLineNode, CheckboxNode, SplitPointNode, SpacerNode, FillBoxNode]
