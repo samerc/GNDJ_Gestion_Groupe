@@ -4187,6 +4187,12 @@ static file-upload template on the member screen when set. All on main; DEV unti
       ABBOUD - N.pdf") — resolver adds the unit Code (stashed as internal `__unitcode`, not a template field); the
       member screen reads the server's Content-Disposition (new `filenameFromDisposition` in lib/download, prefers
       the UTF-8 `filename*`) instead of the hardcoded type name. Verified live: certificat 1 page + filename header.
+- **Header image / logo (same day):** the builder now passes `onImageUpload={uploadContentImage}` so the editor's
+      image button works (letterhead/logo). The renderer draws `<img>` (new `case "img"` + `LoadContentImage`): reads
+      the file from `uploads/content` by bare filename (path-traversal guarded; jpg/png/webp/gif only) and embeds it
+      `MaxHeight(180).AlignCenter().Image().FitArea()` (fitted to width, height-capped so an oversized upload can't
+      blow the layout). Reuses the existing content-images upload/serve endpoints (CG has content.manage). Verified
+      live: a header image embeds as an Image XObject in the PDF (present with, absent without).
 
 ### "Envoyer les accès" — re-inscription email choice (with / without link) (2026-09-09)
 Second half of the re-inscription request (page 1 = the email): the rollout tool now sends ONE of two emails,

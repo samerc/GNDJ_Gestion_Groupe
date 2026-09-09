@@ -8,6 +8,7 @@ import { RichTextEditor, type InsertMenuGroup } from '@/components/shared/rich-t
 import { FORM_NODES } from '@/components/admin/form-nodes'
 import { DOCUMENT_STARTERS } from '@/lib/document-starters'
 import { useDocumentTemplateFields, previewDocumentTemplate } from '@/services/document-type-service'
+import { uploadContentImage } from '@/services/content-image-service'
 import { openBlob } from '@/lib/download'
 import { parseApiError } from '@/lib/error-utils'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
@@ -89,8 +90,8 @@ export function DocumentTemplateBuilder({ open, onOpenChange, initialHtml, docum
           <DialogDescription>
             Rédigez le document, puis utilisez le menu <strong>« Insérer un champ »</strong> pour ajouter :
             un <strong>champ du membre</strong> (prénom, unité…) qui se remplit tout seul, une <strong>ligne</strong>
-            ou un <strong>cadre à remplir</strong> à la main, ou une <strong>case à cocher</strong>. Aperçu PDF pour
-            vérifier le rendu.
+            ou un <strong>cadre à remplir</strong> à la main, ou une <strong>case à cocher</strong>. L'icône image
+            insère un <strong>en-tête / logo</strong>. Aperçu PDF pour vérifier le rendu.
           </DialogDescription>
         </DialogHeader>
 
@@ -112,6 +113,7 @@ export function DocumentTemplateBuilder({ open, onOpenChange, initialHtml, docum
           onChange={setHtml}
           insertMenu={insertMenu}
           extraExtensions={FORM_NODES}
+          onImageUpload={(file) => uploadContentImage(file).catch((e) => { toast.error(parseApiError(e)); throw e })}
           placeholder="Rédigez votre document ici…"
         />
 

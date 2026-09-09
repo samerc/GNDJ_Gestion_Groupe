@@ -72,6 +72,14 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
                 case "ul": RenderList(col, node, values, ordered: false); break;
                 case "ol": RenderList(col, node, values, ordered: true); break;
 
+                // An inserted image (e.g. a letterhead / logo at the top). Read from uploads/content and draw it
+                // fitted to the content width (capped in height so an oversized upload can't blow the layout).
+                case "img":
+                    var imgBytes = LoadContentImage(node.GetAttributeValue("src", ""));
+                    if (imgBytes is not null)
+                        col.Item().PaddingBottom(6).MaxHeight(180).AlignCenter().Image(imgBytes).FitArea();
+                    break;
+
                 case "hr":
                     col.Item().PaddingVertical(3).LineHorizontal(0.75f).LineColor(Colors.Grey.Lighten1);
                     break;
@@ -263,6 +271,22 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
             values.TryGetValue(m.Groups[1].Value, out var v) ? v ?? string.Empty : string.Empty);
 
     private static string Decode(string s) => HtmlEntity.DeEntitize(s) ?? string.Empty;
+
+    // Loads an inserted content image (from a /content/images/{file} src) off disk to embed in the PDF. Accepts
+    // only a bare image filename under uploads/content (path-traversal guarded); returns null if invalid/missing.
+    private static byte[]? LoadContentImage(string? src)
+    {
+        if (string.IsNullOrWhiteSpace(src)) return null;
+        var idx = src.LastIndexOf('/');
+        var fileName = System.IO.Path.GetFileName(idx >= 0 ? src[(idx + 1)..] : src);
+        if (string.IsNullOrWhiteSpace(fileName)) return null;
+        var ext = System.IO.Path.GetExtension(fileName).ToLowerInvariant();
+        if (ext is not (".jpg" or ".jpeg" or ".png" or ".webp" or ".gif")) return null;
+        var root = System.IO.Path.GetFullPath(System.IO.Path.Combine(Directory.GetCurrentDirectory(), "uploads", "content"));
+        var path = System.IO.Path.GetFullPath(System.IO.Path.Combine(root, fileName));
+        if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return null; // traversal guard
+        return System.IO.File.Exists(path) ? System.IO.File.ReadAllBytes(path) : null;
+    }
 
     private static bool IsBlock(string name) => name.ToLowerInvariant() is
         "p" or "div" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6" or "ul" or "ol" or "hr" or "table";
