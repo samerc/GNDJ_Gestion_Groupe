@@ -18,7 +18,7 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
     [GeneratedRegex(@"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")]
     private static partial Regex TokenRegex();
 
-    public byte[] Render(string html, IReadOnlyDictionary<string, string?> values, string? title = null)
+    public byte[] Render(string html, IReadOnlyDictionary<string, string?> values)
     {
         var doc = new HtmlDocument();
         doc.LoadHtml(html ?? string.Empty);
@@ -31,12 +31,8 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
             page.Margin(30); // tighter than the default so a one-page form stays one page
             page.DefaultTextStyle(x => x.FontSize(10).LineHeight(1.2f).FontColor(Colors.Black));
 
-            page.Content().Column(col =>
-            {
-                if (!string.IsNullOrWhiteSpace(title))
-                    col.Item().PaddingBottom(6).Text(title).FontSize(15).Bold();
-                RenderBlocks(col, root, values);
-            });
+            // The document's own title/heading is authored in the template — we don't inject the doc-type name.
+            page.Content().Column(col => RenderBlocks(col, root, values));
 
             page.Footer().AlignRight().DefaultTextStyle(x => x.FontSize(7).FontColor(Colors.Grey.Medium))
                 .Text(t => { t.Span("Page "); t.CurrentPageNumber(); t.Span(" / "); t.TotalPages(); });
@@ -147,6 +143,7 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
     // ends at the same right edge and none wraps below its label. Anything else is normal inline text.
     private static void RenderContent(IContainer container, HtmlNode node, IReadOnlyDictionary<string, string?> values)
     {
+        node = Unwrap(node); // TipTap wraps list-item content in a <p>; descend so the label-line detection sees it
         if (IsLabelLine(node, out var fill))
         {
             container.Row(row =>
@@ -160,6 +157,21 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
         {
             container.Text(t => { ApplyAlign(t, node); RenderInline(t, node, values, new InlineStyle()); });
         }
+    }
+
+    // Descends through a LONE block wrapper (a single <p>/<div> with no other significant siblings) — TipTap
+    // wraps a list item's content in a <p>, so `<li><p>label : ___</p></li>` must be seen as the label line.
+    private static HtmlNode Unwrap(HtmlNode node)
+    {
+        var significant = node.ChildNodes
+            .Where(c => !(c.Name == "#text" && string.IsNullOrWhiteSpace(c.InnerText)))
+            .ToList();
+        if (significant.Count == 1
+            && significant[0].Name.ToLowerInvariant() is "p" or "div"
+            && !significant[0].Attributes.Contains("data-box")
+            && !significant[0].Attributes.Contains("data-spacer"))
+            return Unwrap(significant[0]);
+        return node;
     }
 
     // True when the block is "some label text/pills, then ONE fill-line as the last element, and no checkbox/box"

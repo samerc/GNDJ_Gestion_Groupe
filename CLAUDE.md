@@ -4197,6 +4197,13 @@ static file-upload template on the member screen when set. All on main; DEV unti
       petit/moyen/grand = 10/22/40 px) lets the CG add vertical breathing room between paragraphs; the renderer draws
       it as `col.Item().Height(h*0.75)`. Editor shows a faint hover guide (`.gndj-spacer`) so the empty block is
       visible/selectable. Verified: preview PDFs render with/without the gap, valid PDF.
+- **Fixes (same day):** (a) **List-item fill-lines now align** — TipTap wraps a list item's content in a `<p>`
+      (`<li><p>label : ___</p></li>`), so `IsLabelLine` (which checks direct children) missed it and the `<li>` lines
+      fell back to the old inline (wrapping) fill while `<p>` lines aligned. New `Unwrap()` descends a lone `<p>`/`<div>`
+      wrapper before the label-line check, so list items get the same growing right-aligned underline. (b) **Dropped
+      the injected doc-type-name title** at the top of the PDF (it duplicated the template's own authored heading) —
+      `IDocumentTemplateRenderer.Render` lost its `title` param; the doc-type name is still used only for the file name.
+      Verified live: preview shows only the authored heading (no "Fiche Medicale" title); list renders clean.
 
 ### "Envoyer les accès" — re-inscription email choice (with / without link) (2026-09-09)
 Second half of the re-inscription request (page 1 = the email): the rollout tool now sends ONE of two emails,

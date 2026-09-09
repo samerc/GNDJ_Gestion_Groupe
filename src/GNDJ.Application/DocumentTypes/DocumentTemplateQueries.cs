@@ -45,7 +45,7 @@ public class PreviewDocumentTemplateQueryHandler(IDocumentTemplateRenderer rende
             return ValueTask.FromResult(Result<DocumentTemplatePdf>.Failure("Le modèle est trop long."));
 
         var name = string.IsNullOrWhiteSpace(request.Name) ? "Document" : request.Name!;
-        var pdf = renderer.Render(request.Html, DocumentTemplateFields.SampleValues(), name);
+        var pdf = renderer.Render(request.Html, DocumentTemplateFields.SampleValues());
         return ValueTask.FromResult(Result<DocumentTemplatePdf>.Success(
             new DocumentTemplatePdf(pdf, $"{DocumentTemplatePdfNaming.Clean(name)} (aperçu).pdf")));
     }
@@ -77,7 +77,7 @@ public class GenerateMemberDocumentTemplateQueryHandler(
         var values = await ResolveMemberValuesAsync(context, request.MemberId, ct);
         if (values is null) return Result<DocumentTemplatePdf>.Failure("Membre introuvable.");
 
-        var pdf = renderer.Render(dt.TemplateHtml, values, dt.Name);
+        var pdf = renderer.Render(dt.TemplateHtml, values);
         // Friendly file name: "<Type> - <Nom complet> - <Code unité>.pdf" (e.g. "Fiche Medicale - Samer Cheaib - T2").
         var member = values.TryGetValue("nomComplet", out var nc) ? nc : null;
         var unitCode = values.TryGetValue("__unitcode", out var uc) ? uc : null;
