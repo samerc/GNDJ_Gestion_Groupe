@@ -41,7 +41,7 @@ export const DOCUMENT_STARTERS: DocumentStarter[] = [
       '<p>Nous nous engageons à lui permettre de participer à toutes les activités organisées par son unité et par le Groupe Notre-Dame Jamhour durant cette année scoute.</p>' +
       '<p>Une absence non justifiée à l\'avance remettra en question sa participation au mouvement scout du collège.</p>' +
       '<p></p>' +
-      `<p>Signature du père : ${line(200)} &nbsp;&nbsp;&nbsp; Signature de la mère : ${line(200)}</p>` +
+      `<p>Signature du père : ${line(170)} &nbsp;&nbsp; Signature de la mère : ${line(170)}</p>` +
       `<p>Date : ${line(160)}</p>`,
   },
   {
@@ -76,7 +76,7 @@ export const DOCUMENT_STARTERS: DocumentStarter[] = [
       `<p>— de la personne à contacter en cas d'urgence : ${line(230)}</p>` +
       '<p>Je certifie que les informations fournies dans ce certificat médical sont exactes et j\'assume l\'entière responsabilité en cas d\'information médicale non communiquée.</p>' +
       '<p></p>' +
-      `<p>Nom / Prénom : ${line(220)} &nbsp;&nbsp; Date : ${line(140)} &nbsp;&nbsp; Signature : ${line(200)}</p>`,
+      `<p>Nom / Prénom : ${line(150)} &nbsp; Date : ${line(90)} &nbsp; Signature : ${line(150)}</p>`,
   },
   {
     key: 'decharge-sortie',

@@ -28,13 +28,13 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
         return Document.Create(container => container.Page(page =>
         {
             page.Size(PageSizes.A4);
-            page.Margin(40);
-            page.DefaultTextStyle(x => x.FontSize(11).LineHeight(1.35f).FontColor(Colors.Black));
+            page.Margin(30); // tighter than the default so a one-page form stays one page
+            page.DefaultTextStyle(x => x.FontSize(10).LineHeight(1.2f).FontColor(Colors.Black));
 
             page.Content().Column(col =>
             {
                 if (!string.IsNullOrWhiteSpace(title))
-                    col.Item().PaddingBottom(10).Text(title).FontSize(16).Bold();
+                    col.Item().PaddingBottom(6).Text(title).FontSize(15).Bold();
                 RenderBlocks(col, root, values);
             });
 
@@ -53,7 +53,7 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
             {
                 // A "cadre à remplir" — a clean bordered box for a longer handwritten answer.
                 case "div" when node.Attributes.Contains("data-box"):
-                    col.Item().PaddingVertical(3).Border(0.8f).BorderColor(Colors.Grey.Darken1)
+                    col.Item().PaddingVertical(2).Border(0.8f).BorderColor(Colors.Grey.Darken1)
                         .Height(node.GetAttributeValue("data-h", 70) * 0.75f);
                     break;
 
@@ -62,28 +62,28 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
                     RenderParagraph(col, node, values);
                     break;
 
-                case "h1": Heading(col, node, values, 20); break;
-                case "h2": Heading(col, node, values, 16); break;
-                case "h3": Heading(col, node, values, 13); break;
+                case "h1": Heading(col, node, values, 15); break;
+                case "h2": Heading(col, node, values, 13); break;
+                case "h3": Heading(col, node, values, 11.5f); break;
                 case "h4":
                 case "h5":
-                case "h6": Heading(col, node, values, 11); break;
+                case "h6": Heading(col, node, values, 10.5f); break;
 
                 case "ul": RenderList(col, node, values, ordered: false); break;
                 case "ol": RenderList(col, node, values, ordered: true); break;
 
                 case "hr":
-                    col.Item().PaddingVertical(6).LineHorizontal(0.75f).LineColor(Colors.Grey.Lighten1);
+                    col.Item().PaddingVertical(3).LineHorizontal(0.75f).LineColor(Colors.Grey.Lighten1);
                     break;
 
                 case "br":
-                    col.Item().Height(11);
+                    col.Item().Height(7);
                     break;
 
                 case "#text":
                     var text = Decode(node.InnerText);
                     if (!string.IsNullOrWhiteSpace(text))
-                        col.Item().PaddingBottom(6).Text(t => RenderInline(t, node, values, new InlineStyle()));
+                        col.Item().PaddingBottom(3).Text(t => RenderInline(t, node, values, new InlineStyle()));
                     break;
 
                 default:
@@ -92,7 +92,7 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
                     if (node.ChildNodes.Any(c => IsBlock(c.Name)))
                         RenderBlocks(col, node, values);
                     else if (HasVisibleContent(node, values))
-                        col.Item().PaddingBottom(6).Text(t => { ApplyAlign(t, node); RenderInline(t, node, values, new InlineStyle()); });
+                        col.Item().PaddingBottom(3).Element(e => RenderContent(e, node, values));
                     break;
             }
         }
@@ -101,13 +101,13 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
     private static void RenderParagraph(ColumnDescriptor col, HtmlNode node, IReadOnlyDictionary<string, string?> values)
     {
         if (HasVisibleContent(node, values))
-            col.Item().PaddingBottom(6).Text(t => { ApplyAlign(t, node); RenderInline(t, node, values, new InlineStyle()); });
+            col.Item().PaddingBottom(3).Element(e => RenderContent(e, node, values));
         else
-            col.Item().Height(11); // preserve an intentional blank line (signature spacing etc.)
+            col.Item().Height(7); // preserve an intentional blank line (signature spacing etc.)
     }
 
     private static void Heading(ColumnDescriptor col, HtmlNode node, IReadOnlyDictionary<string, string?> values, float size) =>
-        col.Item().PaddingTop(4).PaddingBottom(4).Text(t =>
+        col.Item().PaddingTop(3).PaddingBottom(2).Text(t =>
         {
             t.DefaultTextStyle(x => x.FontSize(size).Bold());
             ApplyAlign(t, node);
@@ -120,20 +120,57 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
         foreach (var li in listNode.ChildNodes.Where(n => n.Name.Equals("li", StringComparison.OrdinalIgnoreCase)))
         {
             var prefix = ordered ? $"{index}." : "•";
-            col.Item().PaddingBottom(3).Row(row =>
+            col.Item().PaddingBottom(2).Row(row =>
             {
-                row.ConstantItem(18).AlignTop().Text(prefix);
-                row.RelativeItem().Text(t => RenderInline(t, li, values, new InlineStyle()));
+                row.ConstantItem(16).AlignTop().Text(prefix);
+                row.RelativeItem().Element(e => RenderContent(e, li, values));
             });
             index++;
         }
     }
 
+    // Renders a block's inline content. A "label : ______" line (a single trailing fill-line after some text) is
+    // laid out as a Row: the label on the left + an underline that GROWS to the right margin — so every fill line
+    // ends at the same right edge and none wraps below its label. Anything else is normal inline text.
+    private static void RenderContent(IContainer container, HtmlNode node, IReadOnlyDictionary<string, string?> values)
+    {
+        if (IsLabelLine(node, out var fill))
+        {
+            container.Row(row =>
+            {
+                row.AutoItem().AlignBottom().Text(t => RenderInline(t, node, values, new InlineStyle(), skip: fill));
+                row.RelativeItem().AlignBottom().PaddingLeft(6).PaddingBottom(2)
+                    .LineHorizontal(0.7f).LineColor(Colors.Grey.Darken1);
+            });
+        }
+        else
+        {
+            container.Text(t => { ApplyAlign(t, node); RenderInline(t, node, values, new InlineStyle()); });
+        }
+    }
+
+    // True when the block is "some label text/pills, then ONE fill-line as the last element, and no checkbox/box"
+    // — the pattern that should become a right-aligned growing underline.
+    private static bool IsLabelLine(HtmlNode node, out HtmlNode? fill)
+    {
+        fill = null;
+        var fills = node.ChildNodes.Where(c => c.Attributes is not null && c.Attributes.Contains("data-fill")).ToList();
+        if (fills.Count != 1) return false; // 0 = no line; ≥2 = multiple fields on the line → keep inline
+        if (node.SelectSingleNode(".//*[@data-checkbox or @data-box]") is not null) return false;
+        var last = node.ChildNodes.LastOrDefault(c => !(c.Name == "#text" && string.IsNullOrWhiteSpace(c.InnerText)));
+        if (last is null || last.Attributes is null || !last.Attributes.Contains("data-fill")) return false;
+        fill = fills[0];
+        return true;
+    }
+
     // Inline walk: emit a QuestPDF Span per text run, carrying the accumulated bold/italic/underline/strike style.
-    private static void RenderInline(TextDescriptor text, HtmlNode node, IReadOnlyDictionary<string, string?> values, InlineStyle style)
+    // `skip` (optional) is a child node to omit — used by the label-line layout to render the label without its
+    // trailing fill-line (which is drawn separately as a growing underline).
+    private static void RenderInline(TextDescriptor text, HtmlNode node, IReadOnlyDictionary<string, string?> values, InlineStyle style, HtmlNode? skip = null)
     {
         foreach (var child in node.ChildNodes)
         {
+            if (child == skip) continue;
             var name = child.Name.ToLowerInvariant();
             switch (name)
             {

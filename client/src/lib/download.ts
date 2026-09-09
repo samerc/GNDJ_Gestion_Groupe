@@ -12,6 +12,18 @@ export function saveBlob(data: BlobPart, fileName: string, mimeType = 'applicati
   URL.revokeObjectURL(url)
 }
 
+// Extract the file name from a Content-Disposition response header (prefers the RFC 5987 filename* form,
+// which carries UTF-8 accents, else the plain filename). Returns null if absent/unparseable.
+export function filenameFromDisposition(header?: string | null): string | null {
+  if (!header) return null
+  const star = /filename\*=(?:UTF-8'')?([^;]+)/i.exec(header)
+  if (star) {
+    try { return decodeURIComponent(star[1].replace(/["']/g, '').trim()) } catch { /* fall through to plain */ }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(header)
+  return plain ? plain[1].trim() : null
+}
+
 // Open binary data (typically a PDF) in a new browser tab. The URL is revoked after a delay so the
 // tab has time to load it. Returns the object URL in case the caller wants to revoke it sooner.
 export function openBlob(data: BlobPart, mimeType = 'application/pdf'): string {

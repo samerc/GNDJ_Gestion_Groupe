@@ -4174,6 +4174,19 @@ static file-upload template on the member screen when set. All on main; DEV unti
       (dev has AUT/FM/CI, none had a template) → "Créer un modèle" → pick a starter → adapt → save; nothing to
       seed/delete. Confirm-before-replace when the editor isn't empty. Verified live: both starters render through
       the full parse→resolve→draw pipeline (fields→samples, list bullets, lines/box drawn, valid PDF).
+- **Layout polish + friendly filename (same day, per CG "align text+lines / it's 2 pages / haven't added the header
+      image yet"):** (1) **Aligned label-lines** — a paragraph/li that is "some text/pills + ONE trailing fill-line"
+      (`IsLabelLine`) is now rendered as a **Row**: label `AutoItem` + an underline `RelativeItem` that GROWS to the
+      right margin (`LineHorizontal`), so every "Étiquette : ____" ends at the same right edge and the line never
+      wraps below its label (the reported bug). Multi-field lines (≥2 fills, e.g. signatures) stay inline fixed-width.
+      `RenderInline` gained a `skip` param to omit the trailing fill when drawing the label. (2) **Compacted** the
+      renderer (margin 40→30, font 11→10, line-height 1.35→1.2, paragraph/heading/blank/list spacing all reduced,
+      heading sizes down) → the full Certificat médical starter now fits **ONE page** (was two; verified `/Count 1`),
+      leaving room for a future header image. Starter multi-field signature lines shortened so they don't wrap.
+      (3) **Member PDF filename** = **"<Type> - <Nom complet> - <Code unité>.pdf"** (e.g. "Fiche Medicale - Angela
+      ABBOUD - N.pdf") — resolver adds the unit Code (stashed as internal `__unitcode`, not a template field); the
+      member screen reads the server's Content-Disposition (new `filenameFromDisposition` in lib/download, prefers
+      the UTF-8 `filename*`) instead of the hardcoded type name. Verified live: certificat 1 page + filename header.
 
 ### "Envoyer les accès" — re-inscription email choice (with / without link) (2026-09-09)
 Second half of the re-inscription request (page 1 = the email): the rollout tool now sends ONE of two emails,

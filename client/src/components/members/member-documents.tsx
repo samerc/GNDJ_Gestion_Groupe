@@ -1,5 +1,5 @@
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
-import { saveBlob } from '@/lib/download'
+import { saveBlob, filenameFromDisposition } from '@/lib/download'
 import { toast } from 'sonner'
 import { useState, useRef } from 'react'
 import { useMemberDocuments, useUploadDocument, useReviewDocument, useDeleteDocument, useAddDocumentPages, useDeleteDocumentPage, downloadDocument, downloadDocumentPage, type MemberDocumentDto, type DocumentPageDto } from '@/services/document-service'
@@ -191,7 +191,9 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
     setTemplatePdfLoadingId(dt.id)
     try {
       const response = await downloadMemberTemplatePdf(dt.id, memberId)
-      saveBlob(response.data, `${dt.name}.pdf`, 'application/pdf')
+      // Use the server's file name ("Type - Nom complet - Code unité.pdf"); fall back to the type name.
+      const fileName = filenameFromDisposition(response.headers?.['content-disposition']) ?? `${dt.name}.pdf`
+      saveBlob(response.data, fileName, 'application/pdf')
     } catch (err) {
       toast.error(await parseBlobError(err))
     } finally {

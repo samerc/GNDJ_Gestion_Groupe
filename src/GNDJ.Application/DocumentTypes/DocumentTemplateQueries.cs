@@ -78,10 +78,13 @@ public class GenerateMemberDocumentTemplateQueryHandler(
         if (values is null) return Result<DocumentTemplatePdf>.Failure("Membre introuvable.");
 
         var pdf = renderer.Render(dt.TemplateHtml, values, dt.Name);
-        var name = DocumentTemplatePdfNaming.Clean(dt.Name);
-        var member = (values.TryGetValue("nomComplet", out var nc) ? nc : null) ?? "";
-        var suffix = string.IsNullOrWhiteSpace(member) ? "" : $" - {member}";
-        return Result<DocumentTemplatePdf>.Success(new DocumentTemplatePdf(pdf, $"{name}{suffix}.pdf"));
+        // Friendly file name: "<Type> - <Nom complet> - <Code unité>.pdf" (e.g. "Fiche Medicale - Samer Cheaib - T2").
+        var member = values.TryGetValue("nomComplet", out var nc) ? nc : null;
+        var unitCode = values.TryGetValue("__unitcode", out var uc) ? uc : null;
+        var parts = new[] { dt.Name, member, unitCode }
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Select(p => DocumentTemplatePdfNaming.Clean(p!.Trim()));
+        return Result<DocumentTemplatePdf>.Success(new DocumentTemplatePdf(pdf, $"{string.Join(" - ", parts)}.pdf"));
     }
 
     // Builds the placeholder key → value map from the member's data. A missing value stays null → the renderer
@@ -96,6 +99,7 @@ public class GenerateMemberDocumentTemplateQueryHandler(
                 x.FirstName, x.LastName, x.DateOfBirth, x.Gender, x.BloodType, x.Nationality,
                 x.School, x.Classe, x.Section, x.CardNumber, x.ExternalCardNumber,
                 UnitName = x.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(),
+                UnitCode = x.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Code).FirstOrDefault(),
                 TeamName = x.Assignments.Where(a => a.EndDate == null && a.Team != null).Select(a => a.Team!.Name).FirstOrDefault(),
                 RoleName = x.Assignments.Where(a => a.EndDate == null).Select(a => a.FunctionalRole.Name).FirstOrDefault(),
                 StartDate = x.Assignments.Where(a => a.EndDate == null).Select(a => (DateOnly?)a.StartDate).FirstOrDefault(),
@@ -148,6 +152,8 @@ public class GenerateMemberDocumentTemplateQueryHandler(
             ["telephoneMere"] = mother?.Phone,
             ["anneeScoute"] = scoutYear,
             ["dateDuJour"] = LebanonClock.Today.ToString("dd/MM/yyyy"),
+            // Internal (not a template placeholder): the unit short code, used to name the downloaded file.
+            ["__unitcode"] = m.UnitCode,
         };
     }
 }
