@@ -4321,8 +4321,8 @@ verified live.
       dateLimiteReinscription="dimanche 20 septembre 2026", datePremiereReunion="vendredi 18 septembre 2026",
       signatureCG="Giorgio RIZK — Chef de Groupe\nNour BOU ATME — Cheftaine de Groupe", + activationLink/username/
       scoutYear/expiryDays; test settings + token + outbox row cleaned up afterwards. Build clean (dotnet 0/0 + tsc +
-      eslint). NOTE (user): "we will work on all email templates in the next couple of days" — this is saved as the
-      3rd choice for now.
+      eslint). NOTE (user): "we will work on all email templates in the next couple of days". Made the **DEFAULT**
+      choice in "Envoyer les accès" (top of the selector) since it's this year's rollout email.
 
 ### Document-template per-member PDF — parents were blank (2026-09-10)
 The in-app document-template per-member PDF (e.g. Autorisation des parents "Nous, soussignés … et …") rendered the

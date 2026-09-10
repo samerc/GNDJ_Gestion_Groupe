@@ -25,9 +25,10 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
   const [onlyNever, setOnlyNever] = useState(true)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [result, setResult] = useState<SendAccessResult | null>(null)
-  // Which email to send: activation (with the set-password link, for new/first-time members) or the link-free
-  // re-inscription letter (returning members who already have an account). This year: activation for everyone.
-  const [templateCode, setTemplateCode] = useState<'account_activation' | 'reinscription_returning' | 'reinscription_access'>('account_activation')
+  // Which email to send. Default = the re-inscription launch letter (with the set-password link + dynamic dates +
+  // CG signature) — this year's rollout to existing members. Also available: plain "Activation" (generic with-link)
+  // and the link-free "Réinscription" for a later year.
+  const [templateCode, setTemplateCode] = useState<'account_activation' | 'reinscription_returning' | 'reinscription_access'>('reinscription_access')
   // Both activation templates carry the set-password link; only the "returning" letter is link-free.
   const withLink = templateCode !== 'reinscription_returning'
 
@@ -95,15 +96,15 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
         <Select value={templateCode} onValueChange={(v) => setTemplateCode(v as typeof templateCode)}>
           <SelectTrigger className="w-full sm:w-[30rem]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="account_activation">Activation — avec lien pour choisir le mot de passe (nouveaux membres)</SelectItem>
             <SelectItem value="reinscription_access">Réinscription (nouveau système) — lettre complète avec lien, dates et signature du CG</SelectItem>
+            <SelectItem value="account_activation">Activation — avec lien pour choisir le mot de passe (nouveaux membres)</SelectItem>
             <SelectItem value="reinscription_returning">Réinscription — sans lien, connexion avec le compte existant (membres déjà inscrits)</SelectItem>
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">
-          Cette année, choisissez « Activation » pour tout le monde (première connexion). Les années suivantes,
-          « Réinscription » pour les membres déjà inscrits et « Activation » pour les nouveaux. Le contenu des deux
-          emails se modifie dans <span className="font-medium">Admin → Email</span>.
+          Cette année, choisissez « Réinscription (nouveau système) » pour tous les membres déjà inscrits (première
+          connexion à la nouvelle plateforme). Les années suivantes, « Réinscription » (sans lien) pour les membres
+          déjà connectés et « Activation » pour les nouveaux. Le contenu se modifie dans <span className="font-medium">Admin → Email</span>.
         </p>
       </div>
 
