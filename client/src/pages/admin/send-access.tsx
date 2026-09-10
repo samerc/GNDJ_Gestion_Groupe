@@ -27,8 +27,9 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
   const [result, setResult] = useState<SendAccessResult | null>(null)
   // Which email to send: activation (with the set-password link, for new/first-time members) or the link-free
   // re-inscription letter (returning members who already have an account). This year: activation for everyone.
-  const [templateCode, setTemplateCode] = useState<'account_activation' | 'reinscription_returning'>('account_activation')
-  const withLink = templateCode === 'account_activation'
+  const [templateCode, setTemplateCode] = useState<'account_activation' | 'reinscription_returning' | 'reinscription_access'>('account_activation')
+  // Both activation templates carry the set-password link; only the "returning" letter is link-free.
+  const withLink = templateCode !== 'reinscription_returning'
 
   const { data: candidates, isLoading } = useAccessCandidates(unitId || undefined)
   const send = useSendAccess()
@@ -95,6 +96,7 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
           <SelectTrigger className="w-full sm:w-[30rem]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="account_activation">Activation — avec lien pour choisir le mot de passe (nouveaux membres)</SelectItem>
+            <SelectItem value="reinscription_access">Réinscription (nouveau système) — lettre complète avec lien, dates et signature du CG</SelectItem>
             <SelectItem value="reinscription_returning">Réinscription — sans lien, connexion avec le compte existant (membres déjà inscrits)</SelectItem>
           </SelectContent>
         </Select>

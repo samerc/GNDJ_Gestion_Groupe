@@ -84,8 +84,18 @@ public class SendAccessEmailsCommandHandler(
     : IRequestHandler<SendAccessEmailsCommand, Result<SendAccessResult>>
 {
     // The only templates this rollout tool may send (guards against sending an arbitrary template to members).
+    // reinscription_access = the launch re-inscription letter (with the set-password link + dynamic dates + the
+    // CG signature); reinscription_returning = the link-free version for a later year.
     private static readonly HashSet<string> AllowedTemplates = new(StringComparer.OrdinalIgnoreCase)
-        { "account_activation", "reinscription_returning" };
+        { "account_activation", "reinscription_returning", "reinscription_access" };
+
+    // Month/day names for a culture-independent French long date ("dimanche 20 septembre 2026") — avoids any
+    // dependency on fr-FR culture data being installed (or globalization-invariant mode) on the server.
+    private static readonly string[] FrMonths = { "", "janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre" };
+    private static readonly string[] FrDays = { "dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi" };
+    private static string FrLongDate(string? iso) =>
+        DateOnly.TryParseExact(iso, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d)
+            ? $"{FrDays[(int)d.DayOfWeek]} {d.Day} {FrMonths[d.Month]} {d.Year}" : "";
 
     public async ValueTask<Result<SendAccessResult>> Handle(SendAccessEmailsCommand request, CancellationToken ct)
     {
@@ -143,6 +153,29 @@ public class SendAccessEmailsCommandHandler(
         var activationExpiryDays = int.TryParse(await context.Settings.Where(s => s.Key == "member.activation_link_days").Select(s => s.Value).FirstOrDefaultAsync(ct), out var ad) && ad > 0 ? ad : 30;
         var scoutYear = await context.Settings.Where(s => s.Key == "passage.scout_year").Select(s => s.Value).FirstOrDefaultAsync(ct) ?? "";
 
+        // Dynamic dates for the re-inscription letter (all filled from settings — never hard-coded). Formatted
+        // in French long form; empty when the setting isn't set. These are batch-level (same for everyone) so
+        // compute once. Only the reinscription_access template references them; harmless for the other templates.
+        var deadlineFr = FrLongDate(await context.Settings.Where(s => s.Key == "demande.submission_deadline").Select(s => s.Value).FirstOrDefaultAsync(ct));
+        var firstMeetingFr = FrLongDate(await context.Settings.Where(s => s.Key == "passage.first_meeting_date").Select(s => s.Value).FirstOrDefaultAsync(ct));
+        var todayFr = FrLongDate(LebanonClock.Today.ToString("yyyy-MM-dd"));
+
+        // CG signature from the actual role holders (active Chef(taine) de Groupe), male before female — matching
+        // the official letter (Chef de Groupe on the left / Cheftaine de Groupe on the right). Rendered in a
+        // white-space:pre-line block in the template, so the newline between the two lines shows.
+        var cgHolders = await context.MemberAssignments
+            .Where(a => a.EndDate == null && !a.IsDeleted && a.FunctionalRole.SecurityProfile.Code == "chef-de-groupe")
+            .Select(a => new { a.Member.FirstName, a.Member.LastName, a.Member.Gender })
+            .ToListAsync(ct);
+        var sigLines = new List<string>();
+        var cgMale = cgHolders.FirstOrDefault(h => h.Gender == "Masculin");
+        var cgFemale = cgHolders.FirstOrDefault(h => h.Gender == "Féminin");
+        if (cgMale is not null) sigLines.Add($"{cgMale.FirstName} {cgMale.LastName} — Chef de Groupe");
+        if (cgFemale is not null) sigLines.Add($"{cgFemale.FirstName} {cgFemale.LastName} — Cheftaine de Groupe");
+        foreach (var h in cgHolders.Where(h => h.Gender != "Masculin" && h.Gender != "Féminin"))
+            sigLines.Add($"{h.FirstName} {h.LastName} — Chef(taine) de Groupe");
+        var signatureCG = string.Join("\n", sigLines);
+
         // Whether the chosen template needs a set-password link (drives whether we stamp a token). Template-driven:
         // a CG can remove/add the {{activationLink}} in the editor and the behaviour follows.
         var tpl = await context.EmailTemplates.IgnoreQueryFilters()
@@ -181,6 +214,11 @@ public class SendAccessEmailsCommandHandler(
                 ["username"] = user.Email,
                 ["loginUrl"] = baseUrl,
                 ["scoutYear"] = scoutYear,
+                // Re-inscription letter (reinscription_access) — dynamic dates + CG signature (unused by the others).
+                ["dateDuJour"] = todayFr,
+                ["dateLimiteReinscription"] = deadlineFr,
+                ["datePremiereReunion"] = firstMeetingFr,
+                ["signatureCG"] = signatureCG,
             };
 
             if (needsLink)

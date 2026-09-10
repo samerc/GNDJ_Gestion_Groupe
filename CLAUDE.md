@@ -4296,6 +4296,34 @@ Two demande-review asks. All on main; DEV until deploy; verified live.
       preserved, then restored; future-DOB / `<script>` → 400 (validators fire); builds clean (dotnet 0/0 + tsc +
       eslint + vite).
 
+### Re-inscription launch email — "Réinscription (nouveau système)" (2026-09-10)
+A dedicated member re-inscription email based on **page 1 of the official Document_Complet_Reinscription letter**
+(Chef de Groupe Giorgio RIZK / Cheftaine Nour BOU ATME), adapted to the new online platform + an explicit
+"new system" mention. Added as a **3rd choice** in "Envoyer les accès" (NOT overwriting `account_activation`, which
+is shared by "Identifiant oublié ?" + demande resend that don't supply all vars). All on main; DEV until deploy;
+verified live.
+- **New seeded template `reinscription_access`** (SeedMemberEmailTemplatesAsync, idempotent): the re-inscription
+      letter WITH the set-password `{{activationLink}}` (imported members' login email is the synthetic
+      `@scouts.gndj` — undeliverable — so the reliable path is the emailed link, not "Mot de passe oublié"). Added to
+      `SendAccessHandlers.AllowedTemplates` + the send-access frontend selector (`withLink` = not the returning
+      template). Editable in Admin → Email.
+- **All dates dynamic** (no hard-coding): `{{dateDuJour}}` (today), `{{dateLimiteReinscription}}` (from
+      `demande.submission_deadline`), `{{datePremiereReunion}}` (from a NEW setting **`passage.first_meeting_date`**
+      "Première réunion de l'année", category passage, date type, seeded via SeedMissingSettings, CG-editable in
+      Paramètres → Passage next to the passage date). Formatted French long form via a culture-independent
+      `FrLongDate` (month/day name arrays — no fr-FR culture/ICU dependency, safe under globalization-invariant).
+- **Signature from the roles:** `{{signatureCG}}` built from the ACTIVE Chef(taine) de Groupe role holders
+      (`FunctionalRole.SecurityProfile.Code == "chef-de-groupe"`), **male before female** (matching the letter — Chef
+      de Groupe / Cheftaine de Groupe), newline-joined and rendered in a `white-space:pre-line` block (EmailService
+      HTML-encodes values, so no HTML injection; newlines survive). Extra batch-level vars computed once; harmless
+      for the other two templates (they don't reference them).
+- **Verified live** (sent to a test member): outbox vars resolved to dateDuJour="jeudi 10 septembre 2026",
+      dateLimiteReinscription="dimanche 20 septembre 2026", datePremiereReunion="vendredi 18 septembre 2026",
+      signatureCG="Giorgio RIZK — Chef de Groupe\nNour BOU ATME — Cheftaine de Groupe", + activationLink/username/
+      scoutYear/expiryDays; test settings + token + outbox row cleaned up afterwards. Build clean (dotnet 0/0 + tsc +
+      eslint). NOTE (user): "we will work on all email templates in the next couple of days" — this is saved as the
+      3rd choice for now.
+
 ### Document-template per-member PDF — parents were blank (2026-09-10)
 The in-app document-template per-member PDF (e.g. Autorisation des parents "Nous, soussignés … et …") rendered the
 **father/mother name+phone fields BLANK** for virtually every member, even though the CG "Aperçu" showed them (the
