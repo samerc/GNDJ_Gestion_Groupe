@@ -4296,6 +4296,17 @@ Two demande-review asks. All on main; DEV until deploy; verified live.
       preserved, then restored; future-DOB / `<script>` → 400 (validators fire); builds clean (dotnet 0/0 + tsc +
       eslint + vite).
 
+### Document-template per-member PDF — parents were blank (2026-09-10)
+The in-app document-template per-member PDF (e.g. Autorisation des parents "Nous, soussignés … et …") rendered the
+**father/mother name+phone fields BLANK** for virtually every member, even though the CG "Aperçu" showed them (the
+preview uses hardcoded SAMPLE values). Root cause: `GetMemberTemplateValues` (`DocumentTemplateQueries.cs`) matched
+`GuardianLink.RelationshipType == "Père" || "Mère"` **exactly (accented)**, but the imported data is overwhelmingly
+the **UNACCENTED `Pere`/`Mere`** (dev DB: 2408 `Pere` / 2390 `Mere` vs 1 `Père` / 2 `Mère`) → almost no match. Fix:
+fetch all the member's guardian links (tiny set) and classify père/mère in memory via
+`TextNormalization.RemoveDiacritics(...).Trim().ToLowerInvariant() == "pere"/"mere"` (accent + case-insensitive;
+`RemoveDiacritics` can't be translated to SQL). Verified live: Maria ABBOUD's AUT PDF now fills "Miguel ABBOUD et
+Hiba AZOURY". Backend-only, DEV until deploy.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

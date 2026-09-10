@@ -108,9 +108,12 @@ public class GenerateMemberDocumentTemplateQueryHandler(
 
         if (m is null) return null;
 
-        // Father / mother from the guardian links (RelationshipType = "Père" / "Mère").
-        var parents = await context.GuardianLinks
-            .Where(gl => gl.MemberId == memberId && (gl.RelationshipType == "Père" || gl.RelationshipType == "Mère"))
+        // Father / mother from the guardian links. The relationship_type is free-ish text and the imported data is
+        // overwhelmingly the UNACCENTED "Pere"/"Mere" (only a handful are "Père"/"Mère"), so match accent- AND
+        // case-insensitively — otherwise nearly every member's parents render blank. Fetch all links for the member
+        // (tiny set) and classify in memory (RemoveDiacritics can't be translated to SQL).
+        var links = await context.GuardianLinks
+            .Where(gl => gl.MemberId == memberId)
             .Select(gl => new
             {
                 gl.RelationshipType,
@@ -121,8 +124,9 @@ public class GenerateMemberDocumentTemplateQueryHandler(
             })
             .ToListAsync(ct);
 
-        var father = parents.FirstOrDefault(p => p.RelationshipType == "Père");
-        var mother = parents.FirstOrDefault(p => p.RelationshipType == "Mère");
+        static string NormRel(string? s) => TextNormalization.RemoveDiacritics(s ?? "").Trim().ToLowerInvariant();
+        var father = links.FirstOrDefault(p => NormRel(p.RelationshipType) == "pere");
+        var mother = links.FirstOrDefault(p => NormRel(p.RelationshipType) == "mere");
 
         // Scout year = the year the member's active assignment falls in (else the current scout year).
         var scoutYear = m.StartDate.HasValue ? ScoutYearHelper.Of(m.StartDate.Value) : ScoutYearHelper.Of(LebanonClock.Today);
