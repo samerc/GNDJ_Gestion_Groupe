@@ -1,7 +1,7 @@
 [
   {
-    "version": "3.0.0",
-    "date": "2026-08-27",
+    "version": "3.1.0",
+    "date": "2026-09-10",
     "changes": [
       "Envoyer les accès — email de réinscription (nouveau système) : nouveau 3ᵉ choix d'email « Réinscription (nouveau système) » reprenant la lettre officielle de réinscription (page 1), adaptée à la nouvelle plateforme (avec le lien pour choisir son mot de passe et une mention explicite du nouveau système). Toutes les dates y sont remplies automatiquement : la date du jour, la date limite de réinscription (= « Date limite de soumission ») et la date de la 1ère réunion. Pour cette dernière, un nouveau réglage « Première réunion de l'année » a été ajouté dans Paramètres → Passage (au même endroit que la date du passage). La signature en bas est reprise automatiquement des chefs de groupe en poste (le Chef de Groupe avant la Cheftaine de Groupe). Le contenu reste modifiable dans Admin → Email.",
       "Documents (modèle) — noms des parents corrigés : correction d'un bug où le PDF téléchargé pour un membre laissait vides les noms du père et de la mère (« Nous, soussignés … et … ») alors qu'ils apparaissaient bien dans l'aperçu. Les champs « prénom / nom / téléphone du père » et « … de la mère » sont désormais correctement remplis à partir des parents enregistrés sur la fiche du membre.",
