@@ -79,6 +79,18 @@ public class DemandesController : BaseApiController
         return Ok(new { success = true });
     }
 
+    /// <summary>CG edit of a full demande file (child fields + household: address, situation, parents/tuteurs,
+    /// proches scouts), bypassing the submission deadline. Household edits affect every sibling demande on the
+    /// same account. Blocked once a member was created. Requires demande.manage.</summary>
+    [HttpPut("{id:guid}")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> Edit(Guid id, [FromBody] AdminEditDemandeBody body)
+    {
+        var result = await Mediator.Send(new AdminEditDemandeCommand(id, body.Child, body.Household));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>Deletes a single demande (junk/spam/duplicate cleanup). Soft-delete; blocked once a member was
     /// created. Requires demande.manage.</summary>
     [HttpDelete("{id:guid}")]
@@ -323,5 +335,12 @@ public class DemandesController : BaseApiController
 
     public record DecideBody(string Status, Guid? DecidedUnitId, string? DecisionNotes);
     public record SetUnitBody(Guid? DecidedUnitId);
+    // CG edit body: the child fields (DemandeInput) + the shared household (SaveApplicantHouseholdCommand reused
+    // as a plain data carrier — its own validator runs via AdminEditDemandeCommandValidator). Fully-qualified to
+    // avoid pulling in the whole Applicants namespace (which also declares DeleteDemandeCommand /
+    // ResetApplicantPasswordCommand → CS0104 ambiguity with the Demandes-namespace versions used here).
+    public record AdminEditDemandeBody(
+        GNDJ.Application.Applicants.DemandeInput Child,
+        GNDJ.Application.Applicants.SaveApplicantHouseholdCommand Household);
     public record UpdateRejectionReasonsBody(IReadOnlyList<DemandeRejectionReasonDto>? Reasons);
 }

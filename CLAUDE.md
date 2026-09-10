@@ -4262,6 +4262,40 @@ template-driven. All on main; DEV until deploy.
       tsc + eslint). NOTE: same go-live caveat as all app mail — delivery needs an active SMTP + `email.override_recipient`
       cleared (see [[project-email-golive]]).
 
+### CG edit any demande (incl. proches, after the deadline) + all-field search (2026-09-10)
+Two demande-review asks. All on main; DEV until deploy; verified live.
+- **CG edit of a full demande file — `AdminEditDemandeCommand` + `PUT /demandes/{id}`** (demande.manage +
+      `MemberAccess.IsGroupManager`): edits the child fields (on the `Demande`) AND the shared household (address +
+      situation + parents/tuteurs + proches scouts, on the `ApplicantAccount`). Unlike the applicant-side
+      `UpdateDemande`/`SaveApplicantHousehold`, it **BYPASSES the submission-window / terms / relation-cap gates** —
+      a CG fixes a file at ANY time, even after the deadline (a parent forgot a parent/proche, or the CG corrects a
+      typo during review). Household edits affect EVERY sibling demande on the account (guardians + address are
+      shared — intended). **Blocked once a member was created** (`CreatedMemberId != null` → edit the real fiche).
+      Reuses the applicant validators exactly via `SetValidator(new DemandeInputValidator())` +
+      `SetValidator(new SaveApplicantHouseholdCommandValidator())` (same field rules; only WHEN is relaxed). Audited
+      `EditDemande`.
+- **Refactor (DRY):** extracted **`ApplicantHelpers.ApplyHouseholdAsync`** (address + guardian/relation replace +
+      the "current member" auto-link) out of `SaveApplicantHouseholdCommandHandler`; both the applicant save (after
+      its window-gate + relation-cap) and the new CG edit call it. No SaveChanges inside — caller owns the txn. The
+      controller fully-qualifies the two Applicant types in `AdminEditDemandeBody` (a broad `using
+      GNDJ.Application.Applicants` collides: that namespace ALSO declares `DeleteDemandeCommand` /
+      `ResetApplicantPasswordCommand` → CS0104).
+- **Frontend:** new `components/admin/demande-edit-form.tsx` (mirrors the wizard's field patterns/components —
+      DateInput / SearchableSelect (nationalité + profession domain) / CitySelect / PhoneInput / class+school lists
+      from settings; guardians + proches add/edit/remove). Wired into the review drawer (`demande-validation.tsx`):
+      a **« Modifier »** button in the `DetailPanel` header (hidden once locked) swaps the whole panel for the edit
+      form; `useAdminEditDemande` (`PUT /demandes/{id}`) → invalidates `['demandes']`; A/R/arrow keyboard triage is
+      suppressed while editing; edit mode resets on row navigation.
+- **All-field, multi-term search (frontend-only):** the review search box (was child-name-only, client-side) now
+      matches a normalized **haystack across every field** — child (name/serial/nationality/school/classe/section/
+      email/phone/gender/blood/city/country/address/contact/account email/age) + every guardian (name/profession/
+      domain/email/phone) + every proche (name/group/unit/function/linked-member) — and splits the query into
+      space-separated terms that must **ALL** match (AND), so "marie beyrouth" or "hariri usj" narrows across the
+      whole file. Accent/case-insensitive. The structured filters (status/gender/classe/age/unit) are unchanged.
+- **Verified live** (super-admin, 2026-2027): edit a real demande → 204, section changed + guardians/relations
+      preserved, then restored; future-DOB / `<script>` → 400 (validators fire); builds clean (dotnet 0/0 + tsc +
+      eslint + vite).
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

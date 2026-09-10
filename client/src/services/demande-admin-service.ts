@@ -3,7 +3,7 @@
 // Authenticated apiClient; keyed on ['demandes', ...].
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
-import type { ApplicantGuardian, ApplicantScoutRelation } from '@/services/applicant-service'
+import type { ApplicantGuardian, ApplicantScoutRelation, DemandeInput } from '@/services/applicant-service'
 
 export interface Sibling { id: string; firstName: string; lastName: string; status: string; responseSent: boolean }
 
@@ -142,6 +142,30 @@ export function useDecideDemande() {
   return useMutation({
     mutationFn: (data: { id: string; status: string; decidedUnitId?: string | null; decisionNotes?: string | null }) =>
       apiClient.put(`/demandes/${data.id}/decide`, { status: data.status, decidedUnitId: data.decidedUnitId, decisionNotes: data.decisionNotes }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes'] }) },
+  })
+}
+
+// The shared household (address + situation + parents/tuteurs + proches scouts) as edited by the CG. Same shape
+// the applicant wizard saves; editing it here affects every sibling demande on the account.
+export interface AdminEditHousehold {
+  contactName?: string | null
+  addressCountry?: string | null
+  addressCity?: string | null
+  addressDetails?: string | null
+  primaryContactEmail?: string | null
+  parentsSituation?: string | null
+  guardians: ApplicantGuardian[]
+  scoutRelations: ApplicantScoutRelation[]
+}
+
+// PUT /demandes/{id} → CG edit of the full file (child + household), bypassing the submission deadline. Blocked
+// server-side once a member was created. Invalidates ['demandes'] so the drawer/table refresh.
+export function useAdminEditDemande() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, child, household }: { id: string; child: DemandeInput; household: AdminEditHousehold }) =>
+      apiClient.put(`/demandes/${id}`, { child, household }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes'] }) },
   })
 }

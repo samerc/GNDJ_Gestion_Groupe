@@ -228,6 +228,93 @@ static class ApplicantHelpers
         d.HasPreviousDemande = i.HasPreviousDemande;
         d.PreviousDemandeYear = i.HasPreviousDemande ? i.PreviousDemandeYear?.Trim() : null;
     }
+
+    // Applies the shared-household data (address + situation + guardians + scout relations) onto an account:
+    // overwrites the address/situation, REPLACES the guardian + relation sets, and auto-links a "current member"
+    // relative to a real member when there's a single confident name(+unit) match. Does NOT SaveChanges and does
+    // NOT gate on the submission window or the relation cap — the caller owns those (the applicant path gates +
+    // caps before calling; the CG-admin edit path deliberately bypasses both). Returns false if the account is gone.
+    public static async Task<bool> ApplyHouseholdAsync(IApplicationDbContext context, Guid accountId, SaveApplicantHouseholdCommand data, CancellationToken ct)
+    {
+        var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Id == accountId, ct);
+        if (account is null) return false;
+
+        account.ContactName = string.IsNullOrWhiteSpace(data.ContactName) ? account.ContactName : data.ContactName.Trim();
+        account.AddressCountry = data.AddressCountry;
+        account.AddressCity = data.AddressCity;
+        account.AddressDetails = data.AddressDetails;
+        account.PrimaryContactEmail = string.IsNullOrWhiteSpace(data.PrimaryContactEmail) ? null : data.PrimaryContactEmail.Trim();
+        account.ParentsSituation = string.IsNullOrWhiteSpace(data.ParentsSituation) ? null : data.ParentsSituation.Trim();
+
+        // Replace guardians + relations (small shared sets)
+        var existingGuardians = await context.ApplicantGuardians.Where(g => g.ApplicantAccountId == accountId).ToListAsync(ct);
+        context.ApplicantGuardians.RemoveRange(existingGuardians);
+        foreach (var g in data.Guardians.Where(g => !string.IsNullOrWhiteSpace(g.FirstName) || !string.IsNullOrWhiteSpace(g.LastName)))
+        {
+            context.ApplicantGuardians.Add(new ApplicantGuardian
+            {
+                ApplicantAccountId = accountId,
+                Relationship = g.Relationship,
+                FirstName = g.FirstName.Trim(),
+                LastName = g.LastName.Trim(),
+                Profession = g.Profession,
+                ProfessionDomain = g.ProfessionDomain,
+                PhoneCountryCode = g.PhoneCountryCode,
+                PhoneNumber = g.PhoneNumber,
+                Email = g.Email,
+                IsDeceased = g.IsDeceased,
+                IsPrimaryContact = g.IsPrimaryContact,
+                IsEmergencyContact = g.IsEmergencyContact,
+            });
+        }
+
+        var existingRelations = await context.ApplicantScoutRelations.Where(r => r.ApplicantAccountId == accountId).ToListAsync(ct);
+        context.ApplicantScoutRelations.RemoveRange(existingRelations);
+
+        // Active members (by name + unit) — used to auto-link a "current member" relative to the real member
+        // record when there's a single confident match. Ambiguous/no match leaves RelatedMemberId null for the CG.
+        var activeMembers = await context.MemberAssignments
+            .Where(a => a.EndDate == null && !a.IsDeleted)
+            .Select(a => new { a.MemberId, a.Member.FirstName, a.Member.LastName, UnitName = a.Unit.Name })
+            .ToListAsync(ct);
+        static string NormName(string? s) => string.IsNullOrWhiteSpace(s) ? "" : new string(
+            s.Trim().ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD)
+             .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
+             .ToArray());
+
+        foreach (var r in data.ScoutRelations.Where(r => !string.IsNullOrWhiteSpace(r.FirstName) || !string.IsNullOrWhiteSpace(r.LastName) || r.RelatedMemberId.HasValue))
+        {
+            var relatedId = r.RelatedMemberId;
+            if (relatedId is null && r.Status == "CurrentInGroup" && !string.IsNullOrWhiteSpace(r.FirstName) && !string.IsNullOrWhiteSpace(r.LastName))
+            {
+                string nf = NormName(r.FirstName), nl = NormName(r.LastName);
+                var matches = activeMembers.Where(m => NormName(m.FirstName) == nf && NormName(m.LastName) == nl).ToList();
+                // Narrow by the chosen unit only when that disambiguates (keeps a single name-match otherwise).
+                if (matches.Count > 1 && !string.IsNullOrWhiteSpace(r.LastUnit))
+                {
+                    var byUnit = matches.Where(m => NormName(m.UnitName) == NormName(r.LastUnit)).ToList();
+                    if (byUnit.Count > 0) matches = byUnit;
+                }
+                if (matches.Count == 1) relatedId = matches[0].MemberId; // confident single match → link it
+            }
+
+            context.ApplicantScoutRelations.Add(new ApplicantScoutRelation
+            {
+                ApplicantAccountId = accountId,
+                Status = r.Status,
+                Relationship = r.Relationship,
+                RelatedMemberId = relatedId,
+                FirstName = r.FirstName,
+                LastName = r.LastName,
+                LastUnit = r.LastUnit,
+                LastFunction = r.LastFunction,
+                OtherGroupName = r.OtherGroupName,
+                OtherGroupIsFormer = r.OtherGroupIsFormer,
+            });
+        }
+
+        return true;
+    }
 }
 
 // ============================================================
@@ -809,9 +896,6 @@ public class SaveApplicantHouseholdCommandHandler(IApplicationDbContext context,
         var closed = ApplicantHelpers.SubmissionsClosedError(await ApplicantHelpers.BuildConfig(context, ct));
         if (closed is not null) return Result<bool>.Failure(closed);
 
-        var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Id == id, ct);
-        if (account is null) return Result<bool>.Failure("Compte introuvable.");
-
         // Enforce the configurable business cap on scout relations (demande.max_scout_relations, default 3).
         var maxRelations = int.TryParse(await ApplicantHelpers.Setting(context, "demande.max_scout_relations", ct), out var mr) && mr > 0
             ? Math.Min(mr, ApplicantHelpers.MaxScoutRelationsHardCap) : 3;
@@ -819,80 +903,9 @@ public class SaveApplicantHouseholdCommandHandler(IApplicationDbContext context,
         if (relationCount > maxRelations)
             return Result<bool>.Failure($"Vous pouvez ajouter au maximum {maxRelations} proches scouts.");
 
-        account.ContactName = string.IsNullOrWhiteSpace(request.ContactName) ? account.ContactName : request.ContactName.Trim();
-        account.AddressCountry = request.AddressCountry;
-        account.AddressCity = request.AddressCity;
-        account.AddressDetails = request.AddressDetails;
-        account.PrimaryContactEmail = string.IsNullOrWhiteSpace(request.PrimaryContactEmail) ? null : request.PrimaryContactEmail.Trim();
-        account.ParentsSituation = string.IsNullOrWhiteSpace(request.ParentsSituation) ? null : request.ParentsSituation.Trim();
-
-        // Replace guardians + relations (small shared sets)
-        var existingGuardians = await context.ApplicantGuardians.Where(g => g.ApplicantAccountId == id).ToListAsync(ct);
-        context.ApplicantGuardians.RemoveRange(existingGuardians);
-        foreach (var g in request.Guardians.Where(g => !string.IsNullOrWhiteSpace(g.FirstName) || !string.IsNullOrWhiteSpace(g.LastName)))
-        {
-            context.ApplicantGuardians.Add(new ApplicantGuardian
-            {
-                ApplicantAccountId = id.Value,
-                Relationship = g.Relationship,
-                FirstName = g.FirstName.Trim(),
-                LastName = g.LastName.Trim(),
-                Profession = g.Profession,
-                ProfessionDomain = g.ProfessionDomain,
-                PhoneCountryCode = g.PhoneCountryCode,
-                PhoneNumber = g.PhoneNumber,
-                Email = g.Email,
-                IsDeceased = g.IsDeceased,
-                IsPrimaryContact = g.IsPrimaryContact,
-                IsEmergencyContact = g.IsEmergencyContact,
-            });
-        }
-
-        var existingRelations = await context.ApplicantScoutRelations.Where(r => r.ApplicantAccountId == id).ToListAsync(ct);
-        context.ApplicantScoutRelations.RemoveRange(existingRelations);
-
-        // Active members (by name + unit) — used to auto-link a "current member" relative to the real member
-        // record when there's a single confident match. Ambiguous/no match leaves RelatedMemberId null for
-        // the CG to resolve. No public member search is exposed; the applicant only typed a name + unit.
-        var activeMembers = await context.MemberAssignments
-            .Where(a => a.EndDate == null && !a.IsDeleted)
-            .Select(a => new { a.MemberId, a.Member.FirstName, a.Member.LastName, UnitName = a.Unit.Name })
-            .ToListAsync(ct);
-        static string NormName(string? s) => string.IsNullOrWhiteSpace(s) ? "" : new string(
-            s.Trim().ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD)
-             .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
-             .ToArray());
-
-        foreach (var r in request.ScoutRelations.Where(r => !string.IsNullOrWhiteSpace(r.FirstName) || !string.IsNullOrWhiteSpace(r.LastName) || r.RelatedMemberId.HasValue))
-        {
-            var relatedId = r.RelatedMemberId;
-            if (relatedId is null && r.Status == "CurrentInGroup" && !string.IsNullOrWhiteSpace(r.FirstName) && !string.IsNullOrWhiteSpace(r.LastName))
-            {
-                string nf = NormName(r.FirstName), nl = NormName(r.LastName);
-                var matches = activeMembers.Where(m => NormName(m.FirstName) == nf && NormName(m.LastName) == nl).ToList();
-                // Narrow by the chosen unit only when that disambiguates (keeps a single name-match otherwise).
-                if (matches.Count > 1 && !string.IsNullOrWhiteSpace(r.LastUnit))
-                {
-                    var byUnit = matches.Where(m => NormName(m.UnitName) == NormName(r.LastUnit)).ToList();
-                    if (byUnit.Count > 0) matches = byUnit;
-                }
-                if (matches.Count == 1) relatedId = matches[0].MemberId; // confident single match → link it
-            }
-
-            context.ApplicantScoutRelations.Add(new ApplicantScoutRelation
-            {
-                ApplicantAccountId = id.Value,
-                Status = r.Status,
-                Relationship = r.Relationship,
-                RelatedMemberId = relatedId,
-                FirstName = r.FirstName,
-                LastName = r.LastName,
-                LastUnit = r.LastUnit,
-                LastFunction = r.LastFunction,
-                OtherGroupName = r.OtherGroupName,
-                OtherGroupIsFormer = r.OtherGroupIsFormer,
-            });
-        }
+        // Persist address + guardians + relations (shared helper; also used by the CG-admin edit path).
+        var ok = await ApplicantHelpers.ApplyHouseholdAsync(context, id.Value, request, ct);
+        if (!ok) return Result<bool>.Failure("Compte introuvable.");
 
         await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);

@@ -26,6 +26,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Separator } from '@/components/ui/separator'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { DemandeEditForm } from '@/components/admin/demande-edit-form'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Tip } from '@/components/ui/tooltip'
@@ -34,7 +35,7 @@ import { parseApiError } from '@/lib/error-utils'
 import {
   Inbox, Check, X, Send, Users2, ChevronDown, ChevronRight, ChevronLeft, CheckCircle2, XCircle, Clock,
   AlertTriangle, User, Phone, Mail, MapPin, HeartPulse, GraduationCap, MessageSquare, Tent, ArrowUpDown,
-  Search, Sparkles, Trash2, Link2, Lock, LockOpen, Save, Download, Upload, MailWarning,
+  Search, Sparkles, Trash2, Link2, Lock, LockOpen, Save, Download, Upload, MailWarning, Pencil,
 } from 'lucide-react'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -198,8 +199,19 @@ export default function DemandeValidationPage() {
 
   // filter (search) → sort → group siblings adjacent
   const rows = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    const filtered = q ? all.filter((d) => `${d.firstName} ${d.lastName} ${d.lastName} ${d.firstName}`.toLowerCase().includes(q)) : all
+    // Multi-field + multi-term search: each space-separated word must match SOMEWHERE in the row's
+    // haystack (accent/case-insensitive AND) — so "marie beyrouth" or "hariri usj" narrows across the
+    // whole file, not just the child's name. Covers child + household + every parent + every proche.
+    const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    const tokens = norm(search).split(/\s+/).filter(Boolean)
+    const haystack = (d: DemandeReview) => norm([
+      d.firstName, d.lastName, d.serialNumber, d.nationality, d.school, d.classe, d.section,
+      d.email, d.phoneNumber, d.gender, d.bloodType, d.addressCity, d.addressCountry, d.addressDetails,
+      d.contactName, d.accountEmail, d.age != null ? String(d.age) : '',
+      ...d.guardians.flatMap((g) => [g.firstName, g.lastName, g.profession, g.professionDomain, g.email, g.phoneNumber]),
+      ...d.scoutRelations.flatMap((r) => [r.firstName, r.lastName, r.otherGroupName, r.lastUnit, r.lastFunction, r.relatedMemberName]),
+    ].filter(Boolean).join(' '))
+    const filtered = tokens.length ? all.filter((d) => { const h = haystack(d); return tokens.every((t) => h.includes(t)) }) : all
     const dir = sortDir === 'asc' ? 1 : -1
     const sorted = [...filtered].sort((a, b) => {
       switch (sortKey) {
@@ -832,6 +844,9 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
   onDelete: (d: DemandeReview) => void
 }) {
   const locked = !!d.createdMemberId // only a converted demande is locked; a sent-declined one can be re-opened
+  // CG edit mode: swaps the whole read-only panel for the full edit form (child + household + parents + proches).
+  // Reset when navigating to another applicant (keyed on d.id via the render-phase reset below).
+  const [editing, setEditing] = useState(false)
   const suggested = useMemo(() => suggestUnit(d, occupancy), [d, occupancy])
   const setUnitMutation = useSetDemandeUnit()
   // Local decision draft: pre-fill unit with the already-decided unit, else the suggestion.
@@ -848,11 +863,13 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
     setUnit(d.decidedUnitId ?? suggestUnit(d, occupancy)?.unitId ?? '')
     setNote(d.status === 'Approved' ? (d.decisionNotes ?? '') : '')
     setMotif(d.status === 'Declined' ? (d.decisionNotes ?? '') : '')
+    setEditing(false) // leave edit mode when the row changes (navigation) or the decision updates
   }
 
   // Keyboard triage: ←/→ navigate, A approve, R refuse. Ignored while typing or a dropdown is open.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (editing) return // no A/R/arrow triage while the edit form is open
       const t = e.target as HTMLElement | null
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
       if (document.querySelector('[role="listbox"]')) return // a Select is open
@@ -864,7 +881,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [d, unit, note, motif, locked, busy, hasPrev, hasNext, onPrev, onNext, onDecide])
+  }, [d, unit, note, motif, locked, busy, editing, hasPrev, hasNext, onPrev, onNext, onDecide])
 
   // Save the chosen unit as a pre-selection WITHOUT deciding — so the CG can lock in / change the unit and come
   // back later (they don't have to click Accepter, which they might not be ready to do). Shown when the picked
@@ -880,6 +897,10 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
   const addr = [d.addressDetails, d.addressCity, d.addressCountry].filter(Boolean).join(', ')
   const miss = missingInfo(d)
 
+  // Edit mode replaces the whole panel with the full CG edit form (bypasses the deadline). onSaved refetches
+  // (invalidates ['demandes']) so the read-only view shows the new data.
+  if (editing) return <DemandeEditForm d={d} onSaved={() => setEditing(false)} onCancel={() => setEditing(false)} />
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -889,7 +910,14 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
             <Tip content="Précédent (←)"><Button variant="ghost" size="icon" className="h-7 w-7" disabled={!hasPrev} onClick={onPrev}><ChevronLeft className="h-4 w-4" /></Button></Tip>
             <Tip content="Suivant (→)"><Button variant="ghost" size="icon" className="h-7 w-7" disabled={!hasNext} onClick={onNext}><ChevronRight className="h-4 w-4" /></Button></Tip>
           </div>
-          <StatusBadge d={d} />
+          <div className="flex items-center gap-2">
+            {!locked && (
+              <Tip content="Modifier la demande (enfant, parents, proches)">
+                <Button variant="outline" size="sm" className="h-7" onClick={() => setEditing(true)}><Pencil className="mr-1 h-3.5 w-3.5" />Modifier</Button>
+              </Tip>
+            )}
+            <StatusBadge d={d} />
+          </div>
         </div>
         <h2 className="mt-2 flex items-center gap-2 text-xl font-bold">
           {d.firstName} {d.lastName}

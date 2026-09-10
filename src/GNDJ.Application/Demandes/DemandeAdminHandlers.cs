@@ -685,6 +685,54 @@ public class DecideDemandeCommandHandler(IApplicationDbContext context, ICurrent
 }
 
 // ============================================================
+// CG/admin edit of a full demande file — the child fields (on the Demande) + the shared household (address +
+// situation + guardians + scout relations, on the ApplicantAccount). Unlike the applicant-side edit, this
+// BYPASSES the submission-window / terms / relation-cap gates: a CG fixes a file at any time, even after the
+// deadline (a parent forgot a parent or a proche, or the CG corrects a typo during review). Editing the household
+// touches EVERY sibling demande on the same account (guardians + address are shared) — that's intended. Blocked
+// only once a member has been created (edit the member's real fiche instead). CG-only (whole-group manager).
+// ============================================================
+public record AdminEditDemandeCommand(Guid Id, DemandeInput Child, SaveApplicantHouseholdCommand Household) : IRequest<Result<bool>>;
+
+public class AdminEditDemandeCommandValidator : AbstractValidator<AdminEditDemandeCommand>
+{
+    // Reuse the exact applicant-side validators so the CG edit enforces the same field rules (lengths, no-HTML,
+    // email/DOB sanity, allowed enums, list caps) — the only thing relaxed is WHEN it can be done.
+    public AdminEditDemandeCommandValidator()
+    {
+        RuleFor(x => x.Child).NotNull().SetValidator(new DemandeInputValidator());
+        RuleFor(x => x.Household).NotNull().SetValidator(new SaveApplicantHouseholdCommandValidator());
+    }
+}
+
+public class AdminEditDemandeCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<AdminEditDemandeCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(AdminEditDemandeCommand request, CancellationToken ct)
+    {
+        // Defense-in-depth beyond the demande.manage endpoint gate: this edits children's PII, so require a
+        // whole-group manager (a member profile must never hold demande.manage, but be explicit).
+        if (!MemberAccess.IsGroupManager(currentUser))
+            return Result<bool>.Failure("Accès refusé.");
+
+        var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id, ct);
+        if (demande is null) return Result<bool>.Failure("Demande introuvable.");
+        if (demande.CreatedMemberId is not null)
+            return Result<bool>.Failure("Un membre a déjà été créé pour cette demande — modifiez plutôt sa fiche.");
+
+        ApplicantHelpers.Apply(demande, request.Child);
+
+        var ok = await ApplicantHelpers.ApplyHouseholdAsync(context, demande.ApplicantAccountId, request.Household, ct);
+        if (!ok) return Result<bool>.Failure("Compte introuvable.");
+
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("EditDemande", "Demande", demande.Id,
+            newValues: new { demande.FirstName, demande.LastName, Guardians = request.Household.Guardians.Count, Relations = request.Household.ScoutRelations.Count },
+            cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
+// ============================================================
 // Set the pre-selected unit WITHOUT deciding — lets the CG lock in / change the "unité d'affectation
 // (si accepté)" and come back later, instead of being forced to click Accepter to persist a unit choice.
 // Only touches DecidedUnitId; the status stays as-is (a Submitted demande is still pending). Blocked once
