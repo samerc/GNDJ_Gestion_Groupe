@@ -171,9 +171,9 @@ public class MembersController : BaseApiController
     /// </summary>
     [HttpGet("access-candidates")]
     [HasPermission(Permissions.MembersResetPassword)]
-    public async Task<IActionResult> GetAccessCandidates([FromQuery] Guid unitId)
+    public async Task<IActionResult> GetAccessCandidates([FromQuery] Guid? unitId, [FromQuery] bool allNonMaitrise = false)
     {
-        var result = await Mediator.Send(new GNDJ.Application.Members.GetAccessCandidatesQuery(unitId));
+        var result = await Mediator.Send(new GNDJ.Application.Members.GetAccessCandidatesQuery(unitId, allNonMaitrise));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }
@@ -189,14 +189,15 @@ public class MembersController : BaseApiController
     public async Task<IActionResult> SendAccess([FromBody] SendAccessRequest body)
     {
         var result = await Mediator.Send(new GNDJ.Application.Members.SendAccessEmailsCommand(
-            body?.UnitId, body?.MemberIds, body?.OnlyNeverLoggedIn ?? false, body?.TemplateCode));
+            body?.UnitId, body?.MemberIds, body?.OnlyNeverLoggedIn ?? false, body?.TemplateCode, body?.AllNonMaitrise ?? false));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }
 
     // TemplateCode picks the email: null/"account_activation" = with the set-password link (activation),
     // "reinscription_returning" = the link-free re-inscription letter for members who already have an account.
-    public record SendAccessRequest(Guid? UnitId, List<Guid>? MemberIds, bool OnlyNeverLoggedIn, string? TemplateCode);
+    // AllNonMaitrise = send to every active non-leadership member group-wide (group-manager only).
+    public record SendAccessRequest(Guid? UnitId, List<Guid>? MemberIds, bool OnlyNeverLoggedIn, string? TemplateCode, bool AllNonMaitrise = false);
 
     /// <summary>Sets (or clears with an empty body) the member's primary contact email — the recipient for member-facing mail. Requires members.edit.</summary>
     [HttpPut("{id:guid}/primary-email")]

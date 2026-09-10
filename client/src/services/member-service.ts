@@ -213,12 +213,13 @@ export interface SendAccessResult {
   details: { memberId: string; memberName: string; status: string; email: string | null }[]
 }
 
-// The active members of a unit + their login/email/last-login status, so the CG can pick who to send to.
-export function useAccessCandidates(unitId: string | undefined) {
+// The active members of a unit (or, with allNonMaitrise, every active non-leadership member group-wide) + their
+// login/email/last-login status, so the CG can pick who to send to.
+export function useAccessCandidates(unitId: string | undefined, allNonMaitrise = false) {
   return useQuery({
-    queryKey: ['members', 'access-candidates', unitId],
-    queryFn: () => apiClient.get<AccessCandidate[]>('/members/access-candidates', { params: { unitId } }).then(r => r.data),
-    enabled: !!unitId,
+    queryKey: ['members', 'access-candidates', unitId, allNonMaitrise],
+    queryFn: () => apiClient.get<AccessCandidate[]>('/members/access-candidates', { params: { unitId, allNonMaitrise } }).then(r => r.data),
+    enabled: !!unitId || allNonMaitrise,
   })
 }
 
@@ -228,7 +229,7 @@ export function useAccessCandidates(unitId: string | undefined) {
 export function useSendAccess() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { unitId?: string; memberIds?: string[]; onlyNeverLoggedIn?: boolean; templateCode?: string }) =>
+    mutationFn: (body: { unitId?: string; memberIds?: string[]; onlyNeverLoggedIn?: boolean; templateCode?: string; allNonMaitrise?: boolean }) =>
       apiClient.post<SendAccessResult>('/members/send-access', body).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['members', 'access-candidates'] }),
   })

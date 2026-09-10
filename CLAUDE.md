@@ -4296,6 +4296,28 @@ Two demande-review asks. All on main; DEV until deploy; verified live.
       preserved, then restored; future-DOB / `<script>` → 400 (validators fire); builds clean (dotnet 0/0 + tsc +
       eslint + vite).
 
+### Envoyer les accès — "Tous les membres (hors maîtrise)" scope (2026-09-10)
+Added a whole-group scope to "Envoyer les accès": send the access/re-inscription email in one go to EVERY active
+member EXCEPT the maîtrise (leaders get the onboarding via "Emails aux chefs"). On main; DEV until deploy; tested live.
+- **Backend:** `SendAccessEmailsCommand` + `GetAccessCandidatesQuery` gained `AllNonMaitrise`. Shared
+      `AccessTargets.ActiveNonMaitriseMemberIdsAsync` = distinct members with an **active** assignment
+      (`EndDate == null`, not deleted) MINUS anyone holding an **active `FunctionalRole.IsMaitrise`** role (a
+      youth-in-one-unit + leader-in-another is excluded). **Group-manager only** (`MemberAccess.IsGroupManager`) —
+      it spans all units, so a plain CU is refused; the member projection also drops soft-deleted members, so it's
+      strictly active members. Controller `?allNonMaitrise=` + `SendAccessRequest.AllNonMaitrise`.
+- **Frontend** (`send-access.tsx`): a "Tous les membres (hors maîtrise)" entry at the top of the unit `Select`
+      (shown only to a manager via `useIsManager`); when chosen, the candidates list + send target the group-wide
+      non-maîtrise set (send passes `allNonMaitrise:true` when no rows are individually checked). The
+      "seulement jamais connectés" toggle still applies.
+- **Tested live** (super-admin, dev): candidates `allNonMaitrise` = **1001**, which EXACTLY equals SQL
+      active(1069) − maîtrise(68); spot-checks — CG Giorgio RIZK excluded, youth Maria ABBOUD included, **0 alumni**
+      and **0 maîtrise** among the 1001. Real smtp4dev delivery of `reinscription_access` to one member rendered all
+      dynamic dates + the male-before-female CG signature + the activation link. The allNonMaitrise SEND branch
+      returned **sent=955** (= eligible with account+email) + 44 no-account + 2 no-email = 1001; a chef d'unité is
+      **blocked 400 "Accès réservé au chef de groupe"** on both the candidates + send while their own unit still
+      returns 200. Test artifacts (tokens, outbox rows, settings) cleaned up. Builds clean (dotnet 0/0 + tsc +
+      eslint + vite).
+
 ### Re-inscription launch email — "Réinscription (nouveau système)" (2026-09-10)
 A dedicated member re-inscription email based on **page 1 of the official Document_Complet_Reinscription letter**
 (Chef de Groupe Giorgio RIZK / Cheftaine Nour BOU ATME), adapted to the new online platform + an explicit

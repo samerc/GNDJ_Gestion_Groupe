@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import { Key, Send, CheckCircle2, AlertTriangle, Info } from 'lucide-react'
 import { useUnits } from '@/services/unit-service'
+import { useIsManager } from '@/lib/use-is-manager'
 import { useAccessCandidates, useSendAccess, type SendAccessResult } from '@/services/member-service'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -19,9 +20,14 @@ import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 
 // `embedded` = rendered as a tab inside the merged "Communications & accès" page (its title/tabs own the header).
+// Sentinel unit value for the whole-group "all active members except the maîtrise" scope.
+const ALL_NON_MAITRISE = '__all_non_maitrise__'
+
 export default function SendAccessPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { data: units } = useUnits({ pageSize: 100, isActive: true })
+  const isManager = useIsManager() // group-wide "hors maîtrise" scope is a group-manager action
   const [unitId, setUnitId] = useState<string>('')
+  const isAll = unitId === ALL_NON_MAITRISE
   const [onlyNever, setOnlyNever] = useState(true)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [result, setResult] = useState<SendAccessResult | null>(null)
@@ -32,7 +38,7 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
   // Both activation templates carry the set-password link; only the "returning" letter is link-free.
   const withLink = templateCode !== 'reinscription_returning'
 
-  const { data: candidates, isLoading } = useAccessCandidates(unitId || undefined)
+  const { data: candidates, isLoading } = useAccessCandidates(isAll ? undefined : (unitId || undefined), isAll)
   const send = useSendAccess()
 
   // Reset per-unit UI state in the change handler (not an effect) — keeps selection tied to the unit.
@@ -50,10 +56,13 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
 
   const handleSend = async () => {
     try {
-      // If rows are checked → send to exactly those; otherwise send to the whole unit (respecting the toggle).
+      // If rows are checked → send to exactly those; otherwise send to the whole scope (a unit, or all active
+      // members except the maîtrise), respecting the "jamais connectés" toggle.
       const body = selected.size > 0
         ? { memberIds: [...selected], templateCode }
-        : { unitId, onlyNeverLoggedIn: onlyNever, templateCode }
+        : isAll
+          ? { allNonMaitrise: true, onlyNeverLoggedIn: onlyNever, templateCode }
+          : { unitId, onlyNeverLoggedIn: onlyNever, templateCode }
       const res = await send.mutateAsync(body)
       setResult(res)
       setSelected(new Set())
@@ -63,8 +72,10 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
     }
   }
 
-  const unitName = units?.items.find(u => u.id === unitId)?.name ?? ''
-  const sendLabel = selected.size > 0 ? `Envoyer aux ${selected.size} sélectionné(s)` : `Envoyer à toute l'unité`
+  const unitName = isAll ? 'Tous les membres (hors maîtrise)' : (units?.items.find(u => u.id === unitId)?.name ?? '')
+  const sendLabel = selected.size > 0
+    ? `Envoyer aux ${selected.size} sélectionné(s)`
+    : isAll ? 'Envoyer à tous (hors maîtrise)' : `Envoyer à toute l'unité`
 
   return (
     <div className="space-y-4">
@@ -113,6 +124,9 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
         <Select value={unitId} onValueChange={onUnitChange}>
           <SelectTrigger className="w-full sm:w-80"><SelectValue placeholder="Choisir une unité…" /></SelectTrigger>
           <SelectContent>
+            {/* Whole-group scope (group managers only): every active member except the maîtrise (chefs get the
+                onboarding via "Emails aux chefs"). */}
+            {isManager && <SelectItem value={ALL_NON_MAITRISE}>Tous les membres (hors maîtrise)</SelectItem>}
             {units?.items.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -123,11 +137,11 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
       </div>
 
       {!unitId ? (
-        <EmptyState icon={Key} title="Choisissez une unité" description="Sélectionnez une unité pour voir ses membres et leur statut d'accès." />
+        <EmptyState icon={Key} title="Choisissez une portée" description="Sélectionnez une unité (ou « Tous les membres hors maîtrise ») pour voir les membres et leur statut d'accès." />
       ) : isLoading ? (
         <LoadingSpinner variant="table" />
       ) : !candidates || candidates.length === 0 ? (
-        <EmptyState icon={Key} title="Aucun membre actif" description="Cette unité n'a pas de membre actif." />
+        <EmptyState icon={Key} title="Aucun membre actif" description={isAll ? "Aucun membre actif hors maîtrise." : "Cette unité n'a pas de membre actif."} />
       ) : (
         <>
           <div className="overflow-x-auto rounded-lg border">

@@ -19,20 +19,52 @@ public record AccessCandidateDto(
     Guid MemberId, string MemberName, string? Username,
     bool HasAccount, bool HasEmail, string? ContactEmail, DateTime? LastLoginAt);
 
-public record GetAccessCandidatesQuery(Guid UnitId) : IRequest<Result<IReadOnlyList<AccessCandidateDto>>>;
+// Shared target resolution for the whole-group "hors maîtrise" scope (used by the candidates list + the send).
+static class AccessTargets
+{
+    // Every active member who does NOT hold ANY active maîtrise (leadership) role — the youth/regular members.
+    // A member who is a youth in one unit AND a leader in another is excluded (they're a leader → the chefs email).
+    public static async Task<List<Guid>> ActiveNonMaitriseMemberIdsAsync(IApplicationDbContext context, CancellationToken ct)
+    {
+        var maitrise = context.MemberAssignments
+            .Where(a => a.EndDate == null && !a.IsDeleted && a.FunctionalRole.IsMaitrise)
+            .Select(a => a.MemberId);
+        return await context.MemberAssignments
+            .Where(a => a.EndDate == null && !a.IsDeleted && !maitrise.Contains(a.MemberId))
+            .Select(a => a.MemberId).Distinct().ToListAsync(ct);
+    }
+}
+
+// AllNonMaitrise = the whole-group scope: every active member who does NOT hold a leadership (maîtrise) role —
+// i.e. the youth/regular members, excluding CU/CG/ACU/ACG/… who get the "Emails aux chefs" onboarding instead.
+// Group-manager only (it spans all units). Otherwise UnitId scopes to one unit (unit-leader can see their own).
+public record GetAccessCandidatesQuery(Guid? UnitId, bool AllNonMaitrise = false) : IRequest<Result<IReadOnlyList<AccessCandidateDto>>>;
 
 public class GetAccessCandidatesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
     : IRequestHandler<GetAccessCandidatesQuery, Result<IReadOnlyList<AccessCandidateDto>>>
 {
     public async ValueTask<Result<IReadOnlyList<AccessCandidateDto>>> Handle(GetAccessCandidatesQuery request, CancellationToken ct)
     {
-        // Unit-scoped: super-admin sees any unit; a leader only their authorized units.
-        if (!currentUser.IsSuperAdmin && !currentUser.AuthorizedUnitIds.Contains(request.UnitId))
-            return Result<IReadOnlyList<AccessCandidateDto>>.Failure("Accès non autorisé à cette unité.");
+        List<Guid> memberIds;
+        if (request.AllNonMaitrise)
+        {
+            // Whole-group scope → require a group manager (super-admin / CG / ACG); a unit leader can't fan out group-wide.
+            if (!MemberAccess.IsGroupManager(currentUser))
+                return Result<IReadOnlyList<AccessCandidateDto>>.Failure("Accès réservé au chef de groupe.");
+            memberIds = await AccessTargets.ActiveNonMaitriseMemberIdsAsync(context, ct);
+        }
+        else
+        {
+            if (request.UnitId is not Guid unitId)
+                return Result<IReadOnlyList<AccessCandidateDto>>.Failure("Précisez une unité.");
+            // Unit-scoped: super-admin sees any unit; a leader only their authorized units.
+            if (!currentUser.IsSuperAdmin && !currentUser.AuthorizedUnitIds.Contains(unitId))
+                return Result<IReadOnlyList<AccessCandidateDto>>.Failure("Accès non autorisé à cette unité.");
 
-        var memberIds = await context.MemberAssignments
-            .Where(a => a.UnitId == request.UnitId && !a.IsDeleted && a.EndDate == null)
-            .Select(a => a.MemberId).Distinct().ToListAsync(ct);
+            memberIds = await context.MemberAssignments
+                .Where(a => a.UnitId == unitId && !a.IsDeleted && a.EndDate == null)
+                .Select(a => a.MemberId).Distinct().ToListAsync(ct);
+        }
 
         if (memberIds.Count == 0)
             return Result<IReadOnlyList<AccessCandidateDto>>.Success(new List<AccessCandidateDto>());
@@ -77,7 +109,7 @@ public record SendAccessResult(int Sent, int NoEmail, int NoAccount, int NoAcces
 // the link (first-time activation / new member); otherwise we send a link-free re-inscription letter (a RETURNING
 // member who already has an account) with {{loginUrl}} instead. So next year the CG sends the with-link template
 // to new members and the without-link one to returning members. Only the two re-inscription codes are allowed.
-public record SendAccessEmailsCommand(Guid? UnitId, List<Guid>? MemberIds, bool OnlyNeverLoggedIn, string? TemplateCode = null) : IRequest<Result<SendAccessResult>>;
+public record SendAccessEmailsCommand(Guid? UnitId, List<Guid>? MemberIds, bool OnlyNeverLoggedIn, string? TemplateCode = null, bool AllNonMaitrise = false) : IRequest<Result<SendAccessResult>>;
 
 public class SendAccessEmailsCommandHandler(
     IApplicationDbContext context, ICurrentUserService currentUser, IEmailQueue emailQueue, IAuditService audit)
@@ -119,6 +151,13 @@ public class SendAccessEmailsCommandHandler(
                 targetIds = requested.Where(allowed.Contains).ToList(); // silently drop out-of-scope ids
                 noAccess = requested.Count - targetIds.Count;
             }
+        }
+        else if (request.AllNonMaitrise)
+        {
+            // Whole-group send to every active non-maîtrise member — group-manager only (spans all units).
+            if (!MemberAccess.IsGroupManager(currentUser))
+                return Result<SendAccessResult>.Failure("Accès réservé au chef de groupe.");
+            targetIds = await AccessTargets.ActiveNonMaitriseMemberIdsAsync(context, ct);
         }
         else if (request.UnitId is Guid unitId)
         {
