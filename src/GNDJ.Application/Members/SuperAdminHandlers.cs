@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
@@ -60,7 +61,7 @@ public class SetSuperAdminCommandHandler(IApplicationDbContext context, ICurrent
         user.IsSuperAdmin = request.Grant;
         await context.SaveChangesAsync(ct);
         await audit.LogAsync(request.Grant ? "GrantSuperAdmin" : "RevokeSuperAdmin", "User", user.Id,
-            newValues: new { user.MemberId, IsSuperAdmin = request.Grant }, cancellationToken: ct);
+            newValues: new { Member = await AuditNames.MemberAsync(context, user.MemberId, ct), IsSuperAdmin = request.Grant }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

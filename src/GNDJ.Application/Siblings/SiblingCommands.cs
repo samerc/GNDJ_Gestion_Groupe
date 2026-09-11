@@ -84,7 +84,12 @@ public class ApproveSiblingGroupCommandHandler(IApplicationDbContext context, IA
         }
 
         await audit.LogAsync("ApproveSiblingGroup", "SiblingGroup", null,
-            newValues: new { memberIds, request.FatherGuardianId, request.MotherGuardianId, request.AddressId }, cancellationToken: ct);
+            newValues: new
+            {
+                Members = await AuditNames.MembersAsync(context, memberIds, ct),
+                Father = await AuditNames.GuardianAsync(context, request.FatherGuardianId, ct),
+                Mother = await AuditNames.GuardianAsync(context, request.MotherGuardianId, ct),
+            }, cancellationToken: ct);
         // group.Id is stable (UUIDv7 assigned on construction / loaded), returned for the UI.
         return Result<Guid>.Success(members[0].SiblingGroupId ?? Guid.Empty);
     }
@@ -268,7 +273,11 @@ public class LinkSiblingsCommandHandler(IApplicationDbContext context, IAuditSer
         context.SiblingRejections.RemoveRange(tomb);
 
         await context.SaveChangesAsync(ct);
-        await audit.LogAsync("LinkSiblings", "SiblingGroup", groupId, newValues: new { request.MemberId, request.TargetMemberId }, cancellationToken: ct);
+        await audit.LogAsync("LinkSiblings", "SiblingGroup", groupId, newValues: new
+        {
+            Member = await AuditNames.MemberAsync(context, request.MemberId, ct),
+            Target = await AuditNames.MemberAsync(context, request.TargetMemberId, ct),
+        }, cancellationToken: ct);
         return Result<Guid>.Success(groupId);
     }
 }
@@ -299,7 +308,7 @@ public class UnlinkSiblingCommandHandler(IApplicationDbContext context, IAuditSe
             await context.SaveChangesAsync(ct);
         }
 
-        await audit.LogAsync("UnlinkSibling", "SiblingGroup", gid, newValues: new { request.MemberId }, cancellationToken: ct);
+        await audit.LogAsync("UnlinkSibling", "SiblingGroup", gid, newValues: new { Member = member.FirstName + " " + member.LastName }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

@@ -121,7 +121,13 @@ public class TransferMaitriseCommandHandler(IApplicationDbContext context, IAudi
 
         await context.SaveChangesAsync(ct);
         await audit.LogAsync("Transfer", "MemberAssignment", assignment.Id,
-            newValues: new { assignment.MemberId, request.NewUnitId, request.NewFunctionalRoleId, request.KeepOld }, cancellationToken: ct);
+            newValues: new
+            {
+                Member = await AuditNames.MemberAsync(context, assignment.MemberId, ct),
+                NewUnit = await AuditNames.UnitAsync(context, request.NewUnitId, ct),
+                NewRole = await AuditNames.RoleAsync(context, request.NewFunctionalRoleId, ct),
+                KeepOld = request.KeepOld,
+            }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

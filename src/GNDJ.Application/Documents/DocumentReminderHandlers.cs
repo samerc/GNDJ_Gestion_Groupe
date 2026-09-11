@@ -314,7 +314,7 @@ public class SendDocumentRemindersCommandHandler(
 
         await emailQueue.EnqueueManyAsync(jobs, ct);
         await audit.LogAsync("SendDocumentReminders", "Member", null,
-            newValues: new { sent, noEmail, compliant, unit = request.UnitId }, cancellationToken: ct);
+            newValues: new { sent, noEmail, compliant, Unit = await AuditNames.UnitAsync(context, request.UnitId, ct) }, cancellationToken: ct);
 
         return Result<SendDocumentRemindersResult>.Success(new SendDocumentRemindersResult(sent, noEmail, compliant, noAccess, details));
     }

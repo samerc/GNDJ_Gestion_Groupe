@@ -627,7 +627,13 @@ public class MergeDemandesCommandHandler(IApplicationDbContext context, ICurrent
         }
 
         await audit.LogAsync("MergeDemandes", "Demande", keeper.Id,
-            newValues: new { request.KeeperId, LoserIds = loserIds, AccountsDeleted = accountsDeleted }, cancellationToken: ct);
+            newValues: new
+            {
+                Child = keeper.FirstName + " " + keeper.LastName,
+                KeptReference = keeper.SerialNumber,
+                Merged = loserIds.Count,
+                AccountsDeleted = accountsDeleted,
+            }, cancellationToken: ct);
 
         return Result<MergeDemandesResult>.Success(new MergeDemandesResult(loserIds.Count, accountsDeleted, emailsQueued));
     }
@@ -679,7 +685,12 @@ public class DecideDemandeCommandHandler(IApplicationDbContext context, ICurrent
         demande.ReviewedByUserId = currentUser.UserId;
         demande.ReviewedAt = DateTime.UtcNow;
         await context.SaveChangesAsync(ct);
-        await audit.LogAsync("Decide", "Demande", demande.Id, newValues: new { demande.Status, demande.DecidedUnitId }, cancellationToken: ct);
+        await audit.LogAsync("Decide", "Demande", demande.Id, newValues: new
+        {
+            Child = demande.FirstName + " " + demande.LastName,
+            demande.Status,
+            DecidedUnit = await AuditNames.UnitAsync(context, demande.DecidedUnitId, ct),
+        }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
@@ -759,7 +770,11 @@ public class SetDemandeUnitCommandHandler(IApplicationDbContext context, IAuditS
 
         demande.DecidedUnitId = request.DecidedUnitId;
         await context.SaveChangesAsync(ct);
-        await audit.LogAsync("SetUnit", "Demande", demande.Id, newValues: new { demande.DecidedUnitId }, cancellationToken: ct);
+        await audit.LogAsync("SetUnit", "Demande", demande.Id, newValues: new
+        {
+            Child = demande.FirstName + " " + demande.LastName,
+            DecidedUnit = await AuditNames.UnitAsync(context, demande.DecidedUnitId, ct),
+        }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

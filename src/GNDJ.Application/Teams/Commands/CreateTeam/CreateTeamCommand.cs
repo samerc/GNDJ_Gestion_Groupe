@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Common.Validation;
@@ -71,7 +72,7 @@ public class CreateTeamCommandHandler : IRequestHandler<CreateTeamCommand, Resul
 
         _context.Teams.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
-        await _auditService.LogAsync("Create", "Team", entity.Id, newValues: new { entity.Name, entity.UnitId }, cancellationToken: cancellationToken);
+        await _auditService.LogAsync("Create", "Team", entity.Id, newValues: new { entity.Name, Unit = await AuditNames.UnitAsync(_context, entity.UnitId, cancellationToken) }, cancellationToken: cancellationToken);
 
         return Result<Guid>.Success(entity.Id);
     }

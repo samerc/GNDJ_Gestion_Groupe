@@ -142,8 +142,13 @@ public class MergeMembersCommandHandler(IApplicationDbContext context, ICurrentU
 
         await mergeService.MergeAsync(request.KeeperId, losers, request.Fields, ct);
 
+        // Names resolve even for the now soft-deleted losers (AuditNames ignores the soft-delete filter).
         await audit.LogAsync("MergeMembers", "Member", request.KeeperId,
-            newValues: new { request.KeeperId, LoserIds = losers }, cancellationToken: ct);
+            newValues: new
+            {
+                Keeper = await AuditNames.MemberAsync(context, request.KeeperId, ct),
+                Merged = await AuditNames.MembersAsync(context, losers, ct),
+            }, cancellationToken: ct);
         return Result<int>.Success(losers.Count);
     }
 }

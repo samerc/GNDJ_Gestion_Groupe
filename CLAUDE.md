@@ -4381,6 +4381,28 @@ fetch all the member's guardian links (tiny set) and classify père/mère in mem
 `RemoveDiacritics` can't be translated to SQL). Verified live: Maria ABBOUD's AUT PDF now fills "Miguel ABBOUD et
 Hiba AZOURY". Backend-only, DEV until deploy.
 
+### Audit log — human-readable details (resolve GUIDs → names) (2026-09-11)
+The audit detail dialog showed raw GUIDs for related entities (a deleted Passage read `MemberId` /
+`ProposedUnitId` = ids). Assignments were already fixed (2026-08-31 `AssignmentAudit.DescribeAsync`) but every
+other handler that logged an id field wasn't. Fixed the class + made the whole page read in French.
+- **New shared `Common/AuditNames.cs`** — null-safe resolvers `MemberAsync`/`UnitAsync`/`RoleAsync`/`TeamAsync`/
+  `GuardianAsync`/`MembersAsync(list)` (all `IgnoreQueryFilters` so a soft-deleted loser/unit still resolves;
+  unknown id → the id string, never crashes). Audit is low-frequency, so the extra lookups are fine.
+- **Handlers now log names, not GUIDs:** Passage Create/Update/BulkCreate/Review/Finalize/Delete (Member +
+  ProposedUnit/ProposedRole + FinalUnit/FinalRole; Finalize null unit → "Toutes les unités"); Maîtrise Transfer
+  (Member + NewUnit/NewRole); Organization SetAssignmentPlacement (Member + before/after Team/Role); Demande
+  Decide/SetUnit (child name + DecidedUnit) + MergeDemandes (child + kept ref + merged count); SuperAdmin grant/
+  revoke (Member); Siblings Approve (Members + Father/Mother) / Link (Member + Target) / Unlink (Member); Duplicate
+  MergeMembers (Keeper + Merged names — resolved after the soft-delete via IgnoreQueryFilters); Team Create/Delete
+  (unit name); SendAccess + SendDocumentReminders reports (unit name; SendAccess AllNonMaitrise → label).
+- **Frontend `audit-logs.tsx`:** expanded `ACTION_LABELS` to translate + colour EVERY action string the backend
+  emits (Révision, Finalisation, Transfert, Décision, Fusion, Fratrie confirmée, Envoi des accès, …; fallback =
+  raw string, no colour); expanded `ENTITY_LABELS` (Passage, Demande, Fratrie, Clé API, Événement, Actualité,
+  Page, Ressource, Étape, Badge, Serveur SMTP, Modèle d'email…) and `FIELD_LABELS` (the resolved-name keys +
+  send-report keys); `entitySummary` now also picks Child/Keeper/Members so the row summary is meaningful.
+- **Verified live:** create+delete a Team → audit stored `"Unit": "Clan Jamhour"` (name, not GUID); test rows
+  cleaned up. Builds clean (dotnet 0/0 + tsc + eslint). Backend + frontend, DEV until deploy.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

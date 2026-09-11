@@ -444,8 +444,16 @@ public class ProposePassageCommandHandler(IApplicationDbContext context, ICurren
             existing.ReviewedAt = null;
 
             await context.SaveChangesAsync(ct);
+            // Readable snapshot (names, not GUIDs) so the audit detail is legible.
             await auditService.LogAsync("Update", "Passage", existing.Id,
-                newValues: new { existing.ProposedUnitId, existing.ProposedRoleId, existing.CuNotes },
+                newValues: new
+                {
+                    Member = await AuditNames.MemberAsync(context, existing.MemberId, ct),
+                    ProposedUnit = await AuditNames.UnitAsync(context, existing.ProposedUnitId, ct),
+                    ProposedRole = await AuditNames.RoleAsync(context, existing.ProposedRoleId, ct),
+                    IsLeaving = existing.IsLeaving,
+                    existing.CuNotes,
+                },
                 cancellationToken: ct);
 
             return Result<Guid>.Success(existing.Id);
@@ -478,7 +486,13 @@ public class ProposePassageCommandHandler(IApplicationDbContext context, ICurren
         context.Passages.Add(passage);
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Create", "Passage", passage.Id,
-            newValues: new { passage.MemberId, passage.ProposedUnitId, passage.ProposedRoleId },
+            newValues: new
+            {
+                Member = await AuditNames.MemberAsync(context, passage.MemberId, ct),
+                ProposedUnit = await AuditNames.UnitAsync(context, passage.ProposedUnitId, ct),
+                ProposedRole = await AuditNames.RoleAsync(context, passage.ProposedRoleId, ct),
+                IsLeaving = passage.IsLeaving,
+            },
             cancellationToken: ct);
 
         return Result<Guid>.Success(passage.Id);
@@ -617,7 +631,13 @@ public class BulkProposePassageCommandHandler(IApplicationDbContext context, ICu
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("BulkCreate", "Passage", null,
-            newValues: new { Count = count, request.ProposedUnitId, request.ProposedRoleId, request.ScoutYear },
+            newValues: new
+            {
+                Count = count,
+                ProposedUnit = await AuditNames.UnitAsync(context, request.ProposedUnitId, ct),
+                ProposedRole = await AuditNames.RoleAsync(context, request.ProposedRoleId, ct),
+                request.ScoutYear,
+            },
             cancellationToken: ct);
 
         return Result<int>.Success(count);
@@ -694,7 +714,14 @@ public class ReviewPassageCommandHandler(IApplicationDbContext context, ICurrent
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Review", "Passage", passage.Id,
             oldValues: new { Status = oldStatus },
-            newValues: new { passage.Status, passage.FinalUnitId, passage.FinalRoleId, passage.CgNotes },
+            newValues: new
+            {
+                Member = await AuditNames.MemberAsync(context, passage.MemberId, ct),
+                passage.Status,
+                FinalUnit = await AuditNames.UnitAsync(context, passage.FinalUnitId, ct),
+                FinalRole = await AuditNames.RoleAsync(context, passage.FinalRoleId, ct),
+                passage.CgNotes,
+            },
             cancellationToken: ct);
 
         return Result<bool>.Success(true);
@@ -907,7 +934,13 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
         await context.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         await auditService.LogAsync("Finalize", "Passage", null,
-            newValues: new { Count = count, request.ScoutYear, request.UnitId },
+            newValues: new
+            {
+                Count = count,
+                request.ScoutYear,
+                // UnitId null = the CG finalized all units at once.
+                Unit = request.UnitId is null ? "Toutes les unités" : await AuditNames.UnitAsync(context, request.UnitId, ct),
+            },
             cancellationToken: ct);
 
         return Result<int>.Success(count);
@@ -996,10 +1029,13 @@ public class DeletePassageCommandHandler(IApplicationDbContext context, ICurrent
         if (!await PassageAccessHelper.CanAccessUnit(context, currentUser, passage.CurrentUnitId, ct))
             return Result<bool>.Failure("Accès non autorisé.");
 
+        // Resolve names BEFORE the delete so the audit snapshot is readable (member/unit still queryable).
+        var delMember = await AuditNames.MemberAsync(context, passage.MemberId, ct);
+        var delUnit = await AuditNames.UnitAsync(context, passage.ProposedUnitId, ct);
         context.Passages.Remove(passage);
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Delete", "Passage", passage.Id,
-            oldValues: new { passage.MemberId, passage.ProposedUnitId, passage.ScoutYear },
+            oldValues: new { Member = delMember, ProposedUnit = delUnit, passage.ScoutYear },
             cancellationToken: ct);
 
         return Result<bool>.Success(true);

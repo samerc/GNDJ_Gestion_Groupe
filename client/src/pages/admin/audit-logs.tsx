@@ -18,13 +18,92 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { ScrollText, Eye, Trash2 } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 
+// Colour buckets reused across the many domain actions below.
+const GREEN = 'bg-green-100 text-green-800'
+const BLUE = 'bg-blue-100 text-blue-800'
+const RED = 'bg-red-100 text-red-800'
+const PURPLE = 'bg-purple-100 text-purple-800'
+const ORANGE = 'bg-orange-100 text-orange-800'
+const GRAY = 'bg-gray-100 text-gray-800'
+
+// French label + colour for every audit action string emitted by the backend handlers. Anything not
+// listed falls back to the raw action string with no colour (so a new action is still shown, just untranslated).
 const ACTION_LABELS: Record<string, { label: string; color: string }> = {
-  Create: { label: 'Création', color: 'bg-green-100 text-green-800' },
-  Update: { label: 'Modification', color: 'bg-blue-100 text-blue-800' },
-  Delete: { label: 'Suppression', color: 'bg-red-100 text-red-800' },
-  Login: { label: 'Connexion', color: 'bg-purple-100 text-purple-800' },
-  LoginFailed: { label: 'Échec connexion', color: 'bg-orange-100 text-orange-800' },
-  Logout: { label: 'Déconnexion', color: 'bg-gray-100 text-gray-800' },
+  // Generic CRUD
+  Create: { label: 'Création', color: GREEN },
+  Update: { label: 'Modification', color: BLUE },
+  Delete: { label: 'Suppression', color: RED },
+  // Auth / sessions
+  Login: { label: 'Connexion', color: PURPLE },
+  LoginFailed: { label: 'Échec connexion', color: ORANGE },
+  Logout: { label: 'Déconnexion', color: GRAY },
+  ChangePassword: { label: 'Changement de mot de passe', color: PURPLE },
+  PasswordReset: { label: 'Réinitialisation du mot de passe', color: PURPLE },
+  ResetPassword: { label: 'Réinitialisation du mot de passe', color: PURPLE },
+  ResetApplicantPassword: { label: 'Réinit. mot de passe (parent)', color: PURPLE },
+  SignOutOtherDevices: { label: 'Déconnexion des autres appareils', color: PURPLE },
+  DisconnectSession: { label: 'Session déconnectée', color: PURPLE },
+  GrantSuperAdmin: { label: 'Super-admin accordé', color: PURPLE },
+  RevokeSuperAdmin: { label: 'Super-admin retiré', color: RED },
+  VerifyContact: { label: 'Coordonnées confirmées', color: BLUE },
+  VerifyEmailManual: { label: 'Email vérifié (manuel)', color: BLUE },
+  // Assignments / passage
+  CorrectUnit: { label: "Correction d'unité", color: BLUE },
+  Transfer: { label: 'Transfert', color: BLUE },
+  EndAssignment: { label: "Fin d'affectation", color: BLUE },
+  BulkCreate: { label: 'Proposition en lot', color: GREEN },
+  Review: { label: 'Révision', color: BLUE },
+  BulkReview: { label: 'Révision en lot', color: BLUE },
+  Finalize: { label: 'Finalisation', color: GREEN },
+  Toggle: { label: 'Activation / désactivation', color: GRAY },
+  // Demandes
+  Decide: { label: 'Décision', color: BLUE },
+  BulkDecide: { label: 'Décision en lot', color: BLUE },
+  SetUnit: { label: 'Unité définie', color: BLUE },
+  EditDemande: { label: 'Modification de la demande', color: BLUE },
+  MergeDemandes: { label: 'Fusion de demandes', color: BLUE },
+  SendResponses: { label: 'Envoi des réponses', color: GRAY },
+  CloseCampaign: { label: 'Clôture de la campagne', color: RED },
+  ImportDecisions: { label: 'Import des décisions', color: BLUE },
+  DeleteAccount: { label: 'Suppression du compte', color: RED },
+  UpdateRejectionReasons: { label: 'Motifs de refus modifiés', color: BLUE },
+  // Members
+  Restore: { label: 'Restauration', color: GREEN },
+  Purge: { label: 'Suppression définitive', color: RED },
+  MergeMembers: { label: 'Fusion de membres', color: BLUE },
+  SetDelegation: { label: "Délégation d'accès", color: BLUE },
+  // Documents
+  AddPages: { label: 'Ajout de pages', color: BLUE },
+  DeletePage: { label: 'Suppression de page', color: RED },
+  UpdateDocumentCampaign: { label: 'Campagne documents modifiée', color: BLUE },
+  SendDocumentCampaignErrors: { label: "Emails d'erreur (campagne)", color: GRAY },
+  ApplyDocumentCampaignHold: { label: 'Dossiers mis en attente', color: ORANGE },
+  ReactivateMember: { label: 'Membre réactivé', color: GREEN },
+  // Communications / emails
+  SendLeaderMessage: { label: 'Message aux chefs', color: GRAY },
+  SendAccess: { label: 'Envoi des accès', color: GRAY },
+  SendDocumentReminders: { label: 'Relance documents', color: GRAY },
+  SendSubmissionReminders: { label: 'Relance des non-soumis', color: GRAY },
+  // Roles / access / structure
+  Archive: { label: 'Archivage', color: ORANGE },
+  Unarchive: { label: 'Réactivation', color: GREEN },
+  SetDefault: { label: 'Fonction par défaut', color: BLUE },
+  Merge: { label: 'Fusion', color: BLUE },
+  SetGroupAccess: { label: 'Accès maîtrise modifié', color: BLUE },
+  // Rentrée
+  OpenInscriptions: { label: 'Ouverture des inscriptions', color: GREEN },
+  OpenPassage: { label: 'Ouverture du passage', color: GREEN },
+  // Managed lists
+  RenameListValue: { label: 'Valeur renommée', color: BLUE },
+  ArchiveListValue: { label: 'Valeur archivée', color: ORANGE },
+  DeleteListValue: { label: 'Valeur supprimée', color: RED },
+  AddListValue: { label: 'Valeur ajoutée', color: GREEN },
+  UnarchiveListValue: { label: 'Valeur réactivée', color: GREEN },
+  // Fratries
+  ApproveSiblingGroup: { label: 'Fratrie confirmée', color: GREEN },
+  RejectSiblingSuggestion: { label: 'Fratrie rejetée', color: RED },
+  LinkSiblings: { label: 'Fratrie liée', color: BLUE },
+  UnlinkSibling: { label: 'Fratrie déliée', color: ORANGE },
 }
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -40,10 +119,27 @@ const ENTITY_LABELS: Record<string, string> = {
   MemberAssignment: 'Affectation',
   MemberDocument: 'Document',
   MemberCotisation: 'Cotisation',
+  MemberProgression: 'Progression',
+  MemberChangeRequest: 'Demande de modification',
   DocumentType: 'Type de document',
   Setting: 'Paramètre',
   Guardian: 'Parent',
   GuardianLink: 'Lien parent',
+  Passage: 'Passage',
+  Demande: "Demande d'inscription",
+  SiblingGroup: 'Fratrie',
+  SiblingRejection: 'Fratrie rejetée',
+  ApiKey: 'Clé API',
+  CustomField: 'Champ personnalisé',
+  Event: 'Événement',
+  NewsPost: 'Actualité',
+  Page: 'Page',
+  Resource: 'Ressource',
+  ScoutStage: 'Étape',
+  Badge: 'Badge',
+  SmtpServer: 'Serveur SMTP',
+  EmailTemplate: "Modèle d'email",
+  SiteContent: 'Contenu du site',
 }
 
 // Human labels for the raw snapshot field names, so the detail reads in French instead of PascalCase keys.
@@ -54,6 +150,19 @@ const FIELD_LABELS: Record<string, string> = {
   IsMaitrise: 'Maîtrise', Email: 'Email', Code: 'Code', Reason: 'Motif', Title: 'Titre',
   ReceiptNumber: 'Reçu', ScoutYear: 'Année scoute', FirstName: 'Prénom', LastName: 'Nom',
   Portal: 'Portail',
+  // Resolved-name keys emitted by the handlers (member/unit/role names instead of GUIDs)
+  ProposedUnit: 'Unité proposée', ProposedRole: 'Fonction proposée',
+  FinalUnit: 'Unité finale', FinalRole: 'Fonction finale',
+  NewUnit: 'Nouvelle unité', NewRole: 'Nouvelle fonction', DecidedUnit: 'Unité décidée',
+  Child: 'Enfant', Children: 'Enfants', Members: 'Membres', Target: 'Membre lié',
+  Keeper: 'Conservé', Merged: 'Fusionné(s)', KeptReference: 'Référence conservée',
+  Father: 'Père', Mother: 'Mère',
+  Status: 'Statut', Count: 'Nombre', IsLeaving: 'Quitte le groupe',
+  KeepOld: "Conserver l'ancienne fonction", IsSuperAdmin: 'Super-administrateur',
+  AccountsDeleted: 'Comptes supprimés',
+  // Send-report keys (Envoyer les accès / Relance documents / Message aux chefs)
+  sent: 'Envoyés', noEmail: 'Sans email', noAccount: 'Sans compte', noAccess: 'Sans accès',
+  skipped: 'Ignorés', compliant: 'Dossiers complets', template: 'Modèle', unit: 'Unité',
 }
 const fieldLabel = (k: string) => FIELD_LABELS[k] ?? k
 
@@ -72,8 +181,11 @@ function entitySummary(log: AuditLogDto): string {
   if (!json) return ''
   try {
     const obj = JSON.parse(json)
-    // Common field patterns
-    if (obj.Member) return obj.Member       // assignments (readable member name)
+    // Common field patterns — prefer a readable member/child name for the row summary.
+    if (obj.Member) return obj.Member       // assignments / passages (readable member name)
+    if (obj.Child) return obj.Child         // demandes (child name)
+    if (obj.Keeper) return obj.Keeper       // merges (kept member)
+    if (obj.Members) return obj.Members     // sibling groups (list of names)
     if (obj.Name) return obj.Name
     if (obj.Email) return obj.Email
     if (obj.Title) return obj.Title

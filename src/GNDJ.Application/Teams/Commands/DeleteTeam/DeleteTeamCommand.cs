@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
@@ -36,9 +37,10 @@ public class DeleteTeamCommandHandler : IRequestHandler<DeleteTeamCommand, Resul
         if (entity.Assignments.Any())
             return Result<bool>.Failure("Impossible de supprimer une équipe qui contient des membres actifs.");
 
+        var unitName = await AuditNames.UnitAsync(_context, entity.UnitId, cancellationToken);
         _context.Teams.Remove(entity);
         await _context.SaveChangesAsync(cancellationToken);
-        await _auditService.LogAsync("Delete", "Team", entity.Id, oldValues: new { entity.Name, entity.UnitId }, cancellationToken: cancellationToken);
+        await _auditService.LogAsync("Delete", "Team", entity.Id, oldValues: new { entity.Name, Unit = unitName }, cancellationToken: cancellationToken);
 
         return Result<bool>.Success(true);
     }

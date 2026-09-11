@@ -281,7 +281,7 @@ public class SendAccessEmailsCommandHandler(
         await context.SaveChangesAsync(ct);
         await emailQueue.EnqueueManyAsync(jobs, ct);
         await audit.LogAsync("SendAccess", "Member", null,
-            newValues: new { sent, noEmail, noAccount, skipped, unit = request.UnitId, template = templateCode }, cancellationToken: ct);
+            newValues: new { sent, noEmail, noAccount, skipped, Unit = request.AllNonMaitrise ? "Tous les membres (hors maîtrise)" : await AuditNames.UnitAsync(context, request.UnitId, ct), template = templateCode }, cancellationToken: ct);
 
         return Result<SendAccessResult>.Success(new SendAccessResult(sent, noEmail, noAccount, noAccess, skipped, details));
     }

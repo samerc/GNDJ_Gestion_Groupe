@@ -1,4 +1,5 @@
 using FluentValidation;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Domain.Enums;
@@ -119,12 +120,24 @@ public class SetAssignmentPlacementCommandHandler(IApplicationDbContext context,
             !await context.Teams.AnyAsync(t => t.Id == request.TeamId.Value && t.UnitId == entity.UnitId, ct))
             return Result<bool>.Failure("L'équipe sélectionnée n'appartient pas à cette unité.");
 
-        var oldValues = new { entity.TeamId, entity.FunctionalRoleId };
+        // Readable before/after (names, not GUIDs) so the audit diff is legible.
+        var member = await AuditNames.MemberAsync(context, entity.MemberId, ct);
+        var oldValues = new
+        {
+            Member = member,
+            Team = await AuditNames.TeamAsync(context, entity.TeamId, ct),
+            Role = await AuditNames.RoleAsync(context, entity.FunctionalRoleId, ct),
+        };
         entity.TeamId = request.TeamId;
         entity.FunctionalRoleId = request.FunctionalRoleId;
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Update", "MemberAssignment", entity.Id, oldValues: oldValues,
-            newValues: new { entity.TeamId, entity.FunctionalRoleId }, cancellationToken: ct);
+            newValues: new
+            {
+                Member = member,
+                Team = await AuditNames.TeamAsync(context, entity.TeamId, ct),
+                Role = await AuditNames.RoleAsync(context, entity.FunctionalRoleId, ct),
+            }, cancellationToken: ct);
 
         return Result<bool>.Success(true);
     }
