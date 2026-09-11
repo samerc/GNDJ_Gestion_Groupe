@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      "Parents (données) — note erronée retirée : la mention « Parents séparés/divorcés » avait été ajoutée par erreur lors de l'import dans les notes de la quasi-totalité des parents (une même valeur par défaut, ne reflétant pas la réalité des familles). Elle a été supprimée de toutes les fiches parents.",
       "Sessions actives — vue unifiée : les sessions des membres/chefs et du portail des parents (demandes) sont regroupées dans un seul tableau, avec une nouvelle colonne « Où » indiquant l'espace de chaque session (Membres et chefs / Portail des demandes). Les sessions en ligne apparaissent en premier.",
       "Paramètres — Clés API : la gestion des clés API est passée du menu (Configuration) à un onglet « Clés API » dans la page Paramètres, avec les autres écrans de configuration.",
       "Fratries — page redessinée : sur l'onglet Suggestions, la liste des familles probables est plus compacte (une ligne par famille, avec les signaux communs regroupés — plus de doublons « Même email parent »). Cliquez sur une famille pour ouvrir ses informations communes (parents avec téléphones / emails, adresse) dans un panneau latéral, où vous confirmez la fratrie. Les informations ne se chargent qu'à l'ouverture, donc la liste reste rapide même longue.",
