@@ -4465,7 +4465,8 @@ apps that stay their own pages. Frontend-only, DEV until deploy. All in `setting
 pages. `CONFIG_TABS` gained a per-tab **`permission`** (was all-or-nothing super-admin) so each config tab shows only
 if the user holds its permission (a CG sees **Listes** [maitrise.manage]; super-admin tools stay hidden).
 - **New Paramètres tabs** (lazy, gated): **Listes** (managed-lists, CG), **Apparence** (appearance, super-admin),
-  **Accueil & pied de page** (site-texts, content.manage) — alongside the existing Associations / Champs / Carte tabs.
+  **Accueil & pied de page** (site-texts, content.manage), **Clés API** (api-keys, super-admin; moved out of the
+  sidebar 2026-09-11) — alongside the existing Associations / Champs / Carte tabs.
 - **Types de documents** is embedded INSIDE the **Documents** tab (below the settings; `document-types.tsx` gained an
   `embedded` prop that hides its own h1; gated `document_types.view`, mounted only when the Documents tab is active).
 - **"Rapports" tab removed** — its only visible setting `reports.cards_enabled` now renders inside the **Carte membre**

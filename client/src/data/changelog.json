@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      "Paramètres — Clés API : la gestion des clés API est passée du menu (Configuration) à un onglet « Clés API » dans la page Paramètres, avec les autres écrans de configuration.",
       "Fratries — page redessinée : sur l'onglet Suggestions, la liste des familles probables est plus compacte (une ligne par famille, avec les signaux communs regroupés — plus de doublons « Même email parent »). Cliquez sur une famille pour ouvrir ses informations communes (parents avec téléphones / emails, adresse) dans un panneau latéral, où vous confirmez la fratrie. Les informations ne se chargent qu'à l'ouverture, donc la liste reste rapide même longue.",
       "Documents (modèle) — année scoute : l'en-tête d'un modèle généré (ex. l'autorisation des parents) affiche désormais l'année scoute EN COURS (le réglage « Année scoute » de Paramètres → Passage, ex. 2026-2027), et non plus l'année d'arrivée du membre (qui donnait 2025-2026).",
       "Documents (membre) — modèle masqué quand ce n'est plus utile : le bouton « Télécharger le modèle » n'apparaît plus une fois le document envoyé (en attente) ou accepté. Il reste proposé tant que le document n'a pas été envoyé, s'il a été refusé (à corriger), ou s'il a expiré (à renouveler).",

@@ -32,6 +32,7 @@ const CardDesignerPage = lazy(() => import('@/pages/admin/card-designer'))
 const ManagedListsPage = lazy(() => import('@/pages/admin/managed-lists'))
 const AppearancePage = lazy(() => import('@/pages/admin/appearance'))
 const SiteTextsPage = lazy(() => import('@/pages/admin/site-texts'))
+const ApiKeysPage = lazy(() => import('@/pages/admin/api-keys'))
 // Types de documents — embedded INSIDE the Documents category tab (not a standalone tab).
 const DocumentTypesPage = lazy(() => import('@/pages/admin/document-types'))
 // Rejection motifs (demande refusal reasons) — embedded inside the Inscriptions tab (CG-editable).
@@ -47,6 +48,7 @@ const CONFIG_TABS: { key: string; label: string; Component: React.ComponentType;
   { key: 'cfg:card', label: 'Carte membre', Component: CardDesignerPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
   { key: 'cfg:appearance', label: 'Apparence', Component: AppearancePage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
   { key: 'cfg:site-texts', label: 'Accueil & pied de page', Component: SiteTextsPage, permission: PERMISSIONS.CONTENT_MANAGE },
+  { key: 'cfg:api-keys', label: 'Clés API', Component: ApiKeysPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
 ]
 
 // Settings already edited on dedicated pages — hidden from the generic Paramètres page.
