@@ -1,5 +1,6 @@
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
+using GNDJ.Domain.Entities;
 using GNDJ.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
@@ -172,7 +173,17 @@ public static class DocumentCampaignActions
         var now = DateTime.UtcNow;
         // Flag the members (only those not already on hold).
         var members = await ctx.Members.Where(m => ids.Contains(m.Id) && !m.IsOnHold).ToListAsync(ct);
-        foreach (var m in members) { m.IsOnHold = true; m.OnHoldAt = now; }
+        foreach (var m in members)
+        {
+            m.IsOnHold = true; m.OnHoldAt = now;
+            // In-app notification (same transaction) so a suspended member sees why, regardless of email.
+            ctx.Notifications.Add(new Notification
+            {
+                MemberId = m.Id, Type = NotificationTypes.Hold, Title = "Compte suspendu",
+                Body = "Votre dossier est incomplet : votre compte est suspendu. Veuillez compléter vos documents et contacter la maîtrise.",
+                LinkUrl = "/my-documents", CreatedAt = now,
+            });
+        }
         await ctx.SaveChangesAsync(ct);
 
         // Email each incomplete member.

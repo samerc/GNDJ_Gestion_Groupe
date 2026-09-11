@@ -4531,6 +4531,40 @@ final shape: **compact list rows + a right-side Sheet** for the details.
   drawer. Reconcile data only loads when a row is opened, so a long list stays fast. Confirmées / Doublons tabs
   untouched. Frontend, DEV until deploy. See [[project-link-siblings]].
 
+### In-app notifications (bell) + demande "Remettre à étudier" (2026-09-12)
+Two items. All on main, DEV until deploy; verified live end-to-end.
+- **Demande reset (urgent fix):** a CG could accept/refuse a demande by mistake but the review UI only offered
+  Accepter/Refuser. `DecideDemandeCommand` ALREADY accepts `Status="Submitted"` (clears the unit; if sent-but-not-
+  converted, re-queues), so this was frontend-only: a **↺ "Remettre à étudier"** action on the review row + the
+  detail drawer footer (`resetTarget` → decide with Submitted), shown when the demande is decided (Approved/Declined)
+  and not converted (`createdMemberId` null). Converted demandes stay locked.
+- **In-app notifications — the app's own alerting, independent of email** (the fragile-delivery de-risk):
+  - **Model:** `Notification` entity (plain table, NOT a BaseEntity — no audit/soft-delete; `CreatedAt` = real UTC
+    instant). Recipient keyed by **`MemberId`** (every acting user is a member; "my notifications" = MemberId ==
+    current user's). Title/Body/LinkUrl **denormalized** at creation (rendering never depends on the source row).
+    Migration `AddNotifications` (index `(member_id, is_read, created_at desc)`).
+  - **`INotificationService`** (Infrastructure `NotificationService`, **singleton** — owns its own scope, **never
+    throws**, runs after the triggering commit; mirrors `IErrorNotifier`): `NotifyMemberAsync` / `NotifyMembersAsync`
+    / `NotifyGroupManagersAsync` (super-admins + active group-level role holders) / `NotifyMemberLeadersAsync`
+    (members.edit holders in the member's active units + group managers, minus the member themselves).
+  - **Triggers wired:** document reviewed (approved/rejected → the member, "/my-documents"); change-request reviewed
+    (accepted/refused → the member, "/my-profile"); change-request created (progression + assignment → the member's
+    leaders + CG, "/change-requests"); demande submitted (first submission → group managers, "/admin/demandes"); a
+    member put on-hold (`DocumentCampaignActions.RunApplyHoldAsync` inserts a `Notification` row inline in the same
+    transaction → the member, "/my-documents").
+  - **API** (`NotificationsController`, auth-only, recipient resolved server-side — no IDOR, no permission): `GET
+    /notifications` (paged, newest first) · `GET /notifications/unread-count` · `POST /notifications/{id}/read`
+    (idempotent, foreign id = no-op) · `POST /notifications/read-all` (ExecuteUpdate). `GetNotificationsQuery` /
+    `GetUnreadNotificationCountQuery` / `MarkNotificationReadCommand` / `MarkAllNotificationsReadCommand`.
+  - **Frontend:** `notification-service.ts` (unread-count polled 60s; list fetched only while the dropdown is open;
+    mark-read/all invalidate `['notifications']`) + `NotificationBell` (header, before UserMenu — shown to ALL roles
+    since the top bar renders for everyone): a bell + red unread badge → a DropdownMenu list (icon+colour per type,
+    unread = bold + primary tint + dot, French time-ago, click → navigate to `linkUrl` + mark read) + "Tout marquer
+    comme lu" + empty state.
+  - **Verified live:** approving a real pending document wrote the member's "Document accepté" row (then reverted);
+    seed→list→mark-read→count 0→read-all round-trip via the API; table columns correct. Build clean (dotnet 0/0,
+    tsc + eslint + vite). Migration applies on prod startup.
+
 ### Accueil dashboard — action hub + timely panels (2026-09-11)
 Turned the CG/super-admin/ACG **Accueil** landing (was purely descriptive: 4 count tiles + members-by-unit +
 age charts) into an **action hub**. All on main, DEV until deploy; verified live.

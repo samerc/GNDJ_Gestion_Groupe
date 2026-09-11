@@ -6,6 +6,7 @@ import { Menu } from 'lucide-react'
 import { useIsManager, useRoleTheme } from '@/lib/use-is-manager'
 import { AdminNav, BrandMark } from './sidebar'
 import { UserMenu } from './user-menu'
+import { NotificationBell } from './notification-bell'
 import { APP_VERSION, BUILD_COMMIT, BUILD_DATE } from '@/lib/app-version'
 
 // ROLE: the single top bar for the authenticated shell.
@@ -55,6 +56,7 @@ export function Header() {
             v{APP_VERSION}
           </Link>
         )}
+        <NotificationBell />
         <UserMenu />
       </div>
     </header>

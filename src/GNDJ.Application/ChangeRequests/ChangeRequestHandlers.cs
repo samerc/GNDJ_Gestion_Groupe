@@ -53,7 +53,7 @@ public class ProposeProgressionValidator : AbstractValidator<ProposeProgressionC
     }
 }
 
-public class ProposeProgressionHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<ProposeProgressionCommand, Result<Guid>>
+public class ProposeProgressionHandler(IApplicationDbContext context, ICurrentUserService currentUser, INotificationService notifications) : IRequestHandler<ProposeProgressionCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(ProposeProgressionCommand request, CancellationToken ct)
     {
@@ -77,7 +77,18 @@ public class ProposeProgressionHandler(IApplicationDbContext context, ICurrentUs
         var entity = new MemberChangeRequest { MemberId = memberId.Value, Kind = ChangeRequestKinds.Progression, PayloadJson = payload, Summary = summary, Status = ChangeRequestStatus.Pending };
         context.MemberChangeRequests.Add(entity);
         await context.SaveChangesAsync(ct);
+        await ChangeRequestNotify.LeadersOfProposalAsync(context, notifications, memberId.Value, summary, ct);
         return Result<Guid>.Success(entity.Id);
+    }
+}
+
+// Notifies the member's unit leaders (+ group managers) that a change is awaiting validation.
+static class ChangeRequestNotify
+{
+    public static async Task LeadersOfProposalAsync(IApplicationDbContext context, INotificationService notifications, Guid memberId, string summary, CancellationToken ct)
+    {
+        var name = await context.Members.Where(m => m.Id == memberId).Select(m => m.FirstName + " " + m.LastName).FirstOrDefaultAsync(ct) ?? "Un membre";
+        await notifications.NotifyMemberLeadersAsync(memberId, NotificationTypes.ChangeRequest, "Modification à valider", $"{name} — {summary}", "/change-requests", ct);
     }
 }
 
@@ -120,7 +131,7 @@ public class ProposeAssignmentValidator : AbstractValidator<ProposeAssignmentCom
     }
 }
 
-public class ProposeAssignmentHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<ProposeAssignmentCommand, Result<Guid>>
+public class ProposeAssignmentHandler(IApplicationDbContext context, ICurrentUserService currentUser, INotificationService notifications) : IRequestHandler<ProposeAssignmentCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(ProposeAssignmentCommand request, CancellationToken ct)
     {
@@ -151,6 +162,7 @@ public class ProposeAssignmentHandler(IApplicationDbContext context, ICurrentUse
         var entity = new MemberChangeRequest { MemberId = memberId.Value, Kind = ChangeRequestKinds.Assignment, PayloadJson = payload, Summary = summary, Status = ChangeRequestStatus.Pending };
         context.MemberChangeRequests.Add(entity);
         await context.SaveChangesAsync(ct);
+        await ChangeRequestNotify.LeadersOfProposalAsync(context, notifications, memberId.Value, summary, ct);
         return Result<Guid>.Success(entity.Id);
     }
 }
@@ -249,7 +261,7 @@ public class ReviewChangeRequestValidator : AbstractValidator<ReviewChangeReques
     }
 }
 
-public class ReviewChangeRequestHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<ReviewChangeRequestCommand, Result<bool>>
+public class ReviewChangeRequestHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService, INotificationService notifications) : IRequestHandler<ReviewChangeRequestCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(ReviewChangeRequestCommand request, CancellationToken ct)
     {
@@ -314,6 +326,15 @@ public class ReviewChangeRequestHandler(IApplicationDbContext context, ICurrentU
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync(request.Approve ? "Approve" : "Reject", "MemberChangeRequest", entity.Id,
             newValues: new { entity.Kind, entity.Summary, entity.Status }, cancellationToken: ct);
+
+        // Tell the member their proposal was accepted / refused (with the reason), so they see it in-app
+        // regardless of email — Ma fiche also shows a rejected-proposal banner.
+        if (request.Approve)
+            await notifications.NotifyMemberAsync(entity.MemberId, NotificationTypes.ChangeRequest, "Proposition acceptée",
+                $"Votre proposition « {entity.Summary} » a été acceptée.", "/my-profile", ct);
+        else
+            await notifications.NotifyMemberAsync(entity.MemberId, NotificationTypes.ChangeRequest, "Proposition refusée",
+                $"Votre proposition « {entity.Summary} » a été refusée." + (string.IsNullOrWhiteSpace(request.DecisionNotes) ? "" : $" Motif : {request.DecisionNotes}"), "/my-profile", ct);
         return Result<bool>.Success(true);
     }
 }

@@ -1095,7 +1095,7 @@ public class UpdateDemandeCommandHandler(IApplicationDbContext context, ICurrent
 
 public record SubmitDemandeCommand(Guid Id) : IRequest<Result<bool>>;
 
-public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrentApplicantService current, IEmailQueue emailQueue) : IRequestHandler<SubmitDemandeCommand, Result<bool>>
+public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrentApplicantService current, IEmailQueue emailQueue, INotificationService notifications) : IRequestHandler<SubmitDemandeCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(SubmitDemandeCommand request, CancellationToken ct)
     {
@@ -1168,6 +1168,7 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
         // "We received your demande" confirmation email (configurable template) to the account holder — queued in
         // the background (best-effort; never fails the submit).
         if (!wasSubmitted)
+        {
             await emailQueue.EnqueueAsync(new EmailJob("demande_submitted", account.Email, new Dictionary<string, string>
             {
                 ["contactName"] = account.ContactName ?? "",
@@ -1175,6 +1176,12 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
                 ["scoutYear"] = demande.ScoutYear,
                 ["demandeNumber"] = demande.SerialNumber ?? "",
             }), ct);
+
+            // Alert the CG in-app that a new demande needs review (only on first submission, not re-submits).
+            var childName = $"{demande.FirstName} {demande.LastName}".Trim();
+            await notifications.NotifyGroupManagersAsync(NotificationTypes.Demande, "Nouvelle demande d'inscription",
+                $"{childName}{(string.IsNullOrWhiteSpace(demande.Classe) ? "" : $" — {demande.Classe}")} ({demande.SerialNumber}).", "/admin/demandes", ct);
+        }
 
         return Result<bool>.Success(true);
     }

@@ -69,6 +69,9 @@ public static class DependencyInjection
         // Best-effort admin alerting on server/client errors (singleton: owns its own scope, never throws).
         services.AddSingleton<IErrorNotifier, ErrorNotifier>();
 
+        // Best-effort in-app notifications (singleton: owns its own scope, never throws).
+        services.AddSingleton<INotificationService, NotificationService>();
+
         // Read-only access to Serilog's application_logs table for the super-admin error journal.
         services.AddScoped<IErrorLogReader, ErrorLogReader>();
 

@@ -217,7 +217,7 @@ public class ReviewDocumentCommandValidator : AbstractValidator<ReviewDocumentCo
     }
 }
 
-public class ReviewDocumentCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<ReviewDocumentCommand, Result<bool>>
+public class ReviewDocumentCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService, INotificationService notifications) : IRequestHandler<ReviewDocumentCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(ReviewDocumentCommand request, CancellationToken ct)
     {
@@ -239,6 +239,19 @@ public class ReviewDocumentCommandHandler(IApplicationDbContext context, ICurren
             oldValues: new { Status = oldStatus },
             newValues: new { entity.Status, entity.ReviewNotes },
             cancellationToken: ct);
+
+        // In-app notification to the member when the decision CHANGES (accepted / à corriger) — the app-side
+        // equivalent of the email, so it works even if email delivery is down.
+        if (oldStatus != entity.Status)
+        {
+            var typeName = await context.DocumentTypes.Where(dt => dt.Id == entity.DocumentTypeId).Select(dt => dt.Name).FirstOrDefaultAsync(ct) ?? "Document";
+            if (entity.Status == DocumentStatus.Rejected)
+                await notifications.NotifyMemberAsync(entity.MemberId, NotificationTypes.Document, "Document à corriger",
+                    $"Votre document « {typeName} » a été refusé." + (string.IsNullOrWhiteSpace(request.ReviewNotes) ? "" : $" Motif : {request.ReviewNotes}"), "/my-documents", ct);
+            else if (entity.Status == DocumentStatus.Approved)
+                await notifications.NotifyMemberAsync(entity.MemberId, NotificationTypes.Document, "Document accepté",
+                    $"Votre document « {typeName} » a été accepté.", "/my-documents", ct);
+        }
 
         return Result<bool>.Success(true);
     }

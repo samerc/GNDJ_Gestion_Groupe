@@ -71,6 +71,7 @@ public interface IApplicationDbContext
     DbSet<MemberGroupRule> MemberGroupRules { get; }
     DbSet<SiblingGroup> SiblingGroups { get; }
     DbSet<SiblingRejection> SiblingRejections { get; }
+    DbSet<Notification> Notifications { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
