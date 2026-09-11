@@ -35,7 +35,7 @@ import { parseApiError } from '@/lib/error-utils'
 import {
   Inbox, Check, X, Send, Users2, ChevronDown, ChevronRight, ChevronLeft, CheckCircle2, XCircle, Clock,
   AlertTriangle, User, Phone, Mail, MapPin, HeartPulse, GraduationCap, MessageSquare, Tent, ArrowUpDown,
-  Search, Sparkles, Trash2, Link2, Lock, LockOpen, Save, Download, Upload, MailWarning, Pencil,
+  Search, Sparkles, Trash2, Link2, Lock, LockOpen, Save, Download, Upload, MailWarning, Pencil, RotateCcw,
 } from 'lucide-react'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -273,6 +273,17 @@ export default function DemandeValidationPage() {
 
   const confirmApprove = async () => { if (approveTarget && await decide(approveTarget, 'Approved', pickUnit, decisionNote)) setApproveTarget(null) }
   const confirmDecline = async () => { if (declineTarget && await decide(declineTarget, 'Declined', null, decisionNote)) setDeclineTarget(null) }
+
+  // Undo a staged decision → back to "À étudier" (Submitted, no unit). Used when a demande was accepted/refused
+  // by mistake. The backend accepts Status='Submitted' and, if the response was already sent (but not converted
+  // to a member), re-queues it. A converted demande is locked and never offers this.
+  const resetTarget = async (d: DemandeReview) => {
+    try {
+      await decideMutation.mutateAsync({ id: d.id, status: 'Submitted', decidedUnitId: null, decisionNotes: null })
+      toast.success('Demande remise à étudier')
+      return true
+    } catch (err) { toast.error(parseApiError(err)); return false }
+  }
 
   // ── bulk actions ───────────────────────────────────────────────
   const runBulk = async (payload: { status: string; decisionNotes?: string | null; items: { id: string; decidedUnitId?: string | null }[] }, label: string) => {
@@ -600,6 +611,9 @@ export default function DemandeValidationPage() {
                         <div className="flex justify-end gap-1">
                           <Tip content="Accepter"><Button size="sm" variant={d.status === 'Approved' ? 'default' : 'outline'} className="h-8 px-2" onClick={() => openApprove(d)}><Check className="h-4 w-4" /></Button></Tip>
                           <Tip content="Refuser"><Button size="sm" variant={d.status === 'Declined' ? 'destructive' : 'outline'} className="h-8 px-2" onClick={() => openDecline(d)}><X className="h-4 w-4" /></Button></Tip>
+                          {(d.status === 'Approved' || d.status === 'Declined') && (
+                            <Tip content="Remettre à étudier"><Button size="sm" variant="outline" className="h-8 px-2" disabled={busy} onClick={() => resetTarget(d)}><RotateCcw className="h-4 w-4" /></Button></Tip>
+                          )}
                           <Tip content="Supprimer"><Button size="sm" variant="outline" className="h-8 px-2 text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(d)}><Trash2 className="h-4 w-4" /></Button></Tip>
                         </div>
                       )}
@@ -631,6 +645,7 @@ export default function DemandeValidationPage() {
               onPrev={() => detailIndex > 0 && setDetailId(rows[detailIndex - 1].id)}
               onNext={() => detailIndex < rows.length - 1 && setDetailId(rows[detailIndex + 1].id)}
               onDecide={decide}
+              onReset={resetTarget}
               onDelete={(dd) => setDeleteTarget(dd)}
             />
           )}
@@ -829,7 +844,7 @@ function UnitHint({ u, d }: { u: UnitOccupancy; d: DemandeReview }) {
 }
 
 // ── detail drawer panel ────────────────────────────────────────────────────────
-function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons, hasPrev, hasNext, onPrev, onNext, onDecide, onDelete }: {
+function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons, hasPrev, hasNext, onPrev, onNext, onDecide, onReset, onDelete }: {
   d: DemandeReview
   occupancy: UnitOccupancy[]
   occByUnit: Record<string, UnitOccupancy>
@@ -841,6 +856,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
   onPrev: () => void
   onNext: () => void
   onDecide: (d: DemandeReview, status: 'Approved' | 'Declined', unitId: string | null, note: string | null) => Promise<boolean>
+  onReset: (d: DemandeReview) => Promise<boolean>
   onDelete: (d: DemandeReview) => void
 }) {
   const locked = !!d.createdMemberId // only a converted demande is locked; a sent-declined one can be re-opened
@@ -1077,6 +1093,9 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
               <Button variant="destructive" className="flex-1" disabled={busy} onClick={() => onDecide(d, 'Declined', null, motif)}>
                 <X className="mr-1 h-4 w-4" />{d.status === 'Declined' ? 'Mettre à jour' : 'Refuser'}
               </Button>
+              {(d.status === 'Approved' || d.status === 'Declined') && (
+                <Tip content="Remettre à étudier (annuler la décision)"><Button variant="outline" className="shrink-0" disabled={busy} onClick={() => onReset(d)}><RotateCcw className="h-4 w-4" /></Button></Tip>
+              )}
               <Tip content="Supprimer la demande"><Button variant="outline" className="shrink-0 text-destructive hover:bg-destructive/10" disabled={busy} onClick={() => onDelete(d)}><Trash2 className="h-4 w-4" /></Button></Tip>
             </div>
             <p className="hidden text-center text-xs text-muted-foreground sm:block">Raccourcis : <kbd>A</kbd> accepter · <kbd>R</kbd> refuser · <kbd>←</kbd>/<kbd>→</kbd> naviguer</p>
