@@ -12,7 +12,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { parseApiError } from '@/lib/error-utils'
-import { Users, UserPlus, LogOut, Wifi, Info, type LucideIcon } from 'lucide-react'
+import { Users, LogOut, Wifi, Info } from 'lucide-react'
 
 // "il y a 3 min" / "il y a 2 h" / "il y a 1 j" — coarse relative time; '—' when null.
 function timeAgo(iso: string | null): string {
@@ -32,23 +32,27 @@ function fmt(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '—'
 }
 
+// Where the account is active (the "Où" column) — a member/chef in the app, or a parent in the demande portal.
+const SPACE: Record<ActiveSession['kind'], { label: string; className: string }> = {
+  member: { label: 'Membres et chefs', className: 'bg-indigo-100 text-indigo-700' },
+  applicant: { label: 'Portail des demandes', className: 'bg-teal-100 text-teal-700' },
+}
+
+// ONE table for both realms (members + parents), with a "Où" column telling them apart.
 function SessionTable({
-  title, icon: Icon, sessions, emptyLabel, onDisconnect, busyId,
+  sessions, online, onDisconnect, busyId,
 }: {
-  title: string
-  icon: LucideIcon
   sessions: ActiveSession[]
-  emptyLabel: string
+  online: number
   onDisconnect: (s: ActiveSession) => void
   busyId: string | null
 }) {
-  const online = sessions.filter((s) => s.isOnline).length
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
-          <Icon className="h-5 w-5" />
-          {title}
+          <Users className="h-5 w-5" />
+          Sessions
           <Badge variant="secondary">{sessions.length}</Badge>
           {online > 0 && (
             <Badge className="bg-emerald-100 text-emerald-700">
@@ -59,15 +63,16 @@ function SessionTable({
       </CardHeader>
       <CardContent>
         {sessions.length === 0 ? (
-          <EmptyState icon={Icon} title={emptyLabel} />
+          <EmptyState icon={Users} title="Aucune session active" />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[820px] text-sm">
               <thead>
                 <tr className="border-b text-left text-xs uppercase text-muted-foreground">
                   <th className="px-3 py-2">État</th>
                   <th className="px-3 py-2">Nom</th>
                   <th className="px-3 py-2">Identifiant</th>
+                  <th className="px-3 py-2">Où</th>
                   <th className="px-3 py-2">Connecté depuis</th>
                   <th className="px-3 py-2">Dernière activité</th>
                   <th className="px-3 py-2">Session expire</th>
@@ -75,36 +80,42 @@ function SessionTable({
                 </tr>
               </thead>
               <tbody>
-                {sessions.map((s, i) => (
-                  <tr key={s.id} className={`border-b align-middle ${i % 2 === 1 ? 'bg-muted/10' : ''}`}>
-                    <td className="px-3 py-2">
-                      {s.isOnline ? (
-                        <span className="inline-flex items-center gap-1.5 text-emerald-600">
-                          <span className="h-2 w-2 rounded-full bg-emerald-500" />En ligne
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                          <span className="h-2 w-2 rounded-full bg-slate-300" />Session ouverte
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 font-medium">{s.name}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{s.detail}</td>
-                    <td className="px-3 py-2 whitespace-nowrap" title={fmt(s.loginAt)}>{timeAgo(s.loginAt)}</td>
-                    <td className="px-3 py-2 whitespace-nowrap" title={fmt(s.lastActivityAt)}>{timeAgo(s.lastActivityAt)}</td>
-                    <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">{fmt(s.expiresAt)}</td>
-                    <td className="px-3 py-2 text-right">
-                      <Button
-                        variant="outline" size="sm"
-                        className="text-destructive hover:text-destructive"
-                        disabled={busyId === s.id}
-                        onClick={() => onDisconnect(s)}
-                      >
-                        <LogOut className="mr-1 h-4 w-4" />Déconnecter
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                {sessions.map((s, i) => {
+                  const space = SPACE[s.kind]
+                  return (
+                    <tr key={s.id} className={`border-b align-middle ${i % 2 === 1 ? 'bg-muted/10' : ''}`}>
+                      <td className="px-3 py-2">
+                        {s.isOnline ? (
+                          <span className="inline-flex items-center gap-1.5 text-emerald-600">
+                            <span className="h-2 w-2 rounded-full bg-emerald-500" />En ligne
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                            <span className="h-2 w-2 rounded-full bg-slate-300" />Session ouverte
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 font-medium">{s.name}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{s.detail}</td>
+                      <td className="px-3 py-2">
+                        <Badge variant="secondary" className={`whitespace-nowrap ${space.className}`}>{space.label}</Badge>
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap" title={fmt(s.loginAt)}>{timeAgo(s.loginAt)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap" title={fmt(s.lastActivityAt)}>{timeAgo(s.lastActivityAt)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">{fmt(s.expiresAt)}</td>
+                      <td className="px-3 py-2 text-right">
+                        <Button
+                          variant="outline" size="sm"
+                          className="text-destructive hover:text-destructive"
+                          disabled={busyId === s.id}
+                          onClick={() => onDisconnect(s)}
+                        >
+                          <LogOut className="mr-1 h-4 w-4" />Déconnecter
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -135,8 +146,14 @@ export default function SessionsPage() {
   if (isLoading) return <LoadingSpinner variant="page" />
   if (isError || !data) return <EmptyState icon={Wifi} title="Impossible de charger les sessions" />
 
-  const total = data.members.length + data.applicants.length
-  const online = [...data.members, ...data.applicants].filter((s) => s.isOnline).length
+  // One combined list (members + parents); online first, then most-recent activity.
+  const all = [...data.members, ...data.applicants]
+  const total = all.length
+  const online = all.filter((s) => s.isOnline).length
+  const sorted = [...all].sort((a, b) =>
+    a.isOnline !== b.isOnline
+      ? (a.isOnline ? -1 : 1)
+      : (b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0) - (a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0))
 
   return (
     <div className="space-y-6">
@@ -157,19 +174,8 @@ export default function SessionsPage() {
       </div>
 
       <SessionTable
-        title="Membres et chefs"
-        icon={Users}
-        sessions={data.members}
-        emptyLabel="Aucun membre connecté"
-        onDisconnect={setConfirm}
-        busyId={disconnect.isPending ? confirm?.id ?? null : null}
-      />
-
-      <SessionTable
-        title="Portail des parents (inscriptions)"
-        icon={UserPlus}
-        sessions={data.applicants}
-        emptyLabel="Aucun parent connecté"
+        sessions={sorted}
+        online={online}
         onDisconnect={setConfirm}
         busyId={disconnect.isPending ? confirm?.id ?? null : null}
       />

@@ -3900,9 +3900,11 @@ Super-admin page (`/admin/sessions`, sidebar Système) to see who currently hold
       access dies within ≤15 min; audited `DisconnectSession`). **Super-admin ONLY** — both handlers throw
       `UnauthorizedAccessException` if `!IsSuperAdmin` (super-admin isn't a permission, same gate as the audit/error
       log purge). `SessionsController` (`api/v1/sessions` GET + `/disconnect`), route under `<AdminRoute>`.
-- **Frontend** `pages/admin/sessions.tsx` (auto-refetch 30s) — per realm: État (En ligne/Session ouverte), Nom,
-      Identifiant (email), Connecté depuis (relative), Dernière activité (relative), Session expire, **Déconnecter**
-      (confirm). Blue note explains the ≤15-min caveat + that "en ligne" = last-activity window.
+- **Frontend** `pages/admin/sessions.tsx` (auto-refetch 30s) — **ONE combined table** (members + parents merged,
+      2026-09-11) with columns État (En ligne/Session ouverte), Nom, Identifiant (email), **Où** (a badge = the space:
+      "Membres et chefs" vs "Portail des demandes", from `kind`), Connecté depuis, Dernière activité, Session expire,
+      **Déconnecter** (confirm). Rows sorted online-first then most-recent activity. Blue note explains the ≤15-min
+      caveat + that "en ligne" = last-activity window. (Backend still returns `{members, applicants}` — merged client-side.)
 - **Inherent limits (documented, accepted):** revocation is "≤15 min" not instant (stateless JWT); one session per
       account, no per-device list / "last login from" (would need a `user_sessions` table); no new-device alert.
 - Verified live: super-admin GET → 8 member + 1 applicant sessions w/ online + timestamps; a **CU → 403** on both
