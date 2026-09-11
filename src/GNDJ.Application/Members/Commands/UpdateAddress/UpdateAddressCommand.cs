@@ -40,6 +40,8 @@ public class UpdateAddressCommandHandler(IApplicationDbContext context, ICurrent
         entity.IsPrimary = request.IsPrimary;
 
         await context.SaveChangesAsync(ct);
+        // Household: mirror this member's address set onto their confirmed fratrie.
+        await HouseholdSync.PropagateAddressesAsync(context, entity.MemberId, ct);
         return Result<bool>.Success(true);
     }
 }

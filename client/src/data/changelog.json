@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      "Fratries — informations du foyer partagées : quand un membre fait partie d'une fratrie CONFIRMÉE, modifier la « Situation des parents » ou l'adresse d'un enfant l'applique automatiquement à tous ses frères et sœurs (c'est une information du foyer, commune à la famille). Les parents, eux, sont déjà partagés au sein d'une fratrie confirmée (les doublons sont fusionnés au moment de la confirmation), donc modifier un parent se répercute déjà sur tous les enfants. La propagation ne concerne que les fratries confirmées (via la page Fratries) — un membre sans fratrie n'est pas affecté.",
       "Parents (données) — note erronée retirée : la mention « Parents séparés/divorcés » avait été ajoutée par erreur lors de l'import dans les notes de la quasi-totalité des parents (une même valeur par défaut, ne reflétant pas la réalité des familles). Elle a été supprimée de toutes les fiches parents.",
       "Sessions actives — vue unifiée : les sessions des membres/chefs et du portail des parents (demandes) sont regroupées dans un seul tableau, avec une nouvelle colonne « Où » indiquant l'espace de chaque session (Membres et chefs / Portail des demandes). Les sessions en ligne apparaissent en premier.",
       "Paramètres — Clés API : la gestion des clés API est passée du menu (Configuration) à un onglet « Clés API » dans la page Paramètres, avec les autres écrans de configuration.",

@@ -4439,6 +4439,23 @@ other handler that logged an id field wasn't. Fixed the class + made the whole p
 - **Verified live:** create+delete a Team → audit stored `"Unit": "Clan Jamhour"` (name, not GUID); test rows
   cleaned up. Builds clean (dotnet 0/0 + tsc + eslint). Backend + frontend, DEV until deploy.
 
+### Household sync across a confirmed fratrie (2026-09-11)
+User: "if i change something on a member linked to a household, it should change for all linked members (brothers)."
+Decided (via question): fields = **Situation des parents + Adresse** (+ parents already shared); **automatic**; scope =
+**confirmed fratrie only** (`Member.SiblingGroupId`). New `Application/Common/HouseholdSync.cs`:
+- `PropagateParentsSituationAsync(ctx, memberId, value, ct)` — copies the value onto the other members of the same
+  `SiblingGroupId` (skips no-ops); called BEFORE the handler's SaveChanges (same txn). Wired into **UpdateMember**
+  + **UpdateMyProfile**.
+- `PropagateAddressesAsync(ctx, memberId, ct)` — mirrors the member's CURRENT address set onto the siblings
+  (replaces theirs with copies = the shared-household address); idempotent via `AlreadyMirrored` (no soft-delete
+  churn when already in sync); does its OWN SaveChanges AFTER the source op is persisted. Wired into the leader
+  **Add/Update/DeleteAddress** + the self-service **AddMy/UpdateMy/DeleteMyAddress** (Ma fiche).
+- **Guardians need NO code** — they're already SHARED records across a confirmed fratrie (the Fratrie *confirm*
+  step merges duplicate parents into one), so editing a parent already propagates to every linked child.
+- Members with no `SiblingGroupId` are untouched. **Verified live** on a real 4-member fratrie: PUT a member's
+  parents-situation → all 4 became "Unis"; POST an address → all 4 mirrored the set (a sibling's old address
+  replaced); then restored the family to its original state. Build clean (dotnet 0 err). Backend-only, DEV until deploy.
+
 ### Settings + menu consolidation — PHASE 1: menu (Option C hybrid) (2026-09-11)
 First phase of a "too many settings/features, it's confusing" consolidation (discussed via HTML menu mockups in
 `temp/menu-mockups/` — current vs Light vs Medium vs Hybrid). User chose **Option C (hybrid)** for the menu +

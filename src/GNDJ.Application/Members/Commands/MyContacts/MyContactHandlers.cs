@@ -1,4 +1,5 @@
 using FluentValidation;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Common.Validation;
@@ -229,6 +230,7 @@ public class AddMyAddressHandler(IApplicationDbContext context, ICurrentUserServ
         var entity = new MemberAddress { MemberId = memberId.Value, Type = request.Type, Country = request.Country, City = request.City, Details = request.Details, IsPrimary = request.IsPrimary };
         context.MemberAddresses.Add(entity);
         await context.SaveChangesAsync(ct);
+        await HouseholdSync.PropagateAddressesAsync(context, memberId.Value, ct); // household: mirror onto confirmed siblings
         return Result<Guid>.Success(entity.Id);
     }
 }
@@ -240,6 +242,7 @@ public class UpdateMyAddressHandler(IApplicationDbContext context, ICurrentUserS
         if (entity is null || entity.MemberId != currentUser.MemberId) return Result<bool>.Failure("Adresse introuvable.");
         entity.Type = request.Type; entity.Country = request.Country; entity.City = request.City; entity.Details = request.Details; entity.IsPrimary = request.IsPrimary;
         await context.SaveChangesAsync(ct);
+        await HouseholdSync.PropagateAddressesAsync(context, entity.MemberId, ct); // household: mirror onto confirmed siblings
         return Result<bool>.Success(true);
     }
 }
@@ -251,6 +254,7 @@ public class DeleteMyAddressHandler(IApplicationDbContext context, ICurrentUserS
         if (entity is null || entity.MemberId != currentUser.MemberId) return Result<bool>.Failure("Adresse introuvable.");
         context.MemberAddresses.Remove(entity);
         await context.SaveChangesAsync(ct);
+        await HouseholdSync.PropagateAddressesAsync(context, entity.MemberId, ct); // household: mirror onto confirmed siblings
         return Result<bool>.Success(true);
     }
 }

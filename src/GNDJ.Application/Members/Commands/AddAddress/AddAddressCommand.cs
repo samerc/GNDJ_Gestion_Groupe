@@ -50,6 +50,8 @@ public class AddAddressCommandHandler : IRequestHandler<AddAddressCommand, Resul
         };
         _context.MemberAddresses.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
+        // Household: a confirmed fratrie shares one address — mirror this member's address set onto the siblings.
+        await HouseholdSync.PropagateAddressesAsync(_context, request.MemberId, cancellationToken);
         return Result<Guid>.Success(entity.Id);
     }
 }

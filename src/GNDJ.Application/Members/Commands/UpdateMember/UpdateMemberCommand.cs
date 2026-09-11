@@ -110,6 +110,9 @@ public class UpdateMemberCommandHandler : IRequestHandler<UpdateMemberCommand, R
         entity.Notes = request.Notes;
         entity.ParentsSituation = string.IsNullOrWhiteSpace(request.ParentsSituation) ? null : request.ParentsSituation.Trim();
 
+        // Household: parents-situation is a family fact — mirror it onto the confirmed fratrie (same transaction).
+        await HouseholdSync.PropagateParentsSituationAsync(_context, entity.Id, entity.ParentsSituation, cancellationToken);
+
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Update", "Member", entity.Id, oldValues: oldValues, newValues: new { entity.FirstName, entity.LastName, entity.CardNumber }, cancellationToken: cancellationToken);
 

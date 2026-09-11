@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using FluentValidation;
@@ -67,6 +68,9 @@ public class UpdateMyProfileCommandHandler(IApplicationDbContext context, IAudit
         entity.BloodType = request.BloodType;
         entity.Allergies = request.Allergies;
         entity.MedicalNotes = request.MedicalNotes;
+
+        // Household: parents-situation is a family fact — mirror it onto the confirmed fratrie (same transaction).
+        await HouseholdSync.PropagateParentsSituationAsync(context, entity.Id, entity.ParentsSituation, ct);
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Update", "Member", entity.Id,

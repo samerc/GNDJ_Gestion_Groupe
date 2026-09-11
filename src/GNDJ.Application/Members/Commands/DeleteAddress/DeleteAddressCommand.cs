@@ -30,6 +30,8 @@ public class DeleteAddressCommandHandler : IRequestHandler<DeleteAddressCommand,
 
         _context.MemberAddresses.Remove(entity);
         await _context.SaveChangesAsync(cancellationToken);
+        // Household: mirror this member's remaining address set onto their confirmed fratrie.
+        await HouseholdSync.PropagateAddressesAsync(_context, entity.MemberId, cancellationToken);
         return Result<bool>.Success(true);
     }
 }
