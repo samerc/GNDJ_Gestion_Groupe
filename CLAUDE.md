@@ -4479,8 +4479,11 @@ if the user holds its permission (a CG sees **Listes** [maitrise.manage]; super-
 - **Deliberately NOT pulled in:** the document-campaign DATES stay on "Suivi documents" — they need order validation
   (deposit < correction < final) the generic editor can't enforce (HIDDEN_KEYS comment); un-hiding them would let a
   user save them out of order and break the campaign phases.
-- **OPEN (asked by user, not yet built):** the Paramètres tab bar is now large (~18 tabs) — a left-hand grouped
-  vertical nav (Réglages vs Configuration sections) is proposed to replace the wrapping tab row. Discuss before building.
+- **Left grouped vertical nav (DONE 2026-09-11):** the ~17-tab wrapping row is replaced by a **left vertical nav**
+  grouped into **Réglages** (the setting categories) + **Configuration** (the config-page tabs), content on the right
+  (`SettingsNavGroup` component; `cn`-based active state; sticky). Dropped Radix `Tabs` for plain buttons + a
+  conditional content pane (only the active section mounts — so DocumentTypesPage/config pages mount lazily on
+  select). Mobile: a single `<select>` (optgroups Réglages/Configuration) replaces the nav. Search mode unchanged.
 
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to

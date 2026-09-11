@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { NATIONALITY_OPTIONS, PHONE_COUNTRY_CODES, COUNTRY_OPTIONS } from '@/lib/options'
@@ -374,6 +374,29 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
   )
 }
 
+// Left-nav group: a titled list of section buttons for the settings vertical nav (Réglages / Configuration).
+function SettingsNavGroup({ title, items, active, onSelect }: {
+  title: string
+  items: { value: string; label: string }[]
+  active: string
+  onSelect: (value: string) => void
+}) {
+  return (
+    <div>
+      <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+      <div className="space-y-0.5">
+        {items.map(i => (
+          <button key={i.value} type="button" onClick={() => onSelect(i.value)}
+            className={cn('flex w-full items-center rounded-md px-3 py-1.5 text-left text-sm transition-colors',
+              active === i.value ? 'bg-primary/10 font-semibold text-primary' : 'text-foreground/80 hover:bg-muted')}>
+            {i.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function SettingsPage() {
   const { data: settings, isLoading } = useSettings()
   const updateMutation = useUpdateSetting()
@@ -420,15 +443,22 @@ export default function SettingsPage() {
 
   const categories = CATEGORY_ORDER.filter(c => grouped[c]?.length)
   const [tab, setTab] = useState<string>('')
-  if (categories.length && !tab) setTab(categories[0]) // default to first non-empty tab (render-phase, guarded)
+  // Default to the first available section (a settings category, else the first config tab). Render-phase, guarded.
+  const firstSection = categories[0] ?? configTabs[0]?.key
+  if (firstSection && !tab) setTab(firstSection)
 
   if (isLoading) return <LoadingSpinner variant="form" />
 
-  // Non-empty search query switches to a flat results list (across all categories) instead of tabs.
+  // Non-empty search query switches to a flat results list (across all categories) instead of the section nav.
   const q = query.trim().toLowerCase()
   const searchResults = q
     ? visible.filter(s => s.label.toLowerCase().includes(q) || (s.description ?? '').toLowerCase().includes(q) || s.key.toLowerCase().includes(q))
     : []
+
+  // Which section (left-nav item) is active: a settings category, or one of the config-page tabs.
+  const activeCategory = !q && categories.includes(tab) ? tab : null
+  const activeConfig = q ? undefined : configTabs.find(t => t.key === tab)
+  const ActiveConfigComponent = activeConfig?.Component
 
   return (
     <div className="space-y-6">
@@ -471,57 +501,74 @@ export default function SettingsPage() {
           )}
         </div>
       ) : (
-        <Tabs value={tab} onValueChange={setTab}>
-          {/* h-auto + gap so the many category tabs can wrap onto several rows on mobile without being
-              clipped by the base TabsList's fixed h-10 height. */}
-          <TabsList className="flex h-auto flex-wrap justify-start gap-1">
-            {categories.map(c => <TabsTrigger key={c} value={c}>{CATEGORY_LABELS[c] ?? c}</TabsTrigger>)}
-            {/* Config screens as tabs (Associations / Champs personnalisés / Carte membre) — super-admin only. */}
-            {configTabs.map(t => <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>)}
-          </TabsList>
-          {categories.map(c => (
-            <TabsContent key={c} value={c}>
-              <div className="rounded-xl border border-border bg-card p-5 shadow-card">
-                <div className="divide-y">
-                  {grouped[c].map(s => <SettingEditor key={s.key} setting={s} onSave={handleSave} {...extraProps(s)} />)}
-                </div>
-              </div>
-              {/* The Inscriptions tab also hosts the demande rejection-motifs editor (own CRUD, CG-accessible). */}
-              {c === 'demande' && (
-                <div className="mt-6 rounded-xl border border-border bg-card p-5 shadow-card">
-                  <Suspense fallback={<LoadingSpinner variant="table" />}>
-                    <RejectionReasonsEditor embedded />
-                  </Suspense>
-                </div>
+        // Left grouped vertical nav (Réglages / Configuration) + content pane — scales past a wrapping tab row.
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+          {/* Mobile: a single dropdown to pick the section (the vertical nav is hidden below lg). */}
+          <div className="lg:hidden">
+            <select value={tab} onChange={(e) => setTab(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <optgroup label="Réglages">
+                {categories.map(c => <option key={c} value={c}>{CATEGORY_LABELS[c] ?? c}</option>)}
+              </optgroup>
+              {configTabs.length > 0 && (
+                <optgroup label="Configuration">
+                  {configTabs.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                </optgroup>
               )}
-              {/* The Documents tab also hosts the "Types de documents" manager (super-admin), below the settings. */}
-              {c === 'documents' && can(PERMISSIONS.DOCUMENT_TYPES_VIEW) && tab === 'documents' && (
-                <div className="mt-6 rounded-xl border border-border bg-card p-5 shadow-card">
-                  <h2 className="mb-4 text-lg font-semibold">Types de documents</h2>
-                  <Suspense fallback={<LoadingSpinner variant="table" />}>
-                    <DocumentTypesPage embedded />
-                  </Suspense>
+            </select>
+          </div>
+
+          {/* Desktop: grouped vertical nav. */}
+          <nav className="hidden w-56 shrink-0 lg:block">
+            <div className="sticky top-20 space-y-5">
+              <SettingsNavGroup title="Réglages" items={categories.map(c => ({ value: c, label: CATEGORY_LABELS[c] ?? c }))} active={tab} onSelect={setTab} />
+              {configTabs.length > 0 && (
+                <SettingsNavGroup title="Configuration" items={configTabs.map(t => ({ value: t.key, label: t.label }))} active={tab} onSelect={setTab} />
+              )}
+            </div>
+          </nav>
+
+          {/* Content of the active section. */}
+          <div className="min-w-0 flex-1">
+            {activeCategory && (
+              <>
+                <div className="rounded-xl border border-border bg-card p-5 shadow-card">
+                  <div className="divide-y">
+                    {grouped[activeCategory].map(s => <SettingEditor key={s.key} setting={s} onSave={handleSave} {...extraProps(s)} />)}
+                  </div>
                 </div>
-              )}
-            </TabsContent>
-          ))}
-          {configTabs.map(({ key, Component }) => (
-            <TabsContent key={key} value={key}>
-              {/* Each config screen renders its own page (its own heading + CRUD). Only mounted when its tab is active. */}
-              {tab === key && (
-                <Suspense fallback={<LoadingSpinner variant="table" />}>
-                  {/* The Carte membre tab also carries the "enable member cards" toggle (ex-"Rapports" setting). */}
-                  {key === 'cfg:card' && cardsEnabled && (
-                    <div className="mb-6 rounded-xl border border-border bg-card p-5 shadow-card">
-                      <SettingEditor setting={cardsEnabled} onSave={handleSave} />
-                    </div>
-                  )}
-                  <Component />
-                </Suspense>
-              )}
-            </TabsContent>
-          ))}
-        </Tabs>
+                {/* Inscriptions section also hosts the demande rejection-motifs editor (own CRUD, CG-accessible). */}
+                {activeCategory === 'demande' && (
+                  <div className="mt-6 rounded-xl border border-border bg-card p-5 shadow-card">
+                    <Suspense fallback={<LoadingSpinner variant="table" />}>
+                      <RejectionReasonsEditor embedded />
+                    </Suspense>
+                  </div>
+                )}
+                {/* Documents section also hosts the "Types de documents" manager (super-admin), below the settings. */}
+                {activeCategory === 'documents' && can(PERMISSIONS.DOCUMENT_TYPES_VIEW) && (
+                  <div className="mt-6 rounded-xl border border-border bg-card p-5 shadow-card">
+                    <h2 className="mb-4 text-lg font-semibold">Types de documents</h2>
+                    <Suspense fallback={<LoadingSpinner variant="table" />}>
+                      <DocumentTypesPage embedded />
+                    </Suspense>
+                  </div>
+                )}
+              </>
+            )}
+            {activeConfig && ActiveConfigComponent && (
+              <Suspense fallback={<LoadingSpinner variant="table" />}>
+                {/* The Carte membre section also carries the "enable member cards" toggle (ex-"Rapports" setting). */}
+                {activeConfig.key === 'cfg:card' && cardsEnabled && (
+                  <div className="mb-6 rounded-xl border border-border bg-card p-5 shadow-card">
+                    <SettingEditor setting={cardsEnabled} onSave={handleSave} />
+                  </div>
+                )}
+                <ActiveConfigComponent />
+              </Suspense>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )
