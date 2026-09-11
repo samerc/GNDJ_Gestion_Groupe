@@ -4485,6 +4485,16 @@ if the user holds its permission (a CG sees **Listes** [maitrise.manage]; super-
   conditional content pane (only the active section mounts — so DocumentTypesPage/config pages mount lazily on
   select). Mobile: a single `<select>` (optgroups Réglages/Configuration) replaces the nav. Search mode unchanged.
 
+### Document-template fixes (2026-09-11)
+- **`{{anneeScoute}}` = the CURRENT configured scout year**, not the member's join year. `DocumentTemplateQueries.
+  ResolveMemberValuesAsync` was deriving it from the member's active-assignment start (`ScoutYearHelper.Of(StartDate)`)
+  → an authorization printed 2025-2026 for a member who joined last year. Now reads the **`passage.scout_year`**
+  setting (e.g. "2026-2027"), falling back to the year containing today if unset. Backend, DEV until deploy.
+- **Member template download gated by status** (`member-documents.tsx`): the "Télécharger le modèle" button
+  (in-app pre-filled PDF OR static file) now shows ONLY when the member still needs to (re)submit —
+  `canDownloadTemplate = !doc || doc.status === 'Rejected' || doc.isExpired`. Hidden once a doc is **pending or
+  approved** (no point downloading a blank form for a doc already sent/accepted). Frontend, DEV until deploy.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

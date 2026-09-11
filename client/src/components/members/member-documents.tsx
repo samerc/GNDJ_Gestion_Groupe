@@ -321,6 +321,10 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
             const doc = getDocForType(dt.id)
             // A row accepts dropped files when the user may upload AND the doc isn't a still-valid approved one.
             const uploadable = canUpload && (!doc || doc.status !== 'Approved' || doc.isExpired)
+            // Offer the template download ONLY when the member still needs to (re)submit: not uploaded yet,
+            // rejected, or expired. Hidden once a doc is pending or approved — no point downloading a blank form
+            // for a document already sent / accepted.
+            const canDownloadTemplate = !doc || doc.status === 'Rejected' || doc.isExpired
             return (
               <div key={dt.id}
                 onDragOver={uploadable ? (e) => { e.preventDefault(); setDragOverId(dt.id) } : undefined}
@@ -360,8 +364,9 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                   {/* Optional blank form to download, fill, and upload back (set per document type by the admin).
                       Styled as a tinted pill button so it stands out from the row's muted metadata. An IN-APP
                       template (hasHtmlTemplate) downloads a server-generated PDF pre-filled with the member's own
-                      data; otherwise a static uploaded file. The in-app template takes precedence. */}
-                  {dt.hasHtmlTemplate ? (
+                      data; otherwise a static uploaded file. The in-app template takes precedence. Shown only
+                      when the member still needs to (re)submit (canDownloadTemplate). */}
+                  {canDownloadTemplate && (dt.hasHtmlTemplate ? (
                     <button type="button" onClick={() => handleDownloadMemberTemplate(dt)} disabled={templatePdfLoadingId === dt.id}
                       className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary shadow-sm transition-colors hover:bg-primary/20 disabled:opacity-60">
                       <Download className="h-4 w-4" />{templatePdfLoadingId === dt.id ? 'Préparation…' : 'Télécharger le modèle pré-rempli'}
@@ -371,7 +376,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary shadow-sm transition-colors hover:bg-primary/20">
                       <Download className="h-4 w-4" />Télécharger le modèle à remplir
                     </a>
-                  )}
+                  ))}
                 </div>
 
                 {/* Actions — full-width below the content on mobile (stacked), inline on the right on ≥sm. */}

@@ -128,8 +128,14 @@ public class GenerateMemberDocumentTemplateQueryHandler(
         var father = links.FirstOrDefault(p => NormRel(p.RelationshipType) == "pere");
         var mother = links.FirstOrDefault(p => NormRel(p.RelationshipType) == "mere");
 
-        // Scout year = the year the member's active assignment falls in (else the current scout year).
-        var scoutYear = m.StartDate.HasValue ? ScoutYearHelper.Of(m.StartDate.Value) : ScoutYearHelper.Of(LebanonClock.Today);
+        // Scout year = the CURRENT configured scout year (passage.scout_year, e.g. "2026-2027") — an authorization
+        // form is for the current/upcoming year, not the year the member first joined. Fall back to the year that
+        // contains today if the setting is unset.
+        var configuredYear = await context.Settings
+            .Where(s => s.Key == "passage.scout_year")
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+        var scoutYear = !string.IsNullOrWhiteSpace(configuredYear) ? configuredYear! : ScoutYearHelper.Of(LebanonClock.Today);
 
         return new Dictionary<string, string?>
         {
