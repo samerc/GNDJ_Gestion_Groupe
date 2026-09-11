@@ -4312,6 +4312,13 @@ Two fixes from a CG report. Frontend-only; DEV until deploy.
       vous ne pouvez plus soumettre cette demande" — distinct from a manual CG review-phase close. Submit stays
       blocked client + server; the portal remains viewable. Verified live: config `submissionsOpen=false`,
       `submissionDeadline=2026-09-10` (today 2026-09-11). Builds clean (tsc + eslint + vite).
+- **Block at "Créer un compte" + hide the new-demande button (2026-09-11 follow-up):** `ApplicantOpenRoute`
+      (`submissionsRequired`, the REGISTER gate) previously `Navigate`'d a closed-submissions register to
+      `/inscription` → which redirects to `/login`, so a parent clicking "Créer un compte" landed on login with NO
+      explanation. It now renders a message in the `ApplicantAuthShell` — "La date limite de soumission est dépassée"
+      (deadline) / "Les inscriptions sont clôturées" (manual) + a "Se connecter" link — so they see WHY. And the
+      portail's "Ajouter une demande" button is now HIDDEN when `!canSubmit` (was disabled/greyed). Server register
+      gate (`SubmissionsClosedError` in `RegisterApplicantCommand`) unchanged. tsc + eslint + vite clean.
 
 ### Envoyer les accès — "Tous les membres (hors maîtrise)" scope (2026-09-10)
 Added a whole-group scope to "Envoyer les accès": send the access/re-inscription email in one go to EVERY active

@@ -71,9 +71,13 @@ export default function ApplicantPortalPage() {
           <h1 className="text-2xl font-bold tracking-tight">Mes demandes d'inscription</h1>
           <p className="text-sm text-muted-foreground">{profile.email} · Année {config?.scoutYear}</p>
         </div>
-        <Button onClick={() => navigate('/inscription/portail/demande/new')} disabled={!canSubmit || reachedMax}>
-          <UserPlus className="mr-2 h-4 w-4" />Ajouter une demande
-        </Button>
+        {/* Hidden entirely once submissions close (deadline passed / CG review phase) — the banner below
+            explains why; a disabled button would just look broken. Shown while the window is open. */}
+        {canSubmit && (
+          <Button onClick={() => navigate('/inscription/portail/demande/new')} disabled={reachedMax}>
+            <UserPlus className="mr-2 h-4 w-4" />Ajouter une demande
+          </Button>
+        )}
       </div>
 
       {needsVerify && (
