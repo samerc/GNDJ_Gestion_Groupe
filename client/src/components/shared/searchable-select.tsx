@@ -49,7 +49,9 @@ export function SearchableSelect({
         className={cn('w-full justify-between font-normal', !value && 'text-muted-foreground')}
         onClick={() => setOpen(true)}
       >
-        {selectedLabel ?? placeholder}
+        {/* Fall back to the raw stored value when it isn't among the options (e.g. an archived/renamed managed
+            list entry), so a set-but-out-of-list value still shows instead of looking empty. */}
+        {selectedLabel ?? (value || placeholder)}
         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>

@@ -7,7 +7,7 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { useMemberGuardians, useSearchGuardians, useCreateGuardian, useUpdateGuardian, useUpdateGuardianLink, useLinkGuardian, useUnlinkGuardian, useAddGuardianPhone, useAddGuardianEmail, useDeleteGuardianPhone, useDeleteGuardianEmail, useCreateMyGuardian, useUpdateMyGuardian, useUpdateMyGuardianLink, useUnlinkMyGuardian, useAddMyGuardianPhone, useAddMyGuardianEmail, useDeleteMyGuardianPhone, useDeleteMyGuardianEmail, type GuardianLinkDto, type GuardianSearchDto } from '@/services/guardian-service'
 import { useSettingValue, useSettingArray } from '@/services/settings-service'
 import { SearchableSelect } from '@/components/shared/searchable-select'
-import { PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, PROFESSION_OPTIONS } from '@/lib/options'
+import { PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS } from '@/lib/options'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input'
@@ -33,6 +33,11 @@ const RELATIONSHIP_OPTIONS = [
 const normRel = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 function relationshipLabel(value: string): string {
   return RELATIONSHIP_OPTIONS.find(r => normRel(r.value) === normRel(value))?.label ?? value
+}
+// Maps a stored value onto the CANONICAL option value (accent-insensitive) so an imported "Mere"/"Pere"
+// pre-selects the "Mère"/"Père" option in the edit <Select> (Radix matches by exact value). Unknown → raw.
+function canonicalRel(value: string): string {
+  return RELATIONSHIP_OPTIONS.find(r => normRel(r.value) === normRel(value))?.value ?? value
 }
 
 // Initials for the guardian avatar (first letter of first + last name), uppercased.
@@ -101,7 +106,8 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
     setEditForm({
       id: gl.guardianId, firstName: gl.guardian.firstName, lastName: gl.guardian.lastName,
       profession: gl.guardian.profession ?? '', professionDomain: gl.guardian.professionDomain ?? '', isDeceased: gl.guardian.isDeceased, notes: gl.guardian.notes ?? '',
-      linkId: gl.linkId, relationshipType: gl.relationshipType, isPrimaryContact: gl.isPrimaryContact, isEmergencyContact: gl.isEmergencyContact,
+      // Canonicalize so an imported "Mere"/"Pere" pre-selects the accented option (Radix Select is exact-match).
+      linkId: gl.linkId, relationshipType: canonicalRel(gl.relationshipType), isPrimaryContact: gl.isPrimaryContact, isEmergencyContact: gl.isEmergencyContact,
     })
     setError('')
     setEditDialogOpen(true)
@@ -375,12 +381,9 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                 </div>
                 <div className="space-y-2">
                   <RequiredLabel>Profession (texte libre)</RequiredLabel>
-                  <SearchableSelect
-                    value={form.profession}
-                    onValueChange={(v) => setForm(f => ({ ...f, profession: v }))}
-                    options={PROFESSION_OPTIONS}
-                    searchPlaceholder="Rechercher une profession..."
-                  />
+                  {/* Free text (like the demande wizard) — the profession title, e.g. "Pharmacienne". The
+                      activity CATEGORY is the "Domaine" field above (managed list, shared with the demande). */}
+                  <Input value={form.profession} maxLength={150} placeholder="Profession (ex. Ingénieure)" onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} />
                 </div>
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-2">
@@ -495,12 +498,9 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
               </div>
               <div className="space-y-2">
                 <RequiredLabel>Profession (texte libre)</RequiredLabel>
-                <SearchableSelect
-                  value={editForm.profession}
-                  onValueChange={(v) => setEditForm(f => ({ ...f, profession: v }))}
-                  options={PROFESSION_OPTIONS}
-                  searchPlaceholder="Rechercher une profession..."
-                />
+                {/* Free text (matches the demande wizard) so any stored title — e.g. "Pharmacienne" — shows and
+                    is editable (the old hardcoded dropdown couldn't display values outside its ~15 options). */}
+                <Input value={editForm.profession} maxLength={150} placeholder="Profession (ex. Ingénieure)" onChange={(e) => setEditForm(f => ({ ...f, profession: e.target.value }))} />
               </div>
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-2">

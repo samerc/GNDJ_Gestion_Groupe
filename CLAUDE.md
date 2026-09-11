@@ -4531,6 +4531,31 @@ final shape: **compact list rows + a right-side Sheet** for the details.
   drawer. Reconcile data only loads when a row is opened, so a long list stays fast. Confirmées / Doublons tabs
   untouched. Frontend, DEV until deploy. See [[project-link-siblings]].
 
+### Guardian edit form — Relation + Profession pre-fill fixes (2026-09-12)
+A CG reported the member Famille tab's "Modifier le parent" dialog showed **Relation** and **Profession** EMPTY
+for most parents while the display (card) showed them filled. Two root causes:
+- **Profession** — the "Profession (texte libre)" field was actually a `SearchableSelect` locked to ~15 hardcoded
+  `PROFESSION_OPTIONS` (Médecin/Ingénieur/…), so a stored free-text title like "Pharmacienne" (not in the list) →
+  `selectedLabel` undefined → placeholder shown, AND you couldn't type it. Changed BOTH the create + edit forms to
+  a free-text `<Input>` (matching the demande wizard, whose Profession is already a free `<Input>`). Removed the
+  now-unused `PROFESSION_OPTIONS` import. The activity CATEGORY stays the "Domaine" `SearchableSelect` over the
+  managed `member.profession_domains` list (shared with the demande).
+- **Relation** — migrated links stored **unaccented** `"Pere"`/`"Mere"` (4859 rows) while `RELATIONSHIP_OPTIONS` +
+  the demande conversion use `"Père"`/`"Mère"`; Radix `<Select>` is exact-match → empty (the card worked via the
+  fuzzy `relationshipLabel`/`normRel`). Fixes: (a) **data patch `014_guardian_relationship_accents.sql`** canonicalizes
+  `Pere→Père`/`Mere→Mère` in `guardian_links` (idempotent; applied on dev, ships to prod on next deploy — verified
+  2439 Père / 2423 Mère after); (b) **migration tool** now writes `"Père"`/`"Mère"` (3 spots) so re-imports stay
+  consistent; (c) UI `canonicalRel()` maps a stored value onto the canonical option value (accent-insensitive) when
+  loading the edit form, so even a stray unaccented value pre-selects.
+- **Hardened `SearchableSelect`**: shows the raw stored `value` when it isn't among the options (`selectedLabel ??
+  (value || placeholder)`) — so a Domaine that was archived/renamed still shows instead of looking empty.
+- **Migration-matching (the CG's question):** Domaine uses the SAME managed `member.profession_domains` list in both
+  the member form and the demande wizard, and `SendDemandeResponses` copies `ProfessionDomain` verbatim → they match
+  by construction. Profession is free text in both → nothing to match. The old hardcoded job dropdown (unrelated to
+  either) was the source of the confusion and is gone.
+- Verified live: guardians API returns rel=`Mère` / domain=`Chimie, pharmacie` / prof=`Pharmacienne` (all pre-fill).
+  Build clean (dotnet 0/0 API + migration tool, tsc + eslint). Frontend + data patch, DEV until deploy.
+
 ### Audit-log free-text search (2026-09-12)
 Added a `Search` param to `GetAuditLogsQuery` + `GET /audit-logs?search=` (audit.view). Accent- + case-insensitive
 (`DbFns.Unaccent(col.ToLower()).Contains(DbFns.Unaccent(s))`, same pattern as member/demande search) over user

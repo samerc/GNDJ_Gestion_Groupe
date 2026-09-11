@@ -428,7 +428,9 @@ for (int r = 2; r <= wsMembers.LastRowUsed()!.RowNumber(); r++)
             fatherDeceased, (object)DBNull.Value, now);
 
         var linkId = NewId();
-        var relType = "Pere";
+        // Accented spelling to match the app's RELATIONSHIP_OPTIONS + demande conversion (so the edit form's
+        // relationship picker pre-fills and migrated vs demande-created guardians stay consistent).
+        var relType = "Père";
         await Exec(conn, @"INSERT INTO guardian_links (id, member_id, guardian_id, relationship_type, is_primary_contact, is_emergency_contact, created_at, updated_at, is_deleted)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $7, false)",
             linkId, memberId, gid, relType, true, false, now);
@@ -453,7 +455,7 @@ for (int r = 2; r <= wsMembers.LastRowUsed()!.RowNumber(); r++)
         var linkId = NewId();
         await Exec(conn, @"INSERT INTO guardian_links (id, member_id, guardian_id, relationship_type, is_primary_contact, is_emergency_contact, created_at, updated_at, is_deleted)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $7, false)",
-            linkId, memberId, gid, "Mere", false, false, now);
+            linkId, memberId, gid, "Mère", false, false, now);
         guardianCount++;
     }
 }
@@ -892,7 +894,7 @@ foreach (var bf in Directory.GetFiles(bpDir, "*.xlsx"))
                 {
                     var gid = NewId();
                     await Exec(conn, "INSERT INTO guardians (id, first_name, last_name, is_deceased, created_at, updated_at, is_deleted) VALUES ($1,$2,$3,false,$4,$4,false)", gid, pere, last, now);
-                    await Exec(conn, "INSERT INTO guardian_links (id, member_id, guardian_id, relationship_type, is_primary_contact, is_emergency_contact, created_at, updated_at, is_deleted) VALUES ($1,$2,$3,'Pere',true,false,$4,$4,false)", NewId(), memId, gid, now);
+                    await Exec(conn, "INSERT INTO guardian_links (id, member_id, guardian_id, relationship_type, is_primary_contact, is_emergency_contact, created_at, updated_at, is_deleted) VALUES ($1,$2,$3,'Père',true,false,$4,$4,false)", NewId(), memId, gid, now);
                 }
                 bpCreated++;
             }
