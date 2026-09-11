@@ -9,9 +9,9 @@ import { readFileSync } from 'fs'
 // deploy/bump.ps1); the short commit + build date are captured from git so we can always tell exactly
 // which build is live — even if a version bump was forgotten. Git may be absent when building from a
 // published package, so we fall back gracefully.
-const pkgVersion = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')).version as string
+const pkgVersion = JSON.parse(readFileSync(path.resolve(import.meta.dirname, 'package.json'), 'utf-8')).version as string
 function safeGit(cmd: string, fallback: string): string {
-  try { return execSync(cmd, { cwd: __dirname }).toString().trim() } catch { return fallback }
+  try { return execSync(cmd, { cwd: import.meta.dirname }).toString().trim() } catch { return fallback }
 }
 const gitCommit = safeGit('git rev-parse --short HEAD', 'dev')
 const buildDate = new Date().toISOString().slice(0, 10) // yyyy-MM-dd (build day, UTC)
@@ -25,7 +25,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
   build: {
@@ -50,9 +50,14 @@ export default defineConfig({
     },
   },
   server: {
+    // Pin the dev server + API proxy to IPv4 (127.0.0.1) rather than "localhost". On newer Node the DNS
+    // result order is "verbatim", so "localhost" can resolve to IPv6 ::1 — but the backend listens on IPv4
+    // 127.0.0.1:5000 only, so a "localhost" proxy target silently hangs every /api call (endless dashboard
+    // spinner). Binding the host to 127.0.0.1 keeps the browser on IPv4 too. Open http://127.0.0.1:5173.
+    host: '127.0.0.1',
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://127.0.0.1:5000',
         changeOrigin: true,
       },
     },
