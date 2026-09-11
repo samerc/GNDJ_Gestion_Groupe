@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { Users, Check, X, Search, Sparkles, ChevronRight, ChevronDown, Phone, Mail, MapPin, UserRound, ArrowRight, GitMerge, Copy } from 'lucide-react'
+import { Users, Check, X, Search, Sparkles, ChevronRight, Phone, Mail, MapPin, UserRound, ArrowRight, GitMerge, Copy } from 'lucide-react'
 import {
   useSiblingSuggestions, useSiblingGroups, useReconcileData,
   useApproveSiblingGroup, useRejectSiblingSuggestion, useUnlinkSibling,
@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -67,6 +68,7 @@ function SuggestionsTab() {
   const { data: suggestions, isLoading } = useSiblingSuggestions()
   const reject = useRejectSiblingSuggestion()
   const [rejecting, setRejecting] = useState<SiblingSuggestion | null>(null)
+  const [reviewing, setReviewing] = useState<SiblingSuggestion | null>(null)
 
   const doReject = async () => {
     if (!rejecting) return
@@ -83,10 +85,13 @@ function SuggestionsTab() {
 
   return (
     <>
-      <p className="mb-3 text-sm text-muted-foreground">{suggestions.length} famille(s) probable(s) à examiner. Dépliez une famille pour voir les informations communes (parents, adresse, contacts) et la confirmer.</p>
+      <p className="mb-3 text-sm text-muted-foreground">{suggestions.length} famille(s) probable(s) à examiner. Cliquez sur une famille pour ouvrir ses informations communes (parents, adresse, contacts) sur le côté et la confirmer.</p>
       <div className="space-y-3">
-        {suggestions.map((s, i) => <SuggestionCard key={i} suggestion={s} onReject={() => setRejecting(s)} />)}
+        {suggestions.map((s, i) => <SuggestionRow key={i} suggestion={s} onReview={() => setReviewing(s)} onReject={() => setRejecting(s)} />)}
       </div>
+
+      {/* Details open in a right-side drawer (keeps the list compact). Keyed so it remounts per family. */}
+      {reviewing && <ReconcileSheet key={reviewing.members[0]?.memberId ?? ''} suggestion={reviewing} onClose={() => setReviewing(null)} />}
 
       <ConfirmDialog
         open={!!rejecting}
@@ -103,15 +108,70 @@ function SuggestionsTab() {
 
 const NONE = '__none__'
 
-// A collapsible family card. Collapsed: confidence + children + a one-line "why". Expanding LAZY-loads the shared
-// "common information" (parents + address with their contacts) and turns the card into the full reconcile UI —
-// pick the canonical père/mère/adresse + which children to include, then Confirmer inline (no dialog). On confirm
-// the suggestions query is invalidated, so the card simply disappears from the list.
-function SuggestionCard({ suggestion, onReject }: { suggestion: SiblingSuggestion; onReject: () => void }) {
+// Compact suggestion row — click anywhere to open the family's shared "common information" in a side sheet.
+// Rejeter stays reachable without opening (stopPropagation so it doesn't also open the sheet).
+function SuggestionRow({ suggestion, onReview, onReject }: { suggestion: SiblingSuggestion; onReview: () => void; onReject: () => void }) {
+  // The raw evidence repeats one entry per matching pair ("Même email parent" ×3, etc.) → dedupe to distinct types.
+  const distinctEvidence = Array.from(new Map(suggestion.evidence.map((e) => [e.split(' : ')[0], e])).values())
+  return (
+    <Card className="cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/20" onClick={onReview}>
+      <CardContent className="flex items-start gap-3 p-4">
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <Badge variant={suggestion.confidence === 'Élevée' ? 'default' : 'secondary'}
+              className={suggestion.confidence === 'Élevée' ? 'bg-emerald-600' : 'bg-amber-500 text-white'}>
+              Confiance {suggestion.confidence.toLowerCase()}
+            </Badge>
+            <span className="text-xs text-muted-foreground">{suggestion.members.length} enfants probables</span>
+            {/* One-line "why": DISTINCT shared signals (deduped), rendered as a light inline list (not pills). */}
+            {distinctEvidence.length > 0 && (
+              <>
+                <span className="hidden h-3.5 w-px bg-border sm:block" aria-hidden />
+                <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-muted-foreground">
+                  {distinctEvidence.map((e, j) => {
+                    const Icon = evidenceIcon(e)
+                    return (
+                      <span key={j} className="inline-flex items-center gap-1">
+                        <Icon className="h-3 w-3 text-primary/60" />{e.split(' : ')[0]}
+                      </span>
+                    )
+                  })}
+                </span>
+              </>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {suggestion.members.map((m) => {
+              const age = computeAge(m.dateOfBirth)
+              return (
+                <span key={m.memberId} className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 py-1 pl-1 pr-2.5 text-sm">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
+                    {(m.firstName[0] ?? '').toUpperCase()}
+                  </span>
+                  <span className="font-medium">{m.firstName} {m.lastName}</span>
+                  <span className="text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}{age != null ? ` · ${age} ans` : ''}</span>
+                  {m.siblingGroupId && <span className="text-xs text-emerald-600">(déjà en fratrie)</span>}
+                </span>
+              )
+            })}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onReject() }}><X className="mr-1 h-4 w-4" />Rejeter</Button>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Side sheet (right drawer) with the family's shared "common information" + the reconcile pickers. Loads the
+// detail on open, defaults the canonical père/mère/adresse to the record covering the most siblings, and confirms
+// inline. On confirm the suggestions query is invalidated (row disappears) and the sheet closes.
+function ReconcileSheet({ suggestion, onClose }: { suggestion: SiblingSuggestion; onClose: () => void }) {
   const memberIds = suggestion.members.map((m) => m.memberId)
   const reconcile = useReconcileData()
   const approve = useApproveSiblingGroup()
-  const [open, setOpen] = useState(false)
   const [data, setData] = useState<SiblingReconcileData | null>(null)
   const [loadFailed, setLoadFailed] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set(memberIds))
@@ -119,7 +179,7 @@ function SuggestionCard({ suggestion, onReject }: { suggestion: SiblingSuggestio
   const [mother, setMother] = useState<string>(NONE)
   const [address, setAddress] = useState<string>(NONE)
 
-  // Load the family detail on first expand; default the canonical choices to the record covering the most siblings.
+  // Load the family detail when the sheet opens; default the canonical choices to the record covering the most siblings.
   const load = async () => {
     if (data || reconcile.isPending) return
     setLoadFailed(false)
@@ -131,12 +191,6 @@ function SuggestionCard({ suggestion, onReject }: { suggestion: SiblingSuggestio
       const primary = d.addresses.find((a) => a.isPrimary) ?? d.addresses[0]
       setAddress(primary ? primary.addressId : NONE)
     } catch (e) { toast.error(parseApiError(e)); setLoadFailed(true) }
-  }
-
-  const toggleOpen = () => {
-    const next = !open
-    setOpen(next)
-    if (next) void load()
   }
 
   const toggleMember = (id: string) => setSelected((prev) => {
@@ -155,6 +209,7 @@ function SuggestionCard({ suggestion, onReject }: { suggestion: SiblingSuggestio
         addressId: address === NONE ? null : address,
       })
       toast.success('Fratrie confirmée et informations harmonisées')
+      onClose()
     } catch (e) { toast.error(parseApiError(e)) }
   }
 
@@ -166,147 +221,97 @@ function SuggestionCard({ suggestion, onReject }: { suggestion: SiblingSuggestio
   const chosenMother = data && mother !== NONE ? guardianName(data.mothers, mother) : null
   const chosenAddrRec = data && address !== NONE ? data.addresses.find((a) => a.addressId === address) : null
   const chosenAddr = chosenAddrRec ? addrLabel(chosenAddrRec) : null
-  const Chevron = open ? ChevronDown : ChevronRight
-  // Collapsed "why" — the raw evidence repeats one entry per matching pair ("Même email parent" ×3, etc.), so
-  // dedupe to the DISTINCT signal types (keeping the first of each) to keep the header uncluttered.
-  const distinctEvidence = Array.from(new Map(suggestion.evidence.map((e) => [e.split(' : ')[0], e])).values())
 
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-0">
-        {/* Collapsed header — click anywhere to expand. Rejeter stays reachable without expanding. */}
-        <div className="flex items-start gap-2 p-4">
-          <button type="button" onClick={toggleOpen} className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground" aria-label={open ? 'Réduire' : 'Développer'}>
-            <Chevron className="h-4 w-4" />
-          </button>
-          <button type="button" onClick={toggleOpen} className="min-w-0 flex-1 text-left">
-            <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-              <Badge variant={suggestion.confidence === 'Élevée' ? 'default' : 'secondary'}
-                className={suggestion.confidence === 'Élevée' ? 'bg-emerald-600' : 'bg-amber-500 text-white'}>
-                Confiance {suggestion.confidence.toLowerCase()}
-              </Badge>
-              <span className="text-xs text-muted-foreground">{suggestion.members.length} enfants probables</span>
-              {/* One-line "why": DISTINCT shared signals (deduped), rendered as a light inline list (not pills). */}
-              {distinctEvidence.length > 0 && (
-                <>
-                  <span className="hidden h-3.5 w-px bg-border sm:block" aria-hidden />
-                  <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-muted-foreground">
-                    {distinctEvidence.map((e, j) => {
-                      const Icon = evidenceIcon(e)
-                      return (
-                        <span key={j} className="inline-flex items-center gap-1">
-                          <Icon className="h-3 w-3 text-primary/60" />{e.split(' : ')[0]}
-                        </span>
-                      )
-                    })}
-                  </span>
-                </>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {suggestion.members.map((m) => {
-                const age = computeAge(m.dateOfBirth)
-                return (
-                  <span key={m.memberId} className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 py-1 pl-1 pr-2.5 text-sm">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
-                      {(m.firstName[0] ?? '').toUpperCase()}
-                    </span>
-                    <span className="font-medium">{m.firstName} {m.lastName}</span>
-                    <span className="text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}{age != null ? ` · ${age} ans` : ''}</span>
-                    {m.siblingGroupId && <span className="text-xs text-emerald-600">(déjà en fratrie)</span>}
-                  </span>
-                )
-              })}
-            </div>
-          </button>
-          <Button size="sm" variant="ghost" onClick={onReject} className="shrink-0"><X className="mr-1 h-4 w-4" />Rejeter</Button>
-        </div>
-
-        {/* Expanded — the shared common information + inline reconcile pickers + Confirmer. */}
-        {open && (
-          <div className="border-t bg-muted/10 p-4">
-            {!data ? (
-              loadFailed ? (
-                <p className="text-sm text-destructive">
-                  Impossible de charger les informations de la famille.{' '}
-                  <button type="button" className="underline" onClick={() => void load()}>Réessayer</button>
-                </p>
-              ) : <LoadingSpinner />
-            ) : (
-              <div className="space-y-5">
-                {/* Result preview — the unified family after confirmation */}
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">Après confirmation</p>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                    <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4 text-primary" /><span className="font-semibold">{selected.size}</span> enfants regroupés</span>
-                    {chosenFather && <span className="inline-flex items-center gap-1.5"><UserRound className="h-4 w-4 text-muted-foreground" />Père : <span className="font-medium">{chosenFather}</span></span>}
-                    {chosenMother && <span className="inline-flex items-center gap-1.5"><UserRound className="h-4 w-4 text-muted-foreground" />Mère : <span className="font-medium">{chosenMother}</span></span>}
-                    {chosenAddr && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4 text-muted-foreground" /><span className="font-medium">{chosenAddr}</span></span>}
-                  </div>
+    <Sheet open onOpenChange={(o) => { if (!o) onClose() }}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl" onOpenAutoFocus={() => void load()}>
+        <SheetHeader className="shrink-0 border-b p-5 text-left">
+          <SheetTitle>Confirmer la fratrie</SheetTitle>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto p-5">
+          {!data ? (
+            loadFailed ? (
+              <p className="text-sm text-destructive">
+                Impossible de charger les informations de la famille.{' '}
+                <button type="button" className="underline" onClick={() => void load()}>Réessayer</button>
+              </p>
+            ) : <div className="py-10"><LoadingSpinner /></div>
+          ) : (
+            <div className="space-y-5">
+              {/* Result preview — the unified family after confirmation */}
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">Après confirmation</p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                  <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4 text-primary" /><span className="font-semibold">{selected.size}</span> enfants regroupés</span>
+                  {chosenFather && <span className="inline-flex items-center gap-1.5"><UserRound className="h-4 w-4 text-muted-foreground" />Père : <span className="font-medium">{chosenFather}</span></span>}
+                  {chosenMother && <span className="inline-flex items-center gap-1.5"><UserRound className="h-4 w-4 text-muted-foreground" />Mère : <span className="font-medium">{chosenMother}</span></span>}
+                  {chosenAddr && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4 text-muted-foreground" /><span className="font-medium">{chosenAddr}</span></span>}
                 </div>
+              </div>
 
-                {/* Children */}
+              {/* Children */}
+              <section>
+                <p className="mb-2 text-sm font-semibold">Enfants de la fratrie <span className="font-normal text-muted-foreground">— décochez ceux à exclure</span></p>
+                <div className="grid gap-1.5 sm:grid-cols-2">
+                  {data.members.map((m) => {
+                    const on = selected.has(m.memberId)
+                    return (
+                      <label key={m.memberId} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${on ? 'border-primary/40 bg-primary/5' : 'opacity-60'}`}>
+                        <input type="checkbox" checked={on} onChange={() => toggleMember(m.memberId)} className="h-4 w-4" />
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">{(m.firstName[0] ?? '').toUpperCase()}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium">{m.firstName} {m.lastName}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}</span>
+                        </span>
+                        {m.siblingGroupId && <span className="shrink-0 text-xs text-emerald-600">en fratrie</span>}
+                      </label>
+                    )
+                  })}
+                </div>
+              </section>
+
+              <ParentSection role="Père" options={data.fathers} value={father} onChange={setFather} />
+              <ParentSection role="Mère" options={data.mothers} value={mother} onChange={setMother} />
+
+              {/* Address */}
+              {data.addresses.length > 0 && (
                 <section>
-                  <p className="mb-2 text-sm font-semibold">Enfants de la fratrie <span className="font-normal text-muted-foreground">— décochez ceux à exclure</span></p>
-                  <div className="grid gap-1.5 sm:grid-cols-2">
-                    {data.members.map((m) => {
-                      const on = selected.has(m.memberId)
+                  <p className="mb-2 text-sm font-semibold">Adresse commune</p>
+                  <div className="space-y-1.5">
+                    {data.addresses.map((a) => {
+                      const on = address === a.addressId
                       return (
-                        <label key={m.memberId} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${on ? 'border-primary/40 bg-primary/5' : 'opacity-60'}`}>
-                          <input type="checkbox" checked={on} onChange={() => toggleMember(m.memberId)} className="h-4 w-4" />
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">{(m.firstName[0] ?? '').toUpperCase()}</span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate font-medium">{m.firstName} {m.lastName}</span>
-                            <span className="block truncate text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}</span>
-                          </span>
-                          {m.siblingGroupId && <span className="shrink-0 text-xs text-emerald-600">en fratrie</span>}
+                        <label key={a.addressId} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${on ? 'border-primary/50 bg-primary/5' : ''}`}>
+                          <input type="radio" checked={on} onChange={() => setAddress(a.addressId)} className="h-4 w-4" />
+                          <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="min-w-0 flex-1 truncate">{addrLabel(a) || a.country}<span className="text-xs text-muted-foreground"> — {nameOf(a.memberId)}</span></span>
                         </label>
                       )
                     })}
+                    <label className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${address === NONE ? 'border-primary/50 bg-primary/5' : ''}`}>
+                      <input type="radio" checked={address === NONE} onChange={() => setAddress(NONE)} className="h-4 w-4" />
+                      <span className="text-muted-foreground">Ne pas modifier les adresses</span>
+                    </label>
                   </div>
                 </section>
+              )}
 
-                <ParentSection role="Père" options={data.fathers} value={father} onChange={setFather} />
-                <ParentSection role="Mère" options={data.mothers} value={mother} onChange={setMother} />
-
-                {/* Address */}
-                {data.addresses.length > 0 && (
-                  <section>
-                    <p className="mb-2 text-sm font-semibold">Adresse commune</p>
-                    <div className="space-y-1.5">
-                      {data.addresses.map((a) => {
-                        const on = address === a.addressId
-                        return (
-                          <label key={a.addressId} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${on ? 'border-primary/50 bg-primary/5' : ''}`}>
-                            <input type="radio" checked={on} onChange={() => setAddress(a.addressId)} className="h-4 w-4" />
-                            <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            <span className="min-w-0 flex-1 truncate">{addrLabel(a) || a.country}<span className="text-xs text-muted-foreground"> — {nameOf(a.memberId)}</span></span>
-                          </label>
-                        )
-                      })}
-                      <label className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${address === NONE ? 'border-primary/50 bg-primary/5' : ''}`}>
-                        <input type="radio" checked={address === NONE} onChange={() => setAddress(NONE)} className="h-4 w-4" />
-                        <span className="text-muted-foreground">Ne pas modifier les adresses</span>
-                      </label>
-                    </div>
-                  </section>
-                )}
-
-                <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                  Les parents et l'adresse choisis seront partagés par tous les enfants sélectionnés; les fiches de parents en double sont fusionnées (contacts regroupés) et les doublons supprimés.
-                </p>
-
-                <div className="flex justify-end">
-                  <Button onClick={submit} disabled={approve.isPending || selected.size < 2}>
-                    <Check className="mr-1 h-4 w-4" />{approve.isPending ? 'Confirmation…' : 'Confirmer la fratrie'}
-                  </Button>
-                </div>
-              </div>
-            )}
+              <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                Les parents et l'adresse choisis seront partagés par tous les enfants sélectionnés; les fiches de parents en double sont fusionnées (contacts regroupés) et les doublons supprimés.
+              </p>
+            </div>
+          )}
+        </div>
+        {data && (
+          <div className="flex shrink-0 justify-end gap-2 border-t p-4">
+            <Button variant="outline" onClick={onClose}>Annuler</Button>
+            <Button onClick={submit} disabled={approve.isPending || selected.size < 2}>
+              <Check className="mr-1 h-4 w-4" />{approve.isPending ? 'Confirmation…' : 'Confirmer la fratrie'}
+            </Button>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </SheetContent>
+    </Sheet>
   )
 }
 

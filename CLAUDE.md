@@ -4495,17 +4495,21 @@ if the user holds its permission (a CG sees **Listes** [maitrise.manage]; super-
   `canDownloadTemplate = !doc || doc.status === 'Rejected' || doc.isExpired`. Hidden once a doc is **pending or
   approved** (no point downloading a blank form for a doc already sent/accepted). Frontend, DEV until deploy.
 
-### Fratries page — inline reconcile (collapsible cards) (2026-09-11)
-Redesigned the Suggestions tab of `/admin/siblings` (`siblings.tsx`) per user Option B: each probable family is a
-**collapsible card** instead of a card + a separate "Confirmer la fratrie" DIALOG. Collapsed shows confidence +
-children chips + a one-line "why" (compact evidence chips). Expanding **lazy-loads** the shared "common information"
-(`useReconcileData` per family) and turns the card INTO the full reconcile UI inline — the "Après confirmation"
-summary, père/mère comparison pickers (`ParentSection`, with contacts + Principale/Sera-fusionné), children
-checkboxes, address radios, and a **Confirmer la fratrie** button. On confirm, `useApproveSiblingGroup` invalidates
-`['siblings']` so the card just disappears. **The `ReconcileDialog` was removed entirely** (its logic folded into
-the new `SuggestionCard`); the reconcile query only runs when a card is expanded, so a long list stays fast. Rejeter
-stays reachable on the collapsed card. Confirmées / Doublons tabs untouched. Frontend, DEV until deploy.
-See [[project-link-siblings]].
+### Fratries page — side-drawer reconcile (2026-09-11)
+Redesigned the Suggestions tab of `/admin/siblings` (`siblings.tsx`). Iterated through the user's feedback to the
+final shape: **compact list rows + a right-side Sheet** for the details.
+- **`SuggestionRow`** = one compact clickable card per family: confidence + children chips + a one-line "why".
+  The evidence is **deduped to distinct signal types** (the raw list repeats one entry per matching pair, so it
+  showed "Même email parent" ×3 etc. — now each shows once) and rendered as a light inline list, not pill chips.
+  Rejeter sits on the row (stopPropagation so it doesn't open the drawer).
+- **`ReconcileSheet`** = clicking a row opens a `Sheet` (side="right", `sm:max-w-2xl`, sticky header + footer,
+  scrollable body) that **lazy-loads** the shared common info (`useReconcileData` on `onOpenAutoFocus`) and shows
+  the full reconcile UI: "Après confirmation" summary, père/mère comparison pickers (`ParentSection`, contacts +
+  Principale/Sera-fusionné), children checkboxes, address radios, and **Confirmer la fratrie** in the footer. On
+  confirm, `useApproveSiblingGroup` invalidates `['siblings']` (row disappears) and the sheet closes.
+- The earlier center **dialog** AND the intermediate **inline-collapsible** version were both replaced by this
+  drawer. Reconcile data only loads when a row is opened, so a long list stays fast. Confirmées / Doublons tabs
+  untouched. Frontend, DEV until deploy. See [[project-link-siblings]].
 
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
