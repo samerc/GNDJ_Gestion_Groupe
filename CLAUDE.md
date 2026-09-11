@@ -4531,6 +4531,18 @@ final shape: **compact list rows + a right-side Sheet** for the details.
   drawer. Reconcile data only loads when a row is opened, so a long list stays fast. Confirmées / Doublons tabs
   untouched. Frontend, DEV until deploy. See [[project-link-siblings]].
 
+### Audit-log free-text search (2026-09-12)
+Added a `Search` param to `GetAuditLogsQuery` + `GET /audit-logs?search=` (audit.view). Accent- + case-insensitive
+(`DbFns.Unaccent(col.ToLower()).Contains(DbFns.Unaccent(s))`, same pattern as member/demande search) over user
+email, IP, action, entity type, AND the **before/after JSON snapshots** (which hold the resolved names — see the
+audit-names work), so a member/unit name finds every action touching it. GOTCHA: `OldValues`/`NewValues` are
+**jsonb** columns → `lower(jsonb)` doesn't exist (500). Fixed by a new `DbFns.JsonbToText` mapped to Postgres's
+built-in **`jsonb_pretty`** (`.HasName("jsonb_pretty")` in GndjDbContext) so the snapshot is rendered to text
+before lower/unaccent. Unindexed scan across the JSON — fine for low-frequency admin use. Frontend
+(`audit-logs.tsx`): a debounced (`useDebounce`) search box above the filters (X to clear; folded into "Effacer"),
+page resets to 1 on change. Verified live: `login`→663, IP `127`→7, snapshot `meute`→6, `2eme`==`2ème`==3
+(accent-insensitive), nonsense→0. Build clean (dotnet 0/0, tsc + eslint + vite). Backend + frontend, DEV until deploy.
+
 ### In-app notifications (bell) + demande "Remettre à étudier" (2026-09-12)
 Two items. All on main, DEV until deploy; verified live end-to-end.
 - **Demande reset (urgent fix):** a CG could accept/refuse a demande by mistake but the review UI only offered

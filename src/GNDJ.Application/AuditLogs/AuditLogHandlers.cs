@@ -18,10 +18,13 @@ public record AuditLogDto(
     string? UserAgent
 );
 
-// Paginated audit-log query with entity-type / action / user / date-range filters (newest first).
+// Paginated audit-log query with entity-type / action / user / date-range filters + a free-text search
+// (newest first). Search matches the user email, IP, action, entity type, AND the JSON before/after snapshots
+// (which hold the resolved names) — so "Meute 2" or a member's name finds every action touching them.
 public record GetAuditLogsQuery(
     string? EntityType, string? Action, Guid? UserId,
     DateTime? From, DateTime? To,
+    string? Search = null,
     int Page = 1, int PageSize = 50
 ) : IRequest<PaginatedList<AuditLogDto>>;
 
@@ -48,6 +51,21 @@ public class GetAuditLogsQueryHandler(IApplicationDbContext context) : IRequestH
         {
             var toUtc = request.To.Value.AsUtc();
             query = query.Where(a => a.Timestamp <= toUtc);
+        }
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            // Accent- + case-insensitive (same pattern as the member/demande search): unaccent the column AND the
+            // term via DbFns.Unaccent (→ f_unaccent, kept INSIDE the expression so it's SQL, not run in C#) + lower
+            // + Contains. So "rhea" matches "Rhéa". The JSON snapshots hold the resolved names (see AuditNames),
+            // making them searchable. Unindexed scan across the JSON — fine for low-frequency admin use.
+            var s = request.Search.Trim().ToLower();
+            query = query.Where(a =>
+                (a.User != null && DbFns.Unaccent(a.User.Email.ToLower()).Contains(DbFns.Unaccent(s))) ||
+                (a.IpAddress != null && a.IpAddress.ToLower().Contains(s)) ||
+                DbFns.Unaccent(a.Action.ToLower()).Contains(DbFns.Unaccent(s)) ||
+                DbFns.Unaccent(a.EntityType.ToLower()).Contains(DbFns.Unaccent(s)) ||
+                (a.OldValues != null && DbFns.Unaccent(DbFns.JsonbToText(a.OldValues).ToLower()).Contains(DbFns.Unaccent(s))) ||
+                (a.NewValues != null && DbFns.Unaccent(DbFns.JsonbToText(a.NewValues).ToLower()).Contains(DbFns.Unaccent(s))));
         }
 
         var projected = query

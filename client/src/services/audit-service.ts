@@ -25,7 +25,7 @@ export interface AuditFilterOptionsDto {
 // GET /audit-logs — paginated, filterable by entity/action/user/date. Keyed ['audit-logs', params].
 export function useAuditLogs(params: {
   entityType?: string; action?: string; userId?: string
-  from?: string; to?: string; page?: number; pageSize?: number
+  from?: string; to?: string; search?: string; page?: number; pageSize?: number
 }) {
   return useQuery({
     queryKey: ['audit-logs', params],

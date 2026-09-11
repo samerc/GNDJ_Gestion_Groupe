@@ -15,7 +15,8 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { ScrollText, Eye, Trash2 } from 'lucide-react'
+import { ScrollText, Eye, Trash2, Search, X } from 'lucide-react'
+import { useDebounce } from '@/hooks/use-debounce'
 import { Tip } from '@/components/ui/tooltip'
 
 // Colour buckets reused across the many domain actions below.
@@ -258,6 +259,8 @@ export default function AuditLogsPage() {
   const [action, setAction] = useState<string>('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search)
   const [detail, setDetail] = useState<AuditLogDto | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
 
@@ -276,6 +279,7 @@ export default function AuditLogsPage() {
     action: action || undefined,
     from: from || undefined,
     to: to || undefined,
+    search: debouncedSearch.trim() || undefined,
     page,
     pageSize: 30,
   })
@@ -285,6 +289,7 @@ export default function AuditLogsPage() {
     setAction('')
     setFrom('')
     setTo('')
+    setSearch('')
     setPage(1)
   }
 
@@ -298,6 +303,23 @@ export default function AuditLogsPage() {
             onClick={() => setConfirmClear(true)}>
             <Trash2 className="mr-1.5 h-4 w-4" /> Vider le journal
           </Button>
+        )}
+      </div>
+
+      {/* Free-text search — matches user, IP, action, entity and the before/after snapshots (accent-insensitive),
+          so a member/unit name finds every action touching it. */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="pl-9 pr-9"
+          placeholder="Rechercher (nom, unité, email, IP…)"
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+        />
+        {search && (
+          <button type="button" onClick={() => { setSearch(''); setPage(1) }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Effacer la recherche">
+            <X className="h-4 w-4" />
+          </button>
         )}
       </div>
 
@@ -332,7 +354,7 @@ export default function AuditLogsPage() {
           <label className="text-sm text-muted-foreground">Au</label>
           <Input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1) }} />
         </div>
-        {(entityType || action || from || to) && (
+        {(entityType || action || from || to || search) && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>Effacer</Button>
         )}
       </div>

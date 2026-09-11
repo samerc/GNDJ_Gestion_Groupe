@@ -87,6 +87,10 @@ public class GndjDbContext : DbContext, IApplicationDbContext
         // f_unaccent(lower(first_name)) / (last_name), so member search uses the index instead of a seq scan.
         modelBuilder.HasDbFunction(typeof(GNDJ.Application.Common.DbFns).GetMethod(nameof(GNDJ.Application.Common.DbFns.Unaccent))!)
             .HasName("f_unaccent");
+        // jsonb → text renderer (built-in jsonb_pretty), so a jsonb snapshot (audit old/new values) can be
+        // substring-searched after lower()/f_unaccent() — plain lower(jsonb) is not a valid Postgres function.
+        modelBuilder.HasDbFunction(typeof(GNDJ.Application.Common.DbFns).GetMethod(nameof(GNDJ.Application.Common.DbFns.JsonbToText))!)
+            .HasName("jsonb_pretty");
 
         // Global soft-delete query filters for all BaseEntity types
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())

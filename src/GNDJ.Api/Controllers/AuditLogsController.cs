@@ -20,16 +20,17 @@ public class AuditLogsController : BaseApiController
     /// <param name="userId">Filter to entries produced by this user.</param>
     /// <param name="from">Lower bound (inclusive) on the entry timestamp.</param>
     /// <param name="to">Upper bound (inclusive) on the entry timestamp.</param>
+    /// <param name="search">Free-text search (accent/case-insensitive) over the user email, IP, action, entity type and the before/after JSON snapshots.</param>
     /// <param name="page">1-based page number.</param>
     /// <param name="pageSize">Page size.</param>
     [HttpGet]
     [HasPermission(Permissions.AuditView)]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? entityType, [FromQuery] string? action, [FromQuery] Guid? userId,
-        [FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? search,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        var result = await Mediator.Send(new GetAuditLogsQuery(entityType, action, userId, from, to, page, pageSize));
+        var result = await Mediator.Send(new GetAuditLogsQuery(entityType, action, userId, from, to, search, page, pageSize));
         return Ok(result);
     }
 
