@@ -31,11 +31,13 @@ export function Header() {
       <Button variant="ghost" size="icon" className="shrink-0 text-white/80 hover:bg-white/10 hover:text-white lg:hidden" onClick={() => setMobileOpen(true)}>
         <Menu className="h-5 w-5" />
       </Button>
-      <span className="text-lg font-bold tracking-tight text-white lg:hidden">GNDJ Scout</span>
+      {/* Mobile: the wordmark is the home link (→ role-aware /dashboard = "Accueil"). */}
+      <Link to="/dashboard" title="Accueil" className="text-lg font-bold tracking-tight text-white lg:hidden">GNDJ Scout</Link>
 
-      {/* Desktop managers: brand + horizontal nav (no left sidebar for them) */}
+      {/* Desktop managers: brand + horizontal nav (no left sidebar for them). The brand is the "Accueil" home
+          link — clicking the logo opens the group dashboard, so it needs no dedicated menu button. */}
       {isManager && (
-        <Link to="/dashboard" className="hidden shrink-0 items-center gap-2 lg:flex">
+        <Link to="/dashboard" title="Accueil" className="hidden shrink-0 items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-white/10 lg:flex">
           <BrandMark className="h-8 w-8" />
           <span className="text-[15px] font-bold tracking-tight text-white">GNDJ Scout</span>
         </Link>

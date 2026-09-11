@@ -51,7 +51,7 @@ import {
   MonitorSmartphone,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { usePendingDemandeCount } from '@/services/demande-admin-service'
 import { usePendingChangeRequestsCount } from '@/services/change-request-service'
 import { useCamps } from '@/services/camp-service'
@@ -82,11 +82,11 @@ const personalNavItems = [
 
 // Ungrouped, pinned at the very top for managers — the handful of pages opened daily. Everything else lives
 // in a collapsible group below (accordion), so the sidebar opens as a short list instead of a ~39-link wall.
+// NOTE: the group overview (/dashboard) is NOT pinned here — it's the "Accueil" home page, reached by clicking
+// the GNDJ brand (header + sidebar logo both link to /dashboard), so it needs no dedicated menu button.
 const adminNavItems = [
-  // The group overview is now labelled "Statistiques" (it's the year-aware stats/charts page). The Rentrée
-  // checklist — the app's guided startup workflow that launches every other tool — is PROMOTED to a pinned
-  // top item (previously buried in the "Suivi" group) so a manager lands next to their actual to-do list.
-  { path: '/dashboard', label: 'Statistiques', icon: BarChart3, permission: null },
+  // The Rentrée checklist — the app's guided startup workflow that launches every other tool — is pinned so a
+  // manager lands next to their actual to-do list.
   { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: null },
   { path: '/members', label: 'Membres', icon: Users, permission: PERMISSIONS.MEMBERS_VIEW },
   // Camp BP is placed dynamically in NavContent: in the Configuration group when no camp is active (where the
@@ -108,9 +108,12 @@ const leaderNavItems = [
   { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: PERMISSIONS.MEMBERS_EDIT },
 ]
 
+// A nav link. `section` groups links INSIDE a dropdown/accordion under a small sub-header (used by the merged
+// "Configuration" drawer to separate Structure / Système / Paramètres); links without a section render flat.
+type NavLink = { path: string; label: string; icon: React.ComponentType<{ className?: string }>; permission: string | null; section?: string }
 type AdminGroup = {
   label: string
-  items: { path: string; label: string; icon: React.ComponentType<{ className?: string }>; permission: string | null }[]
+  items: NavLink[]
 }
 
 // Task-focused groups (was a single 14-item "Gestion" junk drawer). Each renders as a collapsible accordion
@@ -156,22 +159,6 @@ const adminGroups: AdminGroup[] = [
     ],
   },
   {
-    label: 'Configuration',
-    items: [
-      // Associations are set-and-forget (they never change) → not in the nav; reachable from the Paramètres page.
-      { path: '/admin/unit-types', label: "Types d'unité", icon: FolderTree, permission: PERMISSIONS.UNIT_TYPES_MANAGE },
-      // "Modèle de rentrée" removed from the nav — it's reached via the "Modèle de rentrée" button ON the /rentree
-      // page (the yearly checklist), so the template editor sits next to the list it generates.
-      { path: '/admin/roles', label: 'Fonctions', icon: Shield, permission: PERMISSIONS.ROLES_MANAGE },
-      { path: '/admin/progression-path', label: 'Parcours scouts', icon: Route, permission: PERMISSIONS.UNIT_TYPES_MANAGE },
-      { path: '/admin/progression', label: 'Progression scoute', icon: Star, permission: PERMISSIONS.PROGRESSION_MANAGE },
-      { path: '/admin/document-types', label: 'Types de documents', icon: FileText, permission: PERMISSIONS.DOCUMENT_TYPES_VIEW },
-      { path: '/admin/lists', label: 'Listes (écoles, classes, villes…)', icon: List, permission: PERMISSIONS.MAITRISE_MANAGE },
-      // Champs personnalisés + Carte membre are set-and-forget → moved to the Paramètres page (see settings.tsx).
-      { path: '/admin/report-templates', label: 'Modèles de rapports', icon: FileText, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-    ],
-  },
-  {
     label: 'Site public',
     items: [
       { path: '/admin/news', label: 'Actualités', icon: Newspaper, permission: PERMISSIONS.CONTENT_MANAGE },
@@ -182,19 +169,33 @@ const adminGroups: AdminGroup[] = [
     ],
   },
   {
-    label: 'Système',
+    // ONE "Configuration" drawer — the old "Configuration" + "Système" groups merged (Option C hybrid). The
+    // daily groups above are untouched; everything administrative/set-and-forget now lives behind this single
+    // entry, split by `section` into sub-headers: Structure & données / Système & sécurité / Paramètres (the hub).
+    label: 'Configuration',
     items: [
-      { path: '/admin/roles-access', label: 'Profils & accès', icon: ShieldCheck, permission: PERMISSIONS.MAITRISE_MANAGE },
-      { path: '/admin/email-settings', label: 'Email / SMTP', icon: Mail, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-      { path: '/admin/email-outbox', label: 'File d\'emails', icon: Send, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-      { path: '/admin/api-keys', label: 'Clés API', icon: Key, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-      { path: '/admin/audit-logs', label: 'Journal d\'audit', icon: ScrollText, permission: PERMISSIONS.AUDIT_VIEW },
-      { path: '/admin/error-log', label: 'Journal des erreurs', icon: AlertTriangle, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-      { path: '/admin/sessions', label: 'Sessions actives', icon: MonitorSmartphone, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-      { path: '/admin/deleted-members', label: 'Corbeille', icon: Trash2, permission: PERMISSIONS.MEMBERS_DELETE },
-      { path: '/admin/appearance', label: 'Apparence', icon: Palette, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-      // Paramètres is CG-reachable (page + backend filter it to the operational categories a CG may edit).
-      { path: '/admin/settings', label: 'Paramètres', icon: Settings2, permission: PERMISSIONS.MAITRISE_MANAGE },
+      // --- Structure & données ---
+      // Associations / Champs personnalisés / Carte membre are set-and-forget → reached from the Paramètres page.
+      { path: '/admin/unit-types', label: "Types d'unité", icon: FolderTree, permission: PERMISSIONS.UNIT_TYPES_MANAGE, section: 'Structure & données' },
+      { path: '/admin/roles', label: 'Fonctions', icon: Shield, permission: PERMISSIONS.ROLES_MANAGE, section: 'Structure & données' },
+      { path: '/admin/progression-path', label: 'Parcours scouts', icon: Route, permission: PERMISSIONS.UNIT_TYPES_MANAGE, section: 'Structure & données' },
+      { path: '/admin/progression', label: 'Progression scoute', icon: Star, permission: PERMISSIONS.PROGRESSION_MANAGE, section: 'Structure & données' },
+      { path: '/admin/document-types', label: 'Types de documents', icon: FileText, permission: PERMISSIONS.DOCUMENT_TYPES_VIEW, section: 'Structure & données' },
+      { path: '/admin/lists', label: 'Listes (écoles, classes, villes…)', icon: List, permission: PERMISSIONS.MAITRISE_MANAGE, section: 'Structure & données' },
+      { path: '/admin/report-templates', label: 'Modèles de rapports', icon: FileText, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Structure & données' },
+      // (Camp BP is appended to this section dynamically in NavContent when no camp is active.)
+      // --- Système & sécurité ---
+      { path: '/admin/roles-access', label: 'Profils & accès', icon: ShieldCheck, permission: PERMISSIONS.MAITRISE_MANAGE, section: 'Système & sécurité' },
+      { path: '/admin/email-settings', label: 'Email / SMTP', icon: Mail, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
+      { path: '/admin/email-outbox', label: 'File d\'emails', icon: Send, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
+      { path: '/admin/api-keys', label: 'Clés API', icon: Key, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
+      { path: '/admin/audit-logs', label: 'Journal d\'audit', icon: ScrollText, permission: PERMISSIONS.AUDIT_VIEW, section: 'Système & sécurité' },
+      { path: '/admin/error-log', label: 'Journal des erreurs', icon: AlertTriangle, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
+      { path: '/admin/sessions', label: 'Sessions actives', icon: MonitorSmartphone, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
+      { path: '/admin/deleted-members', label: 'Corbeille', icon: Trash2, permission: PERMISSIONS.MEMBERS_DELETE, section: 'Système & sécurité' },
+      { path: '/admin/appearance', label: 'Apparence', icon: Palette, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
+      // --- Paramètres (the settings hub; CG-reachable — the page filters to the categories a CG may edit) ---
+      { path: '/admin/settings', label: 'Paramètres', icon: Settings2, permission: PERMISSIONS.MAITRISE_MANAGE, section: 'Paramètres' },
     ],
   },
 ]
@@ -248,7 +249,7 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
           // No active camp → surface Camp BP under Configuration so a manager can set one up (it moves to the
           // main menu once a camp is active, so don't show it here then, to avoid duplicating it).
           if (group.label === 'Configuration' && canManageCamp && !hasLiveCamp)
-            items.push({ path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: null })
+            items.push({ path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: null, section: 'Structure & données' })
           return { ...group, items }
         })
         .filter((group) => group.items.length > 0)
@@ -263,7 +264,7 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
       return sum
     }, 0)
 
-  const renderLink = (item: { path: string; label: string; icon: React.ComponentType<{ className?: string }>; permission: string | null }, isActive: boolean) => {
+  const renderLink = (item: NavLink, isActive: boolean) => {
     const Icon = item.icon
     return (
       <Link
@@ -324,7 +325,20 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
                 <div className="mx-auto h-px w-6 bg-white/15" />
               </div>
             )}
-            {isOpen && group.items.map((item) => renderLink(item, location.pathname === item.path))}
+            {isOpen && group.items.map((item, idx) => {
+              // Sub-header when a new `section` starts (merged Configuration drawer). Hidden in the icon-only
+              // collapsed rail. Because items are already permission-filtered, a header only shows when its
+              // section has at least one visible link.
+              const showHeading = !collapsed && !!item.section && item.section !== group.items[idx - 1]?.section
+              return (
+                <div key={item.path}>
+                  {showHeading && (
+                    <div className="mt-2 px-3 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/35">{item.section}</div>
+                  )}
+                  {renderLink(item, location.pathname === item.path)}
+                </div>
+              )
+            })}
           </div>
         )
       })}
@@ -411,13 +425,14 @@ export function MobileSidebar() {
       {/* Drawer */}
       <aside style={{ backgroundColor: theme.color }} className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col text-white lg:hidden">
         <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
-          <div className="flex items-center gap-2.5">
+          {/* Brand = the "Accueil" home link (→ role-aware /dashboard); closes the drawer on navigate. */}
+          <Link to="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
             <BrandMark className="h-9 w-9" />
             <div className="flex flex-col leading-tight">
               <span className="text-[15px] font-bold tracking-tight text-white">GNDJ Scout</span>
               <span className="text-[11px] font-medium text-white/55">Gestion de groupe</span>
             </div>
-          </div>
+          </Link>
           <Button
             variant="ghost"
             size="icon"
@@ -486,20 +501,28 @@ export function AdminNav() {
                 <ChevronDown className="h-3.5 w-3.5 opacity-60" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-60">
-              {group.items.map((item) => {
+            <DropdownMenuContent align="start" className="max-h-[80vh] w-60 overflow-y-auto">
+              {group.items.map((item, idx) => {
                 const Icon = item.icon
                 const active = isActive(item.path)
+                // Sub-header + divider when a new `section` begins (merged Configuration drawer). Items are
+                // permission-filtered upstream, so a header only appears when its section has a visible link.
+                const showHeading = !!item.section && item.section !== group.items[idx - 1]?.section
                 return (
-                  <DropdownMenuItem key={item.path} asChild className={cn(active && 'bg-primary/10 focus:bg-primary/15')}>
-                    <Link to={item.path} className={cn('flex items-center gap-2', active ? 'font-semibold text-primary' : '')}>
-                      {/* Active item gets a left accent bar + filled row so the current page stands out clearly. */}
-                      <span className={cn('h-4 w-1 shrink-0 rounded-full', active ? 'bg-primary' : 'bg-transparent')} />
-                      <Icon className={cn('h-4 w-4', active ? 'text-primary' : 'opacity-70')} />
-                      <span className="flex-1">{item.label}</span>
-                      {badge(badgeFor(item.path))}
-                    </Link>
-                  </DropdownMenuItem>
+                  // display:contents wrapper so the label/separator/item behave as direct menu children.
+                  <div key={item.path} className="contents">
+                    {showHeading && idx > 0 && <DropdownMenuSeparator />}
+                    {showHeading && <DropdownMenuLabel className="py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{item.section}</DropdownMenuLabel>}
+                    <DropdownMenuItem asChild className={cn(active && 'bg-primary/10 focus:bg-primary/15')}>
+                      <Link to={item.path} className={cn('flex items-center gap-2', active ? 'font-semibold text-primary' : '')}>
+                        {/* Active item gets a left accent bar + filled row so the current page stands out clearly. */}
+                        <span className={cn('h-4 w-1 shrink-0 rounded-full', active ? 'bg-primary' : 'bg-transparent')} />
+                        <Icon className={cn('h-4 w-4', active ? 'text-primary' : 'opacity-70')} />
+                        <span className="flex-1">{item.label}</span>
+                        {badge(badgeFor(item.path))}
+                      </Link>
+                    </DropdownMenuItem>
+                  </div>
                 )
               })}
             </DropdownMenuContent>

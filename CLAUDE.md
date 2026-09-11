@@ -4437,6 +4437,31 @@ other handler that logged an id field wasn't. Fixed the class + made the whole p
 - **Verified live:** create+delete a Team → audit stored `"Unit": "Clan Jamhour"` (name, not GUID); test rows
   cleaned up. Builds clean (dotnet 0/0 + tsc + eslint). Backend + frontend, DEV until deploy.
 
+### Settings + menu consolidation — PHASE 1: menu (Option C hybrid) (2026-09-11)
+First phase of a "too many settings/features, it's confusing" consolidation (discussed via HTML menu mockups in
+`temp/menu-mockups/` — current vs Light vs Medium vs Hybrid). User chose **Option C (hybrid)** for the menu +
+**Option 1 (Paramètres = hub)** for settings; agreed to PHASE it. This is the menu half (frontend-only, DEV until
+deploy; Phase 2 = the settings hub is NOT built yet). All in `sidebar.tsx` / `header.tsx` / `dashboard.tsx`:
+- **"Accueil" via the logo.** The manager group-dashboard (`/dashboard`) reverts from "Statistiques" → **"Accueil"**
+  (page `<h1>` + removed from the pinned nav). It's reached by clicking the **GNDJ Scout** brand (header brand +
+  desktop sidebar logo already linked to `/dashboard`; made the **mobile header wordmark** + **MobileSidebar brand**
+  Links too, + a hover state/`title="Accueil"` on the manager brand). `/dashboard` is role-aware, so the logo does
+  the right thing for every role. CU/youth keep their `/dashboard` labelled **"Mon unité"** (leaderNavItems — only
+  the manager side reverts to Accueil). Pinned manager items are now just **Rentrée scoute + Membres**.
+- **Merged "Configuration" + "Système" → ONE "Configuration" drawer** (Option C: daily groups Demandes / Suivi /
+  Unités & maîtrise / Site public untouched; nothing renamed or moved between groups, Champs/Carte stay Paramètres
+  tabs). The merged group's items carry a new optional **`section`** field (`NavLink` type) rendered as sub-headers:
+  **Structure & données** (types d'unité, fonctions, parcours, progression, types de documents, listes, modèles de
+  rapports, + Camp BP when inactive) / **Système & sécurité** (profils & accès, email/SMTP, file d'emails, clés API,
+  journaux, sessions, corbeille, apparence) / **Paramètres** (the hub link). Headers render only for sections with
+  ≥1 permission-visible item (items are filtered before the section-change check), in BOTH the AdminNav dropdown
+  (via `DropdownMenuLabel`/`DropdownMenuSeparator` in a `display:contents` wrapper; content now `max-h-[80vh]
+  overflow-y-auto` since the drawer is tall) and the mobile/CU accordion. Manager top-level groups: 6 → 5.
+- Builds clean (tsc + eslint + vite). **PHASE 2 (next): settings hub** — pull the true-settings dedicated pages
+  (Listes, Apparence, Motifs de refus, document-campaign dates, site texts) into Paramètres as tabs/sections, and a
+  "Configuration" index at the top of Paramètres linking the CRUD apps (Email/SMTP, Types de docs, Champs, Carte,
+  Associations, Modèles de rapports). Mockups + this plan kept in `temp/menu-mockups/`.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a
