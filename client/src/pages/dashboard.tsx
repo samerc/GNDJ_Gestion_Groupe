@@ -1,9 +1,9 @@
 import { useMemo, useState, lazy, Suspense } from 'react'
-import { Navigate } from 'react-router'
+import { Navigate, Link } from 'react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import type { UnitAccess } from '@/types/auth'
-import { useAdminDashboard } from '@/services/dashboard-service'
+import { useAdminDashboard, useDashboardOverview, type DashboardOverviewDto } from '@/services/dashboard-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -13,7 +13,11 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 // weight for a super-admin/CG who only sees the group overview. Split it out so it loads only when a unit leader
 // actually opens their roster.
 const UnitLeaderDashboard = lazy(() => import('@/pages/dashboard-unit-leader'))
-import { Users, UserCheck, FileX, Receipt, UserMinus, Calendar } from 'lucide-react'
+import {
+  Users, UserCheck, FileX, Receipt, UserMinus, Calendar,
+  Inbox, ClipboardCheck, ArrowRightLeft, FileClock, PauseCircle, UserPlus,
+  TrendingUp, TrendingDown, Minus, ChevronRight, CheckCircle2, ListChecks,
+} from 'lucide-react'
 
 // ─── Horizontal bar chart ──────────────────
 // One labelled bar; width is value/max as a %. When the bar is too short (≤20%) to hold its
@@ -35,6 +39,165 @@ function ChartBar({ value, max, color, label, suffix }: { value: number; max: nu
   )
 }
 
+// ─── Small progress bar (done / total) ──────────────
+function MiniProgress({ value, total, color }: { value: number; total: number; color: string }) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0
+  return (
+    <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+      <div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${total > 0 ? Math.max(pct, 2) : 0}%` }} />
+    </div>
+  )
+}
+
+// ─── "À traiter" action strip ──────────────
+// Only surfaces items that actually need the CG's attention (count > 0); each is a one-click link to its page.
+// When everything is clear, shows a reassuring "tout est à jour" note instead of empty cards.
+function ActionHub({ o }: { o: DashboardOverviewDto }) {
+  const items = [
+    { key: 'demandes', label: 'Demandes en attente', count: o.pendingDemandes, icon: Inbox, to: '/admin/demandes', tone: 'amber' },
+    { key: 'changes', label: 'Modifications à valider', count: o.pendingChangeRequests, icon: ClipboardCheck, to: '/change-requests', tone: 'amber' },
+    { key: 'passages', label: 'Passages à finaliser', count: o.passagesToFinalize, icon: ArrowRightLeft, to: '/admin/passage-validation', tone: 'amber' },
+    { key: 'docs', label: 'Documents à vérifier', count: o.pendingDocuments, icon: FileClock, to: '/admin/documents-suivi', tone: 'amber' },
+    { key: 'hold', label: 'Membres suspendus', count: o.membersOnHold, icon: PauseCircle, to: '/admin/documents-suivi', tone: 'red' },
+  ].filter((i) => i.count > 0)
+
+  if (items.length === 0) {
+    return (
+      <Card className="border-green-200 bg-green-50/50">
+        <CardContent className="flex items-center gap-3 py-4">
+          <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+          <p className="text-sm font-medium text-green-800">Tout est à jour — rien en attente de votre part.</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div>
+      <h2 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">À traiter</h2>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((i) => {
+          const Icon = i.icon
+          const red = i.tone === 'red'
+          return (
+            <Link key={i.key} to={i.to} className={`group flex items-center gap-3 rounded-xl border p-3 transition-colors ${red ? 'border-red-200 bg-red-50/60 hover:bg-red-50' : 'border-amber-200 bg-amber-50/60 hover:bg-amber-50'}`}>
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${red ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
+                <Icon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className={`text-xl font-bold leading-none ${red ? 'text-red-700' : 'text-amber-700'}`}>{i.count}</p>
+                <p className="mt-0.5 truncate text-xs font-medium text-foreground/80">{i.label}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ─── Campaign + Rentrée + Cotisations + Trend panels ──────────────
+function OverviewPanels({ o }: { o: DashboardOverviewDto }) {
+  const c = o.campaign
+  const cot = o.cotisations
+  const delta = o.membersThisYear - o.membersLastYear
+  const TrendIcon = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      {/* Campagne d'inscription */}
+      <Link to="/admin/demandes" className="lg:col-span-2 group">
+        <Card className="h-full transition-colors group-hover:border-primary/40">
+          <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-base flex items-center gap-2"><UserPlus className="h-4 w-4 text-primary" />Campagne d'inscription</CardTitle>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${c.enabled ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>{c.enabled ? 'Inscriptions ouvertes' : 'Fermées'}</span>
+          </CardHeader>
+          <CardContent>
+            {c.total === 0 ? (
+              <p className="py-4 text-sm text-muted-foreground">Aucune demande {c.enabled ? 'pour le moment' : 'cette année'}.</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-3 gap-y-3 sm:grid-cols-6">
+                  {[
+                    { label: 'Reçues', value: c.total, cls: '' },
+                    { label: 'À traiter', value: c.pending, cls: c.pending > 0 ? 'text-amber-600' : '' },
+                    { label: 'Acceptées', value: c.approved, cls: 'text-green-600' },
+                    { label: 'Refusées', value: c.declined, cls: 'text-red-600' },
+                    { label: 'Envoyées', value: c.responsesSent, cls: 'text-blue-600' },
+                    { label: "Taux d'accept.", value: `${c.acceptanceRate}%`, cls: '' },
+                  ].map((s) => (
+                    <div key={s.label}>
+                      <p className={`text-2xl font-bold leading-none ${s.cls}`}>{s.value}</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <MiniProgress value={c.decided} total={c.total} color="bg-primary" />
+                  <p className="mt-1 text-[11px] text-muted-foreground">{c.decided} / {c.total} décidées</p>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </Link>
+
+      {/* Trend vs last year */}
+      <Link to="/members" className="group">
+        <Card className="h-full transition-colors group-hover:border-primary/40">
+          <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4 text-primary" />Effectif</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold leading-none">{o.membersThisYear}</p>
+            <p className="mt-1 text-xs text-muted-foreground">membres actifs — {o.thisYear}</p>
+            <div className={`mt-3 flex items-center gap-1.5 text-sm font-medium ${delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+              <TrendIcon className="h-4 w-4" />
+              <span>{delta > 0 ? '+' : ''}{delta}</span>
+              <span className="font-normal text-muted-foreground">vs {o.lastYear} ({o.membersLastYear})</span>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+
+      {/* Rentrée */}
+      <Link to="/rentree" className="group">
+        <Card className="h-full transition-colors group-hover:border-primary/40">
+          <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4 text-primary" />Rentrée scoute</CardTitle></CardHeader>
+          <CardContent>
+            {o.rentree ? (
+              <>
+                <p className="text-2xl font-bold leading-none">{o.rentree.done}<span className="text-base font-normal text-muted-foreground"> / {o.rentree.total}</span></p>
+                <p className="mt-1 text-xs text-muted-foreground">tâches terminées</p>
+                <div className="mt-3"><MiniProgress value={o.rentree.done} total={o.rentree.total} color="bg-teal-500" /></div>
+              </>
+            ) : (
+              <p className="py-2 text-sm text-muted-foreground">Aucune liste générée pour {o.thisYear}.</p>
+            )}
+          </CardContent>
+        </Card>
+      </Link>
+
+      {/* Cotisations */}
+      <Link to="/admin/cotisations" className="lg:col-span-2 group">
+        <Card className="h-full transition-colors group-hover:border-primary/40">
+          <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Receipt className="h-4 w-4 text-primary" />Cotisations</CardTitle></CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-4">
+              <div>
+                <p className="text-2xl font-bold leading-none text-green-600">{cot.paid}<span className="text-base font-normal text-muted-foreground"> / {cot.total}</span></p>
+                <p className="mt-1 text-xs text-muted-foreground">membres à jour</p>
+              </div>
+              {cot.unpaid > 0 && <div className="text-sm text-red-600"><span className="font-bold">{cot.unpaid}</span> à relancer</div>}
+              {cot.exempt > 0 && <div className="text-sm text-muted-foreground"><span className="font-bold">{cot.exempt}</span> exemptés</div>}
+            </div>
+            <div className="mt-3"><MiniProgress value={cot.paid} total={cot.total} color="bg-green-500" /></div>
+          </CardContent>
+        </Card>
+      </Link>
+    </div>
+  )
+}
+
 // Group-wide overview shown to super-admins and Chefs de Groupe: key counts, members-by-unit
 // and age-distribution charts, all scoped to the selected scout year (every tile is year-aware).
 function AdminDashboard() {
@@ -42,6 +205,8 @@ function AdminDashboard() {
   const currentScoutYear = useCurrentScoutYear()
   const [scoutYear, setScoutYear] = useState(currentScoutYear)
   const { data, isLoading } = useAdminDashboard(scoutYear)
+  // Timely/actionable content — fetched once, independent of the year selector below.
+  const { data: overview } = useDashboardOverview()
 
   // Year options: the current scout year (labelled "en cours") + the previous 4 — built from the current year
   // so the list is never stale and the selected value is always present (before, the hardcoded list omitted the
@@ -68,11 +233,18 @@ function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Accueil</h1>
-          <p className="text-sm text-muted-foreground">Vue d'ensemble du groupe — année {scoutYear}</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Accueil</h1>
+        <p className="text-sm text-muted-foreground">Vue d'ensemble du groupe</p>
+      </div>
+
+      {/* Action hub + timely panels — "now", not year-scoped */}
+      {overview && <ActionHub o={overview} />}
+      {overview && <OverviewPanels o={overview} />}
+
+      {/* ── Year-scoped statistics ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-5">
+        <h2 className="text-lg font-semibold">Statistiques — {scoutYear}</h2>
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-muted-foreground">Année scoute</label>
           <Select value={scoutYear} onValueChange={setScoutYear}>

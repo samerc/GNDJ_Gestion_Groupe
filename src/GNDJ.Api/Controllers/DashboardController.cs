@@ -36,4 +36,15 @@ public class DashboardController : BaseApiController
         var result = await Mediator.Send(new GetAdminDashboardQuery(scoutYear));
         return Ok(result);
     }
+
+    /// <summary>
+    /// Returns the Accueil "action hub" overview: items awaiting the CG, the enrollment campaign pipeline, rentrée
+    /// progress, cotisation collection, and a members-vs-last-year trend. Group-level access enforced in the handler.
+    /// </summary>
+    [HttpGet("overview")]
+    public async Task<IActionResult> GetOverview()
+    {
+        var result = await Mediator.Send(new GetDashboardOverviewQuery());
+        return Ok(result);
+    }
 }

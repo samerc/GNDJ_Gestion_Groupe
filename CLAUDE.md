@@ -4531,6 +4531,31 @@ final shape: **compact list rows + a right-side Sheet** for the details.
   drawer. Reconcile data only loads when a row is opened, so a long list stays fast. Confirmées / Doublons tabs
   untouched. Frontend, DEV until deploy. See [[project-link-siblings]].
 
+### Accueil dashboard — action hub + timely panels (2026-09-11)
+Turned the CG/super-admin/ACG **Accueil** landing (was purely descriptive: 4 count tiles + members-by-unit +
+age charts) into an **action hub**. All on main, DEV until deploy; verified live.
+- **New backend `GetDashboardOverviewQuery`** (`Dashboard/DashboardOverviewHandlers.cs`, `GET /dashboard/overview`,
+  group-level guard byte-identical to `GetAdminDashboardQuery` — super-admin / maitrise.manage / group-level role).
+  Returns TIMELY/"now" content, independent of the stats' year selector: **action items** (pendingDemandes,
+  pendingChangeRequests, passagesToFinalize [Passage.Approved], pendingDocuments [MemberDocument.Pending, active
+  type], membersOnHold), **campaign** pipeline (non-draft demandes of `demande.scout_year`: total/pending/approved/
+  declined/responsesSent/decided + acceptanceRate), **rentrée** (`passage.scout_year` tasks ROLLED UP by TemplateId
+  like the /rentree page — done = every instance effectively done, reusing `RentreeProgress.ComputeAsync`),
+  **cotisations** (group-wide operating-year paid/unpaid/exempt, honoring the maîtrise-ne-paie-pas toggle via
+  `MaitriseCotisation`), and a **trend** (members active NOW vs. the previous scout year's overlap window). Reuses
+  existing helpers; no N+1 beyond the rentrée progress signals the /rentree page already pays.
+- **Frontend** (`dashboard.tsx` + `dashboard-service.ts` `useDashboardOverview`, 60s staleTime): `AdminDashboard`
+  now renders, above the stats — an **"À traiter"** strip that surfaces ONLY non-zero action items (each a `<Link>`
+  card to its page: demandes→/admin/demandes, changes→/change-requests, passages→/admin/passage-validation, docs &
+  on-hold→/admin/documents-suivi; red for suspended, amber otherwise; "Tout est à jour" green card when all clear),
+  then **Campagne d'inscription** (6-number pipeline + décidées bar + ouvertes/fermées badge), **Effectif** (this vs
+  last year with a ↑/↓ delta), **Rentrée scoute** (done/total bar), **Cotisations** (à jour/total bar + à relancer/
+  exemptés) — all clickable cards. The **year-scoped** 4 tiles + 2 charts stay below under a "Statistiques —
+  {année}" header that now owns the year selector (the overview is "now", so it no longer sits in the page header).
+- Verified live (super-admin): overview returns real data (208 demandes en attente, 49 passages à finaliser, 9 docs,
+  rentrée 4/24, effectif 1069 vs 1219, campagne 208 reçues); endpoint requires auth (401 without token). Build clean
+  (dotnet 0/0, tsc + eslint + vite).
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

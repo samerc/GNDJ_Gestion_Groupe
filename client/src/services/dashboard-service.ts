@@ -38,6 +38,40 @@ export interface AdminDashboardDto {
   ageGroups: AgeGroupDto[]
 }
 
+// Accueil "action hub" overview — timely/actionable content (action items, campaign, rentrée, cotisations,
+// trend), computed "now" and independent of the year selector that drives the stats/charts above.
+export interface DemandeCampaignDto {
+  enabled: boolean; total: number; pending: number; approved: number; declined: number
+  responsesSent: number; decided: number; acceptanceRate: number
+}
+export interface RentreeSummaryDto { scoutYear: string; total: number; done: number }
+export interface CotisationOverviewDto { total: number; paid: number; unpaid: number; exempt: number }
+
+export interface DashboardOverviewDto {
+  pendingDemandes: number
+  pendingChangeRequests: number
+  passagesToFinalize: number
+  pendingDocuments: number
+  membersOnHold: number
+  campaign: DemandeCampaignDto
+  rentree: RentreeSummaryDto | null
+  cotisations: CotisationOverviewDto
+  membersThisYear: number
+  membersLastYear: number
+  thisYear: string
+  lastYear: string
+}
+
+// GET /dashboard/overview — the group-level Accueil action hub. Keyed ['dashboard','overview'].
+export function useDashboardOverview(enabled = true) {
+  return useQuery({
+    queryKey: ['dashboard', 'overview'],
+    queryFn: () => apiClient.get<DashboardOverviewDto>('/dashboard/overview').then(r => r.data),
+    enabled,
+    staleTime: 60_000,
+  })
+}
+
 // GET /dashboard/unit/{unitId} — unit roster grouped by team (Maîtrise first) for the CU dashboard.
 // Unit-scoped. Keyed ['dashboard','unit',unitId].
 export function useUnitDashboard(unitId: string | undefined) {
