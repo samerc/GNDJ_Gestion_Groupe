@@ -174,6 +174,9 @@ const adminGroups: AdminGroup[] = [
     // entry, split by `section` into sub-headers: Structure & données / Système & sécurité / Paramètres (the hub).
     label: 'Configuration',
     items: [
+      // Paramètres (the settings hub) pinned at the TOP of the drawer — CG-reachable (the page filters to the
+      // categories a CG may edit). No `section` so it renders as the prominent first item above the sub-groups.
+      { path: '/admin/settings', label: 'Paramètres', icon: Settings2, permission: PERMISSIONS.MAITRISE_MANAGE },
       // --- Structure & données ---
       // Associations / Champs personnalisés / Carte membre are set-and-forget → reached from the Paramètres page.
       { path: '/admin/unit-types', label: "Types d'unité", icon: FolderTree, permission: PERMISSIONS.UNIT_TYPES_MANAGE, section: 'Structure & données' },
@@ -194,8 +197,6 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/sessions', label: 'Sessions actives', icon: MonitorSmartphone, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
       { path: '/admin/deleted-members', label: 'Corbeille', icon: Trash2, permission: PERMISSIONS.MEMBERS_DELETE, section: 'Système & sécurité' },
       { path: '/admin/appearance', label: 'Apparence', icon: Palette, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
-      // --- Paramètres (the settings hub; CG-reachable — the page filters to the categories a CG may edit) ---
-      { path: '/admin/settings', label: 'Paramètres', icon: Settings2, permission: PERMISSIONS.MAITRISE_MANAGE, section: 'Paramètres' },
     ],
   },
 ]
