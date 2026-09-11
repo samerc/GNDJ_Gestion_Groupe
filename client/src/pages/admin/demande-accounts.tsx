@@ -18,6 +18,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Tip } from '@/components/ui/tooltip'
+import { DemandeInvitesPanel } from '@/components/admin/demande-invites-panel'
 import { CheckCircle2, MailWarning, Search, ShieldCheck, X, FileText, FileX, KeyRound, Copy, Trash2, ArrowUp, ArrowDown, ArrowUpDown, MailCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DemandeAccount } from '@/services/demande-admin-service'
@@ -190,6 +191,9 @@ export default function DemandeAccountsPage() {
           de vérification n'est jamais arrivé peut être vérifié manuellement, et son mot de passe réinitialisé.
         </p>
       </div>
+
+      {/* Late-access invites: let one family enroll after the deadline without reopening for everyone. */}
+      <DemandeInvitesPanel />
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]">

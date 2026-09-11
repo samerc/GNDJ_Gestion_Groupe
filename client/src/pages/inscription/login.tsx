@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
-import { Compass, KeyRound } from 'lucide-react'
+import { Link, useNavigate, useSearchParams } from 'react-router'
+import { Compass, KeyRound, Ticket } from 'lucide-react'
 import { useApplicantStore } from '@/stores/applicant-store'
-import { useApplicantConfig } from '@/services/applicant-service'
+import { useApplicantConfig, useClaimInvite } from '@/services/applicant-service'
 import { emailDomain } from '@/lib/email-domain'
 import { ApplicantAuthShell } from '@/components/applicant/applicant-auth-shell'
 import { LoginAnnouncement } from '@/components/login-announcement'
@@ -17,7 +17,10 @@ import { parseApiError } from '@/lib/error-utils'
 // On success goes to the portail (list of demandes).
 export default function ApplicantLoginPage() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const inviteToken = params.get('invite') || undefined // arrived from a CG late-access invite link → claim after login
   const login = useApplicantStore((s) => s.login)
+  const claimInvite = useClaimInvite()
   const { data: config } = useApplicantConfig()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -39,6 +42,9 @@ export default function ApplicantLoginPage() {
     try {
       await login(email, password, website, rememberMe)
       setFailedAttempts(0)
+      // If we came from a CG invite link, claim it now (grants late submission on this account). Best-effort:
+      // an already-used/expired token just fails silently — the login still succeeds.
+      if (inviteToken) { try { await claimInvite.mutateAsync(inviteToken) } catch { /* ignore */ } }
       navigate('/inscription/portail')
     } catch (err) {
       setError(parseApiError(err))
@@ -52,6 +58,14 @@ export default function ApplicantLoginPage() {
     <ApplicantAuthShell subtitle="Suivre votre demande d'inscription — GNDJ Scout">
       {/* Admin-editable announcement banner (login.applicant_message) — shown prominently above the card. */}
       <LoginAnnouncement message={config?.loginMessage} tone="accent" />
+      {/* Arrived via a CG late-access invite link → explain the existing-account path (new families use the
+          "Créer un compte" button below, which keeps the invite). */}
+      {inviteToken && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+          <Ticket className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Vous avez une invitation à présenter une demande. Connectez-vous à votre compte existant pour l'activer.</span>
+        </div>
+      )}
       <Card className="shadow-elevated">
         <CardHeader>
           <CardTitle className="text-2xl">Se connecter à votre demande</CardTitle>
@@ -102,7 +116,9 @@ export default function ApplicantLoginPage() {
               link) — a new family lands here and needs an unmissable way to start. */}
           <div className="mt-5 border-t pt-4 text-center">
             <p className="mb-2 text-sm text-muted-foreground">Première demande d'inscription ?</p>
-            <Button asChild variant="outline" className="w-full"><Link to="/inscription/register">Créer un compte</Link></Button>
+            {/* With an invite, "Créer un compte" goes back to the invitation page (which registers WITH the token,
+                bypassing the closed-registration block); otherwise the normal register page. */}
+            <Button asChild variant="outline" className="w-full"><Link to={inviteToken ? `/inscription/invitation/${inviteToken}` : '/inscription/register'}>Créer un compte</Link></Button>
           </div>
         </CardContent>
       </Card>

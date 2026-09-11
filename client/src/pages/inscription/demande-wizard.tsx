@@ -160,8 +160,9 @@ export default function DemandeWizardPage() {
 
   const existing = useMemo(() => profile?.demandes.find((d) => d.id === id), [profile, id]) // the demande being edited, if any
   // Can create/edit/submit only while the portal is open AND the submission window is open (not the CG
-  // review phase). Read-only otherwise, or once this demande has already been answered.
-  const canSubmit = (config?.isOpen ?? false) && (config?.submissionsOpen ?? false)
+  // review phase). Read-only otherwise, or once this demande has already been answered. A CG late-access grant
+  // (canSubmitLate) also unlocks editing after the deadline for one invited family.
+  const canSubmit = (profile?.canSubmitLate ?? false) || ((config?.isOpen ?? false) && (config?.submissionsOpen ?? false))
   const deadlinePassed = isSubmissionDeadlinePassed(config?.submissionDeadline)
   const readonly = !canSubmit || (!!existing && !!existing.responseSentAt)
   const notesMax = config?.notesMaxLength ?? 500

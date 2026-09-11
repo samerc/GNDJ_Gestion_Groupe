@@ -41,6 +41,7 @@ const ApplicantResetPasswordPage = lazy(() => import('@/pages/inscription/reset-
 const ApplicantConditionsPage = lazy(() => import('@/pages/inscription/conditions'))
 const ApplicantPortalPage = lazy(() => import('@/pages/inscription/portail'))
 const DemandeWizardPage = lazy(() => import('@/pages/inscription/demande-wizard'))
+const ApplicantInvitationPage = lazy(() => import('@/pages/inscription/invitation'))
 const DemandeResultPage = lazy(() => import('@/pages/inscription/demande-result'))
 const DashboardPage = lazy(() => import('@/pages/dashboard'))
 const MyProfilePage = lazy(() => import('@/pages/my-profile'))
@@ -127,6 +128,9 @@ export default function App() {
             for the whole area when the site or "demande" module is turned off from settings. */}
         <Route element={<ApplicantMaintenanceGate />}>
           <Route path="/inscription" element={<InscriptionLandingPage />} />
+          {/* CG late-access invite link — deliberately OUTSIDE the "open" guard (it has its own token check) so a
+              family can register/claim to enroll after the deadline, when normal registration is closed. */}
+          <Route path="/inscription/invitation/:token" element={<ApplicantInvitationPage />} />
           {/* Anonymous entry points — hidden (redirected to the landing's "fermées" notice) when inscriptions are closed. */}
           <Route element={<ApplicantOpenRoute />}>
             <Route path="/inscription/login" element={<ApplicantLoginPage />} />

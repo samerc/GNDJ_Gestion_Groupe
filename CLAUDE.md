@@ -4381,6 +4381,40 @@ fetch all the member's guardian links (tiny set) and classify père/mère in mem
 `RemoveDiacritics` can't be translated to SQL). Verified live: Maria ABBOUD's AUT PDF now fills "Miguel ABBOUD et
 Hiba AZOURY". Backend-only, DEV until deploy.
 
+### Demande late-access invite links — enroll ONE family after the deadline (2026-09-11)
+The submission window is GLOBAL (once `demande.submission_deadline` passes / the CG closes submissions, NOBODY can
+register/create/edit/submit — `ApplicantHelpers.SubmissionsClosedError` gated all 6 write paths + register). The CG
+sometimes wants to let ONE specific family enroll after the deadline without reopening for everyone. Built a
+targeted **invite-link** mechanism (the CG's chosen approach): CG generates a link → the family opens it to
+register (new) or claim it (existing account) → that stamps a durable per-account grant the submission gates honor.
+- **Model:** `DemandeInvite` (Token [unique], ScoutYear, Label, Email, ExpiresAt [DateOnly = link validity AND the
+  granted window], ClaimedByAccountId/ClaimedAt, RevokedAt, CreatedByUserId; migration `AddDemandeInvite`) +
+  `ApplicantAccount.LateSubmissionUntil` (nullable DateOnly, same migration). Single-use, expiry-bounded, revocable.
+- **Gate change:** `SubmissionsClosedError(config, DateOnly? lateSubmissionUntil = null)` — an active grant
+  (`>= LebanonClock.Today`) bypasses a closed submission window (NOT a fully-disabled `demande.enabled` portal). All
+  5 applicant write handlers pass the account's grant (`ApplicantHelpers.LateGrantAsync`); Submit reordered to load
+  the account first. `RegisterApplicantCommand` gained `InviteToken`: a valid token bypasses the closed-register
+  block, **pre-verifies the email** (CG-vouched → no verify-mail dead-end), stamps the grant, and consumes the
+  invite. `ApplicantProfileDto.CanSubmitLate` exposes the active grant to the portal/wizard.
+- **Handlers** (`Demandes/DemandeInviteHandlers.cs`): Create/Get/Revoke (CG, `MemberAccess.IsGroupManager` +
+  demande.manage/view) · `GetDemandeInviteInfoQuery` (anonymous, for the public invite page — leaks only label +
+  expiry) · `ClaimDemandeInviteCommand` (applicant, existing account → sets grant to the later of current/invite
+  expiry). Endpoints: `GET|POST /demandes/invites`, `DELETE /demandes/invites/{id}` (CG); `GET /applicant/invite/
+  {token}` (public), `POST /applicant/invite/{token}/claim` (applicant). (Fully-qualified the two invite types in
+  ApplicantController to dodge the Applicants↔Demandes CS0104 clash — same trap as before.)
+- **Frontend:** public self-contained page `/inscription/invitation/:token` (OUTSIDE the "submissions open" route
+  guard — own token check) → validates, then registers-with-token (new) or, if logged in, claims + continues;
+  "déjà un compte" → `/inscription/login?invite=token` which claims after sign-in. Portal + wizard honor
+  `canSubmitLate` (green "Accès exceptionnel accordé" banner, add/edit/submit unlocked). CG UI = collapsible
+  `DemandeInvitesPanel` at the top of `/admin/demande-accounts` ("Invitations de dernière minute" — generate [label
+  / email / validity days] → link auto-copied, list with status [Actif/Utilisé/Expiré/Annulé] + copy-link + revoke;
+  link built client-side from `window.location.origin`).
+- **Verified live end-to-end** (submissions closed, deadline passed): normal register → blocked 400; token validates;
+  register-WITH-token → account created **pre-verified + canSubmitLate=true**; accept-terms → household → create →
+  **submit all 200** (grant bypasses the closed window); invite marked "claimed"; existing-account claim → 200;
+  revoke → validate `valid:false`, register-with-revoked → blocked. Test data cleaned up. Builds clean (dotnet 0/0 +
+  tsc + eslint + vite). Migration applies on prod startup; DEV until deploy.
+
 ### Audit log — human-readable details (resolve GUIDs → names) (2026-09-11)
 The audit detail dialog showed raw GUIDs for related entities (a deleted Passage read `MemberId` /
 `ProposedUnitId` = ids). Assignments were already fixed (2026-08-31 `AssignmentAudit.DescribeAsync`) but every

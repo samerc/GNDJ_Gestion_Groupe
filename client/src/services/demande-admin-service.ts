@@ -409,6 +409,38 @@ export function useMergeDemandes() {
 // ("--" in Excel maps to it).
 export interface RejectionReason { code: string; label: string; text: string; isDefault: boolean }
 
+// ── Late-submission invites ─────────────────────────────────────────────────────────────────────────
+// A CG-generated link that lets ONE family enroll after the deadline (without reopening for everyone). status =
+// active | claimed | expired | revoked. The frontend builds the full link from the token.
+export interface DemandeInvite {
+  id: string; token: string; scoutYear: string; label: string | null; email: string | null
+  expiresAt: string; status: string; claimedEmail: string | null; claimedAt: string | null; createdAt: string
+}
+
+export function useDemandeInvites() {
+  return useQuery({
+    queryKey: ['demandes', 'invites'],
+    queryFn: () => apiClient.get<DemandeInvite[]>('/demandes/invites').then((r) => r.data),
+  })
+}
+
+export function useCreateDemandeInvite() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { label?: string; email?: string; validDays?: number }) =>
+      apiClient.post<DemandeInvite>('/demandes/invites', data).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['demandes', 'invites'] }),
+  })
+}
+
+export function useRevokeDemandeInvite() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/demandes/invites/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['demandes', 'invites'] }),
+  })
+}
+
 export function useRejectionReasons() {
   return useQuery({
     queryKey: ['demandes', 'rejection-reasons'],

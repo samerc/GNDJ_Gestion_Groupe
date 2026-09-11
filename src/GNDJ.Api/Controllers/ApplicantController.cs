@@ -117,6 +117,27 @@ public class ApplicantController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>Validates a CG late-submission invite token (for the public invitation page). Anonymous. Leaks
+    /// only the label + expiry, never account data.</summary>
+    [HttpGet("invite/{token}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> InviteInfo(string token)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Demandes.GetDemandeInviteInfoQuery(token));
+        return Ok(result.Value);
+    }
+
+    /// <summary>Claims a CG late-submission invite for the CURRENT (existing) applicant account, granting it the
+    /// right to submit past the deadline. Requires an applicant token.</summary>
+    [Authorize]
+    [HttpPost("invite/{token}/claim")]
+    public async Task<IActionResult> ClaimInvite(string token)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Demandes.ClaimDemandeInviteCommand(token));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     /// <summary>Records the applicant's acceptance of the terms &amp; conditions (separate post-login step).</summary>
     /// <response code="401">Applicant token missing or invalid.</response>
     [ProducesResponseType(401)]

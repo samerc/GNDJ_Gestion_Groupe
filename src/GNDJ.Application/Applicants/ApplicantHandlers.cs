@@ -80,7 +80,10 @@ public record ApplicantProfileDto(Guid AccountId, string Email, bool EmailVerifi
     // Household primary contact email (one per family) — chosen in the wizard, copied to each member on conversion.
     string? PrimaryContactEmail = null,
     // Parents' relationship status (Unis / Séparés / Divorcés).
-    string? ParentsSituation = null);
+    string? ParentsSituation = null,
+    // True when this account holds an active CG late-submission grant → it can create/edit/submit even though the
+    // global submission window is closed. Lets the portal/wizard stay editable for one invited family.
+    bool CanSubmitLate = false);
 
 // Shared child-field payload for create/update (the per-child part of a demande; the household part
 // lives on the account and is saved separately via SaveApplicantHousehold).
@@ -182,12 +185,20 @@ static class ApplicantHelpers
 
     // Returns an error message if the applicant may NOT submit/edit right now (portal closed, or the submission
     // window is closed = CG review phase), else null. Centralizes the two-phase gate for all write handlers.
-    public static string? SubmissionsClosedError(ApplicantConfigDto config)
+    // `lateSubmissionUntil` = this account's per-account grant (from a CG invite link): an active grant bypasses
+    // a closed submission window (but not a fully-disabled portal), so ONE invited family can enroll after the
+    // deadline without reopening for everyone.
+    public static string? SubmissionsClosedError(ApplicantConfigDto config, DateOnly? lateSubmissionUntil = null)
     {
         if (!config.IsOpen) return "Les inscriptions sont actuellement fermées.";
+        if (lateSubmissionUntil.HasValue && lateSubmissionUntil.Value >= LebanonClock.Today) return null;
         if (!config.SubmissionsOpen) return "La période de soumission des demandes est terminée. Vous pouvez consulter vos demandes ; les résultats vous seront communiqués prochainement.";
         return null;
     }
+
+    // The account's active late-submission grant (the raw stored date; null if none), for the submission gates.
+    public static async Task<DateOnly?> LateGrantAsync(IApplicationDbContext ctx, Guid accountId, CancellationToken ct)
+        => await ctx.ApplicantAccounts.Where(a => a.Id == accountId).Select(a => a.LateSubmissionUntil).FirstOrDefaultAsync(ct);
 
     public static DemandeDto ToDto(Demande d, bool deadlinePassed = false)
     {
@@ -320,7 +331,10 @@ static class ApplicantHelpers
 // ============================================================
 // Auth
 // ============================================================
-public record RegisterApplicantCommand(string Email, string Password, string? ContactName, bool AcceptedTerms = false) : IRequest<Result<ApplicantAuthDto>>;
+// InviteToken (optional): a CG late-submission invite. A valid token lets a NEW family register AFTER the
+// submission deadline (bypassing the closed-window register block), pre-verifies the email (the CG vouches for
+// them), and stamps the late-submission grant so they can immediately fill + submit their demande.
+public record RegisterApplicantCommand(string Email, string Password, string? ContactName, bool AcceptedTerms = false, string? InviteToken = null) : IRequest<Result<ApplicantAuthDto>>;
 
 public class RegisterApplicantCommandValidator : AbstractValidator<RegisterApplicantCommand>
 {
@@ -336,10 +350,23 @@ public class RegisterApplicantCommandHandler(IApplicationDbContext context, IPas
 {
     public async ValueTask<Result<ApplicantAuthDto>> Handle(RegisterApplicantCommand request, CancellationToken ct)
     {
+        // A valid CG invite link (DemandeInvite) lets a new family register even while the submission window is
+        // closed — resolve it first so the register gate can be bypassed for that one family.
+        DemandeInvite? invite = null;
+        if (!string.IsNullOrWhiteSpace(request.InviteToken))
+        {
+            var tok = request.InviteToken.Trim();
+            invite = await context.DemandeInvites.FirstOrDefaultAsync(i => i.Token == tok, ct);
+            // Ignore an invalid / used / expired / revoked token (falls back to the normal gate below).
+            if (invite is not null && (invite.RevokedAt is not null || invite.ClaimedByAccountId is not null || invite.ExpiresAt < LebanonClock.Today))
+                invite = null;
+        }
+
         // No new applicant accounts while inscriptions are closed OR the submission window is closed
         // (review phase). Defense-in-depth: the UI already hides the register page, but block the endpoint too.
+        // A valid invite bypasses the closed-submission-window block (not a fully-disabled portal).
         var config = await ApplicantHelpers.BuildConfig(context, ct);
-        var regClosed = ApplicantHelpers.SubmissionsClosedError(config);
+        var regClosed = ApplicantHelpers.SubmissionsClosedError(config, invite?.ExpiresAt);
         if (regClosed is not null) return Result<ApplicantAuthDto>.Failure(regClosed);
 
         var addr = request.Email.Trim().ToLowerInvariant();
@@ -361,6 +388,16 @@ public class RegisterApplicantCommandHandler(IApplicationDbContext context, IPas
             TermsAcceptedAt = null,
         };
 
+        // A CG invite pre-verifies the email (the CG vouches for them — removes the "verification mail never
+        // arrived" dead-end) and stamps the late-submission grant so they can immediately fill + submit.
+        if (invite is not null)
+        {
+            account.EmailVerified = true;
+            account.EmailVerificationToken = null;
+            account.EmailVerificationTokenExpiry = null;
+            account.LateSubmissionUntil = invite.ExpiresAt;
+        }
+
         var refresh = tokens.GenerateRefreshToken();
         account.RefreshToken = hasher.HashToken(refresh);
         account.RefreshTokenExpiry = tokens.GetRefreshTokenExpiry();
@@ -368,9 +405,18 @@ public class RegisterApplicantCommandHandler(IApplicationDbContext context, IPas
         account.LastActivityAt = DateTime.UtcNow;
 
         context.ApplicantAccounts.Add(account);
+
+        // Consume the invite (single-use) in the same save.
+        if (invite is not null)
+        {
+            invite.ClaimedByAccountId = account.Id;
+            invite.ClaimedAt = DateTime.UtcNow;
+        }
         await context.SaveChangesAsync(ct);
 
-        await ApplicantHelpers.SendVerificationEmail(context, emailQueue, account, ct);
+        // Skip the verification email for an invited (already-verified) account.
+        if (invite is null)
+            await ApplicantHelpers.SendVerificationEmail(context, emailQueue, account, ct);
 
         var access = tokens.GenerateApplicantToken(account);
         return Result<ApplicantAuthDto>.Success(new ApplicantAuthDto(account.Id, account.Email, account.EmailVerified, access, refresh, DateTime.UtcNow.AddMinutes(15)));
@@ -650,11 +696,12 @@ public class GetApplicantProfileQueryHandler(IApplicationDbContext context, ICur
             return dto with { Converted = converted, DecidedUnitName = unitName, MemberUsername = username, MemberHasLoggedIn = loggedIn };
         }).ToList();
 
+        var canSubmitLate = account.LateSubmissionUntil.HasValue && account.LateSubmissionUntil.Value >= LebanonClock.Today;
         return Result<ApplicantProfileDto>.Success(new ApplicantProfileDto(
             account.Id, account.Email, account.EmailVerified, account.ContactName,
             account.AddressCountry, account.AddressCity, account.AddressDetails,
             guardians, relations, demandes, account.TermsAcceptedAt != null, account.PrimaryContactEmail,
-            account.ParentsSituation));
+            account.ParentsSituation, canSubmitLate));
     }
 }
 
@@ -892,8 +939,10 @@ public class SaveApplicantHouseholdCommandHandler(IApplicationDbContext context,
         var id = current.ApplicantAccountId;
         if (id is null) return Result<bool>.Failure("Non autorisé.");
 
-        // Household edits are part of filling a demande — blocked once the submission window closes.
-        var closed = ApplicantHelpers.SubmissionsClosedError(await ApplicantHelpers.BuildConfig(context, ct));
+        // Household edits are part of filling a demande — blocked once the submission window closes (unless this
+        // account holds a CG late-submission grant).
+        var closed = ApplicantHelpers.SubmissionsClosedError(await ApplicantHelpers.BuildConfig(context, ct),
+            await ApplicantHelpers.LateGrantAsync(context, id.Value, ct));
         if (closed is not null) return Result<bool>.Failure(closed);
 
         // Enforce the configurable business cap on scout relations (demande.max_scout_relations, default 3).
@@ -1005,7 +1054,7 @@ public class CreateDemandeCommandHandler(IApplicationDbContext context, ICurrent
         if (id is null) return Result<Guid>.Failure("Non autorisé.");
 
         var config = await ApplicantHelpers.BuildConfig(context, ct);
-        var closed = ApplicantHelpers.SubmissionsClosedError(config);
+        var closed = ApplicantHelpers.SubmissionsClosedError(config, await ApplicantHelpers.LateGrantAsync(context, id.Value, ct));
         if (closed is not null) return Result<Guid>.Failure(closed);
 
         var count = await context.Demandes.CountAsync(d => d.ApplicantAccountId == id && d.ScoutYear == config.ScoutYear, ct);
@@ -1030,7 +1079,7 @@ public class UpdateDemandeCommandHandler(IApplicationDbContext context, ICurrent
         if (id is null) return Result<bool>.Failure("Non autorisé.");
 
         var config = await ApplicantHelpers.BuildConfig(context, ct);
-        var closed = ApplicantHelpers.SubmissionsClosedError(config);
+        var closed = ApplicantHelpers.SubmissionsClosedError(config, await ApplicantHelpers.LateGrantAsync(context, id.Value, ct));
         if (closed is not null) return Result<bool>.Failure(closed);
 
         var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id && d.ApplicantAccountId == id, ct);
@@ -1054,11 +1103,12 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
         if (id is null) return Result<bool>.Failure("Non autorisé.");
 
         var config = await ApplicantHelpers.BuildConfig(context, ct);
-        var closed = ApplicantHelpers.SubmissionsClosedError(config);
-        if (closed is not null) return Result<bool>.Failure(closed);
-
         var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Id == id, ct);
         if (account is null) return Result<bool>.Failure("Compte introuvable.");
+        // Submission blocked once the window closes — unless this account holds a CG late-submission grant.
+        var closed = ApplicantHelpers.SubmissionsClosedError(config, account.LateSubmissionUntil);
+        if (closed is not null) return Result<bool>.Failure(closed);
+
         if (config.RequireEmailVerification && !account.EmailVerified)
             return Result<bool>.Failure("Veuillez vérifier votre adresse email avant de soumettre une demande.");
         // Terms of service: the portal (ApplicantTermsGate) blocks the UI until accepted, but enforce it at the
@@ -1139,8 +1189,9 @@ public class DeleteDemandeCommandHandler(IApplicationDbContext context, ICurrent
         var id = current.ApplicantAccountId;
         if (id is null) return Result<bool>.Failure("Non autorisé.");
 
-        // No deleting once the submission window closes (the CG is reviewing).
-        var closed = ApplicantHelpers.SubmissionsClosedError(await ApplicantHelpers.BuildConfig(context, ct));
+        // No deleting once the submission window closes (the CG is reviewing) — unless a CG late grant is active.
+        var closed = ApplicantHelpers.SubmissionsClosedError(await ApplicantHelpers.BuildConfig(context, ct),
+            await ApplicantHelpers.LateGrantAsync(context, id.Value, ct));
         if (closed is not null) return Result<bool>.Failure(closed);
 
         var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id && d.ApplicantAccountId == id, ct);

@@ -115,6 +115,31 @@ export interface ApplicantProfile {
   scoutRelations: ApplicantScoutRelation[]
   demandes: Demande[]
   termsAccepted: boolean // accepted on a separate post-login screen; the portal is gated until true
+  // True when this account holds an active CG late-submission grant (claimed a late-access invite link) → it can
+  // create/edit/submit a demande even though the global submission window is closed.
+  canSubmitLate?: boolean
+}
+
+// Public info about a CG late-submission invite token (for the invitation page). Leaks only label + expiry.
+export interface InviteInfo { valid: boolean; label: string | null; expiresAt: string | null; reason: string | null }
+
+// GET /applicant/invite/{token} → validate a late-access invite (anonymous).
+export function useInviteInfo(token: string | undefined) {
+  return useQuery({
+    queryKey: ['applicant', 'invite', token],
+    queryFn: () => applicantApi.get<InviteInfo>(`/applicant/invite/${token}`).then((r) => r.data),
+    enabled: !!token,
+    retry: false,
+  })
+}
+
+// POST /applicant/invite/{token}/claim → claim a late-access invite for the CURRENT (existing) account.
+export function useClaimInvite() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (token: string) => applicantApi.post<{ expiresAt: string }>(`/applicant/invite/${token}/claim`).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['applicant', 'profile'] }),
+  })
 }
 
 export type DemandeInput = Omit<Demande, 'id' | 'scoutYear' | 'status' | 'decisionNotes' | 'submittedAt' | 'responseSentAt'>

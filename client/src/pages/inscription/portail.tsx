@@ -45,10 +45,12 @@ export default function ApplicantPortalPage() {
   const demandes = profile.demandes
   const max = config?.maxPerAccount ?? 5 // server-configured cap on children per account
   const open = config?.isOpen ?? false // portal accessible (login + view)
+  // A CG late-access grant (claimed an invite link) lets THIS family create/edit/submit even after the deadline.
+  const lateGrant = !!profile.canSubmitLate
   // Submission window (inside the open period): can create/edit/submit/delete. Once the CG closes it, the
-  // portal stays open for viewing but everything becomes read-only (review phase).
-  const canSubmit = open && (config?.submissionsOpen ?? false)
-  const reviewPhase = open && !(config?.submissionsOpen ?? false)
+  // portal stays open for viewing but everything becomes read-only (review phase) — unless a late grant is active.
+  const canSubmit = lateGrant || (open && (config?.submissionsOpen ?? false))
+  const reviewPhase = !lateGrant && open && !(config?.submissionsOpen ?? false)
   const deadlinePassed = isSubmissionDeadlinePassed(config?.submissionDeadline)
   const reachedMax = demandes.length >= max
   const needsVerify = config?.requireEmailVerification && !profile.emailVerified
@@ -97,6 +99,16 @@ export default function ApplicantPortalPage() {
       {!open && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
           Les inscriptions sont actuellement fermées. Vous pouvez consulter vos demandes mais pas les modifier.
+        </div>
+      )}
+
+      {lateGrant && (
+        <div className="flex items-start gap-3 rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-800">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-medium">Accès exceptionnel accordé</p>
+            <p>La Maîtrise vous a autorisé à présenter une demande après la date limite. Vous pouvez créer et soumettre votre demande normalement ci-dessous.</p>
+          </div>
         </div>
       )}
 

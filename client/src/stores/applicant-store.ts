@@ -18,7 +18,8 @@ interface ApplicantState {
   emailVerified: boolean
   // rememberMe (default true): true → localStorage (persist ~30 days); false → sessionStorage (cleared on close).
   login: (email: string, password: string, website?: string, rememberMe?: boolean) => Promise<void>
-  register: (email: string, password: string, contactName?: string, website?: string, acceptedTerms?: boolean) => Promise<void>
+  // inviteToken: a CG late-access invite (lets a new family register after the deadline + pre-verifies them).
+  register: (email: string, password: string, contactName?: string, website?: string, acceptedTerms?: boolean, inviteToken?: string) => Promise<void>
   logout: () => void
   setEmailVerified: (v: boolean) => void
 }
@@ -38,9 +39,9 @@ export const useApplicantStore = create<ApplicantState>((set) => ({
     set({ isAuthenticated: true, email: data.email, emailVerified: data.emailVerified })
   },
 
-  register: async (email, password, contactName, website, acceptedTerms) => {
+  register: async (email, password, contactName, website, acceptedTerms, inviteToken) => {
     setRemember('applicant', true)
-    const { data } = await applicantApi.post<ApplicantAuthResponse>('/applicant/register', { email, password, contactName, website, acceptedTerms })
+    const { data } = await applicantApi.post<ApplicantAuthResponse>('/applicant/register', { email, password, contactName, website, acceptedTerms, inviteToken })
     setTokens('applicant', data.accessToken, data.refreshToken)
     queryClient.clear()
     set({ isAuthenticated: true, email: data.email, emailVerified: data.emailVerified })

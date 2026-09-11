@@ -252,6 +252,38 @@ public class DemandesController : BaseApiController
         return Ok(result.Value);
     }
 
+    // ── Late-submission invites ─────────────────────────────────────────────────────────────────────
+    /// <summary>Lists the CG-generated late-submission invite links (active / claimed / expired / revoked).
+    /// Requires demande.view.</summary>
+    [HttpGet("invites")]
+    [HasPermission(Permissions.DemandeView)]
+    public async Task<IActionResult> Invites()
+    {
+        var result = await Mediator.Send(new GetDemandeInvitesQuery());
+        return Ok(result.Value);
+    }
+
+    /// <summary>Generates a late-submission invite link so ONE family can enroll after the deadline without
+    /// reopening for everyone. Returns the token (the frontend builds the full link). Requires demande.manage.</summary>
+    [HttpPost("invites")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> CreateInvite([FromBody] CreateDemandeInviteCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>Revokes a late-submission invite (kept in the trail; marked revoked). Requires demande.manage.</summary>
+    [HttpDelete("invites/{id:guid}")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> RevokeInvite(Guid id)
+    {
+        var result = await Mediator.Send(new RevokeDemandeInviteCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { success = true });
+    }
+
     // ── Reminders (G) ────────────────────────────────────────────────────────────────────────────────
     /// <summary>Count of applicant accounts with no submitted demande this year (reminder-A audience). demande.view.</summary>
     [HttpGet("unsubmitted-count")]

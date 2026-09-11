@@ -41,6 +41,11 @@ public class ApplicantAccount : BaseEntity
     // Parents' relationship status (Unis / Séparés / Divorcés) — captured in the wizard, shown to the CG in review.
     public string? ParentsSituation { get; set; }
 
+    // Late-submission grant: when set (and >= today), this account may create/edit/submit a demande even though
+    // the global submission window is closed. Set when the account claims a CG invite link (DemandeInvite) — the
+    // targeted way to let one family enroll after the deadline without reopening for everyone. Null = no grant.
+    public DateOnly? LateSubmissionUntil { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     // When the account holder accepted the inscription terms & conditions (at registration). Null = not
