@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { Users, Check, X, Search, Sparkles, ChevronRight, Phone, Mail, MapPin, UserRound, ArrowRight, GitMerge, Copy } from 'lucide-react'
+import { Users, Check, X, Search, Sparkles, ChevronRight, ChevronDown, Phone, Mail, MapPin, UserRound, ArrowRight, GitMerge, Copy } from 'lucide-react'
 import {
   useSiblingSuggestions, useSiblingGroups, useReconcileData,
   useApproveSiblingGroup, useRejectSiblingSuggestion, useUnlinkSibling,
@@ -66,7 +66,6 @@ function evidenceIcon(e: string) {
 function SuggestionsTab() {
   const { data: suggestions, isLoading } = useSiblingSuggestions()
   const reject = useRejectSiblingSuggestion()
-  const [reviewing, setReviewing] = useState<SiblingSuggestion | null>(null)
   const [rejecting, setRejecting] = useState<SiblingSuggestion | null>(null)
 
   const doReject = async () => {
@@ -84,66 +83,10 @@ function SuggestionsTab() {
 
   return (
     <>
-      <p className="mb-3 text-sm text-muted-foreground">{suggestions.length} famille(s) probable(s) à examiner.</p>
+      <p className="mb-3 text-sm text-muted-foreground">{suggestions.length} famille(s) probable(s) à examiner. Dépliez une famille pour voir les informations communes (parents, adresse, contacts) et la confirmer.</p>
       <div className="space-y-3">
-        {suggestions.map((s, i) => (
-          <Card key={i} className="overflow-hidden">
-            <CardContent className="p-0">
-              <div className="grid md:grid-cols-[1fr_auto]">
-                {/* Left: the children of this family */}
-                <div className="p-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <Badge variant={s.confidence === 'Élevée' ? 'default' : 'secondary'}
-                      className={s.confidence === 'Élevée' ? 'bg-emerald-600' : 'bg-amber-500 text-white'}>
-                      Confiance {s.confidence.toLowerCase()}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">{s.members.length} enfants probables</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {s.members.map((m) => {
-                      const age = computeAge(m.dateOfBirth)
-                      return (
-                        <span key={m.memberId} className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 py-1 pl-1 pr-2.5 text-sm">
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
-                            {(m.firstName[0] ?? '').toUpperCase()}
-                          </span>
-                          <span className="font-medium">{m.firstName} {m.lastName}</span>
-                          <span className="text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}{age != null ? ` · ${age} ans` : ''}</span>
-                          {m.siblingGroupId && <span className="text-xs text-emerald-600">(déjà en fratrie)</span>}
-                        </span>
-                      )
-                    })}
-                  </div>
-                </div>
-                {/* Right: what they have in common (the reason) */}
-                <div className="border-t bg-muted/20 p-4 md:min-w-[260px] md:border-l md:border-t-0">
-                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">En commun</p>
-                  <ul className="space-y-1">
-                    {s.evidence.map((e, j) => {
-                      const Icon = evidenceIcon(e)
-                      // Split "Label : value" so the value stands out.
-                      const [label, ...rest] = e.split(' : ')
-                      const value = rest.join(' : ')
-                      return (
-                        <li key={j} className="flex items-start gap-2 text-xs">
-                          <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/70" />
-                          <span><span className="text-muted-foreground">{label}{value ? ' : ' : ''}</span>{value && <span className="font-medium">{value}</span>}</span>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              </div>
-              <div className="flex gap-2 border-t bg-background p-3">
-                <Button size="sm" onClick={() => setReviewing(s)}><Check className="mr-1 h-4 w-4" />Réviser et confirmer</Button>
-                <Button size="sm" variant="outline" onClick={() => setRejecting(s)}><X className="mr-1 h-4 w-4" />Rejeter</Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {suggestions.map((s, i) => <SuggestionCard key={i} suggestion={s} onReject={() => setRejecting(s)} />)}
       </div>
-
-      {reviewing && <ReconcileDialog suggestion={reviewing} onClose={() => setReviewing(null)} />}
 
       <ConfirmDialog
         open={!!rejecting}
@@ -158,22 +101,28 @@ function SuggestionsTab() {
   )
 }
 
-// ── Reconcile dialog: pick the members to group + the canonical père/mère/adresse ──
 const NONE = '__none__'
 
-function ReconcileDialog({ suggestion, onClose }: { suggestion: SiblingSuggestion; onClose: () => void }) {
+// A collapsible family card. Collapsed: confidence + children + a one-line "why". Expanding LAZY-loads the shared
+// "common information" (parents + address with their contacts) and turns the card into the full reconcile UI —
+// pick the canonical père/mère/adresse + which children to include, then Confirmer inline (no dialog). On confirm
+// the suggestions query is invalidated, so the card simply disappears from the list.
+function SuggestionCard({ suggestion, onReject }: { suggestion: SiblingSuggestion; onReject: () => void }) {
   const memberIds = suggestion.members.map((m) => m.memberId)
   const reconcile = useReconcileData()
   const approve = useApproveSiblingGroup()
+  const [open, setOpen] = useState(false)
   const [data, setData] = useState<SiblingReconcileData | null>(null)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set(memberIds))
   const [father, setFather] = useState<string>(NONE)
   const [mother, setMother] = useState<string>(NONE)
   const [address, setAddress] = useState<string>(NONE)
 
-  // Load the family detail once, defaulting the canonical choices to whichever record covers the most siblings.
+  // Load the family detail on first expand; default the canonical choices to the record covering the most siblings.
   const load = async () => {
-    if (data) return
+    if (data || reconcile.isPending) return
+    setLoadFailed(false)
     try {
       const d = await reconcile.mutateAsync(memberIds)
       setData(d)
@@ -181,10 +130,16 @@ function ReconcileDialog({ suggestion, onClose }: { suggestion: SiblingSuggestio
       setFather(best(d.fathers)); setMother(best(d.mothers))
       const primary = d.addresses.find((a) => a.isPrimary) ?? d.addresses[0]
       setAddress(primary ? primary.addressId : NONE)
-    } catch (e) { toast.error(parseApiError(e)); onClose() }
+    } catch (e) { toast.error(parseApiError(e)); setLoadFailed(true) }
   }
 
-  const toggle = (id: string) => setSelected((prev) => {
+  const toggleOpen = () => {
+    const next = !open
+    setOpen(next)
+    if (next) void load()
+  }
+
+  const toggleMember = (id: string) => setSelected((prev) => {
     const next = new Set(prev)
     if (next.has(id)) next.delete(id); else next.add(id)
     return next
@@ -200,7 +155,6 @@ function ReconcileDialog({ suggestion, onClose }: { suggestion: SiblingSuggestio
         addressId: address === NONE ? null : address,
       })
       toast.success('Fratrie confirmée et informations harmonisées')
-      onClose()
     } catch (e) { toast.error(parseApiError(e)) }
   }
 
@@ -212,84 +166,137 @@ function ReconcileDialog({ suggestion, onClose }: { suggestion: SiblingSuggestio
   const chosenMother = data && mother !== NONE ? guardianName(data.mothers, mother) : null
   const chosenAddrRec = data && address !== NONE ? data.addresses.find((a) => a.addressId === address) : null
   const chosenAddr = chosenAddrRec ? addrLabel(chosenAddrRec) : null
+  const Chevron = open ? ChevronDown : ChevronRight
 
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" onOpenAutoFocus={load}>
-        <DialogHeader><DialogTitle>Confirmer la fratrie</DialogTitle></DialogHeader>
-        {!data ? <LoadingSpinner /> : (
-          <div className="space-y-5">
-            {/* Result preview — the unified family after confirmation */}
-            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">Après confirmation</p>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4 text-primary" /><span className="font-semibold">{selected.size}</span> enfants regroupés</span>
-                {chosenFather && <span className="inline-flex items-center gap-1.5"><UserRound className="h-4 w-4 text-muted-foreground" />Père : <span className="font-medium">{chosenFather}</span></span>}
-                {chosenMother && <span className="inline-flex items-center gap-1.5"><UserRound className="h-4 w-4 text-muted-foreground" />Mère : <span className="font-medium">{chosenMother}</span></span>}
-                {chosenAddr && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4 text-muted-foreground" /><span className="font-medium">{chosenAddr}</span></span>}
-              </div>
+    <Card className="overflow-hidden">
+      <CardContent className="p-0">
+        {/* Collapsed header — click anywhere to expand. Rejeter stays reachable without expanding. */}
+        <div className="flex items-start gap-2 p-4">
+          <button type="button" onClick={toggleOpen} className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground" aria-label={open ? 'Réduire' : 'Développer'}>
+            <Chevron className="h-4 w-4" />
+          </button>
+          <button type="button" onClick={toggleOpen} className="min-w-0 flex-1 text-left">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <Badge variant={suggestion.confidence === 'Élevée' ? 'default' : 'secondary'}
+                className={suggestion.confidence === 'Élevée' ? 'bg-emerald-600' : 'bg-amber-500 text-white'}>
+                Confiance {suggestion.confidence.toLowerCase()}
+              </Badge>
+              <span className="text-xs text-muted-foreground">{suggestion.members.length} enfants probables</span>
+              {/* One-line "why": compact evidence chips (the shared parent / phone / email / address). */}
+              {suggestion.evidence.map((e, j) => {
+                const Icon = evidenceIcon(e)
+                return (
+                  <span key={j} className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+                    <Icon className="h-3 w-3 text-primary/70" />{e.split(' : ')[0]}
+                  </span>
+                )
+              })}
             </div>
+            <div className="flex flex-wrap gap-1.5">
+              {suggestion.members.map((m) => {
+                const age = computeAge(m.dateOfBirth)
+                return (
+                  <span key={m.memberId} className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 py-1 pl-1 pr-2.5 text-sm">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
+                      {(m.firstName[0] ?? '').toUpperCase()}
+                    </span>
+                    <span className="font-medium">{m.firstName} {m.lastName}</span>
+                    <span className="text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}{age != null ? ` · ${age} ans` : ''}</span>
+                    {m.siblingGroupId && <span className="text-xs text-emerald-600">(déjà en fratrie)</span>}
+                  </span>
+                )
+              })}
+            </div>
+          </button>
+          <Button size="sm" variant="ghost" onClick={onReject} className="shrink-0"><X className="mr-1 h-4 w-4" />Rejeter</Button>
+        </div>
 
-            {/* Children */}
-            <section>
-              <p className="mb-2 text-sm font-semibold">Enfants de la fratrie <span className="font-normal text-muted-foreground">— décochez ceux à exclure</span></p>
-              <div className="grid gap-1.5 sm:grid-cols-2">
-                {data.members.map((m) => {
-                  const on = selected.has(m.memberId)
-                  return (
-                    <label key={m.memberId} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${on ? 'border-primary/40 bg-primary/5' : 'opacity-60'}`}>
-                      <input type="checkbox" checked={on} onChange={() => toggle(m.memberId)} className="h-4 w-4" />
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">{(m.firstName[0] ?? '').toUpperCase()}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium">{m.firstName} {m.lastName}</span>
-                        <span className="block truncate text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}</span>
-                      </span>
-                      {m.siblingGroupId && <span className="shrink-0 text-xs text-emerald-600">en fratrie</span>}
-                    </label>
-                  )
-                })}
-              </div>
-            </section>
-
-            <ParentSection role="Père" options={data.fathers} value={father} onChange={setFather} />
-            <ParentSection role="Mère" options={data.mothers} value={mother} onChange={setMother} />
-
-            {/* Address */}
-            {data.addresses.length > 0 && (
-              <section>
-                <p className="mb-2 text-sm font-semibold">Adresse commune</p>
-                <div className="space-y-1.5">
-                  {data.addresses.map((a) => {
-                    const on = address === a.addressId
-                    return (
-                      <label key={a.addressId} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${on ? 'border-primary/50 bg-primary/5' : ''}`}>
-                        <input type="radio" checked={on} onChange={() => setAddress(a.addressId)} className="h-4 w-4" />
-                        <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="min-w-0 flex-1 truncate">{addrLabel(a) || a.country}<span className="text-xs text-muted-foreground"> — {nameOf(a.memberId)}</span></span>
-                      </label>
-                    )
-                  })}
-                  <label className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${address === NONE ? 'border-primary/50 bg-primary/5' : ''}`}>
-                    <input type="radio" checked={address === NONE} onChange={() => setAddress(NONE)} className="h-4 w-4" />
-                    <span className="text-muted-foreground">Ne pas modifier les adresses</span>
-                  </label>
+        {/* Expanded — the shared common information + inline reconcile pickers + Confirmer. */}
+        {open && (
+          <div className="border-t bg-muted/10 p-4">
+            {!data ? (
+              loadFailed ? (
+                <p className="text-sm text-destructive">
+                  Impossible de charger les informations de la famille.{' '}
+                  <button type="button" className="underline" onClick={() => void load()}>Réessayer</button>
+                </p>
+              ) : <LoadingSpinner />
+            ) : (
+              <div className="space-y-5">
+                {/* Result preview — the unified family after confirmation */}
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">Après confirmation</p>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                    <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4 text-primary" /><span className="font-semibold">{selected.size}</span> enfants regroupés</span>
+                    {chosenFather && <span className="inline-flex items-center gap-1.5"><UserRound className="h-4 w-4 text-muted-foreground" />Père : <span className="font-medium">{chosenFather}</span></span>}
+                    {chosenMother && <span className="inline-flex items-center gap-1.5"><UserRound className="h-4 w-4 text-muted-foreground" />Mère : <span className="font-medium">{chosenMother}</span></span>}
+                    {chosenAddr && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4 text-muted-foreground" /><span className="font-medium">{chosenAddr}</span></span>}
+                  </div>
                 </div>
-              </section>
-            )}
 
-            <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-              Les parents et l'adresse choisis seront partagés par tous les enfants sélectionnés; les fiches de parents en double sont fusionnées (contacts regroupés) et les doublons supprimés.
-            </p>
+                {/* Children */}
+                <section>
+                  <p className="mb-2 text-sm font-semibold">Enfants de la fratrie <span className="font-normal text-muted-foreground">— décochez ceux à exclure</span></p>
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    {data.members.map((m) => {
+                      const on = selected.has(m.memberId)
+                      return (
+                        <label key={m.memberId} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${on ? 'border-primary/40 bg-primary/5' : 'opacity-60'}`}>
+                          <input type="checkbox" checked={on} onChange={() => toggleMember(m.memberId)} className="h-4 w-4" />
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">{(m.firstName[0] ?? '').toUpperCase()}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-medium">{m.firstName} {m.lastName}</span>
+                            <span className="block truncate text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}</span>
+                          </span>
+                          {m.siblingGroupId && <span className="shrink-0 text-xs text-emerald-600">en fratrie</span>}
+                        </label>
+                      )
+                    })}
+                  </div>
+                </section>
+
+                <ParentSection role="Père" options={data.fathers} value={father} onChange={setFather} />
+                <ParentSection role="Mère" options={data.mothers} value={mother} onChange={setMother} />
+
+                {/* Address */}
+                {data.addresses.length > 0 && (
+                  <section>
+                    <p className="mb-2 text-sm font-semibold">Adresse commune</p>
+                    <div className="space-y-1.5">
+                      {data.addresses.map((a) => {
+                        const on = address === a.addressId
+                        return (
+                          <label key={a.addressId} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${on ? 'border-primary/50 bg-primary/5' : ''}`}>
+                            <input type="radio" checked={on} onChange={() => setAddress(a.addressId)} className="h-4 w-4" />
+                            <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span className="min-w-0 flex-1 truncate">{addrLabel(a) || a.country}<span className="text-xs text-muted-foreground"> — {nameOf(a.memberId)}</span></span>
+                          </label>
+                        )
+                      })}
+                      <label className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${address === NONE ? 'border-primary/50 bg-primary/5' : ''}`}>
+                        <input type="radio" checked={address === NONE} onChange={() => setAddress(NONE)} className="h-4 w-4" />
+                        <span className="text-muted-foreground">Ne pas modifier les adresses</span>
+                      </label>
+                    </div>
+                  </section>
+                )}
+
+                <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                  Les parents et l'adresse choisis seront partagés par tous les enfants sélectionnés; les fiches de parents en double sont fusionnées (contacts regroupés) et les doublons supprimés.
+                </p>
+
+                <div className="flex justify-end">
+                  <Button onClick={submit} disabled={approve.isPending || selected.size < 2}>
+                    <Check className="mr-1 h-4 w-4" />{approve.isPending ? 'Confirmation…' : 'Confirmer la fratrie'}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={submit} disabled={!data || approve.isPending || selected.size < 2}>
-            {approve.isPending ? 'Confirmation…' : 'Confirmer la fratrie'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </CardContent>
+    </Card>
   )
 }
 
