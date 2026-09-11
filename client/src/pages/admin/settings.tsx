@@ -268,7 +268,10 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
   // be backdated (e.g. to the scout-year start, Oct 1, when processing after that date), so past is allowed there.
   const allowsPastDate = setting.key === 'demande.member_start_date' || setting.key === 'passage.date'
   const todayStr = (() => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` })()
-  const dateInPast = isDate && !allowsPastDate && !!value && value < todayStr
+  // Only flag a past date the user is actively CHANGING (value !== the saved value). An already-saved date that
+  // has since fallen into the past (e.g. a submission deadline set weeks ago) must NOT show an error on load —
+  // it's a legitimate stored value, not a new mistake. The guard still blocks picking a NEW past date.
+  const dateInPast = isDate && !allowsPastDate && !!value && value < todayStr && value !== setting.value
 
   // Re-sync when the persisted value changes externally (render-phase reset; lazy init covers mount).
   const [prevValue, setPrevValue] = useState(setting.value)

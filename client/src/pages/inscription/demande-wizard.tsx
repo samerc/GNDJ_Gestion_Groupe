@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router'
 import {
   useApplicantConfig, useApplicantProfile, useCreateDemande, useUpdateDemande,
   useSubmitDemande, useSaveHousehold, useRequestHouseholdLookup, useVerifyHouseholdLookup,
+  isSubmissionDeadlinePassed,
   type ApplicantGuardian, type ApplicantScoutRelation, type DemandeInput,
 } from '@/services/applicant-service'
 import { Button } from '@/components/ui/button'
@@ -17,7 +18,7 @@ import { DateInput } from '@/components/shared/date-input'
 import { NATIONALITY_OPTIONS } from '@/lib/options'
 import { matchSchool } from '@/services/settings-service'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { cn } from '@/lib/utils'
+import { cn, formatDateLong } from '@/lib/utils'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
 import { Check, ChevronLeft, ChevronRight, Plus, Trash2, Send, UserRound, Users, Link2, Pencil } from 'lucide-react'
@@ -161,6 +162,7 @@ export default function DemandeWizardPage() {
   // Can create/edit/submit only while the portal is open AND the submission window is open (not the CG
   // review phase). Read-only otherwise, or once this demande has already been answered.
   const canSubmit = (config?.isOpen ?? false) && (config?.submissionsOpen ?? false)
+  const deadlinePassed = isSubmissionDeadlinePassed(config?.submissionDeadline)
   const readonly = !canSubmit || (!!existing && !!existing.responseSentAt)
   const notesMax = config?.notesMaxLength ?? 500
   const maxRelations = config?.maxScoutRelations ?? 50
@@ -338,8 +340,12 @@ export default function DemandeWizardPage() {
       </div>
 
       {readonly && (
-        <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
-          {existing?.responseSentAt ? 'Cette demande a été traitée — consultation uniquement.' : 'Les inscriptions sont fermées — consultation uniquement.'}
+        <div className={`rounded-lg border p-3 text-sm ${deadlinePassed && !existing?.responseSentAt ? 'border-amber-300 bg-amber-50 text-amber-800' : 'bg-muted/40 text-muted-foreground'}`}>
+          {existing?.responseSentAt
+            ? 'Cette demande a été traitée — consultation uniquement.'
+            : deadlinePassed
+              ? `La date limite de soumission était le ${formatDateLong(config?.submissionDeadline)}. Le délai est dépassé : vous ne pouvez plus soumettre cette demande (consultation uniquement).`
+              : 'Les inscriptions sont fermées — consultation uniquement.'}
         </div>
       )}
 

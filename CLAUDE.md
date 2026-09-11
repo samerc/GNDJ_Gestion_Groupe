@@ -4296,6 +4296,23 @@ Two demande-review asks. All on main; DEV until deploy; verified live.
       preserved, then restored; future-DOB / `<script>` → 400 (validators fire); builds clean (dotnet 0/0 + tsc +
       eslint + vite).
 
+### Settings past-date false error + clearer "délai dépassé" message (2026-09-11)
+Two fixes from a CG report. Frontend-only; DEV until deploy.
+- **Settings date "past" error only on CHANGE:** `SettingRow` (`settings.tsx`) flagged "La date ne peut pas être
+      dans le passé" for ANY stored date now in the past (e.g. `demande.submission_deadline` set weeks ago) because
+      `dateInPast` was computed purely from `value`. It now also requires `value !== setting.value` — so a validly
+      stored past date shows no error on load (and doesn't block, though the Save button is hidden when unchanged),
+      while picking a NEW past date still errors + blocks Save. (`allowsPastDate` exceptions unchanged.)
+- **Clear deadline-passed messaging:** the backend already closes submissions after `demande.submission_deadline`
+      (`SubmissionsOpen = !afterDeadline`; `SubmitDemande`/Create/Update/SaveHousehold/Register/Delete gated by
+      `SubmissionsClosedError`), but the parent-facing UI showed the generic manual-close "en cours d'étude" review
+      message. New shared `isSubmissionDeadlinePassed(deadline)` (applicant-service, compares today's local date to
+      the yyyy-MM-dd deadline); when the deadline has passed, the **portail** shows an amber "La date limite de
+      soumission est dépassée" banner (with the date) and the **wizard** readonly banner says "Le délai est dépassé :
+      vous ne pouvez plus soumettre cette demande" — distinct from a manual CG review-phase close. Submit stays
+      blocked client + server; the portal remains viewable. Verified live: config `submissionsOpen=false`,
+      `submissionDeadline=2026-09-10` (today 2026-09-11). Builds clean (tsc + eslint + vite).
+
 ### Envoyer les accès — "Tous les membres (hors maîtrise)" scope (2026-09-10)
 Added a whole-group scope to "Envoyer les accès": send the access/re-inscription email in one go to EVERY active
 member EXCEPT the maîtrise (leaders get the onboarding via "Emails aux chefs"). On main; DEV until deploy; tested live.

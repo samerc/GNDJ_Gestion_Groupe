@@ -1,5 +1,6 @@
 import { useNavigate, Navigate } from 'react-router'
-import { useApplicantConfig, useApplicantProfile, useDeleteDemande, useResendVerification, type Demande } from '@/services/applicant-service'
+import { useApplicantConfig, useApplicantProfile, useDeleteDemande, useResendVerification, isSubmissionDeadlinePassed, type Demande } from '@/services/applicant-service'
+import { formatDateLong } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
@@ -48,6 +49,7 @@ export default function ApplicantPortalPage() {
   // portal stays open for viewing but everything becomes read-only (review phase).
   const canSubmit = open && (config?.submissionsOpen ?? false)
   const reviewPhase = open && !(config?.submissionsOpen ?? false)
+  const deadlinePassed = isSubmissionDeadlinePassed(config?.submissionDeadline)
   const reachedMax = demandes.length >= max
   const needsVerify = config?.requireEmailVerification && !profile.emailVerified
 
@@ -95,13 +97,25 @@ export default function ApplicantPortalPage() {
       )}
 
       {reviewPhase && (
-        <div className="flex items-start gap-3 rounded-lg border border-blue-300 bg-blue-50 p-4 text-sm text-blue-800">
-          <Clock className="mt-0.5 h-5 w-5 shrink-0" />
-          <div>
-            <p className="font-medium">La période de soumission est terminée</p>
-            <p>Vos demandes sont en cours d'étude par la Maîtrise de Groupe. Vous pouvez suivre leur statut ici ; les résultats vous seront communiqués prochainement. Aucune modification n'est possible pour le moment.</p>
+        deadlinePassed ? (
+          // Automatic close because the submission deadline passed → be explicit that the délai is over.
+          <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+            <Clock className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="font-medium">La date limite de soumission est dépassée</p>
+              <p>La date limite était le {formatDateLong(config?.submissionDeadline)}. Vous ne pouvez plus créer ni soumettre de demande. Vous pouvez toujours consulter vos demandes ici ; les résultats vous seront communiqués prochainement.</p>
+            </div>
           </div>
-        </div>
+        ) : (
+          // Manual close by the CG (review phase) — deadline not passed.
+          <div className="flex items-start gap-3 rounded-lg border border-blue-300 bg-blue-50 p-4 text-sm text-blue-800">
+            <Clock className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="font-medium">La période de soumission est terminée</p>
+              <p>Vos demandes sont en cours d'étude par la Maîtrise de Groupe. Vous pouvez suivre leur statut ici ; les résultats vous seront communiqués prochainement. Aucune modification n'est possible pour le moment.</p>
+            </div>
+          </div>
+        )
       )}
 
       {reachedMax && open && (

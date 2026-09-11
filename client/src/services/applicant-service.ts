@@ -4,6 +4,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import applicantApi from '@/lib/applicant-api-client'
 
+// True when a submission deadline is set AND today (local date) is past it. Lets the portal show a clear
+// "délai dépassé" message, distinct from a manual review-phase close (submissions_open turned off by the CG).
+export function isSubmissionDeadlinePassed(deadline: string | null | undefined): boolean {
+  if (!deadline) return false
+  const d = new Date(); const p = (n: number) => String(n).padStart(2, '0')
+  const today = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+  return today > deadline // yyyy-MM-dd strings compare lexicographically = chronologically
+}
+
 export interface ApplicantConfig {
   isOpen: boolean            // demande.enabled — portal accessible at all (login + view)
   submissionsOpen: boolean   // demande.submissions_open — inner window: can create/edit/submit (else view-only review phase)
