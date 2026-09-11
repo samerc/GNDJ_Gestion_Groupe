@@ -167,6 +167,9 @@ function SuggestionCard({ suggestion, onReject }: { suggestion: SiblingSuggestio
   const chosenAddrRec = data && address !== NONE ? data.addresses.find((a) => a.addressId === address) : null
   const chosenAddr = chosenAddrRec ? addrLabel(chosenAddrRec) : null
   const Chevron = open ? ChevronDown : ChevronRight
+  // Collapsed "why" — the raw evidence repeats one entry per matching pair ("Même email parent" ×3, etc.), so
+  // dedupe to the DISTINCT signal types (keeping the first of each) to keep the header uncluttered.
+  const distinctEvidence = Array.from(new Map(suggestion.evidence.map((e) => [e.split(' : ')[0], e])).values())
 
   return (
     <Card className="overflow-hidden">
@@ -177,21 +180,28 @@ function SuggestionCard({ suggestion, onReject }: { suggestion: SiblingSuggestio
             <Chevron className="h-4 w-4" />
           </button>
           <button type="button" onClick={toggleOpen} className="min-w-0 flex-1 text-left">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
+            <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
               <Badge variant={suggestion.confidence === 'Élevée' ? 'default' : 'secondary'}
                 className={suggestion.confidence === 'Élevée' ? 'bg-emerald-600' : 'bg-amber-500 text-white'}>
                 Confiance {suggestion.confidence.toLowerCase()}
               </Badge>
               <span className="text-xs text-muted-foreground">{suggestion.members.length} enfants probables</span>
-              {/* One-line "why": compact evidence chips (the shared parent / phone / email / address). */}
-              {suggestion.evidence.map((e, j) => {
-                const Icon = evidenceIcon(e)
-                return (
-                  <span key={j} className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[11px] text-muted-foreground">
-                    <Icon className="h-3 w-3 text-primary/70" />{e.split(' : ')[0]}
+              {/* One-line "why": DISTINCT shared signals (deduped), rendered as a light inline list (not pills). */}
+              {distinctEvidence.length > 0 && (
+                <>
+                  <span className="hidden h-3.5 w-px bg-border sm:block" aria-hidden />
+                  <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-muted-foreground">
+                    {distinctEvidence.map((e, j) => {
+                      const Icon = evidenceIcon(e)
+                      return (
+                        <span key={j} className="inline-flex items-center gap-1">
+                          <Icon className="h-3 w-3 text-primary/60" />{e.split(' : ')[0]}
+                        </span>
+                      )
+                    })}
                   </span>
-                )
-              })}
+                </>
+              )}
             </div>
             <div className="flex flex-wrap gap-1.5">
               {suggestion.members.map((m) => {
