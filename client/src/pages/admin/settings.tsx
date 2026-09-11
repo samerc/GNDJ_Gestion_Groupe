@@ -5,6 +5,7 @@
 // editors for exchange rates and for keys that have a fixed options list.
 // Each SettingEditor saves its own row; settings with dedicated pages are hidden.
 import { parseApiError } from '@/lib/error-utils'
+import { Link } from 'react-router'
 import { useState, useMemo, lazy, Suspense } from 'react'
 import { useSettings, useUpdateSetting, type SettingDto } from '@/services/settings-service'
 import { useAssociations } from '@/services/association-service'
@@ -23,20 +24,29 @@ import { ManagedListEditor } from '@/components/shared/managed-list-editor'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 
-// The three "set-and-forget" config screens are now tabs inside Paramètres rather than separate pages/routes.
+// Config screens that live as TABS inside Paramètres rather than separate pages/routes (Option 1 hub).
 // Lazy-loaded so their code stays out of the main settings chunk until the tab is opened.
 const AssociationsPage = lazy(() => import('@/pages/admin/associations'))
 const CustomFieldsPage = lazy(() => import('@/pages/admin/custom-fields'))
 const CardDesignerPage = lazy(() => import('@/pages/admin/card-designer'))
+const ManagedListsPage = lazy(() => import('@/pages/admin/managed-lists'))
+const AppearancePage = lazy(() => import('@/pages/admin/appearance'))
+const SiteTextsPage = lazy(() => import('@/pages/admin/site-texts'))
+// Types de documents — embedded INSIDE the Documents category tab (not a standalone tab).
+const DocumentTypesPage = lazy(() => import('@/pages/admin/document-types'))
 // Rejection motifs (demande refusal reasons) — embedded inside the Inscriptions tab (CG-editable).
 const RejectionReasonsEditor = lazy(() => import('@/pages/admin/rejection-reasons'))
 
 // Extra tabs (rendered after the key-value setting categories). Each renders a full config page component;
-// the `cfg:` prefix keeps their tab `value` from colliding with a real setting category.
-const CONFIG_TABS: { key: string; label: string; Component: React.ComponentType }[] = [
-  { key: 'cfg:associations', label: 'Associations', Component: AssociationsPage },
-  { key: 'cfg:custom-fields', label: 'Champs personnalisés', Component: CustomFieldsPage },
-  { key: 'cfg:card', label: 'Carte membre', Component: CardDesignerPage },
+// the `cfg:` prefix keeps their tab `value` from colliding with a real setting category. Each tab is gated by
+// its own permission so a CG sees only what they can reach (e.g. Listes) while super-admin tools stay hidden.
+const CONFIG_TABS: { key: string; label: string; Component: React.ComponentType; permission: string }[] = [
+  { key: 'cfg:lists', label: 'Listes', Component: ManagedListsPage, permission: PERMISSIONS.MAITRISE_MANAGE },
+  { key: 'cfg:associations', label: 'Associations', Component: AssociationsPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+  { key: 'cfg:custom-fields', label: 'Champs personnalisés', Component: CustomFieldsPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+  { key: 'cfg:card', label: 'Carte membre', Component: CardDesignerPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+  { key: 'cfg:appearance', label: 'Apparence', Component: AppearancePage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+  { key: 'cfg:site-texts', label: 'Accueil & pied de page', Component: SiteTextsPage, permission: PERMISSIONS.CONTENT_MANAGE },
 ]
 
 // Settings already edited on dedicated pages — hidden from the generic Paramètres page.
@@ -72,14 +82,15 @@ const CATEGORY_LABELS: Record<string, string> = {
   demande: 'Inscriptions',
   login: 'Connexion',
   general: 'Général',
-  reports: 'Rapports',
   site: 'Site public',
   email: 'Email & contact',
   security: 'Sécurité',
   maintenance: 'Maintenance',
   advanced: 'Avancé',
 }
-const CATEGORY_ORDER = ['members', 'famille', 'documents', 'cotisations', 'passage', 'demande', 'login', 'email', 'security', 'general', 'reports', 'site', 'maintenance', 'advanced']
+// 'reports' is intentionally omitted: its only visible setting (reports.cards_enabled) is rendered inside the
+// Carte membre tab instead, so there is no standalone "Rapports" tab.
+const CATEGORY_ORDER = ['members', 'famille', 'documents', 'cotisations', 'passage', 'demande', 'login', 'email', 'security', 'general', 'site', 'maintenance', 'advanced']
 
 // Keys pinned to the top of their category tab (rest keep their natural order). The two inscription
 // period switches (portal open + submission window) lead the "Inscriptions" tab so the CG sees them first.
@@ -368,10 +379,19 @@ export default function SettingsPage() {
   const updateMutation = useUpdateSetting()
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
-  // The config-page tabs (Associations / Champs personnalisés / Carte membre) are super-admin-only; a Chef
-  // de Groupe reaching Paramètres sees only the operational setting categories the backend returns for them.
-  const isAdmin = useAuthStore((s) => (s.user?.isSuperAdmin || s.user?.permissions.includes(PERMISSIONS.ASSOCIATIONS_MANAGE)) ?? false)
-  const configTabs = isAdmin ? CONFIG_TABS : []
+  // Each config tab is gated by its own permission: a Chef de Groupe reaching Paramètres sees the CG-relevant
+  // ones (Listes) plus the operational setting categories the backend returns for them; super-admin sees all.
+  const user = useAuthStore((s) => s.user)
+  const can = (perm: string) => !!user?.isSuperAdmin || !!user?.permissions.includes(perm)
+  const configTabs = CONFIG_TABS.filter(t => can(t.permission))
+  // The lone "Rapports" setting (enable member cards) now rides along in the Carte membre tab.
+  const cardsEnabled = (settings ?? []).find(s => s.key === 'reports.cards_enabled')
+  // Config apps that stay their own pages (not settings) — a small launchpad at the top of Paramètres.
+  const configLinks = [
+    { to: '/admin/email-settings', label: 'Email / SMTP', perm: PERMISSIONS.ASSOCIATIONS_MANAGE },
+    { to: '/admin/report-templates', label: 'Modèles de rapports', perm: PERMISSIONS.ASSOCIATIONS_MANAGE },
+    { to: '/admin/roles-access', label: 'Profils & accès', perm: PERMISSIONS.MAITRISE_MANAGE },
+  ].filter(l => can(l.perm))
 
   const handleSave = async (key: string, value: string) => {
     setError('')
@@ -426,6 +446,18 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Launchpad to the config apps that remain their own pages (Email/SMTP, report templates, access). */}
+      {configLinks.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-4 shadow-card">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Autres pages de configuration</p>
+          <div className="flex flex-wrap gap-2">
+            {configLinks.map(l => (
+              <Button key={l.to} asChild variant="outline" size="sm"><Link to={l.to}>{l.label}</Link></Button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
       {q ? (
@@ -462,6 +494,15 @@ export default function SettingsPage() {
                   </Suspense>
                 </div>
               )}
+              {/* The Documents tab also hosts the "Types de documents" manager (super-admin), below the settings. */}
+              {c === 'documents' && can(PERMISSIONS.DOCUMENT_TYPES_VIEW) && tab === 'documents' && (
+                <div className="mt-6 rounded-xl border border-border bg-card p-5 shadow-card">
+                  <h2 className="mb-4 text-lg font-semibold">Types de documents</h2>
+                  <Suspense fallback={<LoadingSpinner variant="table" />}>
+                    <DocumentTypesPage embedded />
+                  </Suspense>
+                </div>
+              )}
             </TabsContent>
           ))}
           {configTabs.map(({ key, Component }) => (
@@ -469,6 +510,12 @@ export default function SettingsPage() {
               {/* Each config screen renders its own page (its own heading + CRUD). Only mounted when its tab is active. */}
               {tab === key && (
                 <Suspense fallback={<LoadingSpinner variant="table" />}>
+                  {/* The Carte membre tab also carries the "enable member cards" toggle (ex-"Rapports" setting). */}
+                  {key === 'cfg:card' && cardsEnabled && (
+                    <div className="mb-6 rounded-xl border border-border bg-card p-5 shadow-card">
+                      <SettingEditor setting={cardsEnabled} onSave={handleSave} />
+                    </div>
+                  )}
                   <Component />
                 </Suspense>
               )}

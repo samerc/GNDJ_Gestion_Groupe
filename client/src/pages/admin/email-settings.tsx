@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { BackToSettings } from '@/components/shared/back-to-settings'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
@@ -107,6 +108,7 @@ const defaultTemplateForm: TemplateForm = { name: '', code: '', module: 'auth', 
 export default function EmailSettingsPage() {
   return (
     <div className="space-y-6">
+      <BackToSettings />
       <h1 className="text-2xl font-bold">Email / SMTP</h1>
       <Tabs defaultValue="smtp">
         <TabsList>

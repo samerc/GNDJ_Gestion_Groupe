@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import SecurityProfilesPage from './security-profiles'
 import GroupAccessPage from './group-access'
 import { SuperAdminsSection } from './super-admins'
+import { BackToSettings } from '@/components/shared/back-to-settings'
 
 export default function RolesAccessPage() {
   const { hasPermission } = useAuthStore()
@@ -28,6 +29,7 @@ export default function RolesAccessPage() {
 
   return (
     <div className="space-y-4">
+      <BackToSettings />
       <div>
         <h1 className="text-2xl font-bold">Profils &amp; accès</h1>
         <p className="text-sm text-muted-foreground">

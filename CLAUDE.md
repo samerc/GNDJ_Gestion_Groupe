@@ -4457,10 +4457,30 @@ deploy; Phase 2 = the settings hub is NOT built yet). All in `sidebar.tsx` / `he
   ≥1 permission-visible item (items are filtered before the section-change check), in BOTH the AdminNav dropdown
   (via `DropdownMenuLabel`/`DropdownMenuSeparator` in a `display:contents` wrapper; content now `max-h-[80vh]
   overflow-y-auto` since the drawer is tall) and the mobile/CU accordion. Manager top-level groups: 6 → 5.
-- Builds clean (tsc + eslint + vite). **PHASE 2 (next): settings hub** — pull the true-settings dedicated pages
-  (Listes, Apparence, Motifs de refus, document-campaign dates, site texts) into Paramètres as tabs/sections, and a
-  "Configuration" index at the top of Paramètres linking the CRUD apps (Email/SMTP, Types de docs, Champs, Carte,
-  Associations, Modèles de rapports). Mockups + this plan kept in `temp/menu-mockups/`.
+- Builds clean (tsc + eslint + vite). Mockups + plan kept in `temp/menu-mockups/`.
+
+### Settings consolidation — PHASE 2: Paramètres = hub (2026-09-11)
+Second phase (Option 1): fold the true-settings dedicated pages into Paramètres as tabs + a launchpad to the CRUD
+apps that stay their own pages. Frontend-only, DEV until deploy. All in `settings.tsx` + `sidebar.tsx` + the target
+pages. `CONFIG_TABS` gained a per-tab **`permission`** (was all-or-nothing super-admin) so each config tab shows only
+if the user holds its permission (a CG sees **Listes** [maitrise.manage]; super-admin tools stay hidden).
+- **New Paramètres tabs** (lazy, gated): **Listes** (managed-lists, CG), **Apparence** (appearance, super-admin),
+  **Accueil & pied de page** (site-texts, content.manage) — alongside the existing Associations / Champs / Carte tabs.
+- **Types de documents** is embedded INSIDE the **Documents** tab (below the settings; `document-types.tsx` gained an
+  `embedded` prop that hides its own h1; gated `document_types.view`, mounted only when the Documents tab is active).
+- **"Rapports" tab removed** — its only visible setting `reports.cards_enabled` now renders inside the **Carte membre**
+  tab (found by key + rendered as a SettingEditor above CardDesignerPage). `'reports'` dropped from CATEGORY_ORDER/LABELS.
+- **Launchpad** — a "Autres pages de configuration" card at the top of Paramètres links the config apps that stay
+  their own pages (**Email/SMTP**, **Modèles de rapports**, **Profils & accès**), filtered by permission. Those three
+  pages gained a shared **`<BackToSettings>`** ("← Retour aux paramètres" → /admin/settings) so there's always a way back.
+- **Sidebar (Configuration drawer) trimmed**: removed **Types de documents** + **Listes** (Structure & données),
+  **Apparence** (Système & sécurité), **Accueil & pied de page** (Site public). Their `/admin/*` routes still work
+  (deep links) — they're just reached via the Paramètres tabs now (same pattern as Associations/Champs/Carte).
+- **Deliberately NOT pulled in:** the document-campaign DATES stay on "Suivi documents" — they need order validation
+  (deposit < correction < final) the generic editor can't enforce (HIDDEN_KEYS comment); un-hiding them would let a
+  user save them out of order and break the campaign phases.
+- **OPEN (asked by user, not yet built):** the Paramètres tab bar is now large (~18 tabs) — a left-hand grouped
+  vertical nav (Réglages vs Configuration sections) is proposed to replace the wrapping tab row. Discuss before building.
 
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to

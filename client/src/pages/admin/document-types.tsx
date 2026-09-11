@@ -28,7 +28,8 @@ import { CSS } from '@dnd-kit/utilities'
 
 const defaultForm: DocumentTypeFormData = { name: '', code: '', description: '', requiresExpiry: false, requiresApproval: true, isActive: true, displayOrder: 0, templateFileUrl: null, templateFileName: null, templateHtml: null }
 
-export default function DocumentTypesPage() {
+// `embedded` = rendered inside the Paramètres → Documents tab (suppresses the page's own big heading).
+export default function DocumentTypesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
   const [formOpen, setFormOpen] = useState(false)
@@ -147,8 +148,8 @@ export default function DocumentTypesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Types de documents</h1>
+      <div className={`flex items-center ${embedded ? 'justify-end' : 'justify-between'}`}>
+        {!embedded && <h1 className="text-2xl font-bold">Types de documents</h1>}
         <Button onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" />
           Nouveau type

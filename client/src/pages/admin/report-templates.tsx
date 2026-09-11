@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { BackToSettings } from '@/components/shared/back-to-settings'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Plus, Pencil, Trash2, FileText, FileSpreadsheet } from 'lucide-react'
@@ -140,6 +141,7 @@ export default function ReportTemplatesPage() {
 
   return (
     <div className="space-y-6">
+      <BackToSettings />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Rapports personnalisés</h1>
         <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Nouveau rapport</Button>

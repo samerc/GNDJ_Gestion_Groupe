@@ -37,7 +37,6 @@ import {
   MailCheck,
   Megaphone,
   Crown,
-  List,
   ListChecks,
   Tent,
   ClipboardList,
@@ -47,7 +46,6 @@ import {
   LayoutGrid,
   Archive,
   GitMerge,
-  Palette,
   MonitorSmartphone,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -165,7 +163,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/events', label: 'Agenda', icon: CalendarDays, permission: PERMISSIONS.CONTENT_MANAGE },
       { path: '/admin/resources', label: 'Ressources', icon: Library, permission: PERMISSIONS.CONTENT_MANAGE },
       { path: '/admin/pages', label: 'Pages', icon: FileText, permission: PERMISSIONS.CONTENT_MANAGE },
-      { path: '/admin/site-texts', label: 'Accueil & pied de page', icon: FileText, permission: PERMISSIONS.CONTENT_MANAGE },
+      // Accueil & pied de page (textes du site) → Paramètres (Accueil & pied de page tab). Route still works.
     ],
   },
   {
@@ -183,9 +181,8 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/roles', label: 'Fonctions', icon: Shield, permission: PERMISSIONS.ROLES_MANAGE, section: 'Structure & données' },
       { path: '/admin/progression-path', label: 'Parcours scouts', icon: Route, permission: PERMISSIONS.UNIT_TYPES_MANAGE, section: 'Structure & données' },
       { path: '/admin/progression', label: 'Progression scoute', icon: Star, permission: PERMISSIONS.PROGRESSION_MANAGE, section: 'Structure & données' },
-      { path: '/admin/document-types', label: 'Types de documents', icon: FileText, permission: PERMISSIONS.DOCUMENT_TYPES_VIEW, section: 'Structure & données' },
-      { path: '/admin/lists', label: 'Listes (écoles, classes, villes…)', icon: List, permission: PERMISSIONS.MAITRISE_MANAGE, section: 'Structure & données' },
       { path: '/admin/report-templates', label: 'Modèles de rapports', icon: FileText, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Structure & données' },
+      // Types de documents → Paramètres (Documents tab); Listes → Paramètres (Listes tab). Routes still work.
       // (Camp BP is appended to this section dynamically in NavContent when no camp is active.)
       // --- Système & sécurité ---
       { path: '/admin/roles-access', label: 'Profils & accès', icon: ShieldCheck, permission: PERMISSIONS.MAITRISE_MANAGE, section: 'Système & sécurité' },
@@ -196,7 +193,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/error-log', label: 'Journal des erreurs', icon: AlertTriangle, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
       { path: '/admin/sessions', label: 'Sessions actives', icon: MonitorSmartphone, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
       { path: '/admin/deleted-members', label: 'Corbeille', icon: Trash2, permission: PERMISSIONS.MEMBERS_DELETE, section: 'Système & sécurité' },
-      { path: '/admin/appearance', label: 'Apparence', icon: Palette, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
+      // Apparence → Paramètres (Apparence tab). Route still works.
     ],
   },
 ]
