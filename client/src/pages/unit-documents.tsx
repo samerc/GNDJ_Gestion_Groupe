@@ -23,7 +23,8 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban, ChevronLeft, ChevronRight, Upload } from 'lucide-react'
+import { ScrollToTop } from '@/components/shared/scroll-to-top'
+import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban, ChevronLeft, ChevronRight, Upload, ExternalLink } from 'lucide-react'
 
 // ─── Cell rendering helpers ────────────────────────────────
 function docStatusColor(cell: MemberDocCellDto): string {
@@ -332,6 +333,12 @@ export default function UnitDocumentsPage() {
     a.href = previewBlobUrl
     a.download = name
     a.click()
+  }
+
+  // Open the current page's blob in a new browser tab — a reliable way to view a PDF full-size if the inline
+  // preview is cramped or the browser won't render the embedded blob.
+  const handleOpenDoc = () => {
+    if (previewBlobUrl) window.open(previewBlobUrl, '_blank', 'noopener,noreferrer')
   }
 
   const handleDownloadZip = async (docTypeId?: string) => {
@@ -676,6 +683,11 @@ export default function UnitDocumentsPage() {
               </div>
 
               <DialogFooter>
+                {previewBlobUrl && (
+                  <Button variant="outline" size="sm" onClick={handleOpenDoc}>
+                    <ExternalLink className="mr-1 h-4 w-4" />Ouvrir
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={handleDownloadDoc}>
                   <Download className="mr-1 h-4 w-4" />Télécharger
                 </Button>
@@ -843,6 +855,9 @@ export default function UnitDocumentsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Floating "back to top" — the matrix can be very long (many members). */}
+      <ScrollToTop />
     </div>
   )
 }

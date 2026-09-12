@@ -4695,6 +4695,22 @@ only resolved the display label, so two buckets displayed the same code as two r
       (once per DB, tracked in `data_patches`). Result: "CNDJ" is a single row covering every variant. The wizard's
       improved matcher prevents most future hyphen/spacing variants going forward.
 
+### Doc-verification: PDF preview fix (CSP) + scroll-to-top (2026-09-12)
+Two asks on the document-verification page (`unit-documents.tsx`, used by both CU and CG/super-admin):
+- **PDF preview showed a "blocked" placeholder instead of the document** (images previewed fine). Root cause: the
+      **CSP** (`Program.cs`) had no explicit `frame-src`, so the blob-URL `<iframe>` used to embed the downloaded
+      PDF inherited `default-src 'self'` — which blocks `blob:`. (Bites in PRODUCTION only — CSP is applied outside
+      Development, so it worked on the dev localhost.) Fix: added **`frame-src 'self' blob:`** to the CSP (kept
+      `object-src 'none'`). Also added an **"Ouvrir"** button (opens the current page's blob in a new tab via
+      `window.open`) as a reliable full-size fallback next to Télécharger. Backend CSP change deploys to prod next;
+      the frontend button + the (already-working-on-dev) inline preview ship together.
+- **Scroll-to-top**: new reusable `components/shared/scroll-to-top.tsx` — a floating bottom-right "Retour en haut"
+      button that appears after scrolling 400px. The app scrolls INSIDE `<main>` (not the window, per AppLayout), so
+      it watches that container (falls back to window) and calls its `scrollTo`. Mounted on the doc-verification
+      page (the matrix gets very long with many members). z-40 so it sits under dialogs.
+- Build clean (dotnet 0/0 + tsc + eslint). DEV until deploy (the PDF fix needs the deploy to reach prod, where the
+      problem actually is).
+
 ### École — searchable dropdown + variant data cleanup (2026-09-12)
 Follow-up to the "Par école" duplicate (root cause: parents used the "Autre…" free-text escape hatch instead of
 picking from a long, UNSEARCHABLE `<Select>`, creating spelling variants). Two fixes:

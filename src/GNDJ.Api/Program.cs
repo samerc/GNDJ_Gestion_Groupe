@@ -405,12 +405,16 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 //   style-src 'unsafe-inline'— React inline style={{…}} attributes + Tailwind need it (no nonce with a static build)
 //   img-src blob: data: https: — member photos are blob: object URLs; CMS/News content can embed external images
 //   connect-src 'self'       — the whole API is same-origin; there are no external fetch/CDN origins
+//   frame-src 'self' blob:   — the document-verification preview embeds a downloaded PDF as a blob: <iframe>
+//                              (without this it inherits default-src 'self', which blocks blob: → the PDF
+//                              preview shows a "blocked" placeholder instead of the document)
 //   frame-ancestors 'none'   — clickjacking guard (reinforces X-Frame-Options)
 // Applied to every response; harmless on API JSON (CSP governs document resource loading).
 const string csp =
     "default-src 'self'; " +
     "base-uri 'self'; " +
     "object-src 'none'; " +
+    "frame-src 'self' blob:; " +
     "frame-ancestors 'none'; " +
     "form-action 'self'; " +
     "script-src 'self'; " +
