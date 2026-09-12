@@ -12,7 +12,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { parseApiError } from '@/lib/error-utils'
-import { Users, LogOut, Wifi, Info } from 'lucide-react'
+import { Users, LogOut, Wifi, Info, Eye, EyeOff } from 'lucide-react'
 
 // "il y a 3 min" / "il y a 2 h" / "il y a 1 j" — coarse relative time; '—' when null.
 function timeAgo(iso: string | null): string {
@@ -129,6 +129,9 @@ export default function SessionsPage() {
   const { data, isLoading, isError } = useActiveSessions()
   const disconnect = useDisconnectSession()
   const [confirm, setConfirm] = useState<ActiveSession | null>(null)
+  // "Sessions ouvertes" (open but not currently active) are hidden by default — usually you only care about
+  // who is online right now. A toggle reveals them.
+  const [showOffline, setShowOffline] = useState(false)
 
   const doDisconnect = async () => {
     if (!confirm) return
@@ -150,10 +153,13 @@ export default function SessionsPage() {
   const all = [...data.members, ...data.applicants]
   const total = all.length
   const online = all.filter((s) => s.isOnline).length
+  const offlineCount = total - online
   const sorted = [...all].sort((a, b) =>
     a.isOnline !== b.isOnline
       ? (a.isOnline ? -1 : 1)
       : (b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0) - (a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0))
+  // By default show only online sessions; the toggle reveals the "sessions ouvertes" (offline) too.
+  const visible = showOffline ? sorted : sorted.filter((s) => s.isOnline)
 
   return (
     <div className="space-y-6">
@@ -173,8 +179,18 @@ export default function SessionsPage() {
         </p>
       </div>
 
+      {offlineCount > 0 && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => setShowOffline((v) => !v)}>
+            {showOffline
+              ? (<><EyeOff className="mr-1.5 h-4 w-4" />Masquer les sessions ouvertes</>)
+              : (<><Eye className="mr-1.5 h-4 w-4" />Afficher les sessions ouvertes ({offlineCount})</>)}
+          </Button>
+        </div>
+      )}
+
       <SessionTable
-        sessions={sorted}
+        sessions={visible}
         online={online}
         onDisconnect={setConfirm}
         busyId={disconnect.isPending ? confirm?.id ?? null : null}
