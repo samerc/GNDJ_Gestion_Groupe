@@ -4670,6 +4670,17 @@ age charts) into an **action hub**. All on main, DEV until deploy; verified live
   rentrée 4/24, effectif 1069 vs 1219, campagne 208 reçues); endpoint requires auth (401 without token). Build clean
   (dotnet 0/0, tsc + eslint + vite).
 
+### Audit log — document actions say WHOSE document (2026-09-12)
+A CG noticed the audit detail of a document approval read "Statut : Pending → Approved" with no indication of
+which member or document — useless for tracing "who approved whose document" in a dispute. The `ReviewDocument`
+audit (entity `MemberDocument`) now resolves + logs **`Member`** (via `AuditNames.MemberAsync`) + **`Document`**
+(the document type name) in BOTH old and new values, so they render as unchanged CONTEXT rows beside the
+highlighted Statut change ("Membre : Jean Dupont · Document : Carte d'identité · Statut : Pending → Approved").
+Applied the same to **Create** (upload → `Member` + `Document` type) and **Delete** (`Member`). Frontend
+`FIELD_LABELS` gained `Document`/`ReviewNotes`/`FileName`. `AuditNames` was already imported (Common). Backend
++ one frontend label, builds clean (dotnet 0/0, tsc + eslint). DEV until deploy — only NEW audit rows carry the
+names (existing rows predate the change).
+
 ### Settings hub — Email integrated + split into two tabs (2026-09-12)
 Continued the "Paramètres = hub" consolidation. The Email / SMTP config was one of the 3 remaining launchpad
 pages (`/admin/email-settings`, reached via the "Autres pages de configuration" card + a sidebar link). It's now

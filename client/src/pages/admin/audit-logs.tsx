@@ -159,6 +159,7 @@ const FIELD_LABELS: Record<string, string> = {
   Keeper: 'Conservé', Merged: 'Fusionné(s)', KeptReference: 'Référence conservée',
   Father: 'Père', Mother: 'Mère',
   Status: 'Statut', Count: 'Nombre', IsLeaving: 'Quitte le groupe',
+  Document: 'Document', ReviewNotes: 'Note de vérification', FileName: 'Fichier',
   KeepOld: "Conserver l'ancienne fonction", IsSuperAdmin: 'Super-administrateur',
   AccountsDeleted: 'Comptes supprimés',
   // Send-report keys (Envoyer les accès / Relance documents / Message aux chefs)

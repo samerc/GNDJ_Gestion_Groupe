@@ -197,7 +197,9 @@ public class UploadMemberDocumentCommandHandler(IApplicationDbContext context, I
 
         context.MemberDocuments.Add(entity);
         await context.SaveChangesAsync(ct);
-        await auditService.LogAsync("Create", "MemberDocument", entity.Id, newValues: new { entity.Title, entity.FileName, entity.Status, pages = files.Count }, cancellationToken: ct);
+        // Record WHOSE document + which type (docType.Name) so the audit says who uploaded what, not just a file name.
+        var uploadMember = await AuditNames.MemberAsync(context, entity.MemberId, ct);
+        await auditService.LogAsync("Create", "MemberDocument", entity.Id, newValues: new { Member = uploadMember, Document = docType.Name, entity.Title, entity.FileName, entity.Status, pages = files.Count }, cancellationToken: ct);
 
         return Result<Guid>.Success(entity.Id);
     }
@@ -235,16 +237,22 @@ public class ReviewDocumentCommandHandler(IApplicationDbContext context, ICurren
         entity.ReviewNotes = request.ReviewNotes;
 
         await context.SaveChangesAsync(ct);
+
+        // Resolve WHOSE document this decision was about + which document type, so the audit trail reads
+        // "Membre : Jean Dupont · Document : Carte d'identité · Statut : Pending → Approved" instead of an
+        // anonymous status change (essential for tracing who approved what if there's ever a dispute). The
+        // member/document are context (same in both columns → shown unchanged); only Statut is highlighted.
+        var memberName = await AuditNames.MemberAsync(context, entity.MemberId, ct);
+        var typeName = await context.DocumentTypes.Where(dt => dt.Id == entity.DocumentTypeId).Select(dt => dt.Name).FirstOrDefaultAsync(ct) ?? "Document";
         await auditService.LogAsync("Update", "MemberDocument", entity.Id,
-            oldValues: new { Status = oldStatus },
-            newValues: new { entity.Status, entity.ReviewNotes },
+            oldValues: new { Member = memberName, Document = typeName, Status = oldStatus },
+            newValues: new { Member = memberName, Document = typeName, entity.Status, entity.ReviewNotes },
             cancellationToken: ct);
 
         // In-app notification to the member when the decision CHANGES (accepted / à corriger) — the app-side
         // equivalent of the email, so it works even if email delivery is down.
         if (oldStatus != entity.Status)
         {
-            var typeName = await context.DocumentTypes.Where(dt => dt.Id == entity.DocumentTypeId).Select(dt => dt.Name).FirstOrDefaultAsync(ct) ?? "Document";
             if (entity.Status == DocumentStatus.Rejected)
                 await notifications.NotifyMemberAsync(entity.MemberId, NotificationTypes.Document, "Document à corriger",
                     $"Votre document « {typeName} » a été refusé." + (string.IsNullOrWhiteSpace(request.ReviewNotes) ? "" : $" Motif : {request.ReviewNotes}"), "/my-documents", ct);
@@ -271,9 +279,10 @@ public class DeleteMemberDocumentCommandHandler(IApplicationDbContext context, I
         if (!await DocumentAccessHelper.CanAccessMember(context, currentUser, entity.MemberId, ct))
             return Result<bool>.Failure("Accès non autorisé.");
 
+        var delMember = await AuditNames.MemberAsync(context, entity.MemberId, ct);
         context.MemberDocuments.Remove(entity);
         await context.SaveChangesAsync(ct);
-        await auditService.LogAsync("Delete", "MemberDocument", entity.Id, oldValues: new { entity.Title, entity.FileName }, cancellationToken: ct);
+        await auditService.LogAsync("Delete", "MemberDocument", entity.Id, oldValues: new { Member = delMember, entity.Title, entity.FileName }, cancellationToken: ct);
 
         return Result<bool>.Success(true);
     }
