@@ -271,8 +271,12 @@ export default function App() {
               <Route path="/admin/sessions" element={<SessionsPage />} />
               <Route path="/admin/email-outbox" element={<EmailOutboxPage />} />
               <Route path="/admin/changelog" element={<ChangelogPage />} />
-              <Route path="/admin/report-templates" element={<ReportTemplatesPage />} />
               <Route path="/admin/progression-path" element={<ProgressionPathPage />} />
+            </Route>
+            {/* Report builder: any leader (members.edit = CU / CG / super-admin) can create + generate reports.
+                The builder limits a non-manager to unit-scoped reports; group/branch/multi-unit stay CG-only. */}
+            <Route element={<PermissionRoute permission={PERMISSIONS.MEMBERS_EDIT} />}>
+              <Route path="/admin/report-templates" element={<ReportTemplatesPage />} />
             </Route>
           </Route>
         </Route>

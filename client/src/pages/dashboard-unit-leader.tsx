@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo } from 'react'
-import { saveBlob } from '@/lib/download'
+import { saveBlob, filenameFromDisposition } from '@/lib/download'
 import { useNavigate } from 'react-router'
 import { useUnitDashboard, type RosterMemberDto } from '@/services/dashboard-service'
 import { useMember } from '@/services/member-service'
@@ -25,8 +25,7 @@ import { cn } from '@/lib/utils'
 import { generateBulkCards } from '@/services/report-service'
 import { parseBlobError } from '@/lib/error-utils'
 import { toast } from 'sonner'
-import { useReportTemplates } from '@/services/report-template-service'
-import { generateRoster, generateExport } from '@/services/report-service'
+import { useReportTemplates, generateReportFromTemplate } from '@/services/report-template-service'
 import { useCurrentScoutYear, calendarScoutYear } from '@/hooks/use-scout-year'
 import { useSettingValue } from '@/services/settings-service'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
@@ -34,9 +33,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, FileText, ArrowLeft, CalendarCheck, UsersRound } from 'lucide-react'
+import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, FileText, ArrowLeft, CalendarCheck, UsersRound, Plus } from 'lucide-react'
 
 interface Props { unitId: string }
 
@@ -246,6 +246,9 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const [bulkCardsLoading, setBulkCardsLoading] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const { data: reportTemplates } = useReportTemplates(true)
+  // Only UNIT-scoped templates run from a CU's unit dashboard (group/branch/multi-unit are CG tools, run from
+  // the Rapports personnalisés admin page). This unit is passed as the target.
+  const unitScopedTemplates = useMemo(() => (reportTemplates ?? []).filter(t => t.scopeType === 'unit'), [reportTemplates])
   const currentScoutYear = useCurrentScoutYear()
   // Member-card generation is a group-wide toggle (Paramètres → Rapports). Off => hide the "Cartes" button.
   const cardsEnabled = useSettingValue('reports.cards_enabled') !== 'false'
@@ -259,20 +262,14 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
     return m
   }, [absenceCountsRaw])
 
-  // Run a CG-defined report template (roster PDF or data export) for this unit and trigger a download.
-  const handleCustomReport = async (template: { id: string; name: string; reportType: string; format: string; columnsJson: string }) => {
+  // Run a CG-defined unit-scoped report template for THIS unit (server resolves columns/scope) and download it.
+  const handleCustomReport = async (template: { id: string; name: string; reportType: string; format: string }) => {
     setGeneratingReport(template.id)
     try {
-      const columns: string[] = JSON.parse(template.columnsJson)
-      let response
-      if (template.reportType === 'roster') {
-        response = await generateRoster({ unitId, scoutYear: currentScoutYear, columns })
-      } else {
-        response = await generateExport({ unitId, scoutYear: currentScoutYear, columns, format: template.format })
-      }
-      const ext = template.format === 'xlsx' ? 'xlsx' : template.format === 'csv' ? 'csv' : 'pdf'
-      const mimeType = ext === 'pdf' ? 'application/pdf' : ext === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/csv'
-      saveBlob(response.data, `${template.name.replace(/\s+/g, '_')}.${ext}`, mimeType)
+      const res = await generateReportFromTemplate(template.id, { scoutYear: currentScoutYear, unitId })
+      const ext = template.reportType === 'roster' ? 'pdf' : template.format === 'csv' ? 'csv' : 'xlsx'
+      const name = filenameFromDisposition(res.headers['content-disposition'] as string | undefined) ?? `${template.name.replace(/\s+/g, '_')}.${ext}`
+      saveBlob(res.data, name, (res.headers['content-type'] as string) || 'application/octet-stream')
       toast.success('Rapport généré')
     } catch (err) {
       // Responses are blobs, so a backend JSON error (e.g. "aucun membre") is unreadable via parseApiError.
@@ -391,7 +388,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
               Équipes
             </Button>
           </Tip>
-          {reportTemplates && reportTemplates.length > 0 && (
+          {(
             <DropdownMenu>
               {/* Tip must wrap the trigger from the OUTSIDE: DropdownMenuTrigger asChild uses a Radix Slot
                   that clones its onClick/ref onto its single child. If that child is <Tip>, those props are
@@ -405,7 +402,10 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
                 </DropdownMenuTrigger>
               </Tip>
               <DropdownMenuContent align="end">
-                {reportTemplates.map(t => (
+                {unitScopedTemplates.length === 0 && (
+                  <DropdownMenuItem disabled className="text-xs text-muted-foreground">Aucun rapport pour l'instant</DropdownMenuItem>
+                )}
+                {unitScopedTemplates.map(t => (
                   <DropdownMenuItem
                     key={t.id}
                     onClick={() => handleCustomReport(t)}
@@ -414,6 +414,10 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
                     {generatingReport === t.id ? 'Génération...' : t.name}
                   </DropdownMenuItem>
                 ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/admin/report-templates')}>
+                  <Plus className="mr-2 h-4 w-4" />Créer / gérer les rapports…
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}

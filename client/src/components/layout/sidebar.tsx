@@ -179,7 +179,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/roles', label: 'Fonctions', icon: Shield, permission: PERMISSIONS.ROLES_MANAGE, section: 'Structure & données' },
       { path: '/admin/progression-path', label: 'Parcours scouts', icon: Route, permission: PERMISSIONS.UNIT_TYPES_MANAGE, section: 'Structure & données' },
       { path: '/admin/progression', label: 'Progression scoute', icon: Star, permission: PERMISSIONS.PROGRESSION_MANAGE, section: 'Structure & données' },
-      { path: '/admin/report-templates', label: 'Modèles de rapports', icon: FileText, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Structure & données' },
+      { path: '/admin/report-templates', label: 'Modèles de rapports', icon: FileText, permission: PERMISSIONS.MEMBERS_EDIT, section: 'Structure & données' },
       // Types de documents → Paramètres (Documents tab); Listes → Paramètres (Listes tab). Routes still work.
       // (Camp BP is appended to this section dynamically in NavContent when no camp is active.)
       // --- Système & sécurité ---

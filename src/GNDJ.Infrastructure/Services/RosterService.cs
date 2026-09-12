@@ -15,7 +15,10 @@ public class RosterService : IRosterService
     private static readonly Dictionary<string, (string Label, float Width)> ColumnDefs = new()
     {
         ["name"] = ("Nom", 3),
+        ["firstName"] = ("Pr\u00e9nom", 1.5f),
+        ["lastName"] = ("Nom de famille", 1.5f),
         ["cardNumber"] = ("Matricule", 1.2f),
+        ["externalCardNumber"] = ("N\u00b0 carte", 1.2f),
         ["gender"] = ("Genre", 1),
         ["dateOfBirth"] = ("Date naiss.", 1.5f),
         ["age"] = ("\u00c2ge", 0.7f),
@@ -24,10 +27,21 @@ public class RosterService : IRosterService
         ["school"] = ("\u00c9cole", 2),
         ["classe"] = ("Classe", 1),
         ["section"] = ("Section", 0.8f),
+        ["profession"] = ("Profession", 1.8f),
+        ["professionDomain"] = ("Domaine", 1.5f),
         ["phone"] = ("T\u00e9l\u00e9phone", 1.8f),
         ["email"] = ("Email", 2.5f),
+        ["address"] = ("Adresse", 2.5f),
+        ["primaryContactEmail"] = ("Email contact", 2.5f),
+        ["fatherName"] = ("P\u00e8re", 2),
+        ["fatherPhone"] = ("T\u00e9l. p\u00e8re", 1.8f),
+        ["motherName"] = ("M\u00e8re", 2),
+        ["motherPhone"] = ("T\u00e9l. m\u00e8re", 1.8f),
+        ["guardianEmails"] = ("Emails parents", 2.5f),
+        ["unit"] = ("Unit\u00e9", 1.8f),
         ["role"] = ("Fonction", 1.5f),
         ["team"] = ("\u00c9quipe", 1.5f),
+        ["startDate"] = ("Arriv\u00e9e", 1.5f),
     };
 
     public byte[] Generate(RosterData data)
@@ -109,7 +123,10 @@ public class RosterService : IRosterService
     private static string GetValue(RosterMemberData m, string col) => col switch
     {
         "name" => m.Name,
+        "firstName" => m.FirstName ?? "",
+        "lastName" => m.LastName ?? "",
         "cardNumber" => m.CardNumber ?? "",
+        "externalCardNumber" => m.ExternalCardNumber ?? "",
         "gender" => m.Gender ?? "",
         "dateOfBirth" => m.DateOfBirth ?? "",
         "age" => m.Age?.ToString() ?? "",
@@ -118,10 +135,21 @@ public class RosterService : IRosterService
         "school" => m.School ?? "",
         "classe" => m.Classe ?? "",
         "section" => m.Section ?? "",
+        "profession" => m.Profession ?? "",
+        "professionDomain" => m.ProfessionDomain ?? "",
         "phone" => m.Phone ?? "",
         "email" => m.Email ?? "",
+        "address" => m.Address ?? "",
+        "primaryContactEmail" => m.PrimaryContactEmail ?? "",
+        "fatherName" => m.FatherName ?? "",
+        "fatherPhone" => m.FatherPhone ?? "",
+        "motherName" => m.MotherName ?? "",
+        "motherPhone" => m.MotherPhone ?? "",
+        "guardianEmails" => m.GuardianEmails ?? "",
+        "unit" => m.UnitName ?? "",
         "role" => m.RoleName ?? "",
         "team" => m.TeamName ?? "",
+        "startDate" => m.StartDate ?? "",
         _ => m.CustomFields.FirstOrDefault(cf => cf.Name == col)?.Value ?? ""
     };
 }

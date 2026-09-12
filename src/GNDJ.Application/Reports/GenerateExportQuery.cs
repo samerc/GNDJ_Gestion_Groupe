@@ -2,28 +2,29 @@ using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
-using Microsoft.EntityFrameworkCore;
-using GNDJ.Application.Common;
 
 namespace GNDJ.Application.Reports;
 
-// Spreadsheet export (Excel .xlsx via ClosedXML, or UTF-8 CSV) of a unit/team roster — same data
-// gathering as the roster PDF, different sink. Returns bytes + content type + filename. Unit-scoped.
+// Spreadsheet export (Excel .xlsx via ClosedXML, or UTF-8 CSV) — same gathering as the roster PDF, different
+// sink. Single unit (UnitId, optional TeamId) OR multiple units (UnitIds, template units/branch/group scope).
+// Returns bytes + content type + filename.
 public record GenerateExportQuery(
     Guid UnitId,
     Guid? TeamId,
     string ScoutYear,
     List<string> Columns,
-    string Format // "excel" or "csv"
+    string Format, // "excel" or "csv"
+    List<Guid>? UnitIds = null,
+    string? Title = null,
+    string? MemberFilter = null
 ) : IRequest<Result<ExportResult>>;
 
 public class GenerateExportQueryValidator : AbstractValidator<GenerateExportQuery>
 {
     public GenerateExportQueryValidator()
     {
-        RuleFor(x => x.UnitId).NotEmpty();
-        RuleFor(x => x.ScoutYear).MaximumLength(20);
         RuleFor(x => x.Format).Must(f => f is "excel" or "csv").WithMessage("Format invalide (excel ou csv).");
+        RuleFor(x => x.ScoutYear).MaximumLength(20);
         RuleFor(x => x.Columns).NotEmpty().WithMessage("Au moins une colonne est requise.")
             .Must(c => c.Count <= 100).WithMessage("Trop de colonnes.");
         RuleForEach(x => x.Columns).MaximumLength(100);
@@ -40,102 +41,33 @@ public class GenerateExportQueryHandler(
 {
     public async ValueTask<Result<ExportResult>> Handle(GenerateExportQuery request, CancellationToken ct)
     {
-        // Leader-only export (multi-member PII): members.edit + unit scope, not bare co-unit membership.
-        if (!currentUser.IsSuperAdmin && !(currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit) && currentUser.AuthorizedUnitIds.Contains(request.UnitId)))
-            return Result<ExportResult>.Failure("Accès non autorisé.");
+        var unitIds = request.UnitIds is { Count: > 0 } ? request.UnitIds : [request.UnitId];
+        var collected = await ReportDataCollector.CollectAsync(
+            context, currentUser, unitIds, request.TeamId, request.MemberFilter, request.Title, ct);
+        if (!collected.IsSuccess) return Result<ExportResult>.Failure(collected.Error!);
+        var (title, sections) = collected.Value;
 
-        var unit = await context.Units
-            .Where(u => u.Id == request.UnitId)
-            .Select(u => u.Name)
-            .FirstOrDefaultAsync(ct);
-
-        if (unit is null) return Result<ExportResult>.Failure("Unité introuvable.");
-
-        // Reports show the school CODE (CNDJ, CSG, …), not the long name — resolve via member.school_codes.
-        var schoolCodesJson = await context.Settings
-            .Where(s => s.Key == "member.school_codes").Select(s => s.Value).FirstOrDefaultAsync(ct);
-        var schoolCode = Common.SchoolCode.Resolver(schoolCodesJson);
-
-        var query = context.MemberAssignments
-            .Where(a => a.UnitId == request.UnitId && a.EndDate == null);
-
-        if (request.TeamId.HasValue)
-            query = query.Where(a => a.TeamId == request.TeamId.Value);
-
-        var assignments = await query
-            .OrderByDescending(a => a.Team != null ? a.Team.IsMaitrise : false)
-            .ThenBy(a => a.Team != null ? a.Team.DisplayOrder : 999)
-            .ThenBy(a => a.Member.LastName).ThenBy(a => a.Member.FirstName)
-            .Select(a => new
-            {
-                a.Member.Id,
-                a.Member.FirstName, a.Member.LastName, a.Member.CardNumber,
-                a.Member.Gender, a.Member.DateOfBirth, a.Member.BloodType,
-                a.Member.Nationality, a.Member.School, a.Member.Classe, a.Member.Section,
-                Phone = a.Member.Phones.Where(p => p.IsPrimary && !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault(),
-                Email = a.Member.Emails.Where(e => e.IsPrimary && !e.IsDeleted).Select(e => e.Address).FirstOrDefault(),
-                RoleName = a.FunctionalRole.Name,
-                TeamName = a.Team != null ? a.Team.Name : null,
-                TeamOrder = a.Team != null ? a.Team.DisplayOrder : 999,
-                TeamIsMaitrise = a.Team != null ? a.Team.IsMaitrise : false,
-            })
-            .ToListAsync(ct);
-
-        // Get custom field values for these members
-        var memberIds = assignments.Select(a => a.Id).ToList();
-        var customValues = await context.MemberCustomFieldValues
-            .Where(v => memberIds.Contains(v.MemberId) && v.CustomField.IsActive)
-            .Select(v => new { v.MemberId, v.CustomField.Name, v.Value })
-            .ToListAsync(ct);
-
-        var customByMember = customValues
-            .GroupBy(v => v.MemberId)
-            .ToDictionary(g => g.Key, g => g.Select(v => new MemberCardCustomField(v.Name, v.Value)).ToList());
-
-        var today = LebanonClock.Today;
-        var title = request.TeamId.HasValue
-            ? $"{unit} \u2014 {assignments.FirstOrDefault()?.TeamName ?? "\u00c9quipe"}"
-            : unit;
-
-        var teams = assignments
-            .GroupBy(a => new { a.TeamName, a.TeamOrder, a.TeamIsMaitrise })
-            .OrderByDescending(g => g.Key.TeamIsMaitrise).ThenBy(g => g.Key.TeamOrder)
-            .Select(g => new ExportTeamData(
-                g.Key.TeamName ?? "Sans \u00e9quipe",
-                g.Select(a =>
-                {
-                    int? age = a.DateOfBirth.HasValue
-                        ? today.Year - a.DateOfBirth.Value.Year - (today.DayOfYear < a.DateOfBirth.Value.DayOfYear ? 1 : 0)
-                        : null;
-                    return new ExportMemberData(
-                        $"{a.FirstName} {a.LastName}", a.CardNumber, a.Gender,
-                        a.DateOfBirth?.ToString("dd/MM/yyyy"), age,
-                        a.BloodType, a.Nationality, schoolCode(a.School), a.Classe, a.Section,
-                        a.Phone, a.Email, a.RoleName, a.TeamName,
-                        customByMember.GetValueOrDefault(a.Id, [])
-                    );
-                }).ToList()
-            )).ToList();
+        var teams = sections
+            .Select(s => new ExportTeamData(s.Label, s.Rows.Select(ToExportMember).ToList()))
+            .ToList();
 
         var exportData = new ExportData(title, request.Columns, teams);
 
         if (request.Format == "csv")
         {
             var csv = exportService.GenerateCsv(exportData);
-            return Result<ExportResult>.Success(new ExportResult(
-                csv,
-                "text/csv; charset=utf-8",
-                $"{SanitizeFileName(title)}.csv"));
+            return Result<ExportResult>.Success(new ExportResult(csv, "text/csv; charset=utf-8", $"{SanitizeFileName(title)}.csv"));
         }
-        else
-        {
-            var excel = exportService.GenerateExcel(exportData);
-            return Result<ExportResult>.Success(new ExportResult(
-                excel,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                $"{SanitizeFileName(title)}.xlsx"));
-        }
+        var excel = exportService.GenerateExcel(exportData);
+        return Result<ExportResult>.Success(new ExportResult(
+            excel, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{SanitizeFileName(title)}.xlsx"));
     }
+
+    private static ExportMemberData ToExportMember(ReportRow r) => new(
+        r.Name, r.CardNumber, r.Gender, r.DateOfBirth, r.Age, r.BloodType, r.Nationality, r.School, r.Classe, r.Section,
+        r.Phone, r.Email, r.RoleName, r.TeamName, r.CustomFields,
+        r.UnitName, r.FirstName, r.LastName, r.ExternalCardNumber, r.Profession, r.ProfessionDomain, r.Address,
+        r.PrimaryContactEmail, r.FatherName, r.FatherPhone, r.MotherName, r.MotherPhone, r.GuardianEmails, r.StartDate);
 
     private static string SanitizeFileName(string name)
     {

@@ -13,6 +13,11 @@ export interface ReportTemplateDto {
   isActive: boolean
   displayOrder: number
   createdAt: string
+  scopeType: string // unit | units | branch | group
+  scopeUnitTypeId: string | null
+  scopeUnitIdsJson: string
+  titleOverride: string | null
+  memberFilter: string // all | youth | maitrise
 }
 
 export interface ReportTemplateFormData {
@@ -23,6 +28,11 @@ export interface ReportTemplateFormData {
   columnsJson: string
   isActive: boolean
   displayOrder: number
+  scopeType: string
+  scopeUnitTypeId: string | null
+  scopeUnitIdsJson: string
+  titleOverride: string | null
+  memberFilter: string
 }
 
 // GET /report-templates → list; activeOnly filters to enabled templates.
@@ -59,4 +69,10 @@ export function useDeleteReportTemplate() {
     mutationFn: (id: string) => apiClient.delete(`/report-templates/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['report-templates'] }),
   })
+}
+
+// POST /report-templates/{id}/generate → the resolved report file (PDF or Excel/CSV) as a blob. unitId is only
+// used for a unit-scoped template (the generator picks that unit); group/branch/units resolve their own units.
+export function generateReportFromTemplate(id: string, data: { scoutYear: string; unitId?: string | null }) {
+  return apiClient.post(`/report-templates/${id}/generate`, data, { responseType: 'blob' })
 }

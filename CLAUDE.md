@@ -4777,6 +4777,42 @@ screen the buttons wrapped into the MIDDLE of the row and crushed the member nam
 `sm:flex-row` on desktop (unchanged). Dropped the redundant `Tip` tooltip on Refuser (button has a visible label).
 Frontend-only, DEV until deploy.
 
+### Rapports personnalisés — visual builder + targeting + rich fields + CU access (2026-09-12)
+A full "shake up" of the custom-report feature. All on main, DEV until deploy; verified live end-to-end.
+- **Targeting (`ReportTemplate` scope, migration `AddReportTemplateScope`):** a template now carries a **ScopeType**
+      — `unit` (CU picks the unit at generation) / `units` (a fixed set, `ScopeUnitIdsJson`) / `branch` (all active
+      units of `ScopeUnitTypeId`) / `group` (all active units) — plus `TitleOverride` and `MemberFilter`
+      (all / youth [non-maîtrise] / maitrise). group/branch/multi-unit reports group members **by unit then team**.
+- **"As much info as possible":** the roster/export column set went from ~14 → **~28** built-in columns + custom
+      fields. Added prénom/nom split, `externalCardNumber` (n° carte), profession + professionDomain, address,
+      primaryContactEmail, **père/mère name + phone**, guardian emails, **unit**, and startDate (arrivée). Wired
+      through `RosterService.ColumnDefs` + `ExportService.ColumnLabels` + both `GetValue`s + the two data records
+      (extended with defaults so old callers compile).
+- **Shared `ReportDataCollector`** (Application/Reports): ONE place doing access + the rich projection (incl.
+      guardian father/mother/email subqueries, accent-tolerant `Père`/`Pere` match) + the maîtrise/youth filter +
+      multi-unit per-(unit,team) grouping. `GenerateRosterQuery`/`GenerateExportQuery` rewritten to use it and now
+      accept `UnitIds` + `Title` + `MemberFilter` (single-unit callers unchanged). New `GenerateReportFromTemplateQuery`
+      resolves a template's scope → units (group/branch/units = **group-manager only** via `MemberAccess.IsGroupManager`;
+      unit = CU-facing) and dispatches to the roster/export generator via `IMediator`; `POST /report-templates/{id}/
+      generate {scoutYear, unitId?}` returns the file.
+- **Visual builder** (`report-templates.tsx` rebuilt): a wide dialog — left = Nom/Description/Titre/Type/Format/
+      **Cible** (icon cards + conditional branche select or multi-unit checklist)/Membres/Actif; right = a **column
+      builder** (grouped palette → click to add, ordered selected list with ↑/↓/✕, the order = the report column
+      order) fed by the built-in catalog + active custom fields. Each template card shows a scope/filter badge + a
+      **Générer** button (unit scope → a unit picker; else generates directly). Format standardized to `excel`/`csv`
+      (legacy `xlsx` still accepted).
+- **CU access (the "cu cannot see the create rapport" fix):** report-template **writes moved from
+      `associations.manage` → `members.edit`** (CU/CG/super-admin) and the `/admin/report-templates` route moved out
+      of `AdminRoute` to a `members.edit` `PermissionRoute`. A CU reaches it via **"Rapports → Créer / gérer les
+      rapports…"** on their unit dashboard (the dropdown now always renders for a leader; only **unit-scoped**
+      templates are runnable there). The builder **hides the Cible section for non-managers** (a CU only builds
+      unit-scoped reports); `useUnits`/`useUnitTypes`/`useCustomFields` gated on `isManager` (a CU 403s on unit-types/
+      custom-fields). Sidebar + Paramètres launchpad "Modèles de rapports" perm lowered to `members.edit` (CG sees it).
+- Verified live: admin group-scope roster PDF (maîtrise filter) + branch-scope Excel with père/mère/guardian-email
+      columns; a real **CU** creates a unit template (201), generates it for their unit (200 PDF), and is **blocked
+      400** generating a group template. dotnet 0/0 + tsc + eslint + vite clean; migration applied on dev (backfills
+      scope=unit/filter=all on existing rows).
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

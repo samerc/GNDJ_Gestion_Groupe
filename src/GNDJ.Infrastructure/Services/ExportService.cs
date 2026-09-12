@@ -14,7 +14,10 @@ public class ExportService : IExportService
     private static readonly Dictionary<string, string> ColumnLabels = new()
     {
         ["name"] = "Nom",
+        ["firstName"] = "Pr\u00e9nom",
+        ["lastName"] = "Nom de famille",
         ["cardNumber"] = "Matricule",
+        ["externalCardNumber"] = "N\u00b0 carte",
         ["gender"] = "Genre",
         ["dateOfBirth"] = "Date naissance",
         ["age"] = "\u00c2ge",
@@ -23,10 +26,21 @@ public class ExportService : IExportService
         ["school"] = "\u00c9cole",
         ["classe"] = "Classe",
         ["section"] = "Section",
+        ["profession"] = "Profession",
+        ["professionDomain"] = "Domaine professionnel",
         ["phone"] = "T\u00e9l\u00e9phone",
         ["email"] = "Email",
+        ["address"] = "Adresse",
+        ["primaryContactEmail"] = "Email de contact",
+        ["fatherName"] = "P\u00e8re",
+        ["fatherPhone"] = "T\u00e9l. p\u00e8re",
+        ["motherName"] = "M\u00e8re",
+        ["motherPhone"] = "T\u00e9l. m\u00e8re",
+        ["guardianEmails"] = "Emails parents",
+        ["unit"] = "Unit\u00e9",
         ["role"] = "Fonction",
         ["team"] = "\u00c9quipe",
+        ["startDate"] = "Date d'arriv\u00e9e",
     };
 
     public byte[] GenerateExcel(ExportData data)
@@ -111,7 +125,10 @@ public class ExportService : IExportService
     private static string GetValue(ExportMemberData m, string col) => col switch
     {
         "name" => m.Name,
+        "firstName" => m.FirstName ?? "",
+        "lastName" => m.LastName ?? "",
         "cardNumber" => m.CardNumber ?? "",
+        "externalCardNumber" => m.ExternalCardNumber ?? "",
         "gender" => m.Gender ?? "",
         "dateOfBirth" => m.DateOfBirth ?? "",
         "age" => m.Age?.ToString() ?? "",
@@ -120,10 +137,21 @@ public class ExportService : IExportService
         "school" => m.School ?? "",
         "classe" => m.Classe ?? "",
         "section" => m.Section ?? "",
+        "profession" => m.Profession ?? "",
+        "professionDomain" => m.ProfessionDomain ?? "",
         "phone" => m.Phone ?? "",
         "email" => m.Email ?? "",
+        "address" => m.Address ?? "",
+        "primaryContactEmail" => m.PrimaryContactEmail ?? "",
+        "fatherName" => m.FatherName ?? "",
+        "fatherPhone" => m.FatherPhone ?? "",
+        "motherName" => m.MotherName ?? "",
+        "motherPhone" => m.MotherPhone ?? "",
+        "guardianEmails" => m.GuardianEmails ?? "",
+        "unit" => m.UnitName ?? "",
         "role" => m.RoleName ?? "",
         "team" => m.TeamName ?? "",
+        "startDate" => m.StartDate ?? "",
         _ => m.CustomFields.FirstOrDefault(cf => cf.Name == col)?.Value ?? ""
     };
 

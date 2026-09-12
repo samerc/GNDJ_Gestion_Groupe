@@ -31,10 +31,11 @@ export interface UnitTypeFormData {
 }
 
 // Paginated unit-types list (GET /unit-types); optional search. Keyed ['unitTypes', params].
-export function useUnitTypes(params: { search?: string; page?: number; pageSize?: number }) {
+export function useUnitTypes(params: { search?: string; page?: number; pageSize?: number }, enabled = true) {
   return useQuery({
     queryKey: ['unitTypes', params],
     queryFn: () => apiClient.get<PaginatedResult<UnitTypeDto>>('/unit-types', { params }).then(r => r.data),
+    enabled,
   })
 }
 

@@ -421,7 +421,7 @@ export default function SettingsPage() {
   const cardsEnabled = (settings ?? []).find(s => s.key === 'reports.cards_enabled')
   // Config apps that stay their own pages (not settings) — a small launchpad at the top of Paramètres.
   const configLinks = [
-    { to: '/admin/report-templates', label: 'Modèles de rapports', perm: PERMISSIONS.ASSOCIATIONS_MANAGE },
+    { to: '/admin/report-templates', label: 'Modèles de rapports', perm: PERMISSIONS.MEMBERS_EDIT },
     { to: '/admin/roles-access', label: 'Profils & accès', perm: PERMISSIONS.MAITRISE_MANAGE },
   ].filter(l => can(l.perm))
 

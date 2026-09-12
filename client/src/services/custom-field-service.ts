@@ -41,10 +41,11 @@ export interface MemberCustomFieldValueDto {
 }
 
 // GET /custom-fields — all field definitions for the admin page. Keyed ['custom-fields'].
-export function useCustomFields() {
+export function useCustomFields(enabled = true) {
   return useQuery({
     queryKey: ['custom-fields'],
     queryFn: () => apiClient.get<CustomFieldDto[]>('/custom-fields').then(r => r.data),
+    enabled,
   })
 }
 

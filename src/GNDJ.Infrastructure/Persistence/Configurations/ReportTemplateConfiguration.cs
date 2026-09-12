@@ -16,5 +16,9 @@ public class ReportTemplateConfiguration : IEntityTypeConfiguration<ReportTempla
         builder.Property(e => e.ReportType).HasMaxLength(20).IsRequired();
         builder.Property(e => e.Format).HasMaxLength(10).IsRequired();
         builder.Property(e => e.ColumnsJson).HasColumnType("text").IsRequired();
+        builder.Property(e => e.ScopeType).HasMaxLength(20).IsRequired();
+        builder.Property(e => e.ScopeUnitIdsJson).HasColumnType("text").IsRequired();
+        builder.Property(e => e.TitleOverride).HasMaxLength(200);
+        builder.Property(e => e.MemberFilter).HasMaxLength(20).IsRequired();
     }
 }
