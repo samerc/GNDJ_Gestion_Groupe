@@ -48,7 +48,7 @@ import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS, PARENTS_SITUATION_OPTIONS, optionsWithCurrent } from '@/lib/options'
 import { calendarScoutYear } from '@/hooks/use-scout-year'
-import { useUnitAbsenceCounts, useMemberAbsencesByYear } from '@/services/meeting-service'
+import { useUnitAbsenceCounts, useMemberAbsencesByYear, type MemberAbsenceYear } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
 import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck } from 'lucide-react'
 import { DelegationDialog } from './delegation-dialog'
@@ -68,6 +68,16 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 // Youth (school-age) branches: a member here fills Classe/Section, never a profession. Used to hide the
 // "En activité" option in the create dialog (the panel/Ma fiche use the server-computed member.showProfession).
 const YOUTH_BRANCH_CODES = ['MEU', 'RON', 'COM', 'TRO']
+
+// Réunion type labels + a dd/MM/yyyy (range) date formatter for the absence-details popup.
+const MEETING_TYPE_LABELS: Record<string, string> = { Reunion: 'Réunion', Sortie: 'Sortie', Camp: 'Camp' }
+function frDate(iso: string): string {
+  const [y, m, d] = iso.split('-')
+  return d && m && y ? `${d}/${m}/${y}` : iso
+}
+function formatAbsenceDate(date: string, endDate: string | null): string {
+  return endDate && endDate !== date ? `${frDate(date)} → ${frDate(endDate)}` : frDate(date)
+}
 
 function Section({ icon: Icon, title, children }: { icon: ComponentType<{ className?: string }>; title: string; children: ReactNode }) {
   return (
@@ -177,6 +187,9 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
       toast.error(parseApiError(err))
     }
   }
+
+  // Absence details popup: the selected scout year's absences (dates + réunion details).
+  const [absenceYear, setAbsenceYear] = useState<MemberAbsenceYear | null>(null)
 
   // Contact add/edit/delete dialog state.
   const [phoneDialogOpen, setPhoneDialogOpen] = useState(false)
@@ -391,7 +404,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
           <TabsTrigger value="unites">Unités / Fonctions<TabCount n={unitesCount} /></TabsTrigger>
           <TabsTrigger value="dossier">Documents &amp; cotisations<TabCount n={dossierCount} /></TabsTrigger>
           <TabsTrigger value="progression">Progression<TabCount n={progressionCount} /></TabsTrigger>
-          <TabsTrigger value="medical">Médical &amp; infos</TabsTrigger>
+          <TabsTrigger value="medical">Santé &amp; suivi</TabsTrigger>
         </TabsList>
 
         <div className="flex-1 overflow-auto p-4">
@@ -671,11 +684,17 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
               {absencesByYear && absencesByYear.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {absencesByYear.map(a => (
-                    <div key={a.scoutYear} className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm">
+                    <button
+                      key={a.scoutYear}
+                      type="button"
+                      onClick={() => setAbsenceYear(a)}
+                      title="Voir le détail des absences"
+                      className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm transition hover:bg-muted"
+                    >
                       <span className="text-muted-foreground">{a.scoutYear}</span>
                       <span className="font-semibold tabular-nums">{a.count}</span>
                       <span className="text-muted-foreground">absence{a.count > 1 ? 's' : ''}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               ) : (
@@ -726,6 +745,31 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={addressForm.isPrimary} onChange={(e) => setAddressForm(f => ({ ...f, isPrimary: e.target.checked }))} />Adresse principale</label>
             <DialogFooter><Button variant="outline" type="button" onClick={() => setAddressDialogOpen(false)}>Annuler</Button><Button type="submit" disabled={addAddress.isPending}>{addAddress.isPending ? 'Ajout...' : 'Ajouter'}</Button></DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Absence details for the clicked scout year — dates + réunion type/title/unit/team + reason. */}
+      <Dialog open={!!absenceYear} onOpenChange={(o) => !o && setAbsenceYear(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Absences {absenceYear?.scoutYear} — {absenceYear?.count} réunion{(absenceYear?.count ?? 0) > 1 ? 's' : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] space-y-2 overflow-y-auto">
+            {absenceYear?.absences.map((a, i) => (
+              <div key={i} className="rounded-md border p-3 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">{formatAbsenceDate(a.date, a.endDate)}</span>
+                  <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">{MEETING_TYPE_LABELS[a.type] ?? a.type}</span>
+                </div>
+                <div className="mt-1 text-muted-foreground">
+                  {a.title ? <span>{a.title} · </span> : null}
+                  {a.unitName}{a.teamName ? ` · ${a.teamName}` : ''}
+                </div>
+                {a.reason ? <div className="mt-1"><span className="text-muted-foreground">Motif : </span>{a.reason}</div> : null}
+              </div>
+            ))}
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setAbsenceYear(null)}>Fermer</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

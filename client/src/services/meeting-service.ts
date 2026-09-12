@@ -70,9 +70,20 @@ export interface MemberAbsenceCount {
   count: number
 }
 
+export interface MemberAbsenceDetail {
+  date: string
+  endDate: string | null
+  type: string // Reunion | Sortie | Camp
+  title: string | null
+  unitName: string
+  teamName: string | null
+  reason: string | null
+}
+
 export interface MemberAbsenceYear {
   scoutYear: string
   count: number
+  absences: MemberAbsenceDetail[]
 }
 
 // GET /meetings/scope → the caller's manageable units + led teams. Drives the page (create/fill scope).

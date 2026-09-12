@@ -312,8 +312,11 @@ public class GetUnitAbsenceCountsQueryHandler(IApplicationDbContext context, ICu
     }
 }
 
-// One (scout year, absence count) row for a member — the per-year breakdown shown on the member fiche.
-public record MemberAbsenceYear(string ScoutYear, int Count);
+// One absent réunion for a member — date/type/title/unit/team/reason — shown in the fiche absence popup.
+public record MemberAbsenceDetail(DateOnly Date, DateOnly? EndDate, string Type, string? Title, string UnitName, string? TeamName, string? Reason);
+
+// A scout year with its absence count + the individual absent réunions (so the popup needs no extra round trip).
+public record MemberAbsenceYear(string ScoutYear, int Count, IReadOnlyList<MemberAbsenceDetail> Absences);
 
 // A member's absences on approved réunions, grouped by scout year (every year, all units the member was in).
 // LEADER-ONLY on purpose (the member themselves never sees this — it's an admin/CG/CU panel figure), so unlike
@@ -335,13 +338,16 @@ public class GetMemberAbsencesByYearQueryHandler(IApplicationDbContext context, 
         if (!isLeader) return Result<IReadOnlyList<MemberAbsenceYear>>.Success([]);
 
         // Every absence on an APPROVED réunion for this member; bucket by scout year in memory (Oct-1 boundary).
-        var dates = await context.MeetingAbsences
+        var absences = await context.MeetingAbsences
             .Where(a => !a.IsDeleted && a.MemberId == request.MemberId && a.Meeting.Status == MeetingStatuses.Approved)
-            .Select(a => a.Meeting.Date)
+            .OrderByDescending(a => a.Meeting.Date)
+            .Select(a => new MemberAbsenceDetail(
+                a.Meeting.Date, a.Meeting.EndDate, a.Meeting.Type, a.Meeting.Title,
+                a.Meeting.Unit.Name, a.Meeting.Team != null ? a.Meeting.Team.Name : null, a.Reason))
             .ToListAsync(ct);
-        var rows = dates
-            .GroupBy(ScoutYearHelper.Of)
-            .Select(g => new MemberAbsenceYear(g.Key, g.Count()))
+        var rows = absences
+            .GroupBy(a => ScoutYearHelper.Of(a.Date))
+            .Select(g => new MemberAbsenceYear(g.Key, g.Count(), g.ToList()))
             .OrderByDescending(r => r.ScoutYear)
             .ToList();
         return Result<IReadOnlyList<MemberAbsenceYear>>.Success(rows);
