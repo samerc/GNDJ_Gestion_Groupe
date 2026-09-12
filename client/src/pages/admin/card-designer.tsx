@@ -39,7 +39,7 @@ const DEFAULT_CONFIG: CardConfig = {
   fields: Object.fromEntries(CARD_FIELDS.map(f => [f.key, true])),
 }
 
-export default function CardDesignerPage() {
+export default function CardDesignerPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { data: setting, isLoading } = useSetting('card_config')
   const updateSetting = useUpdateSetting()
   const [config, setConfig] = useState<CardConfig>(DEFAULT_CONFIG)
@@ -88,7 +88,7 @@ export default function CardDesignerPage() {
 
   return (
     <div className="space-y-6">
-      <BackLink to="/admin/settings" label="Retour aux paramètres" />
+      {!embedded && <BackLink to="/admin/settings" label="Retour aux paramètres" />}
       <div className="flex items-center gap-3">
         <CreditCard className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold">Carte membre</h1>

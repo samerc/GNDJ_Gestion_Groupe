@@ -60,7 +60,7 @@ function nameToCode(name: string): string {
     .replace(/^_|_$/g, '')
 }
 
-export default function CustomFieldsPage() {
+export default function CustomFieldsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<CustomFieldDto | null>(null)
   const [deleting, setDeleting] = useState<CustomFieldDto | null>(null)
@@ -132,7 +132,7 @@ export default function CustomFieldsPage() {
 
   return (
     <div className="space-y-6">
-      <BackLink to="/admin/settings" label="Retour aux paramètres" />
+      {!embedded && <BackLink to="/admin/settings" label="Retour aux paramètres" />}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Champs personnalisés</h1>
         <Button onClick={openCreate}>

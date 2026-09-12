@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      "Paramètres — les onglets « Champs personnalisés » et « Carte membre » n'affichent plus le lien « Retour aux paramètres » en haut : il datait de l'époque où c'étaient des pages séparées, alors qu'ils sont maintenant intégrés comme onglets dans Paramètres.",
       "Messages des pages de connexion — dates de début et de fin : chaque message (membres / inscriptions) peut désormais avoir une date de début et une date de fin. Le message apparaît à partir de la date de début (immédiatement si aucune date de début n'est fixée) et disparaît après la date de fin (ou reste jusqu'au retrait manuel si aucune date de fin n'est fixée). Réglable dans Paramètres → Connexion.",
       "Journal d'audit — l'ajout de pages à un document indique désormais de QUEL membre et de quel type de document il s'agit (au lieu d'un simple nombre de pages).",
       "Journal d'audit — le « Navigateur » est affiché de façon lisible (ex. « Samsung Internet 30 · Android 10 ») au lieu de la longue chaîne technique qui semblait lister tous les navigateurs ; la chaîne complète reste visible au survol.",
