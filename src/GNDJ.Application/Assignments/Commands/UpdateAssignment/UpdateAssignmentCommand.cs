@@ -49,6 +49,13 @@ public class UpdateAssignmentCommandHandler : IRequestHandler<UpdateAssignmentCo
         if (!_currentUser.IsSuperAdmin && !_currentUser.AuthorizedUnitIds.Contains(entity.UnitId))
             return Result<bool>.Failure("Accès non autorisé à cette unité.");
 
+        // Also authorize the TARGET unit: without this a leader could move a member (in a unit they manage)
+        // into ANY unit — including one they don't lead, with any role — since only the current unit was
+        // checked above. CreateAssignment guards the target the same way; a real branch move goes through the
+        // passage flow, not this edit.
+        if (!_currentUser.IsSuperAdmin && request.UnitId != entity.UnitId && !_currentUser.AuthorizedUnitIds.Contains(request.UnitId))
+            return Result<bool>.Failure("Accès non autorisé à l'unité de destination.");
+
         // Validate the target unit/role exist so a bad id returns a friendly 400 instead of a raw 500
         // (FK violation) — matters for bulk reassignment where a stale/typo id is easy to hit.
         if (!await _context.Units.AnyAsync(u => u.Id == request.UnitId, cancellationToken))

@@ -4813,6 +4813,51 @@ A full "shake up" of the custom-report feature. All on main, DEV until deploy; v
       400** generating a group template. dotnet 0/0 + tsc + eslint + vite clean; migration applied on dev (backfills
       scope=unit/filter=all on existing rows).
 
+### Whole-system bug hunt — 6 verified fixes (2026-09-12)
+Ran a full bug-hunt round (14 parallel review agents: 6 over the v3.1.0..HEAD diff + 8 over the whole app by
+domain), then personally verified each high-severity candidate against the code before fixing. Refuted several
+agent claims (member-merge "nulls fields" — the frontend loops ALL `MERGE_FIELDS` and always sends the resolved
+value; api-client "infinite refresh loop" — `_retry` bounds it; NotifyMemberLeaders archived-role drop —
+degrades to CG-only, harmless). Fixed the 6 confirmed ones (all on main, pushed; DEV until deploy):
+- [x] **#1 [HIGH] Cross-unit privilege escalation in Update Assignment** (`UpdateAssignmentCommand`): authorized
+      only the assignment's CURRENT unit, then wrote `request.UnitId`/`FunctionalRoleId` unchecked — so since the
+      edit dialog was unlocked (2026-08-25) a CU could move a member into ANY unit (+ assign a maîtrise role) they
+      don't lead. Added the target-unit authorization (`!IsSuperAdmin && request.UnitId != entity.UnitId &&
+      !AuthorizedUnitIds.Contains(request.UnitId)` → 400), matching CreateAssignment. A real branch move still goes
+      through passage.
+- [x] **#2 [MED] Abuse middleware false-400 on CMS content** (`AbuseDetectionMiddleware`): only
+      `/api/v1/email/templates` was exempt from the script/SQL scan, so a news/page/event/resource with an
+      `<iframe>`/`<svg>` embed (video/map) or author CSS `/* */`, and the document-template builder HTML, tripped
+      the pattern → hard 400 (CG couldn't save). Extended `IsRichContentPath` (now `RichContentPrefixes`) to
+      `/news`, `/pages`, `/events`, `/resources`, `/content`, `/document-types`. Verified live: authenticated POST
+      `/news` with `<iframe>`+`<svg>`+`/* */` reaches the controller (normal validation error), while `/members`
+      with `<script>` still returns the abuse block.
+- [x] **#3 [MED] Matricule can be nulled / collide on member edit** (`UpdateMemberCommand`): the panel exposes an
+      editable required "Matricule" but the server had NO `NotEmpty` and NO uniqueness check on `CardNumber` (only
+      `MaximumLength`) — clearing it nulled the internal matricule; a duplicate hit the unique index (409). Added
+      `NotEmpty` + a uniqueness pre-check (friendly 400), mirroring `ExternalCardNumber`.
+- [x] **#4 [MED] Deleting a member's last address wiped confirmed siblings' addresses** (`HouseholdSync`):
+      `PropagateAddressesAsync` with an EMPTY source `RemoveRange`d every sibling's address and added nothing —
+      reachable by a youth via self-service DeleteMyAddress. Now skips mirroring when the source set is empty
+      (removing the last address leaves siblings as-is).
+- [x] **#5 [MED] Group/branch reports could include a unit the caller is only a youth in** (`ReportDataCollector`):
+      non-super leaders were filtered to `AuthorizedUnitIds` (includes youth units), not units they LEAD. Now a
+      group manager (super-admin / maitrise.manage) keeps the full authorized scope, but a PLAIN unit leader is
+      restricted to units where they hold a `members.edit`-granting active role (`SecurityProfile.Permissions.Any(
+      == MembersEdit)`) — so a leader-in-A/youth-in-B member can't export B's roster incl. parents' PII.
+- [x] **#6 [LOW-MED] Forgot/Reset-password email lookup was case-sensitive** while Login is case-insensitive +
+      trimmed (`RequestPasswordReset` + `ResetPassword`): a user who signs in fine (mobile auto-capital / trailing
+      space) got "account not found" on reset — go-live-relevant (forced-reset rollout). Both now trim + lower and
+      compare `u.Email.ToLower() == email`; the reset link carries the normalized email. Verified live:
+      `ADMIN@GNDJ.LOCAL` and `  Admin@Gndj.Local  ` → found:true (was false).
+- Build clean (dotnet 0/0), API live-smoke OK. **NOT fixed (documented/lower):** applicant verify/terms gates fall
+      through on a transient profile-fetch error (server still blocks submit); report address-column blank when city
+      is null; doc-campaign enqueue-before-marker email re-send on a crash; `SetPrimaryContactEmail` case-sensitive +
+      `VerifyMyContact` missing `.RealEmail()`; `BulkReviewPassage` skips the final-team-belongs-to-unit check. Known/
+      intended (no change): passage completeness gate counts Pending équipe-changes; name-only sibling auto-link;
+      MustChangePassword is a UI nudge; single-key `GET /settings/{key}` readable by any authed user; camp report
+      PDFs are group-wide (CU + CG by design).
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

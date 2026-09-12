@@ -35,10 +35,20 @@ public partial class AbuseDetectionMiddleware
         RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 200)]
     private static partial Regex SqlPattern();
 
-    // Admin email-template authoring legitimately carries rich HTML markup — skip the script/SQL
-    // content scan for that path (honeypot + length checks still apply).
+    // Admin/CG rich-content authoring legitimately carries HTML markup — an <iframe>/<svg> embed (video/map),
+    // author CSS with /* */ comments, etc. — which the script/SQL signatures would false-positive on. Skip the
+    // content scan for these privileged, permission-gated authoring paths (honeypot + length checks still apply,
+    // the DB is parameterised, and public output is DOMPurify-sanitised). Covers email templates, the public-site
+    // CMS (news/pages/events/resources/content uploads), and the in-app document-template builder
+    // (/document-types carries template_html + the /template-preview render).
+    private static readonly string[] RichContentPrefixes =
+    {
+        "/api/v1/email/templates", "/api/v1/news", "/api/v1/pages", "/api/v1/events",
+        "/api/v1/resources", "/api/v1/content", "/api/v1/document-types",
+    };
+
     private static bool IsRichContentPath(PathString path) =>
-        path.StartsWithSegments("/api/v1/email/templates", StringComparison.OrdinalIgnoreCase);
+        RichContentPrefixes.Any(p => path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase));
 
     public async Task InvokeAsync(HttpContext context)
     {

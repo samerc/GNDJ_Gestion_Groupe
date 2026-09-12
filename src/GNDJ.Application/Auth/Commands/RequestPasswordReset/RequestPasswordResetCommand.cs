@@ -31,9 +31,13 @@ public class RequestPasswordResetCommandHandler(
 {
     public async ValueTask<Result<ForgotPasswordResult>> Handle(RequestPasswordResetCommand request, CancellationToken ct)
     {
+        // Match the username case-insensitively + trimmed, exactly like member Login — otherwise a user who
+        // signs in fine (mobile auto-capitalised first letter / a trailing space) would get "account not found"
+        // here and be unable to start a reset.
+        var email = (request.Email ?? "").Trim().ToLowerInvariant();
         var user = await context.Users
             .Include(u => u.Member)
-            .FirstOrDefaultAsync(u => u.Email == request.Email && u.IsActive, ct);
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == email && u.IsActive, ct);
 
         // Account not found (or inactive) — tell the caller plainly.
         if (user is null)
@@ -59,7 +63,7 @@ public class RequestPasswordResetCommandHandler(
             .Where(s => s.Key == "app.base_url")
             .Select(s => s.Value)
             .FirstOrDefaultAsync(ct) ?? "http://localhost:5173";
-        var resetLink = $"{baseUrl}/reset-password?token={token}&email={Uri.EscapeDataString(request.Email)}";
+        var resetLink = $"{baseUrl}/reset-password?token={token}&email={Uri.EscapeDataString(email)}";
         var vars = new Dictionary<string, string>
         {
             ["memberName"] = user.Member?.FirstName ?? "Utilisateur",

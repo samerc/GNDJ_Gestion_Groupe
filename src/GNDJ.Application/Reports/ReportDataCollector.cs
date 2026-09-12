@@ -33,16 +33,30 @@ public static class ReportDataCollector
         unitIds = unitIds.Distinct().ToList();
         if (unitIds.Count == 0) return Result<(string, List<ReportSection>)>.Failure("Aucune unité.");
 
-        // Leader-only report (multi-member PII). super-admin sees every target unit; any other leader
-        // (members.edit) is FILTERED to the target units they actually lead — so a CU running a branch/group
-        // report only ever gets their own units' members (no cross-unit PII), while a CG (all units granted)
-        // gets the whole scope. Fails only when the caller can access none of the target units.
+        // Leader-only report (multi-member PII). super-admin + group managers (CG/ACG — maitrise.manage, all
+        // units granted at login) see every target unit. A PLAIN unit leader is FILTERED to the units they
+        // actually LEAD — a leadership (members.edit-granting) active role — NOT every unit they belong to:
+        // AuthorizedUnitIds also includes a unit where the caller is merely a youth (a leader-in-A/youth-in-B
+        // member must not export B's roster incl. parents' names/phones/addresses). Fails when the caller can
+        // access none of the target units.
         var isSuper = currentUser.IsSuperAdmin;
         if (!isSuper)
         {
             if (!currentUser.Permissions.Contains(Permissions.MembersEdit))
                 return Result<(string, List<ReportSection>)>.Failure("Accès non autorisé.");
-            unitIds = unitIds.Where(id => currentUser.AuthorizedUnitIds.Contains(id)).ToList();
+
+            if (MemberAccess.IsGroupManager(currentUser))
+            {
+                unitIds = unitIds.Where(id => currentUser.AuthorizedUnitIds.Contains(id)).ToList();
+            }
+            else
+            {
+                var ledUnitIds = await context.MemberAssignments
+                    .Where(a => a.MemberId == currentUser.MemberId && a.EndDate == null
+                        && a.FunctionalRole.SecurityProfile.Permissions.Any(p => p.Permission == Permissions.MembersEdit))
+                    .Select(a => a.UnitId).Distinct().ToListAsync(ct);
+                unitIds = unitIds.Where(id => ledUnitIds.Contains(id)).ToList();
+            }
             if (unitIds.Count == 0)
                 return Result<(string, List<ReportSection>)>.Failure("Aucune unité accessible pour ce rapport.");
         }

@@ -28,8 +28,11 @@ public class ResetPasswordCommandHandler(
 {
     public async ValueTask<Result<bool>> Handle(ResetPasswordCommand request, CancellationToken ct)
     {
+        // Case-insensitive + trimmed match (mirrors Login + RequestPasswordReset) so the link works regardless
+        // of how the username was typed when the reset was requested.
+        var email = (request.Email ?? "").Trim().ToLowerInvariant();
         var user = await context.Users
-            .FirstOrDefaultAsync(u => u.Email == request.Email && u.IsActive, ct);
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == email && u.IsActive, ct);
 
         if (user is null)
             return Result<bool>.Failure("Lien de réinitialisation invalide ou expiré.");

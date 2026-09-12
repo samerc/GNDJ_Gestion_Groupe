@@ -41,6 +41,10 @@ public static class HouseholdSync
         var ids = await SiblingIdsAsync(ctx, memberId, ct);
         if (ids.Count == 0) return;
         var source = await ctx.MemberAddresses.Where(a => a.MemberId == memberId).ToListAsync(ct);
+        // Never mirror an EMPTY source onto the siblings: that would wipe every sibling's address (e.g. a youth
+        // removing their own last address via Ma fiche would silently clear the whole fratrie). We only propagate
+        // when the source member actually has address(es) to share; removing the last one leaves siblings as-is.
+        if (source.Count == 0) return;
         var existing = await ctx.MemberAddresses.Where(a => ids.Contains(a.MemberId)).ToListAsync(ct);
         if (AlreadyMirrored(source, existing, ids.Count)) return;
 

@@ -37,7 +37,9 @@ public class UpdateMemberCommandValidator : AbstractValidator<UpdateMemberComman
             .Must(g => AllowedGenders.Contains(g))
             .When(x => !string.IsNullOrEmpty(x.Gender))
             .WithMessage("Le genre doit être 'Masculin' ou 'Féminin'.");
-        RuleFor(x => x.CardNumber).MaximumLength(20);
+        // Matricule = the internal member number; it must always be present (the panel exposes it as an editable
+        // required field, so a cleared value would otherwise null it). Uniqueness is enforced in the handler.
+        RuleFor(x => x.CardNumber).NotEmpty().WithMessage("Le matricule est requis.").MaximumLength(20);
         RuleFor(x => x.ExternalCardNumber).MaximumLength(50)
             .Must(n => n == null || !n.Contains('<') && !n.Contains('>')).WithMessage("Le numéro de carte contient des caractères invalides.");
         RuleFor(x => x.Nationality).NotEmpty().WithMessage("La nationalité est requise.").MaximumLength(50);
@@ -81,6 +83,11 @@ public class UpdateMemberCommandHandler : IRequestHandler<UpdateMemberCommand, R
         // unit (endpoint is members.edit-gated). Shared policy in MemberAccess.
         if (!await MemberAccess.CanAccessMemberAsync(_context, _currentUser, request.Id, cancellationToken))
             return Result<bool>.Failure("Accès non autorisé à ce membre.");
+
+        // The internal matricule must stay unique across members (friendly 400 vs the DB unique index's 409).
+        var card = request.CardNumber?.Trim() ?? "";
+        if (await _context.Members.AnyAsync(m => m.Id != request.Id && m.CardNumber == card, cancellationToken))
+            return Result<bool>.Failure($"Le matricule « {card} » est déjà attribué à un autre membre.");
 
         // The official SDL/GDL card number must be unique across members (friendly 400 vs the DB index's 500).
         if (!string.IsNullOrWhiteSpace(request.ExternalCardNumber))
