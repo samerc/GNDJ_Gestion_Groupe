@@ -246,9 +246,9 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const [bulkCardsLoading, setBulkCardsLoading] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const { data: reportTemplates } = useReportTemplates(true)
-  // Only UNIT-scoped templates run from a CU's unit dashboard (group/branch/multi-unit are CG tools, run from
-  // the Rapports personnalisés admin page). This unit is passed as the target.
-  const unitScopedTemplates = useMemo(() => (reportTemplates ?? []).filter(t => t.scopeType === 'unit'), [reportTemplates])
+  // All active templates run from the dashboard: a unit-scoped one uses THIS unit; a branch/group/multi-unit one
+  // is auto-scoped server-side to the units the CU leads (this unit's members for a single-unit CU).
+  const dashboardTemplates = useMemo(() => reportTemplates ?? [], [reportTemplates])
   const currentScoutYear = useCurrentScoutYear()
   // Member-card generation is a group-wide toggle (Paramètres → Rapports). Off => hide the "Cartes" button.
   const cardsEnabled = useSettingValue('reports.cards_enabled') !== 'false'
@@ -402,10 +402,10 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
                 </DropdownMenuTrigger>
               </Tip>
               <DropdownMenuContent align="end">
-                {unitScopedTemplates.length === 0 && (
+                {dashboardTemplates.length === 0 && (
                   <DropdownMenuItem disabled className="text-xs text-muted-foreground">Aucun rapport pour l'instant</DropdownMenuItem>
                 )}
-                {unitScopedTemplates.map(t => (
+                {dashboardTemplates.map(t => (
                   <DropdownMenuItem
                     key={t.id}
                     onClick={() => handleCustomReport(t)}

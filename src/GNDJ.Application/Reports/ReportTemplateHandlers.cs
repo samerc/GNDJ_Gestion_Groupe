@@ -1,10 +1,8 @@
 using System.Text.Json;
 using FluentValidation;
-using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Domain.Entities;
-using GNDJ.Domain.Enums;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
@@ -173,7 +171,7 @@ public record GenerateReportFromTemplateQuery(Guid TemplateId, string ScoutYear,
     : IRequest<Result<ReportFileResult>>;
 
 public class GenerateReportFromTemplateQueryHandler(
-    IApplicationDbContext context, ICurrentUserService currentUser, IMediator mediator)
+    IApplicationDbContext context, IMediator mediator)
     : IRequestHandler<GenerateReportFromTemplateQuery, Result<ReportFileResult>>
 {
     public async ValueTask<Result<ReportFileResult>> Handle(GenerateReportFromTemplateQuery request, CancellationToken ct)
@@ -181,13 +179,9 @@ public class GenerateReportFromTemplateQueryHandler(
         var t = await context.ReportTemplates.FindAsync([request.TemplateId], ct);
         if (t is null) return Result<ReportFileResult>.Failure("Modèle introuvable.");
 
-        // A whole-group / branch / multi-unit report is a group-manager tool. A unit-scoped template is CU-facing
-        // (the roster/export access check then confirms the caller leads the chosen unit).
-        var isManager = MemberAccess.IsGroupManager(currentUser);
-        if (t.ScopeType != "unit" && !isManager)
-            return Result<ReportFileResult>.Failure("Ce rapport est réservé aux responsables de groupe.");
-
-        // Resolve the target units from the scope.
+        // Resolve the target units from the scope. Any leader may generate any scope — the data collector then
+        // FILTERS the resolved units to the ones the caller actually leads (a CG has all units; a CU gets only
+        // theirs), so a CU running a branch/group report simply gets their own units' members.
         List<Guid> unitIds;
         switch (t.ScopeType)
         {

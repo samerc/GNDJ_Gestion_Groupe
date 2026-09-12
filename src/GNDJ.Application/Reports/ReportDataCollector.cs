@@ -33,13 +33,18 @@ public static class ReportDataCollector
         unitIds = unitIds.Distinct().ToList();
         if (unitIds.Count == 0) return Result<(string, List<ReportSection>)>.Failure("Aucune unité.");
 
-        // Leader-only report (multi-member PII): super-admin, or members.edit with EVERY target unit in scope.
+        // Leader-only report (multi-member PII). super-admin sees every target unit; any other leader
+        // (members.edit) is FILTERED to the target units they actually lead — so a CU running a branch/group
+        // report only ever gets their own units' members (no cross-unit PII), while a CG (all units granted)
+        // gets the whole scope. Fails only when the caller can access none of the target units.
         var isSuper = currentUser.IsSuperAdmin;
         if (!isSuper)
         {
-            if (!currentUser.Permissions.Contains(Permissions.MembersEdit)
-                || !unitIds.All(id => currentUser.AuthorizedUnitIds.Contains(id)))
+            if (!currentUser.Permissions.Contains(Permissions.MembersEdit))
                 return Result<(string, List<ReportSection>)>.Failure("Accès non autorisé.");
+            unitIds = unitIds.Where(id => currentUser.AuthorizedUnitIds.Contains(id)).ToList();
+            if (unitIds.Count == 0)
+                return Result<(string, List<ReportSection>)>.Failure("Aucune unité accessible pour ce rapport.");
         }
 
         var units = await context.Units

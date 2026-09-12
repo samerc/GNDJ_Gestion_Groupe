@@ -265,7 +265,9 @@ export default function ReportTemplatesPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map(t => {
             const cols = safeJsonArray(t.columnsJson)
-            const canGenerate = t.scopeType === 'unit' ? (isManager || leaderUnits.length > 0) : isManager
+            // Any leader can generate any scope: a CU running a branch/group report is auto-filtered to their
+            // own units server-side (a CG/super-admin gets the whole scope).
+            const canGenerate = isManager || leaderUnits.length > 0
             return (
               <Card key={t.id} className={!t.isActive ? 'opacity-60' : ''}>
                 <CardHeader className="pb-2">
