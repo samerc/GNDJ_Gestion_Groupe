@@ -4531,6 +4531,31 @@ final shape: **compact list rows + a right-side Sheet** for the details.
   drawer. Reconcile data only loads when a row is opened, so a long list stays fast. Confirmées / Doublons tabs
   untouched. Frontend, DEV until deploy. See [[project-link-siblings]].
 
+### Accent/legacy-value audit — contact type + country Selects (2026-09-12)
+Follow-up to the guardian Relation fix: swept every string-enum `<Select>` for the same class of bug (a stored
+value that doesn't EXACTLY match an accented/fixed option → Radix renders empty). Method: dumped distinct DB
+values per field and compared to the option lists.
+- **Clean (no action):** members.gender (`Masculin`/`Féminin`, matches options), blood_type, classe (all in
+  `member.classes` exactly), parents_situation (only `Unis`), demandes.gender — all accent-consistent with their
+  option lists.
+- **Broadly affected → FIXED:** contact **type** + **country** fields hold rich migrated values outside the fixed
+  Selects — `guardian_phones.type` "Mobile Mère"/"Mobile Père" (~3.7k), `guardian_emails.type` "Mère"/"Père" (~4.3k,
+  the relationship leaked into the type — display-only, works as a label), `member_addresses.type` "Domicile
+  principal" (1373) / "Résidence secondaire", `member_phones.type` "Bureau"/"Résidence Secondaire (Tél.)",
+  `member_emails.type` "Indéterminé"/"GNDJ"/"Professionnel", `member_addresses.country` "UNITED STATES". These
+  render EMPTY when editing the contact (Radix Select can't show an out-of-list value; save-without-touching
+  preserves it, but it *looks* blanked). Fix: new **`optionsWithCurrent(options, value)`** (lib/options) appends the
+  stored value as a selectable option when it's not already present, applied to the phone/email/address **type** +
+  **country** Selects in the member panel (members/index.tsx) + Ma fiche (my-profile.tsx) EDIT dialogs (add dialogs
+  default to a valid option, so they're untouched). Non-destructive, future-proof. Guardian contacts are add/delete
+  (no edit Select), so their labels display fine.
+- **`SearchableSelect` already hardened** (prior commit) to show the raw value when out-of-list — covers Domaine /
+  nationalité / école / ville.
+- **FLAGGED (data-quality, not fixed — non-breaking now):** nationality holds 5 two-letter codes ("BE"/"CL"/…),
+  one "Collège Elysée" near-miss vs the schools list, "UNITED STATES" address. And when the **parents-situation
+  backfill** finally runs (held pending a WEBDEV re-export), it MUST write accented `Séparés`/`Divorcés` to match
+  the options. Frontend-only, DEV until deploy.
+
 ### Guardian edit form — Relation + Profession pre-fill fixes (2026-09-12)
 A CG reported the member Famille tab's "Modifier le parent" dialog showed **Relation** and **Profession** EMPTY
 for most parents while the display (card) showed them filled. Two root causes:

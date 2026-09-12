@@ -1,6 +1,17 @@
 // Static {value,label} option lists for form selects (French labels). Values are the canonical
 // strings stored in the DB; keep in sync with the server's allowed-set validators. PINNED_* surface
 // common choices at the top of SearchableSelect. (Schools/cities/professions live in DB settings.)
+
+// Returns the option list with the current stored value appended as a selectable option when it isn't already
+// present (exact match). A Radix <Select> renders EMPTY for a value outside its options — and migrated/legacy
+// data holds many contact types/countries outside the fixed lists (e.g. phone type "Mobile Mère", address type
+// "Domicile principal", country "UNITED STATES"). Injecting the value makes it display AND round-trip on save
+// (a save-without-touching would otherwise look blanked), without destroying the original label.
+export function optionsWithCurrent(options: { value: string; label: string }[], value?: string | null) {
+  if (!value || options.some(o => o.value === value)) return options
+  return [...options, { value, label: value }]
+}
+
 export const GENDER_OPTIONS = [
   { value: 'Masculin', label: 'Masculin' },
   { value: 'Féminin', label: 'Féminin' },
