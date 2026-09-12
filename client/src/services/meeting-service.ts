@@ -70,6 +70,11 @@ export interface MemberAbsenceCount {
   count: number
 }
 
+export interface MemberAbsenceYear {
+  scoutYear: string
+  count: number
+}
+
 // GET /meetings/scope → the caller's manageable units + led teams. Drives the page (create/fill scope).
 export function useAttendanceScope() {
   return useQuery({
@@ -103,6 +108,16 @@ export function useUnitAbsenceCounts(unitId: string | undefined, scoutYear: stri
     queryKey: ['meetings', 'absence-counts', unitId, scoutYear],
     queryFn: () => apiClient.get<MemberAbsenceCount[]>('/meetings/absence-counts', { params: { unitId, scoutYear } }).then(r => r.data),
     enabled: enabled && !!unitId,
+  })
+}
+
+// GET /meetings/member/{id}/absences-by-year → a member's absences grouped by scout year (leader-only, so the
+// member themselves never sees it). Drives the per-year breakdown on the member fiche. Disabled until an id.
+export function useMemberAbsencesByYear(memberId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ['meetings', 'member-absences', memberId],
+    queryFn: () => apiClient.get<MemberAbsenceYear[]>(`/meetings/member/${memberId}/absences-by-year`).then(r => r.data),
+    enabled: enabled && !!memberId,
   })
 }
 

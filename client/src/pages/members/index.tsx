@@ -48,7 +48,7 @@ import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS, PARENTS_SITUATION_OPTIONS, optionsWithCurrent } from '@/lib/options'
 import { calendarScoutYear } from '@/hooks/use-scout-year'
-import { useUnitAbsenceCounts } from '@/services/meeting-service'
+import { useUnitAbsenceCounts, useMemberAbsencesByYear } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
 import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck } from 'lucide-react'
 import { DelegationDialog } from './delegation-dialog'
@@ -138,6 +138,8 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   const classes = useSettingArray('member.classes')
   const professionDomains = useSettingArray('member.profession_domains')
   const cities = useCities()
+  // Per-year absence breakdown (leader-only endpoint — the member never sees this). Shown on the Médical tab.
+  const { data: absencesByYear } = useMemberAbsencesByYear(memberId)
 
   // Contact mutations (phones/emails/addresses save immediately via their own dialogs).
   const addPhone = useAddPhone(memberId); const delPhone = useDeletePhone(memberId); const updPhone = useUpdatePhone(memberId)
@@ -664,6 +666,22 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                 </div>
               )}
             </Section>
+            <div>
+              <h4 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><CalendarCheck className="h-4 w-4 text-primary/70" />Absences aux réunions</h4>
+              {absencesByYear && absencesByYear.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {absencesByYear.map(a => (
+                    <div key={a.scoutYear} className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm">
+                      <span className="text-muted-foreground">{a.scoutYear}</span>
+                      <span className="font-semibold tabular-nums">{a.count}</span>
+                      <span className="text-muted-foreground">absence{a.count > 1 ? 's' : ''}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Aucune absence enregistrée.</p>
+              )}
+            </div>
             <div>
               <h4 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Contact className="h-4 w-4 text-primary/70" />Infos complémentaires</h4>
               <MemberCustomFields memberId={memberId} />

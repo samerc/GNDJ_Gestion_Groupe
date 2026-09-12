@@ -40,6 +40,11 @@ public class MeetingsController : BaseApiController
     public async Task<IActionResult> AbsenceCounts([FromQuery] Guid unitId, [FromQuery] string? scoutYear)
         => Ok((await Mediator.Send(new GetUnitAbsenceCountsQuery(unitId, scoutYear))).Value);
 
+    /// <summary>A member's absences grouped by scout year (leader-only; the member never sees this). For the fiche.</summary>
+    [HttpGet("member/{memberId:guid}/absences-by-year")]
+    public async Task<IActionResult> MemberAbsencesByYear(Guid memberId)
+        => Ok((await Mediator.Send(new GetMemberAbsencesByYearQuery(memberId))).Value);
+
     /// <summary>Creates a réunion (CU: approved; chef d'équipe for their team: pending CU approval).</summary>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateMeetingCommand command)

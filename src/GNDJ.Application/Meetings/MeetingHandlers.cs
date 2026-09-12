@@ -312,6 +312,42 @@ public class GetUnitAbsenceCountsQueryHandler(IApplicationDbContext context, ICu
     }
 }
 
+// One (scout year, absence count) row for a member — the per-year breakdown shown on the member fiche.
+public record MemberAbsenceYear(string ScoutYear, int Count);
+
+// A member's absences on approved réunions, grouped by scout year (every year, all units the member was in).
+// LEADER-ONLY on purpose (the member themselves never sees this — it's an admin/CG/CU panel figure), so unlike
+// MemberAccess.CanAccessMemberAsync there is NO own-record bypass.
+public record GetMemberAbsencesByYearQuery(Guid MemberId) : IRequest<Result<IReadOnlyList<MemberAbsenceYear>>>;
+
+public class GetMemberAbsencesByYearQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetMemberAbsencesByYearQuery, Result<IReadOnlyList<MemberAbsenceYear>>>
+{
+    public async ValueTask<Result<IReadOnlyList<MemberAbsenceYear>>> Handle(GetMemberAbsencesByYearQuery request, CancellationToken ct)
+    {
+        // super-admin / whole-group manager / a members.edit leader with the member active in one of their units.
+        var isLeader = currentUser.IsSuperAdmin
+            || MemberAccess.IsGroupManager(currentUser)
+            || (currentUser.Permissions.Contains(Permissions.MembersEdit)
+                && await context.MemberAssignments.AnyAsync(a =>
+                    a.MemberId == request.MemberId && !a.IsDeleted && a.EndDate == null
+                    && currentUser.AuthorizedUnitIds.Contains(a.UnitId), ct));
+        if (!isLeader) return Result<IReadOnlyList<MemberAbsenceYear>>.Success([]);
+
+        // Every absence on an APPROVED réunion for this member; bucket by scout year in memory (Oct-1 boundary).
+        var dates = await context.MeetingAbsences
+            .Where(a => !a.IsDeleted && a.MemberId == request.MemberId && a.Meeting.Status == MeetingStatuses.Approved)
+            .Select(a => a.Meeting.Date)
+            .ToListAsync(ct);
+        var rows = dates
+            .GroupBy(ScoutYearHelper.Of)
+            .Select(g => new MemberAbsenceYear(g.Key, g.Count()))
+            .OrderByDescending(r => r.ScoutYear)
+            .ToList();
+        return Result<IReadOnlyList<MemberAbsenceYear>>.Success(rows);
+    }
+}
+
 // ── Commands ───────────────────────────────────────────────────────────────────
 
 public record CreateMeetingCommand(Guid? UnitId, Guid? TeamId, string Type, string? Title, DateOnly Date, DateOnly? EndDate, string? Notes,
