@@ -104,9 +104,17 @@ export function useSettingArray(key: string): string[] {
   try { return JSON.parse(data.value) } catch { return [] }
 }
 
-// Normalize a name for matching (case + accent insensitive).
+// Normalize a name for matching: case- + accent-insensitive AND punctuation/spacing-insensitive, so that
+// "Collège Notre-Dame de Jamhour", "College Notre Dame de Jamhour" and "college notre  dame de jamhour" all
+// collapse to the same key. This lets matchSchool/matchCity snap hyphen/spacing variants onto the canonical
+// list entry, and lets the school-code resolver map those variants to the right code (instead of falling back
+// to an auto acronym → the duplicate "CNDJ" rows in the stats). Used for both schools and cities.
 function normalizeSchool(s: string): string {
-  return s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return s
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // strip accents
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')                       // hyphens / punctuation / repeated spaces → single space
+    .trim()
 }
 
 // ── Cities (managed list, member.cities) ─────────────────────────────────────

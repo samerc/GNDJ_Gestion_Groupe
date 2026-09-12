@@ -4670,6 +4670,28 @@ age charts) into an **action hub**. All on main, DEV until deploy; verified live
   rentrée 4/24, effectif 1069 vs 1219, campagne 208 reçues); endpoint requires auth (401 without token). Build clean
   (dotnet 0/0, tsc + eslint + vite).
 
+### Demande stats "Par école" duplicate rows (2026-09-12)
+A CG saw **"CNDJ" listed twice** (218 + 4) in the demande-stats "Par école" bar-list. Root cause: the demande
+école field is a managed-list SearchableSelect WITH an "Autre…" free-text escape hatch (schools are open-ended),
+and `matchSchool`/`normalizeSchool` only folded accents+case — NOT punctuation/spacing. So the data holds
+variants of the same school: `Collège Notre-Dame de Jamhour` (223, mapped → code CNDJ) vs `College Notre Dame de
+Jamhour` (no hyphen/accent, ×4, NOT in `member.school_codes`) — the stats page `useSchoolCode` falls back to an
+auto **acronym** which ALSO yields "CNDJ" for those → a duplicate row (and `Notre Dame de Jamhour` ×3 → "NDJ").
+The backend `bySchool` buckets are grouped accent/case-insensitively but stay distinct raw strings; the frontend
+only resolved the display label, so two buckets displayed the same code as two rows. Two frontend fixes
+(frontend-only, DEV until deploy):
+- **`BarList` aggregates by display label** — when `labelOf` maps distinct raw values to the same label, rows are
+      merged (counts summed, re-sorted). Scoped: only "Par école" passes `labelOf`; genre/âge/classe pass none
+      (server already grouped) so they're unaffected.
+- **`normalizeSchool` now also collapses punctuation/spacing** (`[^a-z0-9]+` → single space, after accent-strip +
+      lowercase) — so `matchSchool`/`matchCity` snap hyphen/spacing variants onto the canonical list entry, and the
+      school-code resolver maps `College Notre Dame de Jamhour` → the real CNDJ (not an acronym). After both:
+      "CNDJ" is ONE row (~227).
+- RESIDUAL (not auto-fixable): `Notre Dame de Jamhour` (×3, missing the word "Collège") normalizes differently, so
+      it still shows as "NDJ". Options offered to the user: add `Notre Dame de Jamhour` → CNDJ to `member.school_codes`,
+      or clean the few free-text demande rows to the canonical name. NOT done (data decision; dev is a transient
+      prod mirror). The wizard's improved matcher prevents most future hyphen/spacing variants going forward.
+
 ### Audit log — document actions say WHOSE document (2026-09-12)
 A CG noticed the audit detail of a document approval read "Statut : Pending → Approved" with no indication of
 which member or document — useless for tracing "who approved whose document" in a dispute. The `ReviewDocument`

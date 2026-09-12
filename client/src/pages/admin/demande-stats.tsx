@@ -34,16 +34,29 @@ function Stat({ icon: Icon, label, value, tone }: { icon: React.ElementType; lab
   )
 }
 
-// Horizontal bar list for a demographic breakdown.
+// Horizontal bar list for a demographic breakdown. When `labelOf` maps several distinct raw values to the SAME
+// display label (e.g. multiple école spellings → one code "CNDJ"), rows are AGGREGATED by the display label so
+// the same entry never appears twice — counts summed, re-sorted by count desc. Without labelOf, items are shown
+// as-is (the server already grouped them accent/case-insensitively).
 function BarList({ items, labelOf }: { items: CountItem[]; labelOf?: (label: string) => string }) {
-  if (!items.length) return <p className="text-sm text-muted-foreground">Aucune donnée.</p>
-  const max = Math.max(...items.map((i) => i.count), 1)
+  const rows = labelOf
+    ? Array.from(
+        items.reduce((m, it) => {
+          const key = labelOf(it.label)
+          m.set(key, (m.get(key) ?? 0) + it.count)
+          return m
+        }, new Map<string, number>()),
+        ([label, count]) => ({ label, count }),
+      ).sort((a, b) => b.count - a.count)
+    : items.map((i) => ({ label: i.label, count: i.count }))
+  if (!rows.length) return <p className="text-sm text-muted-foreground">Aucune donnée.</p>
+  const max = Math.max(...rows.map((i) => i.count), 1)
   return (
     <div className="space-y-2">
-      {items.map((it) => (
+      {rows.map((it) => (
         <div key={it.label} className="space-y-1">
           <div className="flex items-center justify-between text-sm">
-            <span className="truncate pr-2">{labelOf ? labelOf(it.label) : it.label}</span>
+            <span className="truncate pr-2">{it.label}</span>
             <span className="tabular-nums font-medium text-muted-foreground">{it.count}</span>
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
