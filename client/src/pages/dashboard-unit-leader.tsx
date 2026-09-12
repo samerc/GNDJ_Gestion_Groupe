@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo } from 'react'
-import { saveBlob, filenameFromDisposition } from '@/lib/download'
+import { saveBlob } from '@/lib/download'
 import { useNavigate } from 'react-router'
 import { useUnitDashboard, type RosterMemberDto } from '@/services/dashboard-service'
 import { useMember } from '@/services/member-service'
@@ -25,18 +25,10 @@ import { cn } from '@/lib/utils'
 import { generateBulkCards } from '@/services/report-service'
 import { parseBlobError } from '@/lib/error-utils'
 import { toast } from 'sonner'
-import { useReportTemplates, generateReportFromTemplate } from '@/services/report-template-service'
-import { useCurrentScoutYear, calendarScoutYear } from '@/hooks/use-scout-year'
+import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useSettingValue } from '@/services/settings-service'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, FileText, ArrowLeft, CalendarCheck, UsersRound, Plus } from 'lucide-react'
+import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, ArrowLeft, CalendarCheck, UsersRound } from 'lucide-react'
 
 interface Props { unitId: string }
 
@@ -245,14 +237,8 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const [rosterOpen, setRosterOpen] = useState(false)
   const [bulkCardsLoading, setBulkCardsLoading] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
-  const { data: reportTemplates } = useReportTemplates(true)
-  // All active templates run from the dashboard: a unit-scoped one uses THIS unit; a branch/group/multi-unit one
-  // is auto-scoped server-side to the units the CU leads (this unit's members for a single-unit CU).
-  const dashboardTemplates = useMemo(() => reportTemplates ?? [], [reportTemplates])
-  const currentScoutYear = useCurrentScoutYear()
   // Member-card generation is a group-wide toggle (Paramètres → Rapports). Off => hide the "Cartes" button.
   const cardsEnabled = useSettingValue('reports.cards_enabled') !== 'false'
-  const [generatingReport, setGeneratingReport] = useState<string | null>(null)
 
   // Per-member absence counts (the running calendar scout year, so pre-season réunions count) → roster badge.
   const { data: absenceCountsRaw } = useUnitAbsenceCounts(unitId, calendarScoutYear())
@@ -261,23 +247,6 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
     for (const a of absenceCountsRaw ?? []) m.set(a.memberId, a.count)
     return m
   }, [absenceCountsRaw])
-
-  // Run a CG-defined unit-scoped report template for THIS unit (server resolves columns/scope) and download it.
-  const handleCustomReport = async (template: { id: string; name: string; reportType: string; format: string }) => {
-    setGeneratingReport(template.id)
-    try {
-      const res = await generateReportFromTemplate(template.id, { scoutYear: currentScoutYear, unitId })
-      const ext = template.reportType === 'roster' ? 'pdf' : template.format === 'csv' ? 'csv' : 'xlsx'
-      const name = filenameFromDisposition(res.headers['content-disposition'] as string | undefined) ?? `${template.name.replace(/\s+/g, '_')}.${ext}`
-      saveBlob(res.data, name, (res.headers['content-type'] as string) || 'application/octet-stream')
-      toast.success('Rapport généré')
-    } catch (err) {
-      // Responses are blobs, so a backend JSON error (e.g. "aucun membre") is unreadable via parseApiError.
-      toast.error(await parseBlobError(err))
-    } finally {
-      setGeneratingReport(null)
-    }
-  }
 
   const handleBulkCards = async () => {
     setBulkCardsLoading(true)
@@ -388,39 +357,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
               Équipes
             </Button>
           </Tip>
-          {(
-            <DropdownMenu>
-              {/* Tip must wrap the trigger from the OUTSIDE: DropdownMenuTrigger asChild uses a Radix Slot
-                  that clones its onClick/ref onto its single child. If that child is <Tip>, those props are
-                  swallowed (Tip doesn't forward them) and the menu never opens. So nest Tip > Trigger > Button. */}
-              <Tip content="Rapports personnalisés">
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="shrink-0">
-                    <FileText className="mr-1 h-4 w-4" />
-                    Rapports
-                  </Button>
-                </DropdownMenuTrigger>
-              </Tip>
-              <DropdownMenuContent align="end">
-                {dashboardTemplates.length === 0 && (
-                  <DropdownMenuItem disabled className="text-xs text-muted-foreground">Aucun rapport pour l'instant</DropdownMenuItem>
-                )}
-                {dashboardTemplates.map(t => (
-                  <DropdownMenuItem
-                    key={t.id}
-                    onClick={() => handleCustomReport(t)}
-                    disabled={generatingReport === t.id}
-                  >
-                    {generatingReport === t.id ? 'Génération...' : t.name}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate('/admin/report-templates')}>
-                  <Plus className="mr-2 h-4 w-4" />Créer / gérer les rapports…
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          {/* Custom reports live in their own "Rapports" sidebar section now (was a dropdown here). */}
         </div>
         <div className="flex gap-2">
           <div className="relative flex-1">
