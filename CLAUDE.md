@@ -4531,6 +4531,24 @@ final shape: **compact list rows + a right-side Sheet** for the details.
   drawer. Reconcile data only loads when a row is opened, so a long list stays fast. Confirmées / Doublons tabs
   untouched. Frontend, DEV until deploy. See [[project-link-siblings]].
 
+### "Badge" progression captures WHICH badge (2026-09-12)
+A CG saw a change-request "Progression : Badge — Troupe 2ème Beyrouth" with no badge NAME. Root cause: the app's
+**badge-stage** mechanism (a stage flagged `IsBadgeStage` shows a badge picker on record/propose → captures a
+specific `BadgeId` → summary shows "Badge · <name>") was **completely unused** — 0 stages flagged — while a stage
+literally named **"Badge"** (Troupe + Compagnie, used 88×) had `is_badge_stage=false`, so no badge was ever
+captured. (The admin "Étape avec badge" toggle was hidden in the 2026-08-18 redesign, but the flag is still
+**preserved on save** — the stage form loads `stage.isBadgeStage` and sends it back — so a data flag sticks.)
+- **Data patch `015_badge_stage_flag.sql`**: `is_badge_stage=true` where `lower(trim(name))='badge'` (idempotent;
+  applied on dev → both Badge stages flagged, verified via `/scout-stages/list` → `Badge -> True`; ships to prod on
+  next deploy).
+- **Migration tool**: the stage insert now sets `is_badge_stage = (name == "Badge")` so re-imports keep it (was a
+  hardcoded `false`).
+- No frontend/backend code change — the propose/record form (`member-progression.tsx`) already shows the required
+  badge picker for a badge-stage, and `ProposeProgression` already bakes "Progression : {stage} · {badge} — {unit}".
+- **Limits (told the user):** existing badge-less "Badge" progressions + the reported pending proposal predate the
+  flag (BadgeId null → still show generic "Badge") — the CG rejects the pending one so the member re-proposes WITH a
+  badge. Editing an old "Badge" progression now requires picking a badge (validation), which is correct.
+
 ### Accent/legacy-value audit — contact type + country Selects (2026-09-12)
 Follow-up to the guardian Relation fix: swept every string-enum `<Select>` for the same class of bug (a stored
 value that doesn't EXACTLY match an accented/fixed option → Radix renders empty). Method: dumped distinct DB

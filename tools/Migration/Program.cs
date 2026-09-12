@@ -993,9 +993,12 @@ if (!reuseOrg) for (int r = 2; r <= wsStages.LastRowUsed()!.RowNumber(); r++)
 
     var id = NewId();
     stageIdMap[key] = id;
+    // A stage literally named "Badge" is a BADGE STAGE (recording it captures WHICH badge via the badge picker),
+    // so the progression shows the specific badge instead of a generic "Badge". Other stages aren't badge stages.
+    var isBadgeStage = name.Trim().Equals("Badge", StringComparison.OrdinalIgnoreCase);
     await Exec(conn, @"INSERT INTO scout_stages (id, unit_type_id, name, code, description, display_order, is_active, is_badge_stage, created_at, updated_at, is_deleted)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, $8, false)",
-        id, utId, name, code, (string?)null, order, visible == "1", now);
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, false)",
+        id, utId, name, code, (string?)null, order, visible == "1", isBadgeStage, now);
     stageCount++;
 }
 Console.WriteLine($"OK ({stageCount})");
