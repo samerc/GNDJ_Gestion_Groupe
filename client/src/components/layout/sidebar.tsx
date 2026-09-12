@@ -102,6 +102,8 @@ const leaderNavItems = [
   // Rentrée = a leader checklist; regular youth members have no tasks, so gate it on members.edit
   // (leaders) like "Mon unité" rather than showing it to everyone.
   { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: PERMISSIONS.MEMBERS_EDIT },
+  // Report builder — a CU builds + generates unit-scoped reports (managers get it in the admin nav instead).
+  { path: '/admin/report-templates', label: 'Rapports', icon: FileText, permission: PERMISSIONS.MEMBERS_EDIT },
 ]
 
 // A nav link. `section` groups links INSIDE a dropdown/accordion under a small sub-header (used by the merged
