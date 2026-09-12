@@ -55,6 +55,10 @@ export default function SiblingsPage() {
   )
 }
 
+// Accent- + case-insensitive key for the client-side search boxes (Suggestions / Doublons are loaded in full,
+// so filtering happens on the client — "rhea" matches "Rhéa", "hadad" matches "Haddad").
+const searchKey = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
 // Categorize an evidence string into an icon so "what they have in common" reads at a glance.
 function evidenceIcon(e: string) {
   if (e.startsWith('Parent commun')) return UserRound
@@ -69,6 +73,7 @@ function SuggestionsTab() {
   const reject = useRejectSiblingSuggestion()
   const [rejecting, setRejecting] = useState<SiblingSuggestion | null>(null)
   const [reviewing, setReviewing] = useState<SiblingSuggestion | null>(null)
+  const [search, setSearch] = useState('')
 
   const doReject = async () => {
     if (!rejecting) return
@@ -83,12 +88,28 @@ function SuggestionsTab() {
   if (!suggestions || suggestions.length === 0)
     return <EmptyState icon={Sparkles} title="Aucune suggestion" description="Aucune fratrie probable à examiner pour le moment." />
 
+  // Client-side filter (the full list is loaded): matches any member's name/unit or the shared evidence.
+  const term = searchKey(search.trim())
+  const filtered = term
+    ? suggestions.filter((s) =>
+        s.members.some((m) => searchKey(`${m.firstName} ${m.lastName} ${m.unitName ?? ''}`).includes(term))
+        || s.evidence.some((e) => searchKey(e).includes(term)))
+    : suggestions
+
   return (
     <>
-      <p className="mb-3 text-sm text-muted-foreground">{suggestions.length} famille(s) probable(s) à examiner. Cliquez sur une famille pour ouvrir ses informations communes (parents, adresse, contacts) sur le côté et la confirmer.</p>
-      <div className="space-y-3">
-        {suggestions.map((s, i) => <SuggestionRow key={i} suggestion={s} onReview={() => setReviewing(s)} onReject={() => setRejecting(s)} />)}
+      <div className="relative mb-3 max-w-sm">
+        <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Rechercher un nom, une unité…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
       </div>
+      <p className="mb-3 text-sm text-muted-foreground">{filtered.length} famille(s) probable(s){term ? ` sur ${suggestions.length}` : ''} à examiner. Cliquez sur une famille pour ouvrir ses informations communes (parents, adresse, contacts) sur le côté et la confirmer.</p>
+      {filtered.length === 0 ? (
+        <EmptyState icon={Sparkles} title="Aucun résultat" description="Aucune fratrie probable ne correspond à votre recherche." />
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((s, i) => <SuggestionRow key={i} suggestion={s} onReview={() => setReviewing(s)} onReject={() => setRejecting(s)} />)}
+        </div>
+      )}
 
       {/* Details open in a right-side drawer (keeps the list compact). Keyed so it remounts per family. */}
       {reviewing && <ReconcileSheet key={reviewing.members[0]?.memberId ?? ''} suggestion={reviewing} onClose={() => setReviewing(null)} />}
@@ -433,6 +454,7 @@ function DuplicatesTab() {
   const [keys, setKeys] = useState<string[]>(['lastName', 'firstName'])
   const { data: groups, isLoading } = useDuplicateSuggestions(keys)
   const [merging, setMerging] = useState<DuplicateGroup | null>(null)
+  const [search, setSearch] = useState('')
 
   const toggleKey = (k: string) => setKeys((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]))
 
@@ -456,16 +478,34 @@ function DuplicatesTab() {
   if (!groups || groups.length === 0)
     return <>{configBar}<EmptyState icon={Copy} title="Aucun doublon" description="Aucun membre partageant tous les critères sélectionnés n'a été détecté." /></>
 
+  // Client-side filter by any member's name in the group.
+  const term = searchKey(search.trim())
+  const filtered = term
+    ? groups.filter((g) => g.members.some((m) => searchKey(`${m.firstName} ${m.lastName}`).includes(term)))
+    : groups
+
+  const searchBar = (
+    <div className="relative mb-3 max-w-sm">
+      <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      <Input placeholder="Rechercher un nom…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
+    </div>
+  )
+
   return (
     <>
       {configBar}
+      {searchBar}
+      {filtered.length === 0 ? (
+        <EmptyState icon={Copy} title="Aucun résultat" description="Aucun doublon ne correspond à votre recherche." />
+      ) : (
+      <>
       <p className="mb-3 text-sm text-muted-foreground">
-        {groups.length} doublon(s) probable(s). Fusionnez pour n'en garder qu'un (les affectations, documents,
+        {filtered.length} doublon(s) probable(s){term ? ` sur ${groups.length}` : ''}. Fusionnez pour n'en garder qu'un (les affectations, documents,
         contacts… du doublon sont transférés vers le membre conservé, qui est ensuite placé dans la Corbeille et
         restaurable).
       </p>
       <div className="space-y-3">
-        {groups.map((g, i) => (
+        {filtered.map((g, i) => (
           <Card key={i} className="overflow-hidden">
             <CardContent className="p-4">
               <div className="mb-2.5 flex items-center justify-between gap-2">
@@ -506,6 +546,8 @@ function DuplicatesTab() {
           </Card>
         ))}
       </div>
+      </>
+      )}
 
       {merging && <MergeDialog group={merging} onClose={() => setMerging(null)} />}
     </>
