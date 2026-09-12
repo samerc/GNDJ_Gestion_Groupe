@@ -24,7 +24,8 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { ScrollToTop } from '@/components/shared/scroll-to-top'
-import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban, ChevronLeft, ChevronRight, Upload, ExternalLink } from 'lucide-react'
+import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban, ChevronLeft, ChevronRight, Upload, ExternalLink, ChevronDown } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 // ─── Cell rendering helpers ────────────────────────────────
 function docStatusColor(cell: MemberDocCellDto): string {
@@ -341,11 +342,13 @@ export default function UnitDocumentsPage() {
     if (previewBlobUrl) window.open(previewBlobUrl, '_blank', 'noopener,noreferrer')
   }
 
-  const handleDownloadZip = async (docTypeId?: string) => {
+  const handleDownloadZip = async (docTypeId?: string, docTypeName?: string) => {
     setDownloading(true)
     try {
       const response = await downloadUnitDocumentsZip(unitId, docTypeId)
-      saveBlob(response.data, 'Documents_Unite.zip', 'application/zip')
+      const unitLabel = (pickerUnits.find(u => u.unitId === unitId)?.unitName ?? 'Unite').replace(/\s+/g, '_')
+      const typeLabel = docTypeName ? `_${docTypeName.replace(/\s+/g, '_')}` : ''
+      saveBlob(response.data, `Documents_${unitLabel}${typeLabel}.zip`, 'application/zip')
     } catch (err) {
       // The zip is fetched as a blob, so a JSON error comes back as a Blob — parseBlobError reads it.
       // The common case (an empty unit) is a 400 with a clear message: show it as a friendly info toast,
@@ -436,9 +439,30 @@ export default function UnitDocumentsPage() {
             </Select>
           )}
           {unitId && (
-            <Button variant="outline" size="sm" onClick={() => handleDownloadZip()} disabled={downloading}>
-              <FileArchive className="mr-1 h-4 w-4" />{downloading ? '...' : 'ZIP'}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" disabled={downloading}>
+                  <FileArchive className="mr-1 h-4 w-4" />{downloading ? 'Téléchargement…' : 'Télécharger (ZIP)'}
+                  <ChevronDown className="ml-1 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+                <DropdownMenuItem onClick={() => handleDownloadZip()}>
+                  <FileArchive className="mr-2 h-4 w-4" />Tous les documents
+                </DropdownMenuItem>
+                {matrix && matrix.docTypes.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Par type de document</DropdownMenuLabel>
+                    {matrix.docTypes.map(dt => (
+                      <DropdownMenuItem key={dt.id} onClick={() => handleDownloadZip(dt.id, dt.name)}>
+                        <Download className="mr-2 h-4 w-4" />{dt.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
@@ -488,16 +512,7 @@ export default function UnitDocumentsPage() {
                   <th className="sticky left-0 z-10 bg-muted/40 px-4 py-3 text-left font-semibold min-w-52">Membre</th>
                   {matrix.docTypes.map(dt => (
                     <th key={dt.id} className="px-2 py-3 text-center font-medium min-w-24">
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span className="text-sm leading-tight">{dt.name}</span>
-                        <button
-                          className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-                          onClick={() => handleDownloadZip(dt.id)}
-                          title={`ZIP — ${dt.name}`}
-                        >
-                          <Download className="h-3 w-3" />
-                        </button>
-                      </div>
+                      <span className="text-sm leading-tight">{dt.name}</span>
                     </th>
                   ))}
                   <th className="px-2 py-3 text-center font-medium min-w-28">

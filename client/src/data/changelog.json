@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      "Documents & cotisations — téléchargement ZIP plus clair : le bouton « ZIP » devient un menu « Télécharger (ZIP) » avec « Tous les documents » puis une entrée par type de document (le petit bouton peu visible sur chaque colonne a été retiré). Le fichier ZIP porte désormais le nom de l'unité (et du type). Quand l'unité n'a encore aucun document, un message clair l'indique au lieu de ne rien télécharger.",
       "Alertes d'erreur — le destinataire par défaut (quand aucune adresse « error.notify_email » n'est configurée) est maintenant le super-administrateur le plus ancien de façon déterministe, au lieu d'un super-administrateur choisi au hasard.",
       "Sessions actives — les « sessions ouvertes » (comptes connectés mais inactifs) sont désormais masquées par défaut ; seules les sessions « en ligne » s'affichent. Un bouton « Afficher / Masquer les sessions ouvertes » permet de les révéler.",
       "Rapports — le bouton « Rapports » a été retiré du tableau de bord de l'unité : les rapports ont désormais leur propre entrée « Rapports » dans le menu de gauche (plus besoin du raccourci en double).",
