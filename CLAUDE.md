@@ -4687,10 +4687,13 @@ only resolved the display label, so two buckets displayed the same code as two r
       lowercase) — so `matchSchool`/`matchCity` snap hyphen/spacing variants onto the canonical list entry, and the
       school-code resolver maps `College Notre Dame de Jamhour` → the real CNDJ (not an acronym). After both:
       "CNDJ" is ONE row (~227).
-- RESIDUAL (not auto-fixable): `Notre Dame de Jamhour` (×3, missing the word "Collège") normalizes differently, so
-      it still shows as "NDJ". Options offered to the user: add `Notre Dame de Jamhour` → CNDJ to `member.school_codes`,
-      or clean the few free-text demande rows to the canonical name. NOT done (data decision; dev is a transient
-      prod mirror). The wizard's improved matcher prevents most future hyphen/spacing variants going forward.
+- RESIDUAL `Notre Dame de Jamhour` (×3, missing the word "Collège") normalizes differently so it can't be matched
+      to the canonical automatically — FIXED via **data patch `016_school_code_ndj_alias.sql`**: adds
+      `"Notre Dame de Jamhour" → "CNDJ"` to `member.school_codes` (jsonb `||` merge, guarded/idempotent, doesn't
+      disturb other entries). The lookup normalizes accents/case/punctuation, so that one alias key also covers
+      "Notre dame de jamhour" / "Notre-Dame de Jamhour". Applied to dev live; auto-runs on prod at next deploy
+      (once per DB, tracked in `data_patches`). Result: "CNDJ" is a single row covering every variant. The wizard's
+      improved matcher prevents most future hyphen/spacing variants going forward.
 
 ### Audit log — document actions say WHOSE document (2026-09-12)
 A CG noticed the audit detail of a document approval read "Statut : Pending → Approved" with no indication of
