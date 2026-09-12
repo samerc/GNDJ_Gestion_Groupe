@@ -697,7 +697,7 @@ export default function UnitDocumentsPage() {
                   </Button>
                 )}
                 {previewCell.cell.status !== 'Approved' && (
-                  <Button size="sm" onClick={() => handleReview('Approved')} disabled={reviewMutation.isPending}>
+                  <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={() => handleReview('Approved')} disabled={reviewMutation.isPending}>
                     <CheckCircle className="mr-1 h-4 w-4" />Accepter
                   </Button>
                 )}
