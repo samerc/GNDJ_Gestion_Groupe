@@ -160,6 +160,7 @@ const FIELD_LABELS: Record<string, string> = {
   Father: 'Père', Mother: 'Mère',
   Status: 'Statut', Count: 'Nombre', IsLeaving: 'Quitte le groupe',
   Document: 'Document', ReviewNotes: 'Note de vérification', FileName: 'Fichier',
+  added: 'Pages ajoutées', pages: 'Pages',
   KeepOld: "Conserver l'ancienne fonction", IsSuperAdmin: 'Super-administrateur',
   AccountsDeleted: 'Comptes supprimés',
   // Send-report keys (Envoyer les accès / Relance documents / Message aux chefs)
@@ -167,6 +168,32 @@ const FIELD_LABELS: Record<string, string> = {
   skipped: 'Ignorés', compliant: 'Dossiers complets', template: 'Modèle', unit: 'Unité',
 }
 const fieldLabel = (k: string) => FIELD_LABELS[k] ?? k
+
+// A raw User-Agent lists every legacy compatibility token (Mozilla/AppleWebKit/KHTML/Gecko/Chrome/Safari…),
+// which reads like "all browsers at once". Parse it to a readable "Browser N · OS" (order matters — the most
+// specific browser token wins). The full UA stays available as a tooltip.
+function parseUserAgent(ua: string | null | undefined): string {
+  if (!ua) return '—'
+  let os = ''
+  const aMatch = ua.match(/Android\s([\d.]+)/)
+  if (/Windows NT/.test(ua)) os = 'Windows'
+  else if (aMatch) os = `Android ${aMatch[1]}`
+  else if (/Android/.test(ua)) os = 'Android'
+  else if (/(iPhone|iPad|iPod|iOS)/.test(ua)) os = 'iOS'
+  else if (/Mac OS X/.test(ua)) os = 'macOS'
+  else if (/CrOS/.test(ua)) os = 'ChromeOS'
+  else if (/Linux/.test(ua)) os = 'Linux'
+
+  let br = 'Navigateur inconnu'
+  let m: RegExpMatchArray | null
+  if ((m = ua.match(/Edg(?:e|A|iOS)?\/([\d]+)/))) br = `Edge ${m[1]}`
+  else if ((m = ua.match(/(?:OPR|Opera)\/([\d]+)/))) br = `Opera ${m[1]}`
+  else if ((m = ua.match(/SamsungBrowser\/([\d]+)/))) br = `Samsung Internet ${m[1]}`
+  else if ((m = ua.match(/(?:Firefox|FxiOS)\/([\d]+)/))) br = `Firefox ${m[1]}`
+  else if ((m = ua.match(/(?:CriOS|Chrome)\/([\d]+)/))) br = `Chrome ${m[1]}`
+  else if (/Safari/.test(ua) && (m = ua.match(/Version\/([\d]+)/))) br = `Safari ${m[1]}`
+  return [br, os].filter(Boolean).join(' · ')
+}
 
 // Renders a stored value readably: booleans → Oui/Non, null/empty → —.
 function formatVal(v: unknown): string {
@@ -444,7 +471,7 @@ export default function AuditLogsPage() {
                 <div><span className="text-muted-foreground">ID Entité :</span> <span className="font-mono text-xs">{detail.entityId ?? '—'}</span></div>
                 <div><span className="text-muted-foreground">IP :</span> {detail.ipAddress ?? '—'}</div>
                 {/* Browser / device string — helpful to troubleshoot a login (which device the attempt came from). */}
-                <div className="col-span-2 break-words"><span className="text-muted-foreground">Navigateur :</span> <span className="text-xs">{detail.userAgent ?? '—'}</span></div>
+                <div className="col-span-2 break-words"><span className="text-muted-foreground">Navigateur :</span> <span title={detail.userAgent ?? undefined}>{parseUserAgent(detail.userAgent)}</span></div>
               </div>
 
               {(detail.oldValues || detail.newValues) && (

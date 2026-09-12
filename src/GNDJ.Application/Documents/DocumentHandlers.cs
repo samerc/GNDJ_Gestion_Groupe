@@ -168,7 +168,9 @@ public class UploadMemberDocumentCommandHandler(IApplicationDbContext context, I
         if (existingId is Guid docId)
         {
             await DocumentPageMapper.AppendPagesAsync(context, docId, files, now, ct);
-            await auditService.LogAsync("AddPages", "MemberDocument", docId, newValues: new { added = files.Count }, cancellationToken: ct);
+            // Record WHOSE document + which type so the audit says who added pages to what, not just a count.
+            var appendMember = await AuditNames.MemberAsync(context, request.MemberId, ct);
+            await auditService.LogAsync("AddPages", "MemberDocument", docId, newValues: new { Member = appendMember, Document = docType.Name, added = files.Count }, cancellationToken: ct);
             return Result<Guid>.Success(docId);
         }
 
@@ -320,7 +322,7 @@ public class AddDocumentPagesCommandHandler(IApplicationDbContext context, ICurr
         // Load only what we need (no tracked parent to mutate).
         var doc = await context.MemberDocuments
             .Where(d => d.Id == request.DocumentId)
-            .Select(d => new { d.Id, d.MemberId, d.Status })
+            .Select(d => new { d.Id, d.MemberId, d.Status, DocTypeName = d.DocumentType.Name })
             .FirstOrDefaultAsync(ct);
         if (doc is null) return Result<Guid>.Failure("Document introuvable.");
         if (!await DocumentAccessHelper.CanAccessMember(context, currentUser, doc.MemberId, ct))
@@ -340,7 +342,9 @@ public class AddDocumentPagesCommandHandler(IApplicationDbContext context, ICurr
                     .SetProperty(x => x.ReviewedAt, (DateTime?)null)
                     .SetProperty(x => x.ReviewedBy, (Guid?)null), ct);
 
-        await auditService.LogAsync("AddPages", "MemberDocument", doc.Id, newValues: new { added = request.Files.Count }, cancellationToken: ct);
+        // Record WHOSE document + which type so the audit says who added pages to what, not just a count.
+        var pageMember = await AuditNames.MemberAsync(context, doc.MemberId, ct);
+        await auditService.LogAsync("AddPages", "MemberDocument", doc.Id, newValues: new { Member = pageMember, Document = doc.DocTypeName, added = request.Files.Count }, cancellationToken: ct);
         return Result<Guid>.Success(doc.Id);
     }
 }

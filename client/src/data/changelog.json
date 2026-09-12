@@ -3,6 +3,8 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      "Journal d'audit — l'ajout de pages à un document indique désormais de QUEL membre et de quel type de document il s'agit (au lieu d'un simple nombre de pages).",
+      "Journal d'audit — le « Navigateur » est affiché de façon lisible (ex. « Samsung Internet 30 · Android 10 ») au lieu de la longue chaîne technique qui semblait lister tous les navigateurs ; la chaîne complète reste visible au survol.",
       "Documents & cotisations — téléchargement ZIP plus clair : le bouton « ZIP » devient un menu « Télécharger (ZIP) » avec « Tous les documents » puis une entrée par type de document (le petit bouton peu visible sur chaque colonne a été retiré). Le fichier ZIP porte désormais le nom de l'unité (et du type). Quand l'unité n'a encore aucun document, un message clair l'indique au lieu de ne rien télécharger.",
       "Alertes d'erreur — le destinataire par défaut (quand aucune adresse « error.notify_email » n'est configurée) est maintenant le super-administrateur le plus ancien de façon déterministe, au lieu d'un super-administrateur choisi au hasard.",
       "Sessions actives — les « sessions ouvertes » (comptes connectés mais inactifs) sont désormais masquées par défaut ; seules les sessions « en ligne » s'affichent. Un bouton « Afficher / Masquer les sessions ouvertes » permet de les révéler.",
