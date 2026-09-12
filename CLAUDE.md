@@ -4670,6 +4670,40 @@ age charts) into an **action hub**. All on main, DEV until deploy; verified live
   rentrée 4/24, effectif 1069 vs 1219, campagne 208 reçues); endpoint requires auth (401 without token). Build clean
   (dotnet 0/0, tsc + eslint + vite).
 
+### Settings hub — Email integrated + split into two tabs (2026-09-12)
+Continued the "Paramètres = hub" consolidation. The Email / SMTP config was one of the 3 remaining launchpad
+pages (`/admin/email-settings`, reached via the "Autres pages de configuration" card + a sidebar link). It's now
+folded INTO Paramètres and, at the user's request, **split into two focused config tabs**:
+- **Serveurs SMTP** (`email-smtp.tsx`) — SMTP server CRUD + test dialog (config, set once).
+- **Modèles d'email** (`email-templates.tsx`) — email-template CRUD (TipTap editor, module variables, attachments;
+      content edited often).
+  The old combined `email-settings.tsx` (with two sub-tabs) was DELETED and its two `SmtpTab`/`TemplatesTab`
+  bodies moved verbatim into the two new files — separate modules so opening "Serveurs SMTP" doesn't statically
+  import the heavy rich-text editor (only `email-templates` imports RichTextEditor). Each page takes an
+  `embedded` prop (hides its standalone `BackToSettings` + h1 when rendered as a Paramètres tab); the CONFIG_TABS
+  Component type is now `React.ComponentType<{ embedded?: boolean }>` and the render passes `embedded` (pages that
+  ignore it are unaffected — a 0-arg component is assignable).
+- **Deep-linkable tabs:** `settings.tsx` now reads a **`?tab=<key>`** query param on mount (guarded, validated
+      against the accessible categories/config tabs, falls back to the first section) so external links can open a
+      specific tab. Repointed the 3 references: the old **route** `/admin/email-settings` → `<Navigate>` to
+      `/admin/settings?tab=cfg:smtp`; the **rentrée** `goto-email` action + the **communications** "Modifier le
+      texte du modèle" link → `/admin/settings?tab=cfg:email-templates`.
+- **Sidebar:** removed the "Email / SMTP" entry (Système & sécurité) — reached via Paramètres now; route redirect
+      kept for bookmarks. Dropped the now-unused `Mail` icon import.
+- **Removed** Email/SMTP from the Paramètres launchpad card (now just Modèles de rapports + Profils & accès —
+      the 2 remaining separate pages, next candidates to integrate).
+- NOTE (bundle): `editor-vendor` is imported by ~120 chunks via a shared helper `manualChunks` bucketed there, so
+      it's effectively always loaded — the split's real win is UI discoverability (two visible nav entries), not a
+      big bundle saving; but the SMTP tab's own code no longer pulls the templates form/editor. Build clean
+      (tsc + eslint + vite). Frontend-only, DEV until deploy.
+
+### Change-requests page — mobile layout fix (2026-09-12)
+"Modifications à valider" cards used one wrapping flex row (icon + `flex-1` text + both buttons) → on a narrow
+screen the buttons wrapped into the MIDDLE of the row and crushed the member name/detail into a tiny column. Now
+`flex-col` on mobile (icon+text on top full-width, then full-width Refuser/Accepter buttons that each grow),
+`sm:flex-row` on desktop (unchanged). Dropped the redundant `Tip` tooltip on Refuser (button has a visible label).
+Frontend-only, DEV until deploy.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

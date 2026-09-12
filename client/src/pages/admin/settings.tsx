@@ -5,7 +5,7 @@
 // editors for exchange rates and for keys that have a fixed options list.
 // Each SettingEditor saves its own row; settings with dedicated pages are hidden.
 import { parseApiError } from '@/lib/error-utils'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { useState, useMemo, lazy, Suspense } from 'react'
 import { useSettings, useUpdateSetting, type SettingDto } from '@/services/settings-service'
 import { useAssociations } from '@/services/association-service'
@@ -33,6 +33,10 @@ const ManagedListsPage = lazy(() => import('@/pages/admin/managed-lists'))
 const AppearancePage = lazy(() => import('@/pages/admin/appearance'))
 const SiteTextsPage = lazy(() => import('@/pages/admin/site-texts'))
 const ApiKeysPage = lazy(() => import('@/pages/admin/api-keys'))
+// Email split into two focused tabs: SMTP servers (config, set once) and email templates (content, edited
+// often). Separate modules so opening "Serveurs SMTP" doesn't pull in the heavy rich-text editor.
+const EmailSmtpPage = lazy(() => import('@/pages/admin/email-smtp'))
+const EmailTemplatesPage = lazy(() => import('@/pages/admin/email-templates'))
 // Types de documents — embedded INSIDE the Documents category tab (not a standalone tab).
 const DocumentTypesPage = lazy(() => import('@/pages/admin/document-types'))
 // Rejection motifs (demande refusal reasons) — embedded inside the Inscriptions tab (CG-editable).
@@ -41,11 +45,15 @@ const RejectionReasonsEditor = lazy(() => import('@/pages/admin/rejection-reason
 // Extra tabs (rendered after the key-value setting categories). Each renders a full config page component;
 // the `cfg:` prefix keeps their tab `value` from colliding with a real setting category. Each tab is gated by
 // its own permission so a CG sees only what they can reach (e.g. Listes) while super-admin tools stay hidden.
-const CONFIG_TABS: { key: string; label: string; Component: React.ComponentType; permission: string }[] = [
+// Each Component may accept an optional `embedded` prop (rendered `<Component embedded />`): a page that
+// reads it (e.g. Email / SMTP) hides its standalone header when shown as a tab; the others simply ignore it.
+const CONFIG_TABS: { key: string; label: string; Component: React.ComponentType<{ embedded?: boolean }>; permission: string }[] = [
   { key: 'cfg:lists', label: 'Listes', Component: ManagedListsPage, permission: PERMISSIONS.MAITRISE_MANAGE },
   { key: 'cfg:associations', label: 'Associations', Component: AssociationsPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
   { key: 'cfg:custom-fields', label: 'Champs personnalisés', Component: CustomFieldsPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
   { key: 'cfg:card', label: 'Carte membre', Component: CardDesignerPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+  { key: 'cfg:smtp', label: 'Serveurs SMTP', Component: EmailSmtpPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+  { key: 'cfg:email-templates', label: "Modèles d'email", Component: EmailTemplatesPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
   { key: 'cfg:appearance', label: 'Apparence', Component: AppearancePage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
   { key: 'cfg:site-texts', label: 'Accueil & pied de page', Component: SiteTextsPage, permission: PERMISSIONS.CONTENT_MANAGE },
   { key: 'cfg:api-keys', label: 'Clés API', Component: ApiKeysPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
@@ -413,7 +421,6 @@ export default function SettingsPage() {
   const cardsEnabled = (settings ?? []).find(s => s.key === 'reports.cards_enabled')
   // Config apps that stay their own pages (not settings) — a small launchpad at the top of Paramètres.
   const configLinks = [
-    { to: '/admin/email-settings', label: 'Email / SMTP', perm: PERMISSIONS.ASSOCIATIONS_MANAGE },
     { to: '/admin/report-templates', label: 'Modèles de rapports', perm: PERMISSIONS.ASSOCIATIONS_MANAGE },
     { to: '/admin/roles-access', label: 'Profils & accès', perm: PERMISSIONS.MAITRISE_MANAGE },
   ].filter(l => can(l.perm))
@@ -445,9 +452,16 @@ export default function SettingsPage() {
 
   const categories = CATEGORY_ORDER.filter(c => grouped[c]?.length)
   const [tab, setTab] = useState<string>('')
-  // Default to the first available section (a settings category, else the first config tab). Render-phase, guarded.
+  // Default to the first available section (a settings category, else the first config tab). A `?tab=` query
+  // param (e.g. from the rentrée "goto-email" action or the communications "Modifier le modèle" link) deep-links
+  // to a specific section, if it's a valid + accessible one. Render-phase init, guarded by !tab.
+  const [searchParams] = useSearchParams()
   const firstSection = categories[0] ?? configTabs[0]?.key
-  if (firstSection && !tab) setTab(firstSection)
+  if (!tab && firstSection) {
+    const requested = searchParams.get('tab')
+    const valid = requested && (categories.includes(requested) || configTabs.some(t => t.key === requested))
+    setTab(valid ? requested : firstSection)
+  }
 
   if (isLoading) return <LoadingSpinner variant="form" />
 
@@ -566,7 +580,7 @@ export default function SettingsPage() {
                     <SettingEditor setting={cardsEnabled} onSave={handleSave} />
                   </div>
                 )}
-                <ActiveConfigComponent />
+                <ActiveConfigComponent embedded />
               </Suspense>
             )}
           </div>

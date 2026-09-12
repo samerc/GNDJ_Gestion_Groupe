@@ -92,8 +92,7 @@ const UnitTypesPage = lazy(() => import('@/pages/admin/unit-types'))
 const UnitTypeDetailPage = lazy(() => import('@/pages/admin/unit-type-detail'))
 const RolesPage = lazy(() => import('@/pages/admin/roles'))
 const ApiKeysPage = lazy(() => import('@/pages/admin/api-keys'))
-// Associations / Champs personnalisés / Carte membre are now tabs inside Paramètres (settings.tsx), not routes.
-const EmailSettingsPage = lazy(() => import('@/pages/admin/email-settings'))
+// Associations / Champs personnalisés / Carte membre / Email are now tabs inside Paramètres (settings.tsx).
 const SettingsPage = lazy(() => import('@/pages/admin/settings'))
 const AppearancePage = lazy(() => import('@/pages/admin/appearance'))
 const ReportTemplatesPage = lazy(() => import('@/pages/admin/report-templates'))
@@ -265,7 +264,8 @@ export default function App() {
               <Route path="/admin/unit-types/:id" element={<UnitTypeDetailPage />} />
               <Route path="/admin/roles" element={<RolesPage />} />
               <Route path="/admin/api-keys" element={<ApiKeysPage />} />
-              <Route path="/admin/email-settings" element={<EmailSettingsPage />} />
+              {/* Email split into two Paramètres tabs; old route redirects to the SMTP tab (back-compat / bookmarks). */}
+              <Route path="/admin/email-settings" element={<Navigate to="/admin/settings?tab=cfg:smtp" replace />} />
               <Route path="/admin/appearance" element={<AppearancePage />} />
               <Route path="/admin/error-log" element={<ErrorLogPage />} />
               <Route path="/admin/sessions" element={<SessionsPage />} />
