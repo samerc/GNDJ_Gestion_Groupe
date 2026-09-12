@@ -4695,6 +4695,27 @@ only resolved the display label, so two buckets displayed the same code as two r
       (once per DB, tracked in `data_patches`). Result: "CNDJ" is a single row covering every variant. The wizard's
       improved matcher prevents most future hyphen/spacing variants going forward.
 
+### École — searchable dropdown + variant data cleanup (2026-09-12)
+Follow-up to the "Par école" duplicate (root cause: parents used the "Autre…" free-text escape hatch instead of
+picking from a long, UNSEARCHABLE `<Select>`, creating spelling variants). Two fixes:
+- **Shared `SchoolSelect`** (`components/shared/school-select.tsx`, mirrors `CitySelect`): a SEARCHABLE dropdown
+      over the managed `member.schools` list + an "Autre… (saisir)" free-text fallback that snaps a typed name onto
+      the canonical entry on blur (`matchSchool`, now punctuation-insensitive) and collapses back to the list when
+      it matched. Pure component — the caller passes `schools` (authenticated forms via
+      `useSettingArray('member.schools')`; the applicant portal via `config.schools`, so the isolated portal never
+      hits the authenticated /settings endpoint). Replaced the duplicated plain-`Select` + "Autre…" + free-text
+      pattern in **4 places**: the demande wizard (removed its `schoolOther` state + `matchSchool` import), the
+      member edit panel + create dialog (`members/index.tsx`, dropped the now-unused `matchSchool` import), and Ma
+      fiche (`my-profile.tsx` — which also GAINED the match-on-blur it was missing). Now a parent types "notre dame"
+      and picks the canonical instead of scrolling → "Autre…" becomes a true last resort for genuinely new schools.
+- **Data patch `017_normalize_jamhour_school.sql`**: snapped the 7 existing 2026-2027 demandes with a Jamhour
+      variant spelling → canonical "Collège Notre-Dame de Jamhour" (matched by a punctuation/accent/case-normalized
+      key covering `collegenotredamedejamhour` + `notredamedejamhour`; excludes already-canonical; idempotent). A
+      defensive members clause is a no-op on current data (members were verified clean, only the canonical ×2019) but
+      future-proofs prod. Applied to dev live (7 rows → all "Collège Notre-Dame de Jamhour", 230 total); auto-runs on
+      prod at next deploy.
+- Build clean (tsc + eslint + vite). Frontend + data patch, DEV until deploy.
+
 ### Audit log — document actions say WHOSE document (2026-09-12)
 A CG noticed the audit detail of a document approval read "Statut : Pending → Approved" with no indication of
 which member or document — useless for tracing "who approved whose document" in a dispute. The `ReviewDocument`

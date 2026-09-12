@@ -34,7 +34,8 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { CitySelect } from '@/components/shared/city-select'
-import { useSettingArray, useSettingValue, matchSchool, useCities } from '@/services/settings-service'
+import { useSettingArray, useSettingValue, useCities } from '@/services/settings-service'
+import { SchoolSelect } from '@/components/shared/school-select'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberSiblings } from '@/components/members/member-siblings'
@@ -472,21 +473,8 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   <div className="space-y-1.5">
                     <RequiredLabel required>École</RequiredLabel>
-                    {(() => {
-                      const isOtherSchool = form.school ? !schools.includes(form.school) : false
-                      return (
-                        <>
-                          <Select value={isOtherSchool ? '__other__' : (form.school || '')} onValueChange={(v) => { if (v === '__other__') setForm(f => ({ ...f, school: '' })); else setForm(f => ({ ...f, school: v })) }}>
-                            <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                            <SelectContent>
-                              {schools.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                              <SelectItem value="__other__">Autre...</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          {isOtherSchool && <Input value={form.school || ''} onChange={(e) => setForm(f => ({ ...f, school: e.target.value }))} onBlur={(e) => setForm(f => ({ ...f, school: matchSchool(e.target.value, schools) }))} placeholder="Nom de l'école..." />}
-                        </>
-                      )
-                    })()}
+                    {/* Searchable dropdown + "Autre…" free-text (snaps typed variants onto the canonical school). */}
+                    <SchoolSelect value={form.school || ''} onChange={(v) => setForm(f => ({ ...f, school: v }))} schools={schools} />
                   </div>
                   {/* Situation toggle (only for older members — youth in Meute/Ronde/Compagnie/Troupe are
                       Classe/Section only, so the toggle is hidden and situation stays 'student'). */}
@@ -1208,29 +1196,8 @@ export default function MembersPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel required>École</RequiredLabel>
-                {(() => {
-                  const isOtherSchool = form.school ? !schools.includes(form.school) : false
-                  return (
-                    <>
-                      <Select
-                        value={isOtherSchool ? '__other__' : (form.school || '')}
-                        onValueChange={(v) => {
-                          if (v === '__other__') setForm(f => ({ ...f, school: '' }))
-                          else setForm(f => ({ ...f, school: v }))
-                        }}
-                      >
-                        <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                        <SelectContent>
-                          {schools.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                          <SelectItem value="__other__">Autre...</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {isOtherSchool && (
-                        <Input value={form.school || ''} onChange={(e) => setForm(f => ({ ...f, school: e.target.value }))} onBlur={(e) => setForm(f => ({ ...f, school: matchSchool(e.target.value, schools) }))} placeholder="Nom de l'école..." />
-                      )}
-                    </>
-                  )
-                })()}
+                {/* Searchable dropdown + "Autre…" free-text (snaps typed variants onto the canonical school). */}
+                <SchoolSelect value={form.school || ''} onChange={(v) => setForm(f => ({ ...f, school: v }))} schools={schools} />
               </div>
               {/* Situation toggle — hidden when a youth-branch unit is selected (Meute/Ronde/Compagnie/Troupe →
                   Classe/Section only). For older branches or no unit, the CG chooses. */}

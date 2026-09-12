@@ -16,7 +16,7 @@ import { SearchableSelect } from '@/components/shared/searchable-select'
 import { CitySelect } from '@/components/shared/city-select'
 import { DateInput } from '@/components/shared/date-input'
 import { NATIONALITY_OPTIONS } from '@/lib/options'
-import { matchSchool } from '@/services/settings-service'
+import { SchoolSelect } from '@/components/shared/school-select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { cn, formatDateLong } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -146,7 +146,6 @@ export default function DemandeWizardPage() {
   const [saving, setSaving] = useState(false)
 
   const [child, setChild] = useState<DemandeInput>(emptyChild()) // step 0, per-demande
-  const [schoolOther, setSchoolOther] = useState(false) // école "Autre…" → free-text input instead of the managed list
   const [guardians, setGuardians] = useState<ApplicantGuardian[]>([blankGuardian('Père'), blankGuardian('Mère')]) // shared household
   const [relations, setRelations] = useState<ApplicantScoutRelation[]>([]) // shared household
   const [relEdit, setRelEdit] = useState<number | null>(null) // proche being added/edited (index; null = list view)
@@ -190,7 +189,6 @@ export default function DemandeWizardPage() {
       const { id: _id, scoutYear, status, decisionNotes, submittedAt, responseSentAt, ...rest } = existing
       void _id; void scoutYear; void status; void decisionNotes; void submittedAt; void responseSentAt
       setChild(rest)
-      if (rest.school && config && !config.schools.includes(rest.school)) setSchoolOther(true)
     }
   }, [profile, existing, config])
 
@@ -402,16 +400,8 @@ export default function DemandeWizardPage() {
                   <SearchableSelect value={child.nationality ?? ''} onValueChange={(v) => setC({ nationality: v })} options={NATIONALITY_OPTIONS} pinnedValues={['Libanaise']} searchPlaceholder="Rechercher une nationalité..." />
                 </Field>
                 <Field label="École" required error={errors.school}>
-                  <Select value={schoolOther ? '__other' : (child.school ?? '')} onValueChange={(v) => { if (v === '__other') { setSchoolOther(true); setC({ school: '' }) } else { setSchoolOther(false); setC({ school: v }) } }}>
-                    <SelectTrigger className={errors.school ? 'border-destructive' : ''}><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                    <SelectContent>
-                      {(config?.schools ?? []).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                      <SelectItem value="__other">Autre…</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {/* On blur, snap a typed school name onto the canonical list (accent/case-insensitive) to dedupe spellings; collapse back to the select if it matched. */}
-                  {schoolOther && <Input className="mt-2" placeholder="Nom de l'école" value={child.school ?? ''} onChange={(e) => setC({ school: e.target.value })}
-                    onBlur={(e) => { const matched = matchSchool(e.target.value, config?.schools ?? []); setC({ school: matched }); if ((config?.schools ?? []).includes(matched)) setSchoolOther(false) }} />}
+                  {/* Searchable dropdown + "Autre…" free-text (snaps typed variants onto the canonical school). */}
+                  <SchoolSelect value={child.school ?? ''} onChange={(v) => setC({ school: v })} schools={config?.schools ?? []} invalid={!!errors.school} />
                 </Field>
                 <Field label="Classe" required error={errors.classe}>
                   {(config?.classes?.length ?? 0) > 0 ? (

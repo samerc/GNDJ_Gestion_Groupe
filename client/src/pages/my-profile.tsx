@@ -24,6 +24,7 @@ import { DocumentsCta } from '@/components/members/documents-cta'
 import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
 import { useSettingArray, useSettingValue, useCities } from '@/services/settings-service'
+import { SchoolSelect } from '@/components/shared/school-select'
 import { parseApiError } from '@/lib/error-utils'
 import { BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS, PARENTS_SITUATION_OPTIONS, optionsWithCurrent } from '@/lib/options'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
@@ -284,29 +285,8 @@ export default function MyProfilePage() {
                   </div>
                   <div className="space-y-2">
                     <RequiredLabel required>École</RequiredLabel>
-                    {(() => {
-                      const isOtherSchool = form.school ? !schools.includes(form.school) : false
-                      return (
-                        <>
-                          <Select
-                            value={isOtherSchool ? '__other__' : (form.school || '')}
-                            onValueChange={(v) => {
-                              if (v === '__other__') setForm(f => ({ ...f, school: '' }))
-                              else setForm(f => ({ ...f, school: v }))
-                            }}
-                          >
-                            <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                            <SelectContent>
-                              {schools.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                              <SelectItem value="__other__">Autre...</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          {isOtherSchool && (
-                            <Input value={form.school || ''} onChange={(e) => setForm(f => ({ ...f, school: e.target.value }))} placeholder="Nom de l'école..." />
-                          )}
-                        </>
-                      )
-                    })()}
+                    {/* Searchable dropdown + "Autre…" free-text (snaps typed variants onto the canonical school). */}
+                    <SchoolSelect value={form.school || ''} onChange={(v) => setForm(f => ({ ...f, school: v }))} schools={schools} />
                   </div>
                   {/* Situation toggle — only for older members (a youth in Meute/Ronde/Compagnie/Troupe stays
                       Classe/Section; member.showProfession is false there so the toggle is hidden). */}
