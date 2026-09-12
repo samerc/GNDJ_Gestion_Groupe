@@ -287,7 +287,10 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
   // past is a mistake (e.g. a past deadline would immediately close inscriptions). Guard: the picker's min is
   // today, a past value is flagged + blocks Save. EXCEPTIONS: member start date + passage date can legitimately
   // be backdated (e.g. to the scout-year start, Oct 1, when processing after that date), so past is allowed there.
+  // Login-message start/end dates can legitimately be backdated: a past start = "already showing", a past end =
+  // "expire it now". So past dates are allowed on those too.
   const allowsPastDate = setting.key === 'demande.member_start_date' || setting.key === 'passage.date'
+    || setting.key.startsWith('login.') && (setting.key.endsWith('_start') || setting.key.endsWith('_end'))
   const todayStr = (() => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` })()
   // Only flag a past date the user is actively CHANGING (value !== the saved value). An already-saved date that
   // has since fallen into the past (e.g. a submission deadline set weeks ago) must NOT show an error on load —

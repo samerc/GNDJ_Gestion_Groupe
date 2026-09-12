@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      "Messages des pages de connexion — dates de début et de fin : chaque message (membres / inscriptions) peut désormais avoir une date de début et une date de fin. Le message apparaît à partir de la date de début (immédiatement si aucune date de début n'est fixée) et disparaît après la date de fin (ou reste jusqu'au retrait manuel si aucune date de fin n'est fixée). Réglable dans Paramètres → Connexion.",
       "Journal d'audit — l'ajout de pages à un document indique désormais de QUEL membre et de quel type de document il s'agit (au lieu d'un simple nombre de pages).",
       "Journal d'audit — le « Navigateur » est affiché de façon lisible (ex. « Samsung Internet 30 · Android 10 ») au lieu de la longue chaîne technique qui semblait lister tous les navigateurs ; la chaîne complète reste visible au survol.",
       "Documents & cotisations — téléchargement ZIP plus clair : le bouton « ZIP » devient un menu « Télécharger (ZIP) » avec « Tous les documents » puis une entrée par type de document (le petit bouton peu visible sur chaque colonne a été retiré). Le fichier ZIP porte désormais le nom de l'unité (et du type). Quand l'unité n'a encore aucun document, un message clair l'indique au lieu de ne rien télécharger.",

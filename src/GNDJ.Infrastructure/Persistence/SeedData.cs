@@ -700,7 +700,12 @@ public static class SeedData
             // applicant portal) so the CG can show a message on one, the other, or both — same or different.
             // Empty = no banner. Category "login" is CG-editable (Paramètres → Connexion).
             new() { Key = "login.member_message", Value = "", Category = "login", Label = "Message — connexion membres", Description = "Message affiché bien en évidence en haut de l'écran de connexion des membres et chefs (« Espace membres »). Laisser vide pour ne rien afficher.", ValueType = "string" },
+            // Optional display window for the member message: empty start = affiché immédiatement, empty end = jusqu'au retrait manuel.
+            new() { Key = "login.member_message_start", Value = "", Category = "login", Label = "Message membres — date de début", Description = "Date à partir de laquelle le message de connexion membres s'affiche. Laisser vide pour l'afficher immédiatement.", ValueType = "date" },
+            new() { Key = "login.member_message_end", Value = "", Category = "login", Label = "Message membres — date de fin", Description = "Date après laquelle le message de connexion membres cesse de s'afficher. Laisser vide pour le garder jusqu'au retrait manuel.", ValueType = "date" },
             new() { Key = "login.applicant_message", Value = "", Category = "login", Label = "Message — connexion inscriptions", Description = "Message affiché bien en évidence en haut de l'écran de connexion du portail des inscriptions (parents / « Demande d'inscription »). Laisser vide pour ne rien afficher.", ValueType = "string" },
+            new() { Key = "login.applicant_message_start", Value = "", Category = "login", Label = "Message inscriptions — date de début", Description = "Date à partir de laquelle le message de connexion inscriptions s'affiche. Laisser vide pour l'afficher immédiatement.", ValueType = "date" },
+            new() { Key = "login.applicant_message_end", Value = "", Category = "login", Label = "Message inscriptions — date de fin", Description = "Date après laquelle le message de connexion inscriptions cesse de s'afficher. Laisser vide pour le garder jusqu'au retrait manuel.", ValueType = "date" },
             // Managed list of rejection reasons (code + libellé + texte, one default). The CG edits it on the
             // "Motifs de refus" page; the Excel Décision column and the web decline dialog pick a reason by code.
             // The picked reason's text is stored as the demande's DecisionNotes and emailed as {{reason}}.

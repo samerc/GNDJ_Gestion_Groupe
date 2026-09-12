@@ -121,7 +121,7 @@ static class ApplicantHelpers
         "demande.notes_max_length", "demande.require_email_verification",
         "demande.max_scout_relations", "demande.terms", "demande.excluded_classe", "member.schools", "member.classes", "member.cities", "member.profession_domains",
         "demande.submission_start", "demande.submission_deadline", "demande.result_text_accepted", "demande.result_text_declined", "member.activation_link_days",
-        "demande.support_email", "user_domain", "login.applicant_message"
+        "demande.support_email", "user_domain", "login.applicant_message", "login.applicant_message_start", "login.applicant_message_end"
     ];
 
     // Parses a yyyy-MM-dd setting into a DateOnly (null if empty/invalid).
@@ -176,7 +176,9 @@ static class ApplicantHelpers
         // indicate which unit a current-member relative belongs to, easing family matching for the CG.
         var units = await ctx.Units.Where(u => u.IsActive).OrderBy(u => u.Name).Select(u => u.Name).ToListAsync(ct);
 
-        var loginMessage = Get("login.applicant_message");
+        // Only show the login message when within its optional start/end window (empty start = now, empty end = until removed).
+        var loginMessage = AnnouncementWindow.IsActive(Get("login.applicant_message_start"), Get("login.applicant_message_end"))
+            ? Get("login.applicant_message") : null;
         return new ApplicantConfigDto(enabled, submissionsOpen, year, max, notesLen, requireVerify, schools, classes, cities, units, maxRelations, professionDomains, terms, excludedClasse,
             Get("demande.submission_start"), Get("demande.submission_deadline"), Get("demande.result_text_accepted"), Get("demande.result_text_declined"), activationDays,
             Get("demande.support_email"), Get("user_domain"),

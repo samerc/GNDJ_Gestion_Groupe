@@ -93,12 +93,15 @@ public class GetPublicSiteConfigQueryHandler(IApplicationDbContext context) : IR
     {
         var settings = await context.Settings
             .Where(s => s.Key == "demande.enabled" || s.Key == "demande.support_email" || s.Key == "user_domain"
-                     || s.Key == "login.member_message")
+                     || s.Key == "login.member_message" || s.Key == "login.member_message_start" || s.Key == "login.member_message_end")
             .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
         var enabled = settings.GetValueOrDefault("demande.enabled");
         var support = settings.GetValueOrDefault("demande.support_email");
         var userDomain = settings.GetValueOrDefault("user_domain");
-        var loginMessage = settings.GetValueOrDefault("login.member_message");
+        // Only show the login message when within its optional start/end window (empty start = now, empty end = until removed).
+        var loginMessage = Common.AnnouncementWindow.IsActive(
+            settings.GetValueOrDefault("login.member_message_start"), settings.GetValueOrDefault("login.member_message_end"))
+            ? settings.GetValueOrDefault("login.member_message") : null;
         var content = await SiteContentStore.ReadAsync(context, ct);
         return new PublicSiteConfigDto(string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase), content,
             string.IsNullOrWhiteSpace(support) ? null : support,
