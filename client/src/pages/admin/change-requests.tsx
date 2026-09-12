@@ -8,7 +8,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Tip } from '@/components/ui/tooltip'
 import { CheckCircle2, XCircle, Star, ArrowRightLeft, ClipboardList } from 'lucide-react'
 
 // CU/CG review of member-proposed changes (progression + fonctions). Approve applies the change (creates
@@ -48,23 +47,28 @@ export default function ChangeRequestsPage() {
         <div className="space-y-3">
           {requests.map(r => (
             <Card key={r.id}>
-              <CardContent className="flex flex-wrap items-center gap-3 py-4">
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${r.kind === 'Progression' ? 'bg-primary/10 text-primary' : 'bg-amber-100 text-amber-700'}`}>
-                  {r.kind === 'Progression' ? <Star className="h-5 w-5" /> : <ArrowRightLeft className="h-5 w-5" />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold">{r.memberName}</span>
-                    <Badge variant="outline">{r.kind === 'Progression' ? 'Progression' : 'Fonction'}</Badge>
+              {/* Stack vertically on mobile (icon+text, then full-width actions); go horizontal on sm+ so the
+                  buttons never wrap into the middle of the text column and crush it on a narrow screen. */}
+              <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${r.kind === 'Progression' ? 'bg-primary/10 text-primary' : 'bg-amber-100 text-amber-700'}`}>
+                    {r.kind === 'Progression' ? <Star className="h-5 w-5" /> : <ArrowRightLeft className="h-5 w-5" />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold">{r.memberName}</span>
+                      <Badge variant="outline">{r.kind === 'Progression' ? 'Progression' : 'Fonction'}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{r.summary}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Proposée le {new Date(r.createdAt).toLocaleDateString('fr-FR')}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground">{r.summary}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Proposée le {new Date(r.createdAt).toLocaleDateString('fr-FR')}</p>
                 </div>
+                {/* Full-width buttons on mobile (each grows), compact on sm+. */}
                 <div className="flex shrink-0 items-center gap-2">
-                  <Tip content="Refuser"><Button variant="outline" size="sm" onClick={() => { setRejecting(r); setReason('') }} disabled={reviewMutation.isPending}>
+                  <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => { setRejecting(r); setReason('') }} disabled={reviewMutation.isPending}>
                     <XCircle className="mr-1 h-4 w-4 text-red-500" />Refuser
-                  </Button></Tip>
-                  <Button size="sm" onClick={() => approve(r)} disabled={reviewMutation.isPending}>
+                  </Button>
+                  <Button size="sm" className="flex-1 sm:flex-none" onClick={() => approve(r)} disabled={reviewMutation.isPending}>
                     <CheckCircle2 className="mr-1 h-4 w-4" />Accepter
                   </Button>
                 </div>
