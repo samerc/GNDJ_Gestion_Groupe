@@ -120,7 +120,10 @@ public class ErrorNotifier : IErrorNotifier
             var config = _config["ErrorAlerts:Email"];
             if (!string.IsNullOrWhiteSpace(config)) return config;
 
+            // Deterministic fallback: the OLDEST active super-admin (the seeded admin account), not an arbitrary
+            // one — without an OrderBy, Postgres returns super-admins in an undefined order.
             return await db.Users.Where(u => u.IsSuperAdmin && u.IsActive)
+                .OrderBy(u => u.CreatedAt)
                 .Select(u => u.Email).FirstOrDefaultAsync(ct);
         }
         catch
