@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { Users, X, Plus, Search } from 'lucide-react'
-import { useMemberSiblings, useUnlinkSibling, useLinkSiblings } from '@/services/sibling-service'
+import { useMemberSiblings, useUnlinkSibling } from '@/services/sibling-service'
 import { useMembers } from '@/services/member-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { SiblingReconcileSheet } from '@/components/members/sibling-reconcile-sheet'
 import { parseApiError } from '@/lib/error-utils'
 import { computeAge } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -18,9 +19,11 @@ import { toast } from 'sonner'
 export function MemberSiblings({ memberId, canManage = false, linkable = false }: { memberId: string; canManage?: boolean; linkable?: boolean }) {
   const { data: siblings, isLoading } = useMemberSiblings(memberId)
   const unlink = useUnlinkSibling()
-  const link = useLinkSiblings()
   const [unlinkTarget, setUnlinkTarget] = useState<{ id: string; name: string } | null>(null)
   const [showLink, setShowLink] = useState(false)
+  // The member being linked → opens the reconcile drawer (choose canonical parents/address for the whole family),
+  // same flow as the Fratries page. The family set = this member + its existing siblings + the chosen target.
+  const [reconcileTarget, setReconcileTarget] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search, 350)
   const { data: results } = useMembers({ search: debounced, pageSize: 10 })
@@ -31,13 +34,13 @@ export function MemberSiblings({ memberId, canManage = false, linkable = false }
     catch (e) { toast.error(parseApiError(e)) }
   }
 
-  const doLink = async (targetId: string) => {
-    try {
-      await link.mutateAsync({ memberId, targetMemberId: targetId })
-      toast.success('Frère/sœur lié(e)')
-      setShowLink(false); setSearch('')
-    } catch (e) { toast.error(parseApiError(e)) }
-  }
+  // Pick a target → close the search dialog and open the reconcile drawer.
+  const pickTarget = (targetId: string) => { setReconcileTarget(targetId); setShowLink(false); setSearch('') }
+
+  // Full family for the reconcile: this member + its confirmed siblings + the new target (deduped).
+  const reconcileIds = reconcileTarget
+    ? Array.from(new Set([memberId, ...(siblings ?? []).map((s) => s.memberId), reconcileTarget]))
+    : []
 
   if (isLoading) return null
 
@@ -90,8 +93,8 @@ export function MemberSiblings({ memberId, canManage = false, linkable = false }
           </div>
           <div className="max-h-72 space-y-1 overflow-y-auto">
             {results?.items?.filter((m) => m.id !== memberId).map((m) => (
-              <button key={m.id} type="button" onClick={() => doLink(m.id)} disabled={link.isPending}
-                className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-muted/50 disabled:opacity-50">
+              <button key={m.id} type="button" onClick={() => pickTarget(m.id)}
+                className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-muted/50">
                 <span className="font-medium">{m.firstName} {m.lastName}</span>
                 <span className="text-xs text-muted-foreground">{m.cardNumber ?? ''}</span>
               </button>
@@ -102,6 +105,18 @@ export function MemberSiblings({ memberId, canManage = false, linkable = false }
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Reconcile drawer — same as the Fratries page: choose the canonical parents/address to keep for the whole
+          family before linking (approve creates/merges the fratrie AND harmonises the shared data). */}
+      {reconcileTarget && reconcileIds.length >= 2 && (
+        <SiblingReconcileSheet
+          key={reconcileTarget}
+          memberIds={reconcileIds}
+          title="Lier un frère / une sœur"
+          confirmLabel="Lier et harmoniser"
+          onClose={() => setReconcileTarget(null)}
+        />
+      )}
 
       <ConfirmDialog
         open={!!unlinkTarget}
