@@ -3,6 +3,10 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      "Anniversaires à venir : un encart « Anniversaires à venir » liste les membres qui fêtent leur anniversaire dans les 30 prochains jours (nom, unité, âge, date). Sur le tableau de bord du groupe pour le chef de groupe (tout le groupe) et via un bouton « Anniversaires » sur le tableau de bord d'unité pour le chef d'unité (ses membres). Chaque nom ouvre la fiche du membre.",
+      "Copier en un clic : une petite icône « copier » à côté des courriels et téléphones (fiche membre + parents) copie la valeur dans le presse-papiers — pratique pour coller ailleurs. Réservé aux chefs.",
+      "Membres favoris + récemment consultés : une étoile sur la fiche d'un membre l'ajoute aux favoris ; la recherche rapide (Ctrl+K) affiche alors vos favoris et les membres récemment consultés dès l'ouverture, pour y revenir en un clic (par appareil).",
+      "La page Membres retient votre dernière vue : le filtre d'unité et le choix Actifs/Anciens sont mémorisés d'une visite à l'autre (utile pour un chef qui travaille toujours la même unité).",
       "Recherche rapide (chefs) : appuyez sur Ctrl+K (ou le champ « Rechercher… » en haut) pour trouver instantanément un membre par son nom et sauter directement à sa fiche, ou aller à n'importe quelle page (Membres, Demandes, Cotisations, Rentrée…) — depuis n'importe où, sans passer par le menu. Réservé aux chefs d'unité et au-dessus.",
       "WhatsApp en un clic (chefs) : à côté de chaque numéro de téléphone, une icône WhatsApp verte ouvre directement la conversation. Disponible pour les chefs d'unité et au-dessus (fiche membre, onglet Famille/parents, tableau de bord de l'unité, tableau des cotisations impayées) — pas pour les membres eux-mêmes.",
       "Annuler une suppression : après avoir supprimé un membre ou un message de contact, une notification « Annuler » apparaît quelques secondes pour le restaurer en un clic (les membres restent aussi récupérables dans la Corbeille).",

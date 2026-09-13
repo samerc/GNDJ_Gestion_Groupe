@@ -4935,6 +4935,25 @@ curated nav list). **Leaders only** (`user.isSuperAdmin || members.edit || maitr
 pages and can't search other members (the members endpoint requires members.edit → empty), so the palette + hotkey
 self-gate to null for them. Mounted in the header before the bell. tsc + eslint + vite clean.
 
+### QOL batch: copy, remember-view, favorites/recents, birthdays (2026-09-13)
+The first four of the "worth doing" QOL list (the user asked for all 8). DEV until deploy.
+- **Copy-to-clipboard** — `components/shared/copy-button.tsx` (`navigator.clipboard` + hidden-textarea fallback,
+  ✓ confirmation). Next to phones/emails in the member panel + `MemberGuardians` (leader — `!selfService`).
+- **Remember last members-list view** — the members page persists the unit filter + Actifs/Anciens toggle to
+  localStorage (`members.unitFilter` / `members.showAlumni`), restored via lazy `useState` initializers + two
+  write effects.
+- **Favorites + recently-viewed members** — `lib/recent-members.ts` (localStorage, per-device: `pushRecentMember`
+  on fiche open, `toggleFavoriteMember` via a ★ in the member-panel header, `getRecent/getFavorite`). Surfaced in
+  the Ctrl-K palette as "Favoris" + "Récemment consultés" groups when the query is empty (loaded in the open
+  handlers, not an effect — `openRef` keeps the hotkey handler's view of open current). Client-only, no backend.
+- **Upcoming birthdays (unit-scoped)** — `GetUpcomingBirthdaysQuery` + `GET /members/birthdays?days=30`
+  (`[HasPermission(MembersEdit)]`, leader-only; scoped to `AuthorizedUnitIds` for non-super-admin so a CU sees
+  their unit's members, a CG/super-admin sees everyone). Computes the next-birthday window in memory over the
+  active-members-with-DOB set (Feb-29 → Feb-28 in non-leap years). `components/shared/birthdays-card.tsx` exports
+  `BirthdaysCard` (group Accueil dashboard) + `BirthdaysButton` (action-bar button→dialog for the height-locked CU
+  unit dashboard); both hide when empty. `useUpcomingBirthdays` (hourly staleTime). Verified live: today+1 →
+  turning-age correct, 30d=101 / 90d=262 (monotonic), ordered by daysUntil. dotnet + tsc + eslint + vite clean.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

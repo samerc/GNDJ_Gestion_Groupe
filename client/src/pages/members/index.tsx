@@ -7,7 +7,7 @@
 // Route param :id deep-links a member into the right panel.
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { saveBlob } from '@/lib/download'
-import { useState, useRef, useCallback, useMemo, type ReactNode, type ComponentType } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect, type ReactNode, type ComponentType } from 'react'
 import { useParams } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
@@ -27,6 +27,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input'
 import { WhatsappLink } from '@/components/shared/whatsapp-link'
+import { CopyButton } from '@/components/shared/copy-button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -51,7 +52,8 @@ import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPT
 import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts, useMemberAbsencesByYear, type MemberAbsenceYear } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck, Star } from 'lucide-react'
+import { pushRecentMember, isFavoriteMember, toggleFavoriteMember } from '@/lib/recent-members'
 import { DelegationDialog } from './delegation-dialog'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
@@ -121,6 +123,12 @@ function TabCount({ n }: { n: number }) {
 // ─── Member detail panel ─────────────────
 function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDeleted: () => void }) {
   const { data: member, isLoading } = useMember(memberId)
+  // Record this member as recently-viewed (localStorage) for quick jump-back in the Ctrl-K palette.
+  useEffect(() => {
+    if (member) pushRecentMember({ id: memberId, name: `${member.firstName} ${member.lastName}` })
+  }, [member, memberId])
+  // Favorite toggle (localStorage, per-device) — star in the header.
+  const [fav, setFav] = useState(() => isFavoriteMember(memberId))
   const updateMember = useUpdateMember()
   const deleteMember = useDeleteMember()
   const restoreMember = useRestoreMember()
@@ -357,6 +365,13 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
             )}
           </div>
           <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+            {/* Favorite toggle (per-device) — surfaces this member in the Ctrl-K palette's "Favoris". */}
+            {!editing && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'} title={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                onClick={() => setFav(toggleFavoriteMember({ id: memberId, name: `${member.firstName} ${member.lastName}` }))}>
+                <Star className={`h-4 w-4 ${fav ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`} />
+              </Button>
+            )}
             {/* Member actions as a single LABELLED menu (was four hover-only, unlabelled icon buttons — invisible
                 on touch and ambiguous). Reset-password is a top support task, so it deserves a readable label. */}
             {!editing && (
@@ -602,6 +617,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                     <div className="space-y-1.5">{member.phones.map(p => (
                       <div key={p.id} className="flex items-center gap-1.5 text-sm">
                         <span className="flex-1">{formatPhoneDisplay(p.countryCode, p.number)} <span className="text-muted-foreground">({p.type})</span>{p.isEmergency && <Badge variant="destructive" className="ml-1 text-[9px]">Urgence</Badge>}</span>
+                        <CopyButton value={formatPhoneDisplay(p.countryCode, p.number)} label="Copier le numéro" />
                         <WhatsappLink countryCode={p.countryCode} number={p.number} />
                         {editing && <><button className="text-muted-foreground hover:text-foreground" onClick={() => openEditPhone(p)}><Pencil className="h-3 w-3" /></button><button className="text-destructive/80 hover:text-destructive" onClick={() => setDeletingContact({ type: 'phone', id: p.id, label: formatPhoneDisplay(p.countryCode, p.number) })}><Trash2 className="h-3 w-3" /></button></>}
                       </div>
@@ -617,6 +633,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                     <div className="space-y-1.5">{member.emails.map(e => (
                       <div key={e.id} className="flex items-center gap-1.5 text-sm">
                         <span className="flex-1 break-all">{e.address} <span className="text-muted-foreground">({e.type})</span></span>
+                        <CopyButton value={e.address} label="Copier le courriel" />
                         {editing && <><button className="text-muted-foreground hover:text-foreground" onClick={() => openEditEmail(e)}><Pencil className="h-3 w-3" /></button><button className="text-destructive/80 hover:text-destructive" onClick={() => setDeletingContact({ type: 'email', id: e.id, label: e.address })}><Trash2 className="h-3 w-3" /></button></>}
                       </div>
                     ))}</div>
@@ -934,8 +951,11 @@ export default function MembersPage() {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
   const [page, setPage] = useState(1)
-  const [unitFilter, setUnitFilter] = useState<string>('all')
-  const [showAlumni, setShowAlumni] = useState(false)
+  // Remember the last view (unit filter + Actifs/Anciens) between visits — a CU almost always works one unit.
+  const [unitFilter, setUnitFilter] = useState<string>(() => localStorage.getItem('members.unitFilter') ?? 'all')
+  const [showAlumni, setShowAlumni] = useState(() => localStorage.getItem('members.showAlumni') === '1')
+  useEffect(() => { localStorage.setItem('members.unitFilter', unitFilter) }, [unitFilter])
+  useEffect(() => { localStorage.setItem('members.showAlumni', showAlumni ? '1' : '0') }, [showAlumni])
   const [sortBy, setSortBy] = useState('lastname')
   const [sortDir, setSortDir] = useState('asc')
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(routeMemberId ?? null)

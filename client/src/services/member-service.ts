@@ -109,6 +109,26 @@ export function useMembers(params: { search?: string; unitId?: string; teamId?: 
   })
 }
 
+// Upcoming member birthdays (leaders only, unit-scoped server-side). Powers the dashboard widget.
+export interface UpcomingBirthday {
+  memberId: string
+  firstName: string
+  lastName: string
+  unitName: string | null
+  dateOfBirth: string
+  nextBirthday: string
+  turningAge: number
+  daysUntil: number
+}
+export function useUpcomingBirthdays(days = 30, enabled = true) {
+  return useQuery({
+    queryKey: ['members', 'birthdays', days],
+    queryFn: () => apiClient.get<UpcomingBirthday[]>('/members/birthdays', { params: { days } }).then(r => r.data),
+    enabled,
+    staleTime: 60 * 60 * 1000, // birthdays change slowly — refresh hourly
+  })
+}
+
 // Units that have members in the current view (active by default, or former members when alumni=true), for the
 // members-page filter dropdown — so empty units are hidden. Re-fetched when the Actifs/Anciens toggle flips.
 export interface MemberUnitOption { id: string; name: string; code: string; count: number }

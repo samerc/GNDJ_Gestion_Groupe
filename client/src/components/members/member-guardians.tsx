@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input'
 import { WhatsappLink } from '@/components/shared/whatsapp-link'
+import { CopyButton } from '@/components/shared/copy-button'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -255,7 +256,8 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                         <span className="font-medium">{formatPhoneDisplay(p.countryCode, p.number)}</span>
                         <span className="text-xs text-muted-foreground">{p.type}</span>
                         {p.isPrimary && <Badge variant="outline" className="h-5 text-xs">Principal</Badge>}
-                        {/* WhatsApp shortcut — leaders only (hidden on the member's own Ma fiche). */}
+                        {/* Copy + WhatsApp shortcuts — leaders only (hidden on the member's own Ma fiche). */}
+                        {!selfService && <CopyButton value={formatPhoneDisplay(p.countryCode, p.number)} label="Copier le numéro" />}
                         {!selfService && <WhatsappLink countryCode={p.countryCode} number={p.number} />}
                         <Tip content="Supprimer"><Button variant="ghost" size="icon" className="ml-auto h-7 w-7 opacity-60 transition-opacity group-hover:opacity-100" disabled={deletePhoneMutation.isPending} onClick={() => deletePhoneMutation.mutateAsync(p.id).then(() => toast.success('Téléphone supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
@@ -283,6 +285,7 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                         <span className="truncate font-medium">{em.address}</span>
                         <span className="text-xs text-muted-foreground">{em.type}</span>
                         {em.isPrimary && <Badge variant="outline" className="h-5 text-xs">Principal</Badge>}
+                        {!selfService && <CopyButton value={em.address} label="Copier le courriel" />}
                         <Tip content="Supprimer"><Button variant="ghost" size="icon" className="ml-auto h-7 w-7 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" disabled={deleteEmailMutation.isPending} onClick={() => deleteEmailMutation.mutateAsync(em.id).then(() => toast.success('Courriel supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button></Tip>

@@ -30,6 +30,7 @@ import { useSettingValue } from '@/services/settings-service'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
 import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, ArrowLeft, CalendarCheck, UsersRound } from 'lucide-react'
 import { WhatsappLink } from '@/components/shared/whatsapp-link'
+import { BirthdaysButton } from '@/components/shared/birthdays-card'
 
 interface Props { unitId: string }
 
@@ -321,6 +322,8 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
         </div>
         {/* Action bar: a single horizontally-scrollable row so it never wraps into a pile on mobile. */}
         <div className="flex items-center gap-2 overflow-x-auto flex-nowrap pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* Upcoming birthdays of this unit's members (hidden when none). */}
+          <BirthdaysButton />
           <Tip content="Liste des membres (PDF)">
             <Button variant="outline" size="sm" className="shrink-0" onClick={() => setRosterOpen(true)}>
               <List className="mr-1 h-4 w-4" />Liste

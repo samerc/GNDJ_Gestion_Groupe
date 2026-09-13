@@ -69,6 +69,14 @@ public class MembersController : BaseApiController
     public async Task<IActionResult> GetUnitOptions([FromQuery] bool alumni = false)
         => Ok(await Mediator.Send(new GetMemberUnitOptionsQuery(alumni)));
 
+    /// <summary>Upcoming member birthdays within the given window (leaders only, unit-scoped: a CU sees their
+    /// unit(s), a Chef de Groupe/super-admin sees everyone). Requires members.edit.</summary>
+    /// <param name="days">Look-ahead window in days (default 30, clamped 1–90).</param>
+    [HttpGet("birthdays")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> Birthdays([FromQuery] int days = 30)
+        => Ok(await Mediator.Send(new GetUpcomingBirthdaysQuery(days)));
+
     /// <summary>Gets a member's full profile. Requires members.view; own profile or members in authorized units.</summary>
     /// <response code="404">No accessible member with this id.</response>
     [HttpGet("{id:guid}")]

@@ -8,6 +8,7 @@ import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { BirthdaysCard } from '@/components/shared/birthdays-card'
 // Lazy-loaded: the unit-leader dashboard pulls in the whole member-detail panel + trombinoscope/roster/export
 // dialogs + report-service. Loading it eagerly would bundle all of that into the dashboard LANDING chunk — dead
 // weight for a super-admin/CG who only sees the group overview. Split it out so it loads only when a unit leader
@@ -241,6 +242,9 @@ function AdminDashboard() {
       {/* Action hub + timely panels — "now", not year-scoped */}
       {overview && <ActionHub o={overview} />}
       {overview && <OverviewPanels o={overview} />}
+
+      {/* Upcoming birthdays (group-wide for a CG/super-admin) — hides itself when there are none. */}
+      <BirthdaysCard />
 
       {/* ── Year-scoped statistics ── */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-5">
