@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Bind the `dark:` variant to the `.dark` CLASS (toggled by the theme store), NOT the OS media query.
+   Without this, Tailwind v4 defaults `dark:` to @media(prefers-color-scheme:dark), so every dark: utility
+   would follow the OS while the semantic tokens follow the .dark class — giving a light page with dark
+   banners/badges whenever the OS is dark but the app theme is Light. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

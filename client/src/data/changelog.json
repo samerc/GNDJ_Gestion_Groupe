@@ -4,6 +4,10 @@
     "date": "2026-09-10",
     "changes": [
       {
+        "date": "2026-09-14",
+        "text": "Mode sombre — correctif : les couleurs sombres (bannières, pastilles) s'appliquaient selon le réglage clair/sombre du système d'exploitation au lieu du thème choisi dans l'application. Résultat : sur un ordinateur/téléphone réglé en mode sombre mais avec le thème « Clair » dans l'application, la page restait claire mais certains encadrés devenaient sombres. Le mode sombre suit désormais uniquement le thème choisi dans l'application."
+      },
+      {
         "date": "2026-09-13",
         "text": "Journal des versions — chaque changement affiche désormais sa propre date (petite pastille à gauche), au lieu d'une seule date par version. Les dates ont été reconstituées à partir de l'historique Git."
       },

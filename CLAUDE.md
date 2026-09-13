@@ -5002,6 +5002,20 @@ Item 8 (the last of the QOL list). Bulk-create members from a spreadsheet. DEV u
   GOTCHA (test only): curl `-F @/tmp/...` fails exit 26 under MSYS — use a Windows path (`pwd -W`). dotnet + tsc +
   eslint + vite clean.
 
+### Dark-mode bug: `dark:` followed the OS, not the app theme (2026-09-14)
+User reported "colors wrong in [a built env], but fine in dev" — a light page with dark banners/badges (e.g. the
+Sessions info box + role badges). Root cause: the dark-theme sweep added hundreds of `dark:` utilities + a `.dark`
+class toggle (theme store), but **index.css never declared `@custom-variant dark`**, so in **Tailwind v4** the
+`dark:` variant defaulted to `@media (prefers-color-scheme: dark)` (the OS). Meanwhile the semantic tokens
+(`bg-background`/`bg-card`) are driven by the `.dark` CLASS. So whenever the **OS was dark but the app theme was
+Light** (`.dark` class absent), the page stayed light (tokens) while every `dark:` utility fired via the media
+query → the inconsistent half-dark look. "Fine in dev" = that browser/OS was in light mode, so `dark:` never
+triggered. FIX = one line at the top of `client/src/index.css`:
+`@custom-variant dark (&:where(.dark, .dark *));` — binds `dark:` to the `.dark` class (matching the toggle).
+Verified in the built CSS: `prefers-color-scheme:dark` occurrences 0 (was all `dark:` utilities); every `dark:`
+rule now compiles to `…:where(.dark,.dark *)` (365 `.dark` selectors). Light theme → no dark styling regardless
+of OS; Dark/System → follows the app toggle. CSS-only, no rebuild of the backend.
+
 ### Changelog: per-entry dates (2026-09-13)
 The "Journal des versions" showed one date per version block, but the single unreleased 3.1.0 block had accumulated
 350 entries across ~27 days (bump was never run to split releases), so the block date (2026-09-10) was meaningless
