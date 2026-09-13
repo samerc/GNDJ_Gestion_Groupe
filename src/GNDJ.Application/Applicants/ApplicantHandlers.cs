@@ -1181,7 +1181,7 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
             // Alert the CG in-app that a new demande needs review (only on first submission, not re-submits).
             var childName = $"{demande.FirstName} {demande.LastName}".Trim();
             await notifications.NotifyGroupManagersAsync(NotificationTypes.Demande, "Nouvelle demande d'inscription",
-                $"{childName}{(string.IsNullOrWhiteSpace(demande.Classe) ? "" : $" — {demande.Classe}")} ({demande.SerialNumber}).", "/admin/demandes", ct);
+                $"{childName}{(string.IsNullOrWhiteSpace(demande.Classe) ? "" : $" — {demande.Classe}")} ({demande.SerialNumber}).", "/admin/demandes", ct: ct);
         }
 
         return Result<bool>.Success(true);

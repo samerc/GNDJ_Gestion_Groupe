@@ -40,13 +40,15 @@ public class NotificationService : INotificationService
         catch (Exception ex) { _logger.LogWarning(ex, "Failed to write member notifications ({Type})", type); }
     }
 
-    public async Task NotifyGroupManagersAsync(string type, string title, string? body = null, string? link = null, CancellationToken ct = default)
+    public async Task NotifyGroupManagersAsync(string type, string title, string? body = null, string? link = null, Guid? excludeMemberId = null, CancellationToken ct = default)
     {
         try
         {
             using var scope = _scopeFactory.CreateScope();
             var ctx = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
             var ids = await GroupManagerMemberIdsAsync(ctx, ct);
+            // Skip the acting member (e.g. the manager who just replied) so they aren't notified of their own action.
+            if (excludeMemberId is Guid ex) ids = ids.Where(id => id != ex).ToList();
             if (ids.Count == 0) return;
             Insert(ctx, ids, type, title, body, link);
             await ctx.SaveChangesAsync(ct);

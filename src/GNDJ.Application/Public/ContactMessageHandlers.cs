@@ -96,7 +96,7 @@ public class MarkContactMessageReadCommandHandler(IApplicationDbContext context)
 // answer. Marks the message read + stamps the reply so the inbox shows "Répondu".
 public record ReplyContactMessageCommand(Guid Id, string Subject, string Body) : IRequest<Result<bool>>;
 
-public class ReplyContactMessageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IEmailQueue emailQueue)
+public class ReplyContactMessageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IEmailQueue emailQueue, INotificationService notifications)
     : IRequestHandler<ReplyContactMessageCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(ReplyContactMessageCommand request, CancellationToken ct)
@@ -126,6 +126,15 @@ public class ReplyContactMessageCommandHandler(IApplicationDbContext context, IC
         m.IsRead = true;
         m.ReadAt ??= DateTime.UtcNow;
         await context.SaveChangesAsync(ct);
+
+        // Tell the OTHER managers who answered, so two people don't reply to the same message. Best-effort,
+        // after the commit; excludes the replier (they know they replied).
+        var replier = currentUser.MemberId is Guid mid
+            ? await context.Members.Where(x => x.Id == mid).Select(x => (x.FirstName + " " + x.LastName).Trim()).FirstOrDefaultAsync(ct)
+            : null;
+        await notifications.NotifyGroupManagersAsync(NotificationTypes.Info, "Réponse à un message de contact",
+            $"{(string.IsNullOrWhiteSpace(replier) ? "Un responsable" : replier)} a répondu à {m.SenderName}",
+            "/admin/contact-messages", excludeMemberId: currentUser.MemberId, ct: ct);
 
         return Result<bool>.Success(true);
     }

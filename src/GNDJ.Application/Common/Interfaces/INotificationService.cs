@@ -23,8 +23,9 @@ public interface INotificationService
     // Several recipient members (deduped).
     Task NotifyMembersAsync(IEnumerable<Guid> memberIds, string type, string title, string? body = null, string? link = null, CancellationToken ct = default);
 
-    // Group managers = super-admins + active group-level (Chef de Groupe / ACG) role holders.
-    Task NotifyGroupManagersAsync(string type, string title, string? body = null, string? link = null, CancellationToken ct = default);
+    // Group managers = super-admins + active group-level (Chef de Groupe / ACG) role holders. Optionally exclude
+    // one member (e.g. the person who performed the action, so they aren't notified about their own action).
+    Task NotifyGroupManagersAsync(string type, string title, string? body = null, string? link = null, Guid? excludeMemberId = null, CancellationToken ct = default);
 
     // The member's unit leaders (holders of members.edit active in the member's units) + group managers,
     // EXCLUDING the member themselves.

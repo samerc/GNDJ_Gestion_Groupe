@@ -46,7 +46,7 @@ public class SendContactMessageCommandHandler(IApplicationDbContext context, IEm
 
         // Notify group managers in-app (independent of email) so a message is seen even if SMTP is down.
         await notifications.NotifyGroupManagersAsync(NotificationTypes.Info,
-            "Nouveau message de contact", $"{name} — {subject}", "/admin/contact-messages", ct);
+            "Nouveau message de contact", $"{name} — {subject}", "/admin/contact-messages", ct: ct);
 
         // Also send the legacy notification email to the configured recipient (or the first super-admin),
         // so nothing changes for those relying on it today.

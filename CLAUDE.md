@@ -4894,6 +4894,14 @@ verified live end-to-end.
 - Verified live: public submit → persisted + unread=1 + group-manager notification + `contact_form` email; list/
   unread/search (accent-insensitive: "kuhkh" → 1); reply → 204 + `adhoc_message` outbox row to the sender; delete →
   204; unauthenticated → 401. Build clean (dotnet 0/0 + tsc + eslint + vite). Migration applies on prod startup.
+- **Notify-on-reply (2026-09-13):** when a manager replies from the inbox, the OTHER managers get an in-app
+  notification "<Replier> a répondu à <sender>" (so two people don't answer the same message); the replier is
+  excluded. Added an optional `excludeMemberId` to `INotificationService.NotifyGroupManagersAsync` (placed before
+  `ct`, so the 2 existing positional callers now pass `ct:` named). `ReplyContactMessageCommandHandler` looks up the
+  replier's member name and calls it after the commit (best-effort). The reply itself was ALREADY saved on the
+  `ContactMessage` (ReplySubject/ReplyBody/RepliedAt/RepliedByUserId) and shown in the detail dialog — a second
+  reply overwrites the stored one (single-reply model; no thread). Verified live: 13 managers → 12 notified, replier
+  (admin) 0, body "Admin Système a répondu à Test Reply Notif". Backend-only, DEV until deploy.
 
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
