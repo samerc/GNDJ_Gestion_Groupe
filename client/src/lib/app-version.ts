@@ -4,10 +4,14 @@
 //   the git commits since the previous version tag). Newest entry first.
 import changelogData from '@/data/changelog.json'
 
+// A change is either a plain string (legacy — falls back to the release date) or an object carrying its own
+// date (so entries added on different days within one unreleased block show their true date).
+export type ChangelogChange = string | { date?: string; text: string }
+
 export interface ChangelogEntry {
   version: string
   date: string
-  changes: string[]
+  changes: ChangelogChange[]
 }
 
 // __* globals fall back to safe defaults in a context where Vite didn't inject them (e.g. unit tests).

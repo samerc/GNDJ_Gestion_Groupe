@@ -63,9 +63,10 @@ $version = (Get-Content (Join-Path $client 'package.json') -Raw | ConvertFrom-Js
 $date = (Get-Date -Format 'yyyy-MM-dd')
 
 # Commit subjects since the last tag (newest first), minus release commits. These become the release notes.
+# Each line is "<commit-date>|<subject>" so every changelog entry carries its own date (bump.mjs splits it).
 $range = if ($lastTag) { "$lastTag..HEAD" } else { 'HEAD' }
-$subjects = git -C $root log $range --no-merges --pretty=format:'%s' |
-  Where-Object { $_ -and ($_ -notmatch '^chore\(release\)') }
+$subjects = git -C $root log $range --no-merges --date=short --pretty=format:'%ad|%s' |
+  Where-Object { $_ -and ($_ -notmatch '\|chore\(release\)') }
 
 $tmp = New-TemporaryFile
 try {

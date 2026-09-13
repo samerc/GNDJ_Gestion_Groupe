@@ -2,7 +2,7 @@
 // nav; reached from the version number in the sidebar footer). Shows the live build's identity (version +
 // git commit + build date, baked in at build time) and the auto-generated changelog (deploy/bump.ps1 fills
 // src/data/changelog.json from the git commits since the previous version tag).
-import { APP_VERSION, BUILD_COMMIT, BUILD_DATE, CHANGELOG } from '@/lib/app-version'
+import { APP_VERSION, BUILD_COMMIT, BUILD_DATE, CHANGELOG, type ChangelogChange } from '@/lib/app-version'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -12,6 +12,18 @@ function formatDate(iso: string): string {
   if (!iso) return ''
   const d = new Date(iso)
   return isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+// Short "13 sept." for the per-entry date chip; falls back to the raw value if unparseable.
+function shortDate(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+}
+
+// A change may be a plain string (use the block's release date) or an object with its own date.
+function changeParts(c: ChangelogChange, fallbackDate: string): { date: string; text: string } {
+  return typeof c === 'string' ? { date: fallbackDate, text: c } : { date: c.date || fallbackDate, text: c.text }
 }
 
 export default function ChangelogPage() {
@@ -57,7 +69,19 @@ export default function ChangelogPage() {
               </CardHeader>
               <CardContent>
                 <ul className="list-disc space-y-1.5 pl-5 text-sm text-foreground/90">
-                  {entry.changes.map((c, i) => <li key={i} className="break-words">{c}</li>)}
+                  {entry.changes.map((c, i) => {
+                    const { date, text } = changeParts(c, entry.date)
+                    return (
+                      <li key={i} className="break-words">
+                        {date && (
+                          <span className="mr-1.5 inline-block rounded bg-muted px-1.5 py-0.5 align-middle text-[11px] font-medium tabular-nums text-muted-foreground">
+                            {shortDate(date)}
+                          </span>
+                        )}
+                        {text}
+                      </li>
+                    )
+                  })}
                 </ul>
               </CardContent>
             </Card>

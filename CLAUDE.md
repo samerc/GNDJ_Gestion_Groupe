@@ -5002,6 +5002,21 @@ Item 8 (the last of the QOL list). Bulk-create members from a spreadsheet. DEV u
   GOTCHA (test only): curl `-F @/tmp/...` fails exit 26 under MSYS — use a Windows path (`pwd -W`). dotnet + tsc +
   eslint + vite clean.
 
+### Changelog: per-entry dates (2026-09-13)
+The "Journal des versions" showed one date per version block, but the single unreleased 3.1.0 block had accumulated
+350 entries across ~27 days (bump was never run to split releases), so the block date (2026-09-10) was meaningless
+per entry. Now each entry carries its own date. Backward-compatible + sustainable:
+- **Model:** `ChangelogChange = string | { date?: string; text: string }` (`lib/app-version.ts`); a plain string
+  falls back to the block/release date. `changelog.tsx` renders a small muted date pill (`shortDate` → "13 sept.")
+  before each `<li>` via `changeParts(c, entry.date)`.
+- **Backfill:** a one-off `git blame --date=short` script wrapped every string in the current block into
+  `{date, text}` with its true add-date (surgical — text kept verbatim, escaping preserved, rest of file untouched).
+  350 entries dated, range 2026-07-29..2026-09-13 (07-29 = when changelog.json was first created in git; nothing
+  older is recoverable via blame). Script deleted after running.
+- **Tooling:** `deploy/bump.ps1` now logs `%ad|%s` (`--date=short`) and `deploy/bump.mjs` splits each line into
+  `{date, text}` — future auto-generated release entries carry their commit date too.
+- Convention updated in memory [[feedback-update-changelog]] (add new entries as `{date,text}` objects with today's date).
+
 ### Input-sanitization sweep — recent commands (2026-09-13)
 User asked to "make sure all inputs are sanitized." Audited the mutating-command surface added since the last
 validation sweep (3 parallel read-only agents), verified each finding against the code, fixed the real per-field
