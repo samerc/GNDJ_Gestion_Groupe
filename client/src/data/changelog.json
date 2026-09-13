@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      "Sécurité — validation des saisies renforcée : plusieurs formulaires récents (fusion de doublons, invitations de dernière minute, Camp BP et jeux, réunions, tâches de rentrée, pièces jointes des modèles d'email, groupes de membres, trombinoscope, réponses aux messages de contact) refusent désormais les caractères « < » / « > » et limitent la longueur des champs, comme le reste de l'application — protection supplémentaire contre les contenus indésirables.",
       "Maintenance — pendant une maintenance du site (ou de l'espace membres), les membres et chefs ne peuvent plus se connecter (message « site en maintenance »), et une session déjà ouverte ne peut plus se prolonger : elle se termine dès l'expiration du jeton d'accès (≤ 15 min). Seul le super-administrateur reste autorisé à se connecter, pour gérer la maintenance. (Le portail des inscriptions était déjà bloqué.)",
       "Correction — la suppression d'un membre possédant un compte de connexion échouait (erreur 500) ; elle fonctionne de nouveau (le membre part à la Corbeille, son accès est désactivé, restauration possible).",
       "Identifiants (création de compte / réinitialisation du mot de passe) — un bouton « Copier le message » copie l'identifiant ET le mot de passe ensemble, en un seul texte prêt à envoyer (par ex. sur WhatsApp) au membre, en plus des boutons de copie individuels.",

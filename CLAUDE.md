@@ -5002,6 +5002,38 @@ Item 8 (the last of the QOL list). Bulk-create members from a spreadsheet. DEV u
   GOTCHA (test only): curl `-F @/tmp/...` fails exit 26 under MSYS — use a Windows path (`pwd -W`). dotnet + tsc +
   eslint + vite clean.
 
+### Input-sanitization sweep — recent commands (2026-09-13)
+User asked to "make sure all inputs are sanitized." Audited the mutating-command surface added since the last
+validation sweep (3 parallel read-only agents), verified each finding against the code, fixed the real per-field
+gaps vs the project's own standard (`.MaximumLength(N)` + `ValidationExtensions.NoHtml()` [rejects `<`/`>`] +
+allowed-set for string-enums + `.RealEmail()` + list count caps). Baseline was already strong (most handlers fully
+validated; `AbuseDetectionMiddleware` blocks script/multi-token-SQL on JSON write bodies; React output-escapes;
+validators auto-discovered via `AddValidatorsFromAssemblyContaining<AssemblyMarker>`). Backend-only, no migration.
+Fixes:
+- **MergeMembersCommand** (`DuplicateHandlers`, highest) — added a validator: the CG-chosen keeper field values
+  (names/nationality/school/classe/section/profession/medical/allergies/notes + PhotoPath NoHtml+cap,
+  PrimaryContactEmail RealEmail, LoserIds ≤20). Previously arbitrary free-text was written to a live member.
+- **CreateDemandeInviteCommand** — Label MaxLength(100)+NoHtml (shown on the ANONYMOUS invite page), Email
+  RealEmail+cap.
+- **Camp / CampGame** create+update — Name/ScoutYear/Description caps + NoHtml (were only `.Trim()`'d).
+- **Rentrée** SaveTemplate/CreateTask/UpdateTask — Title/Description/Phase/DeadlineLabel/AssigneeRole caps + NoHtml.
+- **Meetings** — added NoHtml to Title/Notes (create+update) + absence Reason.
+- **ArchiveTrombinoscore / SetPublished** — ScoutYear NotEmpty+cap+NoHtml (flows into the PDF header + filename).
+- **EmailTemplate attachments** — per-item Name (≤200, NoHtml) + Url (≤500) caps (only the list count was capped).
+- **MemberGroup rule Value** — cap(200)+reject angle brackets (stored raw).
+- **DemandeReminder SendSubmissionReminders** — ScoutYear NotEmpty+cap+`^[0-9\- ]+$`.
+- **ContactMessage reply** — Subject reject angle brackets (body is HTML-encoded at the email sink).
+- Verified live: a demande-invite `<b>x</b>` label (NOT caught by the abuse middleware — it only flags
+  script/SQL) is now rejected by NoHtml → proves the per-field checks add real coverage; camp `<script>` → 400
+  (abuse middleware), valid camp → 201, bad invite email → 400. 102 tests pass.
+- **DELIBERATELY NOT NoHtml'd** (documented decision — they can legitimately contain `<`/`>` and are already safe
+  at OUTPUT [React-escaped, never `dangerouslySetInnerHTML`] + AbuseDetection blocks script + admin/CG-gated):
+  `UpdateSettingCommand.Value` for string-typed settings (login/result/maintenance MESSAGES — a CG may write
+  "Réunion < 18 ans") and custom-field text values / select options (a value like "< 1m50"). These keep their
+  length caps. Also intentionally exempt (render sanitized): TipTap/CMS HTML bodies (News/Page/Event/Resource,
+  EmailTemplate BodyHtml, DocumentType.TemplateHtml) — DOMPurify at render + HTML-encode at the email sink.
+- Convention recorded as a standing rule — see memory [[feedback-input-sanitization-default]].
+
 ### Maintenance blocks member login + delete-member 500 fix (2026-09-13)
 Two backend fixes (DEV until deploy; both verified live). No migration.
 - **Maintenance now blocks non-super-admin member login + refresh.** Previously the whole site being in maintenance

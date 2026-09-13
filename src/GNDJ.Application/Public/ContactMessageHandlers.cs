@@ -108,6 +108,7 @@ public class ReplyContactMessageCommandHandler(IApplicationDbContext context, IC
         if (string.IsNullOrWhiteSpace(subject)) return Result<bool>.Failure("L'objet de la réponse est requis.");
         if (string.IsNullOrWhiteSpace(body)) return Result<bool>.Failure("Le message de réponse est requis.");
         if (subject.Length > 200) return Result<bool>.Failure("L'objet est trop long (max 200).");
+        if (subject.Contains('<') || subject.Contains('>')) return Result<bool>.Failure("L'objet contient des caractères invalides.");
         if (body.Length > 10000) return Result<bool>.Failure("La réponse est trop longue.");
 
         var m = await context.ContactMessages.FirstOrDefaultAsync(x => x.Id == request.Id, ct);

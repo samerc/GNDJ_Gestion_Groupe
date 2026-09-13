@@ -192,6 +192,9 @@ internal static class MemberGroupValidation
             if (!MemberGroupCriteria.All.Contains(r.Criterion)) return "Critère invalide.";
             if (MemberGroupCriteria.NeedValue.Contains(r.Criterion) && string.IsNullOrWhiteSpace(r.Value))
                 return "Une valeur est requise pour ce critère.";
+            // Value holds a GUID / profile-code in practice, but it's stored raw → cap + reject angle brackets.
+            if (r.Value != null && (r.Value.Length > 200 || r.Value.Contains('<') || r.Value.Contains('>')))
+                return "Valeur de règle invalide.";
         }
         return null;
     }

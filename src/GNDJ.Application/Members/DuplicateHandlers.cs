@@ -4,6 +4,9 @@ using GNDJ.Application.Common.Models;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
+using FluentValidation;
+using GNDJ.Application.Common.Validation;
+
 namespace GNDJ.Application.Members;
 
 // ── Duplicate MEMBER detection + merge (the "Doublons" tab on the Fratries page) ──
@@ -121,6 +124,37 @@ public class GetDuplicateMemberSuggestionsQueryHandler(IApplicationDbContext con
 // Merge the losers into the keeper with the chosen field values. Group manager only. Delegates the data moves +
 // soft-delete to IMemberMergeService (transactional). Audited.
 public record MergeMembersCommand(Guid KeeperId, IReadOnlyList<Guid> LoserIds, MemberMergeFields Fields) : IRequest<Result<int>>;
+
+// The chosen field values are written verbatim onto the surviving member, so they must be sanitized like a normal
+// member edit (length caps + NoHtml + real email) — otherwise a group manager could store unbounded / angle-bracket
+// text (names, medical notes, notes) on the keeper, later shown in the UI / PDF / exports.
+public class MergeMembersCommandValidator : AbstractValidator<MergeMembersCommand>
+{
+    public MergeMembersCommandValidator()
+    {
+        RuleFor(x => x.LoserIds).NotNull().Must(l => l.Count <= 20).WithMessage("Trop de doublons sélectionnés (max 20).");
+        RuleFor(x => x.Fields).NotNull();
+        When(x => x.Fields != null, () =>
+        {
+            RuleFor(x => x.Fields.FirstName).MaximumLength(100).NoHtml();
+            RuleFor(x => x.Fields.LastName).MaximumLength(100).NoHtml();
+            RuleFor(x => x.Fields.Gender).MaximumLength(20).NoHtml();
+            RuleFor(x => x.Fields.ExternalCardNumber).MaximumLength(50).NoHtml();
+            RuleFor(x => x.Fields.BloodType).MaximumLength(10).NoHtml();
+            RuleFor(x => x.Fields.Nationality).MaximumLength(50).NoHtml();
+            RuleFor(x => x.Fields.School).MaximumLength(100).NoHtml();
+            RuleFor(x => x.Fields.Classe).MaximumLength(50).NoHtml();
+            RuleFor(x => x.Fields.Section).MaximumLength(20).NoHtml();
+            RuleFor(x => x.Fields.ProfessionDomain).MaximumLength(100).NoHtml();
+            RuleFor(x => x.Fields.Profession).MaximumLength(150).NoHtml();
+            RuleFor(x => x.Fields.MedicalNotes).MaximumLength(2000).NoHtml();
+            RuleFor(x => x.Fields.Allergies).MaximumLength(2000).NoHtml();
+            RuleFor(x => x.Fields.Notes).MaximumLength(2000).NoHtml();
+            RuleFor(x => x.Fields.PrimaryContactEmail).MaximumLength(254).RealEmail();
+            RuleFor(x => x.Fields.PhotoPath).MaximumLength(500).NoHtml();
+        });
+    }
+}
 
 public class MergeMembersCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IMemberMergeService mergeService, IAuditService audit)
     : IRequestHandler<MergeMembersCommand, Result<int>>

@@ -36,6 +36,11 @@ internal static class EmailAttachments
     public static void Rules<T>(AbstractValidator<T> v, System.Func<T, IReadOnlyList<EmailAttachmentDto>?> get)
     {
         v.RuleFor(x => get(x)).Must(a => a is null || a.Count <= 10).WithMessage("Trop de pièces jointes (max 10).");
+        // Per-item caps: name ≤200 (no angle brackets — stored + shown in the editor), url ≤500 (resolved to a file at send).
+        v.RuleFor(x => get(x)).Must(a => a is null || a.All(i =>
+            (i.Name ?? "").Length <= 200 && !(i.Name ?? "").Contains('<') && !(i.Name ?? "").Contains('>')
+            && (i.Url ?? "").Length <= 500))
+            .WithMessage("Pièce jointe invalide (nom ≤ 200 sans « < > », URL ≤ 500).");
     }
 }
 

@@ -1,6 +1,8 @@
 using System.Text.Json;
+using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -115,6 +117,15 @@ public class GetCampQueryHandler(IApplicationDbContext context) : IRequestHandle
 // ─── Create ──────────────────────────────────────────────────────────────────
 public record CreateCampCommand(string Name, string ScoutYear, int? FamillesCount) : IRequest<Result<Guid>>;
 
+public class CreateCampCommandValidator : AbstractValidator<CreateCampCommand>
+{
+    public CreateCampCommandValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(150).NoHtml();
+        RuleFor(x => x.ScoutYear).NotEmpty().MaximumLength(20).NoHtml();
+    }
+}
+
 public class CreateCampCommandHandler(IApplicationDbContext context) : IRequestHandler<CreateCampCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(CreateCampCommand request, CancellationToken ct)
@@ -133,6 +144,15 @@ public class CreateCampCommandHandler(IApplicationDbContext context) : IRequestH
 public record UpdateCampCommand(Guid Id, string Name, string ScoutYear, int FamillesCount,
     double NoteForceCoef, double NoteOffset, IReadOnlyList<BranchMultiplierInput>? BranchMultipliers) : IRequest<Result<bool>>;
 public record BranchMultiplierInput(Guid UnitTypeId, int Multiplier);
+
+public class UpdateCampCommandValidator : AbstractValidator<UpdateCampCommand>
+{
+    public UpdateCampCommandValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(150).NoHtml();
+        RuleFor(x => x.ScoutYear).NotEmpty().MaximumLength(20).NoHtml();
+    }
+}
 
 public class UpdateCampCommandHandler(IApplicationDbContext context) : IRequestHandler<UpdateCampCommand, Result<bool>>
 {

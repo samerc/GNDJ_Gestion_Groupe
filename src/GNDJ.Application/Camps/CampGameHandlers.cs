@@ -1,5 +1,7 @@
+using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using GNDJ.Domain.Enums;
 using Mediator;
@@ -32,6 +34,14 @@ public class GetCampGamesQueryHandler(IApplicationDbContext context) : IRequestH
 }
 
 public record CreateCampGameCommand(Guid CampId, string Name, string? Description) : IRequest<Result<Guid>>;
+public class CreateCampGameCommandValidator : AbstractValidator<CreateCampGameCommand>
+{
+    public CreateCampGameCommandValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(150).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(2000).NoHtml();
+    }
+}
 public class CreateCampGameCommandHandler(IApplicationDbContext context) : IRequestHandler<CreateCampGameCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(CreateCampGameCommand request, CancellationToken ct)
@@ -45,6 +55,14 @@ public class CreateCampGameCommandHandler(IApplicationDbContext context) : IRequ
 }
 
 public record UpdateCampGameCommand(Guid Id, string Name, string? Description) : IRequest<Result<bool>>;
+public class UpdateCampGameCommandValidator : AbstractValidator<UpdateCampGameCommand>
+{
+    public UpdateCampGameCommandValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(150).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(2000).NoHtml();
+    }
+}
 public class UpdateCampGameCommandHandler(IApplicationDbContext context) : IRequestHandler<UpdateCampGameCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateCampGameCommand request, CancellationToken ct)

@@ -1,5 +1,7 @@
+using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using GNDJ.Domain.Enums;
 using Mediator;
@@ -19,6 +21,19 @@ public record SaveRentreeTemplateCommand(
     string AssigneeType, string? AssigneeRole, bool FanOutPerUnit, List<Guid> AssigneeMemberIds,
     string? DefaultDeadlineLabel, List<Guid> DependsOnTemplateIds, string? ActionKey = null,
     string? DeadlineAnchor = null, string? ProgressKey = null) : IRequest<Result<Guid>>;
+
+// Free-text caps + NoHtml on the checklist fields (the allowed-set/cycle checks stay in the handler).
+public class SaveRentreeTemplateCommandValidator : AbstractValidator<SaveRentreeTemplateCommand>
+{
+    public SaveRentreeTemplateCommandValidator()
+    {
+        RuleFor(x => x.Title).MaximumLength(200).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(2000).NoHtml();
+        RuleFor(x => x.Phase).MaximumLength(100).NoHtml();
+        RuleFor(x => x.AssigneeRole).MaximumLength(100).NoHtml();
+        RuleFor(x => x.DefaultDeadlineLabel).MaximumLength(200).NoHtml();
+    }
+}
 
 public class SaveRentreeTemplateCommandHandler(IApplicationDbContext context) : IRequestHandler<SaveRentreeTemplateCommand, Result<Guid>>
 {
@@ -359,6 +374,19 @@ public record CreateRentreeTaskCommand(
     string? DeadlineLabel, DateOnly? DueDate, string? ActionKey,
     string? DeadlineAnchor = null, string? ProgressKey = null) : IRequest<Result<int>>;
 
+public class CreateRentreeTaskCommandValidator : AbstractValidator<CreateRentreeTaskCommand>
+{
+    public CreateRentreeTaskCommandValidator()
+    {
+        RuleFor(x => x.ScoutYear).NotEmpty().MaximumLength(20).NoHtml();
+        RuleFor(x => x.Title).MaximumLength(200).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(2000).NoHtml();
+        RuleFor(x => x.Phase).MaximumLength(100).NoHtml();
+        RuleFor(x => x.AssigneeRole).MaximumLength(100).NoHtml();
+        RuleFor(x => x.DeadlineLabel).MaximumLength(200).NoHtml();
+    }
+}
+
 public class CreateRentreeTaskCommandHandler(IApplicationDbContext context) : IRequestHandler<CreateRentreeTaskCommand, Result<int>>
 {
     public async ValueTask<Result<int>> Handle(CreateRentreeTaskCommand request, CancellationToken ct)
@@ -429,6 +457,16 @@ public class CreateRentreeTaskCommandHandler(IApplicationDbContext context) : IR
 // ── CG edits an instance task (date, label, anchor, progress, assignees, text) ─
 public record UpdateRentreeTaskCommand(Guid Id, string Title, string? Description, string? DeadlineLabel,
     DateOnly? DueDate, List<Guid> AssigneeMemberIds, string? DeadlineAnchor = null, string? ProgressKey = null) : IRequest<Result<bool>>;
+
+public class UpdateRentreeTaskCommandValidator : AbstractValidator<UpdateRentreeTaskCommand>
+{
+    public UpdateRentreeTaskCommandValidator()
+    {
+        RuleFor(x => x.Title).MaximumLength(200).NoHtml();
+        RuleFor(x => x.Description).MaximumLength(2000).NoHtml();
+        RuleFor(x => x.DeadlineLabel).MaximumLength(200).NoHtml();
+    }
+}
 
 public class UpdateRentreeTaskCommandHandler(IApplicationDbContext context) : IRequestHandler<UpdateRentreeTaskCommand, Result<bool>>
 {

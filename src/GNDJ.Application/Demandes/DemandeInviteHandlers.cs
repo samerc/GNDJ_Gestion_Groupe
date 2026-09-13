@@ -6,6 +6,9 @@ using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
+using FluentValidation;
+using GNDJ.Application.Common.Validation;
+
 namespace GNDJ.Application.Demandes;
 
 // Late-submission INVITES. The submission window is global (once demande.submission_deadline passes, or the CG
@@ -36,6 +39,17 @@ internal static class InviteStatus
 
 // ── CG: create an invite ──────────────────────────────────────────────────────────────────────
 public record CreateDemandeInviteCommand(string? Label, string? Email, int? ValidDays) : IRequest<Result<DemandeInviteDto>>;
+
+// Label is shown on the CG list AND the ANONYMOUS invite page → cap + NoHtml. Email is advisory (not used for
+// delivery here) but stored/displayed → cap + real-email format. ValidDays is clamped in the handler.
+public class CreateDemandeInviteCommandValidator : AbstractValidator<CreateDemandeInviteCommand>
+{
+    public CreateDemandeInviteCommandValidator()
+    {
+        RuleFor(x => x.Label).MaximumLength(100).NoHtml();
+        RuleFor(x => x.Email).MaximumLength(254).RealEmail();
+    }
+}
 
 public class CreateDemandeInviteCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     : IRequestHandler<CreateDemandeInviteCommand, Result<DemandeInviteDto>>

@@ -1,6 +1,8 @@
+using FluentValidation;
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using GNDJ.Domain.Enums;
 using Mediator;
@@ -67,6 +69,13 @@ public static class TrombinoscoreRoster
 public record ArchiveTrombinoscoreCommand(Guid UnitId, string ScoutYear, bool IncludePhotos, List<Guid>? TeamIds, bool Publish = false)
     : IRequest<Result<TrombinoscoreArchiveInfo>>;
 
+// ScoutYear is stored on the archive AND folded into the generated PDF header + download filename, so cap + format it.
+public class ArchiveTrombinoscoreCommandValidator : AbstractValidator<ArchiveTrombinoscoreCommand>
+{
+    public ArchiveTrombinoscoreCommandValidator()
+        => RuleFor(x => x.ScoutYear).NotEmpty().MaximumLength(20).NoHtml();
+}
+
 public class ArchiveTrombinoscoreCommandHandler(
     IApplicationDbContext context,
     ICurrentUserService currentUser,
@@ -132,6 +141,11 @@ public class GetTrombinoscoreArchiveInfoQueryHandler(IApplicationDbContext conte
 
 // Publish / unpublish a saved trombinoscope WITHOUT regenerating it (just flips member visibility).
 public record SetTrombinoscorePublishedCommand(Guid UnitId, string ScoutYear, bool Published) : IRequest<Result<TrombinoscoreArchiveInfo>>;
+public class SetTrombinoscorePublishedCommandValidator : AbstractValidator<SetTrombinoscorePublishedCommand>
+{
+    public SetTrombinoscorePublishedCommandValidator()
+        => RuleFor(x => x.ScoutYear).NotEmpty().MaximumLength(20).NoHtml();
+}
 
 public class SetTrombinoscorePublishedCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
     : IRequestHandler<SetTrombinoscorePublishedCommand, Result<TrombinoscoreArchiveInfo>>

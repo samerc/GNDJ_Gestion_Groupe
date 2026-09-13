@@ -2,6 +2,7 @@ using FluentValidation;
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using GNDJ.Domain.Enums;
 using Mediator;
@@ -461,8 +462,8 @@ public class UpdateMeetingCommandValidator : AbstractValidator<UpdateMeetingComm
     public UpdateMeetingCommandValidator()
     {
         RuleFor(x => x.Type).Must(t => MeetingTypes.All.Contains(t)).WithMessage("Type de réunion invalide.");
-        RuleFor(x => x.Title).MaximumLength(150);
-        RuleFor(x => x.Notes).MaximumLength(1000);
+        RuleFor(x => x.Title).MaximumLength(150).NoHtml();
+        RuleFor(x => x.Notes).MaximumLength(1000).NoHtml();
         RuleFor(x => x.EndDate).GreaterThanOrEqualTo(x => x.Date).When(x => x.EndDate.HasValue)
             .WithMessage("La date de fin doit être après la date de début.");
     }
@@ -554,7 +555,7 @@ public class SaveMeetingAttendanceCommandValidator : AbstractValidator<SaveMeeti
     public SaveMeetingAttendanceCommandValidator()
     {
         RuleFor(x => x.Absences).NotNull();
-        RuleForEach(x => x.Absences).ChildRules(a => a.RuleFor(x => x.Reason).MaximumLength(300));
+        RuleForEach(x => x.Absences).ChildRules(a => a.RuleFor(x => x.Reason).MaximumLength(300).NoHtml());
     }
 }
 

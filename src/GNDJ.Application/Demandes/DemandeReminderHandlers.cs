@@ -4,6 +4,8 @@ using GNDJ.Domain.Enums;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
+using FluentValidation;
+
 namespace GNDJ.Application.Demandes;
 
 // Reminder A — "please submit your demande before the deadline". Manual (a CG button, not a scheduler):
@@ -34,6 +36,13 @@ public class GetUnsubmittedCountQueryHandler(IApplicationDbContext context) : IR
 
 // Send the reminder to every such account. Returns how many were queued.
 public record SendSubmissionRemindersCommand(string ScoutYear) : IRequest<Result<int>>;
+
+public class SendSubmissionRemindersCommandValidator : AbstractValidator<SendSubmissionRemindersCommand>
+{
+    public SendSubmissionRemindersCommandValidator()
+        => RuleFor(x => x.ScoutYear).NotEmpty().MaximumLength(20).Matches("^[0-9\\- ]+$")
+            .WithMessage("Année scoute invalide.");
+}
 
 public class SendSubmissionRemindersCommandHandler(IApplicationDbContext context, IEmailQueue emailQueue, IAuditService audit)
     : IRequestHandler<SendSubmissionRemindersCommand, Result<int>>
