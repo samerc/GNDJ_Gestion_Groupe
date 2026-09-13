@@ -69,14 +69,21 @@ export function LoginForm() {
             <Input
               id="email"
               name="username"
-              type="email"
+              // type="text" (NOT "email"): the login is a synthetic username (prenom.nom@scouts.gndj), not a
+              // personal inbox. On mobile, password managers + browser autofill (iCloud Keychain, Google, Bitwarden)
+              // are strict and often WON'T offer to fill an `type="email"` field whose saved credential isn't a
+              // real email — desktop is lenient and fills via autocomplete="username" regardless. A text field with
+              // autocomplete="username" + name="username" is the pattern managers reliably recognise on all devices.
+              // inputMode="email" still shows the "@"-friendly keyboard; no auto-capitalise/correct on an identifier.
+              type="text"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder="prenom.nom@scouts.gndj"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              // The login is a synthetic username (prenom.nom@scouts.gndj), not a personal inbox — password
-              // managers (Dashlane, iCloud Keychain…) map their stored login to autocomplete="username",
-              // not "email", so use that token + name="username" so they offer to fill the identifier.
               autoComplete="username"
               autoFocus
             />
