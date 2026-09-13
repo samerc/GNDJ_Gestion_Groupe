@@ -4924,6 +4924,17 @@ First two of a QOL batch the user picked (global search is the next one). All on
   Verified live: contact message delete 204 → gone from list → restore 204 → back in list. tsc + eslint + vite +
   dotnet all clean.
 
+### QOL: global quick-search / command palette (2026-09-13)
+Third QOL item (frontend-only, DEV until deploy). `components/layout/command-palette.tsx` — Ctrl/⌘-K (or a header
+"Rechercher…" pill / icon on mobile) opens a `cmdk` dialog to (a) find a MEMBER by name → jump to `/members/{id}`
+(the page's existing `/members/:id` route syncs the selection), and (b) jump to any admin page. The `cmdk`
+primitive was already installed (`components/ui/command.tsx`) but unused; extended `CommandDialog` with an optional
+`shouldFilter` prop (passed `false` here so async server member-results aren't re-filtered by cmdk — I do all
+filtering: server for members [accent-insensitive `/members?search=`], manual accent/case-insensitive for the
+curated nav list). **Leaders only** (`user.isSuperAdmin || members.edit || maitrise.manage`): a youth has no admin
+pages and can't search other members (the members endpoint requires members.edit → empty), so the palette + hotkey
+self-gate to null for them. Mounted in the header before the bell. tsc + eslint + vite clean.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

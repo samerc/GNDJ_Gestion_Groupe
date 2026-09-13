@@ -7,6 +7,7 @@ import { useIsManager, useRoleTheme } from '@/lib/use-is-manager'
 import { AdminNav, BrandMark } from './sidebar'
 import { UserMenu } from './user-menu'
 import { NotificationBell } from './notification-bell'
+import { CommandPalette } from './command-palette'
 import { APP_VERSION, BUILD_COMMIT, BUILD_DATE } from '@/lib/app-version'
 
 // ROLE: the single top bar for the authenticated shell.
@@ -47,6 +48,8 @@ export function Header() {
 
       {/* Right: version (super-admin) + account menu */}
       <div className="ml-auto flex shrink-0 items-center gap-1">
+        {/* Global quick-search (Ctrl/⌘-K) — leaders only; self-gates + returns null otherwise. */}
+        <CommandPalette />
         {isManager && isSuperAdmin && (
           <Link
             to="/admin/changelog"
