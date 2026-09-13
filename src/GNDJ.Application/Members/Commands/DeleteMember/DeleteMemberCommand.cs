@@ -28,9 +28,11 @@ public class DeleteMemberCommandHandler : IRequestHandler<DeleteMemberCommand, R
 
     public async ValueTask<Result<bool>> Handle(DeleteMemberCommand request, CancellationToken cancellationToken)
     {
+        // NOTE: do NOT Include(m => m.User). The User→Member FK is required (non-nullable), so if the User is
+        // tracked when we Remove the Member (principal), EF tries to sever that required relationship and throws
+        // ("association … severed … required"). We disable the login separately with a set-based update below.
         var entity = await _context.Members
             .Include(m => m.Assignments)
-            .Include(m => m.User)
             .FirstOrDefaultAsync(m => m.Id == request.Id, cancellationToken);
 
         if (entity is null)
@@ -49,15 +51,18 @@ public class DeleteMemberCommandHandler : IRequestHandler<DeleteMemberCommand, R
         if (entity.Assignments.Any(a => a.EndDate == null && !a.IsDeleted))
             return Result<bool>.Failure("Impossible de supprimer un membre qui a des affectations actives.");
 
-        // Disable the login immediately so the removed member can't sign in during the recovery window
-        // (and clear the refresh token to kill any live session on its next refresh). The User row is kept
-        // (not soft-deleted) so a restore just re-enables it; the purge job deletes it for good later.
-        if (entity.User is not null)
-        {
-            entity.User.IsActive = false;
-            entity.User.RefreshToken = null;
-            entity.User.RefreshTokenExpiry = null;
-        }
+        // Disable the login immediately so the removed member can't sign in during the recovery window (and clear
+        // the refresh token to kill any live session on its next refresh). Done as a SET-BASED update (untracked)
+        // to avoid the required-FK sever described above; no-op if the member has no account. The User row is kept
+        // (not soft-deleted) so a restore just re-enables it; the purge job deletes it for good later. Login is
+        // also blocked regardless, because the login handler treats a soft-deleted member (Member == null) as a
+        // failure — so a crash between these two writes can't leave the account usable.
+        await _context.Users
+            .Where(u => u.MemberId == entity.Id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.IsActive, false)
+                .SetProperty(u => u.RefreshToken, (string?)null)
+                .SetProperty(u => u.RefreshTokenExpiry, (DateTime?)null), cancellationToken);
 
         _context.Members.Remove(entity); // interceptor → soft-delete (IsDeleted + DeletedAt)
         await _context.SaveChangesAsync(cancellationToken);

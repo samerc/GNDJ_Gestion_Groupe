@@ -5002,6 +5002,28 @@ Item 8 (the last of the QOL list). Bulk-create members from a spreadsheet. DEV u
   GOTCHA (test only): curl `-F @/tmp/...` fails exit 26 under MSYS — use a Windows path (`pwd -W`). dotnet + tsc +
   eslint + vite clean.
 
+### Maintenance blocks member login + delete-member 500 fix (2026-09-13)
+Two backend fixes (DEV until deploy; both verified live). No migration.
+- **Maintenance now blocks non-super-admin member login + refresh.** Previously the whole site being in maintenance
+  still let members SIGN IN (the `MaintenanceMiddleware` exempts `/api/v1/auth/*` so a super-admin can recover — but
+  at login time there's no super-admin claim to distinguish, so the exemption applied to everyone; a member logged in
+  then hit the "Sous maintenance" wall, and an already-open session could keep refreshing indefinitely). Fix = a gate
+  INSIDE the handlers (where the user's super-admin flag is known): `LoginCommandHandler` and `RefreshTokenCommandHandler`
+  inject `IMaintenanceProvider` and, when `state.Site || state.Membres` and the user is **not** super-admin, return the
+  maintenance message (401). Login gate is AFTER credential verification (so it can't probe accounts) + audited
+  `LoginBlocked`; refresh gate means an open non-admin session lapses once its ≤15-min access token expires. Super-admins
+  always pass (to toggle maintenance off). The applicant portal login (`/api/v1/applicant*`) was already blocked by the
+  middleware (applicants are never super-admin). Verified live: member login/refresh → 401 maintenance message,
+  super-admin → 200, wrong password → generic 401 (gate is post-credential).
+- **Delete-member 500 fixed** (`DeleteMemberCommand`, pre-existing, found while testing above): the handler
+  `Include(m => m.User)` then `Members.Remove(entity)` — removing the Member (principal) while its `User` (dependent,
+  **required** non-nullable `MemberId`) was tracked made EF try to sever that required relationship →
+  `InvalidOperationException: association … severed … required` → 500 for ANY member with a login account. Fix = drop
+  the `Include(User)` and disable the login with a **set-based** `ExecuteUpdateAsync` (untracked, no cascade) before the
+  soft-delete. Login stays blocked either way because the login handler treats a soft-deleted member (Member == null) as
+  a failure. Verified live: delete a member WITH an account → 204 + soft-deleted + login disabled + refresh cleared;
+  restore → 204 re-enables both.
+
 ### Members list — A–Z index + page picker + page-size (2026-09-13)
 More navigation control on the Membres master list (`pages/members/index.tsx`). All on main, DEV until deploy;
 verified live.

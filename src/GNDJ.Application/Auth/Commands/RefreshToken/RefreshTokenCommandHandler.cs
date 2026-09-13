@@ -12,12 +12,14 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
     private readonly IApplicationDbContext _context;
     private readonly ITokenService _tokenService;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IMaintenanceProvider _maintenance;
 
-    public RefreshTokenCommandHandler(IApplicationDbContext context, ITokenService tokenService, IPasswordHasher passwordHasher)
+    public RefreshTokenCommandHandler(IApplicationDbContext context, ITokenService tokenService, IPasswordHasher passwordHasher, IMaintenanceProvider maintenance)
     {
         _context = context;
         _tokenService = tokenService;
         _passwordHasher = passwordHasher;
+        _maintenance = maintenance;
     }
 
     public async ValueTask<Result<AuthResponse>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
@@ -31,6 +33,18 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
 
         if (user is null)
             return Result<AuthResponse>.Failure("Jeton de rafraîchissement invalide ou expiré.");
+
+        // Maintenance gate: a non-super-admin's open session cannot refresh while the site/members app is in
+        // maintenance, so it lapses once the ≤15-min access token expires (they can't keep working through a
+        // maintenance window). Super-admins keep refreshing so they can recover the site.
+        if (!user.IsSuperAdmin)
+        {
+            var maint = await _maintenance.GetAsync(cancellationToken);
+            if (maint.Site || maint.Membres)
+                return Result<AuthResponse>.Failure(string.IsNullOrWhiteSpace(maint.Message)
+                    ? "Le site est en maintenance. Merci de réessayer plus tard."
+                    : maint.Message);
+        }
 
         // Permissions + authorized units in one round-trip (same as Login).
         var (permissions, unitIds) = await AuthAccess.LoadAsync(_context, user.MemberId, user.IsSuperAdmin, cancellationToken);

@@ -16,13 +16,15 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
     private readonly ITokenService _tokenService;
     private readonly IAuditService _auditService;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IMaintenanceProvider _maintenance;
 
-    public LoginCommandHandler(IApplicationDbContext context, ITokenService tokenService, IAuditService auditService, IPasswordHasher passwordHasher)
+    public LoginCommandHandler(IApplicationDbContext context, ITokenService tokenService, IAuditService auditService, IPasswordHasher passwordHasher, IMaintenanceProvider maintenance)
     {
         _context = context;
         _tokenService = tokenService;
         _auditService = auditService;
         _passwordHasher = passwordHasher;
+        _maintenance = maintenance;
     }
 
     public async ValueTask<Result<AuthResponse>> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -52,6 +54,25 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
                 newValues: new { Email = request.Email, Reason = user is null ? "Utilisateur introuvable" : user.Member is null ? "Membre supprimé" : "Mot de passe incorrect", Portal = "Espace membres" },
                 cancellationToken: cancellationToken);
             return Result<AuthResponse>.Failure("Adresse courriel ou mot de passe incorrect.");
+        }
+
+        // Maintenance gate: while the whole site or the members app is in maintenance, only a super-admin may
+        // sign in — everyone else is turned away at login (rather than signing in and hitting the "Sous
+        // maintenance" wall), and their open sessions can't refresh (see RefreshTokenCommandHandler), so those
+        // sessions lapse when the 15-min access token expires. Checked AFTER credential verification (so it can't
+        // probe accounts) and only for non-super-admins (the admin must still get in to turn maintenance off).
+        if (!user.IsSuperAdmin)
+        {
+            var maint = await _maintenance.GetAsync(cancellationToken);
+            if (maint.Site || maint.Membres)
+            {
+                await _auditService.LogAsync("LoginBlocked", "User", user.Id,
+                    newValues: new { user.Email, Reason = "Maintenance", Portal = "Espace membres" },
+                    cancellationToken: cancellationToken);
+                return Result<AuthResponse>.Failure(string.IsNullOrWhiteSpace(maint.Message)
+                    ? "Le site est en maintenance. Merci de réessayer plus tard."
+                    : maint.Message);
+            }
         }
 
         // Permissions + authorized units in one round-trip over the member's active assignments.
