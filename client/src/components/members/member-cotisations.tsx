@@ -220,8 +220,8 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
             ) : hideMaitriseExpected ? null : (
               <div className="mb-3 flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
                 <span className="flex items-center gap-2 text-sm">
-                  <Ban className={`h-4 w-4 ${isExempt ? 'text-muted-foreground' : 'text-muted-foreground'}`} />
-                  {isExempt ? <span className="text-muted-foreground">Ne paiera pas pour {year}</span> : <span className="text-muted-foreground">Cotisation attendue pour {year}</span>}
+                  <Ban className={`h-4 w-4 ${isExempt ? 'text-foreground' : 'text-muted-foreground'}`} />
+                  {isExempt ? <span className="font-medium text-foreground">Ne paiera pas pour {year}</span> : <span className="text-muted-foreground">Cotisation attendue pour {year}</span>}
                 </span>
                 <Button variant="outline" size="sm" disabled={exemptMutation.isPending} onClick={toggleExempt}>
                   {isExempt ? "Retirer l'exemption" : 'Marquer « ne paiera pas »'}
