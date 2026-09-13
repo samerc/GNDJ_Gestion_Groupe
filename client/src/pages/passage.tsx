@@ -435,13 +435,13 @@ export default function PassagePage() {
 
     return (
       <div className="flex flex-wrap gap-1.5">
-        <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50 hover:text-green-800" onClick={() => handleNoChange(row)} disabled={proposeMutation.isPending}>
+        <Button size="sm" variant="outline" className="border-green-300 dark:border-green-800 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-950/30 hover:text-green-800 dark:hover:text-green-300" onClick={() => handleNoChange(row)} disabled={proposeMutation.isPending}>
           <Check className="mr-1 h-3 w-3" />Pas de changement
         </Button>
-        <Button size="sm" variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50 hover:text-blue-800" onClick={() => openPropose(row)}>
+        <Button size="sm" variant="outline" className="border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:text-blue-800 dark:hover:text-blue-300" onClick={() => openPropose(row)}>
           <ArrowRightLeft className="mr-1 h-3 w-3" />Proposer
         </Button>
-        <Button size="sm" variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-800" title="Quitte le groupe" onClick={() => handleLeaving(row)} disabled={proposeMutation.isPending}>
+        <Button size="sm" variant="outline" className="border-orange-300 dark:border-orange-800 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/30 hover:text-orange-800 dark:hover:text-orange-300" title="Quitte le groupe" onClick={() => handleLeaving(row)} disabled={proposeMutation.isPending}>
           <LogOut className="mr-1 h-3 w-3" />Quitte le groupe
         </Button>
         {row.passage && (
@@ -717,7 +717,7 @@ export default function PassagePage() {
             {formError && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{formError}</div>}
 
             {suggestionHint && (
-              <div className="rounded-md bg-blue-50 border border-blue-200 p-2.5 text-xs text-blue-700 flex items-center gap-2">
+              <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-2.5 text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
                 <ArrowRight className="h-3.5 w-3.5 shrink-0" />
                 {suggestionHint}
               </div>

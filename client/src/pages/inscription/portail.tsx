@@ -83,7 +83,7 @@ export default function ApplicantPortalPage() {
       </div>
 
       {needsVerify && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+        <div className="flex items-start gap-3 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-800 dark:text-amber-300">
           <MailWarning className="mt-0.5 h-5 w-5 shrink-0" />
           <div className="space-y-2">
             <p className="font-medium">Vérifiez votre adresse email</p>
@@ -97,13 +97,13 @@ export default function ApplicantPortalPage() {
       )}
 
       {!open && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+        <div className="rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-800 dark:text-amber-300">
           Les inscriptions sont actuellement fermées. Vous pouvez consulter vos demandes mais pas les modifier.
         </div>
       )}
 
       {lateGrant && (
-        <div className="flex items-start gap-3 rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-800">
+        <div className="flex items-start gap-3 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4 text-sm text-emerald-800 dark:text-emerald-300">
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
             <p className="font-medium">Accès exceptionnel accordé</p>
@@ -115,7 +115,7 @@ export default function ApplicantPortalPage() {
       {reviewPhase && (
         deadlinePassed ? (
           // Automatic close because the submission deadline passed → be explicit that the délai is over.
-          <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+          <div className="flex items-start gap-3 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-800 dark:text-amber-300">
             <Clock className="mt-0.5 h-5 w-5 shrink-0" />
             <div>
               <p className="font-medium">La date limite de soumission est dépassée</p>
@@ -124,7 +124,7 @@ export default function ApplicantPortalPage() {
           </div>
         ) : (
           // Manual close by the CG (review phase) — deadline not passed.
-          <div className="flex items-start gap-3 rounded-lg border border-blue-300 bg-blue-50 p-4 text-sm text-blue-800">
+          <div className="flex items-start gap-3 rounded-lg border border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-4 text-sm text-blue-800 dark:text-blue-300">
             <Clock className="mt-0.5 h-5 w-5 shrink-0" />
             <div>
               <p className="font-medium">La période de soumission est terminée</p>

@@ -205,23 +205,23 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
             // Current-year status: paid-in-full → partial → exempt (ne paiera pas) → expected.
             // A payment supersedes the exempt/expected states, so when paid we hide the exempt toggle.
             isPartialThisYear ? (
-              <div className="mb-3 flex items-center justify-between rounded-md border border-amber-300 bg-amber-50/70 px-3 py-2">
-                <span className="flex items-center gap-2 text-sm text-amber-800">
+              <div className="mb-3 flex items-center justify-between rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 px-3 py-2">
+                <span className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
                   <AlertTriangle className="h-4 w-4" />
                   Cotisation partielle pour {year} — {formatMoney(totalPaidDefault, defaultCurrency)} / {formatMoney(expectedAmount, defaultCurrency)}
                 </span>
               </div>
             ) : isPaidThisYear ? (
-              <div className="mb-3 flex items-center justify-between rounded-md border border-green-200 bg-green-50/60 px-3 py-2">
-                <span className="flex items-center gap-2 text-sm text-green-700">
+              <div className="mb-3 flex items-center justify-between rounded-md border border-green-200 dark:border-green-900 bg-green-50/60 dark:bg-green-950/30 px-3 py-2">
+                <span className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
                   <CheckCircle2 className="h-4 w-4" />Cotisation payée pour {year}
                 </span>
               </div>
             ) : hideMaitriseExpected ? null : (
               <div className="mb-3 flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
                 <span className="flex items-center gap-2 text-sm">
-                  <Ban className={`h-4 w-4 ${isExempt ? 'text-slate-600' : 'text-muted-foreground'}`} />
-                  {isExempt ? <span className="text-slate-700">Ne paiera pas pour {year}</span> : <span className="text-muted-foreground">Cotisation attendue pour {year}</span>}
+                  <Ban className={`h-4 w-4 ${isExempt ? 'text-muted-foreground' : 'text-muted-foreground'}`} />
+                  {isExempt ? <span className="text-muted-foreground">Ne paiera pas pour {year}</span> : <span className="text-muted-foreground">Cotisation attendue pour {year}</span>}
                 </span>
                 <Button variant="outline" size="sm" disabled={exemptMutation.isPending} onClick={toggleExempt}>
                   {isExempt ? "Retirer l'exemption" : 'Marquer « ne paiera pas »'}
@@ -249,7 +249,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
                     <div className="mt-1 space-y-0.5">
                       {c.payments.map((p, i) => (
                         <div key={i} className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                          <span className="font-semibold text-green-700">{formatMoney(p.amount, p.currency)}</span>
+                          <span className="font-semibold text-green-700 dark:text-green-300">{formatMoney(p.amount, p.currency)}</span>
                           <span className="text-muted-foreground">{PAYMENT_METHOD_OPTIONS.find(o => o.value === p.paymentMethod)?.label ?? p.paymentMethod}</span>
                         </div>
                       ))}

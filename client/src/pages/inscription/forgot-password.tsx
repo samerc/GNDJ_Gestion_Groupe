@@ -41,7 +41,7 @@ export default function ApplicantForgotPasswordPage() {
         <CardContent>
           {sent ? (
             <div className="space-y-4">
-              <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+              <div className="rounded-md border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/40 p-3 text-sm text-green-800 dark:text-green-300">
                 Si un compte existe pour <span className="font-medium">{email}</span>, un lien de réinitialisation vient d'être envoyé. Vérifiez votre boîte de réception (et vos courriers indésirables).
               </div>
               <Link to="/inscription/login" className="block text-center text-sm text-primary hover:underline">

@@ -17,10 +17,10 @@ import { formatDateLong } from '@/lib/utils'
 const inviteLink = (token: string) => `${window.location.origin}/inscription/invitation/${token}`
 
 const STATUS: Record<string, { label: string; className: string }> = {
-  active: { label: 'Actif', className: 'border-emerald-300 bg-emerald-50 text-emerald-700' },
-  claimed: { label: 'Utilisé', className: 'border-blue-300 bg-blue-50 text-blue-700' },
-  expired: { label: 'Expiré', className: 'border-slate-300 bg-slate-50 text-slate-600' },
-  revoked: { label: 'Annulé', className: 'border-red-300 bg-red-50 text-red-700' },
+  active: { label: 'Actif', className: 'border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' },
+  claimed: { label: 'Utilisé', className: 'border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300' },
+  expired: { label: 'Expiré', className: 'border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-slate-600 dark:text-slate-400' },
+  revoked: { label: 'Annulé', className: 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300' },
 }
 
 // CG panel to generate + manage "late-access" invite links — one link lets ONE family enroll after the deadline
@@ -65,7 +65,7 @@ export function DemandeInvitesPanel() {
           {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           <Ticket className="h-4 w-4 text-primary" />
           Invitations de dernière minute
-          {activeCount > 0 && <Badge variant="outline" className="ml-1 border-emerald-300 bg-emerald-50 text-emerald-700">{activeCount} actif{activeCount > 1 ? 's' : ''}</Badge>}
+          {activeCount > 0 && <Badge variant="outline" className="ml-1 border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">{activeCount} actif{activeCount > 1 ? 's' : ''}</Badge>}
         </CardTitle>
       </CardHeader>
       {open && (
@@ -91,7 +91,7 @@ export function DemandeInvitesPanel() {
                     <span className="font-medium">{inv.label || <span className="text-muted-foreground">Sans étiquette</span>}</span>
                     {inv.email && <span className="text-muted-foreground">· {inv.email}</span>}
                     <span className="text-xs text-muted-foreground">· expire le {formatDateLong(inv.expiresAt)}</span>
-                    {inv.claimedEmail && <span className="text-xs text-blue-700">· utilisé par {inv.claimedEmail}</span>}
+                    {inv.claimedEmail && <span className="text-xs text-blue-700 dark:text-blue-300">· utilisé par {inv.claimedEmail}</span>}
                     <div className="ml-auto flex items-center gap-1">
                       {inv.status === 'active' && (
                         <>

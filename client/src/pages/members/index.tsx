@@ -458,7 +458,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                   {member.bloodType && <Chip icon={Droplet}>{member.bloodType}</Chip>}
                   {member.absencesThisYear > 0 && (
                     <Tip content="Absences aux réunions cette année scoute">
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
                         <CalendarCheck className="h-3.5 w-3.5" />{member.absencesThisYear} absence{member.absencesThisYear > 1 ? 's' : ''}
                       </span>
                     </Tip>
@@ -866,8 +866,8 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
           <DialogHeader><DialogTitle>Mot de passe réinitialisé</DialogTitle></DialogHeader>
           <div className="space-y-4">
             {resetCreds?.sentToEmail
-              ? <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-800">Un email avec le mot de passe temporaire a été envoyé à <strong>{resetCreds.sentToEmail}</strong>. Le membre devra le changer à la première connexion.</div>
-              : <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">Aucune adresse email sur la fiche : communiquez ces informations manuellement au membre.</div>}
+              ? <div className="rounded-md bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 p-3 text-sm text-green-800 dark:text-green-300">Un email avec le mot de passe temporaire a été envoyé à <strong>{resetCreds.sentToEmail}</strong>. Le membre devra le changer à la première connexion.</div>
+              : <div className="rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 p-3 text-sm text-amber-800 dark:text-amber-300">Aucune adresse email sur la fiche : communiquez ces informations manuellement au membre.</div>}
             <p className="text-sm text-muted-foreground">Communiquez ces informations au membre. Le mot de passe ne sera plus affiché.</p>
             <div className="rounded-md bg-muted p-4 space-y-3 text-sm">
               <div>
@@ -1181,7 +1181,7 @@ export default function MembersPage() {
                     </div>
                     {absenceCounts.get(m.id) ? (
                       <Tip content="Absences aux réunions cette année">
-                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                           <CalendarCheck className="h-3 w-3" />{absenceCounts.get(m.id)}
                         </span>
                       </Tip>

@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      "Mode sombre — cohérence : de nombreux encadrés colorés (bannières de statut, pastilles, tuiles, boîtes d'information sur ~55 écrans, y compris le portail des inscriptions) restaient clairs en mode sombre. Tous s'adaptent désormais correctement à la couleur sombre, et les gris codés en dur sont passés aux couleurs du thème. L'apparence en mode clair est inchangée.",
       "Import de membres (Excel/CSV) : sur la page Membres, un bouton « Importer » permet d'ajouter plusieurs membres d'un coup. Téléchargez le modèle, remplissez une ligne par membre (prénom, nom, date de naissance, genre, + éventuellement nationalité, école, classe, unité, parents…), importez le fichier : un aperçu montre les lignes valides et les erreurs AVANT création, puis seules les lignes valides sont créées (avec leur identifiant de connexion, comme une création manuelle). Réservé au chef de groupe / administrateur.",
       "Mode sombre : un sélecteur d'apparence (Clair / Sombre / Auto) dans le menu du compte (en haut à droite). « Auto » suit le réglage de votre téléphone/ordinateur. Le choix est mémorisé.",
       "Messages de contact — « Je m'en occupe » : un responsable peut prendre en charge un message pour que les autres voient qu'il est traité (badge « En cours de traitement par … » sur la liste et dans le détail). Un bouton « Libérer » le remet à disposition.",

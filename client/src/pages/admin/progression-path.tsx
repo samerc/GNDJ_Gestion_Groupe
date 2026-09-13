@@ -88,7 +88,7 @@ function Branch({ id, row, visited }: { id: string; row: PathRow; visited: Set<s
   const next = new Set(visited).add(id)
   return (
     <div className="flex items-center gap-2">
-      <div className={`rounded-lg border-2 ${row.borderColor} bg-white px-4 py-2.5 text-center min-w-[110px] shrink-0`}>
+      <div className={`rounded-lg border-2 ${row.borderColor} bg-card px-4 py-2.5 text-center min-w-[110px] shrink-0`}>
         <p className="font-semibold text-sm">{node.name}</p>
         {ageLabel(node.ageMin, node.ageMax) && (
           <p className="text-xs text-muted-foreground mt-0.5">{ageLabel(node.ageMin, node.ageMax)}</p>
@@ -161,9 +161,9 @@ export default function ProgressionPathPage() {
         ? `Parcours chefs — ${genderLabel}`
         : `Parcours membres — ${genderLabel}`
 
-      const color = gender === 'Masculin' ? 'text-blue-700' : gender === 'Féminin' ? 'text-pink-700' : 'text-gray-700'
-      const bgColor = gender === 'Masculin' ? 'bg-blue-50' : gender === 'Féminin' ? 'bg-pink-50' : 'bg-gray-50'
-      const borderColor = gender === 'Masculin' ? 'border-blue-300' : gender === 'Féminin' ? 'border-pink-300' : 'border-gray-300'
+      const color = gender === 'Masculin' ? 'text-blue-700 dark:text-blue-300' : gender === 'Féminin' ? 'text-pink-700 dark:text-pink-300' : 'text-muted-foreground'
+      const bgColor = gender === 'Masculin' ? 'bg-blue-50 dark:bg-blue-950/40' : gender === 'Féminin' ? 'bg-pink-50 dark:bg-pink-950/40' : 'bg-muted'
+      const borderColor = gender === 'Masculin' ? 'border-blue-300 dark:border-blue-800' : gender === 'Féminin' ? 'border-pink-300 dark:border-pink-800' : 'border-input'
 
       rows.push({ label, color, bgColor, borderColor, icon: isLeader ? 'leader' : 'member', roots: graph.roots, childrenMap: graph.childrenMap, nodeInfo: graph.nodeInfo })
     }
@@ -263,7 +263,7 @@ export default function ProgressionPathPage() {
                   <span className="flex items-center gap-1.5"><Shield className="h-3.5 w-3.5" /> Parcours chefs</span>
                   <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-blue-500" /> Garçons</span>
                   <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-pink-500" /> Filles</span>
-                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-gray-400" /> Tous</span>
+                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/50" /> Tous</span>
                 </div>
               </CardContent>
             </Card>
@@ -280,7 +280,7 @@ export default function ProgressionPathPage() {
               ) : (
                 <div className="space-y-2">
                   {progressions.map(p => {
-                    const genderColor = p.gender === 'Masculin' ? 'bg-blue-100 text-blue-700' : p.gender === 'Féminin' ? 'bg-pink-100 text-pink-700' : 'bg-gray-100 text-gray-700'
+                    const genderColor = p.gender === 'Masculin' ? 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300' : p.gender === 'Féminin' ? 'bg-pink-100 dark:bg-pink-950/50 text-pink-700 dark:text-pink-300' : 'bg-muted text-muted-foreground'
                     const genderLabel = p.gender === 'Masculin' ? 'Garçons' : p.gender === 'Féminin' ? 'Filles' : 'Tous'
                     return (
                       // Two-row responsive card: badges + actions on top, the from → to flow (wraps) below.
@@ -288,7 +288,7 @@ export default function ProgressionPathPage() {
                       <div key={p.id} className="rounded-lg border p-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className={`rounded px-2 py-0.5 text-xs font-medium ${p.pathType === 'leader' ? 'bg-amber-100 text-amber-800' : 'bg-primary/10 text-primary'}`}>
+                            <span className={`rounded px-2 py-0.5 text-xs font-medium ${p.pathType === 'leader' ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300' : 'bg-primary/10 text-primary'}`}>
                               {p.pathType === 'leader' ? 'Chef' : 'Membre'}
                             </span>
                             <Badge className={genderColor}>{genderLabel}</Badge>

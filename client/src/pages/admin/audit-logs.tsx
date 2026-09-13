@@ -20,12 +20,12 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { Tip } from '@/components/ui/tooltip'
 
 // Colour buckets reused across the many domain actions below.
-const GREEN = 'bg-green-100 text-green-800'
-const BLUE = 'bg-blue-100 text-blue-800'
-const RED = 'bg-red-100 text-red-800'
-const PURPLE = 'bg-purple-100 text-purple-800'
-const ORANGE = 'bg-orange-100 text-orange-800'
-const GRAY = 'bg-gray-100 text-gray-800'
+const GREEN = 'bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300'
+const BLUE = 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300'
+const RED = 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300'
+const PURPLE = 'bg-purple-100 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300'
+const ORANGE = 'bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300'
+const GRAY = 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
 
 // French label + colour for every audit action string emitted by the backend handlers. Anything not
 // listed falls back to the raw action string with no colour (so a new action is still shown, just untranslated).
@@ -263,12 +263,12 @@ function DiffViewer({ oldJson, newJson }: { oldJson: string | null; newJson: str
           const nv = newObj?.[k]
           const changed = both && formatVal(ov) !== formatVal(nv)
           return (
-            <div key={k} className={`grid ${both ? 'grid-cols-[10rem_1fr_1fr]' : 'grid-cols-[10rem_1fr]'} ${changed ? 'bg-amber-50' : ''}`}>
+            <div key={k} className={`grid ${both ? 'grid-cols-[10rem_1fr_1fr]' : 'grid-cols-[10rem_1fr]'} ${changed ? 'bg-amber-50 dark:bg-amber-950/40' : ''}`}>
               <div className="px-3 py-1.5 font-medium text-muted-foreground">{fieldLabel(k)}</div>
               {both ? (
                 <>
                   <div className={`px-3 py-1.5 break-all ${changed ? 'text-muted-foreground line-through' : ''}`}>{formatVal(ov)}</div>
-                  <div className={`px-3 py-1.5 break-all ${changed ? 'font-medium text-amber-800' : ''}`}>{formatVal(nv)}</div>
+                  <div className={`px-3 py-1.5 break-all ${changed ? 'font-medium text-amber-800 dark:text-amber-300' : ''}`}>{formatVal(nv)}</div>
                 </>
               ) : (
                 <div className="px-3 py-1.5 break-all">{formatVal(oldObj ? ov : nv)}</div>

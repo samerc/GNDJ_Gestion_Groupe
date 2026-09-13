@@ -50,7 +50,7 @@ export default function ChangelogPage() {
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Tag className="h-4 w-4 text-muted-foreground" />v{entry.version}
-                    {entry.version === APP_VERSION && <Badge className="bg-green-100 text-green-700">Actuelle</Badge>}
+                    {entry.version === APP_VERSION && <Badge className="bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300">Actuelle</Badge>}
                   </CardTitle>
                   <span className="text-xs text-muted-foreground">{formatDate(entry.date)}</span>
                 </div>

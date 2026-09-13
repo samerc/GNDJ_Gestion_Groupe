@@ -46,7 +46,7 @@ export default function ForgotUsernamePage() {
         <CardContent>
           {sent ? (
             <div className="space-y-4">
-              <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-800">
+              <div className="rounded-md bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 p-3 text-sm text-green-800 dark:text-green-300">
                 Si cette adresse est enregistrée sur un dossier, vous recevrez vos accès par email. Pensez à vérifier
                 vos courriers indésirables.
               </div>

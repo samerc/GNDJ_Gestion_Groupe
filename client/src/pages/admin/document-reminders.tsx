@@ -23,9 +23,9 @@ import { toast } from 'sonner'
 
 // Reason key → French label + chip colour. missing = manquant, rejected = à corriger, expired = à renouveler.
 const REASON: Record<string, { label: string; cls: string }> = {
-  missing: { label: 'Manquant', cls: 'bg-red-100 text-red-700' },
-  rejected: { label: 'À corriger', cls: 'bg-orange-100 text-orange-700' },
-  expired: { label: 'À renouveler', cls: 'bg-amber-100 text-amber-700' },
+  missing: { label: 'Manquant', cls: 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300' },
+  rejected: { label: 'À corriger', cls: 'bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300' },
+  expired: { label: 'À renouveler', cls: 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300' },
 }
 
 // `embedded` = rendered as a tab inside the merged "Suivi des documents" page; suppress the page's own header.

@@ -15,12 +15,12 @@ export function CampaignPhaseBanner() {
 
   // Phase → (label, message, tone). Keeps a single source and avoids reassignment lint.
   const info: Record<string, { label: string; message: string; tone: string }> = {
-    Avant: { label: 'Avant ouverture', message: `Le dépôt des documents ouvrira le ${fr(c.depositStart)}.`, tone: 'border-sky-200 bg-sky-50 text-sky-900' },
-    Depot: { label: 'Dépôt ouvert', message: `Les familles peuvent téléverser leurs documents jusqu'au ${fr(c.depositDeadline)}.`, tone: 'border-emerald-200 bg-emerald-50 text-emerald-900' },
-    Verification1: { label: 'Vérification 1', message: `Dépôt fermé — vérifiez (acceptez / refusez) chaque document. La correction rouvre le ${fr(c.correctionStart)} ; un email d'erreur partira automatiquement aux familles dès que toutes les unités ont terminé.`, tone: 'border-amber-200 bg-amber-50 text-amber-900' },
-    Correction: { label: 'Correction', message: `Les familles corrigent leurs documents jusqu'au ${fr(c.correctionDeadline)}.`, tone: 'border-emerald-200 bg-emerald-50 text-emerald-900' },
-    Verification2: { label: 'Vérification 2', message: `Dépôt fermé — re-vérifiez les dossiers. Les dossiers encore incomplets seront mis en attente le ${fr(c.finalDeadline)}.`, tone: 'border-amber-200 bg-amber-50 text-amber-900' },
-    Termine: { label: 'Campagne terminée', message: `La campagne de vérification des documents ${c.scoutYear ?? ''} est terminée.`, tone: 'border-slate-200 bg-slate-50 text-slate-700' },
+    Avant: { label: 'Avant ouverture', message: `Le dépôt des documents ouvrira le ${fr(c.depositStart)}.`, tone: 'border-sky-200 dark:border-sky-900 bg-sky-50 dark:bg-sky-950/40 text-sky-900 dark:text-sky-200' },
+    Depot: { label: 'Dépôt ouvert', message: `Les familles peuvent téléverser leurs documents jusqu'au ${fr(c.depositDeadline)}.`, tone: 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200' },
+    Verification1: { label: 'Vérification 1', message: `Dépôt fermé — vérifiez (acceptez / refusez) chaque document. La correction rouvre le ${fr(c.correctionStart)} ; un email d'erreur partira automatiquement aux familles dès que toutes les unités ont terminé.`, tone: 'border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200' },
+    Correction: { label: 'Correction', message: `Les familles corrigent leurs documents jusqu'au ${fr(c.correctionDeadline)}.`, tone: 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200' },
+    Verification2: { label: 'Vérification 2', message: `Dépôt fermé — re-vérifiez les dossiers. Les dossiers encore incomplets seront mis en attente le ${fr(c.finalDeadline)}.`, tone: 'border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200' },
+    Termine: { label: 'Campagne terminée', message: `La campagne de vérification des documents ${c.scoutYear ?? ''} est terminée.`, tone: 'border-slate-200 dark:border-slate-900 bg-slate-50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-300' },
   }
   const entry = info[c.phase]
   if (!entry) return null

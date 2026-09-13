@@ -265,7 +265,7 @@ export default function UnitDetailPage() {
               </div>
               {!isNew && (
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={!!unitForm.isActive} onChange={(e) => setUnitForm(f => ({ ...f, isActive: e.target.checked }))} className="h-4 w-4 rounded border-gray-300" />
+                  <input type="checkbox" checked={!!unitForm.isActive} onChange={(e) => setUnitForm(f => ({ ...f, isActive: e.target.checked }))} className="h-4 w-4 rounded border-input" />
                   Unité active
                 </label>
               )}
@@ -274,7 +274,7 @@ export default function UnitDetailPage() {
               <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Site public</p>
                 <label className="flex items-center gap-2 text-sm font-medium">
-                  <input type="checkbox" checked={!!unitForm.isPublished} onChange={(e) => setUnitForm(f => ({ ...f, isPublished: e.target.checked }))} className="h-4 w-4 rounded border-gray-300" />
+                  <input type="checkbox" checked={!!unitForm.isPublished} onChange={(e) => setUnitForm(f => ({ ...f, isPublished: e.target.checked }))} className="h-4 w-4 rounded border-input" />
                   Afficher cette unité sur le site public
                 </label>
                 <div className="space-y-2">
@@ -349,7 +349,7 @@ export default function UnitDetailPage() {
                     if (!a.isMaitrise && b.isMaitrise) return 1
                     return a.displayOrder - b.displayOrder
                   }).map(team => (
-                    <div key={team.id} className={`rounded-lg border ${team.isMaitrise ? 'border-amber-300 bg-amber-50/30' : ''}`}>
+                    <div key={team.id} className={`rounded-lg border ${team.isMaitrise ? 'border-amber-300 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/30' : ''}`}>
                       <div
                         className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/30 transition-colors"
                         onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}
@@ -442,7 +442,7 @@ export default function UnitDetailPage() {
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={form.isMaitrise || false} onChange={(e) => setForm(f => ({ ...f, isMaitrise: e.target.checked }))} className="h-4 w-4 rounded border-gray-300" />
+              <input type="checkbox" checked={form.isMaitrise || false} onChange={(e) => setForm(f => ({ ...f, isMaitrise: e.target.checked }))} className="h-4 w-4 rounded border-input" />
               Équipe de maîtrise
             </label>
             <DialogFooter>

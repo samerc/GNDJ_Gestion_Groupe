@@ -123,18 +123,18 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
           {/* Saved-version status: generating overwrites this. Published = members can see it; the CU can
               flip visibility here without regenerating. */}
           {archiveInfo?.exists && (
-            <div className={`flex items-start gap-2 rounded-md border p-3 text-sm ${archiveInfo.published ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+            <div className={`flex items-start gap-2 rounded-md border p-3 text-sm ${archiveInfo.published ? 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300' : 'border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300'}`}>
               {archiveInfo.published ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <EyeOff className="mt-0.5 h-4 w-4 shrink-0" />}
               <div className="flex-1">
                 <p className="font-medium">Version enregistrée{archiveInfo.savedAt ? ` le ${new Date(archiveInfo.savedAt).toLocaleDateString('fr-FR')}` : ''}</p>
-                <p className={`text-xs ${archiveInfo.published ? 'text-emerald-700' : 'text-amber-700'}`}>
+                <p className={`text-xs ${archiveInfo.published ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>
                   {archiveInfo.memberCount} membres · {archiveInfo.published ? 'visible par les membres' : 'non visible par les membres (usage interne)'}. Générer à nouveau la remplacera.
                 </p>
                 <div className="mt-1 flex flex-wrap items-center gap-3">
-                  <Button variant="link" size="sm" className={`h-auto p-0 ${archiveInfo.published ? 'text-emerald-800' : 'text-amber-800'}`} onClick={handleDownloadSaved} disabled={busy !== ''}>
+                  <Button variant="link" size="sm" className={`h-auto p-0 ${archiveInfo.published ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300'}`} onClick={handleDownloadSaved} disabled={busy !== ''}>
                     <Download className="mr-1 h-3.5 w-3.5" />Télécharger
                   </Button>
-                  <Button variant="link" size="sm" className={`h-auto p-0 ${archiveInfo.published ? 'text-amber-800' : 'text-emerald-800'}`} onClick={() => handleTogglePublished(!archiveInfo.published)} disabled={busy !== ''}>
+                  <Button variant="link" size="sm" className={`h-auto p-0 ${archiveInfo.published ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-800 dark:text-emerald-300'}`} onClick={() => handleTogglePublished(!archiveInfo.published)} disabled={busy !== ''}>
                     {archiveInfo.published ? <><EyeOff className="mr-1 h-3.5 w-3.5" />Masquer aux membres</> : <><Eye className="mr-1 h-3.5 w-3.5" />Rendre visible aux membres</>}
                   </Button>
                 </div>
@@ -151,7 +151,7 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
                     type="checkbox"
                     checked={allSelected || selectedTeams.has(t.id)}
                     onChange={() => toggleTeam(t.id)}
-                    className="h-4 w-4 rounded border-gray-300"
+                    className="h-4 w-4 rounded border-input"
                   />
                   {t.name}
                 </label>
@@ -165,7 +165,7 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
               type="checkbox"
               checked={includePhotos}
               onChange={(e) => setIncludePhotos(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300"
+              className="h-4 w-4 rounded border-input"
             />
             Imprimer les photos
           </label>
@@ -177,7 +177,7 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
               type="checkbox"
               checked={publish}
               onChange={(e) => setPublish(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300"
+              className="h-4 w-4 rounded border-input"
             />
             Rendre visible par les membres
           </label>

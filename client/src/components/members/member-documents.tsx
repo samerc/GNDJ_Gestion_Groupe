@@ -253,7 +253,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   } : null
 
   const statusColor = (doc: MemberDocumentDto | null) => {
-    if (!doc) return 'border-l-gray-300'
+    if (!doc) return 'border-l-border'
     if (doc.isExpired) return 'border-l-red-500'
     switch (doc.status) {
       case 'Approved': return 'border-l-green-500'
@@ -263,12 +263,12 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   }
 
   const statusBg = (doc: MemberDocumentDto | null) => {
-    if (!doc) return 'bg-gray-50'
-    if (doc.isExpired) return 'bg-red-50/50'
+    if (!doc) return 'bg-muted'
+    if (doc.isExpired) return 'bg-red-50/50 dark:bg-red-950/30'
     switch (doc.status) {
-      case 'Approved': return 'bg-green-50/50'
-      case 'Rejected': return 'bg-red-50/50'
-      default: return 'bg-amber-50/50'
+      case 'Approved': return 'bg-green-50/50 dark:bg-green-950/30'
+      case 'Rejected': return 'bg-red-50/50 dark:bg-red-950/30'
+      default: return 'bg-amber-50/50 dark:bg-amber-950/30'
     }
   }
 
@@ -276,13 +276,13 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
     <div className="space-y-4">
       {/* Campaign gate banner (member's own view only): suspended, or deposit window closed. */}
       {memberBlock?.kind === 'hold' && (
-        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-800 dark:text-red-300">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span><strong>Compte suspendu.</strong> Votre dossier est incomplet : le dépôt de documents est désactivé. Contactez la <strong>maîtrise de groupe</strong> pour réactiver votre compte.</span>
         </div>
       )}
       {memberBlock?.kind === 'closed' && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-3 text-sm text-amber-800 dark:text-amber-300">
           <Clock className="mt-0.5 h-4 w-4 shrink-0" />
           <span>Le dépôt des documents est actuellement <strong>fermé</strong>.{memberBlock.reopensOn ? ` Réouverture le ${new Date(memberBlock.reopensOn).toLocaleDateString('fr-FR')}.` : ''}</span>
         </div>
@@ -304,7 +304,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
             {docStats.approved > 0 && <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-green-500" />{docStats.approved} accepté{docStats.approved > 1 ? 's' : ''}</span>}
             {docStats.pending > 0 && <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-amber-400" />{docStats.pending} en attente</span>}
             {docStats.rejected > 0 && <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-red-500" />{docStats.rejected} refusé{docStats.rejected > 1 ? 's' : ''}</span>}
-            {docStats.missing > 0 && <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-gray-300" />{docStats.missing} manquant{docStats.missing > 1 ? 's' : ''}</span>}
+            {docStats.missing > 0 && <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/50" />{docStats.missing} manquant{docStats.missing > 1 ? 's' : ''}</span>}
           </div>
         </div>
       )}
@@ -351,7 +351,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                     </div>
                   )}
                   {doc?.reviewNotes && (
-                    <p className="mt-1 text-xs text-orange-600 font-medium">Note : {doc.reviewNotes}</p>
+                    <p className="mt-1 text-xs text-orange-600 dark:text-orange-400 font-medium">Note : {doc.reviewNotes}</p>
                   )}
                   {/* Reassure the parent/member that a pending doc is normal (not a problem). Hidden for reviewers (CU),
                       who understand the workflow — shown only when the viewer can't approve documents. */}

@@ -53,7 +53,7 @@ function MeetingCard({ meeting, onOpen, onEdit, onApprove, onDelete, busy }: {
             <Badge variant="secondary" className="text-xs">{MEETING_TYPE_LABELS[meeting.type] ?? meeting.type}</Badge>
             <span className="font-medium">{meeting.title || MEETING_TYPE_LABELS[meeting.type] || 'Réunion'}</span>
             {meeting.status === 'Pending' && (
-              <Badge className="gap-1 border-amber-200 bg-amber-50 text-amber-700"><Clock className="h-3 w-3" />En attente</Badge>
+              <Badge className="gap-1 border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"><Clock className="h-3 w-3" />En attente</Badge>
             )}
             {meeting.groupName ? (
               <Badge variant="outline" className="gap-1 text-xs"><Users className="h-3 w-3" />{meeting.groupName}</Badge>

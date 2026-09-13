@@ -29,12 +29,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 
 // ─── Cell rendering helpers ────────────────────────────────
 function docStatusColor(cell: MemberDocCellDto): string {
-  if (!cell.documentId) return 'bg-gray-100 text-gray-400'
-  if (cell.isExpired) return 'bg-red-50 text-red-500'
+  if (!cell.documentId) return 'bg-muted text-muted-foreground'
+  if (cell.isExpired) return 'bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400'
   switch (cell.status) {
-    case 'Approved': return 'bg-green-50 text-green-600'
-    case 'Rejected': return 'bg-red-50 text-red-500'
-    default: return 'bg-amber-50 text-amber-600'
+    case 'Approved': return 'bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400'
+    case 'Rejected': return 'bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400'
+    default: return 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400'
   }
 }
 
@@ -477,23 +477,23 @@ export default function UnitDocumentsPage() {
         <>
           {/* Legend */}
           <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-muted-foreground px-1">
-            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-green-50 text-green-600"><CheckCircle className="h-4 w-4" /></span> Accepté</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-amber-50 text-amber-600"><Clock className="h-4 w-4" /></span> En attente</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 text-red-500"><XCircle className="h-4 w-4" /></span> Refusé</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 text-red-500"><AlertTriangle className="h-4 w-4" /></span> Expiré</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-gray-400"><Minus className="h-4 w-4" /></span> Manquant</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400"><CheckCircle className="h-4 w-4" /></span> Accepté</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400"><Clock className="h-4 w-4" /></span> En attente</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400"><XCircle className="h-4 w-4" /></span> Refusé</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400"><AlertTriangle className="h-4 w-4" /></span> Expiré</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-muted text-muted-foreground"><Minus className="h-4 w-4" /></span> Manquant</span>
             <span className="mx-1 h-5 w-px self-center bg-border" />
-            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-green-50 text-green-700"><DollarSign className="h-4 w-4" /></span> Cotisation payée</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 text-red-500"><Receipt className="h-4 w-4" /></span> Non payée</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-slate-100 text-slate-500"><Ban className="h-4 w-4" /></span> Ne paiera pas</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300"><DollarSign className="h-4 w-4" /></span> Cotisation payée</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400"><Receipt className="h-4 w-4" /></span> Non payée</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-muted text-muted-foreground"><Ban className="h-4 w-4" /></span> Ne paiera pas</span>
           </div>
 
           {/* Cotisation stats for THIS unit (this year) — the CU's own numbers only, no group data. */}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
             <span className="flex items-center gap-1.5 font-medium"><Receipt className="h-4 w-4 text-muted-foreground" />Cotisations {currentScoutYear}</span>
-            <span className="text-green-700">{cotisationStats.paid} payée{cotisationStats.paid > 1 ? 's' : ''}</span>
-            <span className="text-red-600">{cotisationStats.pending} en attente</span>
-            <span className="text-slate-500">{cotisationStats.exempt} exemptée{cotisationStats.exempt > 1 ? 's' : ''}</span>
+            <span className="text-green-700 dark:text-green-300">{cotisationStats.paid} payée{cotisationStats.paid > 1 ? 's' : ''}</span>
+            <span className="text-red-600 dark:text-red-400">{cotisationStats.pending} en attente</span>
+            <span className="text-muted-foreground">{cotisationStats.exempt} exemptée{cotisationStats.exempt > 1 ? 's' : ''}</span>
             <span className="text-muted-foreground">sur {cotisationStats.total}</span>
             {Object.entries(cotisationStats.totals).length > 0 && (
               <span className="ml-auto flex flex-wrap items-center gap-x-3 font-medium">
@@ -598,7 +598,7 @@ export default function UnitDocumentsPage() {
                           const cot = member.cotisation
                           const paid = !!cot.cotisationId && cot.payments.length > 0
                           const exempt = cot.willNotPay && !paid
-                          const cls = paid ? 'bg-green-50 text-green-700' : exempt ? 'bg-slate-100 text-slate-500' : 'bg-red-50 text-red-500'
+                          const cls = paid ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300' : exempt ? 'bg-muted text-muted-foreground' : 'bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400'
                           const title = paid
                             ? `${cot.payments.map(p => `${p.amount} ${p.currency}`).join(' + ')} — ${cot.receiptNumber}`
                             : exempt ? 'Ne paiera pas (exempté) — Cliquer pour modifier'
@@ -684,7 +684,7 @@ export default function UnitDocumentsPage() {
               </div>
 
               {previewCell.cell.reviewNotes && (
-                <div className="rounded-md bg-orange-50 p-2 text-sm text-orange-700">Note : {previewCell.cell.reviewNotes}</div>
+                <div className="rounded-md bg-orange-50 dark:bg-orange-950/30 p-2 text-sm text-orange-700 dark:text-orange-300">Note : {previewCell.cell.reviewNotes}</div>
               )}
 
               <div className="space-y-2">
@@ -738,7 +738,7 @@ export default function UnitDocumentsPage() {
 
           {cotisationMember?.cotisation.cotisationId && cotisationMember.cotisation.payments.length > 0 ? (
             <div className="space-y-4">
-              <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
+              <div className="rounded-md bg-green-50 dark:bg-green-950/30 p-3 text-sm text-green-700 dark:text-green-300">
                 Cotisation enregistrée :
                 {cotisationMember.cotisation.payments.map((p, i) => (
                   <div key={i}><strong>{p.amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} {p.currency}</strong> ({PAYMENT_METHOD_OPTIONS.find(o => o.value === p.paymentMethod)?.label ?? p.paymentMethod})</div>
@@ -761,14 +761,14 @@ export default function UnitDocumentsPage() {
               <p className="text-sm text-muted-foreground">Année scoute : {currentScoutYear}</p>
 
               {cotisationMember?.cotisation.willNotPay ? (
-                <div className="flex items-center justify-between rounded-md bg-slate-100 p-3 text-sm">
-                  <span className="flex items-center gap-2 text-slate-600"><Ban className="h-4 w-4" />Marqué « ne paiera pas » pour cette année.</span>
+                <div className="flex items-center justify-between rounded-md bg-muted p-3 text-sm">
+                  <span className="flex items-center gap-2 text-muted-foreground"><Ban className="h-4 w-4" />Marqué « ne paiera pas » pour cette année.</span>
                   <Button type="button" variant="outline" size="sm" disabled={setExempt.isPending}
                     onClick={() => cotisationMember && toggleExempt(cotisationMember, false)}>Retirer l'exemption</Button>
                 </div>
               ) : (
                 <div className="flex justify-end">
-                  <Button type="button" variant="outline" size="sm" className="text-slate-600 hover:text-slate-800" disabled={setExempt.isPending}
+                  <Button type="button" variant="outline" size="sm" className="text-muted-foreground hover:text-foreground" disabled={setExempt.isPending}
                     onClick={() => cotisationMember && toggleExempt(cotisationMember, true)}>
                     <Ban className="mr-1 h-3.5 w-3.5" />Ce membre ne paiera pas
                   </Button>

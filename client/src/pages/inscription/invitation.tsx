@@ -89,7 +89,7 @@ export default function ApplicantInvitationPage() {
       <ApplicantAuthShell subtitle="Invitation">
         <Card className="shadow-elevated">
           <CardHeader>
-            <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100"><Ticket className="h-6 w-6 text-emerald-700" /></div>
+            <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/50"><Ticket className="h-6 w-6 text-emerald-700 dark:text-emerald-300" /></div>
             <CardTitle className="text-xl">Invitation à présenter une demande{info.label ? ` — ${info.label}` : ''}</CardTitle>
             <CardDescription>La Maîtrise vous autorise à présenter une demande après la date limite.</CardDescription>
           </CardHeader>
@@ -121,7 +121,7 @@ export default function ApplicantInvitationPage() {
     <ApplicantAuthShell subtitle="Invitation — créer un compte">
       <Card className="shadow-elevated">
         <CardHeader>
-          <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100"><Ticket className="h-6 w-6 text-emerald-700" /></div>
+          <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/50"><Ticket className="h-6 w-6 text-emerald-700 dark:text-emerald-300" /></div>
           <CardTitle className="text-xl">Invitation à présenter une demande{info.label ? ` — ${info.label}` : ''}</CardTitle>
           <CardDescription>La Maîtrise vous autorise à présenter une demande après la date limite. Créez votre compte pour commencer.</CardDescription>
         </CardHeader>

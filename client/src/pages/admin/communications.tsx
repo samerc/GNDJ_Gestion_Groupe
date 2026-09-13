@@ -138,7 +138,7 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
           {selectedTemplate && (
             <div className="space-y-2">
               {hasActivation && (
-                <div className="flex items-start gap-2 rounded-md border border-sky-200 bg-sky-50 p-2.5 text-xs text-sky-800">
+                <div className="flex items-start gap-2 rounded-md border border-sky-200 dark:border-sky-900 bg-sky-50 dark:bg-sky-950/40 p-2.5 text-xs text-sky-800 dark:text-sky-300">
                   <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
                   <span>Ce modèle inclut un <strong>lien d'activation</strong> : chaque chef reçoit son identifiant et un
                     lien pour définir son mot de passe — un seul email suffit (pas besoin d'« Envoyer les accès »).</span>
@@ -238,11 +238,11 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
                       <TableCell className="text-sm">
                         {r.contactEmail
                           ? <span className="break-all">{r.contactEmail}</span>
-                          : <span className="inline-flex items-center gap-1 text-amber-600"><MailWarning className="h-3.5 w-3.5" /> Aucun email</span>}
+                          : <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"><MailWarning className="h-3.5 w-3.5" /> Aucun email</span>}
                       </TableCell>
                       <TableCell>
                         {!r.hasLoggedIn && (
-                          <Badge variant="outline" className="border-sky-300 bg-sky-50 text-sky-700">Jamais connecté</Badge>
+                          <Badge variant="outline" className="border-sky-300 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300">Jamais connecté</Badge>
                         )}
                       </TableCell>
                     </TableRow>

@@ -64,10 +64,10 @@ function ActionHub({ o }: { o: DashboardOverviewDto }) {
 
   if (items.length === 0) {
     return (
-      <Card className="border-green-200 bg-green-50/50">
+      <Card className="border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/30">
         <CardContent className="flex items-center gap-3 py-4">
           <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
-          <p className="text-sm font-medium text-green-800">Tout est à jour — rien en attente de votre part.</p>
+          <p className="text-sm font-medium text-green-800 dark:text-green-300">Tout est à jour — rien en attente de votre part.</p>
         </CardContent>
       </Card>
     )
@@ -81,12 +81,12 @@ function ActionHub({ o }: { o: DashboardOverviewDto }) {
           const Icon = i.icon
           const red = i.tone === 'red'
           return (
-            <Link key={i.key} to={i.to} className={`group flex items-center gap-3 rounded-xl border p-3 transition-colors ${red ? 'border-red-200 bg-red-50/60 hover:bg-red-50' : 'border-amber-200 bg-amber-50/60 hover:bg-amber-50'}`}>
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${red ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
+            <Link key={i.key} to={i.to} className={`group flex items-center gap-3 rounded-xl border p-3 transition-colors ${red ? 'border-red-200 dark:border-red-900 bg-red-50/60 dark:bg-red-950/30 hover:bg-red-50 dark:hover:bg-red-950/40' : 'border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 hover:bg-amber-50 dark:hover:bg-amber-950/40'}`}>
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${red ? 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400' : 'bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400'}`}>
                 <Icon className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className={`text-xl font-bold leading-none ${red ? 'text-red-700' : 'text-amber-700'}`}>{i.count}</p>
+                <p className={`text-xl font-bold leading-none ${red ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'}`}>{i.count}</p>
                 <p className="mt-0.5 truncate text-xs font-medium text-foreground/80">{i.label}</p>
               </div>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
@@ -112,7 +112,7 @@ function OverviewPanels({ o }: { o: DashboardOverviewDto }) {
         <Card className="h-full transition-colors group-hover:border-primary/40">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-base flex items-center gap-2"><UserPlus className="h-4 w-4 text-primary" />Campagne d'inscription</CardTitle>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${c.enabled ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>{c.enabled ? 'Inscriptions ouvertes' : 'Fermées'}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${c.enabled ? 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300' : 'bg-muted text-muted-foreground'}`}>{c.enabled ? 'Inscriptions ouvertes' : 'Fermées'}</span>
           </CardHeader>
           <CardContent>
             {c.total === 0 ? (
@@ -266,7 +266,7 @@ function AdminDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-950/50 text-blue-600">
               <Users className="h-5 w-5" />
             </div>
             <div>
@@ -277,7 +277,7 @@ function AdminDashboard() {
         </Card>
         <Card>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600">
               <UserCheck className="h-5 w-5" />
             </div>
             <div className="flex items-baseline gap-3">
@@ -302,9 +302,9 @@ function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
-        <Card className={data.missingDocuments > 0 ? 'border-orange-200' : ''}>
+        <Card className={data.missingDocuments > 0 ? 'border-orange-200 dark:border-orange-900' : ''}>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.missingDocuments > 0 ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.missingDocuments > 0 ? 'bg-orange-100 dark:bg-orange-950/50 text-orange-600' : 'bg-green-100 dark:bg-green-950/50 text-green-600'}`}>
               <FileX className="h-5 w-5" />
             </div>
             <div>
@@ -313,9 +313,9 @@ function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
-        <Card className={data.unpaidCotisations > 0 ? 'border-red-200' : ''}>
+        <Card className={data.unpaidCotisations > 0 ? 'border-red-200 dark:border-red-900' : ''}>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.unpaidCotisations > 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.unpaidCotisations > 0 ? 'bg-red-100 dark:bg-red-950/50 text-red-600' : 'bg-green-100 dark:bg-green-950/50 text-green-600'}`}>
               <Receipt className="h-5 w-5" />
             </div>
             <div>

@@ -271,7 +271,7 @@ export default function ApiKeysPage() {
             <DialogTitle>Clé API créée</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+            <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-sm text-amber-800 dark:text-amber-300">
               Cette clé ne sera plus visible après fermeture de cette fenêtre. Copiez-la maintenant.
             </div>
             <div className="flex items-center gap-2">

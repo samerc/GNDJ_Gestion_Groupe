@@ -37,7 +37,7 @@ export function DocumentsCta({ memberId }: { memberId: string }) {
       to="/my-documents"
       className="flex items-center gap-4 rounded-xl border bg-card p-4 shadow-card transition-colors hover:border-primary/40 hover:bg-accent/5"
     >
-      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${complete ? 'bg-green-100 text-green-700' : 'bg-primary/10 text-primary'}`}>
+      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${complete ? 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300' : 'bg-primary/10 text-primary'}`}>
         {complete ? <CheckCircle2 className="h-6 w-6" /> : <FileText className="h-6 w-6" />}
       </span>
       <div className="min-w-0 flex-1">
@@ -45,7 +45,7 @@ export function DocumentsCta({ memberId }: { memberId: string }) {
           <span className="font-semibold">Mes documents</span>
           {/* Show approved/total, plus a pending hint so "0/2" doesn't look like nothing was submitted. */}
           <span className="text-sm font-medium text-muted-foreground">
-            {approved}/{total}{pending > 0 && <span className="text-amber-600"> · {pending} en attente</span>}
+            {approved}/{total}{pending > 0 && <span className="text-amber-600 dark:text-amber-400"> · {pending} en attente</span>}
           </span>
         </div>
         <p className="text-sm text-muted-foreground">{label}</p>

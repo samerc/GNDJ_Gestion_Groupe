@@ -6,11 +6,11 @@ import { AlertTriangle } from 'lucide-react'
 export function SupportNote({ email, className = '' }: { email?: string | null; className?: string }) {
   if (!email) return null
   return (
-    <div className={`mt-6 flex items-start justify-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm text-amber-800 ${className}`}>
+    <div className={`mt-6 flex items-start justify-center gap-2 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-center text-sm text-amber-800 dark:text-amber-300 ${className}`}>
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
       <span>
         Un problème de connexion ou d'inscription&nbsp;? Écrivez-nous à{' '}
-        <a href={`mailto:${email}`} className="font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950">
+        <a href={`mailto:${email}`} className="font-semibold text-amber-900 dark:text-amber-200 underline underline-offset-2 hover:text-amber-950">
           {email}
         </a>
       </span>

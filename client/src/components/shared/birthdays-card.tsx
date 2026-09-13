@@ -16,7 +16,7 @@ function BirthdayRows({ data, onNavigate }: { data: UpcomingBirthday[]; onNaviga
       {data.slice(0, 20).map((b) => (
         <li key={b.memberId}>
           <Link to={`/members/${b.memberId}`} onClick={onNavigate} className="flex items-center gap-3 py-2 text-sm transition-colors hover:text-primary">
-            <span className={`w-16 shrink-0 text-xs font-medium ${b.daysUntil === 0 ? 'text-pink-600' : 'text-muted-foreground'}`}>{fmt(b.nextBirthday)}</span>
+            <span className={`w-16 shrink-0 text-xs font-medium ${b.daysUntil === 0 ? 'text-pink-600 dark:text-pink-400' : 'text-muted-foreground'}`}>{fmt(b.nextBirthday)}</span>
             <span className="min-w-0 flex-1 truncate">{b.firstName} {b.lastName}{b.unitName && <span className="text-xs text-muted-foreground"> · {b.unitName}</span>}</span>
             <span className="shrink-0 text-xs text-muted-foreground">{b.turningAge} ans · {label(b.daysUntil)}</span>
           </Link>
@@ -35,7 +35,7 @@ export function BirthdaysCard({ days = 30, className }: { days?: number; classNa
   return (
     <div className={`rounded-xl border bg-card p-4 shadow-card ${className ?? ''}`}>
       <div className="mb-3 flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-100 text-pink-600"><Cake className="h-4 w-4" /></span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-100 dark:bg-pink-950/50 text-pink-600 dark:text-pink-400"><Cake className="h-4 w-4" /></span>
         <h3 className="text-sm font-semibold">Anniversaires à venir</h3>
         <span className="ml-auto text-xs text-muted-foreground">{days} prochains jours</span>
       </div>

@@ -294,7 +294,7 @@ function MemberCard({ m, familleId }: { m: CampFamilleDto['members'][number]; fa
     <div ref={el => { dragRef(el); dropRef(el) }} {...listeners} {...attributes}
       className={cn('flex touch-none cursor-grab items-center gap-2 rounded border px-2 py-1.5 text-sm active:cursor-grabbing',
         isDragging && 'opacity-40', isOver && 'ring-2 ring-primary',
-        m.gender === 'Féminin' ? 'border-l-2 border-l-pink-300' : 'border-l-2 border-l-blue-300')}>
+        m.gender === 'Féminin' ? 'border-l-2 border-l-pink-300 dark:border-l-pink-800' : 'border-l-2 border-l-blue-300 dark:border-l-blue-800')}>
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium">{name} <span className="text-muted-foreground">{m.gender === 'Féminin' ? '♀' : '♂'}</span></div>
         <div className="truncate text-xs text-muted-foreground">{m.branche} · {m.unitName ?? '—'}</div>

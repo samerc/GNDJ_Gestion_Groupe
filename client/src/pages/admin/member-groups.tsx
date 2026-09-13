@@ -160,7 +160,7 @@ function VisChip({ on, label }: { on: boolean; label: string }) {
   return (
     <span className={cn(
       'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium',
-      on ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-border bg-muted/50 text-muted-foreground'
+      on ? 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' : 'border-border bg-muted/50 text-muted-foreground'
     )}>
       {on ? <Check className="h-3 w-3" /> : <Minus className="h-3 w-3" />}{label}
     </span>

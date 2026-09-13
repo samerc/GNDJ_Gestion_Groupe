@@ -86,7 +86,7 @@ export default function ResetPasswordPage() {
         <CardContent>
           {success ? (
             <div className="space-y-4">
-              <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-800">
+              <div className="rounded-md bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 p-3 text-sm text-green-800 dark:text-green-300">
                 {isSetup
                   ? 'Votre compte est activé. Vous pouvez maintenant vous connecter.'
                   : 'Votre mot de passe a été réinitialisé avec succès.'}

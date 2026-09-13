@@ -61,7 +61,7 @@ export default function ApplicantLoginPage() {
       {/* Arrived via a CG late-access invite link → explain the existing-account path (new families use the
           "Créer un compte" button below, which keeps the invite). */}
       {inviteToken && (
-        <div className="mb-4 flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2.5 text-sm text-emerald-800 dark:text-emerald-300">
           <Ticket className="mt-0.5 h-4 w-4 shrink-0" />
           <span>Vous avez une invitation à présenter une demande. Connectez-vous à votre compte existant pour l'activer.</span>
         </div>
@@ -100,7 +100,7 @@ export default function ApplicantLoginPage() {
             </label>
             {/* After 3 consecutive failed attempts, proactively offer a password reset. */}
             {failedAttempts >= 3 && (
-              <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              <div className="flex items-start gap-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
                 <KeyRound className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
                   Vous n'arrivez pas à vous connecter&nbsp;?{' '}

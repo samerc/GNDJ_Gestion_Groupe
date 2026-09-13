@@ -16,9 +16,9 @@ import { ChevronDown, ChevronRight, Search, X, AlertTriangle, Trash2 } from 'luc
 
 function levelColor(level: string): string {
   const l = level.toLowerCase()
-  if (l === 'error' || l === 'fatal') return 'bg-red-100 text-red-700'
-  if (l === 'warning') return 'bg-amber-100 text-amber-700'
-  return 'bg-slate-100 text-slate-600'
+  if (l === 'error' || l === 'fatal') return 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300'
+  if (l === 'warning') return 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300'
+  return 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
 }
 
 function LogRow({ entry, idx }: { entry: ErrorLogEntry; idx: number }) {

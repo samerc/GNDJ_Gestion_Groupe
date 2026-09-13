@@ -129,7 +129,7 @@ export function RosterDialog({ unitId, unitName, teamId, open, onOpenChange }: P
                         type="checkbox"
                         checked={selected.has(col.key)}
                         onChange={() => toggle(col.key)}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-input"
                       />
                       {col.label}
                     </label>

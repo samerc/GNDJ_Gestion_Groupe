@@ -241,7 +241,7 @@ export default function AdminNewsPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <input type="checkbox" id="isPublished" checked={form.isPublished} onChange={(e) => setForm(f => ({ ...f, isPublished: e.target.checked }))} className="h-4 w-4 rounded border-gray-300" />
+              <input type="checkbox" id="isPublished" checked={form.isPublished} onChange={(e) => setForm(f => ({ ...f, isPublished: e.target.checked }))} className="h-4 w-4 rounded border-input" />
               <label htmlFor="isPublished" className="text-sm font-medium">Publier (visible sur le site public)</label>
             </div>
             <DialogFooter>

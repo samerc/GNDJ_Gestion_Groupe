@@ -239,3 +239,27 @@
 .gndj-spacer:hover {
   background: oklch(0.95 0.02 255);
 }
+
+/* Dark mode: the form-builder controls above use hardcoded light/dark hex because they mirror the printed PDF
+   (always on white paper). In the dark editor surface their dark borders/checkbox would vanish — lift them so the
+   CG can still see the fields while authoring. The PDF renderer draws its own underlines/boxes, so output is unaffected. */
+.dark .gndj-field {
+  background: oklch(0.30 0.06 265);
+  color: oklch(0.86 0.08 265);
+}
+.dark .gndj-fill {
+  border-bottom-color: oklch(0.65 0 0);
+}
+.dark .gndj-checkbox {
+  border-color: oklch(0.65 0 0);
+}
+.dark .gndj-box {
+  border-color: oklch(0.55 0 0);
+}
+.dark .gndj-split {
+  background: oklch(0.32 0.05 90);
+  color: oklch(0.86 0.10 90);
+}
+.dark .gndj-spacer:hover {
+  background: oklch(0.28 0.02 255);
+}

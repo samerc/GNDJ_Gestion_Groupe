@@ -71,7 +71,7 @@ export function LoginMessagesEditor({ settingKey }: { settingKey: string }) {
         <Button type="button" size="sm" onClick={save} disabled={!dirty || update.isPending}>
           <Check className="mr-1.5 h-4 w-4" />{update.isPending ? 'Enregistrement…' : 'Enregistrer'}
         </Button>
-        {dirty && <span className="text-xs font-medium text-amber-600">Modifications non enregistrées</span>}
+        {dirty && <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Modifications non enregistrées</span>}
       </div>
       <p className="text-xs leading-relaxed text-muted-foreground">
         Chaque message s'affiche entre sa date de début (vide = immédiatement) et sa date de fin (vide = jusqu'à sa suppression).
@@ -176,6 +176,6 @@ function scheduleLabel(m: Msg): string {
 function status(m: Msg): { label: string; cls: string } {
   const today = new Date().toISOString().slice(0, 10)
   if (m.end && m.end < today) return { label: 'Expiré', cls: 'bg-muted text-muted-foreground' }
-  if (m.start && m.start > today) return { label: 'Programmé', cls: 'bg-amber-100 text-amber-700' }
-  return { label: 'Actif', cls: 'bg-emerald-100 text-emerald-700' }
+  if (m.start && m.start > today) return { label: 'Programmé', cls: 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300' }
+  return { label: 'Actif', cls: 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300' }
 }

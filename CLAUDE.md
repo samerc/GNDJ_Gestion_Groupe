@@ -5002,6 +5002,34 @@ Item 8 (the last of the QOL list). Bulk-create members from a spreadsheet. DEV u
   GOTCHA (test only): curl `-F @/tmp/...` fails exit 26 under MSYS — use a Windows path (`pwd -W`). dotnet + tsc +
   eslint + vite clean.
 
+### Dark-theme consistency sweep (2026-09-13)
+Dark mode (added 2026-08-26) works ONLY via `.dark` on `<html>` flipping the CSS-variable semantic tokens
+(`bg-background/card/muted/border/primary/accent/destructive/...` in index.css). Audit found the app had **zero
+`dark:` variants anywhere** — so every HARDCODED Tailwind palette color stayed light in dark mode (glaring bright
+`bg-amber-50`/`bg-emerald-50` callout boxes, light chips, light-gray surfaces). Fixed ~205 spots across **54 files**
+(fanned out to 6 parallel subagents with one shared convention; additive only — light mode unchanged):
+- **Tinted color surfaces** (callout/banner/chip/tile with `bg-C-50`/`bg-C-100`/`border-C-200|300`/`text-C-600..900`
+  for C ∈ red/amber/emerald/blue/sky/…): added a `dark:` sibling per class — `bg-C-50`→`dark:bg-C-950/40`,
+  `bg-C-50/NN`→`dark:bg-C-950/30`, `bg-C-100`→`dark:bg-C-950/50`, `border-C-200`→`dark:border-C-900`,
+  `border-C-300`→`dark:border-C-800`, `text-C-600`→`dark:text-C-400`, `text-C-700/800`→`dark:text-C-300`,
+  `text-C-900`→`dark:text-C-200`. Applied inside className template-literals, ternaries, AND const/lookup-map string
+  values (audit-logs badge consts, notification-bell/error-log/document-reminders/demande-invites tone maps, etc.).
+- **Neutral grays → semantic tokens** (already dark-aware): `bg-gray-50/100`,`bg-slate-50/100`→`bg-muted`;
+  `text-gray/slate-400..700`→`text-muted-foreground`; `border-gray/slate-200/300` (incl. `<input type=checkbox>`
+  borders)→`border-input`; neutral dots `bg-gray-300/400`→`bg-muted-foreground/50`.
+- **Two `bg-white`/border fixes**: `progression-path.tsx` diagram node `bg-white`→`bg-card`; member-documents
+  `statusColor` default `border-l-gray-300`→`border-l-border`.
+- **Form-builder `.gndj-*` classes** (document-template editor, index.css — hardcoded light/dark hex mirroring the
+  printed white-paper PDF): added a `.dark` override block lifting the checkbox/fill/box borders + field/split pills so
+  they stay visible on the dark editor surface. PDF renderer draws its own controls → **PDF output unchanged**.
+- **LEFT AS-IS (correct in both themes):** the role-colored (dark navy) sidebar/header chrome (`bg-white/10`, white
+  count badges with `text-slate-900` on dark chrome), the Switch thumb, camera overlay, the member-card PREVIEW
+  (a physical white card), and the **public marketing site** (`pages/public/*` — white cards on colored hero
+  gradients, own design). Standalone icon accent colors `text-C-500/600` and solid `bg-C-500` bars/dots/progress/
+  badges read fine on dark and were left. Minor deferred polish: a few bare status NUMBERS (`text-C-600`) on dark
+  cards in the group dashboard are slightly dim but legible.
+- Verified: `dark:` went 0 → 205 across 54 files; tsc + eslint (--max-warnings=0) + vite build all clean. DEV until deploy.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

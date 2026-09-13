@@ -336,7 +336,7 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
           {badges.map(b => (
             <div key={b.id} className={cn('group flex items-center gap-3 rounded-lg border bg-card p-3', !b.isActive && 'opacity-55')}>
               <input type="checkbox" className="h-4 w-4 shrink-0 accent-primary" aria-label={`Sélectionner ${b.name}`} checked={selected.has(b.id)} onChange={() => toggleOne(b.id)} />
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700"><Award className="h-4 w-4" /></div>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300"><Award className="h-4 w-4" /></div>
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{b.name}</div>
                 <div className="text-xs text-muted-foreground">{b.code}{b.progressionCount > 0 ? ` · ${b.progressionCount} membre${b.progressionCount > 1 ? 's' : ''}` : ''}</div>

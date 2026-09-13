@@ -375,7 +375,7 @@ export default function DemandeValidationPage() {
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <span>{all.length} demande(s) · {pendingSend} décision(s) en attente d'envoi</span>
             {campaign?.enabled && (
-              <Badge variant="outline" className={campaign.submissionsOpen ? 'border-green-300 text-green-700' : 'border-blue-300 text-blue-700'}>
+              <Badge variant="outline" className={campaign.submissionsOpen ? 'border-green-300 dark:border-green-800 text-green-700 dark:text-green-300' : 'border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300'}>
                 {campaign.submissionsOpen ? 'Soumissions ouvertes' : 'Phase de revue (soumissions fermées)'}
               </Badge>
             )}
@@ -443,7 +443,7 @@ export default function DemandeValidationPage() {
       </div>
 
       {status === 'all' && undecided > 0 && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="flex items-start gap-3 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3 text-sm text-amber-800 dark:text-amber-300">
           <Clock className="mt-0.5 h-4 w-4 shrink-0" />
           <span><strong>{undecided} demande(s) encore à étudier.</strong> Toutes les demandes doivent être acceptées ou refusées avant de pouvoir envoyer les réponses.</span>
         </div>
@@ -568,7 +568,7 @@ export default function DemandeValidationPage() {
                 // Only undecided rows show the one-click suggested-unit chip; decided rows show their chosen unit.
                 const sug = !d.decidedUnitId && d.status === 'Submitted' ? suggestUnit(d, occList) : null
                 return (
-                  <TableRow key={d.id} className={`cursor-pointer ${isSibling ? 'bg-amber-50/40' : ''}`} onClick={() => setDetailId(d.id)}>
+                  <TableRow key={d.id} className={`cursor-pointer ${isSibling ? 'bg-amber-50/40 dark:bg-amber-950/30' : ''}`} onClick={() => setDetailId(d.id)}>
                     <TableCell className={`border-l-4 ${si.border}`} title={si.label} onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" className="h-4 w-4 rounded border-input accent-primary disabled:opacity-40" checked={selected.has(d.id)} disabled={locked} onChange={() => toggleOne(d.id)} />
                     </TableCell>
@@ -746,7 +746,7 @@ export default function DemandeValidationPage() {
           {importResult && (
             <div className="space-y-3 text-sm">
               <div className="flex flex-wrap gap-4">
-                <span className="text-green-700"><strong>{importResult.applied}</strong> appliquée(s)</span>
+                <span className="text-green-700 dark:text-green-300"><strong>{importResult.applied}</strong> appliquée(s)</span>
                 <span className="text-muted-foreground"><strong>{importResult.skipped}</strong> ignorée(s) (sans décision)</span>
                 {importResult.errors.length > 0 && <span className="text-destructive"><strong>{importResult.errors.length}</strong> erreur(s)</span>}
               </div>
@@ -837,8 +837,8 @@ function UnitHint({ u, d }: { u: UnitOccupancy; d: DemandeReview }) {
   return (
     <p className="text-xs text-muted-foreground">
       Projeté après passage : {u.projected} · Acceptés ce tour : {u.accepted}{u.quota != null ? ` / quota ${u.quota}` : ''}
-      {unitFull(u) && <span className="text-amber-600"> — quota atteint</span>}
-      {!eligible(u, d) && <span className="text-amber-600"> — hors critères genre/âge</span>}
+      {unitFull(u) && <span className="text-amber-600 dark:text-amber-400"> — quota atteint</span>}
+      {!eligible(u, d) && <span className="text-amber-600 dark:text-amber-400"> — hors critères genre/âge</span>}
     </p>
   )
 }
@@ -1018,7 +1018,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
                   </div>
                   {/* Auto-matched to a real member (a "scout actuel" relation) — surfaced so the CG can confirm the link. */}
                   {r.relatedMemberId && r.relatedMemberName && (
-                    <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
+                    <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
                       <Link2 className="h-3.5 w-3.5" />
                       Lié à un membre : {r.relatedMemberName}{r.relatedMemberUnit ? ` (${r.relatedMemberUnit})` : ''}
                     </div>
@@ -1148,7 +1148,7 @@ function OccRow({ u, scoutYear }: { u: UnitOccupancy; scoutYear: string }) {
       <td className="px-3 py-2 text-center">{u.accepted}</td>
       <td className="px-3 py-2 text-center">
         {remaining == null ? <span className="text-muted-foreground">—</span> :
-          <span className={remaining <= 0 ? 'text-amber-600 font-medium' : 'text-green-700'}>{remaining}{remaining <= 0 && <AlertTriangle className="ml-1 inline h-3 w-3" />}</span>}
+          <span className={remaining <= 0 ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-green-700 dark:text-green-300'}>{remaining}{remaining <= 0 && <AlertTriangle className="ml-1 inline h-3 w-3" />}</span>}
       </td>
     </tr>
   )

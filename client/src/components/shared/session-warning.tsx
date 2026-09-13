@@ -117,13 +117,13 @@ export function SessionWarning() {
   if (!showWarning) return null
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 rounded-lg border bg-amber-50 px-4 py-3 shadow-lg max-w-sm">
-      <p className="text-sm font-medium text-amber-800">
+    <div className="fixed bottom-4 right-4 z-50 rounded-lg border bg-amber-50 dark:bg-amber-950/40 px-4 py-3 shadow-lg max-w-sm">
+      <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
         Session inactive — expire dans {minutesLeft} min
       </p>
       <div className="flex items-center justify-between mt-2">
-        <p className="text-xs text-amber-600">Cliquez pour prolonger.</p>
-        <Button size="sm" variant="outline" className="ml-3 text-xs h-7 border-amber-300 text-amber-800 hover:bg-amber-100" onClick={handleExtend} disabled={refreshing}>
+        <p className="text-xs text-amber-600 dark:text-amber-400">Cliquez pour prolonger.</p>
+        <Button size="sm" variant="outline" className="ml-3 text-xs h-7 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 hover:bg-amber-100" onClick={handleExtend} disabled={refreshing}>
           {refreshing ? '...' : 'Prolonger'}
         </Button>
       </div>

@@ -38,11 +38,11 @@ function SortHeader({ label, field, current, dir, onSort, className }: { label: 
 // Email-verified badge — shared by the desktop table + the mobile cards.
 function StatusBadge({ verified }: { verified: boolean }) {
   return verified ? (
-    <Badge variant="outline" className="shrink-0 border-emerald-300 bg-emerald-50 text-emerald-700">
+    <Badge variant="outline" className="shrink-0 border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
       <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Vérifié
     </Badge>
   ) : (
-    <Badge variant="outline" className="shrink-0 border-amber-300 bg-amber-50 text-amber-700">
+    <Badge variant="outline" className="shrink-0 border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">
       <MailWarning className="mr-1 h-3.5 w-3.5" /> Non vérifié
     </Badge>
   )
@@ -56,7 +56,7 @@ function DemandesSummary({ submitted, total, className }: { submitted: number; t
   return (
     <span className={`text-sm ${className ?? ''}`}>
       {submitted > 0
-        ? <span className="font-medium text-emerald-700">{submitted} soumise{submitted > 1 ? 's' : ''}</span>
+        ? <span className="font-medium text-emerald-700 dark:text-emerald-300">{submitted} soumise{submitted > 1 ? 's' : ''}</span>
         : <span className="text-muted-foreground">0 soumise</span>}
       {drafts > 0 && <span className="text-muted-foreground"> · {drafts} brouillon{drafts > 1 ? 's' : ''}</span>}
     </span>

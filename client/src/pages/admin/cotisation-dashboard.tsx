@@ -208,7 +208,7 @@ export default function CotisationDashboardPage() {
                 <div className="flex items-center gap-3">
                   <CheckCircle className="h-8 w-8 text-green-600" />
                   <div>
-                    <div className="text-2xl font-bold text-green-700">{summary.membersWithPayment}</div>
+                    <div className="text-2xl font-bold text-green-700 dark:text-green-300">{summary.membersWithPayment}</div>
                     <p className="text-sm text-muted-foreground">Ont payé ({paidPercentage}%)</p>
                   </div>
                 </div>
@@ -219,8 +219,8 @@ export default function CotisationDashboardPage() {
                 <div className="flex items-center gap-3">
                   <AlertTriangle className="h-8 w-8 text-orange-500" />
                   <div>
-                    <div className="text-2xl font-bold text-orange-600">{summary.membersWithoutPayment}</div>
-                    <p className="text-sm text-muted-foreground">Impayés{summary.membersExempt > 0 && <span className="ml-1 text-slate-500">· {summary.membersExempt} exempté(s)</span>}</p>
+                    <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{summary.membersWithoutPayment}</div>
+                    <p className="text-sm text-muted-foreground">Impayés{summary.membersExempt > 0 && <span className="ml-1 text-muted-foreground">· {summary.membersExempt} exempté(s)</span>}</p>
                   </div>
                 </div>
               </CardContent>
@@ -326,7 +326,7 @@ export default function CotisationDashboardPage() {
                               ) : (
                                 <Badge variant="outline">0</Badge>
                               )}
-                              {u.exemptMembers > 0 && <span className="ml-1 text-xs text-slate-500">+{u.exemptMembers} exempté(s)</span>}
+                              {u.exemptMembers > 0 && <span className="ml-1 text-xs text-muted-foreground">+{u.exemptMembers} exempté(s)</span>}
                             </td>
                             <td className="px-3 py-2 text-right">
                               {u.totals.length > 0 ? (
@@ -517,7 +517,7 @@ export default function CotisationDashboardPage() {
                         <td className="px-3 py-2 text-right">
                           {a.amountPerMember > 0
                             ? formatMoney(a.amountPerMember, dues.currency)
-                            : <span className="text-orange-600" title="Aucun montant configuré pour cette association">— à définir</span>}
+                            : <span className="text-orange-600 dark:text-orange-400" title="Aucun montant configuré pour cette association">— à définir</span>}
                         </td>
                         <td className="px-3 py-2 text-center">{members}</td>
                         <td className="px-3 py-2 text-right font-semibold">{formatMoney(total, dues.currency)}</td>
@@ -528,7 +528,7 @@ export default function CotisationDashboardPage() {
                   <tr className="border-b bg-primary/5">
                     <td className="px-3 py-2 font-medium">
                       Maîtrise
-                      {!dues.maitrise.pays && <span className="ml-2 text-xs text-slate-500">(ne paie pas cette année)</span>}
+                      {!dues.maitrise.pays && <span className="ml-2 text-xs text-muted-foreground">(ne paie pas cette année)</span>}
                     </td>
                     <td className="px-3 py-2 text-right">
                       {dues.maitrise.pays ? formatMoney(dues.maitrise.amountPerMember, dues.currency) : <span className="text-muted-foreground">—</span>}

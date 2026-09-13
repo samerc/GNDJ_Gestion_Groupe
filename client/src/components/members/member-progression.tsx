@@ -166,9 +166,9 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
 
       {/* A member's pending progression proposals (awaiting CU/CG approval). */}
       {selfPropose && pendingProgressions.length > 0 && (
-        <div className="rounded-md border border-amber-300 bg-amber-50/70 p-3 text-sm">
-          <p className="font-medium text-amber-800">En attente d'acceptation</p>
-          <ul className="mt-1 space-y-0.5 text-amber-800">
+        <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 p-3 text-sm">
+          <p className="font-medium text-amber-800 dark:text-amber-300">En attente d'acceptation</p>
+          <ul className="mt-1 space-y-0.5 text-amber-800 dark:text-amber-300">
             {pendingProgressions.map(r => <li key={r.id}>• {r.summary}</li>)}
           </ul>
         </div>
@@ -176,17 +176,17 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
 
       {/* A member's REJECTED progression proposals — shows the decision + reason so they aren't left guessing. */}
       {selfPropose && rejectedProgressions.length > 0 && (
-        <div className="rounded-md border border-red-300 bg-red-50/70 p-3 text-sm">
-          <p className="font-medium text-red-800">Proposition refusée</p>
+        <div className="rounded-md border border-red-300 dark:border-red-800 bg-red-50/70 dark:bg-red-950/30 p-3 text-sm">
+          <p className="font-medium text-red-800 dark:text-red-300">Proposition refusée</p>
           <ul className="mt-1 space-y-1.5">
             {rejectedProgressions.map(r => (
-              <li key={r.id} className="flex items-start justify-between gap-2 text-red-800">
+              <li key={r.id} className="flex items-start justify-between gap-2 text-red-800 dark:text-red-300">
                 <span>
                   • {r.summary}
-                  {r.decisionNotes && <span className="mt-0.5 block text-red-700/90">Motif : {r.decisionNotes}</span>}
+                  {r.decisionNotes && <span className="mt-0.5 block text-red-700/90 dark:text-red-300/90">Motif : {r.decisionNotes}</span>}
                 </span>
                 <Tip content="Effacer">
-                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-red-600 hover:text-red-800" disabled={dismissMutation.isPending}
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300" disabled={dismissMutation.isPending}
                     onClick={() => dismissMutation.mutateAsync(r.id).then(() => toast.success('Notification effacée')).catch(err => toast.error(parseApiError(err)))}>
                     <X className="h-4 w-4" />
                   </Button>

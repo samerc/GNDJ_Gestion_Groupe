@@ -339,7 +339,7 @@ export default function DemandeWizardPage() {
       </div>
 
       {readonly && (
-        <div className={`rounded-lg border p-3 text-sm ${deadlinePassed && !existing?.responseSentAt ? 'border-amber-300 bg-amber-50 text-amber-800' : 'bg-muted/40 text-muted-foreground'}`}>
+        <div className={`rounded-lg border p-3 text-sm ${deadlinePassed && !existing?.responseSentAt ? 'border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300' : 'bg-muted/40 text-muted-foreground'}`}>
           {existing?.responseSentAt
             ? 'Cette demande a été traitée — consultation uniquement.'
             : deadlinePassed
@@ -654,7 +654,7 @@ export default function DemandeWizardPage() {
                 <p className="text-muted-foreground">En soumettant, votre demande sera transmise au chef de groupe pour étude.</p>
               )}
               {existing?.status === 'Submitted' && !existing.responseSentAt && (
-                <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-blue-700">Demande déjà soumise. Vous pouvez encore la modifier tant que les inscriptions sont ouvertes.</div>
+                <div className="rounded-md bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 p-3 text-blue-700 dark:text-blue-300">Demande déjà soumise. Vous pouvez encore la modifier tant que les inscriptions sont ouvertes.</div>
               )}
             </div>
           )}

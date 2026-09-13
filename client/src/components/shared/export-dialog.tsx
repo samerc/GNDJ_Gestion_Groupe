@@ -162,7 +162,7 @@ export function ExportDialog({ unitId, unitName, teamId, open, onOpenChange }: P
                           checked={selectedCols.has(col.key)}
                           onChange={() => toggleCol(col.key)}
                           disabled={col.key === 'name'}
-                          className="h-3.5 w-3.5 rounded border-gray-300"
+                          className="h-3.5 w-3.5 rounded border-input"
                         />
                         {col.label}
                       </label>

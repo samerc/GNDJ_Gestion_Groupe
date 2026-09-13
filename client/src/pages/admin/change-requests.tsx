@@ -51,7 +51,7 @@ export default function ChangeRequestsPage() {
                   buttons never wrap into the middle of the text column and crush it on a narrow screen. */}
               <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
                 <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${r.kind === 'Progression' ? 'bg-primary/10 text-primary' : 'bg-amber-100 text-amber-700'}`}>
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${r.kind === 'Progression' ? 'bg-primary/10 text-primary' : 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300'}`}>
                     {r.kind === 'Progression' ? <Star className="h-5 w-5" /> : <ArrowRightLeft className="h-5 w-5" />}
                   </span>
                   <div className="min-w-0 flex-1">

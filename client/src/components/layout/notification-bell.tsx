@@ -14,11 +14,11 @@ import {
 
 // Icon + accent colour per category.
 const META: Record<NotificationType, { icon: typeof Bell; cls: string }> = {
-  document: { icon: FileText, cls: 'text-blue-600 bg-blue-100' },
-  change_request: { icon: ClipboardCheck, cls: 'text-amber-600 bg-amber-100' },
-  demande: { icon: UserPlus, cls: 'text-teal-600 bg-teal-100' },
-  hold: { icon: PauseCircle, cls: 'text-red-600 bg-red-100' },
-  info: { icon: Bell, cls: 'text-slate-600 bg-slate-100' },
+  document: { icon: FileText, cls: 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-950/50' },
+  change_request: { icon: ClipboardCheck, cls: 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/50' },
+  demande: { icon: UserPlus, cls: 'text-teal-600 dark:text-teal-400 bg-teal-100 dark:bg-teal-950/50' },
+  hold: { icon: PauseCircle, cls: 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950/50' },
+  info: { icon: Bell, cls: 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800' },
 }
 
 // Compact French relative time ("il y a 3 min", "hier", "il y a 5 j").

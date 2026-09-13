@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
         <CardContent>
           {sentToSomewhere ? (
             <div className="space-y-4">
-              <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-800">
+              <div className="rounded-md bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 p-3 text-sm text-green-800 dark:text-green-300">
                 Compte trouvé. Un lien de réinitialisation a été envoyé à&nbsp;
                 <span className="font-medium">{result!.sentTo.join(', ')}</span>.
               </div>
@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
           ) : result?.found ? (
             // Account exists but has no email on file — can't deliver the link.
             <div className="space-y-4">
-              <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+              <div className="rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 p-3 text-sm text-amber-800 dark:text-amber-300">
                 Compte trouvé, mais aucune adresse courriel n'est enregistrée sur le dossier. Contactez un responsable pour réinitialiser votre mot de passe.
               </div>
               <Link to="/login" className="block text-center text-sm text-primary hover:underline">

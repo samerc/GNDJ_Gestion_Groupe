@@ -204,12 +204,12 @@ export default function AdminPagesPage() {
                 onImageUpload={(file) => uploadContentImage(file).catch((e) => { toast.error(parseApiError(e)); throw e })} />
             </div>
             <div className="flex items-center gap-2">
-              <input type="checkbox" id="pagePublished" checked={form.isPublished} onChange={(e) => setForm(f => ({ ...f, isPublished: e.target.checked }))} className="h-4 w-4 rounded border-gray-300" />
+              <input type="checkbox" id="pagePublished" checked={form.isPublished} onChange={(e) => setForm(f => ({ ...f, isPublished: e.target.checked }))} className="h-4 w-4 rounded border-input" />
               <label htmlFor="pagePublished" className="text-sm font-medium">Publier (visible sur le site public)</label>
             </div>
             {!form.parentId && (
               <div className="flex items-center gap-2">
-                <input type="checkbox" id="pageShowInMenu" checked={form.showInMenu} onChange={(e) => setForm(f => ({ ...f, showInMenu: e.target.checked }))} className="h-4 w-4 rounded border-gray-300" />
+                <input type="checkbox" id="pageShowInMenu" checked={form.showInMenu} onChange={(e) => setForm(f => ({ ...f, showInMenu: e.target.checked }))} className="h-4 w-4 rounded border-input" />
                 <label htmlFor="pageShowInMenu" className="text-sm font-medium">Afficher dans le menu principal</label>
               </div>
             )}

@@ -81,7 +81,7 @@ function OccRow({ u }: { u: UnitOccupancy }) {
       <td className="px-3 py-2 text-center">{u.accepted}</td>
       <td className="px-3 py-2 text-center">
         {remaining == null ? <span className="text-muted-foreground">—</span> :
-          <span className={remaining <= 0 ? 'font-medium text-amber-600' : 'text-green-700'}>{remaining}{remaining <= 0 && <AlertTriangle className="ml-1 inline h-3 w-3" />}</span>}
+          <span className={remaining <= 0 ? 'font-medium text-amber-600 dark:text-amber-400' : 'text-green-700 dark:text-green-300'}>{remaining}{remaining <= 0 && <AlertTriangle className="ml-1 inline h-3 w-3" />}</span>}
       </td>
     </tr>
   )
@@ -123,10 +123,10 @@ export default function DemandeStatsPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Suivi des demandes</h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               <Stat icon={Inbox} label="Total soumises" value={stats.total} />
-              <Stat icon={Clock} label="À traiter" value={stats.pending} tone="bg-blue-100 text-blue-700" />
-              <Stat icon={CheckCircle2} label="Acceptées" value={stats.approved} tone="bg-green-100 text-green-700" />
-              <Stat icon={XCircle} label="Refusées" value={stats.declined} tone="bg-red-100 text-red-700" />
-              <Stat icon={Send} label="Réponses envoyées" value={stats.responsesSent} tone="bg-violet-100 text-violet-700" />
+              <Stat icon={Clock} label="À traiter" value={stats.pending} tone="bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300" />
+              <Stat icon={CheckCircle2} label="Acceptées" value={stats.approved} tone="bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300" />
+              <Stat icon={XCircle} label="Refusées" value={stats.declined} tone="bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300" />
+              <Stat icon={Send} label="Réponses envoyées" value={stats.responsesSent} tone="bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300" />
             </div>
             <Card>
               <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-3 p-4 text-sm">
@@ -145,7 +145,7 @@ export default function DemandeStatsPage() {
                   </div>
                 )}
                 {stats.pending > 0 && (
-                  <div className="flex items-center gap-1.5 text-amber-600">
+                  <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                     <Clock className="h-4 w-4" /><span className="font-medium">{stats.pending}</span> en attente de décision
                   </div>
                 )}
@@ -196,10 +196,10 @@ export default function DemandeStatsPage() {
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Familles &amp; qualité des dossiers</h2>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <Stat icon={UsersRound} label="Fratries (familles)" value={stats.siblingGroups} tone="bg-amber-100 text-amber-700" />
-              <Stat icon={UsersRound} label="Demandes en fratrie" value={stats.siblingDemandes} tone="bg-amber-100 text-amber-700" />
-              <Stat icon={Link2} label="Avec proches scouts" value={stats.withScoutRelations} tone="bg-teal-100 text-teal-700" />
-              <Stat icon={AlertTriangle} label="Dossiers incomplets" value={stats.incompleteDossiers} tone={stats.incompleteDossiers > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} />
+              <Stat icon={UsersRound} label="Fratries (familles)" value={stats.siblingGroups} tone="bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300" />
+              <Stat icon={UsersRound} label="Demandes en fratrie" value={stats.siblingDemandes} tone="bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300" />
+              <Stat icon={Link2} label="Avec proches scouts" value={stats.withScoutRelations} tone="bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300" />
+              <Stat icon={AlertTriangle} label="Dossiers incomplets" value={stats.incompleteDossiers} tone={stats.incompleteDossiers > 0 ? 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300' : 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300'} />
             </div>
             {stats.incompleteDossiers > 0 && (
               <p className="text-xs text-muted-foreground">Dossier incomplet = date de naissance, parent/tuteur ou téléphone parent manquant.</p>

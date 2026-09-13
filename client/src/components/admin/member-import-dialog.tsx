@@ -82,8 +82,8 @@ export function MemberImportDialog({ open, onOpenChange }: { open: boolean; onOp
             {preview && preview.rows.length > 0 && (
               <div>
                 <div className="mb-2 flex flex-wrap items-center gap-3 text-sm">
-                  <span className="inline-flex items-center gap-1 font-medium text-emerald-600"><CheckCircle2 className="h-4 w-4" />{preview.validCount} valide(s)</span>
-                  {preview.errorCount > 0 && <span className="inline-flex items-center gap-1 font-medium text-amber-600"><AlertTriangle className="h-4 w-4" />{preview.errorCount} en erreur</span>}
+                  <span className="inline-flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" />{preview.validCount} valide(s)</span>
+                  {preview.errorCount > 0 && <span className="inline-flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400"><AlertTriangle className="h-4 w-4" />{preview.errorCount} en erreur</span>}
                 </div>
                 <div className="max-h-72 overflow-y-auto rounded-lg border">
                   <table className="w-full text-sm">
@@ -100,7 +100,7 @@ export function MemberImportDialog({ open, onOpenChange }: { open: boolean; onOp
                           <td className="px-2 py-1.5">{r.gender}</td>
                           <td className="px-2 py-1.5">{r.unitName}</td>
                           <td className="px-2 py-1.5">
-                            {r.valid ? <span className="text-emerald-600">OK</span>
+                            {r.valid ? <span className="text-emerald-600 dark:text-emerald-400">OK</span>
                               : <span className="text-destructive">{r.errors.join(' · ')}</span>}
                           </td>
                         </tr>
@@ -117,10 +117,10 @@ export function MemberImportDialog({ open, onOpenChange }: { open: boolean; onOp
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm">
               <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              <span><span className="font-semibold">{result.created}</span> membre(s) importé(s){result.failed > 0 && <>, <span className="font-semibold text-amber-600">{result.failed}</span> en échec</>}.</span>
+              <span><span className="font-semibold">{result.created}</span> membre(s) importé(s){result.failed > 0 && <>, <span className="font-semibold text-amber-600 dark:text-amber-400">{result.failed}</span> en échec</>}.</span>
             </div>
             {result.errors.length > 0 && (
-              <div className="max-h-64 overflow-y-auto rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-800">
+              <div className="max-h-64 overflow-y-auto rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 p-3 text-xs text-amber-800 dark:text-amber-300">
                 {result.errors.map((e, i) => <p key={i}>{e}</p>)}
               </div>
             )}

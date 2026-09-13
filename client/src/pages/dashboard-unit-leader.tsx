@@ -435,7 +435,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
                     </div>
                     {absenceCounts.get(m.memberId) ? (
                       <Tip content="Absences aux réunions cette année">
-                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                           <CalendarCheck className="h-3 w-3" />{absenceCounts.get(m.memberId)}
                         </span>
                       </Tip>

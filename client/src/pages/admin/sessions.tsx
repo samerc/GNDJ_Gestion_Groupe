@@ -34,8 +34,8 @@ function fmt(iso: string | null): string {
 
 // Where the account is active (the "Où" column) — a member/chef in the app, or a parent in the demande portal.
 const SPACE: Record<ActiveSession['kind'], { label: string; className: string }> = {
-  member: { label: 'Membres et chefs', className: 'bg-indigo-100 text-indigo-700' },
-  applicant: { label: 'Portail des demandes', className: 'bg-teal-100 text-teal-700' },
+  member: { label: 'Membres et chefs', className: 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300' },
+  applicant: { label: 'Portail des demandes', className: 'bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300' },
 }
 
 // ONE table for both realms (members + parents), with a "Où" column telling them apart.
@@ -55,7 +55,7 @@ function SessionTable({
           Sessions
           <Badge variant="secondary">{sessions.length}</Badge>
           {online > 0 && (
-            <Badge className="bg-emerald-100 text-emerald-700">
+            <Badge className="bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300">
               <Wifi className="mr-1 h-3 w-3" />{online} en ligne
             </Badge>
           )}
@@ -91,7 +91,7 @@ function SessionTable({
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                            <span className="h-2 w-2 rounded-full bg-slate-300" />Session ouverte
+                            <span className="h-2 w-2 rounded-full bg-muted-foreground/50" />Session ouverte
                           </span>
                         )}
                       </td>
@@ -170,7 +170,7 @@ export default function SessionsPage() {
         </p>
       </div>
 
-      <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+      <div className="flex items-start gap-2 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 p-3 text-sm text-blue-800 dark:text-blue-300">
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
         <p>
           « En ligne » correspond à une activité dans les {data.onlineWindowMinutes} dernières minutes (le compte

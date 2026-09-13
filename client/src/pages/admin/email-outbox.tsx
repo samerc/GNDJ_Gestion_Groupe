@@ -23,9 +23,9 @@ import {
 } from 'lucide-react'
 
 function statusBadge(status: string) {
-  if (status === 'Sent') return <Badge className="bg-green-100 text-green-700">Envoyé</Badge>
-  if (status === 'Failed') return <Badge className="bg-red-100 text-red-700">Échec</Badge>
-  return <Badge className="bg-amber-100 text-amber-700">En attente</Badge>
+  if (status === 'Sent') return <Badge className="bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300">Envoyé</Badge>
+  if (status === 'Failed') return <Badge className="bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300">Échec</Badge>
+  return <Badge className="bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300">En attente</Badge>
 }
 
 function OutboxRow({ entry, idx, onRetry, onDelete, busy }: {
@@ -151,9 +151,9 @@ export default function EmailOutboxPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard icon={Clock} label="En attente" value={s?.pending ?? 0} tone="bg-amber-100 text-amber-600" />
-        <StatCard icon={AlertTriangle} label="Échecs" value={s?.failed ?? 0} tone="bg-red-100 text-red-600" />
-        <StatCard icon={CheckCircle2} label="Envoyés" value={s?.sent ?? 0} tone="bg-green-100 text-green-600" />
+        <StatCard icon={Clock} label="En attente" value={s?.pending ?? 0} tone="bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400" />
+        <StatCard icon={AlertTriangle} label="Échecs" value={s?.failed ?? 0} tone="bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400" />
+        <StatCard icon={CheckCircle2} label="Envoyés" value={s?.sent ?? 0} tone="bg-green-100 dark:bg-green-950/50 text-green-600 dark:text-green-400" />
       </div>
 
       <Card>

@@ -347,7 +347,7 @@ export default function PassageValidationPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
               <Users className="h-5 w-5" />
             </div>
             <div>
@@ -358,7 +358,7 @@ export default function PassageValidationPage() {
         </Card>
         <Card>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
               <Clock className="h-5 w-5" />
             </div>
             <div>
@@ -369,7 +369,7 @@ export default function PassageValidationPage() {
         </Card>
         <Card>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950/50 text-green-600 dark:text-green-400">
               <CheckCircle2 className="h-5 w-5" />
             </div>
             <div>
@@ -380,7 +380,7 @@ export default function PassageValidationPage() {
         </Card>
         <Card>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400">
               <XCircle className="h-5 w-5" />
             </div>
             <div>
@@ -562,7 +562,7 @@ export default function PassageValidationPage() {
       {/* Finalize section */}
       <div className="flex flex-col items-end gap-2 pt-4">
         {missingInScope > 0 && (
-          <div className="w-full rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+          <div className="w-full rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-300">
             <strong>{missingInScope} membre(s) actif(s) sans ligne de passage</strong>
             {unitFilter === '_all' ? ' (toutes unités)' : ' dans cette unité'}.
             {' '}Le passage ne peut pas être finalisé tant que chaque membre n'a pas une décision
@@ -570,7 +570,7 @@ export default function PassageValidationPage() {
           </div>
         )}
         {missingInScope === 0 && pendingCount > 0 && unitFilter === '_all' && (
-          <div className="w-full rounded-md border border-amber-200 bg-amber-50/60 p-3 text-sm text-amber-700">
+          <div className="w-full rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 p-3 text-sm text-amber-700 dark:text-amber-300">
             {pendingCount} proposition(s) en attente de revue. La finalisation ne traitera que les passages acceptés.
           </div>
         )}
