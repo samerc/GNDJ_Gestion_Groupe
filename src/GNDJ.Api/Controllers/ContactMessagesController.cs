@@ -46,6 +46,15 @@ public class ContactMessagesController : BaseApiController
         return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
     }
 
+    /// <summary>Claim / release a message ("En cours de traitement par X").</summary>
+    [HttpPost("{id:guid}/claim")]
+    [HasPermission(Permissions.ContentManage)]
+    public async Task<IActionResult> Claim(Guid id, [FromBody] ClaimBody body)
+    {
+        var result = await Mediator.Send(new ClaimContactMessageCommand(id, body.Claim));
+        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+    }
+
     /// <summary>Delete a message (soft-delete).</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.ContentManage)]
@@ -66,4 +75,5 @@ public class ContactMessagesController : BaseApiController
 
     public record MarkReadBody(bool Read);
     public record ReplyBody(string Subject, string Body);
+    public record ClaimBody(bool Claim);
 }

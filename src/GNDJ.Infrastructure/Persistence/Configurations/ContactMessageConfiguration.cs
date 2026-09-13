@@ -19,6 +19,7 @@ public class ContactMessageConfiguration : IEntityTypeConfiguration<ContactMessa
         builder.Property(e => e.Message).HasColumnType("text");
         builder.Property(e => e.ReplySubject).HasMaxLength(200);
         builder.Property(e => e.ReplyBody).HasColumnType("text");
+        builder.Property(e => e.ClaimedByName).HasMaxLength(200);
 
         builder.HasIndex(e => new { e.IsRead, e.CreatedAt });
     }

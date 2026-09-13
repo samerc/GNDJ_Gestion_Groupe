@@ -4954,6 +4954,22 @@ The first four of the "worth doing" QOL list (the user asked for all 8). DEV unt
   unit dashboard); both hide when empty. `useUpcomingBirthdays` (hourly staleTime). Verified live: today+1 →
   turning-age correct, 30d=101 / 90d=262 (monotonic), ordered by daysUntil. dotnet + tsc + eslint + vite clean.
 
+### QOL batch: contact-message claim + notification preferences (2026-09-13)
+Items 5–6 of the QOL list. DEV until deploy (2 migrations apply on prod startup).
+- **Contact-message claim** ("En cours de traitement par X"): `ContactMessage` gained `ClaimedByUserId`/
+  `ClaimedByName`(denormalized)/`ClaimedAt` (migration `AddContactMessageClaim`). `ClaimContactMessageCommand(Id,
+  Claim)` + `POST /contact-messages/{id}/claim` (content.manage): claim assigns to the caller (resolves their
+  member name), release clears. DTO carries the claim fields. Inbox UI: an amber "En cours de traitement par …"
+  chip on the row + a banner in the detail (with **Libérer**), and a **"Je m'en occupe"** footer button when
+  unclaimed. Verified live: claim 204 → claimedByName="Admin Système" → release 204.
+- **Notification preferences (mute categories)**: `Member.NotificationMutesJson` (JSON array of muted type
+  strings; migration `AddMemberNotificationMutes`). `NotificationPrefs.MutedTypesAsync` filters the bell list +
+  unread count (`.Where(n => !muted.Contains(n.Type))`). `GetNotificationPreferencesQuery` +
+  `UpdateNotificationPreferencesCommand` (validates against the known category set) + `GET|PUT
+  /notifications/preferences` (auth-only, own). Bell dropdown got a ⚙ opening a `NotificationPreferencesDialog`
+  (checkbox per category = receive; unchecked = muted). Verified live: default [] → PUT ["info","hold"] persisted
+  → reset []. dotnet + tsc + eslint + vite clean.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

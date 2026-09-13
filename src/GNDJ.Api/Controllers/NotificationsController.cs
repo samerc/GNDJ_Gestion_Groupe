@@ -46,6 +46,21 @@ public class NotificationsController : BaseApiController
         return Ok(new { deleted = result.Value });
     }
 
+    /// <summary>The caller's muted notification categories.</summary>
+    [HttpGet("preferences")]
+    public async Task<IActionResult> Preferences()
+        => Ok(await Mediator.Send(new GetNotificationPreferencesQuery()));
+
+    /// <summary>Update the caller's muted notification categories.</summary>
+    [HttpPut("preferences")]
+    public async Task<IActionResult> UpdatePreferences([FromBody] UpdatePreferencesBody body)
+    {
+        var result = await Mediator.Send(new UpdateNotificationPreferencesCommand(body.MutedTypes ?? []));
+        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+    }
+
+    public record UpdatePreferencesBody(List<string>? MutedTypes);
+
     /// <summary>Delete one notification (idempotent; a foreign id is a no-op).</summary>
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)

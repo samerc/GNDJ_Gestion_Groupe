@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Bell, FileText, ClipboardCheck, UserPlus, PauseCircle, Check, Trash2, X } from 'lucide-react'
+import { Bell, FileText, ClipboardCheck, UserPlus, PauseCircle, Check, Trash2, X, Settings2 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import {
   useUnreadNotificationCount, useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead,
-  useDeleteNotification, useClearReadNotifications,
+  useDeleteNotification, useClearReadNotifications, useNotificationPreferences, useUpdateNotificationPreferences,
   type NotificationDto, type NotificationType,
 } from '@/services/notification-service'
 
@@ -38,6 +40,7 @@ function timeAgo(iso: string): string {
 // and marks it read. Shown to every logged-in user (the top bar is rendered for all roles).
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
+  const [prefsOpen, setPrefsOpen] = useState(false)
   const navigate = useNavigate()
   const { data: unread = 0 } = useUnreadNotificationCount()
   const { data, isLoading } = useNotifications(open) // list fetched only while the dropdown is open
@@ -56,6 +59,7 @@ export function NotificationBell() {
   }
 
   return (
+    <>
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative shrink-0 text-white/80 hover:bg-white/10 hover:text-white" aria-label="Notifications">
@@ -71,6 +75,11 @@ export function NotificationBell() {
         <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
           <span className="text-sm font-semibold">Notifications</span>
           <div className="flex items-center gap-3">
+            <button type="button" title="Préférences de notifications" aria-label="Préférences de notifications"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => { setOpen(false); setPrefsOpen(true) }}>
+              <Settings2 className="h-3.5 w-3.5" />
+            </button>
             {unread > 0 && (
               <button
                 type="button"
@@ -145,5 +154,62 @@ export function NotificationBell() {
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
+    <NotificationPreferencesDialog open={prefsOpen} onOpenChange={setPrefsOpen} />
+    </>
+  )
+}
+
+// Categories a user can mute (label + type). Keep in sync with the backend Allowed set + NotificationTypes.
+const MUTABLE: { type: NotificationType; label: string; help: string }[] = [
+  { type: 'document', label: 'Documents', help: 'Validation / refus de vos documents' },
+  { type: 'change_request', label: 'Modifications à valider', help: 'Propositions de progression / fonction' },
+  { type: 'demande', label: "Demandes d'inscription", help: 'Nouvelles demandes (responsables)' },
+  { type: 'hold', label: 'Suspensions de compte', help: 'Mise en attente d\'un dossier' },
+  { type: 'info', label: 'Informations générales', help: 'Messages de contact, annonces, divers' },
+]
+
+// A small dialog to mute/unmute notification categories. A checked box = RECEIVE that category; unchecking mutes it.
+function NotificationPreferencesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const { data: muted } = useNotificationPreferences(open)
+  const update = useUpdateNotificationPreferences()
+  // Local editable copy of the muted set, seeded from the server value when the dialog opens.
+  const [mutedSet, setMutedSet] = useState<NotificationType[]>([])
+  const [seeded, setSeeded] = useState(false)
+  if (open && !seeded && muted) { setMutedSet(muted); setSeeded(true) }
+  if (!open && seeded) setSeeded(false)
+
+  const isOn = (t: NotificationType) => !mutedSet.includes(t) // checked = receive = NOT muted
+  const toggle = (t: NotificationType) =>
+    setMutedSet((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]))
+
+  const save = () => {
+    update.mutate(mutedSet, {
+      onSuccess: () => { toast.success('Préférences enregistrées'); onOpenChange(false) },
+      onError: () => toast.error('Échec de l\'enregistrement'),
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Préférences de notifications</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">Choisissez les notifications que vous souhaitez recevoir (cloche).</p>
+        <div className="space-y-1 py-2">
+          {MUTABLE.map((m) => (
+            <label key={m.type} className="flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-muted/60">
+              <input type="checkbox" checked={isOn(m.type)} onChange={() => toggle(m.type)} className="mt-0.5 h-4 w-4 rounded border-input accent-primary" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">{m.label}</span>
+                <span className="block text-xs text-muted-foreground">{m.help}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
+          <Button onClick={save} disabled={update.isPending}>{update.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

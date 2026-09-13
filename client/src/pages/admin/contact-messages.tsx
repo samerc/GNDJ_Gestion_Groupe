@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Mail, MailOpen, Search, X, Reply, Trash2, Send, CornerUpLeft, MessageSquare } from 'lucide-react'
+import { Mail, MailOpen, Search, X, Reply, Trash2, Send, CornerUpLeft, MessageSquare, UserCheck } from 'lucide-react'
 import { useDebounce } from '@/hooks/use-debounce'
 import {
   useContactMessages,
@@ -7,6 +7,7 @@ import {
   useReplyContactMessage,
   useDeleteContactMessage,
   useRestoreContactMessage,
+  useClaimContactMessage,
   type ContactMessageDto,
 } from '@/services/contact-message-service'
 import { Button } from '@/components/ui/button'
@@ -113,6 +114,11 @@ export default function ContactMessagesPage() {
                 <p className="truncate text-xs text-muted-foreground">{m.message}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <span className="text-xs text-muted-foreground">{m.senderEmail}</span>
+                  {m.claimedByName && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                      <UserCheck className="h-3 w-3" /> {m.claimedByName}
+                    </span>
+                  )}
                   {m.repliedAt && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
                       <CornerUpLeft className="h-3 w-3" /> Répondu
@@ -185,6 +191,7 @@ function MessageDialog({
   onDelete: () => void
 }) {
   const reply = useReplyContactMessage()
+  const claim = useClaimContactMessage()
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
 
@@ -222,6 +229,16 @@ function MessageDialog({
             </div>
             <span className="text-xs text-muted-foreground">{fmt(message.createdAt)}</span>
           </div>
+
+          {/* Claim banner — who's handling this message. */}
+          {message.claimedByName && (
+            <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs text-amber-800">
+              <UserCheck className="h-3.5 w-3.5 shrink-0" />
+              <span className="flex-1">En cours de traitement par <span className="font-medium">{message.claimedByName}</span></span>
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" disabled={claim.isPending}
+                onClick={() => claim.mutate({ id: message.id, claim: false })}>Libérer</Button>
+            </div>
+          )}
 
           {/* Message body */}
           <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.message}</p>
@@ -263,6 +280,12 @@ function MessageDialog({
 
         <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
           <div className="flex flex-wrap gap-2">
+            {!message.claimedByName && (
+              <Button variant="outline" size="sm" disabled={claim.isPending}
+                onClick={() => claim.mutate({ id: message.id, claim: true })}>
+                <UserCheck className="mr-1.5 h-4 w-4" />Je m'en occupe
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={onMarkUnread}>Marquer comme non lu</Button>
             <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={onDelete}>
               <Trash2 className="mr-1.5 h-4 w-4" />Supprimer

@@ -11,7 +11,8 @@ namespace GNDJ.Application.Public;
 // controller with content.manage; every handler is manager-only by that route policy.
 public record ContactMessageDto(
     Guid Id, string SenderName, string SenderEmail, string Subject, string Message,
-    bool IsRead, DateTime CreatedAt, DateTime? RepliedAt, string? ReplySubject, string? ReplyBody);
+    bool IsRead, DateTime CreatedAt, DateTime? RepliedAt, string? ReplySubject, string? ReplyBody,
+    Guid? ClaimedByUserId, string? ClaimedByName, DateTime? ClaimedAt);
 
 public record ContactMessageListDto(IReadOnlyList<ContactMessageDto> Items, int Total, int UnreadCount, bool HasMore);
 
@@ -52,7 +53,8 @@ public class GetContactMessagesQueryHandler(IApplicationDbContext context)
             .Skip((page - 1) * size).Take(size + 1) // +1 to detect "has more"
             .Select(m => new ContactMessageDto(
                 m.Id, m.SenderName, m.SenderEmail, m.Subject, m.Message,
-                m.IsRead, m.CreatedAt, m.RepliedAt, m.ReplySubject, m.ReplyBody))
+                m.IsRead, m.CreatedAt, m.RepliedAt, m.ReplySubject, m.ReplyBody,
+                m.ClaimedByUserId, m.ClaimedByName, m.ClaimedAt))
             .ToListAsync(ct);
 
         var hasMore = items.Count > size;
@@ -136,6 +138,36 @@ public class ReplyContactMessageCommandHandler(IApplicationDbContext context, IC
             $"{(string.IsNullOrWhiteSpace(replier) ? "Un responsable" : replier)} a répondu à {m.SenderName}",
             "/admin/contact-messages", excludeMemberId: currentUser.MemberId, ct: ct);
 
+        return Result<bool>.Success(true);
+    }
+}
+
+// ── Claim / release ("En cours de traitement par X") ──────────────────────────
+// A manager takes ownership so others see it's handled (and don't also reply). Claiming reassigns to the caller;
+// releasing clears it. Name is denormalized for display.
+public record ClaimContactMessageCommand(Guid Id, bool Claim) : IRequest<Result<bool>>;
+
+public class ClaimContactMessageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<ClaimContactMessageCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(ClaimContactMessageCommand request, CancellationToken ct)
+    {
+        var m = await context.ContactMessages.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+        if (m is null) return Result<bool>.Failure("Message introuvable.");
+        if (request.Claim)
+        {
+            var name = currentUser.MemberId is Guid mid
+                ? await context.Members.Where(x => x.Id == mid).Select(x => (x.FirstName + " " + x.LastName).Trim()).FirstOrDefaultAsync(ct)
+                : null;
+            m.ClaimedByUserId = currentUser.UserId;
+            m.ClaimedByName = string.IsNullOrWhiteSpace(name) ? "Un responsable" : name;
+            m.ClaimedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            m.ClaimedByUserId = null; m.ClaimedByName = null; m.ClaimedAt = null;
+        }
+        await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);
     }
 }

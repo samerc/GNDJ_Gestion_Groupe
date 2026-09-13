@@ -15,6 +15,12 @@ public class ContactMessage : BaseEntity
     public bool IsRead { get; set; }
     public DateTime? ReadAt { get; set; }
 
+    // Claim ("En cours de traitement par X") — a manager takes ownership so others don't also reply. Name is
+    // denormalized for display (mirrors the reply/notification pattern).
+    public Guid? ClaimedByUserId { get; set; }
+    public string? ClaimedByName { get; set; }
+    public DateTime? ClaimedAt { get; set; }
+
     // Reply tracking — set when a manager answers from the inbox (a "Re:" email is queued to SenderEmail).
     public DateTime? RepliedAt { get; set; }
     public string? ReplySubject { get; set; }

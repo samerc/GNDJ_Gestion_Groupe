@@ -3,6 +3,8 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      "Messages de contact — « Je m'en occupe » : un responsable peut prendre en charge un message pour que les autres voient qu'il est traité (badge « En cours de traitement par … » sur la liste et dans le détail). Un bouton « Libérer » le remet à disposition.",
+      "Notifications — préférences : via l'engrenage de la cloche, chacun peut choisir les catégories de notifications qu'il reçoit (Documents, Modifications à valider, Demandes, Suspensions, Informations générales). Les catégories désactivées n'apparaissent plus dans la cloche ni dans le compteur.",
       "Anniversaires à venir : un encart « Anniversaires à venir » liste les membres qui fêtent leur anniversaire dans les 30 prochains jours (nom, unité, âge, date). Sur le tableau de bord du groupe pour le chef de groupe (tout le groupe) et via un bouton « Anniversaires » sur le tableau de bord d'unité pour le chef d'unité (ses membres). Chaque nom ouvre la fiche du membre.",
       "Copier en un clic : une petite icône « copier » à côté des courriels et téléphones (fiche membre + parents) copie la valeur dans le presse-papiers — pratique pour coller ailleurs. Réservé aux chefs.",
       "Membres favoris + récemment consultés : une étoile sur la fiche d'un membre l'ajoute aux favoris ; la recherche rapide (Ctrl+K) affiche alors vos favoris et les membres récemment consultés dès l'ouverture, pour y revenir en un clic (par appareil).",

@@ -25,7 +25,9 @@ public class GetNotificationsQueryHandler(IApplicationDbContext context, ICurren
         var page = Math.Max(1, request.Page);
         var size = Math.Clamp(request.PageSize, 1, 100);
 
+        var muted = await NotificationPrefs.MutedTypesAsync(context, memberId, ct);
         var mine = context.Notifications.Where(n => n.MemberId == memberId);
+        if (muted.Count > 0) mine = mine.Where(n => !muted.Contains(n.Type)); // hide muted categories
         var unreadCount = await mine.CountAsync(n => !n.IsRead, ct);
 
         var filtered = request.UnreadOnly ? mine.Where(n => !n.IsRead) : mine;
@@ -50,7 +52,10 @@ public class GetUnreadNotificationCountQueryHandler(IApplicationDbContext contex
     public async ValueTask<int> Handle(GetUnreadNotificationCountQuery request, CancellationToken ct)
     {
         if (currentUser.MemberId is not Guid memberId) return 0;
-        return await context.Notifications.CountAsync(n => n.MemberId == memberId && !n.IsRead, ct);
+        var muted = await NotificationPrefs.MutedTypesAsync(context, memberId, ct);
+        var q = context.Notifications.Where(n => n.MemberId == memberId && !n.IsRead);
+        if (muted.Count > 0) q = q.Where(n => !muted.Contains(n.Type));
+        return await q.CountAsync(ct);
     }
 }
 
@@ -121,5 +126,67 @@ public class ClearReadNotificationsCommandHandler(IApplicationDbContext context,
             .Where(n => n.MemberId == memberId && n.IsRead)
             .ExecuteDeleteAsync(ct);
         return Result<int>.Success(deleted);
+    }
+}
+
+// ── Preferences (mute categories) ─────────────────────────────────────────────
+// The muted set is a JSON array of notification-type strings on the member (Member.NotificationMutesJson).
+public static class NotificationPrefs
+{
+    // Load the caller's muted notification types (empty when none / unparseable).
+    public static async Task<List<string>> MutedTypesAsync(IApplicationDbContext context, Guid memberId, CancellationToken ct)
+    {
+        var json = await context.Members.Where(m => m.Id == memberId).Select(m => m.NotificationMutesJson).FirstOrDefaultAsync(ct);
+        return Parse(json);
+    }
+
+    public static List<string> Parse(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try
+        {
+            var arr = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json);
+            return arr?.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList() ?? [];
+        }
+        catch { return []; }
+    }
+}
+
+// The known notification categories the UI lets a member mute. Keep in sync with NotificationTypes.
+public record NotificationPreferencesDto(IReadOnlyList<string> MutedTypes);
+
+public record GetNotificationPreferencesQuery : IRequest<NotificationPreferencesDto>;
+
+public class GetNotificationPreferencesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetNotificationPreferencesQuery, NotificationPreferencesDto>
+{
+    public async ValueTask<NotificationPreferencesDto> Handle(GetNotificationPreferencesQuery request, CancellationToken ct)
+    {
+        if (currentUser.MemberId is not Guid memberId) return new NotificationPreferencesDto([]);
+        return new NotificationPreferencesDto(await NotificationPrefs.MutedTypesAsync(context, memberId, ct));
+    }
+}
+
+public record UpdateNotificationPreferencesCommand(IReadOnlyList<string> MutedTypes) : IRequest<Result<bool>>;
+
+public class UpdateNotificationPreferencesCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<UpdateNotificationPreferencesCommand, Result<bool>>
+{
+    // Only the known categories are storable, so a stale/garbage value can't slip in.
+    private static readonly HashSet<string> Allowed = new(StringComparer.OrdinalIgnoreCase)
+    {
+        NotificationTypes.Document, NotificationTypes.ChangeRequest, NotificationTypes.Demande,
+        NotificationTypes.Hold, NotificationTypes.Info,
+    };
+
+    public async ValueTask<Result<bool>> Handle(UpdateNotificationPreferencesCommand request, CancellationToken ct)
+    {
+        if (currentUser.MemberId is not Guid memberId) return Result<bool>.Failure("Non authentifié.");
+        var muted = (request.MutedTypes ?? []).Where(t => Allowed.Contains(t)).Distinct().ToList();
+        var member = await context.Members.FirstOrDefaultAsync(m => m.Id == memberId, ct);
+        if (member is null) return Result<bool>.Failure("Membre introuvable.");
+        member.NotificationMutesJson = muted.Count == 0 ? null : System.Text.Json.JsonSerializer.Serialize(muted);
+        await context.SaveChangesAsync(ct);
+        return Result<bool>.Success(true);
     }
 }

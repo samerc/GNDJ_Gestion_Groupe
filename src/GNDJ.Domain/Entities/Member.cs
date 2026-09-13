@@ -56,6 +56,10 @@ public class Member : BaseEntity
     // Only shown to regular members (not chefs — they get the printed guide).
     public DateTime? OnboardingSeenAt { get; set; }
 
+    // Notification preferences: a JSON array of notification-type strings this member has MUTED (e.g.
+    // ["document","info"]). Muted types are excluded from the bell list + unread count. Null/empty = all on.
+    public string? NotificationMutesJson { get; set; }
+
     // Confirmed fratrie: members sharing a SiblingGroupId are brothers/sisters (set by the CG on the Fratries
     // page). Null = not (yet) grouped. See SiblingGroup.
     public Guid? SiblingGroupId { get; set; }

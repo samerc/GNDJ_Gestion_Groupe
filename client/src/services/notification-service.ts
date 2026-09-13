@@ -74,3 +74,20 @@ export function useClearReadNotifications() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications'] }) },
   })
 }
+
+// Preferences — the categories the user has MUTED (hidden from the bell + unread count).
+export function useNotificationPreferences(enabled: boolean) {
+  return useQuery({
+    queryKey: ['notifications', 'preferences'],
+    queryFn: () => apiClient.get<{ mutedTypes: NotificationType[] }>('/notifications/preferences').then(r => r.data.mutedTypes),
+    enabled,
+  })
+}
+
+export function useUpdateNotificationPreferences() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (mutedTypes: NotificationType[]) => apiClient.put('/notifications/preferences', { mutedTypes }).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications'] }) },
+  })
+}

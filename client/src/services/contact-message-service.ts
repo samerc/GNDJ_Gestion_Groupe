@@ -14,6 +14,9 @@ export interface ContactMessageDto {
   repliedAt: string | null
   replySubject: string | null
   replyBody: string | null
+  claimedByUserId: string | null
+  claimedByName: string | null
+  claimedAt: string | null
 }
 
 export interface ContactMessageListDto {
@@ -69,6 +72,16 @@ export function useDeleteContactMessage() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiClient.delete(`/contact-messages/${id}`).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contact-messages'] }),
+  })
+}
+
+// Claim / release a message ("En cours de traitement par X").
+export function useClaimContactMessage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, claim }: { id: string; claim: boolean }) =>
+      apiClient.post(`/contact-messages/${id}/claim`, { claim }).then((r) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['contact-messages'] }),
   })
 }
