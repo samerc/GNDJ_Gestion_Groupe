@@ -72,6 +72,7 @@ public interface IApplicationDbContext
     DbSet<SiblingGroup> SiblingGroups { get; }
     DbSet<SiblingRejection> SiblingRejections { get; }
     DbSet<Notification> Notifications { get; }
+    DbSet<ContactMessage> ContactMessages { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

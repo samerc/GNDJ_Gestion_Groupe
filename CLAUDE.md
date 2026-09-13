@@ -4858,6 +4858,35 @@ degrades to CG-only, harmless). Fixed the 6 confirmed ones (all on main, pushed;
       MustChangePassword is a UI nudge; single-key `GET /settings/{key}` readable by any authed user; camp report
       PDFs are group-wide (CU + CG by design).
 
+### Contact-form inbox — view + reply in-app (2026-09-13)
+The public contact form (`POST /public/contact`) previously ONLY queued a notification email (sender's address
+buried in the body) — no way to browse/reply. Added a persisted in-app inbox. All on main, DEV until deploy;
+verified live end-to-end.
+- **Entity `ContactMessage : BaseEntity`** (migration `AddContactMessages`; `contact_messages` table, index
+  `(is_read, created_at)`): sender name/email/subject/message + IsRead/ReadAt + reply tracking (RepliedAt/
+  ReplySubject/ReplyBody/RepliedByUserId). `SendContactMessageCommandHandler` now **persists first** (never lost
+  even if SMTP is off), **notifies group managers in-app** (`INotificationService.NotifyGroupManagersAsync` →
+  bell, link `/admin/contact-messages`), THEN sends the legacy `contact_form` email as before (nothing changes for
+  those relying on it).
+- **`ContactMessageHandlers.cs`** (all gated at the controller by **`content.manage`** = super-admin / assoc-admin /
+  CG / ACG — same permission as the public-site CMS): `GetContactMessagesQuery` (paged, unread-first then newest,
+  accent-insensitive search across name/email/subject/message via `DbFns.Unaccent` — GOTCHA: keep the search term a
+  plain lowercased string and wrap BOTH sides in `DbFns.Unaccent` INSIDE the LINQ expression; calling it on a C#
+  variable throws the DB-only stub — hit + fixed live), `GetUnreadContactMessageCountQuery` (sidebar badge),
+  `MarkContactMessageReadCommand` (read/unread), `ReplyContactMessageCommand` (queues a "Re:" email to the sender
+  via the seeded `adhoc_message` template through the durable outbox, stamps the reply + marks read),
+  `DeleteContactMessageCommand` (soft). `ContactMessagesController` (`api/v1/contact-messages`).
+- **Frontend:** `contact-message-service.ts` (list/unread-count[polled 60s]/mark-read/reply/delete) + page
+  `/admin/contact-messages` "Messages de contact" (`pages/admin/contact-messages.tsx`, lazy, content.manage route):
+  search + "Non lus uniquement" toggle + unread pill; message rows (unread = bold + primary tint + Mail icon,
+  "Répondu" chip); click → detail Dialog (full message, mailto sender, previous reply, reply composer defaulting
+  subject to "Re: …", mark-unread, delete via ConfirmDialog) + pagination. Shows `<EmailDeliveryWarning>` (reply
+  goes out as email). Sidebar entry in the **Site public** group with an unread badge (wired into BOTH `NavContent`
+  groupPending/renderLink AND `AdminNav` badgeFor).
+- Verified live: public submit → persisted + unread=1 + group-manager notification + `contact_form` email; list/
+  unread/search (accent-insensitive: "kuhkh" → 1); reply → 204 + `adhoc_message` outbox row to the sender; delete →
+  204; unauthenticated → 401. Build clean (dotnet 0/0 + tsc + eslint + vite). Migration applies on prod startup.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

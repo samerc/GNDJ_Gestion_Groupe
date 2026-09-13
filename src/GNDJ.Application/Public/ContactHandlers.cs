@@ -2,6 +2,7 @@ using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Common.Validation;
+using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,7 +10,8 @@ namespace GNDJ.Application.Public;
 
 // Public contact form. Replaces the old open-relay mail() script: the recipient is server-configured
 // (never from the request), input is validated + NoHtml, and the abuse middleware + "forms" rate limit
-// guard the endpoint. The message is delivered via the existing email queue (best-effort, non-blocking).
+// guard the endpoint. The message is delivered via the existing email queue (best-effort, non-blocking)
+// AND persisted so managers can view + reply from the in-app inbox (see ContactMessageHandlers).
 public record SendContactMessageCommand(string Name, string Email, string Subject, string Message) : IRequest<Result<bool>>;
 
 public class SendContactMessageCommandValidator : AbstractValidator<SendContactMessageCommand>
@@ -24,11 +26,30 @@ public class SendContactMessageCommandValidator : AbstractValidator<SendContactM
     }
 }
 
-public class SendContactMessageCommandHandler(IApplicationDbContext context, IEmailQueue emailQueue)
+public class SendContactMessageCommandHandler(IApplicationDbContext context, IEmailQueue emailQueue, INotificationService notifications)
     : IRequestHandler<SendContactMessageCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(SendContactMessageCommand request, CancellationToken ct)
     {
+        var name = request.Name.Trim();
+        var email = request.Email.Trim();
+        var subject = request.Subject.Trim();
+        var message = request.Message.Trim();
+
+        // Persist first so the message is never lost (email delivery is best-effort / may be off). Managers
+        // view + reply to it from the in-app inbox regardless of whether the notification email went out.
+        context.ContactMessages.Add(new ContactMessage
+        {
+            SenderName = name, SenderEmail = email, Subject = subject, Message = message,
+        });
+        await context.SaveChangesAsync(ct);
+
+        // Notify group managers in-app (independent of email) so a message is seen even if SMTP is down.
+        await notifications.NotifyGroupManagersAsync(NotificationTypes.Info,
+            "Nouveau message de contact", $"{name} — {subject}", "/admin/contact-messages", ct);
+
+        // Also send the legacy notification email to the configured recipient (or the first super-admin),
+        // so nothing changes for those relying on it today.
         var configured = await context.Settings
             .Where(s => s.Key == "contact.recipient_email")
             .Select(s => s.Value)
@@ -39,16 +60,14 @@ public class SendContactMessageCommandHandler(IApplicationDbContext context, IEm
             : await context.Users.Where(u => u.IsSuperAdmin && u.IsActive)
                 .Select(u => u.Email).FirstOrDefaultAsync(ct);
 
-        if (string.IsNullOrWhiteSpace(recipient))
-            return Result<bool>.Failure("La messagerie de contact n'est pas configurée. Veuillez réessayer plus tard.");
-
-        await emailQueue.EnqueueAsync(new EmailJob("contact_form", recipient, new Dictionary<string, string>
-        {
-            ["senderName"] = request.Name.Trim(),
-            ["senderEmail"] = request.Email.Trim(),
-            ["subject"] = request.Subject.Trim(),
-            ["message"] = request.Message.Trim(),
-        }), ct);
+        if (!string.IsNullOrWhiteSpace(recipient))
+            await emailQueue.EnqueueAsync(new EmailJob("contact_form", recipient, new Dictionary<string, string>
+            {
+                ["senderName"] = name,
+                ["senderEmail"] = email,
+                ["subject"] = subject,
+                ["message"] = message,
+            }), ct);
 
         return Result<bool>.Success(true);
     }

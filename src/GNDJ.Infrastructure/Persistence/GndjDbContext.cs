@@ -75,6 +75,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<SiblingGroup> SiblingGroups => Set<SiblingGroup>();
     public DbSet<SiblingRejection> SiblingRejections => Set<SiblingRejection>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -78,6 +78,7 @@ const PassageValidationPage = lazy(() => import('@/pages/admin/passage-validatio
 const CotisationDashboardPage = lazy(() => import('@/pages/admin/cotisation-dashboard'))
 const ProgressionPage = lazy(() => import('@/pages/admin/progression'))
 const DocumentTypesPage = lazy(() => import('@/pages/admin/document-types'))
+const AdminContactMessagesPage = lazy(() => import('@/pages/admin/contact-messages'))
 const AdminNewsPage = lazy(() => import('@/pages/admin/news'))
 const AdminEventsPage = lazy(() => import('@/pages/admin/events'))
 const AdminResourcesPage = lazy(() => import('@/pages/admin/resources'))
@@ -249,6 +250,7 @@ export default function App() {
               <Route path="/admin/document-types" element={<DocumentTypesPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.CONTENT_MANAGE} />}>
+              <Route path="/admin/contact-messages" element={<AdminContactMessagesPage />} />
               <Route path="/admin/news" element={<AdminNewsPage />} />
               <Route path="/admin/events" element={<AdminEventsPage />} />
               <Route path="/admin/resources" element={<AdminResourcesPage />} />

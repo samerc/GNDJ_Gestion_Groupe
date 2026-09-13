@@ -45,11 +45,13 @@ import {
   Archive,
   GitMerge,
   MonitorSmartphone,
+  MessageSquare,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { usePendingDemandeCount } from '@/services/demande-admin-service'
 import { usePendingChangeRequestsCount } from '@/services/change-request-service'
+import { useUnreadContactMessageCount } from '@/services/contact-message-service'
 import { useCamps } from '@/services/camp-service'
 import { APP_VERSION, BUILD_COMMIT, BUILD_DATE } from '@/lib/app-version'
 
@@ -159,6 +161,7 @@ const adminGroups: AdminGroup[] = [
   {
     label: 'Site public',
     items: [
+      { path: '/admin/contact-messages', label: 'Messages de contact', icon: MessageSquare, permission: PERMISSIONS.CONTENT_MANAGE },
       { path: '/admin/news', label: 'Actualités', icon: Newspaper, permission: PERMISSIONS.CONTENT_MANAGE },
       { path: '/admin/events', label: 'Agenda', icon: CalendarDays, permission: PERMISSIONS.CONTENT_MANAGE },
       { path: '/admin/resources', label: 'Ressources', icon: Library, permission: PERMISSIONS.CONTENT_MANAGE },
@@ -209,6 +212,8 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   const { data: pendingDemandes } = usePendingDemandeCount(hasPermission(PERMISSIONS.DEMANDE_VIEW))
   // Pending member-change-request badge — only fetched when the user can review them (members.edit).
   const { data: pendingChanges } = usePendingChangeRequestsCount(hasPermission(PERMISSIONS.MEMBERS_EDIT))
+  // Unread contact-message badge — only fetched when the user manages the public site (content.manage).
+  const { data: unreadContact } = useUnreadContactMessageCount(hasPermission(PERMISSIONS.CONTENT_MANAGE))
 
   // Super admin sees admin nav, others see leader nav
   // Managers = super-admins and Chefs de Groupe (group-level). They get the admin nav + groups,
@@ -259,6 +264,7 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
     group.items.reduce((sum, i) => {
       if (i.path === '/admin/demandes') return sum + (pendingDemandes ?? 0)
       if (i.path === '/change-requests') return sum + (pendingChanges ?? 0)
+      if (i.path === '/admin/contact-messages') return sum + (unreadContact ?? 0)
       return sum
     }, 0)
 
@@ -284,6 +290,9 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
         )}
         {!collapsed && item.path === '/change-requests' && (pendingChanges ?? 0) > 0 && (
           <span className="ml-auto rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-900">{pendingChanges}</span>
+        )}
+        {!collapsed && item.path === '/admin/contact-messages' && (unreadContact ?? 0) > 0 && (
+          <span className="ml-auto rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-900">{unreadContact}</span>
         )}
         {collapsed && (
           <span className="pointer-events-none absolute left-full ml-2 rounded-md bg-foreground px-2 py-1 text-xs text-background opacity-0 shadow-md transition-opacity group-hover/nav:opacity-100 whitespace-nowrap z-50">
@@ -457,6 +466,7 @@ export function AdminNav() {
   const { hasPermission } = useAuthStore()
   const { data: pendingDemandes } = usePendingDemandeCount(hasPermission(PERMISSIONS.DEMANDE_VIEW))
   const { data: pendingChanges } = usePendingChangeRequestsCount(hasPermission(PERMISSIONS.MEMBERS_EDIT))
+  const { data: unreadContact } = useUnreadContactMessageCount(hasPermission(PERMISSIONS.CONTENT_MANAGE))
 
   const pinned = adminNavItems.filter((i) => !i.permission || hasPermission(i.permission))
   const groups = adminGroups
@@ -465,7 +475,9 @@ export function AdminNav() {
 
   // Actionable badge count for a nav path (pending demandes / change-requests), and the group's rolled-up total.
   const badgeFor = (path: string) =>
-    path === '/admin/demandes' ? (pendingDemandes ?? 0) : path === '/change-requests' ? (pendingChanges ?? 0) : 0
+    path === '/admin/demandes' ? (pendingDemandes ?? 0)
+      : path === '/change-requests' ? (pendingChanges ?? 0)
+      : path === '/admin/contact-messages' ? (unreadContact ?? 0) : 0
   const groupBadge = (g: AdminGroup) => g.items.reduce((s, i) => s + badgeFor(i.path), 0)
   const isActive = (path: string) => location.pathname === path
 
