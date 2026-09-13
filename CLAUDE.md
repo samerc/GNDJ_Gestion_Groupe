@@ -4644,6 +4644,14 @@ Two items. All on main, DEV until deploy; verified live end-to-end.
   - **Verified live:** approving a real pending document wrote the member's "Document accepté" row (then reverted);
     seed→list→mark-read→count 0→read-all round-trip via the API; table columns correct. Build clean (dotnet 0/0,
     tsc + eslint + vite). Migration applies on prod startup.
+  - **Delete added (2026-09-13):** notifications could only be marked read, not removed. Added `DeleteNotificationCommand`
+    (hard delete — Notification is not a BaseEntity — scoped to the caller's member id, idempotent) +
+    `ClearReadNotificationsCommand` (ExecuteDelete all the caller's READ ones); endpoints `DELETE /notifications/{id}`
+    + `DELETE /notifications/read` (declared BEFORE `{id:guid}` so "read" isn't parsed as a guid). Bell UI: a per-item
+    ✕ (hover/focus-revealed) + an "Effacer les lues" header action next to "Tout marquer comme lu"; the item row was
+    restructured from a single `<button>` to a `div` (clickable region button + ✕ button sibling — no nested buttons).
+    `useDeleteNotification` / `useClearReadNotifications`. Verified live: delete-one 204, read-all 200, clear-read
+    deleted 1, list then empty. DEV until deploy.
 
 ### Accueil dashboard — action hub + timely panels (2026-09-11)
 Turned the CG/super-admin/ACG **Accueil** landing (was purely descriptive: 4 count tiles + members-by-unit +

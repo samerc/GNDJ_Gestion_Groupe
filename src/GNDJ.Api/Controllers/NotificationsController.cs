@@ -37,4 +37,20 @@ public class NotificationsController : BaseApiController
         var result = await Mediator.Send(new MarkAllNotificationsReadCommand());
         return Ok(new { updated = result.Value });
     }
+
+    /// <summary>Delete all of the caller's READ notifications. (Route is before {id} so "read" isn't taken as a guid.)</summary>
+    [HttpDelete("read")]
+    public async Task<IActionResult> ClearRead()
+    {
+        var result = await Mediator.Send(new ClearReadNotificationsCommand());
+        return Ok(new { deleted = result.Value });
+    }
+
+    /// <summary>Delete one notification (idempotent; a foreign id is a no-op).</summary>
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var result = await Mediator.Send(new DeleteNotificationCommand(id));
+        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+    }
 }

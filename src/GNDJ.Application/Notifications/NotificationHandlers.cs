@@ -87,3 +87,39 @@ public class MarkAllNotificationsReadCommandHandler(IApplicationDbContext contex
         return Result<int>.Success(updated);
     }
 }
+
+// ── Delete one ───────────────────────────────────────────────────────────────
+// Notification is NOT a BaseEntity (no soft-delete) so this is a hard delete. Scoped to the caller's member id,
+// so a foreign id simply matches nothing (idempotent, no IDOR).
+public record DeleteNotificationCommand(Guid Id) : IRequest<Result<bool>>;
+
+public class DeleteNotificationCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<DeleteNotificationCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(DeleteNotificationCommand request, CancellationToken ct)
+    {
+        if (currentUser.MemberId is not Guid memberId) return Result<bool>.Failure("Non authentifié.");
+        var n = await context.Notifications.FirstOrDefaultAsync(x => x.Id == request.Id && x.MemberId == memberId, ct);
+        if (n is null) return Result<bool>.Success(true); // idempotent
+        context.Notifications.Remove(n);
+        await context.SaveChangesAsync(ct);
+        return Result<bool>.Success(true);
+    }
+}
+
+// ── Clear read (tidy up) ──────────────────────────────────────────────────────
+// Deletes all of the caller's READ notifications (the natural pairing with "mark all read").
+public record ClearReadNotificationsCommand : IRequest<Result<int>>;
+
+public class ClearReadNotificationsCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<ClearReadNotificationsCommand, Result<int>>
+{
+    public async ValueTask<Result<int>> Handle(ClearReadNotificationsCommand request, CancellationToken ct)
+    {
+        if (currentUser.MemberId is not Guid memberId) return Result<int>.Success(0);
+        var deleted = await context.Notifications
+            .Where(n => n.MemberId == memberId && n.IsRead)
+            .ExecuteDeleteAsync(ct);
+        return Result<int>.Success(deleted);
+    }
+}

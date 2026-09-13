@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Bell, FileText, ClipboardCheck, UserPlus, PauseCircle, Check } from 'lucide-react'
+import { Bell, FileText, ClipboardCheck, UserPlus, PauseCircle, Check, Trash2, X } from 'lucide-react'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
   useUnreadNotificationCount, useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead,
+  useDeleteNotification, useClearReadNotifications,
   type NotificationDto, type NotificationType,
 } from '@/services/notification-service'
 
@@ -42,8 +43,11 @@ export function NotificationBell() {
   const { data, isLoading } = useNotifications(open) // list fetched only while the dropdown is open
   const markRead = useMarkNotificationRead()
   const markAll = useMarkAllNotificationsRead()
+  const removeOne = useDeleteNotification()
+  const clearRead = useClearReadNotifications()
 
   const items = data?.items ?? []
+  const hasRead = items.some((n) => n.isRead)
 
   const openItem = (n: NotificationDto) => {
     if (!n.isRead) markRead.mutate(n.id)
@@ -64,18 +68,30 @@ export function NotificationBell() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 p-0 sm:w-96">
-        <div className="flex items-center justify-between border-b px-3 py-2">
+        <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
           <span className="text-sm font-semibold">Notifications</span>
-          {unread > 0 && (
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
-              disabled={markAll.isPending}
-              onClick={() => markAll.mutate()}
-            >
-              <Check className="h-3.5 w-3.5" />Tout marquer comme lu
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {unread > 0 && (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                disabled={markAll.isPending}
+                onClick={() => markAll.mutate()}
+              >
+                <Check className="h-3.5 w-3.5" />Tout marquer comme lu
+              </button>
+            )}
+            {hasRead && (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-destructive disabled:opacity-50"
+                disabled={clearRead.isPending}
+                onClick={() => clearRead.mutate()}
+              >
+                <Trash2 className="h-3.5 w-3.5" />Effacer les lues
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="max-h-[70vh] overflow-y-auto sm:max-h-96">
@@ -91,27 +107,38 @@ export function NotificationBell() {
               const meta = META[n.type] ?? META.info
               const Icon = meta.icon
               return (
-                <button
+                <div
                   key={n.id}
-                  type="button"
-                  onClick={() => openItem(n)}
                   className={cn(
-                    'flex w-full items-start gap-3 border-b px-3 py-2.5 text-left transition-colors last:border-0 hover:bg-muted/60',
+                    'group/notif relative flex w-full items-start gap-3 border-b px-3 py-2.5 transition-colors last:border-0 hover:bg-muted/60',
                     !n.isRead && 'bg-primary/5',
                   )}
                 >
-                  <div className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full', meta.cls)}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className={cn('truncate text-sm', !n.isRead ? 'font-semibold' : 'font-medium')}>{n.title}</p>
-                      {!n.isRead && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
+                  {/* Clickable region — navigates + marks read. Kept as its own button so the trash icon isn't nested inside it. */}
+                  <button type="button" onClick={() => openItem(n)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                    <div className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full', meta.cls)}>
+                      <Icon className="h-4 w-4" />
                     </div>
-                    {n.body && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.body}</p>}
-                    <p className="mt-1 text-[11px] text-muted-foreground/70">{timeAgo(n.createdAt)}</p>
-                  </div>
-                </button>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className={cn('truncate text-sm', !n.isRead ? 'font-semibold' : 'font-medium')}>{n.title}</p>
+                        {!n.isRead && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
+                      </div>
+                      {n.body && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.body}</p>}
+                      <p className="mt-1 text-[11px] text-muted-foreground/70">{timeAgo(n.createdAt)}</p>
+                    </div>
+                  </button>
+                  {/* Delete this notification (visible on hover / focus; always visible on touch). */}
+                  <button
+                    type="button"
+                    aria-label="Supprimer cette notification"
+                    disabled={removeOne.isPending}
+                    onClick={() => removeOne.mutate(n.id)}
+                    className="mt-0.5 shrink-0 rounded p-1 text-muted-foreground/50 opacity-0 transition-opacity hover:bg-muted hover:text-destructive focus:opacity-100 group-hover/notif:opacity-100"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               )
             })
           )}

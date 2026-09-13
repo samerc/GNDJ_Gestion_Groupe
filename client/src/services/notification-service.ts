@@ -56,3 +56,21 @@ export function useMarkAllNotificationsRead() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications'] }) },
   })
 }
+
+// DELETE /notifications/{id} — remove one notification.
+export function useDeleteNotification() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/notifications/${id}`).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications'] }) },
+  })
+}
+
+// DELETE /notifications/read — clear all READ notifications (tidy up).
+export function useClearReadNotifications() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiClient.delete('/notifications/read').then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications'] }) },
+  })
+}
