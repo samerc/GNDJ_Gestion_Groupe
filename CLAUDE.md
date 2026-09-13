@@ -5002,6 +5002,21 @@ Item 8 (the last of the QOL list). Bulk-create members from a spreadsheet. DEV u
   GOTCHA (test only): curl `-F @/tmp/...` fails exit 26 under MSYS — use a Windows path (`pwd -W`). dotnet + tsc +
   eslint + vite clean.
 
+### Theme reverted to light on refresh — inline no-flash script blocked by CSP (2026-09-14)
+User: "no matter what theme I pick, it reverts to light on refresh." Root cause: the dark-mode work added an
+INLINE `<script>` in `index.html` (the no-flash theme applier), but the production CSP is `script-src 'self'`
+(no `'unsafe-inline'`) — so the browser BLOCKS that inline script in prod (CSP is applied only outside
+Development), and nothing applied `.dark` on load → the persisted choice silently reverted to light every
+refresh. (Dev has no CSP, so it worked there — but the fix doesn't rely on that.) Two-part fix:
+- **No-flash script → external file** `client/public/theme-init.js` (served at `/theme-init.js`, same-origin →
+  allowed by `script-src 'self'`), referenced via `<script src="/theme-init.js">` in `index.html` (replaces the
+  blocked inline script). Runs before first paint (no flash) AND is CSP-compliant.
+- **Store also applies on load** (`stores/theme-store.ts` now calls `apply(stored())` at module init) + is
+  imported at app entry (`main.tsx`) — a bundled `/assets/*.js` module (CSP-allowed), so the theme is re-applied
+  from the store regardless of the inline/external script. Belt-and-suspenders: works in every environment.
+- Verified: `dist/theme-init.js` ships (857 B), `dist/index.html` references it; tsc+eslint+vite clean. CSP
+  unchanged (external same-origin script needs no `'unsafe-inline'`). Frontend-only; DEV until deploy.
+
 ### Dark-mode bug: `dark:` followed the OS, not the app theme (2026-09-14)
 User reported "colors wrong in [a built env], but fine in dev" — a light page with dark banners/badges (e.g. the
 Sessions info box + role badges). Root cause: the dark-theme sweep added hundreds of `dark:` utilities + a `.dark`

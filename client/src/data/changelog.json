@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-14",
+        "text": "Thème clair/sombre — correctif : le thème choisi revenait au clair à chaque rafraîchissement de la page. Le petit script qui applique le thème au démarrage était bloqué par la politique de sécurité (CSP) en production. Il est désormais chargé correctement + réappliqué par l'application, donc le thème persiste après un rafraîchissement."
+      },
+      {
+        "date": "2026-09-14",
         "text": "Recherche — l'en-tête affiche maintenant une simple loupe (gagne de la place) ; un clic ouvre la recherche complète (raccourci Ctrl+K). Réservée aux chefs (invisible pour les membres) ; un chef d'unité ne peut trouver que les membres de sa/ses unité(s)."
       },
       {

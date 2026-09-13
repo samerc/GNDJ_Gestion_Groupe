@@ -17,16 +17,10 @@
     <meta property="og:description" content="Groupe scout Notre-Dame de Jamhour — au service de la jeunesse du Liban depuis 1935." />
     <meta property="og:image" content="/favicon.svg" />
     <meta name="twitter:card" content="summary" />
-    <!-- Apply the saved theme BEFORE first paint to avoid a light→dark flash. Mirrors stores/theme-store.ts. -->
-    <script>
-      (function () {
-        try {
-          var t = localStorage.getItem('theme') || 'system';
-          var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-          if (dark) document.documentElement.classList.add('dark');
-        } catch (e) {}
-      })();
-    </script>
+    <!-- Apply the saved theme BEFORE first paint (no flash). EXTERNAL file (not inline): the production CSP is
+         `script-src 'self'` with no 'unsafe-inline', which blocks an inline <script> — that made the theme
+         revert to light on refresh in prod. A same-origin external script is allowed. Mirrors stores/theme-store.ts. -->
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

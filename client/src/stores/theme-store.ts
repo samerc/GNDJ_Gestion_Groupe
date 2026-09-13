@@ -29,6 +29,12 @@ export const useThemeStore = create<{ theme: Theme; resolved: 'light' | 'dark'; 
   },
 }))
 
+// Apply the persisted theme at module load — belt-and-suspenders with the index.html no-flash script. Without
+// this the store never re-applied `.dark` on load (it relied solely on that inline script), so if the script was
+// missing/stale in a build the choice silently reverted to light on every refresh. Idempotent when the script
+// already applied the same class.
+if (typeof document !== 'undefined') apply(stored())
+
 // Keep "system" in sync if the OS theme changes while the app is open (no-op for explicit light/dark).
 if (typeof window !== 'undefined' && window.matchMedia) {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {

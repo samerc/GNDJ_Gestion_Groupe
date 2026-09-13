@@ -1,4 +1,5 @@
 import './lib/translate-guard' // must run BEFORE React mounts — hardens the DOM against translation extensions
+import './stores/theme-store' // apply the persisted light/dark theme at startup (survives refresh, no-flash)
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClientProvider } from '@tanstack/react-query'
