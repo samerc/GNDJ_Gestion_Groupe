@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      "Identifiants (création de compte / réinitialisation du mot de passe) — un bouton « Copier le message » copie l'identifiant ET le mot de passe ensemble, en un seul texte prêt à envoyer (par ex. sur WhatsApp) au membre, en plus des boutons de copie individuels.",
       "Liste des membres — plus de contrôle : un index A–Z (cliquez une lettre pour n'afficher que les noms de famille qui commencent par celle-ci, accents ignorés — « E » inclut « É »), un choix du nombre de noms par page (25 / 50 / 100 / 200, mémorisé), un sélecteur de page pour aller directement à n'importe quelle page (en plus de Préc. / Suiv.), et un indicateur « X–Y sur N ». Fonctionne avec la recherche et les filtres d'unité / Actifs-Anciens.",
       "Cotisations (fiche membre) — l'état « Ne paiera pas » est de nouveau mis en évidence (texte accentué) par rapport à « Cotisation attendue » : la distinction visuelle avait été aplatie par le passage au thème sombre.",
       "Visite guidée des membres — nouvelle étape « Vos réglages » : le petit tutoriel de première connexion montre désormais où trouver le menu en haut à droite (nom / photo) pour changer son mot de passe, choisir l'affichage Clair / Sombre / Automatique et se déconnecter.",

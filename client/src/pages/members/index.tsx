@@ -76,6 +76,11 @@ const YOUTH_BRANCH_CODES = ['MEU', 'RON', 'COM', 'TRO']
 // Family-name A–Z quick index for the members list.
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
+// One ready-to-send message with both credentials (for pasting into WhatsApp / a chat to the member).
+function credentialsMessage(username: string, password: string): string {
+  return `Identifiant : ${username}\nMot de passe temporaire : ${password}\nÀ changer à la première connexion.`
+}
+
 // Réunion type labels + a dd/MM/yyyy (range) date formatter for the absence-details popup.
 const MEETING_TYPE_LABELS: Record<string, string> = { Reunion: 'Réunion', Sortie: 'Sortie', Camp: 'Camp' }
 function frDate(iso: string): string {
@@ -889,7 +894,12 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
               </div>
             </div>
           </div>
-          <DialogFooter><Button onClick={() => setResetCreds(null)}>Fermer</Button></DialogFooter>
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button variant="outline" onClick={() => { navigator.clipboard.writeText(credentialsMessage(resetCreds?.username ?? '', resetCreds?.password ?? '')); toast.success('Identifiants copiés !') }}>
+              <Copy className="mr-1.5 h-4 w-4" />Copier le message
+            </Button>
+            <Button onClick={() => setResetCreds(null)}>Fermer</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
@@ -1495,7 +1505,10 @@ export default function MembersPage() {
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button variant="outline" onClick={() => { navigator.clipboard.writeText(credentialsMessage(credentialsDialog?.username ?? '', credentialsDialog?.password ?? '')); toast.success('Identifiants copiés !') }}>
+              <Copy className="mr-1.5 h-4 w-4" />Copier le message
+            </Button>
             <Button onClick={() => { if (credentialsDialog) setSelectedMemberId(credentialsDialog.memberId); setCredentialsDialog(null) }}>Fermer</Button>
           </DialogFooter>
         </DialogContent>
