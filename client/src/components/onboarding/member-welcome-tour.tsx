@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Hand, FileText, UserRound, ArrowRight, ChevronLeft } from 'lucide-react'
+import { Hand, FileText, UserRound, SunMoon, ArrowRight, ChevronLeft } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
@@ -36,7 +36,12 @@ const STEPS: Step[] = [
   {
     icon: UserRound,
     title: 'Gardez vos infos à jour',
-    body: "Dans « Ma fiche », vérifiez et mettez à jour vos informations personnelles et vos coordonnées. De même, vous pourrez mettre à jour vos informations scoutes (badges, étapes scoutes…). Pour changer votre mot de passe ou vous déconnecter, utilisez le menu en haut à droite (votre nom).",
+    body: "Dans « Ma fiche », vérifiez et mettez à jour vos informations personnelles et vos coordonnées. De même, vous pourrez mettre à jour vos informations scoutes (badges, étapes scoutes…).",
+  },
+  {
+    icon: SunMoon,
+    title: 'Vos réglages',
+    body: "En haut à droite, cliquez sur votre nom (ou votre photo) pour ouvrir votre menu. Vous pouvez y changer votre mot de passe, choisir l'affichage Clair, Sombre ou Automatique (selon votre téléphone), et vous déconnecter.",
   },
 ]
 
