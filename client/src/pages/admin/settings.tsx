@@ -264,6 +264,31 @@ function ArrayTableEditor({ items, options, onChange }: {
   )
 }
 
+// The "Connexion" category split into two tabs — one login-message editor per audience (Membres vs Inscription),
+// instead of stacking both. Each tab renders that audience's SettingEditor (label/description + the message editor).
+function LoginSettingsTabs({ settings, onSave }: { settings: SettingDto[]; onSave: (key: string, value: string) => Promise<void> }) {
+  const member = settings.find(s => s.key === 'login.member_messages')
+  const applicant = settings.find(s => s.key === 'login.applicant_messages')
+  const [tab, setTab] = useState<'member' | 'applicant'>('member')
+  const active = tab === 'member' ? member : applicant
+  const tabBtn = (v: 'member' | 'applicant', label: string) => (
+    <button type="button" onClick={() => setTab(v)}
+      className={cn('rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
+        tab === v ? 'bg-background text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground')}>
+      {label}
+    </button>
+  )
+  return (
+    <div>
+      <div className="mb-5 inline-flex rounded-lg border border-border bg-muted/40 p-1">
+        {tabBtn('member', 'Membres')}
+        {tabBtn('applicant', 'Inscription')}
+      </div>
+      {active && <SettingEditor setting={active} onSave={onSave} />}
+    </div>
+  )
+}
+
 // Single-row editor: picks the widget from valueType (+ special cases) and self-saves on change.
 // `value` holds scalar string values; `items` holds the parsed list for json_array settings.
 function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { setting: SettingDto; onSave: (key: string, value: string) => Promise<void>; disabled?: boolean; disabledHint?: string }) {
@@ -558,9 +583,14 @@ export default function SettingsPage() {
             {activeCategory && (
               <>
                 <div className="rounded-xl border border-border bg-card p-5 shadow-card">
-                  <div className="divide-y">
-                    {grouped[activeCategory].map(s => <SettingEditor key={s.key} setting={s} onSave={handleSave} {...extraProps(s)} />)}
-                  </div>
+                  {activeCategory === 'login' ? (
+                    // Login-message settings split into two tabs (Membres / Inscription) — one editor per audience.
+                    <LoginSettingsTabs settings={grouped.login} onSave={handleSave} />
+                  ) : (
+                    <div className="divide-y">
+                      {grouped[activeCategory].map(s => <SettingEditor key={s.key} setting={s} onSave={handleSave} {...extraProps(s)} />)}
+                    </div>
+                  )}
                 </div>
                 {/* Inscriptions section also hosts the demande rejection-motifs editor (own CRUD, CG-accessible). */}
                 {activeCategory === 'demande' && (
