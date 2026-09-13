@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-14",
+        "text": "Fiabilité — après une mise à jour du site, une page ouverte depuis longtemps pouvait afficher une erreur (« module introuvable ») en naviguant. L'application se recharge désormais automatiquement une fois pour récupérer la nouvelle version, et cette erreur technique n'est plus signalée comme une panne."
+      },
+      {
+        "date": "2026-09-14",
         "text": "Thème clair/sombre — correctif : le thème choisi revenait au clair à chaque rafraîchissement de la page. Le petit script qui applique le thème au démarrage était bloqué par la politique de sécurité (CSP) en production. Il est désormais chargé correctement + réappliqué par l'application, donc le thème persiste après un rafraîchissement."
       },
       {

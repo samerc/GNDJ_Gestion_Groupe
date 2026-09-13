@@ -1,5 +1,8 @@
-import { lazy, Suspense } from 'react'
+import { Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router'
+// Routes use lazyWithReload (aliased as `lazy`) instead of React.lazy so a stale-deploy chunk error
+// ("Failed to fetch dynamically imported module") self-heals with a one-time page reload — see lazy-with-reload.ts.
+import { lazyWithReload as lazy } from '@/lib/lazy-with-reload'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { AdminRoute } from '@/components/auth/admin-route'
 import { PermissionRoute } from '@/components/auth/permission-route'

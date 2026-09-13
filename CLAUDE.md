@@ -5002,6 +5002,24 @@ Item 8 (the last of the QOL list). Bulk-create members from a spreadsheet. DEV u
   GOTCHA (test only): curl `-F @/tmp/...` fails exit 26 under MSYS — use a Windows path (`pwd -W`). dotnet + tsc +
   eslint + vite clean.
 
+### Stale-deploy chunk error → self-healing lazy routes (2026-09-14)
+Prod error log showed a client error `Failed to fetch dynamically imported module:
+https://gndj.org/assets/error-log-DfvXt912.js` (a CG navigating to /admin/error-log). Root cause: the app
+code-splits every route with `React.lazy` → Vite emits **content-hashed** chunk filenames; after a redeploy the
+hashes change, so a browser still running the OLD `index.html` requests a chunk name the new build no longer has
+→ the dynamic import rejects. Not a real bug (a reload fixes it) but it crashed to the ErrorBoundary + got
+logged/alerted. Fix (frontend-only, DEV until deploy):
+- **`client/src/lib/lazy-with-reload.ts`** — `lazyWithReload` wraps `React.lazy`; on a chunk-load failure
+  (`isChunkLoadError`: "Failed to fetch dynamically imported module" / "error loading dynamically imported
+  module" / "Importing a module script failed") it **reloads the page once** (fresh index.html → new chunk
+  names), guarded by a `sessionStorage['chunk-reload-at']` 10s window so a genuine failure (offline / real 500)
+  can't loop; while reloading it returns a never-resolving promise so the Suspense fallback stays up.
+- **App.tsx** imports it aliased — `import { lazyWithReload as lazy }` (+ dropped `lazy` from the react import) —
+  so all ~120 route `lazy(() => import(...))` calls use it transparently. Chunk splitting verified intact
+  (dnd-vendor/editor-vendor/members/demande-validation still separate chunks).
+- **error-report.ts `isBenignError`** now treats `isChunkLoadError` as benign → never reported to `/errors/report`
+  / the admin alert (the ErrorBoundary already skips reporting benign errors). tsc + eslint + vite build clean.
+
 ### Theme reverted to light on refresh — inline no-flash script blocked by CSP (2026-09-14)
 User: "no matter what theme I pick, it reverts to light on refresh." Root cause: the dark-mode work added an
 INLINE `<script>` in `index.html` (the no-flash theme applier), but the production CSP is `script-src 'self'`

@@ -1,4 +1,5 @@
 import { getAccessToken } from './token-storage'
+import { isChunkLoadError } from './lazy-with-reload'
 
 // Reports a client-side error to the backend (which alerts the super-admin) and returns the reference the
 // user can quote. Best-effort: never throws. Uses a bare fetch (not the axios client) so its own failure —
@@ -52,6 +53,9 @@ export function isBenignError(reason: unknown): boolean {
   if (r.isAxiosError || r.config || r.response) return true // an axios/API error — handled in the UI layer
   const msg = String(r.message ?? reason)
   if (msg.includes('ResizeObserver')) return true // harmless layout-loop warning browsers emit
+  // Stale-deploy chunk error (old index.html requests a chunk the new build renamed) — lazyWithReload reloads
+  // the page to fix it, so it's not a real fault to alert on.
+  if (isChunkLoadError(reason)) return true
   // DOM mutations by browser translation extensions (Google Translate / "Traduire cette page") race React's
   // commit and throw these — not our bug (see translate-guard.ts, which also stops them crashing the page).
   if (msg.includes("insertBefore' on 'Node'") || msg.includes("removeChild' on 'Node'")) return true
