@@ -100,16 +100,15 @@ export function CommandPalette() {
 
   return (
     <>
-      {/* Header trigger: full pill on desktop, icon-only on small screens. */}
+      {/* Header trigger: a compact magnifying-glass icon (saves space); click opens the full search dialog (Ctrl/⌘-K). */}
       <button
         type="button"
         onClick={openPalette}
-        aria-label="Rechercher"
-        className="flex shrink-0 items-center gap-2 rounded-md text-white/80 transition-colors hover:bg-white/10 hover:text-white px-2 py-1.5 lg:w-56 lg:justify-start lg:border lg:border-white/20 lg:bg-white/5"
+        aria-label="Rechercher (Ctrl+K)"
+        title="Rechercher (Ctrl+K)"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/80 transition-colors hover:bg-white/10 hover:text-white"
       >
         <Search className="h-4 w-4" />
-        <span className="hidden lg:inline text-sm text-white/60">Rechercher…</span>
-        <kbd className="ml-auto hidden rounded border border-white/20 px-1.5 py-0.5 text-[10px] font-medium text-white/50 lg:inline">Ctrl K</kbd>
       </button>
 
       <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>

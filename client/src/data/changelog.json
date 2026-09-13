@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-14",
+        "text": "Recherche — l'en-tête affiche maintenant une simple loupe (gagne de la place) ; un clic ouvre la recherche complète (raccourci Ctrl+K). Réservée aux chefs (invisible pour les membres) ; un chef d'unité ne peut trouver que les membres de sa/ses unité(s)."
+      },
+      {
+        "date": "2026-09-14",
         "text": "Mode sombre — correctif : les couleurs sombres (bannières, pastilles) s'appliquaient selon le réglage clair/sombre du système d'exploitation au lieu du thème choisi dans l'application. Résultat : sur un ordinateur/téléphone réglé en mode sombre mais avec le thème « Clair » dans l'application, la page restait claire mais certains encadrés devenaient sombres. Le mode sombre suit désormais uniquement le thème choisi dans l'application."
       },
       {
