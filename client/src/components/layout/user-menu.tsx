@@ -18,8 +18,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, KeyRound, IdCard, MonitorSmartphone, FileText, Image as ImageIcon, Sparkles, Globe } from 'lucide-react'
+import { LogOut, KeyRound, IdCard, MonitorSmartphone, FileText, Image as ImageIcon, Sparkles, Globe, Sun, Moon, Monitor } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+import { useThemeStore, type Theme } from '@/stores/theme-store'
 
 // The single account/personal menu (avatar → dropdown), used by the header (mobile + non-managers) and the
 // manager top bar. Merges the personal pages (Ma fiche / Mes documents / Trombinoscope) with the account
@@ -32,6 +34,8 @@ export function UserMenu() {
   const isManager = useIsManager()
   const isRegularMember = useIsRegularMember()
   const openTour = useOnboardingTour((s) => s.open)
+  const theme = useThemeStore((s) => s.theme)
+  const setTheme = useThemeStore((s) => s.setTheme)
   const [loggingOut, setLoggingOut] = useState(false)
 
   const signOutOthersMutation = useSignOutOtherDevices()
@@ -108,6 +112,25 @@ export function UserMenu() {
             <Globe className="mr-2 h-4 w-4" />
             Voir le site public
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {/* Theme switcher (Clair / Sombre / Auto). Plain buttons (not menu items) so picking one doesn't
+              close the menu — the user sees the change apply live. */}
+          <div className="px-2 py-1.5">
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Apparence</p>
+            <div className="flex gap-1">
+              {([['light', Sun, 'Clair'], ['dark', Moon, 'Sombre'], ['system', Monitor, 'Auto']] as const).map(([val, Icon, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setTheme(val as Theme) }}
+                  className={cn('flex flex-1 flex-col items-center gap-1 rounded-md border px-2 py-1.5 text-[11px] transition-colors',
+                    theme === val ? 'border-primary bg-primary/10 font-medium text-primary' : 'border-transparent text-muted-foreground hover:bg-muted')}
+                >
+                  <Icon className="h-4 w-4" />{label}
+                </button>
+              ))}
+            </div>
+          </div>
           <DropdownMenuSeparator />
           {/* Personal pages here ONLY for managers — they have no left sidebar (their nav is the horizontal top
               bar), so this menu is their only access. Regular members already have these in the sidebar/drawer. */}

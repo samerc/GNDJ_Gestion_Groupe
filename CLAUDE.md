@@ -4970,6 +4970,15 @@ Items 5–6 of the QOL list. DEV until deploy (2 migrations apply on prod startu
   (checkbox per category = receive; unchecked = muted). Verified live: default [] → PUT ["info","hold"] persisted
   → reset []. dotnet + tsc + eslint + vite clean.
 
+### QOL: dark mode (2026-09-13)
+Item 7 of the QOL list (frontend-only). The `.dark` token overrides ALREADY existed in `index.css` (full set),
+so this only wired a toggle: `stores/theme-store.ts` (zustand: `theme` light/dark/system + `resolved`; toggles
+`.dark` on `<html>`, persists to `localStorage['theme']`, listens to the OS `prefers-color-scheme` change for
+"system") + an inline no-flash script in `index.html` (applies the saved theme before first paint) + a 3-way
+segmented switcher (Clair / Sombre / Auto, Sun/Moon/Monitor) in the account menu (`user-menu.tsx`, plain buttons
+so picking one doesn't close the dropdown). Role-coloured header/sidebar use inline hex (unaffected — already
+dark); everything else flips via the semantic tokens. tsc + eslint + vite clean.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a
