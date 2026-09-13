@@ -56,8 +56,8 @@ export default function ApplicantLoginPage() {
 
   return (
     <ApplicantAuthShell subtitle="Suivre votre demande d'inscription — GNDJ Scout">
-      {/* Admin-editable announcement banner (login.applicant_message) — shown prominently above the card. */}
-      <LoginAnnouncement message={config?.loginMessage} tone="accent" />
+      {/* Admin-scheduled announcement banners (login.applicant_messages) — the active ones, stacked above the card. */}
+      {config?.loginMessages?.map((m, i) => <LoginAnnouncement key={i} message={m} tone="accent" />)}
       {/* Arrived via a CG late-access invite link → explain the existing-account path (new families use the
           "Créer un compte" button below, which keeps the invite). */}
       {inviteToken && (

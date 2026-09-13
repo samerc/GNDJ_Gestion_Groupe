@@ -21,6 +21,7 @@ import { Save, X, Settings2, Search, Plus, Trash2 } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { ManagedListEditor } from '@/components/shared/managed-list-editor'
+import { LoginMessagesEditor } from '@/components/admin/login-messages-editor'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 
@@ -281,6 +282,8 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
   // Long free-text settings → a roomy textarea instead of a cramped one-line input. Match the message/text
   // keys (intro/result messages, terms, maintenance message…); a length fallback catches any future long value.
   const isLongText = /(text|terms|message|tagline)/i.test(setting.key) || (setting.value?.length ?? 0) > 80
+  // Scheduled login-page banners (a json array of {text,start,end}) use their own multi-message editor.
+  const isLoginMessages = setting.key === 'login.member_messages' || setting.key === 'login.applicant_messages'
   const options = SETTING_OPTIONS[setting.key]
 
   // Most date settings (submission window, document dates…) are forward-looking scheduling — a date in the
@@ -319,7 +322,8 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
   // Free-text json_array lists use ManagedListEditor, which self-persists — never show the staged Save button.
   const isFreeArray = isArray && !options
   // Drives the conditional "Enregistrer" button; booleans persist immediately so they're never "changed".
-  const hasChanged = !isFreeArray && (isArray ? JSON.stringify(items) !== setting.value : value !== setting.value)
+  // isLoginMessages self-persists (own Save), so it never shows the outer staged button.
+  const hasChanged = !isFreeArray && !isLoginMessages && (isArray ? JSON.stringify(items) !== setting.value : value !== setting.value)
   const isSelectSingle = !isArray && !isBool && options
 
   return (
@@ -344,7 +348,9 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
 
       {!isBool && (
         <>
-          {isArray ? (
+          {isLoginMessages ? (
+            <LoginMessagesEditor settingKey={setting.key} />
+          ) : isArray ? (
             options
               ? <ArrayTableEditor items={items} options={options} onChange={setItems} />
               : <ManagedListEditor settingKey={setting.key} />
