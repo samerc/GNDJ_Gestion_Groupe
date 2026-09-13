@@ -48,11 +48,12 @@ import { MemberCustomFields } from '@/components/members/member-custom-fields'
 // Data hooks reused (React Query dedupes by key with the tab components) to show item counts on the tabs.
 import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
+import { MemberImportDialog } from '@/components/admin/member-import-dialog'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS, PARENTS_SITUATION_OPTIONS, optionsWithCurrent } from '@/lib/options'
 import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts, useMemberAbsencesByYear, type MemberAbsenceYear } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck, Star } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck, Star, Upload } from 'lucide-react'
 import { pushRecentMember, isFavoriteMember, toggleFavoriteMember } from '@/lib/recent-members'
 import { DelegationDialog } from './delegation-dialog'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
@@ -970,6 +971,7 @@ export default function MembersPage() {
 
   // Export dialog
   const [exportOpen, setExportOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
 
   // Create dialog
   const [formOpen, setFormOpen] = useState(false)
@@ -1081,6 +1083,7 @@ export default function MembersPage() {
                 </Button>
               </span>
             </Tip>
+            {canCreate && <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}><Upload className="mr-1 h-4 w-4" />Importer</Button>}
             {canCreate && <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />Nouveau membre</Button>}
           </div>
         </div>
@@ -1405,6 +1408,9 @@ export default function MembersPage() {
           onOpenChange={setExportOpen}
         />
       )}
+
+      {/* Bulk import dialog (Excel/CSV) */}
+      <MemberImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
       {/* Credentials dialog — one-time view of the new member's login; closing selects them in the detail panel */}
       <Dialog open={!!credentialsDialog} onOpenChange={() => { if (credentialsDialog) setSelectedMemberId(credentialsDialog.memberId); setCredentialsDialog(null) }}>

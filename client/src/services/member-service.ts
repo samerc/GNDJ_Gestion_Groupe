@@ -129,6 +129,35 @@ export function useUpcomingBirthdays(days = 30, enabled = true) {
   })
 }
 
+// ── Bulk import (Excel/CSV) ──
+export interface MemberImportRow {
+  row: number; firstName: string; lastName: string; dateOfBirth: string | null
+  gender: string | null; unitName: string | null; valid: boolean; errors: string[]
+}
+export interface MemberImportPreview { rows: MemberImportRow[]; validCount: number; errorCount: number; fileErrors: string[] }
+export interface MemberImportResult { created: number; failed: number; errors: string[] }
+
+// Dry-run: validate the uploaded file, return per-row results (no writes).
+export function usePreviewMemberImport() {
+  return useMutation({
+    mutationFn: (file: File) => {
+      const fd = new FormData(); fd.append('file', file)
+      return apiClient.post<MemberImportPreview>('/members/import/preview', fd).then(r => r.data)
+    },
+  })
+}
+// Create the valid rows.
+export function useCommitMemberImport() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => {
+      const fd = new FormData(); fd.append('file', file)
+      return apiClient.post<MemberImportResult>('/members/import/commit', fd).then(r => r.data)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['members'] }),
+  })
+}
+
 // Units that have members in the current view (active by default, or former members when alumni=true), for the
 // members-page filter dropdown — so empty units are hidden. Re-fetched when the Actifs/Anciens toggle flips.
 export interface MemberUnitOption { id: string; name: string; code: string; count: number }

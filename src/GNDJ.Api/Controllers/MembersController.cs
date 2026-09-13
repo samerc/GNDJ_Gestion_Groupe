@@ -77,6 +77,38 @@ public class MembersController : BaseApiController
     public async Task<IActionResult> Birthdays([FromQuery] int days = 30)
         => Ok(await Mediator.Send(new GetUpcomingBirthdaysQuery(days)));
 
+    /// <summary>Downloads the blank member-import template (.xlsx). Requires members.create.</summary>
+    [HttpGet("import/template")]
+    [HasPermission(Permissions.MembersCreate)]
+    public IActionResult ImportTemplate([FromServices] GNDJ.Application.Common.Interfaces.IMemberImportService importer)
+        => File(importer.BuildTemplate(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "modele-import-membres.xlsx");
+
+    /// <summary>Validates an uploaded member-import file (dry-run) and returns per-row results. Requires members.create.</summary>
+    [HttpPost("import/preview")]
+    [HasPermission(Permissions.MembersCreate)]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> ImportPreview(IFormFile file)
+    {
+        if (file is null || file.Length == 0) return BadRequest(new { error = "Aucun fichier fourni." });
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        var result = await Mediator.Send(new GNDJ.Application.Members.PreviewMemberImportCommand(ms.ToArray(), file.FileName));
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+    }
+
+    /// <summary>Creates members from an uploaded import file (valid rows only). Requires members.create.</summary>
+    [HttpPost("import/commit")]
+    [HasPermission(Permissions.MembersCreate)]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> ImportCommit(IFormFile file)
+    {
+        if (file is null || file.Length == 0) return BadRequest(new { error = "Aucun fichier fourni." });
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        var result = await Mediator.Send(new GNDJ.Application.Members.CommitMemberImportCommand(ms.ToArray(), file.FileName));
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+    }
+
     /// <summary>Gets a member's full profile. Requires members.view; own profile or members in authorized units.</summary>
     /// <response code="404">No accessible member with this id.</response>
     [HttpGet("{id:guid}")]

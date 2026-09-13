@@ -4979,6 +4979,29 @@ segmented switcher (Clair / Sombre / Auto, Sun/Moon/Monitor) in the account menu
 so picking one doesn't close the dropdown). Role-coloured header/sidebar use inline hex (unaffected — already
 dark); everything else flips via the semantic tokens. tsc + eslint + vite clean.
 
+### QOL: member import (Excel/CSV) (2026-09-13)
+Item 8 (the last of the QOL list). Bulk-create members from a spreadsheet. DEV until deploy; migration-free.
+- **Parsing** — `IMemberImportService` / `MemberImportService` (Infrastructure, singleton): `Parse(bytes, fileName)`
+  → `MemberImportFile(Headers, Rows)` (ClosedXML for .xlsx; a small RFC-4180-ish CSV parser handling quotes/
+  embedded commas + UTF-8 BOM for .csv) and `BuildTemplate()` (a .xlsx with the header row + one example row).
+- **Handlers** (`Application/Members/MemberImportHandlers.cs`, gated members.create): `PreviewMemberImportCommand`
+  (dry-run — maps headers accent/case-insensitively to fields, validates every row [required prénom/nom/DOB/genre;
+  DOB parse dd/MM/yyyy·yyyy-MM-dd + not future; genre normalized Masculin/Féminin from M/F/Garçon/…; unit resolved
+  by code or name + caller-authorized], returns per-row `MemberImportRowDto` + valid/error counts + file-level
+  errors) and `CommitMemberImportCommand` (re-parses+re-validates server-side — never trusts the client — then
+  creates each valid row via the normal `CreateMemberCommand` through `IMediator`, so card number/login/optional
+  parents+unit assignment all behave like manual creation; blank nationalité→"Libanaise", école→"Autre"; per-row
+  failures collected, capped at 100). Unit per row must be one the caller may place into.
+- **Endpoints** (MembersController, members.create): `GET /members/import/template` (xlsx), `POST /members/import/
+  preview` + `POST /members/import/commit` (multipart IFormFile, 10 MB cap).
+- **Frontend**: `components/admin/member-import-dialog.tsx` (download template → pick file → auto-preview table
+  [valid/errors] → "Importer N membre(s)" → result summary) + an **"Importer"** button on the members page next to
+  "Nouveau membre" (gated members.create). `usePreviewMemberImport`/`useCommitMemberImport` (FormData).
+- Verified live: template 200 (6834 B); preview of a 2-row CSV → 1 valid / 1 error (missing DOB + bad genre with
+  the right messages); commit → created 1 (matricule M-1327 auto-assigned) / failed 1; test member cleaned up.
+  GOTCHA (test only): curl `-F @/tmp/...` fails exit 26 under MSYS — use a Windows path (`pwd -W`). dotnet + tsc +
+  eslint + vite clean.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a
