@@ -73,6 +73,9 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 // "En activité" option in the create dialog (the panel/Ma fiche use the server-computed member.showProfession).
 const YOUTH_BRANCH_CODES = ['MEU', 'RON', 'COM', 'TRO']
 
+// Family-name A–Z quick index for the members list.
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+
 // Réunion type labels + a dd/MM/yyyy (range) date formatter for the absence-details popup.
 const MEETING_TYPE_LABELS: Record<string, string> = { Reunion: 'Réunion', Sortie: 'Sortie', Camp: 'Camp' }
 function frDate(iso: string): string {
@@ -957,6 +960,13 @@ export default function MembersPage() {
   const [showAlumni, setShowAlumni] = useState(() => localStorage.getItem('members.showAlumni') === '1')
   useEffect(() => { localStorage.setItem('members.unitFilter', unitFilter) }, [unitFilter])
   useEffect(() => { localStorage.setItem('members.showAlumni', showAlumni ? '1' : '0') }, [showAlumni])
+  // Names per page (persisted) + family-name A–Z index (transient jump within the current view).
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const v = Number(localStorage.getItem('members.pageSize'))
+    return [25, 50, 100, 200].includes(v) ? v : 50
+  })
+  useEffect(() => { localStorage.setItem('members.pageSize', String(pageSize)) }, [pageSize])
+  const [letter, setLetter] = useState('')
   const [sortBy, setSortBy] = useState('lastname')
   const [sortDir, setSortDir] = useState('asc')
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(routeMemberId ?? null)
@@ -1028,7 +1038,7 @@ export default function MembersPage() {
     unitId, noUnit, maitrise,
     alumni: showAlumni || undefined,
     sortBy, sortDir,
-    page, pageSize: 50,
+    page, pageSize, letter: letter || undefined,
   })
 
   const createMutation = useCreateMember()
@@ -1127,7 +1137,41 @@ export default function MembersPage() {
               Anciens
             </button>
           </div>
-          {data && <span className="flex items-center text-xs text-muted-foreground">{data.totalCount} membre{data.totalCount > 1 ? 's' : ''}</span>}
+          {/* Names per page */}
+          <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
+            <SelectTrigger className="h-8 w-[6.5rem] text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {[25, 50, 100, 200].map(n => <SelectItem key={n} value={String(n)}>{n} / page</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {data && data.totalCount > 0 && (
+            <span className="flex items-center text-xs text-muted-foreground">
+              {(data.page - 1) * pageSize + 1}–{Math.min(data.page * pageSize, data.totalCount)} sur {data.totalCount}
+            </span>
+          )}
+        </div>
+
+        {/* Family-name A–Z index — jump to a starting letter (accent-insensitive). "Tous" clears it. */}
+        <div className="flex flex-wrap gap-0.5">
+          <button
+            type="button"
+            onClick={() => { setLetter(''); setPage(1) }}
+            className={cn('h-6 rounded px-1.5 text-[11px] font-medium transition-colors',
+              letter === '' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
+          >
+            Tous
+          </button>
+          {ALPHABET.map(l => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => { setLetter(l); setPage(1) }}
+              className={cn('h-6 min-w-[1.5rem] rounded px-1 text-[11px] font-medium transition-colors',
+                letter === l ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
+            >
+              {l}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -1159,7 +1203,7 @@ export default function MembersPage() {
              !data || data.items.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
                 {debouncedSearch ? <Search className="h-8 w-8 opacity-40" /> : <User className="h-8 w-8 opacity-40" />}
-                <p className="text-sm">{debouncedSearch ? `Aucun résultat pour « ${debouncedSearch} »` : 'Aucun membre trouvé'}</p>
+                <p className="text-sm">{debouncedSearch ? `Aucun résultat pour « ${debouncedSearch} »` : letter ? `Aucun nom commençant par « ${letter} »` : 'Aucun membre trouvé'}</p>
               </div>
             ) : (
               <>
@@ -1190,11 +1234,19 @@ export default function MembersPage() {
                     <div className="w-12 shrink-0 text-[11px] text-muted-foreground text-center">{m.unitName ?? '—'}</div>
                   </div>
                 ))}
-                {/* Pagination */}
+                {/* Pagination — Préc./Suiv. + a page picker to jump directly to any page. */}
                 {data.totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 p-2 border-t bg-muted/30">
+                  <div className="flex items-center justify-center gap-1.5 p-2 border-t bg-muted/30">
                     <Button variant="ghost" size="sm" className="h-7 text-xs" disabled={!data.hasPreviousPage} onClick={() => setPage(p => p - 1)}>Préc.</Button>
-                    <span className="text-xs text-muted-foreground">{data.page}/{data.totalPages}</span>
+                    <Select value={String(data.page)} onValueChange={(v) => setPage(Number(v))}>
+                      <SelectTrigger className="h-7 w-auto gap-1 px-2 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent className="max-h-72">
+                        {Array.from({ length: data.totalPages }, (_, i) => i + 1).map(n => (
+                          <SelectItem key={n} value={String(n)} className="text-xs">Page {n}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-xs text-muted-foreground">/ {data.totalPages}</span>
                     <Button variant="ghost" size="sm" className="h-7 text-xs" disabled={!data.hasNextPage} onClick={() => setPage(p => p + 1)}>Suiv.</Button>
                   </div>
                 )}

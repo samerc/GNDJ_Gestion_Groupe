@@ -5002,6 +5002,23 @@ Item 8 (the last of the QOL list). Bulk-create members from a spreadsheet. DEV u
   GOTCHA (test only): curl `-F @/tmp/...` fails exit 26 under MSYS — use a Windows path (`pwd -W`). dotnet + tsc +
   eslint + vite clean.
 
+### Members list — A–Z index + page picker + page-size (2026-09-13)
+More navigation control on the Membres master list (`pages/members/index.tsx`). All on main, DEV until deploy;
+verified live.
+- **Family-name A–Z index** — a wrap row of letter buttons (Tous + A–Z) above the list; picking one filters to
+  last names starting with that letter. Server-side + **accent-insensitive**: `GetMembersQuery` gained a `Letter`
+  param → `DbFns.Unaccent(m.LastName.ToLower()).StartsWith(letter)` (so "E" includes "É…"); `GET /members?letter=`.
+  Combines (AND) with search + unit/alumni/maîtrise filters; resets to page 1.
+- **Page-size selector** (25 / 50 / 100 / 200), replacing the hardcoded `pageSize: 50`; **persisted** to
+  `localStorage['members.pageSize']` (validated to the allowed set) alongside the existing unitFilter/showAlumni.
+- **Page picker** — the footer's plain "p/N" counter is now a `Select` (Page 1…N) to jump directly to any page,
+  flanked by Préc./Suiv. + "/ N".
+- **Range indicator** — "X–Y sur Total" next to the filters (was just the total count). Empty-state message also
+  reflects the letter ("Aucun nom commençant par « X »").
+- Verified live (super-admin): letter=A → 167 (all A), letter=E → 54 (accent-insensitive), pageSize=200 → 200
+  items / 6 pages, letter=Z → 21. dotnet build 0/0, tsc + eslint + vite clean. Frontend + backend (query+controller),
+  no migration.
+
 ### Dark-theme consistency sweep (2026-09-13)
 Dark mode (added 2026-08-26) works ONLY via `.dark` on `<html>` flipping the CSS-variable semantic tokens
 (`bg-background/card/muted/border/primary/accent/destructive/...` in index.css). Audit found the app had **zero

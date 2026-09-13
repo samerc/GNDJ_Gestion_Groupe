@@ -47,14 +47,15 @@ public class MembersController : BaseApiController
     /// <param name="sortBy">Optional sort column.</param>
     /// <param name="sortDir">Optional sort direction (asc/desc).</param>
     /// <param name="maitrise">When true, only members holding a leadership (maîtrise) role.</param>
+    /// <param name="letter">Optional family-name first-letter filter (A–Z, accent-insensitive).</param>
     [HttpGet]
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search, [FromQuery] Guid? unitId, [FromQuery] Guid? teamId,
         [FromQuery] bool? noUnit, [FromQuery] bool? alumni, [FromQuery] string? sortBy, [FromQuery] string? sortDir,
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] bool? maitrise = null)
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] bool? maitrise = null, [FromQuery] string? letter = null)
     {
-        var result = await Mediator.Send(new GetMembersQuery(search, unitId, teamId, noUnit, alumni, sortBy, sortDir, page, pageSize, maitrise));
+        var result = await Mediator.Send(new GetMembersQuery(search, unitId, teamId, noUnit, alumni, sortBy, sortDir, page, pageSize, maitrise, letter));
         return Ok(result);
     }
 

@@ -12,7 +12,7 @@ namespace GNDJ.Application.Members.Queries;
 public record GetMembersQuery(
     string? Search, Guid? UnitId, Guid? TeamId, bool? NoUnit, bool? Alumni,
     string? SortBy, string? SortDir,
-    int Page = 1, int PageSize = 50, bool? Maitrise = null
+    int Page = 1, int PageSize = 50, bool? Maitrise = null, string? Letter = null
 ) : IRequest<PaginatedList<MemberListDto>>;
 
 public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, PaginatedList<MemberListDto>>
@@ -111,6 +111,15 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
                 Common.DbFns.Unaccent(m.FirstName.ToLower()).Contains(Common.DbFns.Unaccent(search)) ||
                 Common.DbFns.Unaccent(m.LastName.ToLower()).Contains(Common.DbFns.Unaccent(search)) ||
                 (m.CardNumber != null && m.CardNumber.ToLower().Contains(search)));
+        }
+
+        // Family-name A–Z index: keep only last names starting with the chosen letter. Accent-insensitive
+        // (unaccent so "É…" matches "E"); the letter itself comes from the A–Z bar (already ASCII). Combines
+        // with search/unit filters (AND).
+        if (!string.IsNullOrWhiteSpace(request.Letter))
+        {
+            var letter = request.Letter.Trim().ToLower();
+            query = query.Where(m => Common.DbFns.Unaccent(m.LastName.ToLower()).StartsWith(letter));
         }
 
         // Sort
