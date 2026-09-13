@@ -417,7 +417,7 @@ export default function PassagePage() {
             )}
           </div>
           {row.passage!.proposedRoleName !== row.currentRoleName && (
-            <div className="text-xs text-blue-600">Fonction : {row.passage!.proposedRoleName}</div>
+            <div className="text-xs text-blue-600 dark:text-blue-400">Fonction : {row.passage!.proposedRoleName}</div>
           )}
           <div className="flex items-center gap-2">
             {statusBadge(row.passage!)}

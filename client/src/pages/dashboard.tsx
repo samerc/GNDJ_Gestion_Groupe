@@ -66,7 +66,7 @@ function ActionHub({ o }: { o: DashboardOverviewDto }) {
     return (
       <Card className="border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/30">
         <CardContent className="flex items-center gap-3 py-4">
-          <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+          <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
           <p className="text-sm font-medium text-green-800 dark:text-green-300">Tout est à jour — rien en attente de votre part.</p>
         </CardContent>
       </Card>
@@ -122,10 +122,10 @@ function OverviewPanels({ o }: { o: DashboardOverviewDto }) {
                 <div className="grid grid-cols-3 gap-y-3 sm:grid-cols-6">
                   {[
                     { label: 'Reçues', value: c.total, cls: '' },
-                    { label: 'À traiter', value: c.pending, cls: c.pending > 0 ? 'text-amber-600' : '' },
-                    { label: 'Acceptées', value: c.approved, cls: 'text-green-600' },
-                    { label: 'Refusées', value: c.declined, cls: 'text-red-600' },
-                    { label: 'Envoyées', value: c.responsesSent, cls: 'text-blue-600' },
+                    { label: 'À traiter', value: c.pending, cls: c.pending > 0 ? 'text-amber-600 dark:text-amber-400' : '' },
+                    { label: 'Acceptées', value: c.approved, cls: 'text-green-600 dark:text-green-400' },
+                    { label: 'Refusées', value: c.declined, cls: 'text-red-600 dark:text-red-400' },
+                    { label: 'Envoyées', value: c.responsesSent, cls: 'text-blue-600 dark:text-blue-400' },
                     { label: "Taux d'accept.", value: `${c.acceptanceRate}%`, cls: '' },
                   ].map((s) => (
                     <div key={s.label}>
@@ -151,7 +151,7 @@ function OverviewPanels({ o }: { o: DashboardOverviewDto }) {
           <CardContent>
             <p className="text-3xl font-bold leading-none">{o.membersThisYear}</p>
             <p className="mt-1 text-xs text-muted-foreground">membres actifs — {o.thisYear}</p>
-            <div className={`mt-3 flex items-center gap-1.5 text-sm font-medium ${delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+            <div className={`mt-3 flex items-center gap-1.5 text-sm font-medium ${delta > 0 ? 'text-green-600 dark:text-green-400' : delta < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
               <TrendIcon className="h-4 w-4" />
               <span>{delta > 0 ? '+' : ''}{delta}</span>
               <span className="font-normal text-muted-foreground">vs {o.lastYear} ({o.membersLastYear})</span>
@@ -185,10 +185,10 @@ function OverviewPanels({ o }: { o: DashboardOverviewDto }) {
           <CardContent>
             <div className="flex items-baseline gap-4">
               <div>
-                <p className="text-2xl font-bold leading-none text-green-600">{cot.paid}<span className="text-base font-normal text-muted-foreground"> / {cot.total}</span></p>
+                <p className="text-2xl font-bold leading-none text-green-600 dark:text-green-400">{cot.paid}<span className="text-base font-normal text-muted-foreground"> / {cot.total}</span></p>
                 <p className="mt-1 text-xs text-muted-foreground">membres à jour</p>
               </div>
-              {cot.unpaid > 0 && <div className="text-sm text-red-600"><span className="font-bold">{cot.unpaid}</span> à relancer</div>}
+              {cot.unpaid > 0 && <div className="text-sm text-red-600 dark:text-red-400"><span className="font-bold">{cot.unpaid}</span> à relancer</div>}
               {cot.exempt > 0 && <div className="text-sm text-muted-foreground"><span className="font-bold">{cot.exempt}</span> exemptés</div>}
             </div>
             <div className="mt-3"><MiniProgress value={cot.paid} total={cot.total} color="bg-green-500" /></div>
@@ -266,7 +266,7 @@ function AdminDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-950/50 text-blue-600">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
               <Users className="h-5 w-5" />
             </div>
             <div>
@@ -277,7 +277,7 @@ function AdminDashboard() {
         </Card>
         <Card>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
               <UserCheck className="h-5 w-5" />
             </div>
             <div className="flex items-baseline gap-3">
@@ -304,7 +304,7 @@ function AdminDashboard() {
         </Card>
         <Card className={data.missingDocuments > 0 ? 'border-orange-200 dark:border-orange-900' : ''}>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.missingDocuments > 0 ? 'bg-orange-100 dark:bg-orange-950/50 text-orange-600' : 'bg-green-100 dark:bg-green-950/50 text-green-600'}`}>
+            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.missingDocuments > 0 ? 'bg-orange-100 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400' : 'bg-green-100 dark:bg-green-950/50 text-green-600 dark:text-green-400'}`}>
               <FileX className="h-5 w-5" />
             </div>
             <div>
@@ -315,7 +315,7 @@ function AdminDashboard() {
         </Card>
         <Card className={data.unpaidCotisations > 0 ? 'border-red-200 dark:border-red-900' : ''}>
           <CardContent className="flex items-center gap-3 pt-6">
-            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.unpaidCotisations > 0 ? 'bg-red-100 dark:bg-red-950/50 text-red-600' : 'bg-green-100 dark:bg-green-950/50 text-green-600'}`}>
+            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.unpaidCotisations > 0 ? 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400' : 'bg-green-100 dark:bg-green-950/50 text-green-600 dark:text-green-400'}`}>
               <Receipt className="h-5 w-5" />
             </div>
             <div>

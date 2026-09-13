@@ -354,7 +354,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {member.lastLoginAt
                   ? <>Dernière connexion : {new Date(member.lastLoginAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</>
-                  : <span className="font-medium text-amber-600">Jamais connecté</span>}
+                  : <span className="font-medium text-amber-600 dark:text-amber-400">Jamais connecté</span>}
               </p>
             )}
             {/* Access delegation badge — visible to the CG so they know this member holds hidden extra access. */}
@@ -605,7 +605,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                   )}
                 </div>
                 {contactEmailOptions.length === 0 && (
-                  <p className="mt-1.5 text-xs text-amber-600">Aucune adresse email sur la fiche — ajoutez un courriel (membre ou tuteur) pour permettre l'envoi.</p>
+                  <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">Aucune adresse email sur la fiche — ajoutez un courriel (membre ou tuteur) pour permettre l'envoi.</p>
                 )}
               </div>
               <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">

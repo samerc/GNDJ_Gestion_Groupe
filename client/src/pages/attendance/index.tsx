@@ -66,7 +66,7 @@ function MeetingCard({ meeting, onOpen, onEdit, onApprove, onDelete, busy }: {
           <p className="mt-1 text-sm text-muted-foreground">
             {frDate(meeting.date)}{meeting.endDate && meeting.endDate !== meeting.date ? ` → ${frDate(meeting.endDate)}` : ''}
             {' · '}
-            <span className="text-emerald-600">{present} présent{present > 1 ? 's' : ''}</span>
+            <span className="text-emerald-600 dark:text-emerald-400">{present} présent{present > 1 ? 's' : ''}</span>
             {' · '}
             <span className={meeting.absentCount > 0 ? 'text-destructive' : ''}>{meeting.absentCount} absent{meeting.absentCount > 1 ? 's' : ''}</span>
             {` / ${meeting.rosterCount}`}
