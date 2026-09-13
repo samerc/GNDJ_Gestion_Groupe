@@ -72,3 +72,12 @@ export function useDeleteContactMessage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['contact-messages'] }),
   })
 }
+
+// Undo a delete — restores the soft-deleted message.
+export function useRestoreContactMessage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.post(`/contact-messages/${id}/restore`).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contact-messages'] }),
+  })
+}

@@ -12,7 +12,7 @@ import { useParams } from 'react-router'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useMembers, useMember, useMemberUnitOptions, useCreateMember, useUpdateMember, useDeleteMember, useResetMemberPassword, useSetPrimaryContactEmail,
+import { useMembers, useMember, useMemberUnitOptions, useCreateMember, useUpdateMember, useDeleteMember, useRestoreMember, useResetMemberPassword, useSetPrimaryContactEmail,
   useSendAccess,
   useAddPhone, useDeletePhone, useUpdatePhone, useAddEmail, useDeleteEmail, useUpdateEmail,
   useAddAddress, useDeleteAddress, useUpdateAddress,
@@ -26,6 +26,7 @@ import { Tip } from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input'
+import { WhatsappLink } from '@/components/shared/whatsapp-link'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -122,6 +123,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   const { data: member, isLoading } = useMember(memberId)
   const updateMember = useUpdateMember()
   const deleteMember = useDeleteMember()
+  const restoreMember = useRestoreMember()
   const resetPassword = useResetMemberPassword()
   const sendAccess = useSendAccess()
   const setPrimary = useSetPrimaryContactEmail(memberId)
@@ -179,8 +181,19 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const handleDelete = async () => {
     try {
-      await deleteMember.mutateAsync(memberId)
-      toast.success('Membre supprimé — récupérable dans la Corbeille')
+      const deletedId = memberId
+      await deleteMember.mutateAsync(deletedId)
+      // Undo affordance: restore the soft-deleted member in one tap (also always recoverable via the Corbeille).
+      toast.success('Membre supprimé', {
+        description: 'Récupérable dans la Corbeille.',
+        action: {
+          label: 'Annuler',
+          onClick: () => restoreMember.mutate(deletedId, {
+            onSuccess: () => toast.success('Suppression annulée'),
+            onError: (e) => toast.error(parseApiError(e)),
+          }),
+        },
+      })
       setDeleteConfirmOpen(false)
       onDeleted()
     } catch (err) {
@@ -589,6 +602,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                     <div className="space-y-1.5">{member.phones.map(p => (
                       <div key={p.id} className="flex items-center gap-1.5 text-sm">
                         <span className="flex-1">{formatPhoneDisplay(p.countryCode, p.number)} <span className="text-muted-foreground">({p.type})</span>{p.isEmergency && <Badge variant="destructive" className="ml-1 text-[9px]">Urgence</Badge>}</span>
+                        <WhatsappLink countryCode={p.countryCode} number={p.number} />
                         {editing && <><button className="text-muted-foreground hover:text-foreground" onClick={() => openEditPhone(p)}><Pencil className="h-3 w-3" /></button><button className="text-destructive/80 hover:text-destructive" onClick={() => setDeletingContact({ type: 'phone', id: p.id, label: formatPhoneDisplay(p.countryCode, p.number) })}><Trash2 className="h-3 w-3" /></button></>}
                       </div>
                     ))}</div>

@@ -155,3 +155,20 @@ public class DeleteContactMessageCommandHandler(IApplicationDbContext context)
         return Result<bool>.Success(true);
     }
 }
+
+// ── Restore (undo a soft-delete) ──────────────────────────────────────────────
+// Powers the "Annuler" affordance on the delete toast. Loads through IgnoreQueryFilters since the row is hidden
+// by the soft-delete filter.
+public record RestoreContactMessageCommand(Guid Id) : IRequest<Result<bool>>;
+
+public class RestoreContactMessageCommandHandler(IApplicationDbContext context)
+    : IRequestHandler<RestoreContactMessageCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(RestoreContactMessageCommand request, CancellationToken ct)
+    {
+        var m = await context.ContactMessages.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+        if (m is null) return Result<bool>.Failure("Message introuvable.");
+        if (m.IsDeleted) { m.IsDeleted = false; m.DeletedAt = null; m.DeletedBy = null; await context.SaveChangesAsync(ct); }
+        return Result<bool>.Success(true);
+    }
+}

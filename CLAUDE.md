@@ -4903,6 +4903,27 @@ verified live end-to-end.
   reply overwrites the stored one (single-reply model; no thread). Verified live: 13 managers → 12 notified, replier
   (admin) 0, body "Admin Système a répondu à Test Reply Notif". Backend-only, DEV until deploy.
 
+### QOL: WhatsApp links (leaders) + undo-on-delete (2026-09-13)
+First two of a QOL batch the user picked (global search is the next one). All on main, DEV until deploy.
+- **WhatsApp one-tap (CU and above only):** a green WhatsApp icon next to phone numbers opens `wa.me/<digits>`
+  (families here run on WhatsApp). New `lib/phone-links.ts` (`whatsappHref(countryCode, number)` — digits only,
+  drops the trunk 0, defaults to Lebanon 961 when no dial code; `whatsappHrefFromText(combined)` — Lebanon-first
+  heuristic for an already-combined display string; `telHref`) + `components/shared/whatsapp-link.tsx`
+  (`WhatsappLink` for structured countryCode+number, `WhatsappTextLink` for a combined string; inline WhatsApp SVG
+  since lucide dropped brand glyphs; renders nothing for an unusable number; stops click propagation). Wired into
+  LEADER contexts only: the member panel Coordonnées phones (members/index), guardian phones in `MemberGuardians`
+  **gated on `!selfService`** (so it's hidden on the member's own Ma fiche), the CU unit-leader dashboard roster
+  phones, and the CG cotisation-dashboard parent phones (uses the text variant — that phone is a pre-combined
+  string incl. the country code). Deliberately NOT on Ma fiche / member-facing views. No permission flag needed —
+  these screens are already CU+/CG-only.
+- **Undo on delete (toast "Annuler"):** deleting a **member** (members panel) and a **contact message** now shows a
+  success toast with an **Annuler** action that restores it in one tap (leverages soft-delete). Member reuses the
+  existing `useRestoreMember` (`POST /members/{id}/restore`); contact messages got a new
+  `RestoreContactMessageCommand` + `POST /contact-messages/{id}/restore` (loads via `IgnoreQueryFilters`, clears
+  IsDeleted/DeletedAt/DeletedBy) + `useRestoreContactMessage`. Members stay recoverable in the Corbeille too.
+  Verified live: contact message delete 204 → gone from list → restore 204 → back in list. tsc + eslint + vite +
+  dotnet all clean.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

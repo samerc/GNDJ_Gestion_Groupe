@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Receipt, Users, AlertTriangle, CheckCircle, Mail, Phone, Ban, Printer, Download, ChevronRight, Trash2, Plus, Building2 } from 'lucide-react'
+import { WhatsappTextLink } from '@/components/shared/whatsapp-link'
 import { toast } from 'sonner'
 
 
@@ -433,9 +434,12 @@ export default function CotisationDashboardPage() {
                                                 </a>
                                               ) : null}
                                               {m.contactPhone ? (
-                                                <a href={`tel:${m.contactPhone.replace(/\s+/g, '')}`} className="inline-flex items-center gap-1.5 text-primary hover:underline">
-                                                  <Phone className="h-3.5 w-3.5" /> {m.contactPhone}
-                                                </a>
+                                                <span className="inline-flex items-center gap-1.5">
+                                                  <a href={`tel:${m.contactPhone.replace(/\s+/g, '')}`} className="inline-flex items-center gap-1.5 text-primary hover:underline">
+                                                    <Phone className="h-3.5 w-3.5" /> {m.contactPhone}
+                                                  </a>
+                                                  <WhatsappTextLink phone={m.contactPhone} />
+                                                </span>
                                               ) : null}
                                               {!m.contactEmail && !m.contactPhone && <span className="text-xs text-muted-foreground">Aucun contact</span>}
                                             </div>

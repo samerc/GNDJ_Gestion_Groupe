@@ -55,6 +55,15 @@ public class ContactMessagesController : BaseApiController
         return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
     }
 
+    /// <summary>Restore a soft-deleted message (undo).</summary>
+    [HttpPost("{id:guid}/restore")]
+    [HasPermission(Permissions.ContentManage)]
+    public async Task<IActionResult> Restore(Guid id)
+    {
+        var result = await Mediator.Send(new RestoreContactMessageCommand(id));
+        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+    }
+
     public record MarkReadBody(bool Read);
     public record ReplyBody(string Subject, string Body);
 }

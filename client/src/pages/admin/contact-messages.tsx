@@ -6,6 +6,7 @@ import {
   useMarkContactMessageRead,
   useReplyContactMessage,
   useDeleteContactMessage,
+  useRestoreContactMessage,
   type ContactMessageDto,
 } from '@/services/contact-message-service'
 import { Button } from '@/components/ui/button'
@@ -31,6 +32,7 @@ export default function ContactMessagesPage() {
   const { data, isLoading } = useContactMessages({ search: debounced, unreadOnly, page })
   const markRead = useMarkContactMessageRead()
   const del = useDeleteContactMessage()
+  const restore = useRestoreContactMessage()
 
   const [selected, setSelected] = useState<ContactMessageDto | null>(null)
   const [replyOpen, setReplyOpen] = useState(false)
@@ -151,7 +153,19 @@ export default function ContactMessagesPage() {
         variant="destructive"
         loading={del.isPending}
         onConfirm={() => deleting && del.mutate(deleting.id, {
-          onSuccess: () => { toast.success('Message supprimé'); setDeleting(null) },
+          onSuccess: () => {
+            const id = deleting.id
+            toast.success('Message supprimé', {
+              action: {
+                label: 'Annuler',
+                onClick: () => restore.mutate(id, {
+                  onSuccess: () => toast.success('Suppression annulée'),
+                  onError: (e) => toast.error(parseApiError(e)),
+                }),
+              },
+            })
+            setDeleting(null)
+          },
           onError: (e) => toast.error(parseApiError(e)),
         })}
       />

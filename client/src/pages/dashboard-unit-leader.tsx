@@ -29,6 +29,7 @@ import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useSettingValue } from '@/services/settings-service'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
 import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, ArrowLeft, CalendarCheck, UsersRound } from 'lucide-react'
+import { WhatsappLink } from '@/components/shared/whatsapp-link'
 
 interface Props { unitId: string }
 
@@ -114,6 +115,7 @@ function MemberDetailPanel({ memberId, onBack }: { memberId: string; onBack?: ()
                   <div className="space-y-1.5">{member.phones.map(p => (
                     <div key={p.id} className="text-sm flex items-center gap-2">
                       <span>{p.countryCode} {p.number}</span>
+                      <WhatsappLink countryCode={p.countryCode} number={p.number} />
                       <span className="text-muted-foreground text-xs">{p.type}</span>
                       {p.isPrimary && <Badge variant="outline" className="text-xs h-4">P</Badge>}
                       {p.isEmergency && <Badge variant="destructive" className="text-xs h-4">U</Badge>}
