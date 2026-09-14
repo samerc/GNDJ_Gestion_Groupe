@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-14",
+        "text": "Maintenance technique — mise à jour des bibliothèques (frontend et backend) vers leurs dernières versions compatibles. Aucune vulnérabilité de sécurité, aucun changement visible."
+      },
+      {
+        "date": "2026-09-14",
         "text": "Apparence — palette de couleurs des rôles revue : suppression des teintes trop proches et ajout de nouvelles couleurs mieux réparties sur le cercle chromatique (toutes assez foncées pour le texte blanc)."
       },
       {
