@@ -9,7 +9,7 @@ namespace GNDJ.Application.Members.Queries;
 // Upcoming birthdays of the caller's members (leaders only). Unit-scoped: a CU sees their unit(s), a Chef de
 // Groupe/super-admin sees everyone (a group-level login is granted all units). Youth never see it (no members.edit).
 public record UpcomingBirthdayDto(
-    Guid MemberId, string FirstName, string LastName, string? UnitName,
+    Guid MemberId, string FirstName, string LastName, string? UnitName, string? UnitCode,
     DateOnly DateOfBirth, DateOnly NextBirthday, int TurningAge, int DaysUntil);
 
 public record GetUpcomingBirthdaysQuery(int Days = 30) : IRequest<IReadOnlyList<UpcomingBirthdayDto>>;
@@ -34,7 +34,7 @@ public class GetUpcomingBirthdaysQueryHandler(IApplicationDbContext context, ICu
             q = q.Where(a => currentUser.AuthorizedUnitIds.Contains(a.UnitId));
 
         var rows = await q
-            .Select(a => new { a.MemberId, a.Member.FirstName, a.Member.LastName, a.Member.DateOfBirth, UnitName = a.Unit.Name })
+            .Select(a => new { a.MemberId, a.Member.FirstName, a.Member.LastName, a.Member.DateOfBirth, UnitName = a.Unit.Name, UnitCode = a.Unit.Code })
             .ToListAsync(ct);
 
         var result = rows
@@ -45,7 +45,7 @@ public class GetUpcomingBirthdaysQueryHandler(IApplicationDbContext context, ICu
                 var dob = r.DateOfBirth!.Value;
                 var next = NextBirthday(dob, today);
                 return new UpcomingBirthdayDto(
-                    r.MemberId, r.FirstName, r.LastName, r.UnitName,
+                    r.MemberId, r.FirstName, r.LastName, r.UnitName, r.UnitCode,
                     dob, next, next.Year - dob.Year, next.DayNumber - today.DayNumber);
             })
             .Where(b => b.DaysUntil <= days)

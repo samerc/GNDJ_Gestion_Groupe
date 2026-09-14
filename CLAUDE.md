@@ -5028,6 +5028,28 @@ with a small screen cannot see anything"). Made it customizable per user: reorde
 - Scope: the GROUP dashboard only (super-admin/CG/ACG). The unit-leader dashboard is unchanged (could get the same
   later). tsc + eslint + vite + dotnet all clean; migration applies on prod startup.
 
+### Dashboard responsive polish + graph redesign + birthdays (2026-09-14)
+Follow-ups to the customizable dashboard, from live testing at various widths. Frontend + one small backend field;
+DEV until deploy (birthday DTO change needs the rebuild).
+- **Container queries (the key fix):** widget inner grids used VIEWPORT breakpoints (`sm:`/`lg:`/`xl:`), so when a
+  card was set to half/third width (or on a small screen) they still tried 2–3 columns and the content got
+  crushed / labels vanished. Reworked À traiter (`@md/@2xl:grid-cols`), Campaign 6-number grid (`@xl:grid-cols-6`),
+  Chiffres clés (`@xs:grid-cols-2 @2xl:grid-cols-4`), and the unit-chart `% complets` suffix (`@max-xs:hidden`) to
+  respond to the CARD's width via `@container`. Cotisations + gender rows got `flex-wrap`. Labels wrap instead of
+  `truncate` so they never disappear. (Tailwind v4 container queries are core — verified they compile:
+  `@container (width>=…rem)`.)
+- **Whitespace:** the widget grid stretched every card in a row to the tallest one (a short À traiter next to a
+  20-row Anniversaires got padded with empty space). Added `items-start` to the grid → each card keeps its
+  natural height.
+- **Graphs redesigned** (`ChartBar`): the chunky pill-with-number-inside (+ a hacky ≤20% inside/outside CSS-var
+  calc) → a slim rounded **gradient** bar (`from-primary to-primary/70` / `from-indigo-500 to-violet-500`) with the
+  value aligned to the right (`tabular-nums`), always readable regardless of bar length.
+- **Anniversaires à venir:** removed the "dans X j / Aujourd'hui / Demain" relative text (the date column suffices),
+  kept a **🎉** on same-day birthdays, and show the **unit code** (M2, T3…) instead of the full unit name. Backend
+  `UpcomingBirthdayDto` gained `UnitCode` (`a.Unit.Code`); frontend `UpcomingBirthday.unitCode`. Verified live: the
+  birthdays endpoint returns unitCode (e.g. "M3").
+- À traiter is now a Card too (earlier commit b606d23). tsc + eslint + vite + dotnet all clean.
+
 ### Members list — pin a deep-linked member not in the filtered page (2026-09-14)
 A CG clicked a name in the birthdays card → landed on the member's detail (`/members/:id`), but couldn't find
 that member in the LEFT list. Root cause: the list is filtered + PAGINATED (unit filter, Actifs/Anciens, A–Z

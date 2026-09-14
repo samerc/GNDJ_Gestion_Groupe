@@ -115,6 +115,7 @@ export interface UpcomingBirthday {
   firstName: string
   lastName: string
   unitName: string | null
+  unitCode: string | null
   dateOfBirth: string
   nextBirthday: string
   turningAge: number

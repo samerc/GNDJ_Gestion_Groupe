@@ -5,6 +5,18 @@
     "changes": [
       {
         "date": "2026-09-14",
+        "text": "Tableau de bord — présentation plus robuste en colonnes étroites et sur petit écran : le contenu des cartes (« À traiter », campagne, chiffres clés) s'adapte à la largeur de la carte au lieu d'être écrasé, et les cartes ne s'étirent plus à la hauteur de la plus grande de la rangée (fin des espaces vides)."
+      },
+      {
+        "date": "2026-09-14",
+        "text": "Tableau de bord — graphiques « Membres par unité » et « Répartition par âge » redessinés : barres fines à dégradé avec la valeur alignée à droite (plus lisibles)."
+      },
+      {
+        "date": "2026-09-14",
+        "text": "Anniversaires à venir — décompte « dans X jours » retiré (la date suffit), 🎉 ajouté pour les anniversaires du jour, et l'unité est affichée par son code (M2, T3…)."
+      },
+      {
+        "date": "2026-09-14",
         "text": "Tableau de bord — la section « À traiter » est désormais présentée dans une carte, comme les autres cartes du tableau de bord (cohérence visuelle)."
       },
       {

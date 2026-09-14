@@ -30,21 +30,19 @@ import {
 } from 'lucide-react'
 
 // ─── Horizontal bar chart ──────────────────
-// One labelled bar; width is value/max as a %. When the bar is too short (≤20%) to hold its
-// number inside, the value is rendered just past the bar's end instead (the `--w` CSS var).
+// One labelled row: a slim rounded gradient bar (width = value/max) with the value aligned to the right, so it's
+// always readable regardless of bar length. `color` supplies the gradient stops (e.g. "from-primary to-primary/70").
+// An optional `suffix` (e.g. doc compliance) sits at the far right and hides on a very narrow card.
 function ChartBar({ value, max, color, label, suffix }: { value: number; max: number; color: string; label: string; suffix?: string }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0
   return (
-    <div className="group flex items-center gap-3 py-1">
-      <span className="w-16 text-xs font-medium text-right shrink-0">{label}</span>
-      <div className="flex-1 relative">
-        <div className="h-7 bg-muted/50 rounded-md" />
-        <div className={`absolute inset-y-0 left-0 rounded-md ${color} transition-all duration-500 ease-out flex items-center`} style={{ width: `${Math.max(pct, 2)}%` }}>
-          {pct > 20 && <span className="text-white text-xs font-semibold ml-2">{value}</span>}
-        </div>
-        {pct <= 20 && <span className="absolute left-[calc(max(2%,var(--w))+8px)] top-1/2 -translate-y-1/2 text-xs font-medium" style={{ '--w': `${pct}%` } as React.CSSProperties}>{value}</span>}
+    <div className="group flex items-center gap-2.5 py-1">
+      <span className="w-16 shrink-0 text-right text-xs font-medium text-muted-foreground">{label}</span>
+      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted/60">
+        <div className={`h-full rounded-full bg-gradient-to-r ${color} transition-[width] duration-700 ease-out`} style={{ width: `${Math.max(pct, 2)}%` }} />
       </div>
-      {suffix && <span className="text-[10px] text-muted-foreground w-24 shrink-0">{suffix}</span>}
+      <span className="w-9 shrink-0 text-right text-sm font-semibold tabular-nums">{value}</span>
+      {suffix !== undefined && <span className="w-20 shrink-0 text-right text-[10px] text-muted-foreground @max-xs:hidden">{suffix}</span>}
     </div>
   )
 }
@@ -86,23 +84,28 @@ function ActionHub({ o }: { o: DashboardOverviewDto }) {
     <Card className="h-full">
       <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Inbox className="h-4 w-4 text-primary" />À traiter</CardTitle></CardHeader>
       <CardContent>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((i) => {
-            const Icon = i.icon
-            const red = i.tone === 'red'
-            return (
-              <Link key={i.key} to={i.to} className={`group flex items-center gap-3 rounded-xl border p-3 transition-colors ${red ? 'border-red-200 dark:border-red-900 bg-red-50/60 dark:bg-red-950/30 hover:bg-red-50 dark:hover:bg-red-950/40' : 'border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 hover:bg-amber-50 dark:hover:bg-amber-950/40'}`}>
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${red ? 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400' : 'bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400'}`}>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className={`text-xl font-bold leading-none ${red ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'}`}>{i.count}</p>
-                  <p className="mt-0.5 truncate text-xs font-medium text-foreground/80">{i.label}</p>
-                </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-            )
-          })}
+        {/* @container + @md/@2xl breakpoints respond to the CARD's width (not the viewport), so the tiles stay
+            readable whatever width the user gives this widget or however small the screen is: 1 column when
+            narrow, 2 then 3 as the card widens. Labels wrap (no truncate) so they never disappear. */}
+        <div className="@container">
+          <div className="grid gap-2.5 @md:grid-cols-2 @2xl:grid-cols-3">
+            {items.map((i) => {
+              const Icon = i.icon
+              const red = i.tone === 'red'
+              return (
+                <Link key={i.key} to={i.to} className={`group flex items-center gap-2.5 rounded-lg border p-2.5 transition-colors ${red ? 'border-red-200 dark:border-red-900 bg-red-50/60 dark:bg-red-950/30 hover:bg-red-50 dark:hover:bg-red-950/40' : 'border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 hover:bg-amber-50 dark:hover:bg-amber-950/40'}`}>
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${red ? 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400' : 'bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400'}`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-xl font-bold leading-none ${red ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'}`}>{i.count}</p>
+                    <p className="mt-0.5 text-xs font-medium leading-tight text-foreground/80">{i.label}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              )
+            })}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -126,20 +129,24 @@ function CampaignPanel({ o }: { o: DashboardOverviewDto }) {
             <p className="py-4 text-sm text-muted-foreground">Aucune demande {c.enabled ? 'pour le moment' : 'cette année'}.</p>
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-y-3 sm:grid-cols-6">
-                {[
-                  { label: 'Reçues', value: c.total, cls: '' },
-                  { label: 'À traiter', value: c.pending, cls: c.pending > 0 ? 'text-amber-600 dark:text-amber-400' : '' },
-                  { label: 'Acceptées', value: c.approved, cls: 'text-green-600 dark:text-green-400' },
-                  { label: 'Refusées', value: c.declined, cls: 'text-red-600 dark:text-red-400' },
-                  { label: 'Envoyées', value: c.responsesSent, cls: 'text-blue-600 dark:text-blue-400' },
-                  { label: "Taux d'accept.", value: `${c.acceptanceRate}%`, cls: '' },
-                ].map((s) => (
-                  <div key={s.label}>
-                    <p className={`text-2xl font-bold leading-none ${s.cls}`}>{s.value}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">{s.label}</p>
-                  </div>
-                ))}
+              {/* @container: 6 across only when the card is wide enough (full width); otherwise 3×2 — so the
+                  numbers never cram together at half/third width or on a small screen. */}
+              <div className="@container">
+                <div className="grid grid-cols-3 gap-x-2 gap-y-3 @xl:grid-cols-6">
+                  {[
+                    { label: 'Reçues', value: c.total, cls: '' },
+                    { label: 'À traiter', value: c.pending, cls: c.pending > 0 ? 'text-amber-600 dark:text-amber-400' : '' },
+                    { label: 'Acceptées', value: c.approved, cls: 'text-green-600 dark:text-green-400' },
+                    { label: 'Refusées', value: c.declined, cls: 'text-red-600 dark:text-red-400' },
+                    { label: 'Envoyées', value: c.responsesSent, cls: 'text-blue-600 dark:text-blue-400' },
+                    { label: "Taux d'accept.", value: `${c.acceptanceRate}%`, cls: '' },
+                  ].map((s) => (
+                    <div key={s.label} className="min-w-0">
+                      <p className={`text-2xl font-bold leading-none ${s.cls}`}>{s.value}</p>
+                      <p className="mt-1 text-[11px] leading-tight text-muted-foreground">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="mt-4">
                 <MiniProgress value={c.decided} total={c.total} color="bg-primary" />
@@ -202,7 +209,7 @@ function CotisationsPanel({ o }: { o: DashboardOverviewDto }) {
       <Card className="h-full transition-colors group-hover:border-primary/40">
         <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Receipt className="h-4 w-4 text-primary" />Cotisations</CardTitle></CardHeader>
         <CardContent>
-          <div className="flex items-baseline gap-4">
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <div>
               <p className="text-2xl font-bold leading-none text-green-600 dark:text-green-400">{cot.paid}<span className="text-base font-normal text-muted-foreground"> / {cot.total}</span></p>
               <p className="mt-1 text-xs text-muted-foreground">membres à jour</p>
@@ -220,7 +227,10 @@ function CotisationsPanel({ o }: { o: DashboardOverviewDto }) {
 // ─── Year-scoped widgets (driven by the year selector) ──────────────
 function KeyNumbers({ data }: { data: AdminDashboardDto }) {
   return (
-    <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
+    // @container: 1 col when very narrow, 2, then 4 as the card widens — respects the card's chosen width
+    // instead of the viewport, so the four numbers never crush together at half/third width.
+    <div className="@container">
+    <div className="grid gap-3 grid-cols-1 @xs:grid-cols-2 @2xl:grid-cols-4">
       <Card>
         <CardContent className="flex items-center gap-3 pt-6">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400"><Users className="h-5 w-5" /></div>
@@ -229,8 +239,8 @@ function KeyNumbers({ data }: { data: AdminDashboardDto }) {
       </Card>
       <Card>
         <CardContent className="flex items-center gap-3 pt-6">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400"><UserCheck className="h-5 w-5" /></div>
-          <div className="flex items-baseline gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 shrink-0"><UserCheck className="h-5 w-5" /></div>
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
             <div><p className="text-2xl font-bold">{data.boys}</p><p className="text-xs text-muted-foreground">Garçons</p></div>
             <span className="text-muted-foreground/50">/</span>
             <div><p className="text-2xl font-bold">{data.girls}</p><p className="text-xs text-muted-foreground">Filles</p></div>
@@ -251,6 +261,7 @@ function KeyNumbers({ data }: { data: AdminDashboardDto }) {
         </CardContent>
       </Card>
     </div>
+    </div>
   )
 }
 
@@ -258,9 +269,9 @@ function UnitChart({ data, max }: { data: AdminDashboardDto; max: number }) {
   return (
     <Card className="h-full">
       <CardHeader className="pb-3"><CardTitle className="text-base">Membres par unité</CardTitle></CardHeader>
-      <CardContent className="space-y-1">
+      <CardContent className="@container space-y-1">
         {data.unitBreakdown.map(u => (
-          <ChartBar key={u.unitCode} value={u.memberCount} max={max} color="bg-primary" label={u.unitCode} suffix={`${u.docCompliance}% complets`} />
+          <ChartBar key={u.unitCode} value={u.memberCount} max={max} color="from-primary to-primary/70" label={u.unitCode} suffix={`${u.docCompliance}% complets`} />
         ))}
         {data.membersWithoutUnit > 0 && (
           <div className="flex items-center gap-2 pt-2 border-t text-sm text-muted-foreground">
@@ -279,7 +290,7 @@ function AgeChart({ data, max }: { data: AdminDashboardDto; max: number }) {
       <CardHeader className="pb-3"><CardTitle className="text-base">Répartition par âge</CardTitle></CardHeader>
       <CardContent className="space-y-1">
         {data.ageGroups.map(g => (
-          <ChartBar key={g.label} value={g.count} max={max} color="bg-indigo-500" label={g.label} />
+          <ChartBar key={g.label} value={g.count} max={max} color="from-indigo-500 to-violet-500" label={g.label} />
         ))}
       </CardContent>
     </Card>
@@ -472,7 +483,9 @@ function AdminDashboard() {
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditing(true)}><SlidersHorizontal className="h-4 w-4" />Personnaliser</Button>
         </CardContent></Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-start">
+          {/* items-start (above): cards keep their natural height instead of stretching to the tallest card in
+              the row, so a short "À traiter" next to a tall "Anniversaires" isn't padded with whitespace. */}
           {visible.map(w => {
             // Birthdays self-hides when empty — skip its cell so it doesn't leave an empty column.
             if (w.id === 'birthdays' && !hasBirthdays) return null

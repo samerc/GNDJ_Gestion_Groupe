@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 
 // French day/month for the birthday date (e.g. "14 sept.").
 const fmt = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-const label = (d: number) => (d === 0 ? "Aujourd'hui 🎉" : d === 1 ? 'Demain' : `dans ${d} j`)
 
 // The shared list of birthday rows (each links to the member fiche).
 function BirthdayRows({ data, onNavigate }: { data: UpcomingBirthday[]; onNavigate?: () => void }) {
@@ -17,8 +16,8 @@ function BirthdayRows({ data, onNavigate }: { data: UpcomingBirthday[]; onNaviga
         <li key={b.memberId}>
           <Link to={`/members/${b.memberId}`} onClick={onNavigate} className="flex items-center gap-3 py-2 text-sm transition-colors hover:text-primary">
             <span className={`w-16 shrink-0 text-xs font-medium ${b.daysUntil === 0 ? 'text-pink-600 dark:text-pink-400' : 'text-muted-foreground'}`}>{fmt(b.nextBirthday)}</span>
-            <span className="min-w-0 flex-1 truncate">{b.firstName} {b.lastName}{b.unitName && <span className="text-xs text-muted-foreground"> · {b.unitName}</span>}</span>
-            <span className="shrink-0 text-xs text-muted-foreground">{b.turningAge} ans · {label(b.daysUntil)}</span>
+            <span className="min-w-0 flex-1 truncate">{b.firstName} {b.lastName}{b.unitCode && <span className="text-xs text-muted-foreground"> · {b.unitCode}</span>}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">{b.turningAge} ans{b.daysUntil === 0 ? ' 🎉' : ''}</span>
           </Link>
         </li>
       ))}
