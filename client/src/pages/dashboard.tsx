@@ -83,27 +83,29 @@ function ActionHub({ o }: { o: DashboardOverviewDto }) {
   }
 
   return (
-    <div>
-      <h2 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">À traiter</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((i) => {
-          const Icon = i.icon
-          const red = i.tone === 'red'
-          return (
-            <Link key={i.key} to={i.to} className={`group flex items-center gap-3 rounded-xl border p-3 transition-colors ${red ? 'border-red-200 dark:border-red-900 bg-red-50/60 dark:bg-red-950/30 hover:bg-red-50 dark:hover:bg-red-950/40' : 'border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 hover:bg-amber-50 dark:hover:bg-amber-950/40'}`}>
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${red ? 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400' : 'bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400'}`}>
-                <Icon className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className={`text-xl font-bold leading-none ${red ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'}`}>{i.count}</p>
-                <p className="mt-0.5 truncate text-xs font-medium text-foreground/80">{i.label}</p>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-          )
-        })}
-      </div>
-    </div>
+    <Card className="h-full">
+      <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Inbox className="h-4 w-4 text-primary" />À traiter</CardTitle></CardHeader>
+      <CardContent>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((i) => {
+            const Icon = i.icon
+            const red = i.tone === 'red'
+            return (
+              <Link key={i.key} to={i.to} className={`group flex items-center gap-3 rounded-xl border p-3 transition-colors ${red ? 'border-red-200 dark:border-red-900 bg-red-50/60 dark:bg-red-950/30 hover:bg-red-50 dark:hover:bg-red-950/40' : 'border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 hover:bg-amber-50 dark:hover:bg-amber-950/40'}`}>
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${red ? 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400' : 'bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400'}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-xl font-bold leading-none ${red ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'}`}>{i.count}</p>
+                  <p className="mt-0.5 truncate text-xs font-medium text-foreground/80">{i.label}</p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

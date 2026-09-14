@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-14",
+        "text": "Tableau de bord — la section « À traiter » est désormais présentée dans une carte, comme les autres cartes du tableau de bord (cohérence visuelle)."
+      },
+      {
+        "date": "2026-09-14",
         "text": "Tableau de bord (Accueil) personnalisable — via le bouton « Personnaliser », réorganisez les cartes par glisser-déposer, affichez/masquez celles que vous voulez, et choisissez la largeur de chacune (pleine, moitié, tiers). La disposition est enregistrée sur votre compte et vous suit sur tous vos appareils."
       },
       {
