@@ -26,5 +26,10 @@ public class User : BaseEntity
     // member auto-creation); cleared once the user sets their own password (activation link, reset, or change).
     public bool MustChangePassword { get; set; }
 
+    // Per-user customization of the group dashboard: a JSON array of widget configs (id + visible + width),
+    // in display order. Null = the default layout. Stored opaquely (the frontend owns the widget schema and
+    // merges against its registry on load, so adding a widget later is forward-compatible). Auth-only, own account.
+    public string? DashboardLayoutJson { get; set; }
+
     public Member Member { get; set; } = null!;
 }

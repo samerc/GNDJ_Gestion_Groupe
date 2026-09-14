@@ -39,6 +39,19 @@ public class MyProfileController : BaseApiController
     [HttpPost("onboarding-seen")]
     public async Task<IActionResult> OnboardingSeen() => Wrap(await Mediator.Send(new MarkOnboardingSeenCommand()));
 
+    /// <summary>Returns the caller's saved group-dashboard layout (JSON string, or null = default layout).</summary>
+    [HttpGet("dashboard-layout")]
+    public async Task<IActionResult> GetDashboardLayout()
+        => Ok(new { layout = await Mediator.Send(new GNDJ.Application.Dashboard.GetDashboardLayoutQuery()) });
+
+    /// <summary>Saves the caller's group-dashboard layout (widget order/visibility/width). Empty = reset to default.</summary>
+    [HttpPut("dashboard-layout")]
+    public async Task<IActionResult> UpdateDashboardLayout([FromBody] DashboardLayoutBody body)
+        => Wrap(await Mediator.Send(new GNDJ.Application.Dashboard.UpdateDashboardLayoutCommand(body?.LayoutJson)));
+
+    /// <summary>Body for PUT /my-profile/dashboard-layout.</summary>
+    public record DashboardLayoutBody(string? LayoutJson);
+
     // ── Coordonnées: own phones / emails / addresses (add / edit / remove) ──────────────────────────
     // Each command is strictly own-scoped server-side (never a supplied member id), so no members.edit.
 

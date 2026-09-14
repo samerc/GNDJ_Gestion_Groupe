@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-14",
+        "text": "Tableau de bord (Accueil) personnalisable — via le bouton « Personnaliser », réorganisez les cartes par glisser-déposer, affichez/masquez celles que vous voulez, et choisissez la largeur de chacune (pleine, moitié, tiers). La disposition est enregistrée sur votre compte et vous suit sur tous vos appareils."
+      },
+      {
+        "date": "2026-09-14",
         "text": "Liste des membres — en ouvrant un membre depuis un raccourci (carte des anniversaires, notification, recherche), s'il ne figure pas dans la page filtrée affichée, il est désormais épinglé et surligné en haut de la liste pour qu'on voie toujours qui est sélectionné."
       },
       {

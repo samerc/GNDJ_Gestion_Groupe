@@ -1,6 +1,6 @@
 // Dashboard resource: read-only aggregates — the unit-leader roster and the CG/admin overview.
 // Queries key on ['dashboard', ...].
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
 export interface RosterMemberDto {
@@ -88,5 +88,24 @@ export function useAdminDashboard(scoutYear: string) {
   return useQuery({
     queryKey: ['dashboard', 'admin', scoutYear],
     queryFn: () => apiClient.get<AdminDashboardDto>('/dashboard/admin', { params: { scoutYear } }).then(r => r.data),
+  })
+}
+
+// GET /my-profile/dashboard-layout — the caller's saved group-dashboard layout (JSON string, or null = default).
+// Keyed ['dashboard','layout']; merged against the widget registry by the page via mergeLayout().
+export function useDashboardLayout() {
+  return useQuery({
+    queryKey: ['dashboard', 'layout'],
+    queryFn: () => apiClient.get<{ layout: string | null }>('/my-profile/dashboard-layout').then(r => r.data.layout),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+// PUT /my-profile/dashboard-layout — save (or clear, when null) the caller's layout.
+export function useUpdateDashboardLayout() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (layoutJson: string | null) => apiClient.put('/my-profile/dashboard-layout', { layoutJson }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard', 'layout'] }),
   })
 }

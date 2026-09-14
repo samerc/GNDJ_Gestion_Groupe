@@ -5002,6 +5002,32 @@ Item 8 (the last of the QOL list). Bulk-create members from a spreadsheet. DEV u
   GOTCHA (test only): curl `-F @/tmp/...` fails exit 26 under MSYS — use a Windows path (`pwd -W`). dotnet + tsc +
   eslint + vite clean.
 
+### Customizable group dashboard (Accueil) — per-user widget layout (2026-09-14)
+The manager Accueil dashboard was a fixed stack of sections → too long to scroll on small screens (user: "someone
+with a small screen cannot see anything"). Made it customizable per user: reorder (drag) + show/hide + width
+(full/half/third), saved to the account so it syncs across devices. All on main, DEV until deploy (migration).
+- **Backend:** `User.DashboardLayoutJson` (nullable text; migration `AddUserDashboardLayout`) stored OPAQUELY —
+  the frontend owns the widget schema and merges the saved layout against its registry on load, so adding a widget
+  later is forward-compatible. `Application/Dashboard/DashboardLayoutHandlers.cs`: `GetDashboardLayoutQuery` +
+  `UpdateDashboardLayoutCommand` (validator: ≤4000 chars + must be a JSON array; empty = reset to null), both
+  resolve the caller's own `UserId` server-side (auth-only, no IDOR). Endpoints on `MyProfileController`:
+  `GET|PUT /my-profile/dashboard-layout`. Verified live: default null → save → read back → invalid (non-array) 400
+  → reset (empty) → null.
+- **Frontend:** `lib/dashboard-layout.ts` = the widget SCHEMA (9 widgets: actions/campaign/effectif/rentree/
+  cotisations/birthdays/keyNumbers/unitChart/ageChart), `DEFAULT_LAYOUT`, `WIDTH_COLSPAN` (full=6/half=3/third=2 on
+  a `md:grid-cols-6`), `mergeLayout` (keeps saved order/visibility/width, drops unknown ids, appends new widgets —
+  forward-compatible), `serializeLayout` (returns null when equal to default so a future default change is picked
+  up). `dashboard-service.ts` gained `useDashboardLayout` + `useUpdateDashboardLayout`. `dashboard.tsx`:
+  `OverviewPanels` split into individual placeable widget components (CampaignPanel/EffectifPanel/RentreePanel/
+  CotisationsPanel + year-scoped KeyNumbers/UnitChart/AgeChart), a `renderWidget` dispatcher, and `DashboardEditor`
+  (dnd-kit vertical sortable list of ALL widgets: drag handle + eye toggle + width select; Réinitialiser/Annuler/
+  Terminé). Normal mode renders visible widgets into the 6-col grid by width; the year selector moved to the header
+  (shown only when a year-scoped widget is visible — the old "Statistiques — {year}" divider is gone). Birthdays
+  self-hides → its grid cell is skipped when empty (no gap). Working copy re-syncs from the saved layout via a
+  render-phase reset (guarded against clobbering an in-progress edit).
+- Scope: the GROUP dashboard only (super-admin/CG/ACG). The unit-leader dashboard is unchanged (could get the same
+  later). tsc + eslint + vite + dotnet all clean; migration applies on prod startup.
+
 ### Members list — pin a deep-linked member not in the filtered page (2026-09-14)
 A CG clicked a name in the birthdays card → landed on the member's detail (`/members/:id`), but couldn't find
 that member in the LEFT list. Root cause: the list is filtered + PAGINATED (unit filter, Actifs/Anciens, A–Z

@@ -3,12 +3,20 @@ import { Navigate, Link } from 'react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import type { UnitAccess } from '@/types/auth'
-import { useAdminDashboard, useDashboardOverview, type DashboardOverviewDto } from '@/services/dashboard-service'
+import { useAdminDashboard, useDashboardOverview, useDashboardLayout, useUpdateDashboardLayout, type DashboardOverviewDto, type AdminDashboardDto } from '@/services/dashboard-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { BirthdaysCard } from '@/components/shared/birthdays-card'
+import { useUpcomingBirthdays } from '@/services/member-service'
+import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { DEFAULT_LAYOUT, WIDGET_META, WIDTH_COLSPAN, mergeLayout, serializeLayout, type WidgetConfig, type WidgetId, type WidgetWidth } from '@/lib/dashboard-layout'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 // Lazy-loaded: the unit-leader dashboard pulls in the whole member-detail panel + trombinoscope/roster/export
 // dialogs + report-service. Loading it eagerly would bundle all of that into the dashboard LANDING chunk — dead
 // weight for a super-admin/CG who only sees the group overview. Split it out so it loads only when a unit leader
@@ -18,6 +26,7 @@ import {
   Users, UserCheck, FileX, Receipt, UserMinus, Calendar,
   Inbox, ClipboardCheck, ArrowRightLeft, FileClock, PauseCircle, UserPlus,
   TrendingUp, TrendingDown, Minus, ChevronRight, CheckCircle2, ListChecks,
+  GripVertical, Eye, EyeOff, SlidersHorizontal, RotateCcw, Check,
 } from 'lucide-react'
 
 // ─── Horizontal bar chart ──────────────────
@@ -98,103 +107,268 @@ function ActionHub({ o }: { o: DashboardOverviewDto }) {
   )
 }
 
-// ─── Campaign + Rentrée + Cotisations + Trend panels ──────────────
-function OverviewPanels({ o }: { o: DashboardOverviewDto }) {
+// ─── Individual overview widgets (each placeable/hideable on the customizable dashboard) ──────────────
+// Each returns a self-contained Card (h-full so it fills its grid cell); the grid cell controls the width.
+
+function CampaignPanel({ o }: { o: DashboardOverviewDto }) {
   const c = o.campaign
-  const cot = o.cotisations
+  return (
+    <Link to="/admin/demandes" className="group block h-full">
+      <Card className="h-full transition-colors group-hover:border-primary/40">
+        <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><UserPlus className="h-4 w-4 text-primary" />Campagne d'inscription</CardTitle>
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${c.enabled ? 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300' : 'bg-muted text-muted-foreground'}`}>{c.enabled ? 'Inscriptions ouvertes' : 'Fermées'}</span>
+        </CardHeader>
+        <CardContent>
+          {c.total === 0 ? (
+            <p className="py-4 text-sm text-muted-foreground">Aucune demande {c.enabled ? 'pour le moment' : 'cette année'}.</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-y-3 sm:grid-cols-6">
+                {[
+                  { label: 'Reçues', value: c.total, cls: '' },
+                  { label: 'À traiter', value: c.pending, cls: c.pending > 0 ? 'text-amber-600 dark:text-amber-400' : '' },
+                  { label: 'Acceptées', value: c.approved, cls: 'text-green-600 dark:text-green-400' },
+                  { label: 'Refusées', value: c.declined, cls: 'text-red-600 dark:text-red-400' },
+                  { label: 'Envoyées', value: c.responsesSent, cls: 'text-blue-600 dark:text-blue-400' },
+                  { label: "Taux d'accept.", value: `${c.acceptanceRate}%`, cls: '' },
+                ].map((s) => (
+                  <div key={s.label}>
+                    <p className={`text-2xl font-bold leading-none ${s.cls}`}>{s.value}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4">
+                <MiniProgress value={c.decided} total={c.total} color="bg-primary" />
+                <p className="mt-1 text-[11px] text-muted-foreground">{c.decided} / {c.total} décidées</p>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
+
+function EffectifPanel({ o }: { o: DashboardOverviewDto }) {
   const delta = o.membersThisYear - o.membersLastYear
   const TrendIcon = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus
+  return (
+    <Link to="/members" className="group block h-full">
+      <Card className="h-full transition-colors group-hover:border-primary/40">
+        <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4 text-primary" />Effectif</CardTitle></CardHeader>
+        <CardContent>
+          <p className="text-3xl font-bold leading-none">{o.membersThisYear}</p>
+          <p className="mt-1 text-xs text-muted-foreground">membres actifs — {o.thisYear}</p>
+          <div className={`mt-3 flex items-center gap-1.5 text-sm font-medium ${delta > 0 ? 'text-green-600 dark:text-green-400' : delta < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
+            <TrendIcon className="h-4 w-4" />
+            <span>{delta > 0 ? '+' : ''}{delta}</span>
+            <span className="font-normal text-muted-foreground">vs {o.lastYear} ({o.membersLastYear})</span>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
+
+function RentreePanel({ o }: { o: DashboardOverviewDto }) {
+  return (
+    <Link to="/rentree" className="group block h-full">
+      <Card className="h-full transition-colors group-hover:border-primary/40">
+        <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4 text-primary" />Rentrée scoute</CardTitle></CardHeader>
+        <CardContent>
+          {o.rentree ? (
+            <>
+              <p className="text-2xl font-bold leading-none">{o.rentree.done}<span className="text-base font-normal text-muted-foreground"> / {o.rentree.total}</span></p>
+              <p className="mt-1 text-xs text-muted-foreground">tâches terminées</p>
+              <div className="mt-3"><MiniProgress value={o.rentree.done} total={o.rentree.total} color="bg-teal-500" /></div>
+            </>
+          ) : (
+            <p className="py-2 text-sm text-muted-foreground">Aucune liste générée pour {o.thisYear}.</p>
+          )}
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
+
+function CotisationsPanel({ o }: { o: DashboardOverviewDto }) {
+  const cot = o.cotisations
+  return (
+    <Link to="/admin/cotisations" className="group block h-full">
+      <Card className="h-full transition-colors group-hover:border-primary/40">
+        <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Receipt className="h-4 w-4 text-primary" />Cotisations</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex items-baseline gap-4">
+            <div>
+              <p className="text-2xl font-bold leading-none text-green-600 dark:text-green-400">{cot.paid}<span className="text-base font-normal text-muted-foreground"> / {cot.total}</span></p>
+              <p className="mt-1 text-xs text-muted-foreground">membres à jour</p>
+            </div>
+            {cot.unpaid > 0 && <div className="text-sm text-red-600 dark:text-red-400"><span className="font-bold">{cot.unpaid}</span> à relancer</div>}
+            {cot.exempt > 0 && <div className="text-sm text-muted-foreground"><span className="font-bold">{cot.exempt}</span> exemptés</div>}
+          </div>
+          <div className="mt-3"><MiniProgress value={cot.paid} total={cot.total} color="bg-green-500" /></div>
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
+
+// ─── Year-scoped widgets (driven by the year selector) ──────────────
+function KeyNumbers({ data }: { data: AdminDashboardDto }) {
+  return (
+    <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
+      <Card>
+        <CardContent className="flex items-center gap-3 pt-6">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400"><Users className="h-5 w-5" /></div>
+          <div><p className="text-2xl font-bold">{data.totalMembers}</p><p className="text-xs text-muted-foreground">Membres</p></div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="flex items-center gap-3 pt-6">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400"><UserCheck className="h-5 w-5" /></div>
+          <div className="flex items-baseline gap-3">
+            <div><p className="text-2xl font-bold">{data.boys}</p><p className="text-xs text-muted-foreground">Garçons</p></div>
+            <span className="text-muted-foreground/50">/</span>
+            <div><p className="text-2xl font-bold">{data.girls}</p><p className="text-xs text-muted-foreground">Filles</p></div>
+            {data.ungendered > 0 && (<><span className="text-muted-foreground/50">/</span><div><p className="text-2xl font-bold text-muted-foreground">{data.ungendered}</p><p className="text-xs text-muted-foreground">N.R.</p></div></>)}
+          </div>
+        </CardContent>
+      </Card>
+      <Card className={data.missingDocuments > 0 ? 'border-orange-200 dark:border-orange-900' : ''}>
+        <CardContent className="flex items-center gap-3 pt-6">
+          <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.missingDocuments > 0 ? 'bg-orange-100 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400' : 'bg-green-100 dark:bg-green-950/50 text-green-600 dark:text-green-400'}`}><FileX className="h-5 w-5" /></div>
+          <div><p className="text-2xl font-bold">{data.missingDocuments}</p><p className="text-xs text-muted-foreground">Docs manquants</p></div>
+        </CardContent>
+      </Card>
+      <Card className={data.unpaidCotisations > 0 ? 'border-red-200 dark:border-red-900' : ''}>
+        <CardContent className="flex items-center gap-3 pt-6">
+          <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.unpaidCotisations > 0 ? 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400' : 'bg-green-100 dark:bg-green-950/50 text-green-600 dark:text-green-400'}`}><Receipt className="h-5 w-5" /></div>
+          <div><p className="text-2xl font-bold">{data.unpaidCotisations}</p><p className="text-xs text-muted-foreground">Cotis. impayées</p></div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function UnitChart({ data, max }: { data: AdminDashboardDto; max: number }) {
+  return (
+    <Card className="h-full">
+      <CardHeader className="pb-3"><CardTitle className="text-base">Membres par unité</CardTitle></CardHeader>
+      <CardContent className="space-y-1">
+        {data.unitBreakdown.map(u => (
+          <ChartBar key={u.unitCode} value={u.memberCount} max={max} color="bg-primary" label={u.unitCode} suffix={`${u.docCompliance}% complets`} />
+        ))}
+        {data.membersWithoutUnit > 0 && (
+          <div className="flex items-center gap-2 pt-2 border-t text-sm text-muted-foreground">
+            <UserMinus className="h-3.5 w-3.5" />
+            <span>{data.membersWithoutUnit} membre{data.membersWithoutUnit > 1 ? 's' : ''} sans unité</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function AgeChart({ data, max }: { data: AdminDashboardDto; max: number }) {
+  return (
+    <Card className="h-full">
+      <CardHeader className="pb-3"><CardTitle className="text-base">Répartition par âge</CardTitle></CardHeader>
+      <CardContent className="space-y-1">
+        {data.ageGroups.map(g => (
+          <ChartBar key={g.label} value={g.count} max={max} color="bg-indigo-500" label={g.label} />
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+// Renders one widget by id. `o` (overview) may still be loading → those widgets render nothing until it arrives;
+// `data` (year stats) is guaranteed by the page-level guard before the grid renders.
+function renderWidget(id: WidgetId, o: DashboardOverviewDto | undefined, data: AdminDashboardDto, maxUnit: number, maxAge: number) {
+  switch (id) {
+    case 'actions': return o ? <ActionHub o={o} /> : null
+    case 'campaign': return o ? <CampaignPanel o={o} /> : null
+    case 'effectif': return o ? <EffectifPanel o={o} /> : null
+    case 'rentree': return o ? <RentreePanel o={o} /> : null
+    case 'cotisations': return o ? <CotisationsPanel o={o} /> : null
+    case 'birthdays': return <BirthdaysCard />
+    case 'keyNumbers': return <KeyNumbers data={data} />
+    case 'unitChart': return <UnitChart data={data} max={maxUnit} />
+    case 'ageChart': return <AgeChart data={data} max={maxAge} />
+    default: return null
+  }
+}
+
+// ─── Customize mode: a sortable list of ALL widgets (drag to reorder · show/hide · width) ──────────────
+const WIDTH_LABELS: { value: WidgetWidth; label: string }[] = [
+  { value: 'full', label: 'Pleine largeur' },
+  { value: 'half', label: 'Moitié' },
+  { value: 'third', label: 'Tiers' },
+]
+
+function SortableWidgetRow({ w, onToggle, onWidth }: { w: WidgetConfig; onToggle: () => void; onWidth: (width: WidgetWidth) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: w.id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
+  return (
+    <div ref={setNodeRef} style={style} className={cn('flex items-center gap-2 rounded-lg border bg-card p-2.5', !w.visible && 'opacity-60')}>
+      <button type="button" className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing" {...attributes} {...listeners} aria-label="Déplacer">
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <span className="flex-1 min-w-0 truncate text-sm font-medium">{WIDGET_META[w.id].label}</span>
+      <Select value={w.width} onValueChange={(v) => onWidth(v as WidgetWidth)}>
+        <SelectTrigger className="h-8 w-32 text-xs" disabled={!w.visible}><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {WIDTH_LABELS.map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 px-2" onClick={onToggle}>
+        {w.visible ? <Eye className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+        <span className="hidden sm:inline text-xs">{w.visible ? 'Affiché' : 'Masqué'}</span>
+      </Button>
+    </div>
+  )
+}
+
+function DashboardEditor({ layout, setLayout, onDone, onCancel, onReset, saving }: {
+  layout: WidgetConfig[]; setLayout: (l: WidgetConfig[]) => void
+  onDone: () => void; onCancel: () => void; onReset: () => void; saving: boolean
+}) {
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const from = layout.findIndex(w => w.id === active.id)
+    const to = layout.findIndex(w => w.id === over.id)
+    if (from >= 0 && to >= 0) setLayout(arrayMove(layout, from, to))
+  }
+  const update = (id: WidgetId, patch: Partial<WidgetConfig>) => setLayout(layout.map(w => w.id === id ? { ...w, ...patch } : w))
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      {/* Campagne d'inscription */}
-      <Link to="/admin/demandes" className="lg:col-span-2 group">
-        <Card className="h-full transition-colors group-hover:border-primary/40">
-          <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-base flex items-center gap-2"><UserPlus className="h-4 w-4 text-primary" />Campagne d'inscription</CardTitle>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${c.enabled ? 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300' : 'bg-muted text-muted-foreground'}`}>{c.enabled ? 'Inscriptions ouvertes' : 'Fermées'}</span>
-          </CardHeader>
-          <CardContent>
-            {c.total === 0 ? (
-              <p className="py-4 text-sm text-muted-foreground">Aucune demande {c.enabled ? 'pour le moment' : 'cette année'}.</p>
-            ) : (
-              <>
-                <div className="grid grid-cols-3 gap-y-3 sm:grid-cols-6">
-                  {[
-                    { label: 'Reçues', value: c.total, cls: '' },
-                    { label: 'À traiter', value: c.pending, cls: c.pending > 0 ? 'text-amber-600 dark:text-amber-400' : '' },
-                    { label: 'Acceptées', value: c.approved, cls: 'text-green-600 dark:text-green-400' },
-                    { label: 'Refusées', value: c.declined, cls: 'text-red-600 dark:text-red-400' },
-                    { label: 'Envoyées', value: c.responsesSent, cls: 'text-blue-600 dark:text-blue-400' },
-                    { label: "Taux d'accept.", value: `${c.acceptanceRate}%`, cls: '' },
-                  ].map((s) => (
-                    <div key={s.label}>
-                      <p className={`text-2xl font-bold leading-none ${s.cls}`}>{s.value}</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">{s.label}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4">
-                  <MiniProgress value={c.decided} total={c.total} color="bg-primary" />
-                  <p className="mt-1 text-[11px] text-muted-foreground">{c.decided} / {c.total} décidées</p>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </Link>
-
-      {/* Trend vs last year */}
-      <Link to="/members" className="group">
-        <Card className="h-full transition-colors group-hover:border-primary/40">
-          <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4 text-primary" />Effectif</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold leading-none">{o.membersThisYear}</p>
-            <p className="mt-1 text-xs text-muted-foreground">membres actifs — {o.thisYear}</p>
-            <div className={`mt-3 flex items-center gap-1.5 text-sm font-medium ${delta > 0 ? 'text-green-600 dark:text-green-400' : delta < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
-              <TrendIcon className="h-4 w-4" />
-              <span>{delta > 0 ? '+' : ''}{delta}</span>
-              <span className="font-normal text-muted-foreground">vs {o.lastYear} ({o.membersLastYear})</span>
-            </div>
-          </CardContent>
-        </Card>
-      </Link>
-
-      {/* Rentrée */}
-      <Link to="/rentree" className="group">
-        <Card className="h-full transition-colors group-hover:border-primary/40">
-          <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4 text-primary" />Rentrée scoute</CardTitle></CardHeader>
-          <CardContent>
-            {o.rentree ? (
-              <>
-                <p className="text-2xl font-bold leading-none">{o.rentree.done}<span className="text-base font-normal text-muted-foreground"> / {o.rentree.total}</span></p>
-                <p className="mt-1 text-xs text-muted-foreground">tâches terminées</p>
-                <div className="mt-3"><MiniProgress value={o.rentree.done} total={o.rentree.total} color="bg-teal-500" /></div>
-              </>
-            ) : (
-              <p className="py-2 text-sm text-muted-foreground">Aucune liste générée pour {o.thisYear}.</p>
-            )}
-          </CardContent>
-        </Card>
-      </Link>
-
-      {/* Cotisations */}
-      <Link to="/admin/cotisations" className="lg:col-span-2 group">
-        <Card className="h-full transition-colors group-hover:border-primary/40">
-          <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Receipt className="h-4 w-4 text-primary" />Cotisations</CardTitle></CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-4">
-              <div>
-                <p className="text-2xl font-bold leading-none text-green-600 dark:text-green-400">{cot.paid}<span className="text-base font-normal text-muted-foreground"> / {cot.total}</span></p>
-                <p className="mt-1 text-xs text-muted-foreground">membres à jour</p>
-              </div>
-              {cot.unpaid > 0 && <div className="text-sm text-red-600 dark:text-red-400"><span className="font-bold">{cot.unpaid}</span> à relancer</div>}
-              {cot.exempt > 0 && <div className="text-sm text-muted-foreground"><span className="font-bold">{cot.exempt}</span> exemptés</div>}
-            </div>
-            <div className="mt-3"><MiniProgress value={cot.paid} total={cot.total} color="bg-green-500" /></div>
-          </CardContent>
-        </Card>
-      </Link>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Personnaliser le tableau de bord</h1>
+          <p className="text-sm text-muted-foreground">Glissez pour réorganiser · affichez/masquez · choisissez la largeur.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" className="gap-1.5" onClick={onReset}><RotateCcw className="h-4 w-4" />Réinitialiser</Button>
+          <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>Annuler</Button>
+          <Button size="sm" className="gap-1.5" onClick={onDone} disabled={saving}><Check className="h-4 w-4" />{saving ? 'Enregistrement…' : 'Terminé'}</Button>
+        </div>
+      </div>
+      <Card>
+        <CardContent className="space-y-2 pt-6">
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={layout.map(w => w.id)} strategy={verticalListSortingStrategy}>
+              {layout.map(w => (
+                <SortableWidgetRow key={w.id} w={w} onToggle={() => update(w.id, { visible: !w.visible })} onWidth={(width) => update(w.id, { width })} />
+              ))}
+            </SortableContext>
+          </DndContext>
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -206,12 +380,29 @@ function AdminDashboard() {
   const currentScoutYear = useCurrentScoutYear()
   const [scoutYear, setScoutYear] = useState(currentScoutYear)
   const { data, isLoading } = useAdminDashboard(scoutYear)
-  // Timely/actionable content — fetched once, independent of the year selector below.
+  // Timely/actionable content — fetched once, independent of the year selector.
   const { data: overview } = useDashboardOverview()
+  // Deduped with BirthdaysCard's own query — used only to skip the birthdays grid cell when there are none
+  // (so it doesn't leave an empty column).
+  const { data: birthdays } = useUpcomingBirthdays(30)
+
+  // Per-user widget layout (order + visibility + width), saved on the account. mergeLayout keeps it forward-
+  // compatible if a widget is added later. `layout` is the working copy (edited in customize mode).
+  const { data: savedLayout } = useDashboardLayout()
+  const saveLayout = useUpdateDashboardLayout()
+  const [editing, setEditing] = useState(false)
+  const [layout, setLayout] = useState<WidgetConfig[]>(() => mergeLayout(savedLayout))
+  // Re-sync the working copy when the saved layout loads/changes — but never while editing (it would discard
+  // in-progress changes). Render-phase reset (same idiom used elsewhere; converges, can't loop).
+  const [syncedFrom, setSyncedFrom] = useState(savedLayout)
+  if (!editing && savedLayout !== syncedFrom) {
+    setSyncedFrom(savedLayout)
+    setLayout(mergeLayout(savedLayout))
+  }
 
   // Year options: the current scout year (labelled "en cours") + the previous 4 — built from the current year
-  // so the list is never stale and the selected value is always present (before, the hardcoded list omitted the
-  // current year, so the dropdown showed blank). If the selected year predates the window, it's added too.
+  // so the list is never stale and the selected value is always present. If the selected year predates the
+  // window, it's added too.
   const years = useMemo(() => {
     const start = parseInt(currentScoutYear.slice(0, 4), 10)
     const list = Number.isNaN(start)
@@ -228,136 +419,67 @@ function AdminDashboard() {
     </div>
   )
 
+  // ── Customize mode ──
+  if (editing) {
+    return (
+      <DashboardEditor
+        layout={layout}
+        setLayout={setLayout}
+        saving={saveLayout.isPending}
+        onReset={() => setLayout(DEFAULT_LAYOUT.map(w => ({ ...w })))}
+        onCancel={() => { setLayout(mergeLayout(savedLayout)); setEditing(false) }}
+        onDone={() => saveLayout.mutate(serializeLayout(layout), {
+          onSuccess: () => { toast.success('Tableau de bord enregistré'); setEditing(false) },
+          onError: () => toast.error("Échec de l'enregistrement"),
+        })}
+      />
+    )
+  }
+
   // Bar-scale denominators (the largest bucket = 100% width); floor at 1 to avoid divide-by-zero.
   const maxUnitMembers = Math.max(...data.unitBreakdown.map(u => u.memberCount), 1)
   const maxAgeGroup = Math.max(...data.ageGroups.map(g => g.count), 1)
 
+  const visible = layout.filter(w => w.visible)
+  const anyYearScoped = visible.some(w => WIDGET_META[w.id].yearScoped)
+  const hasBirthdays = !!birthdays && birthdays.length > 0
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Accueil</h1>
-        <p className="text-sm text-muted-foreground">Vue d'ensemble du groupe</p>
-      </div>
-
-      {/* Action hub + timely panels — "now", not year-scoped */}
-      {overview && <ActionHub o={overview} />}
-      {overview && <OverviewPanels o={overview} />}
-
-      {/* Upcoming birthdays (group-wide for a CG/super-admin) — hides itself when there are none. */}
-      <BirthdaysCard />
-
-      {/* ── Year-scoped statistics ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-5">
-        <h2 className="text-lg font-semibold">Statistiques — {scoutYear}</h2>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Année scoute</label>
-          <Select value={scoutYear} onValueChange={setScoutYear}>
-            <SelectTrigger className="w-full sm:w-60 gap-2"><Calendar className="h-4 w-4 shrink-0 text-muted-foreground" /><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {years.map((y) => (
-                <SelectItem key={y} value={y}>{y}{y === currentScoutYear ? ' — année en cours' : ''}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Accueil</h1>
+          <p className="text-sm text-muted-foreground">Vue d'ensemble du groupe</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {anyYearScoped && (
+            <Select value={scoutYear} onValueChange={setScoutYear}>
+              <SelectTrigger className="w-full sm:w-56 gap-2"><Calendar className="h-4 w-4 shrink-0 text-muted-foreground" /><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {years.map((y) => <SelectItem key={y} value={y}>{y}{y === currentScoutYear ? ' — année en cours' : ''}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditing(true)}><SlidersHorizontal className="h-4 w-4" />Personnaliser</Button>
         </div>
       </div>
 
-      {/* Row 1: Key numbers */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
-              <Users className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{data.totalMembers}</p>
-              <p className="text-xs text-muted-foreground">Membres</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
-              <UserCheck className="h-5 w-5" />
-            </div>
-            <div className="flex items-baseline gap-3">
-              <div>
-                <p className="text-2xl font-bold">{data.boys}</p>
-                <p className="text-xs text-muted-foreground">Garçons</p>
-              </div>
-              <span className="text-muted-foreground/50">/</span>
-              <div>
-                <p className="text-2xl font-bold">{data.girls}</p>
-                <p className="text-xs text-muted-foreground">Filles</p>
-              </div>
-              {data.ungendered > 0 && (
-                <>
-                  <span className="text-muted-foreground/50">/</span>
-                  <div>
-                    <p className="text-2xl font-bold text-muted-foreground">{data.ungendered}</p>
-                    <p className="text-xs text-muted-foreground">Non renseigné</p>
-                  </div>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={data.missingDocuments > 0 ? 'border-orange-200 dark:border-orange-900' : ''}>
-          <CardContent className="flex items-center gap-3 pt-6">
-            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.missingDocuments > 0 ? 'bg-orange-100 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400' : 'bg-green-100 dark:bg-green-950/50 text-green-600 dark:text-green-400'}`}>
-              <FileX className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{data.missingDocuments}</p>
-              <p className="text-xs text-muted-foreground">Docs manquants</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={data.unpaidCotisations > 0 ? 'border-red-200 dark:border-red-900' : ''}>
-          <CardContent className="flex items-center gap-3 pt-6">
-            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.unpaidCotisations > 0 ? 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400' : 'bg-green-100 dark:bg-green-950/50 text-green-600 dark:text-green-400'}`}>
-              <Receipt className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{data.unpaidCotisations}</p>
-              <p className="text-xs text-muted-foreground">Cotisations impayées</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Row 2: Charts */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Members by unit */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Membres par unité</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            {data.unitBreakdown.map(u => (
-              <ChartBar key={u.unitCode} value={u.memberCount} max={maxUnitMembers} color="bg-primary" label={u.unitCode} suffix={`${u.docCompliance}% complets`} />
-            ))}
-            {data.membersWithoutUnit > 0 && (
-              <div className="flex items-center gap-2 pt-2 border-t text-sm text-muted-foreground">
-                <UserMinus className="h-3.5 w-3.5" />
-                <span>{data.membersWithoutUnit} membre{data.membersWithoutUnit > 1 ? 's' : ''} sans unité</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Age distribution */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Répartition par âge</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            {data.ageGroups.map(g => (
-              <ChartBar key={g.label} value={g.count} max={maxAgeGroup} color="bg-indigo-500" label={g.label} />
-            ))}
-          </CardContent>
-        </Card>
-      </div>
+      {visible.length === 0 ? (
+        <Card><CardContent className="flex flex-col items-center gap-3 py-12 text-center text-muted-foreground">
+          <p className="text-sm">Aucune carte affichée sur votre tableau de bord.</p>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditing(true)}><SlidersHorizontal className="h-4 w-4" />Personnaliser</Button>
+        </CardContent></Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+          {visible.map(w => {
+            // Birthdays self-hides when empty — skip its cell so it doesn't leave an empty column.
+            if (w.id === 'birthdays' && !hasBirthdays) return null
+            const node = renderWidget(w.id, overview, data, maxUnitMembers, maxAgeGroup)
+            if (!node) return null
+            return <div key={w.id} className={WIDTH_COLSPAN[w.width]}>{node}</div>
+          })}
+        </div>
+      )}
     </div>
   )
 }
