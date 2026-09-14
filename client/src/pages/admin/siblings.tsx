@@ -69,7 +69,10 @@ function evidenceIcon(e: string) {
 
 // ── Suggestions ──
 function SuggestionsTab() {
-  const { data: suggestions, isLoading } = useSiblingSuggestions()
+  const { data, isLoading } = useSiblingSuggestions()
+  // total = the REAL number of probable families still to review (uncapped); items = the loaded page of them.
+  const suggestions = data?.items ?? []
+  const total = data?.total ?? 0
   const reject = useRejectSiblingSuggestion()
   const [rejecting, setRejecting] = useState<SiblingSuggestion | null>(null)
   const [reviewing, setReviewing] = useState<SiblingSuggestion | null>(null)
@@ -85,16 +88,18 @@ function SuggestionsTab() {
   }
 
   if (isLoading) return <LoadingSpinner variant="table" />
-  if (!suggestions || suggestions.length === 0)
+  if (!data || suggestions.length === 0)
     return <EmptyState icon={Sparkles} title="Aucune suggestion" description="Aucune fratrie probable à examiner pour le moment." />
 
-  // Client-side filter (the full list is loaded): matches any member's name/unit or the shared evidence.
+  // Client-side filter (only the loaded page is filtered): matches any member's name/unit or the shared evidence.
   const term = searchKey(search.trim())
   const filtered = term
     ? suggestions.filter((s) =>
         s.members.some((m) => searchKey(`${m.firstName} ${m.lastName} ${m.unitName ?? ''}`).includes(term))
         || s.evidence.some((e) => searchKey(e).includes(term)))
     : suggestions
+  // The server caps the detailed list — say so when there are more families than are shown.
+  const capped = total > suggestions.length
 
   return (
     <>
@@ -102,7 +107,12 @@ function SuggestionsTab() {
         <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Rechercher un nom, une unité…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
       </div>
-      <p className="mb-3 text-sm text-muted-foreground">{filtered.length} famille(s) probable(s){term ? ` sur ${suggestions.length}` : ''} à examiner. Cliquez sur une famille pour ouvrir ses informations communes (parents, adresse, contacts) sur le côté et la confirmer.</p>
+      <p className="mb-3 text-sm text-muted-foreground">
+        {term
+          ? `${filtered.length} résultat(s) sur ${total} famille(s) probable(s) à examiner.`
+          : `${total} famille(s) probable(s) à examiner${capped ? ` (les ${suggestions.length} premières sont affichées)` : ''}.`}
+        {' '}Cliquez sur une famille pour ouvrir ses informations communes (parents, adresses, contacts) sur le côté et la confirmer.
+      </p>
       {filtered.length === 0 ? (
         <EmptyState icon={Sparkles} title="Aucun résultat" description="Aucune fratrie probable ne correspond à votre recherche." />
       ) : (
@@ -486,8 +496,10 @@ function MergeDialog({ group, onClose }: { group: DuplicateGroup; onClose: () =>
           )}
 
           <p className="rounded-md bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-            Les affectations, documents, cotisations, progressions, contacts et liens parents des autres fiches
-            seront transférés vers le membre conservé. Les doublons seront placés dans la Corbeille (restaurables).
+            Toutes les coordonnées (téléphones, emails, adresses) et les liens parents des fiches sont
+            <span className="font-semibold"> conservés et fusionnés</span> (les doublons exacts sont supprimés) — rien n'est perdu.
+            Les affectations, documents, cotisations et progressions sont également transférés vers le membre conservé,
+            puis les doublons sont placés dans la Corbeille (restaurables).
           </p>
         </div>
         <DialogFooter>

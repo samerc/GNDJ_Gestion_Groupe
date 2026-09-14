@@ -9,14 +9,23 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Siblings;
 
 // ── Approve a suggested/curated family → create the SiblingGroup AND reconcile the family data ──
-// Reconcile = dedupe the parents onto the CG-chosen canonical father/mother (merging the duplicate guardians'
-// phones/emails onto the canonical, then dropping the now-orphaned duplicate guardians), and copy the chosen
-// home address to every sibling. This is what actually cleans the import's duplicate/inconsistent parent records.
+// Reconcile = dedupe the parents onto the CG-chosen canonical father/mother, then drop the now-orphaned duplicate
+// guardians, and share the chosen home address(es) to every sibling. This is what actually cleans the import's
+// duplicate/inconsistent parent records.
+//
+// CHERRY-PICK: KeepPhoneIds/KeepEmailIds carry the guardian-contact rows the CG chose to keep on the merged
+// canonical parent (so "father of A has email X, father of B has email Y → keep both"). When they're non-null,
+// ONLY those contacts (among the candidate parents' pool) are ensured on the canonical — the canonical's own are
+// always kept, and unchecked duplicate-record contacts are dropped with their guardian. When null (e.g. the
+// member-fiche "Lier" flow), ALL duplicate parents' contacts are merged (previous behaviour). AddressIds lets the
+// CG keep MORE THAN ONE address (e.g. two homes) — each is shared to every sibling; the first is the primary.
 public record ApproveSiblingGroupCommand(
     IReadOnlyList<Guid> MemberIds,
     Guid? FatherGuardianId,
     Guid? MotherGuardianId,
-    Guid? AddressId) : IRequest<Result<Guid>>;
+    IReadOnlyList<Guid>? AddressIds,
+    IReadOnlyList<Guid>? KeepPhoneIds = null,
+    IReadOnlyList<Guid>? KeepEmailIds = null) : IRequest<Result<Guid>>;
 
 public class ApproveSiblingGroupCommandValidator : AbstractValidator<ApproveSiblingGroupCommand>
 {
@@ -47,9 +56,9 @@ public class ApproveSiblingGroupCommandHandler(IApplicationDbContext context, IA
             var group = await ResolveGroupAsync(members, ct);
 
             var touchedDupGuardians = new HashSet<Guid>();
-            if (request.FatherGuardianId is Guid fId) await ReconcileParentAsync(members, fId, "Père", touchedDupGuardians, ct);
-            if (request.MotherGuardianId is Guid mId) await ReconcileParentAsync(members, mId, "Mère", touchedDupGuardians, ct);
-            if (request.AddressId is Guid aId) await ReconcileAddressAsync(members, aId, ct);
+            if (request.FatherGuardianId is Guid fId) await ReconcileParentAsync(members, fId, "Père", request.KeepPhoneIds, request.KeepEmailIds, touchedDupGuardians, ct);
+            if (request.MotherGuardianId is Guid mId) await ReconcileParentAsync(members, mId, "Mère", request.KeepPhoneIds, request.KeepEmailIds, touchedDupGuardians, ct);
+            if (request.AddressIds is { Count: > 0 } addressIds) await ReconcileAddressesAsync(members, addressIds, ct);
 
             // They're confirmed siblings now → drop any "not siblings" tombstones among them.
             var idSet = members.Select(m => m.Id).ToList();
@@ -122,7 +131,9 @@ public class ApproveSiblingGroupCommandHandler(IApplicationDbContext context, IA
     }
 
     // Point every sibling at the one canonical parent, absorbing the duplicate parents' contacts + links.
-    private async Task ReconcileParentAsync(List<Member> members, Guid canonicalId, string roleLabel, HashSet<Guid> touched, CancellationToken ct)
+    // keepPhoneIds/keepEmailIds (when non-null) = the CG's cherry-picked contacts to keep on the canonical.
+    private async Task ReconcileParentAsync(List<Member> members, Guid canonicalId, string roleLabel,
+        IReadOnlyList<Guid>? keepPhoneIds, IReadOnlyList<Guid>? keepEmailIds, HashSet<Guid> touched, CancellationToken ct)
     {
         var role = SiblingUtil.NormRole(roleLabel);
         if (!await context.Guardians.AnyAsync(g => g.Id == canonicalId, ct)) return;
@@ -136,6 +147,33 @@ public class ApproveSiblingGroupCommandHandler(IApplicationDbContext context, IA
         var emailKeys = (await context.GuardianEmails.Where(e => e.GuardianId == canonicalId).Select(e => e.Address).ToListAsync(ct))
             .Select(SiblingUtil.NormEmail).Where(n => n.Length > 0).ToHashSet();
 
+        // The same-role candidate parents among these members = the contact pool the CG could pick from. We only
+        // ever copy contacts from within this pool (so a stray id can't pull in an unrelated contact).
+        var poolGuardianIds = members.SelectMany(m => m.GuardianLinks)
+            .Where(l => SiblingUtil.NormRole(l.RelationshipType) == role)
+            .Select(l => l.GuardianId).Distinct().ToHashSet();
+
+        var cherryPick = keepPhoneIds is not null || keepEmailIds is not null;
+        if (cherryPick)
+        {
+            // Copy ONLY the CG-selected contacts onto the canonical (its own are already kept above). Unchecked
+            // duplicate-record contacts are simply not copied; they vanish when their orphaned guardian is removed.
+            var keepP = (keepPhoneIds ?? []).ToHashSet();
+            foreach (var p in await context.GuardianPhones.Where(p => keepP.Contains(p.Id) && poolGuardianIds.Contains(p.GuardianId)).ToListAsync(ct))
+            {
+                var d = SiblingUtil.Digits(p.Number);
+                if (d.Length >= 4 && phoneKeys.Add(d))
+                    context.GuardianPhones.Add(new GuardianPhone { GuardianId = canonicalId, CountryCode = p.CountryCode, Number = p.Number, Type = p.Type, IsPrimary = false });
+            }
+            var keepE = (keepEmailIds ?? []).ToHashSet();
+            foreach (var e in await context.GuardianEmails.Where(e => keepE.Contains(e.Id) && poolGuardianIds.Contains(e.GuardianId)).ToListAsync(ct))
+            {
+                var n = SiblingUtil.NormEmail(e.Address);
+                if (n.Length > 0 && emailKeys.Add(n))
+                    context.GuardianEmails.Add(new GuardianEmail { GuardianId = canonicalId, Address = e.Address, Type = e.Type, IsPrimary = false });
+            }
+        }
+
         foreach (var member in members)
         {
             if (!member.GuardianLinks.Any(l => l.GuardianId == canonicalId))
@@ -147,7 +185,8 @@ public class ApproveSiblingGroupCommandHandler(IApplicationDbContext context, IA
             foreach (var dup in dupLinks)
             {
                 touched.Add(dup.GuardianId);
-                await MergeGuardianContactsAsync(canonicalId, dup.GuardianId, phoneKeys, emailKeys, ct);
+                // Without cherry-pick, absorb ALL of the duplicate's contacts (previous behaviour).
+                if (!cherryPick) await MergeGuardianContactsAsync(canonicalId, dup.GuardianId, phoneKeys, emailKeys, ct);
                 context.GuardianLinks.Remove(dup);
             }
         }
@@ -173,30 +212,42 @@ public class ApproveSiblingGroupCommandHandler(IApplicationDbContext context, IA
         }
     }
 
-    // Copy the chosen home address onto every sibling that doesn't already have an equivalent one (as primary).
-    private async Task ReconcileAddressAsync(List<Member> members, Guid addressId, CancellationToken ct)
+    // Share the chosen home address(es) with every sibling — the CG can keep more than one (e.g. two homes). Each
+    // selected address is copied onto siblings that don't already have an equivalent; the FIRST selected is the
+    // primary (matches the CG's main-home pick). An address a sibling already has is left in place.
+    private async Task ReconcileAddressesAsync(List<Member> members, IReadOnlyList<Guid> addressIds, CancellationToken ct)
     {
-        var src = await context.MemberAddresses.FirstOrDefaultAsync(a => a.Id == addressId, ct);
-        if (src is null) return;
-        var nCity = TextNormalization.NormalizeKey(src.City);
-        var nDetails = TextNormalization.NormalizeKey(src.Details ?? "");
-        var nCountry = TextNormalization.NormalizeKey(src.Country);
+        var ids = addressIds.Distinct().ToList();
+        var sources = await context.MemberAddresses.Where(a => ids.Contains(a.Id)).ToListAsync(ct);
+        // Preserve the CG's order (first selected = the main/primary home).
+        var ordered = ids.Select(id => sources.FirstOrDefault(s => s.Id == id)).OfType<MemberAddress>().ToList();
+        if (ordered.Count == 0) return;
+
+        static string Key(MemberAddress a) =>
+            TextNormalization.NormalizeKey(a.City) + "|" + TextNormalization.NormalizeKey(a.Details ?? "") + "|" + TextNormalization.NormalizeKey(a.Country);
+        var primaryKey = Key(ordered[0]);
 
         foreach (var member in members)
         {
-            var has = member.Addresses.Any(a =>
-                TextNormalization.NormalizeKey(a.City) == nCity
-                && TextNormalization.NormalizeKey(a.Details ?? "") == nDetails
-                && TextNormalization.NormalizeKey(a.Country) == nCountry);
-            if (!has)
-            {
+            var toAdd = ordered.Where(src => member.Addresses.All(a => Key(a) != Key(src))).ToList();
+            var addingPrimary = toAdd.Any(src => Key(src) == primaryKey);
+            var hasPrimaryExisting = member.Addresses.Any(a => Key(a) == primaryKey);
+
+            // Re-point the primary flag to the chosen main home only when it's part of this reconcile.
+            if (addingPrimary || hasPrimaryExisting)
                 foreach (var a in member.Addresses) a.IsPrimary = false;
+
+            foreach (var src in toAdd)
                 context.MemberAddresses.Add(new MemberAddress
                 {
                     MemberId = member.Id, Type = string.IsNullOrWhiteSpace(src.Type) ? "Domicile" : src.Type,
-                    Country = src.Country, City = src.City, Details = src.Details, IsPrimary = true
+                    Country = src.Country, City = src.City, Details = src.Details,
+                    IsPrimary = Key(src) == primaryKey
                 });
-            }
+
+            // If the member already had the main-home address (not re-added), mark that existing one primary.
+            if (!addingPrimary && hasPrimaryExisting)
+                foreach (var a in member.Addresses.Where(a => Key(a) == primaryKey)) a.IsPrimary = true;
         }
     }
 }

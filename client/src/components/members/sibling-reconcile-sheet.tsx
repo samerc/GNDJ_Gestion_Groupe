@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Users, Check, UserRound, MapPin, ArrowRight, Phone, Mail } from 'lucide-react'
 import {
   useReconcileData, useApproveSiblingGroup,
-  type SiblingReconcileData, type SiblingGuardian, type SiblingAddress,
+  type SiblingReconcileData, type SiblingGuardian, type SiblingAddress, type SiblingContact,
 } from '@/services/sibling-service'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,11 +13,29 @@ import { toast } from 'sonner'
 
 const NONE = '__none__'
 
+// Normalize a phone/email for value-dedup (must mirror the backend's Digits / NormEmail).
+const normPhone = (s: string) => s.replace(/\D/g, '')
+const normEmail = (s: string) => s.trim().toLowerCase()
+
+// Group a list of contacts by their normalized value, collecting every row id that shares it — so a checkbox can
+// toggle ALL ids of one value at once (two duplicate parent records may hold the same email under different ids).
+function groupContacts(contacts: SiblingContact[], norm: (s: string) => string) {
+  const m = new Map<string, { value: string; ids: string[] }>()
+  for (const c of contacts) {
+    const k = norm(c.value)
+    if (!k) continue
+    const g = m.get(k)
+    if (g) g.ids.push(c.id)
+    else m.set(k, { value: c.value, ids: [c.id] })
+  }
+  return [...m.values()]
+}
+
 // Shared reconcile drawer used by BOTH the Fratries page (confirm a suggestion) and the member fiche
 // ("Frères et sœurs" → Lier). Given the member ids that make up the family, it loads their shared "common
-// information" (parents by role + addresses), lets the CG pick the canonical père/mère/adresse (the record
-// covering the most siblings is pre-selected), then calls approve — which creates/merges the SiblingGroup AND
-// reconciles the family data (parents shared, duplicate parents merged, address copied). On success it
+// information" (parents by role + addresses), lets the CG pick the canonical père/mère, CHERRY-PICK which parent
+// contacts to keep on the merged parent (e.g. keep both fathers' emails), and keep one OR several home addresses,
+// then calls approve — which creates/merges the SiblingGroup AND reconciles the family data. On success it
 // invalidates the ['siblings'] queries (via useApproveSiblingGroup) and calls onDone/onClose.
 export function SiblingReconcileSheet({
   memberIds, title = 'Confirmer la fratrie', confirmLabel = 'Confirmer la fratrie', onClose, onDone,
@@ -35,9 +53,13 @@ export function SiblingReconcileSheet({
   const [selected, setSelected] = useState<Set<string>>(new Set(memberIds))
   const [father, setFather] = useState<string>(NONE)
   const [mother, setMother] = useState<string>(NONE)
-  const [address, setAddress] = useState<string>(NONE)
+  // Multi-select: the CG can keep more than one home address (e.g. two homes).
+  const [addresses, setAddresses] = useState<Set<string>>(new Set())
+  // Cherry-pick: the contact row ids (phones + emails) to keep on the merged parents. Default = keep them all.
+  const [keptContacts, setKeptContacts] = useState<Set<string>>(new Set())
 
-  // Load the family detail when the sheet opens; default the canonical choices to the record covering the most siblings.
+  // Load the family detail when the sheet opens; default the canonical choices to the record covering the most
+  // siblings, the primary address checked, and ALL parent contacts kept.
   const load = async () => {
     if (data || reconcile.isPending) return
     setLoadFailed(false)
@@ -47,7 +69,9 @@ export function SiblingReconcileSheet({
       const best = (gs: SiblingGuardian[]) => gs.length ? [...gs].sort((a, b) => b.linkedMemberIds.length - a.linkedMemberIds.length)[0].guardianId : NONE
       setFather(best(d.fathers)); setMother(best(d.mothers))
       const primary = d.addresses.find((a) => a.isPrimary) ?? d.addresses[0]
-      setAddress(primary ? primary.addressId : NONE)
+      setAddresses(new Set(primary ? [primary.addressId] : []))
+      const allContactIds = [...d.fathers, ...d.mothers].flatMap((g) => [...g.phones, ...g.emails]).map((c) => c.id)
+      setKeptContacts(new Set(allContactIds))
     } catch (e) { toast.error(parseApiError(e)); setLoadFailed(true) }
   }
 
@@ -56,15 +80,31 @@ export function SiblingReconcileSheet({
     if (next.has(id)) next.delete(id); else next.add(id)
     return next
   })
+  const toggleAddress = (id: string) => setAddresses((prev) => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+  const toggleContacts = (ids: string[], on: boolean) => setKeptContacts((prev) => {
+    const next = new Set(prev)
+    for (const id of ids) { if (on) next.add(id); else next.delete(id) }
+    return next
+  })
 
   const submit = async () => {
+    if (!data) return
     if (selected.size < 2) { toast.error('Sélectionnez au moins deux membres.'); return }
+    // Split the kept contact ids into phones vs emails for the backend.
+    const allPhoneIds = new Set([...data.fathers, ...data.mothers].flatMap((g) => g.phones).map((c) => c.id))
+    const kept = [...keptContacts]
     try {
       await approve.mutateAsync({
         memberIds: [...selected],
         fatherGuardianId: father === NONE ? null : father,
         motherGuardianId: mother === NONE ? null : mother,
-        addressId: address === NONE ? null : address,
+        addressIds: [...addresses],
+        keepPhoneIds: kept.filter((id) => allPhoneIds.has(id)),
+        keepEmailIds: kept.filter((id) => !allPhoneIds.has(id)),
       })
       toast.success('Fratrie confirmée et informations harmonisées')
       onDone?.()
@@ -78,8 +118,6 @@ export function SiblingReconcileSheet({
 
   const chosenFather = data && father !== NONE ? guardianName(data.fathers, father) : null
   const chosenMother = data && mother !== NONE ? guardianName(data.mothers, mother) : null
-  const chosenAddrRec = data && address !== NONE ? data.addresses.find((a) => a.addressId === address) : null
-  const chosenAddr = chosenAddrRec ? addrLabel(chosenAddrRec) : null
 
   return (
     <Sheet open onOpenChange={(o) => { if (!o) onClose() }}>
@@ -104,7 +142,7 @@ export function SiblingReconcileSheet({
                   <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4 text-primary" /><span className="font-semibold">{selected.size}</span> enfants regroupés</span>
                   {chosenFather && <span className="inline-flex items-center gap-1.5"><UserRound className="h-4 w-4 text-muted-foreground" />Père : <span className="font-medium">{chosenFather}</span></span>}
                   {chosenMother && <span className="inline-flex items-center gap-1.5"><UserRound className="h-4 w-4 text-muted-foreground" />Mère : <span className="font-medium">{chosenMother}</span></span>}
-                  {chosenAddr && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4 text-muted-foreground" /><span className="font-medium">{chosenAddr}</span></span>}
+                  {addresses.size > 0 && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4 text-muted-foreground" /><span className="font-medium">{addresses.size} adresse{addresses.size > 1 ? 's' : ''}</span></span>}
                 </div>
               </div>
 
@@ -129,34 +167,31 @@ export function SiblingReconcileSheet({
                 </div>
               </section>
 
-              <ParentSection role="Père" options={data.fathers} value={father} onChange={setFather} />
-              <ParentSection role="Mère" options={data.mothers} value={mother} onChange={setMother} />
+              <ParentSection role="Père" options={data.fathers} value={father} onChange={setFather} kept={keptContacts} onToggle={toggleContacts} />
+              <ParentSection role="Mère" options={data.mothers} value={mother} onChange={setMother} kept={keptContacts} onToggle={toggleContacts} />
 
-              {/* Address */}
+              {/* Addresses — multi-select: keep one OR several (e.g. two homes). The first checked is the primary. */}
               {data.addresses.length > 0 && (
                 <section>
-                  <p className="mb-2 text-sm font-semibold">Adresse commune</p>
+                  <p className="mb-1 text-sm font-semibold">Adresses communes</p>
+                  <p className="mb-2 text-xs text-muted-foreground">Cochez la ou les adresses à partager avec toute la fratrie (vous pouvez en garder plusieurs).</p>
                   <div className="space-y-1.5">
                     {data.addresses.map((a) => {
-                      const on = address === a.addressId
+                      const on = addresses.has(a.addressId)
                       return (
                         <label key={a.addressId} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${on ? 'border-primary/50 bg-primary/5' : ''}`}>
-                          <input type="radio" checked={on} onChange={() => setAddress(a.addressId)} className="h-4 w-4" />
+                          <input type="checkbox" checked={on} onChange={() => toggleAddress(a.addressId)} className="h-4 w-4" />
                           <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <span className="min-w-0 flex-1 truncate">{addrLabel(a) || a.country}<span className="text-xs text-muted-foreground"> — {nameOf(a.memberId)}</span></span>
                         </label>
                       )
                     })}
-                    <label className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${address === NONE ? 'border-primary/50 bg-primary/5' : ''}`}>
-                      <input type="radio" checked={address === NONE} onChange={() => setAddress(NONE)} className="h-4 w-4" />
-                      <span className="text-muted-foreground">Ne pas modifier les adresses</span>
-                    </label>
                   </div>
                 </section>
               )}
 
               <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                Les parents et l'adresse choisis seront partagés par tous les enfants sélectionnés; les fiches de parents en double sont fusionnées (contacts regroupés) et les doublons supprimés.
+                Les parents et adresses choisis seront partagés par tous les enfants sélectionnés; les fiches de parents en double sont fusionnées (les coordonnées cochées sont conservées) et les doublons supprimés.
               </p>
             </div>
           )}
@@ -175,10 +210,28 @@ export function SiblingReconcileSheet({
 }
 
 // A père/mère section: the candidate parent records as comparison cards. When there are several (duplicates),
-// the header explains they'll be merged; the selected one is "Principale", the others "Sera fusionné".
-function ParentSection({ role, options, value, onChange }: { role: string; options: SiblingGuardian[]; value: string; onChange: (v: string) => void }) {
+// the header explains they'll be merged; the selected one is "Principale", the others "Sera fusionné". Below,
+// the "Coordonnées à conserver" list lets the CG cherry-pick which of the OTHER records' phones/emails to add
+// onto the chosen principal (default = all kept), so e.g. both fathers' emails survive the merge.
+function ParentSection({ role, options, value, onChange, kept, onToggle }: {
+  role: string; options: SiblingGuardian[]; value: string
+  onChange: (v: string) => void
+  kept: Set<string>
+  onToggle: (ids: string[], on: boolean) => void
+}) {
   if (options.length === 0) return null
   const many = options.length > 1
+  const canonical = options.find((g) => g.guardianId === value)
+
+  // The principal's own contacts are always kept; the checkbox list is the EXTRA contacts from the other records
+  // (deduped by value, excluding any the principal already has) that the CG can add or drop.
+  const ownPhoneKeys = new Set((canonical?.phones ?? []).map((c) => normPhone(c.value)))
+  const ownEmailKeys = new Set((canonical?.emails ?? []).map((c) => normEmail(c.value)))
+  const others = options.filter((g) => g.guardianId !== value)
+  const extraPhones = groupContacts(others.flatMap((g) => g.phones), normPhone).filter((g) => !ownPhoneKeys.has(normPhone(g.value)))
+  const extraEmails = groupContacts(others.flatMap((g) => g.emails), normEmail).filter((g) => !ownEmailKeys.has(normEmail(g.value)))
+  const hasExtras = extraPhones.length > 0 || extraEmails.length > 0
+
   return (
     <section>
       <p className="mb-1 text-sm font-semibold">{role}</p>
@@ -203,8 +256,8 @@ function ParentSection({ role, options, value, onChange }: { role: string; optio
                 </div>
                 {(g.phones.length > 0 || g.emails.length > 0) && (
                   <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                    {g.phones.map((p, i) => <span key={`p${i}`} className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{p}</span>)}
-                    {g.emails.map((e, i) => <span key={`e${i}`} className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{e}</span>)}
+                    {g.phones.map((p) => <span key={p.id} className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{p.value}</span>)}
+                    {g.emails.map((e) => <span key={e.id} className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{e.value}</span>)}
                   </div>
                 )}
               </div>
@@ -216,6 +269,33 @@ function ParentSection({ role, options, value, onChange }: { role: string; optio
           <span className="text-muted-foreground">Ne pas modifier</span>
         </label>
       </div>
+
+      {/* Cherry-pick the OTHER records' contacts to keep on the principal (default all checked = keep both). */}
+      {value !== NONE && hasExtras && (
+        <div className="mt-2 rounded-md border border-dashed bg-muted/20 p-2.5">
+          <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Coordonnées supplémentaires à conserver sur la fiche principale</p>
+          <div className="flex flex-col gap-1">
+            {extraPhones.map((g) => {
+              const on = g.ids.some((id) => kept.has(id))
+              return (
+                <label key={g.ids[0]} className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input type="checkbox" checked={on} onChange={() => onToggle(g.ids, !on)} className="h-4 w-4" />
+                  <Phone className="h-3.5 w-3.5 text-muted-foreground" />{g.value}
+                </label>
+              )
+            })}
+            {extraEmails.map((g) => {
+              const on = g.ids.some((id) => kept.has(id))
+              return (
+                <label key={g.ids[0]} className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input type="checkbox" checked={on} onChange={() => onToggle(g.ids, !on)} className="h-4 w-4" />
+                  <Mail className="h-3.5 w-3.5 text-muted-foreground" />{g.value}
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </section>
   )
 }

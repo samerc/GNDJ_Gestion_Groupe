@@ -18,17 +18,17 @@ namespace GNDJ.Application.Siblings;
 // the remaining edges are unioned (connected components) into families. Filtering at the EDGE level means a
 // rejected pair cleanly splits a family. Buckets are size-capped to avoid combinatorial blow-up / bogus mega-
 // families from generic data; over-cap buckets are skipped (a deliberate, documented recall trade-off).
-public record GetSiblingSuggestionsQuery : IRequest<IReadOnlyList<SiblingSuggestionDto>>;
+public record GetSiblingSuggestionsQuery : IRequest<SiblingSuggestionsResultDto>;
 
 public class GetSiblingSuggestionsQueryHandler(IApplicationDbContext context)
-    : IRequestHandler<GetSiblingSuggestionsQuery, IReadOnlyList<SiblingSuggestionDto>>
+    : IRequestHandler<GetSiblingSuggestionsQuery, SiblingSuggestionsResultDto>
 {
     private const int GuardianBucketCap = 15;   // a guardian linked to >15 members is bad data, not a family
     private const int ContactBucketCap = 15;
     private const int AddressBucketCap = 12;
     private const int MaxSuggestions = 200;      // keep the review page manageable
 
-    public async ValueTask<IReadOnlyList<SiblingSuggestionDto>> Handle(GetSiblingSuggestionsQuery request, CancellationToken ct)
+    public async ValueTask<SiblingSuggestionsResultDto> Handle(GetSiblingSuggestionsQuery request, CancellationToken ct)
     {
         // Lean load of everything the signals need.
         var members = await context.Members
@@ -142,11 +142,14 @@ public class GetSiblingSuggestionsQueryHandler(IApplicationDbContext context)
                 high ? "Élevée" : "Moyenne"));
         }
 
-        return suggestions
+        var ordered = suggestions
             .OrderByDescending(s => s.Confidence == "Élevée")
             .ThenByDescending(s => s.Members.Count)
-            .Take(MaxSuggestions)
             .ToList();
+
+        // Return the TRUE total (so the page shows the real number of families still to review) alongside the
+        // capped page of details.
+        return new SiblingSuggestionsResultDto(ordered.Count, ordered.Take(MaxSuggestions).ToList());
     }
 
     // Tiny union-find (disjoint-set) with path compression, keyed by member Guid.
@@ -186,18 +189,26 @@ public class GetSiblingReconcileDataQueryHandler(IApplicationDbContext context)
             .Select(l => new { l.GuardianId, l.MemberId, l.RelationshipType, GFirst = l.Guardian.FirstName, GLast = l.Guardian.LastName })
             .ToListAsync(ct);
         var guardianIds = gLinks.Select(l => l.GuardianId).Distinct().ToList();
+        // Carry each contact's row Id so the CG can cherry-pick which phones/emails to keep on the merged parent.
         var gPhones = await context.GuardianPhones.Where(p => guardianIds.Contains(p.GuardianId))
-            .Select(p => new { p.GuardianId, p.CountryCode, p.Number }).ToListAsync(ct);
+            .Select(p => new { p.Id, p.GuardianId, p.CountryCode, p.Number }).ToListAsync(ct);
         var gEmails = await context.GuardianEmails.Where(e => guardianIds.Contains(e.GuardianId))
-            .Select(e => new { e.GuardianId, e.Address }).ToListAsync(ct);
+            .Select(e => new { e.Id, e.GuardianId, e.Address }).ToListAsync(ct);
 
         var guardians = guardianIds.Select(gid =>
         {
             var ls = gLinks.Where(l => l.GuardianId == gid).ToList();
+            // Dedupe a guardian's own contacts by value (digits / normalized email), keeping one row Id each.
+            var phones = gPhones.Where(p => p.GuardianId == gid)
+                .GroupBy(p => SiblingUtil.Digits(p.Number))
+                .Select(g => { var f = g.First(); return new SiblingContactDto(f.Id, $"{f.CountryCode} {f.Number}".Trim()); })
+                .ToList();
+            var emails = gEmails.Where(e => e.GuardianId == gid)
+                .GroupBy(e => SiblingUtil.NormEmail(e.Address))
+                .Select(g => { var f = g.First(); return new SiblingContactDto(f.Id, f.Address); })
+                .ToList();
             return new SiblingGuardianDto(gid, ls[0].GFirst, ls[0].GLast, SiblingUtil.NormRole(ls[0].RelationshipType),
-                gPhones.Where(p => p.GuardianId == gid).Select(p => $"{p.CountryCode} {p.Number}".Trim()).Distinct().ToList(),
-                gEmails.Where(e => e.GuardianId == gid).Select(e => e.Address).Distinct().ToList(),
-                ls.Select(l => l.MemberId).Distinct().ToList());
+                phones, emails, ls.Select(l => l.MemberId).Distinct().ToList());
         }).ToList();
 
         var addresses = await context.MemberAddresses.Where(a => ids.Contains(a.MemberId))

@@ -20,6 +20,13 @@ export interface SiblingSuggestion {
   confidence: string // "Élevée" | "Moyenne"
 }
 
+// The suggestions payload: total = the real number of probable families still to review (uncapped);
+// items = the first page of them (the server caps the detailed list for the UI).
+export interface SiblingSuggestionsResult {
+  total: number
+  items: SiblingSuggestion[]
+}
+
 export interface SiblingGroup {
   groupId: string
   members: SiblingCandidateMember[]
@@ -34,13 +41,19 @@ export interface MemberSibling {
   dateOfBirth: string | null
 }
 
+// A guardian phone/email carrying its row id, so the CG can cherry-pick which contacts to keep on the merged parent.
+export interface SiblingContact {
+  id: string
+  value: string
+}
+
 export interface SiblingGuardian {
   guardianId: string
   firstName: string
   lastName: string
   role: string // pere | mere | autre
-  phones: string[]
-  emails: string[]
+  phones: SiblingContact[]
+  emails: SiblingContact[]
   linkedMemberIds: string[]
 }
 
@@ -70,11 +83,11 @@ export interface SiblingReconcileData {
   addresses: SiblingAddress[]
 }
 
-// GET /siblings/suggestions → candidate families (matching engine), CG-only.
+// GET /siblings/suggestions → { total, items }: the real remaining count + the first page of candidate families.
 export function useSiblingSuggestions() {
   return useQuery({
     queryKey: ['siblings', 'suggestions'],
-    queryFn: () => apiClient.get<SiblingSuggestion[]>('/siblings/suggestions').then((r) => r.data),
+    queryFn: () => apiClient.get<SiblingSuggestionsResult>('/siblings/suggestions').then((r) => r.data),
   })
 }
 
@@ -112,12 +125,16 @@ function useSiblingInvalidate() {
   }
 }
 
-// POST /siblings/approve → create/merge the group + reconcile parents/address/contacts.
+// POST /siblings/approve → create/merge the group + reconcile parents/addresses/contacts.
+// addressIds: keep one OR several home addresses (shared to all siblings). keepPhoneIds/keepEmailIds: the
+// cherry-picked parent contacts to keep on the merged canonical parent.
 export function useApproveSiblingGroup() {
   const invalidate = useSiblingInvalidate()
   return useMutation({
-    mutationFn: (data: { memberIds: string[]; fatherGuardianId: string | null; motherGuardianId: string | null; addressId: string | null }) =>
-      apiClient.post<{ groupId: string }>('/siblings/approve', data).then((r) => r.data),
+    mutationFn: (data: {
+      memberIds: string[]; fatherGuardianId: string | null; motherGuardianId: string | null
+      addressIds: string[]; keepPhoneIds: string[]; keepEmailIds: string[]
+    }) => apiClient.post<{ groupId: string }>('/siblings/approve', data).then((r) => r.data),
     onSuccess: invalidate,
   })
 }
