@@ -8,11 +8,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 // French day/month for the birthday date (e.g. "14 sept.").
 const fmt = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 
-// The shared list of birthday rows (each links to the member fiche).
-function BirthdayRows({ data, onNavigate }: { data: UpcomingBirthday[]; onNavigate?: () => void }) {
+// The shared list of birthday rows (each links to the member fiche). `limit` caps the visible rows (the card
+// shows a few; the "voir tout" dialog passes a large limit to show them all).
+function BirthdayRows({ data, onNavigate, limit = 500 }: { data: UpcomingBirthday[]; onNavigate?: () => void; limit?: number }) {
   return (
     <ul className="divide-y">
-      {data.slice(0, 20).map((b) => (
+      {data.slice(0, limit).map((b) => (
         <li key={b.memberId}>
           <Link to={`/members/${b.memberId}`} onClick={onNavigate} className="flex items-center gap-3 py-2 text-sm transition-colors hover:text-primary">
             <span className={`w-16 shrink-0 text-xs font-medium ${b.daysUntil === 0 ? 'text-pink-600 dark:text-pink-400' : 'text-muted-foreground'}`}>{fmt(b.nextBirthday)}</span>
@@ -28,17 +29,32 @@ function BirthdayRows({ data, onNavigate }: { data: UpcomingBirthday[]; onNaviga
 // "Anniversaires à venir" — a compact dashboard card of members whose birthday falls in the next `days`.
 // Leaders only, unit-scoped server-side (a CU sees their unit's members, a CG sees everyone). Hidden entirely
 // when there are none, to avoid an empty card. Used on the group Accueil dashboard.
-export function BirthdaysCard({ days = 30, className }: { days?: number; className?: string }) {
+export function BirthdaysCard({ days = 30, className, maxRows = 7 }: { days?: number; className?: string; maxRows?: number }) {
   const { data, isLoading } = useUpcomingBirthdays(days)
+  const [open, setOpen] = useState(false)
   if (isLoading || !data || data.length === 0) return null
+  // Cap the card to a few rows (keeps it a sensible height on the dashboard so it doesn't tower over the cards
+  // beside it); the rest are one click away in a dialog.
+  const extra = data.length - maxRows
   return (
     <div className={`rounded-xl border bg-card p-4 shadow-card ${className ?? ''}`}>
-      <div className="mb-3 flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-100 dark:bg-pink-950/50 text-pink-600 dark:text-pink-400"><Cake className="h-4 w-4" /></span>
-        <h3 className="text-sm font-semibold">Anniversaires à venir</h3>
-        <span className="ml-auto text-xs text-muted-foreground">{days} prochains jours</span>
+      <div className="mb-2 flex items-center gap-2">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-pink-100 dark:bg-pink-950/50 text-pink-600 dark:text-pink-400"><Cake className="h-4 w-4" /></span>
+        <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">Anniversaires à venir</h3>
+        <span className="shrink-0 text-xs text-muted-foreground">{days} jours</span>
       </div>
-      <BirthdayRows data={data} />
+      <BirthdayRows data={data} limit={maxRows} />
+      {extra > 0 && (
+        <button type="button" onClick={() => setOpen(true)} className="mt-1.5 w-full rounded-md py-1.5 text-center text-xs font-medium text-primary transition-colors hover:bg-muted">
+          Voir les {data.length} anniversaires →
+        </button>
+      )}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Anniversaires à venir ({days} prochains jours)</DialogTitle></DialogHeader>
+          <BirthdayRows data={data} onNavigate={() => setOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

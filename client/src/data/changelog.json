@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-14",
+        "text": "Anniversaires à venir — la carte n'affiche plus que les 7 prochains anniversaires puis un lien « Voir les N anniversaires » (ouvre la liste complète), pour qu'elle ne domine plus le tableau de bord en hauteur (moins d'espace vide à côté)."
+      },
+      {
+        "date": "2026-09-14",
         "text": "Tableau de bord — présentation plus robuste en colonnes étroites et sur petit écran : le contenu des cartes (« À traiter », campagne, chiffres clés) s'adapte à la largeur de la carte au lieu d'être écrasé, et les cartes ne s'étirent plus à la hauteur de la plus grande de la rangée (fin des espaces vides)."
       },
       {
