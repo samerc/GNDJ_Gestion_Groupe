@@ -5,7 +5,7 @@
     "changes": [
       {
         "date": "2026-09-14",
-        "text": "Menu — « Camp BP » n'apparaît plus tant qu'aucun camp n'est actif (auparavant il s'affichait dans « Configuration » sur mobile mais pas sur ordinateur) ; il apparaît dans le menu principal, sur mobile comme sur ordinateur, dès qu'un camp est actif."
+        "text": "Menu — « Camp BP » se comporte maintenant pareil sur ordinateur et sur mobile : tant qu'aucun camp n'est actif, il se trouve dans le groupe « Unités & maîtrise » (où le CG/l'administrateur crée un camp) ; dès qu'un camp est actif, il passe dans le menu principal."
       },
       {
         "date": "2026-09-14",

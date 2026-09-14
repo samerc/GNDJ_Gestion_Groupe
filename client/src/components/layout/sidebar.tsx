@@ -186,7 +186,8 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/progression', label: 'Progression scoute', icon: Star, permission: PERMISSIONS.PROGRESSION_MANAGE, section: 'Structure & données' },
       { path: '/admin/report-templates', label: 'Modèles de rapports', icon: FileText, permission: PERMISSIONS.MEMBERS_EDIT, section: 'Structure & données' },
       // Types de documents → Paramètres (Documents tab); Listes → Paramètres (Listes tab). Routes still work.
-      // (Camp BP is appended to this section dynamically in NavContent when no camp is active.)
+      // (Camp BP is NOT here — it's appended to the "Unités & maîtrise" group when no camp is active, and
+      //  promoted to the main menu once a camp is active. See NavContent / AdminNav.)
       // --- Système & sécurité ---
       { path: '/admin/roles-access', label: 'Profils & accès', icon: ShieldCheck, permission: PERMISSIONS.MAITRISE_MANAGE, section: 'Système & sécurité' },
       // Email / SMTP → Paramètres (onglet Email / SMTP). Route still works.
@@ -247,7 +248,14 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
 
   const visibleAdminGroups = isManager
     ? adminGroups
-        .map((group) => ({ ...group, items: group.items.filter((item) => !item.permission || hasPermission(item.permission)) }))
+        .map((group) => {
+          const items = group.items.filter((item) => !item.permission || hasPermission(item.permission))
+          // No active camp → Camp BP lives in "Unités & maîtrise" (where a manager sets one up); once a camp is
+          // active it's promoted to the main menu above instead (so it's not shown here then, to avoid duplicating).
+          if (group.label === 'Unités & maîtrise' && canManageCamp && !hasLiveCamp)
+            items.push({ path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: null })
+          return { ...group, items }
+        })
         .filter((group) => group.items.length > 0)
     : []
 
@@ -472,7 +480,14 @@ export function AdminNav() {
     ...(canManageCamp && hasLiveCamp ? [{ path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: null }] : []),
   ]
   const groups = adminGroups
-    .map((g) => ({ ...g, items: g.items.filter((i) => !i.permission || hasPermission(i.permission)) }))
+    .map((g) => {
+      const items = g.items.filter((i) => !i.permission || hasPermission(i.permission))
+      // No active camp → Camp BP sits in "Unités & maîtrise" (where a manager creates one); once active it's
+      // promoted to the pinned links above instead.
+      if (g.label === 'Unités & maîtrise' && canManageCamp && !hasLiveCamp)
+        items.push({ path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: null })
+      return { ...g, items }
+    })
     .filter((g) => g.items.length > 0)
 
   // Actionable badge count for a nav path (pending demandes / change-requests), and the group's rolled-up total.
