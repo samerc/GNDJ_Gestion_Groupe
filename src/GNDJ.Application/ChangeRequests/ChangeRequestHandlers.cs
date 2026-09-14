@@ -324,8 +324,10 @@ public class ReviewChangeRequestHandler(IApplicationDbContext context, ICurrentU
         entity.DecisionNotes = request.DecisionNotes;
 
         await context.SaveChangesAsync(ct);
+        // Include the member the request was approved/rejected FOR, so the audit detail shows "for whom".
         await auditService.LogAsync(request.Approve ? "Approve" : "Reject", "MemberChangeRequest", entity.Id,
-            newValues: new { entity.Kind, entity.Summary, entity.Status }, cancellationToken: ct);
+            newValues: new { Member = await AuditNames.MemberAsync(context, entity.MemberId, ct), entity.Kind, entity.Summary, entity.Status },
+            cancellationToken: ct);
 
         // Tell the member their proposal was accepted / refused (with the reason), so they see it in-app
         // regardless of email — Ma fiche also shows a rejected-proposal banner.
