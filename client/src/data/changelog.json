@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-14",
+        "text": "Apparence — palette de couleurs des rôles revue : suppression des teintes trop proches et ajout de nouvelles couleurs mieux réparties sur le cercle chromatique (toutes assez foncées pour le texte blanc)."
+      },
+      {
+        "date": "2026-09-14",
         "text": "Journal d'audit — le détail d'une demande de modification acceptée/refusée indique désormais le membre concerné (« Membre : … »)."
       },
       {

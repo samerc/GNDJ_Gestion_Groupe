@@ -13,13 +13,21 @@ import { Palette, Save, RotateCcw } from 'lucide-react'
 // = member → CU → CG → super-admin.
 const ROLE_ORDER: RoleKey[] = ['member', 'cu', 'cg', 'superadmin']
 
-// Quick-pick palette (dark shades that read well with white text). Custom hex is always available too.
+// Quick-pick palette — dark shades that read well with white text, spread across the colour wheel with no
+// near-duplicates (one or two distinct shades per hue). Custom hex is always available too.
 const PRESETS = [
-  '#0f766e', '#047857', '#065f46', '#166534', '#3f6212', // teals / greens
-  '#3730a3', '#312e81', '#1e40af', '#1e3a8a', '#075985', '#155e75', // indigos / blues
-  '#5b21b6', '#6b21a8', '#86198f', '#be185d', // violets / purples / pink
-  '#be123c', '#991b1b', '#9a3412', '#92400e', // rose / red / warm
-  '#1e293b', '#0f172a', '#292524', '#27272a', // neutrals
+  // Reds · roses · pinks · magentas
+  '#b91c1c', '#9f1239', '#be185d', '#9d174d', '#a21caf', '#86198f',
+  // Purples · violets · indigos
+  '#7e22ce', '#6b21a8', '#6d28d9', '#4338ca', '#3730a3',
+  // Blues · sky · cyan · teal
+  '#1d4ed8', '#1e40af', '#1e3a8a', '#0369a1', '#0e7490', '#0f766e',
+  // Greens · olive
+  '#047857', '#15803d', '#166534', '#3f6212',
+  // Warm: orange · rust · brown
+  '#c2410c', '#9a3412', '#92400e',
+  // Neutrals
+  '#334155', '#1e293b', '#0f172a', '#292524', '#3f3f46',
 ]
 
 export default function AppearancePage() {
