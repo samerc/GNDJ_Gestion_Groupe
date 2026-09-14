@@ -5002,6 +5002,23 @@ Item 8 (the last of the QOL list). Bulk-create members from a spreadsheet. DEV u
   GOTCHA (test only): curl `-F @/tmp/...` fails exit 26 under MSYS — use a Windows path (`pwd -W`). dotnet + tsc +
   eslint + vite clean.
 
+### Members list — pin a deep-linked member not in the filtered page (2026-09-14)
+A CG clicked a name in the birthdays card → landed on the member's detail (`/members/:id`), but couldn't find
+that member in the LEFT list. Root cause: the list is filtered + PAGINATED (unit filter, Actifs/Anciens, A–Z
+letter, 50/page over 1070 members), so a deep-linked member (birthdays card / notification / command palette)
+is very often not on the currently-loaded page — the selected-row highlight exists but there's no row to
+highlight. Fix (frontend-only, `pages/members/index.tsx`, DEV until deploy):
+- The page now also reads the selected member's detail (`useMember(selectedMemberId)` — **cached**, the detail
+  panel fetches the same `['members', id]` key, so no extra request) and computes `selectedInList` +
+  `pinnedMember`. When the selected member is NOT in the current `data.items`, a **highlighted "pinned" row**
+  (initials + "LASTNAME FirstName" + "Sélectionné · hors de la liste filtrée") renders at the top of the list
+  scroll container. It disappears automatically once the member appears in the list itself.
+- Chose this over auto-mutating the user's filters. Considered + rejected: jump the A–Z letter to the member's
+  initial (a single surname letter can exceed one page → member stranded on page 2, and it wrongly flips to
+  Anciens); jump via search (the search box is debounced → the staged presence check judged stale data). Pinning
+  is always correct, has no pagination/timing pitfalls, and doesn't disturb the user's filters. Row clicks
+  (`setSelectedMemberId`, URL unchanged) are unaffected — only route deep links produce a pin. tsc+eslint+vite clean.
+
 ### Stale-deploy chunk error → self-healing lazy routes (2026-09-14)
 Prod error log showed a client error `Failed to fetch dynamically imported module:
 https://gndj.org/assets/error-log-DfvXt912.js` (a CG navigating to /admin/error-log). Root cause: the app

@@ -1051,6 +1051,14 @@ export default function MembersPage() {
     page, pageSize, letter: letter || undefined,
   })
 
+  // The selected member's detail (cached — the detail panel fetches the same ['members', id] key, so no extra
+  // request). Used to PIN the selected member at the top of the list when they're not in the current filtered/
+  // paged page (deep link from the birthdays card / a notification / the command palette) so they're always
+  // visible + highlighted, without silently mutating the user's filters.
+  const { data: selectedDetail } = useMember(selectedMemberId ?? '')
+  const selectedInList = !!(selectedMemberId && data?.items.some(m => m.id === selectedMemberId))
+  const pinnedMember = !selectedInList && selectedMemberId && selectedDetail?.id === selectedMemberId ? selectedDetail : null
+
   const createMutation = useCreateMember()
 
   // Absence counts for the selected unit (active view only, running calendar scout year) → a small badge per row.
@@ -1209,6 +1217,20 @@ export default function MembersPage() {
 
           {/* List */}
           <div className="flex-1 overflow-y-auto bg-muted/20">
+            {/* Deep-linked member (birthdays card / notification / command palette) who isn't on the current
+                filtered/paged page: pin them at the top, highlighted, so the user always sees who's selected
+                without silently changing their filters. Hidden once they appear in the list itself. */}
+            {pinnedMember && (
+              <div className="flex items-center gap-2 border-b-2 border-l-2 border-l-primary border-b-primary/30 bg-primary/10 px-3 py-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary text-xs font-medium shrink-0">
+                  {pinnedMember.firstName[0]}{pinnedMember.lastName[0]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{pinnedMember.lastName} {pinnedMember.firstName}</p>
+                  <p className="text-[11px] text-primary/70">Sélectionné · hors de la liste filtrée</p>
+                </div>
+              </div>
+            )}
             {isLoading ? <div className="flex items-center justify-center h-full"><LoadingSpinner /></div> :
              !data || data.items.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">

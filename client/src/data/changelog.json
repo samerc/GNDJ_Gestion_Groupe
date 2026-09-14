@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-14",
+        "text": "Liste des membres — en ouvrant un membre depuis un raccourci (carte des anniversaires, notification, recherche), s'il ne figure pas dans la page filtrée affichée, il est désormais épinglé et surligné en haut de la liste pour qu'on voie toujours qui est sélectionné."
+      },
+      {
+        "date": "2026-09-14",
         "text": "Fiabilité — après une mise à jour du site, une page ouverte depuis longtemps pouvait afficher une erreur (« module introuvable ») en naviguant. L'application se recharge désormais automatiquement une fois pour récupérer la nouvelle version, et cette erreur technique n'est plus signalée comme une panne."
       },
       {
