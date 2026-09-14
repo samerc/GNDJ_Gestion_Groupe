@@ -23,17 +23,20 @@ export const WIDGET_META: Record<WidgetId, { label: string; yearScoped?: boolean
   ageChart:    { label: 'Répartition par âge', yearScoped: true },
 }
 
-// The default layout = the original dashboard arrangement. Order + width tile into a 6-column grid.
+// The default layout — arranged so cards pair by SIMILAR HEIGHT into a 6-column grid (short with short, tall
+// alone at full width), which avoids the "one tall card strands a short neighbour" whitespace out of the box:
+//   actions (full) · keyNumbers (full) · [effectif|rentrée|cotisations = 3 shorts] ·
+//   [campagne | répartition âge = 2 mediums] · membres/unité (full, tall) · anniversaires (full).
 export const DEFAULT_LAYOUT: WidgetConfig[] = [
   { id: 'actions',     visible: true, width: 'full' },
-  { id: 'campaign',    visible: true, width: 'half' },
-  { id: 'cotisations', visible: true, width: 'half' },
+  { id: 'keyNumbers',  visible: true, width: 'full' },
   { id: 'effectif',    visible: true, width: 'third' },
   { id: 'rentree',     visible: true, width: 'third' },
-  { id: 'birthdays',   visible: true, width: 'third' },
-  { id: 'keyNumbers',  visible: true, width: 'full' },
-  { id: 'unitChart',   visible: true, width: 'half' },
+  { id: 'cotisations', visible: true, width: 'third' },
+  { id: 'campaign',    visible: true, width: 'half' },
   { id: 'ageChart',    visible: true, width: 'half' },
+  { id: 'unitChart',   visible: true, width: 'full' },
+  { id: 'birthdays',   visible: true, width: 'full' },
 ]
 
 const ALL_IDS = DEFAULT_LAYOUT.map(w => w.id)

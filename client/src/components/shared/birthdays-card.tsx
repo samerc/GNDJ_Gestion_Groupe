@@ -29,30 +29,32 @@ function BirthdayRows({ data, onNavigate, limit = 500 }: { data: UpcomingBirthda
 // "Anniversaires à venir" — a compact dashboard card of members whose birthday falls in the next `days`.
 // Leaders only, unit-scoped server-side (a CU sees their unit's members, a CG sees everyone). Hidden entirely
 // when there are none, to avoid an empty card. Used on the group Accueil dashboard.
-export function BirthdaysCard({ days = 30, className, maxRows = 7 }: { days?: number; className?: string; maxRows?: number }) {
-  const { data, isLoading } = useUpcomingBirthdays(days)
+export function BirthdaysCard({ className, nearDays = 7, farDays = 30, maxRows = 8 }: { className?: string; nearDays?: number; farDays?: number; maxRows?: number }) {
+  // Fetch the wider (30-day) window once; the card shows just the next `nearDays` (derived client-side via
+  // daysUntil, no extra request), and "voir plus" opens the full window in a dialog. The card stays compact so
+  // it doesn't tower over the cards beside it. Rendered whenever the wider window has any (matches the dashboard's
+  // skip check), so "voir plus" is always reachable.
+  const { data: far, isLoading } = useUpcomingBirthdays(farDays)
   const [open, setOpen] = useState(false)
-  if (isLoading || !data || data.length === 0) return null
-  // Cap the card to a few rows (keeps it a sensible height on the dashboard so it doesn't tower over the cards
-  // beside it); the rest are one click away in a dialog.
-  const extra = data.length - maxRows
+  if (isLoading || !far || far.length === 0) return null
+  const near = far.filter((b) => b.daysUntil <= nearDays)
   return (
     <div className={`rounded-xl border bg-card p-4 shadow-card ${className ?? ''}`}>
       <div className="mb-2 flex items-center gap-2">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-pink-100 dark:bg-pink-950/50 text-pink-600 dark:text-pink-400"><Cake className="h-4 w-4" /></span>
         <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">Anniversaires à venir</h3>
-        <span className="shrink-0 text-xs text-muted-foreground">{days} jours</span>
+        <span className="shrink-0 text-xs text-muted-foreground">{nearDays} jours</span>
       </div>
-      <BirthdayRows data={data} limit={maxRows} />
-      {extra > 0 && (
-        <button type="button" onClick={() => setOpen(true)} className="mt-1.5 w-full rounded-md py-1.5 text-center text-xs font-medium text-primary transition-colors hover:bg-muted">
-          Voir les {data.length} anniversaires →
-        </button>
-      )}
+      {near.length > 0
+        ? <BirthdayRows data={near} limit={maxRows} />
+        : <p className="py-3 text-center text-sm text-muted-foreground">Aucun anniversaire dans les {nearDays} prochains jours.</p>}
+      <button type="button" onClick={() => setOpen(true)} className="mt-1.5 w-full rounded-md py-1.5 text-center text-xs font-medium text-primary transition-colors hover:bg-muted">
+        Voir les {farDays} prochains jours ({far.length}) →
+      </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[80vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Anniversaires à venir ({days} prochains jours)</DialogTitle></DialogHeader>
-          <BirthdayRows data={data} onNavigate={() => setOpen(false)} />
+          <DialogHeader><DialogTitle>Anniversaires à venir ({farDays} prochains jours)</DialogTitle></DialogHeader>
+          <BirthdayRows data={far} onNavigate={() => setOpen(false)} />
         </DialogContent>
       </Dialog>
     </div>

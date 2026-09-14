@@ -5,6 +5,14 @@
     "changes": [
       {
         "date": "2026-09-14",
+        "text": "Tableau de bord — disposition par défaut rééquilibrée : les cartes de hauteur similaire sont regroupées et les grandes cartes (graphiques, anniversaires) prennent toute la largeur, pour éviter les espaces vides. Si vous aviez déjà personnalisé votre tableau de bord, utilisez « Personnaliser › Réinitialiser » pour adopter la nouvelle disposition."
+      },
+      {
+        "date": "2026-09-14",
+        "text": "Anniversaires à venir — la carte affiche par défaut les 7 prochains jours ; le lien « Voir les 30 prochains jours » ouvre la liste complète."
+      },
+      {
+        "date": "2026-09-14",
         "text": "Anniversaires à venir — la carte n'affiche plus que les 7 prochains anniversaires puis un lien « Voir les N anniversaires » (ouvre la liste complète), pour qu'elle ne domine plus le tableau de bord en hauteur (moins d'espace vide à côté)."
       },
       {
