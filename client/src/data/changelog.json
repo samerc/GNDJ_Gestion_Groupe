@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-14",
+        "text": "Menu — « Camp BP » n'apparaît plus tant qu'aucun camp n'est actif (auparavant il s'affichait dans « Configuration » sur mobile mais pas sur ordinateur) ; il apparaît dans le menu principal, sur mobile comme sur ordinateur, dès qu'un camp est actif."
+      },
+      {
+        "date": "2026-09-14",
         "text": "Tableau de bord — disposition par défaut rééquilibrée : les cartes de hauteur similaire sont regroupées et les grandes cartes (graphiques, anniversaires) prennent toute la largeur, pour éviter les espaces vides. Si vous aviez déjà personnalisé votre tableau de bord, utilisez « Personnaliser › Réinitialiser » pour adopter la nouvelle disposition."
       },
       {

@@ -247,14 +247,7 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
 
   const visibleAdminGroups = isManager
     ? adminGroups
-        .map((group) => {
-          const items = group.items.filter((item) => !item.permission || hasPermission(item.permission))
-          // No active camp → surface Camp BP under Configuration so a manager can set one up (it moves to the
-          // main menu once a camp is active, so don't show it here then, to avoid duplicating it).
-          if (group.label === 'Configuration' && canManageCamp && !hasLiveCamp)
-            items.push({ path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: null, section: 'Structure & données' })
-          return { ...group, items }
-        })
+        .map((group) => ({ ...group, items: group.items.filter((item) => !item.permission || hasPermission(item.permission)) }))
         .filter((group) => group.items.length > 0)
     : []
 
@@ -468,7 +461,16 @@ export function AdminNav() {
   const { data: pendingChanges } = usePendingChangeRequestsCount(hasPermission(PERMISSIONS.MEMBERS_EDIT))
   const { data: unreadContact } = useUnreadContactMessageCount(hasPermission(PERMISSIONS.CONTENT_MANAGE))
 
-  const pinned = adminNavItems.filter((i) => !i.permission || hasPermission(i.permission))
+  // Camp BP is shown in the top bar only once a camp is ACTIVE (hidden when there's none), mirroring the mobile
+  // menu — so it never clutters the nav outside the camp season.
+  const canManageCamp = hasPermission(PERMISSIONS.CAMP_MANAGE)
+  const { data: campList } = useCamps(canManageCamp)
+  const hasLiveCamp = !!campList?.some((c) => !c.isArchived)
+
+  const pinned = [
+    ...adminNavItems.filter((i) => !i.permission || hasPermission(i.permission)),
+    ...(canManageCamp && hasLiveCamp ? [{ path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: null }] : []),
+  ]
   const groups = adminGroups
     .map((g) => ({ ...g, items: g.items.filter((i) => !i.permission || hasPermission(i.permission)) }))
     .filter((g) => g.items.length > 0)
