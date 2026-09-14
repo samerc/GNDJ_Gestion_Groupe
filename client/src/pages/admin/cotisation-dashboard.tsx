@@ -9,8 +9,8 @@ import { useState, useMemo } from 'react'
 import { saveBlob } from '@/lib/download'
 import { useNavigate } from 'react-router'
 import {
-  useCotisationSummary, useUnpaidCotisations, usePaidCotisations, useCreateCotisation, useSetCotisationExempt,
-  useAssociationDues, downloadReceipt, type UnpaidCotisationDto, type PaidCotisationDto,
+  useCotisationSummary, useUnpaidCotisations, usePaidCotisations, useExemptCotisations, useCreateCotisation, useSetCotisationExempt,
+  useAssociationDues, downloadReceipt, type UnpaidCotisationDto, type PaidCotisationDto, type ExemptCotisationDto,
 } from '@/services/cotisation-service'
 import { useSettingValue } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
@@ -40,6 +40,7 @@ export default function CotisationDashboardPage() {
   const { data: summary, isLoading } = useCotisationSummary(scoutYear)
   const { data: unpaid } = useUnpaidCotisations(scoutYear)
   const { data: paid } = usePaidCotisations(scoutYear)
+  const { data: exempt } = useExemptCotisations(scoutYear)
   // Association dues report (what the group owes each association). "all" = owe for every member; "paid" =
   // owe only for members who actually paid their cotisation.
   const { data: dues } = useAssociationDues(scoutYear)
@@ -81,9 +82,14 @@ export default function CotisationDashboardPage() {
     return acc
   }, {})
 
+  // ── Exempt ("ne paiera pas") dialog state — captures an optional reason when marking a member exempt. ──
+  const [exemptFor, setExemptFor] = useState<UnpaidCotisationDto | null>(null)
+  const [exemptReason, setExemptReason] = useState('')
+
   const refreshCotisations = () => {
     qc.invalidateQueries({ queryKey: ['cotisations', 'unpaid', scoutYear] })
     qc.invalidateQueries({ queryKey: ['cotisations', 'paid', scoutYear] })
+    qc.invalidateQueries({ queryKey: ['cotisations', 'exempt', scoutYear] })
     qc.invalidateQueries({ queryKey: ['cotisations', 'summary', scoutYear] })
   }
 
@@ -118,10 +124,28 @@ export default function CotisationDashboardPage() {
     }
   }
 
-  const markExempt = async (m: UnpaidCotisationDto) => {
+  const openExemptDialog = (m: UnpaidCotisationDto) => {
+    setExemptFor(m)
+    setExemptReason('')
+  }
+
+  const submitExempt = async () => {
+    if (!exemptFor) return
     try {
-      await setExempt.mutateAsync({ memberId: m.memberId, scoutYear, willNotPay: true })
-      toast.success(`« Ne paiera pas » — ${m.memberName}`)
+      await setExempt.mutateAsync({ memberId: exemptFor.memberId, scoutYear, willNotPay: true, reason: exemptReason || null })
+      toast.success(`« Ne paiera pas » — ${exemptFor.memberName}`)
+      setExemptFor(null)
+      refreshCotisations()
+    } catch (err) {
+      toast.error(parseApiError(err))
+    }
+  }
+
+  // Remove an exemption straight from the "Exemptés" list (member goes back to "à relancer").
+  const removeExempt = async (m: ExemptCotisationDto) => {
+    try {
+      await setExempt.mutateAsync({ memberId: m.memberId, scoutYear, willNotPay: false })
+      toast.success(`Exemption retirée — ${m.memberName}`)
       refreshCotisations()
     } catch (err) {
       toast.error(parseApiError(err))
@@ -150,6 +174,17 @@ export default function CotisationDashboardPage() {
     }
     return groups
   }, [paid])
+
+  // Same, for EXEMPT members ("ne paiera pas") — so a unit row reveals its "Exemptés" list (name + reason).
+  const exemptByUnit = useMemo(() => {
+    const groups = new Map<string, ExemptCotisationDto[]>()
+    for (const e of exempt ?? []) {
+      const list = groups.get(e.unitName) ?? []
+      list.push(e)
+      groups.set(e.unitName, list)
+    }
+    return groups
+  }, [exempt])
 
   // Grand totals for the association-dues table (association rows + the maîtrise line), in the selected mode.
   const duesGrand = useMemo(() => {
@@ -297,9 +332,10 @@ export default function CotisationDashboardPage() {
                     {summary.byUnit.map((u, idx) => {
                       const toRelance = unpaidByUnit.get(u.unitName) ?? []
                       const paidList = paidByUnit.get(u.unitName) ?? []
+                      const exemptList = exemptByUnit.get(u.unitName) ?? []
                       const impaye = u.totalMembers - u.paidMembers - u.exemptMembers
-                      // Expandable if the unit has anyone paid OR unpaid — click reveals both lists.
-                      const canExpand = paidList.length > 0 || toRelance.length > 0
+                      // Expandable if the unit has anyone paid, exempt, OR unpaid — click reveals all lists.
+                      const canExpand = paidList.length > 0 || exemptList.length > 0 || toRelance.length > 0
                       const isOpen = expandedUnits.has(u.unitName)
                       return (
                         <tbody key={u.unitName}>
@@ -396,6 +432,50 @@ export default function CotisationDashboardPage() {
                                     </div>
                                   </div>
                                 )}
+                                {/* Members marked EXEMPT ("ne paiera pas") — name (→ member file), the reason (if noted),
+                                    and a one-click "retirer l'exemption" that puts them back in the à-relancer list. */}
+                                {exemptList.length > 0 && (
+                                  <div className="mb-3">
+                                    <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                                      <Ban className="h-3.5 w-3.5 text-slate-500" />
+                                      Exemptés — {exemptList.length} membre{exemptList.length > 1 ? 's' : ''} « ne paiera pas »
+                                    </div>
+                                    <div className="overflow-x-auto rounded-md border bg-background">
+                                      <table className="w-full text-sm min-w-[520px]">
+                                        <thead>
+                                          <tr className="border-b bg-muted/40 text-left">
+                                            <th className="px-3 py-2 font-medium">Membre</th>
+                                            <th className="px-3 py-2 font-medium">Raison</th>
+                                            <th className="px-3 py-2 font-medium text-right no-print">Actions</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {exemptList.map((m, i2) => (
+                                            <tr key={m.memberId} className={`border-b ${i2 % 2 === 1 ? 'bg-muted/10' : ''}`}>
+                                              <td className="px-3 py-2">
+                                                <button
+                                                  className="group inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                                                  onClick={() => navigate(`/members/${m.memberId}`)}
+                                                >
+                                                  {m.memberName}
+                                                  <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60 no-print" />
+                                                </button>
+                                              </td>
+                                              <td className="px-3 py-2 text-muted-foreground">
+                                                {m.reason ? m.reason : <span className="italic">Aucune raison indiquée</span>}
+                                              </td>
+                                              <td className="px-3 py-2 text-right no-print">
+                                                <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => removeExempt(m)} disabled={setExempt.isPending}>
+                                                  Retirer l'exemption
+                                                </Button>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                )}
                                 {toRelance.length > 0 && (
                                 <div>
                                 <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
@@ -449,7 +529,7 @@ export default function CotisationDashboardPage() {
                                               <Button variant="outline" size="sm" className="h-8" onClick={() => openPayDialog(m)}>
                                                 <Receipt className="mr-1 h-3.5 w-3.5" /> Paiement
                                               </Button>
-                                              <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => markExempt(m)} disabled={setExempt.isPending}>
+                                              <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => openExemptDialog(m)} disabled={setExempt.isPending}>
                                                 <Ban className="mr-1 h-3.5 w-3.5" /> Ne paiera pas
                                               </Button>
                                             </div>
@@ -619,6 +699,36 @@ export default function CotisationDashboardPage() {
             <Button variant="outline" onClick={() => setPayFor(null)}>Annuler</Button>
             <Button onClick={submitPayment} disabled={createCotisation.isPending}>
               {createCotisation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark exempt ("ne paiera pas") — optional reason, stored on the exemption and shown in the list */}
+      <Dialog open={!!exemptFor} onOpenChange={(o) => !o && setExemptFor(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ne paiera pas{exemptFor ? ` — ${exemptFor.memberName}` : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Ce membre sera marqué « ne paiera pas » pour {scoutYear} et retiré de la liste des impayés.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Raison <span className="font-normal text-muted-foreground">(optionnel)</span></label>
+              <textarea
+                className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={exemptReason}
+                onChange={e => setExemptReason(e.target.value)}
+                placeholder="Ex. : difficultés financières, bourse, cas particulier…"
+                maxLength={500}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExemptFor(null)}>Annuler</Button>
+            <Button onClick={submitExempt} disabled={setExempt.isPending}>
+              {setExempt.isPending ? 'Enregistrement...' : 'Confirmer'}
             </Button>
           </DialogFooter>
         </DialogContent>

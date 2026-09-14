@@ -112,6 +112,18 @@ public class CotisationsController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Lists members marked exempt ("ne paiera pas") for the given scout year, with the reason (if noted). Requires cotisations.view.</summary>
+    /// <param name="scoutYear">Required scout year (e.g. "2025-2026").</param>
+    [HttpGet("exempt-list")]
+    [HasPermission(Permissions.CotisationsView)]
+    public async Task<IActionResult> GetExemptList([FromQuery] string scoutYear)
+    {
+        if (string.IsNullOrWhiteSpace(scoutYear))
+            return BadRequest(new { error = "L'année scoute est requise." });
+        var result = await Mediator.Send(new GetExemptCotisationsQuery(scoutYear));
+        return Ok(result);
+    }
+
     /// <summary>Returns cotisation totals for the scout year (paid / unpaid / exempt counts). Requires cotisations.view.</summary>
     /// <param name="scoutYear">Required scout year (e.g. "2025-2026").</param>
     [HttpGet("summary")]

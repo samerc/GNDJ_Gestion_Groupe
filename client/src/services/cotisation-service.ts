@@ -47,6 +47,16 @@ export interface UnpaidCotisationDto {
   parentName: string | null
 }
 
+// A member marked exempt ("ne paiera pas") for the year — shown in the CG dashboard's per-unit "Exemptés"
+// list with the reason (if one was noted when the exemption was set).
+export interface ExemptCotisationDto {
+  memberId: string
+  memberName: string
+  unitId: string
+  unitName: string
+  reason: string | null
+}
+
 export interface CurrencyTotalDto {
   currency: string
   total: number
@@ -124,16 +134,18 @@ export function useUpdateCotisation(memberId: string) {
   })
 }
 
-// Mark/unmark a member as exempt ("ne paiera pas") for a scout year. Shared CU/CG flag.
+// Mark/unmark a member as exempt ("ne paiera pas") for a scout year. Shared CU/CG flag. An optional
+// reason is stored on the exemption and shown in the CG dashboard's exempt list.
 export function useSetCotisationExempt() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { memberId: string; scoutYear: string; willNotPay: boolean }) =>
+    mutationFn: (data: { memberId: string; scoutYear: string; willNotPay: boolean; reason?: string | null }) =>
       apiClient.put('/cotisations/exempt', data),
     onSuccess: (_r, data) => {
       qc.invalidateQueries({ queryKey: ['cotisations', data.memberId] })
       qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
       qc.invalidateQueries({ queryKey: ['cotisations', 'summary'] })
+      qc.invalidateQueries({ queryKey: ['cotisations', 'exempt'] })
       qc.invalidateQueries({ queryKey: ['members'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
     },
@@ -180,6 +192,15 @@ export function usePaidCotisations(scoutYear: string) {
   return useQuery({
     queryKey: ['cotisations', 'paid', scoutYear],
     queryFn: () => apiClient.get<PaidCotisationDto[]>('/cotisations/paid', { params: { scoutYear } }).then(r => r.data),
+    enabled: !!scoutYear,
+  })
+}
+
+// GET /cotisations/exempt-list — members marked "ne paiera pas" (with reason) for the year; requires scoutYear.
+export function useExemptCotisations(scoutYear: string) {
+  return useQuery({
+    queryKey: ['cotisations', 'exempt', scoutYear],
+    queryFn: () => apiClient.get<ExemptCotisationDto[]>('/cotisations/exempt-list', { params: { scoutYear } }).then(r => r.data),
     enabled: !!scoutYear,
   })
 }

@@ -2,6 +2,7 @@ using FluentValidation;
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -232,8 +233,20 @@ public class UpdateCotisationCommandHandler(IApplicationDbContext context, ICurr
 // Set / clear the "will not pay" (exempt) flag for a member + scout year.
 // Shared between CU and CG: it lives on the per-member-per-year cotisation row, so whoever sets it,
 // the other sees it. When no cotisation row exists yet, an exemption-only marker row is created
-// (no payments, empty receipt); clearing the flag on such a marker deletes it.
-public record SetCotisationExemptCommand(Guid MemberId, string ScoutYear, bool WillNotPay) : IRequest<Result<bool>>;
+// (no payments, empty receipt); clearing the flag on such a marker deletes it. An optional Reason is
+// stored in the row's Notes (only on a marker row — never overwrites a real paid cotisation's notes)
+// so the CG can record WHY a member won't pay and see it later.
+public record SetCotisationExemptCommand(Guid MemberId, string ScoutYear, bool WillNotPay, string? Reason = null) : IRequest<Result<bool>>;
+
+public class SetCotisationExemptCommandValidator : AbstractValidator<SetCotisationExemptCommand>
+{
+    public SetCotisationExemptCommandValidator()
+    {
+        RuleFor(x => x.MemberId).NotEmpty();
+        RuleFor(x => x.ScoutYear).NotEmpty().WithMessage("L'année scoute est requise.").MaximumLength(20);
+        RuleFor(x => x.Reason).MaximumLength(500).NoHtml();
+    }
+}
 
 public class SetCotisationExemptCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<SetCotisationExemptCommand, Result<bool>>
 {
@@ -244,6 +257,9 @@ public class SetCotisationExemptCommandHandler(IApplicationDbContext context, IC
 
         if (!await CotisationAccessHelper.CanAccessMember(context, currentUser, request.MemberId, ct))
             return Result<bool>.Failure("Accès non autorisé à ce membre.");
+
+        // Normalize the reason (empty → null) so a blank textbox clears the stored note.
+        var reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
 
         var entity = await context.MemberCotisations
             .Include(c => c.Payments.Where(p => !p.IsDeleted))
@@ -258,7 +274,8 @@ public class SetCotisationExemptCommandHandler(IApplicationDbContext context, IC
                 ScoutYear = request.ScoutYear,
                 PaymentDate = LebanonClock.Today,
                 ReceiptNumber = string.Empty,
-                WillNotPay = true
+                WillNotPay = true,
+                Notes = reason
             };
             context.MemberCotisations.Add(entity);
         }
@@ -270,11 +287,15 @@ public class SetCotisationExemptCommandHandler(IApplicationDbContext context, IC
         else
         {
             entity.WillNotPay = request.WillNotPay;
+            // Record/update the reason only on an exemption-only marker (no real payments), so we never
+            // overwrite the notes of a genuine paid cotisation.
+            if (request.WillNotPay && entity.Payments.All(p => p.IsDeleted))
+                entity.Notes = reason;
         }
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Update", "MemberCotisation", entity.Id,
-            newValues: new { request.WillNotPay, request.ScoutYear }, cancellationToken: ct);
+            newValues: new { request.WillNotPay, request.ScoutYear, Reason = reason }, cancellationToken: ct);
 
         return Result<bool>.Success(true);
     }
@@ -558,6 +579,73 @@ public class GetPaidCotisationsQueryHandler(IApplicationDbContext context, ICurr
                     .Select(g => new CurrencyTotalDto(g.Key, g.Sum(p => p.Amount), g.Count()))
                     .ToList();
                 return new PaidCotisationDto(c.MemberId, m.MemberName, m.UnitId, m.UnitName, c.Id, c.ReceiptNumber, c.PaymentDate, totals);
+            })
+            .OrderBy(r => r.UnitName).ThenBy(r => r.MemberName)
+            .ToList();
+    }
+}
+
+// Dashboard: members marked EXEMPT ("ne paiera pas") for a scout year — with the reason, if one was noted.
+// Same unit-scoping as the paid/unpaid lists (super-admin all; CG all units; a CU their own; members.edit —
+// else empty). Mirrors the summary's exempt-set so the "+N exempté(s)" badge matches this list: an explicit
+// marker row (WillNotPay, no payments — Reason from its Notes), plus, when "la maîtrise ne paie pas" is off,
+// every unpaid maîtrise member (synthetic reason). CG-only, so exposing the reason here is fine.
+public record GetExemptCotisationsQuery(string ScoutYear) : IRequest<IReadOnlyList<ExemptCotisationDto>>;
+public record ExemptCotisationDto(
+    Guid MemberId, string MemberName, Guid UnitId, string UnitName, string? Reason);
+
+public class GetExemptCotisationsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetExemptCotisationsQuery, IReadOnlyList<ExemptCotisationDto>>
+{
+    public async ValueTask<IReadOnlyList<ExemptCotisationDto>> Handle(GetExemptCotisationsQuery request, CancellationToken ct)
+    {
+        var query = context.MemberAssignments.Where(a => a.EndDate == null);
+        if (!currentUser.IsSuperAdmin)
+        {
+            // Leader-only (shows co-members' names). A read-only youth holds cotisations.view + their own unit,
+            // so require members.edit — otherwise return nothing.
+            if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit))
+                return [];
+            var authorizedUnitIds = currentUser.AuthorizedUnitIds;
+            query = query.Where(a => authorizedUnitIds.Contains(a.UnitId));
+        }
+
+        // Active members in scope → one row per member (dedup a member with two active assignments).
+        var rows = await query
+            .Select(a => new { a.MemberId, MemberName = a.Member.FirstName + " " + a.Member.LastName, a.UnitId, UnitName = a.Unit.Name })
+            .ToListAsync(ct);
+        var byMember = rows.DistinctBy(r => r.MemberId).ToDictionary(r => r.MemberId);
+        var memberIds = byMember.Keys.ToList();
+
+        // Explicit exemption markers (WillNotPay, no payment line) with their reason (stored in Notes).
+        var markers = await context.MemberCotisations
+            .Where(c => c.ScoutYear == request.ScoutYear && c.WillNotPay
+                && memberIds.Contains(c.MemberId) && !c.Payments.Any(p => !p.IsDeleted))
+            .Select(c => new { c.MemberId, c.Notes })
+            .ToListAsync(ct);
+
+        var reasonByMember = new Dictionary<Guid, string?>();
+        foreach (var m in markers) reasonByMember[m.MemberId] = m.Notes;
+
+        // When the maîtrise doesn't pay this year, its unpaid members are exempt-by-toggle (no marker/reason) —
+        // add them so this list matches the summary's exempt count.
+        if (!await MaitriseCotisation.PaysAsync(context, ct))
+        {
+            var paidSet = (await context.MemberCotisations
+                .Where(c => c.ScoutYear == request.ScoutYear && memberIds.Contains(c.MemberId) && c.Payments.Any(p => !p.IsDeleted))
+                .Select(c => c.MemberId).Distinct().ToListAsync(ct)).ToHashSet();
+            var maitriseIds = await query.Where(a => a.FunctionalRole.IsMaitrise)
+                .Select(a => a.MemberId).Distinct().ToListAsync(ct);
+            foreach (var id in maitriseIds)
+                if (byMember.ContainsKey(id) && !paidSet.Contains(id) && !reasonByMember.ContainsKey(id))
+                    reasonByMember[id] = "Maîtrise — ne paie pas cette année";
+        }
+
+        return reasonByMember.Keys
+            .Where(byMember.ContainsKey)
+            .Select(id =>
+            {
+                var m = byMember[id];
+                return new ExemptCotisationDto(id, m.MemberName, m.UnitId, m.UnitName, reasonByMember[id]);
             })
             .OrderBy(r => r.UnitName).ThenBy(r => r.MemberName)
             .ToList();

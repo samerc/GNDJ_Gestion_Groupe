@@ -61,9 +61,12 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
   const deleteMutation = useDeleteCotisation(memberId)
   const exemptMutation = useSetCotisationExempt()
 
-  // Exemption is per current scout year; detected from the marker row's willNotPay flag.
+  // Exemption is per current scout year; detected from the marker row's willNotPay flag. The marker's
+  // notes hold the optional reason ("pourquoi il ne paiera pas").
   const year = currentScoutYear ?? '2025-2026'
-  const isExempt = !!cotisations?.some(c => c.scoutYear === year && c.willNotPay)
+  const exemptMarker = cotisations?.find(c => c.scoutYear === year && c.willNotPay)
+  const isExempt = !!exemptMarker
+  const exemptReason = exemptMarker?.notes ?? null
 
   // Convert a payment amount into the org's default currency, mirroring the receipt total logic:
   // rate = how many units of that currency per 1 default currency, so amount / rate = default. Same
@@ -86,10 +89,21 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
   // Partial = paid something, an expected amount is configured, and the total falls short (small epsilon
   // to absorb float/rounding noise).
   const isPartialThisYear = isPaidThisYear && expectedAmount > 0 && totalPaidDefault < expectedAmount - 0.01
-  const toggleExempt = async () => {
+  // Marking exempt opens a small dialog to capture an optional reason; removing an exemption is direct.
+  const [exemptOpen, setExemptOpen] = useState(false)
+  const [exemptReasonInput, setExemptReasonInput] = useState('')
+  const openExemptDialog = () => { setExemptReasonInput(exemptReason ?? ''); setExemptOpen(true) }
+  const submitExempt = async () => {
     try {
-      await exemptMutation.mutateAsync({ memberId, scoutYear: year, willNotPay: !isExempt })
-      toast.success(!isExempt ? 'Membre marqué « ne paiera pas »' : 'Exemption retirée')
+      await exemptMutation.mutateAsync({ memberId, scoutYear: year, willNotPay: true, reason: exemptReasonInput || null })
+      toast.success('Membre marqué « ne paiera pas »')
+      setExemptOpen(false)
+    } catch (err) { setError(parseApiError(err)); setExemptOpen(false) }
+  }
+  const clearExempt = async () => {
+    try {
+      await exemptMutation.mutateAsync({ memberId, scoutYear: year, willNotPay: false })
+      toast.success('Exemption retirée')
     } catch (err) { setError(parseApiError(err)) }
   }
 
@@ -218,14 +232,23 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
                 </span>
               </div>
             ) : hideMaitriseExpected ? null : (
-              <div className="mb-3 flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
-                <span className="flex items-center gap-2 text-sm">
-                  <Ban className={`h-4 w-4 ${isExempt ? 'text-foreground' : 'text-muted-foreground'}`} />
-                  {isExempt ? <span className="font-medium text-foreground">Ne paiera pas pour {year}</span> : <span className="text-muted-foreground">Cotisation attendue pour {year}</span>}
-                </span>
-                <Button variant="outline" size="sm" disabled={exemptMutation.isPending} onClick={toggleExempt}>
-                  {isExempt ? "Retirer l'exemption" : 'Marquer « ne paiera pas »'}
-                </Button>
+              <div className="mb-3 rounded-md border bg-muted/30 px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2 text-sm">
+                    <Ban className={`h-4 w-4 ${isExempt ? 'text-foreground' : 'text-muted-foreground'}`} />
+                    {isExempt ? <span className="font-medium text-foreground">Ne paiera pas pour {year}</span> : <span className="text-muted-foreground">Cotisation attendue pour {year}</span>}
+                  </span>
+                  <Button variant="outline" size="sm" disabled={exemptMutation.isPending} onClick={isExempt ? clearExempt : openExemptDialog}>
+                    {isExempt ? "Retirer l'exemption" : 'Marquer « ne paiera pas »'}
+                  </Button>
+                </div>
+                {/* Reason for the exemption (if noted) + a quick way to edit it. */}
+                {isExempt && (
+                  <div className="mt-1 flex flex-wrap items-center gap-2 pl-6 text-xs text-muted-foreground">
+                    {exemptReason ? <span>Raison : {exemptReason}</span> : <span className="italic">Aucune raison indiquée</span>}
+                    <button type="button" className="text-primary hover:underline" onClick={openExemptDialog}>Modifier</button>
+                  </div>
+                )}
               </div>
             )
           )}
@@ -381,6 +404,36 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
               <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark exempt ("ne paiera pas") — optional reason stored on the exemption */}
+      <Dialog open={exemptOpen} onOpenChange={setExemptOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ne paiera pas — {year}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Ce membre sera marqué « ne paiera pas » pour {year} et retiré des impayés.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Raison <span className="font-normal text-muted-foreground">(optionnel)</span></label>
+              <textarea
+                className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={exemptReasonInput}
+                onChange={e => setExemptReasonInput(e.target.value)}
+                placeholder="Ex. : difficultés financières, bourse, cas particulier…"
+                maxLength={500}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExemptOpen(false)}>Annuler</Button>
+            <Button onClick={submitExempt} disabled={exemptMutation.isPending}>
+              {exemptMutation.isPending ? 'Enregistrement...' : 'Confirmer'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

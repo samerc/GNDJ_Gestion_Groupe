@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-14",
+        "text": "Cotisations — en dépliant une unité, on voit désormais TOUS les membres : ceux qui ont payé, les exemptés (« ne paiera pas ») et ceux à relancer. Une raison peut être notée au moment de marquer un membre exempté et elle s'affiche dans la liste des exemptés (et sur la fiche du membre)."
+      },
+      {
+        "date": "2026-09-14",
         "text": "Maintenance technique — mise à jour des bibliothèques (frontend et backend) vers leurs dernières versions compatibles. Aucune vulnérabilité de sécurité, aucun changement visible."
       },
       {
