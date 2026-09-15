@@ -26,6 +26,10 @@ public static class AuditNames
         => id is null ? null : (await ctx.Teams.IgnoreQueryFilters().Where(t => t.Id == id.Value)
             .Select(t => t.Name).FirstOrDefaultAsync(ct)) ?? id.ToString();
 
+    public static async Task<string?> UnitTypeAsync(IApplicationDbContext ctx, Guid? id, CancellationToken ct)
+        => id is null ? null : (await ctx.UnitTypes.IgnoreQueryFilters().Where(t => t.Id == id.Value)
+            .Select(t => t.Name).FirstOrDefaultAsync(ct)) ?? id.ToString();
+
     public static async Task<string?> GuardianAsync(IApplicationDbContext ctx, Guid? id, CancellationToken ct)
         => id is null ? null : (await ctx.Guardians.IgnoreQueryFilters().Where(g => g.Id == id.Value)
             .Select(g => g.FirstName + " " + g.LastName).FirstOrDefaultAsync(ct)) ?? id.ToString();

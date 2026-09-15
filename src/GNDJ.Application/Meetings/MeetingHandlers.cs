@@ -372,7 +372,7 @@ public class CreateMeetingCommandValidator : AbstractValidator<CreateMeetingComm
     }
 }
 
-public class CreateMeetingCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+public class CreateMeetingCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     : IRequestHandler<CreateMeetingCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(CreateMeetingCommand request, CancellationToken ct)
@@ -449,6 +449,11 @@ public class CreateMeetingCommandHandler(IApplicationDbContext context, ICurrent
         };
         context.Meetings.Add(meeting);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Create", "Meeting", meeting.Id, newValues: new
+        {
+            Unit = await AuditNames.UnitAsync(context, meeting.UnitId, ct),
+            meeting.Type, Title = meeting.Title, Date = meeting.Date.ToString("yyyy-MM-dd")
+        }, cancellationToken: ct);
         return Result<Guid>.Success(meeting.Id);
     }
 }
@@ -469,7 +474,7 @@ public class UpdateMeetingCommandValidator : AbstractValidator<UpdateMeetingComm
     }
 }
 
-public class UpdateMeetingCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+public class UpdateMeetingCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     : IRequestHandler<UpdateMeetingCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateMeetingCommand request, CancellationToken ct)
@@ -505,6 +510,11 @@ public class UpdateMeetingCommandHandler(IApplicationDbContext context, ICurrent
         if (stale.Count > 0) context.MeetingAbsences.RemoveRange(stale);
 
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Meeting", m.Id, newValues: new
+        {
+            Unit = await AuditNames.UnitAsync(context, m.UnitId, ct),
+            m.Type, Title = m.Title, Date = m.Date.ToString("yyyy-MM-dd")
+        }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
@@ -512,7 +522,7 @@ public class UpdateMeetingCommandHandler(IApplicationDbContext context, ICurrent
 // CU approves (or the creator/CU deletes) a réunion.
 public record ApproveMeetingCommand(Guid Id) : IRequest<Result<bool>>;
 
-public class ApproveMeetingCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+public class ApproveMeetingCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     : IRequestHandler<ApproveMeetingCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(ApproveMeetingCommand request, CancellationToken ct)
@@ -523,13 +533,17 @@ public class ApproveMeetingCommandHandler(IApplicationDbContext context, ICurren
             return Result<bool>.Failure("Seul le chef d'unité peut approuver une réunion.");
         m.Status = MeetingStatuses.Approved;
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Approve", "Meeting", m.Id, newValues: new
+        {
+            Unit = await AuditNames.UnitAsync(context, m.UnitId, ct), m.Type, Date = m.Date.ToString("yyyy-MM-dd")
+        }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
 
 public record DeleteMeetingCommand(Guid Id) : IRequest<Result<bool>>;
 
-public class DeleteMeetingCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+public class DeleteMeetingCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     : IRequestHandler<DeleteMeetingCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteMeetingCommand request, CancellationToken ct)
@@ -540,8 +554,11 @@ public class DeleteMeetingCommandHandler(IApplicationDbContext context, ICurrent
         // A team leader may delete their OWN still-pending réunion.
         var ownPending = m.Status == MeetingStatuses.Pending && m.CreatedByMemberId == currentUser.MemberId;
         if (!canManage && !ownPending) return Result<bool>.Failure("Accès non autorisé.");
+        var unit = await AuditNames.UnitAsync(context, m.UnitId, ct);
+        var label = new { Unit = unit, m.Type, Title = m.Title, Date = m.Date.ToString("yyyy-MM-dd") };
         context.Meetings.Remove(m);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Delete", "Meeting", request.Id, oldValues: label, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
@@ -559,7 +576,7 @@ public class SaveMeetingAttendanceCommandValidator : AbstractValidator<SaveMeeti
     }
 }
 
-public class SaveMeetingAttendanceCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+public class SaveMeetingAttendanceCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     : IRequestHandler<SaveMeetingAttendanceCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(SaveMeetingAttendanceCommand request, CancellationToken ct)
@@ -580,7 +597,8 @@ public class SaveMeetingAttendanceCommandHandler(IApplicationDbContext context, 
 
         var existing = await context.MeetingAbsences.Where(a => a.MeetingId == m.Id).ToListAsync(ct);
         context.MeetingAbsences.RemoveRange(existing);
-        foreach (var a in request.Absences.Where(a => rosterIds.Contains(a.MemberId)).DistinctBy(a => a.MemberId))
+        var kept = request.Absences.Where(a => rosterIds.Contains(a.MemberId)).DistinctBy(a => a.MemberId).ToList();
+        foreach (var a in kept)
             context.MeetingAbsences.Add(new MeetingAbsence
             {
                 MeetingId = m.Id, MemberId = a.MemberId,
@@ -588,6 +606,10 @@ public class SaveMeetingAttendanceCommandHandler(IApplicationDbContext context, 
             });
 
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("SaveAttendance", "Meeting", m.Id, newValues: new
+        {
+            Unit = await AuditNames.UnitAsync(context, m.UnitId, ct), m.Type, Date = m.Date.ToString("yyyy-MM-dd"), Absences = kept.Count
+        }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

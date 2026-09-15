@@ -21,7 +21,7 @@ public class UpdateEmailCommandValidator : AbstractValidator<UpdateEmailCommand>
     }
 }
 
-public class UpdateEmailCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<UpdateEmailCommand, Result<bool>>
+public class UpdateEmailCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<UpdateEmailCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateEmailCommand request, CancellationToken ct)
     {
@@ -31,12 +31,20 @@ public class UpdateEmailCommandHandler(IApplicationDbContext context, ICurrentUs
         if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, entity.MemberId, ct))
             return Result<bool>.Failure("Accès non autorisé.");
 
+        var oldEmail = entity.Address;
+        var oldType = entity.Type;
+
         entity.Address = request.Address;
         entity.Type = request.Type;
         entity.IsPrimary = request.IsPrimary;
         entity.IsEmergency = request.IsEmergency;
 
         await context.SaveChangesAsync(ct);
+        var member = await AuditNames.MemberAsync(context, entity.MemberId, ct);
+        await audit.LogAsync("Update", "Member", entity.MemberId,
+            oldValues: new { Member = member, Email = oldEmail, Type = oldType },
+            newValues: new { Member = member, Email = request.Address, request.Type },
+            cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

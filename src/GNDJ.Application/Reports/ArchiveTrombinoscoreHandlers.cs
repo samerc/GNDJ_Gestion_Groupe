@@ -79,7 +79,8 @@ public class ArchiveTrombinoscoreCommandValidator : AbstractValidator<ArchiveTro
 public class ArchiveTrombinoscoreCommandHandler(
     IApplicationDbContext context,
     ICurrentUserService currentUser,
-    ITrombinoscoreService trombinoscoreService
+    ITrombinoscoreService trombinoscoreService,
+    IAuditService audit
 ) : IRequestHandler<ArchiveTrombinoscoreCommand, Result<TrombinoscoreArchiveInfo>>
 {
     public async ValueTask<Result<TrombinoscoreArchiveInfo>> Handle(ArchiveTrombinoscoreCommand request, CancellationToken ct)
@@ -111,6 +112,10 @@ public class ArchiveTrombinoscoreCommandHandler(
         existing.MemberCount = memberCount;
         existing.IsPublished = request.Publish;
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Archive", "Trombinoscope", existing.Id, newValues: new
+        {
+            Unit = unitName, request.ScoutYear, MemberCount = memberCount, Published = request.Publish
+        }, cancellationToken: ct);
 
         return Result<TrombinoscoreArchiveInfo>.Success(new TrombinoscoreArchiveInfo(true, fileName, existing.UpdatedAt, memberCount, request.Publish));
     }
@@ -147,7 +152,7 @@ public class SetTrombinoscorePublishedCommandValidator : AbstractValidator<SetTr
         => RuleFor(x => x.ScoutYear).NotEmpty().MaximumLength(20).NoHtml();
 }
 
-public class SetTrombinoscorePublishedCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+public class SetTrombinoscorePublishedCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     : IRequestHandler<SetTrombinoscorePublishedCommand, Result<TrombinoscoreArchiveInfo>>
 {
     public async ValueTask<Result<TrombinoscoreArchiveInfo>> Handle(SetTrombinoscorePublishedCommand request, CancellationToken ct)
@@ -162,6 +167,10 @@ public class SetTrombinoscorePublishedCommandHandler(IApplicationDbContext conte
 
         a.IsPublished = request.Published;
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Trombinoscope", a.Id, newValues: new
+        {
+            Unit = await AuditNames.UnitAsync(context, request.UnitId, ct), request.ScoutYear, Published = request.Published
+        }, cancellationToken: ct);
         return Result<TrombinoscoreArchiveInfo>.Success(new TrombinoscoreArchiveInfo(true, a.FileName, a.UpdatedAt, a.MemberCount, a.IsPublished));
     }
 }

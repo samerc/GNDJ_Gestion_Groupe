@@ -27,11 +27,20 @@ public class AddAddressCommandHandler : IRequestHandler<AddAddressCommand, Resul
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
+    private readonly IAuditService _audit;
 
-    public AddAddressCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    public AddAddressCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     {
         _context = context;
         _currentUser = currentUser;
+        _audit = audit;
+    }
+
+    // Readable one-line address for the audit snapshot: "City · Details (Country)".
+    internal static string Format(string city, string? details, string country)
+    {
+        var main = string.Join(" · ", new[] { city, details }.Where(s => !string.IsNullOrWhiteSpace(s)));
+        return string.IsNullOrWhiteSpace(country) ? main : $"{main} ({country})";
     }
 
     public async ValueTask<Result<Guid>> Handle(AddAddressCommand request, CancellationToken cancellationToken)
@@ -52,6 +61,11 @@ public class AddAddressCommandHandler : IRequestHandler<AddAddressCommand, Resul
         await _context.SaveChangesAsync(cancellationToken);
         // Household: a confirmed fratrie shares one address — mirror this member's address set onto the siblings.
         await HouseholdSync.PropagateAddressesAsync(_context, request.MemberId, cancellationToken);
+        await _audit.LogAsync("Update", "Member", request.MemberId, newValues: new
+        {
+            Member = await AuditNames.MemberAsync(_context, request.MemberId, cancellationToken),
+            Address = Format(request.City, request.Details, request.Country), request.Type
+        }, cancellationToken: cancellationToken);
         return Result<Guid>.Success(entity.Id);
     }
 }

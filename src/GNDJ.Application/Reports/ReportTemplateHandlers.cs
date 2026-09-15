@@ -73,7 +73,7 @@ public class CreateReportTemplateCommandValidator : AbstractValidator<CreateRepo
     }
 }
 
-public class CreateReportTemplateCommandHandler(IApplicationDbContext context) : IRequestHandler<CreateReportTemplateCommand, Result<Guid>>
+public class CreateReportTemplateCommandHandler(IApplicationDbContext context, IAuditService audit) : IRequestHandler<CreateReportTemplateCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(CreateReportTemplateCommand request, CancellationToken ct)
     {
@@ -95,6 +95,7 @@ public class CreateReportTemplateCommandHandler(IApplicationDbContext context) :
 
         context.ReportTemplates.Add(entity);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Create", "ReportTemplate", entity.Id, newValues: new { Name = entity.Name, entity.ReportType, entity.Format }, cancellationToken: ct);
         return Result<Guid>.Success(entity.Id);
     }
 }
@@ -122,7 +123,7 @@ public class UpdateReportTemplateCommandValidator : AbstractValidator<UpdateRepo
     }
 }
 
-public class UpdateReportTemplateCommandHandler(IApplicationDbContext context) : IRequestHandler<UpdateReportTemplateCommand, Result<bool>>
+public class UpdateReportTemplateCommandHandler(IApplicationDbContext context, IAuditService audit) : IRequestHandler<UpdateReportTemplateCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateReportTemplateCommand request, CancellationToken ct)
     {
@@ -143,6 +144,7 @@ public class UpdateReportTemplateCommandHandler(IApplicationDbContext context) :
         entity.MemberFilter = request.MemberFilter ?? "all";
 
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "ReportTemplate", entity.Id, newValues: new { Name = entity.Name, entity.ReportType, entity.Format }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
@@ -150,15 +152,17 @@ public class UpdateReportTemplateCommandHandler(IApplicationDbContext context) :
 // Delete
 public record DeleteReportTemplateCommand(Guid Id) : IRequest<Result<bool>>;
 
-public class DeleteReportTemplateCommandHandler(IApplicationDbContext context) : IRequestHandler<DeleteReportTemplateCommand, Result<bool>>
+public class DeleteReportTemplateCommandHandler(IApplicationDbContext context, IAuditService audit) : IRequestHandler<DeleteReportTemplateCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteReportTemplateCommand request, CancellationToken ct)
     {
         var entity = await context.ReportTemplates.FindAsync([request.Id], ct);
         if (entity is null) return Result<bool>.Failure("Modèle introuvable.");
 
+        var name = entity.Name;
         context.ReportTemplates.Remove(entity);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Delete", "ReportTemplate", request.Id, oldValues: new { Name = name }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

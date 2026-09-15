@@ -1,4 +1,5 @@
 using FluentValidation;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Common.Validation;
@@ -160,7 +161,7 @@ public class CreateUnitTypeProgressionCommandValidator : AbstractValidator<Creat
     }
 }
 
-public class CreateUnitTypeProgressionCommandHandler(IApplicationDbContext context) : IRequestHandler<CreateUnitTypeProgressionCommand, Result<Guid>>
+public class CreateUnitTypeProgressionCommandHandler(IApplicationDbContext context, IAuditService audit) : IRequestHandler<CreateUnitTypeProgressionCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(CreateUnitTypeProgressionCommand request, CancellationToken ct)
     {
@@ -176,6 +177,12 @@ public class CreateUnitTypeProgressionCommandHandler(IApplicationDbContext conte
         };
         context.UnitTypeProgressions.Add(entity);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Create", "UnitTypeProgression", entity.Id, newValues: new
+        {
+            From = await AuditNames.UnitTypeAsync(context, request.FromUnitTypeId, ct),
+            To = await AuditNames.UnitTypeAsync(context, request.ToUnitTypeId, ct),
+            request.Gender, request.PathType
+        }, cancellationToken: ct);
         return Result<Guid>.Success(entity.Id);
     }
 }
@@ -200,7 +207,7 @@ public class UpdateUnitTypeProgressionCommandValidator : AbstractValidator<Updat
     }
 }
 
-public class UpdateUnitTypeProgressionCommandHandler(IApplicationDbContext context) : IRequestHandler<UpdateUnitTypeProgressionCommand, Result<bool>>
+public class UpdateUnitTypeProgressionCommandHandler(IApplicationDbContext context, IAuditService audit) : IRequestHandler<UpdateUnitTypeProgressionCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateUnitTypeProgressionCommand request, CancellationToken ct)
     {
@@ -215,6 +222,12 @@ public class UpdateUnitTypeProgressionCommandHandler(IApplicationDbContext conte
         entity.Notes = request.Notes;
 
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "UnitTypeProgression", entity.Id, newValues: new
+        {
+            From = await AuditNames.UnitTypeAsync(context, request.FromUnitTypeId, ct),
+            To = await AuditNames.UnitTypeAsync(context, request.ToUnitTypeId, ct),
+            request.Gender, request.PathType
+        }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
@@ -222,15 +235,18 @@ public class UpdateUnitTypeProgressionCommandHandler(IApplicationDbContext conte
 // Delete
 public record DeleteUnitTypeProgressionCommand(Guid Id) : IRequest<Result<bool>>;
 
-public class DeleteUnitTypeProgressionCommandHandler(IApplicationDbContext context) : IRequestHandler<DeleteUnitTypeProgressionCommand, Result<bool>>
+public class DeleteUnitTypeProgressionCommandHandler(IApplicationDbContext context, IAuditService audit) : IRequestHandler<DeleteUnitTypeProgressionCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteUnitTypeProgressionCommand request, CancellationToken ct)
     {
         var entity = await context.UnitTypeProgressions.FindAsync([request.Id], ct);
         if (entity is null) return Result<bool>.Failure("Parcours introuvable.");
 
+        var from = await AuditNames.UnitTypeAsync(context, entity.FromUnitTypeId, ct);
+        var to = await AuditNames.UnitTypeAsync(context, entity.ToUnitTypeId, ct);
         context.UnitTypeProgressions.Remove(entity);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Delete", "UnitTypeProgression", request.Id, oldValues: new { From = from, To = to, entity.Gender, entity.PathType }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

@@ -23,7 +23,7 @@ public class UpdateAddressCommandValidator : AbstractValidator<UpdateAddressComm
     }
 }
 
-public class UpdateAddressCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<UpdateAddressCommand, Result<bool>>
+public class UpdateAddressCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<UpdateAddressCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateAddressCommand request, CancellationToken ct)
     {
@@ -32,6 +32,9 @@ public class UpdateAddressCommandHandler(IApplicationDbContext context, ICurrent
 
         if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, entity.MemberId, ct))
             return Result<bool>.Failure("Accès non autorisé.");
+
+        var oldAddress = GNDJ.Application.Members.Commands.AddAddress.AddAddressCommandHandler.Format(entity.City, entity.Details, entity.Country);
+        var oldType = entity.Type;
 
         entity.Type = request.Type;
         entity.Country = request.Country;
@@ -42,6 +45,11 @@ public class UpdateAddressCommandHandler(IApplicationDbContext context, ICurrent
         await context.SaveChangesAsync(ct);
         // Household: mirror this member's address set onto their confirmed fratrie.
         await HouseholdSync.PropagateAddressesAsync(context, entity.MemberId, ct);
+        var member = await AuditNames.MemberAsync(context, entity.MemberId, ct);
+        await audit.LogAsync("Update", "Member", entity.MemberId,
+            oldValues: new { Member = member, Address = oldAddress, Type = oldType },
+            newValues: new { Member = member, Address = GNDJ.Application.Members.Commands.AddAddress.AddAddressCommandHandler.Format(request.City, request.Details, request.Country), request.Type },
+            cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

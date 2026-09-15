@@ -13,11 +13,13 @@ public class DeletePhoneCommandHandler : IRequestHandler<DeletePhoneCommand, Res
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
+    private readonly IAuditService _audit;
 
-    public DeletePhoneCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    public DeletePhoneCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     {
         _context = context;
         _currentUser = currentUser;
+        _audit = audit;
     }
 
     public async ValueTask<Result<bool>> Handle(DeletePhoneCommand request, CancellationToken cancellationToken)
@@ -28,8 +30,12 @@ public class DeletePhoneCommandHandler : IRequestHandler<DeletePhoneCommand, Res
         if (!await MemberAccess.CanAccessMemberAsync(_context, _currentUser, entity.MemberId, cancellationToken))
             return Result<bool>.Failure("Accès non autorisé.");
 
+        var member = await AuditNames.MemberAsync(_context, entity.MemberId, cancellationToken);
+        var phone = $"{entity.CountryCode} {entity.Number}".Trim();
+        var memberId = entity.MemberId;
         _context.MemberPhones.Remove(entity);
         await _context.SaveChangesAsync(cancellationToken);
+        await _audit.LogAsync("Update", "Member", memberId, oldValues: new { Member = member, Phone = phone }, cancellationToken: cancellationToken);
         return Result<bool>.Success(true);
     }
 }

@@ -105,6 +105,11 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   RejectSiblingSuggestion: { label: 'Fratrie rejetée', color: RED },
   LinkSiblings: { label: 'Fratrie liée', color: BLUE },
   UnlinkSibling: { label: 'Fratrie déliée', color: ORANGE },
+  // Réunions / groupes / autres
+  Approve: { label: 'Approbation', color: GREEN },
+  SaveAttendance: { label: 'Présences enregistrées', color: BLUE },
+  SendMessage: { label: 'Message envoyé', color: GRAY },
+  Reply: { label: 'Réponse', color: GRAY },
 }
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -141,6 +146,12 @@ const ENTITY_LABELS: Record<string, string> = {
   SmtpServer: 'Serveur SMTP',
   EmailTemplate: "Modèle d'email",
   SiteContent: 'Contenu du site',
+  UnitTypeProgression: 'Parcours scout',
+  MemberGroup: 'Groupe de membres',
+  Meeting: 'Réunion',
+  ReportTemplate: 'Modèle de rapport',
+  Trombinoscope: 'Trombinoscope',
+  ContactMessage: 'Message de contact',
 }
 
 // Human labels for the raw snapshot field names, so the detail reads in French instead of PascalCase keys.
@@ -160,6 +171,13 @@ const FIELD_LABELS: Record<string, string> = {
   // Parent (guardian) fields
   Parent: 'Parent', RelationshipType: 'Relation', IsPrimaryContact: 'Contact principal',
   IsEmergencyContact: "Contact d'urgence", IsDeceased: 'Décédé(e)', Phone: 'Téléphone',
+  // Member contact fields (add/update/delete phone/email/address, primary contact email)
+  Type: 'Type', Address: 'Adresse', PrimaryContactEmail: 'Courriel de contact principal',
+  // Parcours / groupes / réunions / rapports / trombinoscope / messages
+  From: 'De', To: 'Vers', PathType: 'Type de parcours', ScopeType: 'Portée',
+  Recipients: 'Destinataires', Absences: 'Absences', Date: 'Date', Sender: 'Expéditeur',
+  Subject: 'Objet', Published: 'Publié', MemberCount: 'Nombre de membres',
+  Format: 'Format', ReportType: 'Type de rapport',
   // Resolved-name keys emitted by the handlers (member/unit/role names instead of GUIDs)
   ProposedUnit: 'Unité proposée', ProposedRole: 'Fonction proposée',
   FinalUnit: 'Unité finale', FinalRole: 'Fonction finale',

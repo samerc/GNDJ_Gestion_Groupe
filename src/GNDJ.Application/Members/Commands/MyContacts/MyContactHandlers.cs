@@ -46,7 +46,7 @@ public class UpdateMyPhoneValidator : AbstractValidator<UpdateMyPhoneCommand>
     }
 }
 
-public class AddMyPhoneHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<AddMyPhoneCommand, Result<Guid>>
+public class AddMyPhoneHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<AddMyPhoneCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(AddMyPhoneCommand request, CancellationToken ct)
     {
@@ -55,28 +55,42 @@ public class AddMyPhoneHandler(IApplicationDbContext context, ICurrentUserServic
         var entity = new MemberPhone { MemberId = memberId.Value, CountryCode = request.CountryCode, Number = request.Number, Type = request.Type, IsPrimary = request.IsPrimary, IsEmergency = request.IsEmergency };
         context.MemberPhones.Add(entity);
         await context.SaveChangesAsync(ct);
+        // Self-service edits still go in the audit trail (entity_type "Member", the caller's own member).
+        await audit.LogAsync("Update", "Member", memberId.Value, newValues: new
+        {
+            Member = await AuditNames.MemberAsync(context, memberId.Value, ct),
+            Phone = $"{request.CountryCode} {request.Number}".Trim(), request.Type
+        }, cancellationToken: ct);
         return Result<Guid>.Success(entity.Id);
     }
 }
-public class UpdateMyPhoneHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<UpdateMyPhoneCommand, Result<bool>>
+public class UpdateMyPhoneHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<UpdateMyPhoneCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateMyPhoneCommand request, CancellationToken ct)
     {
         var entity = await context.MemberPhones.FindAsync([request.Id], ct);
         if (entity is null || entity.MemberId != currentUser.MemberId) return Result<bool>.Failure("Téléphone introuvable.");
+        var oldPhone = $"{entity.CountryCode} {entity.Number}".Trim(); var oldType = entity.Type;
         entity.CountryCode = request.CountryCode; entity.Number = request.Number; entity.Type = request.Type; entity.IsPrimary = request.IsPrimary; entity.IsEmergency = request.IsEmergency;
         await context.SaveChangesAsync(ct);
+        var member = await AuditNames.MemberAsync(context, entity.MemberId, ct);
+        await audit.LogAsync("Update", "Member", entity.MemberId,
+            oldValues: new { Member = member, Phone = oldPhone, Type = oldType },
+            newValues: new { Member = member, Phone = $"{request.CountryCode} {request.Number}".Trim(), request.Type }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
-public class DeleteMyPhoneHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<DeleteMyPhoneCommand, Result<bool>>
+public class DeleteMyPhoneHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<DeleteMyPhoneCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteMyPhoneCommand request, CancellationToken ct)
     {
         var entity = await context.MemberPhones.FindAsync([request.Id], ct);
         if (entity is null || entity.MemberId != currentUser.MemberId) return Result<bool>.Failure("Téléphone introuvable.");
+        var member = await AuditNames.MemberAsync(context, entity.MemberId, ct);
+        var phone = $"{entity.CountryCode} {entity.Number}".Trim(); var memberId = entity.MemberId;
         context.MemberPhones.Remove(entity);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Member", memberId, oldValues: new { Member = member, Phone = phone }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
@@ -104,7 +118,7 @@ public class UpdateMyEmailValidator : AbstractValidator<UpdateMyEmailCommand>
     }
 }
 
-public class AddMyEmailHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<AddMyEmailCommand, Result<Guid>>
+public class AddMyEmailHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<AddMyEmailCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(AddMyEmailCommand request, CancellationToken ct)
     {
@@ -113,28 +127,40 @@ public class AddMyEmailHandler(IApplicationDbContext context, ICurrentUserServic
         var entity = new MemberEmail { MemberId = memberId.Value, Address = request.Address, Type = request.Type, IsPrimary = request.IsPrimary, IsEmergency = request.IsEmergency };
         context.MemberEmails.Add(entity);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Member", memberId.Value, newValues: new
+        {
+            Member = await AuditNames.MemberAsync(context, memberId.Value, ct), Email = request.Address, request.Type
+        }, cancellationToken: ct);
         return Result<Guid>.Success(entity.Id);
     }
 }
-public class UpdateMyEmailHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<UpdateMyEmailCommand, Result<bool>>
+public class UpdateMyEmailHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<UpdateMyEmailCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateMyEmailCommand request, CancellationToken ct)
     {
         var entity = await context.MemberEmails.FindAsync([request.Id], ct);
         if (entity is null || entity.MemberId != currentUser.MemberId) return Result<bool>.Failure("Courriel introuvable.");
+        var oldEmail = entity.Address; var oldType = entity.Type;
         entity.Address = request.Address; entity.Type = request.Type; entity.IsPrimary = request.IsPrimary; entity.IsEmergency = request.IsEmergency;
         await context.SaveChangesAsync(ct);
+        var member = await AuditNames.MemberAsync(context, entity.MemberId, ct);
+        await audit.LogAsync("Update", "Member", entity.MemberId,
+            oldValues: new { Member = member, Email = oldEmail, Type = oldType },
+            newValues: new { Member = member, Email = request.Address, request.Type }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
-public class DeleteMyEmailHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<DeleteMyEmailCommand, Result<bool>>
+public class DeleteMyEmailHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<DeleteMyEmailCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteMyEmailCommand request, CancellationToken ct)
     {
         var entity = await context.MemberEmails.FindAsync([request.Id], ct);
         if (entity is null || entity.MemberId != currentUser.MemberId) return Result<bool>.Failure("Courriel introuvable.");
+        var member = await AuditNames.MemberAsync(context, entity.MemberId, ct);
+        var email = entity.Address; var memberId = entity.MemberId;
         context.MemberEmails.Remove(entity);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Member", memberId, oldValues: new { Member = member, Email = email }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
@@ -221,7 +247,7 @@ public class UpdateMyAddressValidator : AbstractValidator<UpdateMyAddressCommand
     }
 }
 
-public class AddMyAddressHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<AddMyAddressCommand, Result<Guid>>
+public class AddMyAddressHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<AddMyAddressCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(AddMyAddressCommand request, CancellationToken ct)
     {
@@ -231,30 +257,43 @@ public class AddMyAddressHandler(IApplicationDbContext context, ICurrentUserServ
         context.MemberAddresses.Add(entity);
         await context.SaveChangesAsync(ct);
         await HouseholdSync.PropagateAddressesAsync(context, memberId.Value, ct); // household: mirror onto confirmed siblings
+        await audit.LogAsync("Update", "Member", memberId.Value, newValues: new
+        {
+            Member = await AuditNames.MemberAsync(context, memberId.Value, ct),
+            Address = AddAddress.AddAddressCommandHandler.Format(request.City, request.Details, request.Country), request.Type
+        }, cancellationToken: ct);
         return Result<Guid>.Success(entity.Id);
     }
 }
-public class UpdateMyAddressHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<UpdateMyAddressCommand, Result<bool>>
+public class UpdateMyAddressHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<UpdateMyAddressCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateMyAddressCommand request, CancellationToken ct)
     {
         var entity = await context.MemberAddresses.FindAsync([request.Id], ct);
         if (entity is null || entity.MemberId != currentUser.MemberId) return Result<bool>.Failure("Adresse introuvable.");
+        var oldAddress = AddAddress.AddAddressCommandHandler.Format(entity.City, entity.Details, entity.Country); var oldType = entity.Type;
         entity.Type = request.Type; entity.Country = request.Country; entity.City = request.City; entity.Details = request.Details; entity.IsPrimary = request.IsPrimary;
         await context.SaveChangesAsync(ct);
         await HouseholdSync.PropagateAddressesAsync(context, entity.MemberId, ct); // household: mirror onto confirmed siblings
+        var member = await AuditNames.MemberAsync(context, entity.MemberId, ct);
+        await audit.LogAsync("Update", "Member", entity.MemberId,
+            oldValues: new { Member = member, Address = oldAddress, Type = oldType },
+            newValues: new { Member = member, Address = AddAddress.AddAddressCommandHandler.Format(request.City, request.Details, request.Country), request.Type }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
-public class DeleteMyAddressHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<DeleteMyAddressCommand, Result<bool>>
+public class DeleteMyAddressHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<DeleteMyAddressCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteMyAddressCommand request, CancellationToken ct)
     {
         var entity = await context.MemberAddresses.FindAsync([request.Id], ct);
         if (entity is null || entity.MemberId != currentUser.MemberId) return Result<bool>.Failure("Adresse introuvable.");
+        var member = await AuditNames.MemberAsync(context, entity.MemberId, ct);
+        var address = AddAddress.AddAddressCommandHandler.Format(entity.City, entity.Details, entity.Country); var memberId = entity.MemberId;
         context.MemberAddresses.Remove(entity);
         await context.SaveChangesAsync(ct);
-        await HouseholdSync.PropagateAddressesAsync(context, entity.MemberId, ct); // household: mirror onto confirmed siblings
+        await HouseholdSync.PropagateAddressesAsync(context, memberId, ct); // household: mirror onto confirmed siblings
+        await audit.LogAsync("Update", "Member", memberId, oldValues: new { Member = member, Address = address }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

@@ -13,11 +13,13 @@ public class DeleteEmailCommandHandler : IRequestHandler<DeleteEmailCommand, Res
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
+    private readonly IAuditService _audit;
 
-    public DeleteEmailCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    public DeleteEmailCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     {
         _context = context;
         _currentUser = currentUser;
+        _audit = audit;
     }
 
     public async ValueTask<Result<bool>> Handle(DeleteEmailCommand request, CancellationToken cancellationToken)
@@ -28,8 +30,12 @@ public class DeleteEmailCommandHandler : IRequestHandler<DeleteEmailCommand, Res
         if (!await MemberAccess.CanAccessMemberAsync(_context, _currentUser, entity.MemberId, cancellationToken))
             return Result<bool>.Failure("Accès non autorisé.");
 
+        var member = await AuditNames.MemberAsync(_context, entity.MemberId, cancellationToken);
+        var email = entity.Address;
+        var memberId = entity.MemberId;
         _context.MemberEmails.Remove(entity);
         await _context.SaveChangesAsync(cancellationToken);
+        await _audit.LogAsync("Update", "Member", memberId, oldValues: new { Member = member, Email = email }, cancellationToken: cancellationToken);
         return Result<bool>.Success(true);
     }
 }

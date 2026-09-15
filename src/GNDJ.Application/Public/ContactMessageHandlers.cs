@@ -98,7 +98,7 @@ public class MarkContactMessageReadCommandHandler(IApplicationDbContext context)
 // answer. Marks the message read + stamps the reply so the inbox shows "Répondu".
 public record ReplyContactMessageCommand(Guid Id, string Subject, string Body) : IRequest<Result<bool>>;
 
-public class ReplyContactMessageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IEmailQueue emailQueue, INotificationService notifications)
+public class ReplyContactMessageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IEmailQueue emailQueue, INotificationService notifications, IAuditService audit)
     : IRequestHandler<ReplyContactMessageCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(ReplyContactMessageCommand request, CancellationToken ct)
@@ -139,6 +139,7 @@ public class ReplyContactMessageCommandHandler(IApplicationDbContext context, IC
             $"{(string.IsNullOrWhiteSpace(replier) ? "Un responsable" : replier)} a répondu à {m.SenderName}",
             "/admin/contact-messages", excludeMemberId: currentUser.MemberId, ct: ct);
 
+        await audit.LogAsync("Reply", "ContactMessage", m.Id, newValues: new { Sender = m.SenderName, Subject = subject }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
@@ -176,15 +177,17 @@ public class ClaimContactMessageCommandHandler(IApplicationDbContext context, IC
 // ── Delete (soft) ─────────────────────────────────────────────────────────────
 public record DeleteContactMessageCommand(Guid Id) : IRequest<Result<bool>>;
 
-public class DeleteContactMessageCommandHandler(IApplicationDbContext context)
+public class DeleteContactMessageCommandHandler(IApplicationDbContext context, IAuditService audit)
     : IRequestHandler<DeleteContactMessageCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteContactMessageCommand request, CancellationToken ct)
     {
         var m = await context.ContactMessages.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
         if (m is null) return Result<bool>.Failure("Message introuvable.");
+        var label = new { Sender = m.SenderName, Subject = m.Subject };
         context.ContactMessages.Remove(m); // soft-delete via interceptor
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Delete", "ContactMessage", request.Id, oldValues: label, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

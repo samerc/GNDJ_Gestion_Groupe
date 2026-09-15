@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-15",
+        "text": "Journal d'audit — toutes les modifications sont désormais enregistrées : coordonnées d'un membre (téléphone, courriel, adresse, courriel de contact — ajout/modification/suppression, côté chef ET depuis Ma fiche), parcours scouts, groupes de membres, réunions et présences, modèles de rapports, trombinoscopes et messages de contact. Chaque entrée indique le nom du membre/de l'unité concerné(e)."
+      },
+      {
+        "date": "2026-09-15",
         "text": "Mot de passe — après avoir défini/changé son mot de passe, l'utilisateur reste connecté sur cet appareil (et apparaît dans les Sessions actives) au lieu d'être déconnecté silencieusement au bout de ~15 min ; les AUTRES appareils sont, eux, déconnectés."
       },
       {

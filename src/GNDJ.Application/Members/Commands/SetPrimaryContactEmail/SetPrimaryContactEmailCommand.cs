@@ -10,7 +10,7 @@ namespace GNDJ.Application.Members.Commands.SetPrimaryContactEmail;
 // for member-facing mail (password reset). Access = super-admin or an active leader of the member's unit.
 public record SetPrimaryContactEmailCommand(Guid MemberId, string? Email) : IRequest<Result<bool>>;
 
-public class SetPrimaryContactEmailCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+public class SetPrimaryContactEmailCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     : IRequestHandler<SetPrimaryContactEmailCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(SetPrimaryContactEmailCommand request, CancellationToken ct)
@@ -33,8 +33,14 @@ public class SetPrimaryContactEmailCommandHandler(IApplicationDbContext context,
                 return Result<bool>.Failure("Ce courriel ne figure pas sur la fiche du membre.");
         }
 
+        var oldEmail = member.PrimaryContactEmail;
         member.PrimaryContactEmail = string.IsNullOrEmpty(email) ? null : email;
         await context.SaveChangesAsync(ct);
+        var name = await AuditNames.MemberAsync(context, member.Id, ct);
+        await audit.LogAsync("Update", "Member", member.Id,
+            oldValues: new { Member = name, PrimaryContactEmail = oldEmail },
+            newValues: new { Member = name, member.PrimaryContactEmail },
+            cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

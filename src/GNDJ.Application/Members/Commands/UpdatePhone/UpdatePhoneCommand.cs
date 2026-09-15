@@ -22,7 +22,7 @@ public class UpdatePhoneCommandValidator : AbstractValidator<UpdatePhoneCommand>
     }
 }
 
-public class UpdatePhoneCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<UpdatePhoneCommand, Result<bool>>
+public class UpdatePhoneCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<UpdatePhoneCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdatePhoneCommand request, CancellationToken ct)
     {
@@ -32,6 +32,9 @@ public class UpdatePhoneCommandHandler(IApplicationDbContext context, ICurrentUs
         if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, entity.MemberId, ct))
             return Result<bool>.Failure("Accès non autorisé.");
 
+        var oldPhone = $"{entity.CountryCode} {entity.Number}".Trim();
+        var oldType = entity.Type;
+
         entity.CountryCode = request.CountryCode;
         entity.Number = request.Number;
         entity.Type = request.Type;
@@ -39,6 +42,12 @@ public class UpdatePhoneCommandHandler(IApplicationDbContext context, ICurrentUs
         entity.IsEmergency = request.IsEmergency;
 
         await context.SaveChangesAsync(ct);
+        // Log the change on the owning Member as a before → after diff (Member shown as context in both).
+        var member = await AuditNames.MemberAsync(context, entity.MemberId, ct);
+        await audit.LogAsync("Update", "Member", entity.MemberId,
+            oldValues: new { Member = member, Phone = oldPhone, Type = oldType },
+            newValues: new { Member = member, Phone = $"{request.CountryCode} {request.Number}".Trim(), request.Type },
+            cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

@@ -25,11 +25,13 @@ public class AddEmailCommandHandler : IRequestHandler<AddEmailCommand, Result<Gu
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
+    private readonly IAuditService _audit;
 
-    public AddEmailCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    public AddEmailCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     {
         _context = context;
         _currentUser = currentUser;
+        _audit = audit;
     }
 
     public async ValueTask<Result<Guid>> Handle(AddEmailCommand request, CancellationToken cancellationToken)
@@ -47,6 +49,11 @@ public class AddEmailCommandHandler : IRequestHandler<AddEmailCommand, Result<Gu
         };
         _context.MemberEmails.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
+        await _audit.LogAsync("Update", "Member", request.MemberId, newValues: new
+        {
+            Member = await AuditNames.MemberAsync(_context, request.MemberId, cancellationToken),
+            Email = request.Address, request.Type
+        }, cancellationToken: cancellationToken);
         return Result<Guid>.Success(entity.Id);
     }
 }

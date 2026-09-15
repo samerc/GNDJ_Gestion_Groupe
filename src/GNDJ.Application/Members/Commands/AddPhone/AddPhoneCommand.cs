@@ -26,11 +26,13 @@ public class AddPhoneCommandHandler : IRequestHandler<AddPhoneCommand, Result<Gu
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
+    private readonly IAuditService _audit;
 
-    public AddPhoneCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    public AddPhoneCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     {
         _context = context;
         _currentUser = currentUser;
+        _audit = audit;
     }
 
     public async ValueTask<Result<Guid>> Handle(AddPhoneCommand request, CancellationToken cancellationToken)
@@ -50,6 +52,12 @@ public class AddPhoneCommandHandler : IRequestHandler<AddPhoneCommand, Result<Gu
         };
         _context.MemberPhones.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
+        // Audit as a change on the owning Member (entity_type "Member"), with the member name resolved.
+        await _audit.LogAsync("Update", "Member", request.MemberId, newValues: new
+        {
+            Member = await AuditNames.MemberAsync(_context, request.MemberId, cancellationToken),
+            Phone = $"{request.CountryCode} {request.Number}".Trim(), request.Type
+        }, cancellationToken: cancellationToken);
         return Result<Guid>.Success(entity.Id);
     }
 }

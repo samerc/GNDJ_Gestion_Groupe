@@ -212,7 +212,7 @@ public class CreateMemberGroupCommandValidator : AbstractValidator<CreateMemberG
     }
 }
 
-public class CreateMemberGroupCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+public class CreateMemberGroupCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     : IRequestHandler<CreateMemberGroupCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(CreateMemberGroupCommand request, CancellationToken ct)
@@ -236,6 +236,7 @@ public class CreateMemberGroupCommandHandler(IApplicationDbContext context, ICur
             g.Rules.Add(new MemberGroupRule { Id = Guid.CreateVersion7(), Include = r.Include, Criterion = r.Criterion, Value = r.Value });
         context.MemberGroups.Add(g);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Create", "MemberGroup", g.Id, newValues: new { Name = g.Name, ScopeType = g.ScopeType }, cancellationToken: ct);
         return Result<Guid>.Success(g.Id);
     }
 }
@@ -252,7 +253,7 @@ public class UpdateMemberGroupCommandValidator : AbstractValidator<UpdateMemberG
     }
 }
 
-public class UpdateMemberGroupCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+public class UpdateMemberGroupCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     : IRequestHandler<UpdateMemberGroupCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateMemberGroupCommand request, CancellationToken ct)
@@ -267,6 +268,7 @@ public class UpdateMemberGroupCommandHandler(IApplicationDbContext context, ICur
             g.IsVisible = request.IsVisible;
             g.ShowInUnitList = request.ShowInUnitList;
             await context.SaveChangesAsync(ct);
+            await audit.LogAsync("Update", "MemberGroup", g.Id, newValues: new { Name = g.Name, g.IsVisible, g.ShowInUnitList }, cancellationToken: ct);
             return Result<bool>.Success(true);
         }
 
@@ -291,13 +293,14 @@ public class UpdateMemberGroupCommandHandler(IApplicationDbContext context, ICur
             context.MemberGroupRules.Add(new MemberGroupRule { Id = Guid.CreateVersion7(), MemberGroupId = g.Id, Include = r.Include, Criterion = r.Criterion, Value = r.Value });
 
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "MemberGroup", g.Id, newValues: new { Name = g.Name, ScopeType = g.ScopeType }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
 
 public record DeleteMemberGroupCommand(Guid Id) : IRequest<Result<bool>>;
 
-public class DeleteMemberGroupCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+public class DeleteMemberGroupCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
     : IRequestHandler<DeleteMemberGroupCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteMemberGroupCommand request, CancellationToken ct)
@@ -310,8 +313,10 @@ public class DeleteMemberGroupCommandHandler(IApplicationDbContext context, ICur
         if (await context.Meetings.AnyAsync(m => m.MemberGroupId == g.Id, ct))
             return Result<bool>.Failure("Des réunions utilisent ce groupe. Masquez-le plutôt que de le supprimer.");
 
+        var name = g.Name;
         context.MemberGroups.Remove(g);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Delete", "MemberGroup", request.Id, oldValues: new { Name = name }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
@@ -325,7 +330,7 @@ public record SendGroupMessageCommand(Guid GroupId, Guid? UnitId, string? Templa
     : IRequest<Result<SendGroupMessageResult>>;
 public record SendGroupMessageResult(int Recipients, int NoContact, IReadOnlyList<string> NoContactNames);
 
-public class SendGroupMessageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IEmailQueue emailQueue)
+public class SendGroupMessageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IEmailQueue emailQueue, IAuditService audit)
     : IRequestHandler<SendGroupMessageCommand, Result<SendGroupMessageResult>>
 {
     public async ValueTask<Result<SendGroupMessageResult>> Handle(SendGroupMessageCommand request, CancellationToken ct)
@@ -383,6 +388,7 @@ public class SendGroupMessageCommandHandler(IApplicationDbContext context, ICurr
         }).ToList();
 
         await emailQueue.EnqueueManyAsync(jobs, ct);
+        await audit.LogAsync("SendMessage", "MemberGroup", g.Id, newValues: new { Name = g.Name, Recipients = jobs.Count, Template = code }, cancellationToken: ct);
         return Result<SendGroupMessageResult>.Success(new SendGroupMessageResult(jobs.Count, noContact.Count, noContact));
     }
 }
