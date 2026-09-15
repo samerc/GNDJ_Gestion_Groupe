@@ -71,3 +71,7 @@ docs/guides/*.pdf
 
 # One-off go-live data script with real member PII (maîtrise phones/emails) — keep out of git.
 deploy/golive/import_maitrise_contacts.sql
+
+# Claude Code local settings (per-machine approval state — never commit)
+.claude/settings.json
+.claude/settings.local.json
