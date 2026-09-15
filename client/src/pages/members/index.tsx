@@ -371,9 +371,9 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
             <h2 className="font-bold">{member.firstName} {member.lastName}</h2>
             {/* Header focuses on the login account (card N°/genre/DOB live in the Informations tab). Line 2 =
                 identifiant; line 3 = last sign-in, or "Jamais connecté" for an account that never logged in. */}
-            <p className="text-xs text-muted-foreground">
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
               {member.username
-                ? <>Identifiant : <span className="font-medium text-foreground">{member.username}</span></>
+                ? <>Identifiant : <span className="font-medium text-foreground">{member.username}</span><CopyButton value={member.username} label="Copier l'identifiant" className="ml-0.5" /></>
                 : <span className="italic">Aucun compte utilisateur</span>}
             </p>
             {member.username && (
