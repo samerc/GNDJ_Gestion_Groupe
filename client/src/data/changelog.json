@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-15",
+        "text": "Mot de passe — après avoir défini/changé son mot de passe, l'utilisateur reste connecté sur cet appareil (et apparaît dans les Sessions actives) au lieu d'être déconnecté silencieusement au bout de ~15 min ; les AUTRES appareils sont, eux, déconnectés."
+      },
+      {
+        "date": "2026-09-15",
         "text": "Journal d'audit — la modification d'un membre indique désormais EXACTEMENT les champs modifiés (avant → après), au lieu d'une liste fixe (nom/prénom/matricule) qui ne montrait pas le vrai changement."
       },
       {

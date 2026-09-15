@@ -19,6 +19,7 @@ import { toast } from 'sonner'
 export function ForcePasswordChange() {
   const changePassword = useChangePassword()
   const loadUser = useAuthStore((s) => s.loadUser)
+  const applyTokens = useAuthStore((s) => s.applyTokens)
   const logout = useAuthStore((s) => s.logout)
   const { data: policy } = usePasswordPolicy()
   const [current, setCurrent] = useState('')
@@ -38,7 +39,10 @@ export function ForcePasswordChange() {
     if (next !== confirm) { setError('Les mots de passe ne correspondent pas.'); return }
     if (next === current) { setError('Le nouveau mot de passe doit être différent de l\'actuel.'); return }
     try {
-      await changePassword.mutateAsync({ currentPassword: current, newPassword: next })
+      // Changing the password rotates the refresh token; apply the fresh pair so THIS device keeps its
+      // session (otherwise it would drop ~15 min later when the old refresh token no longer matches).
+      const res = await changePassword.mutateAsync({ currentPassword: current, newPassword: next })
+      applyTokens(res.accessToken, res.refreshToken)
       toast.success('Mot de passe défini. Bienvenue !')
       await loadUser() // clears mustChangePassword server-side flag → app renders
     } catch (err) {

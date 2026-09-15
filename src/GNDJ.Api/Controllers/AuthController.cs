@@ -148,8 +148,8 @@ public class AuthController : BaseApiController
         return Ok(new { message = "Mot de passe réinitialisé avec succès." });
     }
 
-    /// <summary>Change the authenticated user's password (requires the current one; invalidates other sessions).</summary>
-    /// <response code="200">Password changed.</response>
+    /// <summary>Change the authenticated user's password (requires the current one; signs out other devices and returns a fresh token pair so THIS device stays signed in).</summary>
+    /// <response code="200">Password changed; returns a new token pair for the current device.</response>
     /// <response code="400">Current password wrong, or the new password fails the strength policy.</response>
     /// <response code="401">Not authenticated.</response>
     [Authorize]
@@ -159,7 +159,7 @@ public class AuthController : BaseApiController
     {
         var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(new { message = "Mot de passe modifié avec succès." });
+        return Ok(result.Value);
     }
 
     /// <summary>Returns the current password-complexity policy (min length + required character classes) so the

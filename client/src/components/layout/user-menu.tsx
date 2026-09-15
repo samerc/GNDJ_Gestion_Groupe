@@ -60,7 +60,9 @@ export function UserMenu() {
       return
     }
     try {
-      await changePasswordMutation.mutateAsync({ currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword })
+      // Rotates the refresh token (signs out other devices); apply the fresh pair so this device stays signed in.
+      const res = await changePasswordMutation.mutateAsync({ currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword })
+      applyTokens(res.accessToken, res.refreshToken)
       toast.success('Mot de passe modifié')
       setChangePasswordOpen(false)
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })

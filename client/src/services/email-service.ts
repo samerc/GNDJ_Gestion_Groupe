@@ -110,9 +110,14 @@ export function useResetPassword() {
   return useMutation({ mutationFn: (data: { email: string; token: string; newPassword: string; website?: string }) => apiClient.post('/auth/reset-password', data) })
 }
 
-// POST /auth/change-password → change own password (validates current); invalidates sessions server-side.
+// POST /auth/change-password → change own password (validates current). Signs out OTHER devices and returns
+// a fresh token pair for THIS device (so the current session survives + stays in Sessions actives); the caller
+// must apply it via authStore.applyTokens.
 export function useChangePassword() {
-  return useMutation({ mutationFn: (data: { currentPassword: string; newPassword: string }) => apiClient.post('/auth/change-password', data) })
+  return useMutation({
+    mutationFn: (data: { currentPassword: string; newPassword: string }) =>
+      apiClient.post<{ accessToken: string; refreshToken: string }>('/auth/change-password', data).then(r => r.data),
+  })
 }
 
 // POST /auth/sign-out-other-devices → rotate the refresh token so every OTHER device is signed out
