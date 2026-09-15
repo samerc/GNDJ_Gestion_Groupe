@@ -512,6 +512,10 @@ app.UseAuthorization();
 // (or the whole site) in maintenance returns 503 to everyone else. Only gates /api/*; the SPA still loads.
 app.UseMiddleware<MaintenanceMiddleware>();
 
+// "Voir comme" (impersonation) read-only guard — after auth so the impersonation claim is available: refuses
+// every mutation while an impersonation token is in use, so the feature is safe (view-only) by construction.
+app.UseMiddleware<ImpersonationReadOnlyMiddleware>();
+
 // Serilog request logging (after auth so user context is available)
 app.UseSerilogRequestLogging(options =>
 {

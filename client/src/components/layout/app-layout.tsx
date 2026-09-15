@@ -13,6 +13,8 @@ import { MaintenancePage } from '@/components/shared/maintenance-page'
 import { ForcePasswordChange } from '@/components/auth/force-password-change'
 import { LeaderContactVerification } from '@/components/auth/leader-contact-verification'
 import { MemberWelcomeTour } from '@/components/onboarding/member-welcome-tour'
+import { ImpersonationBanner } from './impersonation-banner'
+import { useImpersonationStore } from '@/stores/impersonation-store'
 
 // ROLE: authenticated app shell — sidebar + header around the routed <Outlet>.
 // Used as the layout route wrapping every signed-in page. Mounts the global
@@ -45,40 +47,53 @@ export function AppLayout() {
   const isManager = useIsManager()
   const { data: maint } = useMaintenance()
   const inMaintenance = !!maint && (maint.site || maint.membres)
-  if (inMaintenance && user && !user.isSuperAdmin) return <MaintenancePage message={maint?.message} />
+
+  // "Voir comme" (impersonation): while active, `user` is the target member. Skip the member's own blocking
+  // gates (maintenance / forced password / contact verification) — we're only VIEWING, those actions are
+  // read-only-blocked anyway, and the impersonation banner + Quitter must always stay reachable. Enter/exit is
+  // via the banner and the member panel; the token slot lives in lib/impersonation.
+  const impersonating = useImpersonationStore((s) => s.active)
+
+  if (inMaintenance && user && !user.isSuperAdmin && !impersonating) return <MaintenancePage message={maint?.message} />
 
   // Forced first-login password change: block the entire app (no sidebar/routes) until the user sets their own
   // password. Applies to temp/imported/leader-reset accounts (mustChangePassword); those who activated via the
   // email link already set their password (flag cleared) and never see this.
-  if (user?.mustChangePassword) return <ForcePasswordChange />
+  if (user?.mustChangePassword && !impersonating) return <ForcePasswordChange />
 
   // Leader first-login step (AFTER the password): confirm your personal contact details (email + phone). Many
   // leaders were youth with a parent's on file; block the app once until they confirm/correct them.
-  if (user?.needsContactVerification) return <LeaderContactVerification />
+  if (user?.needsContactVerification && !impersonating) return <LeaderContactVerification />
 
   // Managers get a horizontal top menubar (desktop) instead of the long left sidebar — the grouped admin nav
   // fits better as dropdowns and frees the width for the data-dense tables. Non-managers keep the left sidebar.
   // On mobile, everyone uses the hamburger drawer (MobileSidebar); AdminTopNav is desktop-only (hidden < lg).
   return (
     <TooltipProvider delayDuration={250} skipDelayDuration={300}>
-    <div className="flex h-screen">
-      {!isManager && <Sidebar />}
-      <MobileSidebar />
-      <Toaster richColors position="top-center" />
-      <SessionWarning />
-      <RentreeOverduePopup />
-      {/* First-login welcome tour for regular members (self-gated; chefs/admins excluded — they get the guide). */}
-      <MemberWelcomeTour />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header />
-        {inMaintenance && (
-          <div className="bg-amber-500 px-4 py-1.5 text-center text-xs font-medium text-amber-950">
-            Mode maintenance actif ({maint?.site ? 'tout le site' : 'espace membres'}) — seuls les super-administrateurs ont accès. Désactivez-le dans Paramètres.
-          </div>
-        )}
-        <main ref={mainRef} className="flex-1 overflow-auto p-4 sm:p-6">
-          <Outlet />
-        </main>
+    <div className="flex h-screen flex-col">
+      {/* Full-width impersonation bar (above sidebar + content) so "Quitter" is always reachable. */}
+      <ImpersonationBanner />
+      <div className="flex flex-1 overflow-hidden">
+        {!isManager && <Sidebar />}
+        <MobileSidebar />
+        <Toaster richColors position="top-center" />
+        {/* Suppress the member's own idle-timer / reminders / tour while impersonating — we're viewing, not
+            them, and those fire mutations (marked-seen/dismiss) that the read-only mode would block. */}
+        {!impersonating && <SessionWarning />}
+        {!impersonating && <RentreeOverduePopup />}
+        {/* First-login welcome tour for regular members (self-gated; chefs/admins excluded — they get the guide). */}
+        {!impersonating && <MemberWelcomeTour />}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Header />
+          {inMaintenance && !impersonating && (
+            <div className="bg-amber-500 px-4 py-1.5 text-center text-xs font-medium text-amber-950">
+              Mode maintenance actif ({maint?.site ? 'tout le site' : 'espace membres'}) — seuls les super-administrateurs ont accès. Désactivez-le dans Paramètres.
+            </div>
+          )}
+          <main ref={mainRef} className="flex-1 overflow-auto p-4 sm:p-6">
+            <Outlet />
+          </main>
+        </div>
       </div>
     </div>
     </TooltipProvider>

@@ -1,5 +1,7 @@
+using GNDJ.Api.Authorization;
 using GNDJ.Application.Auth.Commands.ChangePassword;
 using GNDJ.Application.Auth.Commands.ForgotUsername;
+using GNDJ.Application.Auth.Commands.Impersonate;
 using GNDJ.Application.Auth.Commands.Login;
 using GNDJ.Application.Auth.Commands.Logout;
 using GNDJ.Application.Auth.Commands.RefreshToken;
@@ -8,6 +10,7 @@ using GNDJ.Application.Auth.Commands.RequestPasswordReset;
 using GNDJ.Application.Auth.Commands.ResetPassword;
 using GNDJ.Application.Auth.Commands.SignOutOtherDevices;
 using GNDJ.Application.Auth.Queries;
+using GNDJ.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -85,6 +88,20 @@ public class AuthController : BaseApiController
     {
         var result = await Mediator.Send(new SignOutOtherDevicesCommand());
         if (!result.IsSuccess) return Unauthorized(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>« Voir comme » — mint a short-lived READ-ONLY impersonation token to view the app as a member. Super-admin or Chef de Groupe only; cannot target a super-admin or yourself. Every mutation is blocked while the token is used, and the start is audited with your real identity.</summary>
+    /// <response code="200">Impersonation token issued (accessToken + the member you're now viewing).</response>
+    /// <response code="400">Target not found, is a super-admin, or is yourself.</response>
+    /// <response code="403">Not a super-admin / Chef de Groupe.</response>
+    [Authorize]
+    [HasPermission(Permissions.MaitriseManage)]
+    [HttpPost("impersonate/{memberId:guid}")]
+    public async Task<IActionResult> Impersonate(Guid memberId)
+    {
+        var result = await Mediator.Send(new ImpersonateCommand(memberId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }
 

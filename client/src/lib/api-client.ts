@@ -1,7 +1,9 @@
 import axios from 'axios'
+import { toast } from 'sonner'
 import { API_BASE_URL } from './constants'
 import type { AuthResponse } from '@/types/auth'
 import { getAccessToken, getRefreshToken, setTokens, clearTokens, getRemember } from './token-storage'
+import { getImpersonationToken, isImpersonating, triggerImpersonationExpiry } from './impersonation'
 
 // Authenticated axios client for the member/chef/admin realm. Request interceptor attaches the JWT;
 // response interceptor transparently refreshes on 401 and retries the original request once.
@@ -28,9 +30,11 @@ function processQueue(error: unknown, token: string | null) {
   failedQueue = []
 }
 
-// Attach the stored access token to every outgoing request.
+// Attach the access token to every outgoing request. While "Voir comme" is active the impersonation token
+// takes precedence (the admin's own tokens stay untouched in the 'member' realm), so every call behaves as
+// the target member; clearing the impersonation slot restores the admin.
 apiClient.interceptors.request.use((config) => {
-  const token = getAccessToken('member')
+  const token = getImpersonationToken() ?? getAccessToken('member')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -41,6 +45,20 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+
+    // "Voir comme" read-only: the server blocks every mutation while impersonating. Surface it as a toast
+    // and reject, rather than letting the page treat it as an unexpected failure.
+    if (error.response?.status === 403 && error.response.data?.impersonationReadOnly) {
+      toast.error(error.response.data.error ?? 'Mode « Voir comme » : lecture seule.')
+      return Promise.reject(error)
+    }
+
+    // While impersonating, a 401 means the impersonation token lapsed (60-min TTL) or was rejected. Do NOT run
+    // the normal refresh flow (that would use the admin's refresh token) — exit back to the admin instead.
+    if (error.response?.status === 401 && isImpersonating()) {
+      triggerImpersonationExpiry()
+      return Promise.reject(error)
+    }
 
     // A 401 from the auth endpoints THEMSELVES (login/register/refresh) is bad credentials / not-yet-
     // authenticated, not an expired session — surface it to the page instead of hard-redirecting (which

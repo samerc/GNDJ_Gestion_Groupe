@@ -8,7 +8,8 @@
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { saveBlob } from '@/lib/download'
 import { useState, useRef, useCallback, useMemo, useEffect, type ReactNode, type ComponentType } from 'react'
-import { useParams } from 'react-router'
+import { useParams, useNavigate } from 'react-router'
+import { useImpersonationStore } from '@/stores/impersonation-store'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
@@ -53,7 +54,7 @@ import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPT
 import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts, useMemberAbsencesByYear, type MemberAbsenceYear } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck, Star, Upload } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck, Star, Upload, Eye } from 'lucide-react'
 import { pushRecentMember, isFavoriteMember, toggleFavoriteMember } from '@/lib/recent-members'
 import { DelegationDialog } from './delegation-dialog'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
@@ -151,6 +152,14 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   // Member-card generation is a group-wide toggle (Paramètres → Rapports). Off => hide the download action.
   const cardsEnabled = useSettingValue('reports.cards_enabled') !== 'false'
   const canManageSiblings = useAuthStore((s) => s.hasPermission(PERMISSIONS.MAITRISE_MANAGE)) // CG/super-admin: link/unlink fratries
+  // "Voir comme" (impersonation): super-admin OR Chef de Groupe (maitrise.manage). Hidden for yourself and for a
+  // super-admin target (member.isSuperAdmin is only ever populated true for a super-admin viewer; the server
+  // refuses a super-admin target regardless).
+  const canImpersonate = useAuthStore((s) => s.hasPermission(PERMISSIONS.MAITRISE_MANAGE))
+  const currentMemberId = useAuthStore((s) => s.user?.memberId)
+  const startImpersonation = useImpersonationStore((s) => s.start)
+  const impersonating = useImpersonationStore((s) => s.starting)
+  const navigate = useNavigate()
 
   // Tab item counts come from the member detail payload itself (folded into GET /members/{id}), so opening
   // a member is ONE request — no more firing five secondary list queries just to render these badges.
@@ -315,6 +324,15 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
     try { await setPrimary.mutateAsync(email); toast.success('Courriel de contact principal mis à jour') }
     catch (err) { toast.error(parseApiError(err)) }
   }
+
+  // Enter "Voir comme": mint the read-only token, then land on the member's dashboard (the current
+  // /members/:id page isn't reachable as most members). The amber banner drives the exit.
+  const handleImpersonate = async () => {
+    try {
+      await startImpersonation(memberId)
+      navigate('/dashboard')
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
   // Emails offered as the primary contact: the member's own + any guardian's (deduplicated).
   const contactEmailOptions = Array.from(new Set([...member.emails.map(e => e.address), ...member.guardianEmails]))
 
@@ -407,6 +425,11 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                   {canDelegate && (
                     <DropdownMenuItem onClick={() => setDelegationOpen(true)}>
                       <ShieldCheck className="mr-2 h-4 w-4" />Délégation d'accès
+                    </DropdownMenuItem>
+                  )}
+                  {canImpersonate && currentMemberId !== memberId && !member.isSuperAdmin && (
+                    <DropdownMenuItem onClick={handleImpersonate} disabled={impersonating}>
+                      <Eye className="mr-2 h-4 w-4" />Voir comme ce membre
                     </DropdownMenuItem>
                   )}
                   {canDelete && (

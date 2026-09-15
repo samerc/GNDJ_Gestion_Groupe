@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-15",
+        "text": "« Voir comme » — un super-administrateur ou un chef de groupe peut consulter l'application exactement comme la voit un membre choisi (sa fiche, son menu, ce qu'il voit ou non) — idéal pour l'assistance et pour vérifier les accès. Mode strictement en LECTURE SEULE (aucune modification possible), bandeau permanent avec « Quitter », et chaque ouverture est journalisée avec votre vraie identité. La session du membre n'est jamais perturbée. Accessible depuis la fiche d'un membre : Actions ▾ → « Voir comme ce membre »."
+      },
+      {
+        "date": "2026-09-15",
         "text": "Champs personnalisés — le réglage « Qui peut voir la valeur ? » est plus clair : les choix nomment désormais les personnes concernées (« Le membre et ses chefs » / « Les chefs uniquement (caché au membre) » / « Le chef de groupe uniquement ») au lieu de l'ambigu « Tout le monde ». La valeur reste toujours limitée aux personnes ayant accès à la fiche ; elle n'est jamais publique."
       },
       {

@@ -52,6 +52,44 @@ public class TokenService : ITokenService
         return handler.CreateToken(descriptor);
     }
 
+    // "Voir comme" impersonation token: same shape as a member access token so the whole app authorizes as the
+    // target, but is_super_admin is HARD-CODED false (a stand-in can never gain super-admin), and two extra
+    // claims mark it: impersonation=true (read-only middleware blocks every mutation) + impersonator_id (the real
+    // admin, for a truthful audit trail). Longer default TTL (60 min) than a normal 15-min token because there's
+    // no refresh path during impersonation — it simply auto-exits on expiry. sub falls back to Guid.Empty for a
+    // member with no login row (reads keyed on member_id still work; writes are blocked anyway).
+    public string GenerateImpersonationToken(Guid? targetUserId, Guid targetMemberId, string email,
+        IEnumerable<string> permissions, IEnumerable<Guid> unitIds, Guid impersonatorUserId)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]!));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var expirationMinutes = int.Parse(_configuration["Jwt:ImpersonationTokenExpirationMinutes"] ?? "60");
+
+        var claims = new Dictionary<string, object>
+        {
+            [JwtRegisteredClaimNames.Sub] = (targetUserId ?? Guid.Empty).ToString(),
+            [JwtRegisteredClaimNames.Email] = email,
+            ["member_id"] = targetMemberId.ToString(),
+            ["is_super_admin"] = "false",
+            ["permissions"] = string.Join(",", permissions),
+            ["unit_ids"] = string.Join(",", unitIds),
+            ["impersonation"] = "true",
+            ["impersonator_id"] = impersonatorUserId.ToString()
+        };
+
+        var descriptor = new SecurityTokenDescriptor
+        {
+            Issuer = _configuration["Jwt:Issuer"],
+            Audience = _configuration["Jwt:Audience"],
+            Claims = claims,
+            Expires = DateTime.UtcNow.AddMinutes(expirationMinutes),
+            SigningCredentials = credentials
+        };
+
+        var handler = new JsonWebTokenHandler();
+        return handler.CreateToken(descriptor);
+    }
+
     public string GenerateApplicantToken(ApplicantAccount account)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]!));
