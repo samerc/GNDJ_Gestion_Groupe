@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-15",
+        "text": "Recherche globale (Ctrl-K) — on peut maintenant retrouver un membre à partir d'un de ses PARENTS : tapez le nom, le courriel ou le téléphone d'un parent et la recherche affiche ses enfants (avec leur unité). Pratique quand une maman nous écrit sans préciser de quel enfant il s'agit. Réservé aux chefs, résultats limités aux membres accessibles."
+      },
+      {
+        "date": "2026-09-15",
         "text": "« Voir comme » — un super-administrateur ou un chef de groupe peut consulter l'application exactement comme la voit un membre choisi (sa fiche, son menu, ce qu'il voit ou non) — idéal pour l'assistance et pour vérifier les accès. Mode strictement en LECTURE SEULE (aucune modification possible), bandeau permanent avec « Quitter », et chaque ouverture est journalisée avec votre vraie identité. La session du membre n'est jamais perturbée. Accessible depuis la fiche d'un membre : Actions ▾ → « Voir comme ce membre »."
       },
       {

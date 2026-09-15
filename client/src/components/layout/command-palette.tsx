@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
   Search, LayoutDashboard, Users, Inbox, ClipboardList, ArrowRightLeft, CalendarCheck, Receipt,
-  FileWarning, Building2, Crown, Star, ListChecks, Newspaper, MessageSquare, Settings2, ScrollText, Clock,
+  FileWarning, Building2, Crown, Star, ListChecks, Newspaper, MessageSquare, Settings2, ScrollText, Clock, Contact,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
-import { useMembers } from '@/services/member-service'
+import { useMembers, useSearchParents } from '@/services/member-service'
 import { getRecentMembers, getFavoriteMembers, type RecentMember } from '@/lib/recent-members'
 import { useDebounce } from '@/hooks/use-debounce'
 import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandShortcut } from '@/components/ui/command'
@@ -68,6 +68,11 @@ export function CommandPalette() {
   const { data: memberData, isFetching } = useMembers({ search: searchable ? debounced : '', pageSize: 8 })
   const members = searchable ? (memberData?.items ?? []) : []
 
+  // Parent search — same trigger. Finds a parent by name/email/phone and returns their CHILDREN, so a leader
+  // can identify whose child a mother is (e.g. she emails without naming the child). Each result jumps to the child.
+  const { data: parentData, isFetching: parentsFetching } = useSearchParents(searchable ? debounced : '', searchable)
+  const parents = searchable ? (parentData ?? []) : []
+
   // Nav destinations visible to this user, filtered by the typed query.
   const dests = useMemo(() => {
     const visible = DESTINATIONS.filter((d) => !d.perm || hasPermission(d.perm) || user?.isSuperAdmin)
@@ -115,11 +120,11 @@ export function CommandPalette() {
         <CommandInput
           value={query}
           onValueChange={setQuery}
-          placeholder={canSearchMembers ? 'Rechercher un membre ou une page…' : 'Rechercher une page…'}
+          placeholder={canSearchMembers ? 'Rechercher un membre, un parent ou une page…' : 'Rechercher une page…'}
         />
         <CommandList>
           <CommandEmpty>
-            {canSearchMembers && debounced.length >= 2 && isFetching ? 'Recherche…' : 'Aucun résultat.'}
+            {canSearchMembers && debounced.length >= 2 && (isFetching || parentsFetching) ? 'Recherche…' : 'Aucun résultat.'}
           </CommandEmpty>
 
           {/* Quick jump-back (no query): favorites then recents. */}
@@ -153,6 +158,22 @@ export function CommandPalette() {
                   <Users className="text-muted-foreground" />
                   <span className="flex-1 truncate">{m.firstName} {m.lastName}</span>
                   {m.unitName && <span className="truncate text-xs text-muted-foreground">{m.unitName}</span>}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {/* Parents: each row is a CHILD (that's what you're after), with the matched parent as context. */}
+          {parents.length > 0 && (
+            <CommandGroup heading="Enfants d'un parent">
+              {parents.map((p) => (
+                <CommandItem key={`parent-${p.guardianId}-${p.memberId}`} value={`parent-${p.guardianId}-${p.memberId}`} onSelect={() => go(`/members/${p.memberId}`)}>
+                  <Contact className="text-muted-foreground" />
+                  <span className="flex-1 truncate">
+                    {p.memberName}
+                    <span className="text-xs text-muted-foreground"> · enfant de {p.guardianName}</span>
+                  </span>
+                  {p.unitName && <span className="truncate text-xs text-muted-foreground">{p.unitName}</span>}
                 </CommandItem>
               ))}
             </CommandGroup>

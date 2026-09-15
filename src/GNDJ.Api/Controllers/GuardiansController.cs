@@ -36,6 +36,18 @@ public class GuardiansController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Global parent search (Ctrl-K palette): find a parent by name / email / phone and see their children — for identifying whose child a mother is before replying to her. Requires members.edit; results are scoped to children the caller can access. Queries under 2 chars return empty.</summary>
+    /// <param name="q">Search term (parent name, email, or phone); at least 2 characters.</param>
+    [HttpGet("search-parents")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> SearchParents([FromQuery] string q)
+    {
+        if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
+            return Ok(Array.Empty<ParentSearchResultDto>());
+        var result = await Mediator.Send(new SearchParentsQuery(q));
+        return Ok(result);
+    }
+
     /// <summary>Creates a new guardian and links it to the member. Requires members.edit.</summary>
     /// <response code="201">Guardian created; body contains the new id.</response>
     [HttpPost("members/{memberId:guid}/guardians")]

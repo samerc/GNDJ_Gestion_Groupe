@@ -109,6 +109,25 @@ export function useMembers(params: { search?: string; unitId?: string; teamId?: 
   })
 }
 
+// Global parent search (Ctrl-K palette): find a parent by name / email / phone → see their children, so a
+// leader can identify whose child a mother is before replying. Leaders only + scoped server-side. One row per
+// (parent, child).
+export interface ParentSearchResult {
+  guardianId: string
+  guardianName: string
+  relationship: string
+  memberId: string
+  memberName: string
+  unitName: string | null
+}
+export function useSearchParents(query: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['parents', 'search', query],
+    queryFn: () => apiClient.get<ParentSearchResult[]>('/guardians/search-parents', { params: { q: query } }).then(r => r.data),
+    enabled: enabled && query.length >= 2,
+  })
+}
+
 // Upcoming member birthdays (leaders only, unit-scoped server-side). Powers the dashboard widget.
 export interface UpcomingBirthday {
   memberId: string

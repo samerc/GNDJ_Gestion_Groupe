@@ -105,6 +105,71 @@ public class SearchGuardiansQueryHandler : IRequestHandler<SearchGuardiansQuery,
     }
 }
 
+// ── Global parent search (Ctrl-K palette) ────────────────────────────────────────────────────────────────
+// Use case: a mother emails us without saying who her child is — we search her name/email/phone and see her
+// children so we know who she's writing about before replying. Distinct from SearchGuardiansQuery (name-only,
+// returns guardians for sibling-linking): this searches NAME + EMAIL + PHONE and returns the linked CHILDREN
+// (member + current unit), one row per (guardian, child). Parent contact + child identity is member data, so:
+// leaders (members.edit) only; super-admin / Chef de Groupe see the whole group; a Chef d'unité sees only
+// children active in their own units; a non-manager gets nothing.
+public record ParentSearchResultDto(Guid GuardianId, string GuardianName, string Relationship,
+    Guid MemberId, string MemberName, string? UnitName);
+
+public record SearchParentsQuery(string Search) : IRequest<IReadOnlyList<ParentSearchResultDto>>;
+
+public class SearchParentsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<SearchParentsQuery, IReadOnlyList<ParentSearchResultDto>>
+{
+    public async ValueTask<IReadOnlyList<ParentSearchResultDto>> Handle(SearchParentsQuery request, CancellationToken ct)
+    {
+        if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit))
+            return [];
+
+        var q = request.Search.Trim().ToLower();
+        // Phone matching is digit-only (numbers are stored formatted with spaces, e.g. "76 123 456"); a short
+        // digit run would match too much, so require ≥ 4 digits to search by phone.
+        var digits = new string(q.Where(char.IsDigit).ToArray());
+
+        var links = context.GuardianLinks
+            .Where(l => !l.IsDeleted && !l.Guardian.IsDeleted && !l.Member.IsDeleted)
+            .Where(l =>
+                DbFns.Unaccent(l.Guardian.FirstName.ToLower()).Contains(DbFns.Unaccent(q))
+                || DbFns.Unaccent(l.Guardian.LastName.ToLower()).Contains(DbFns.Unaccent(q))
+                || DbFns.Unaccent((l.Guardian.FirstName + " " + l.Guardian.LastName).ToLower()).Contains(DbFns.Unaccent(q))
+                || l.Guardian.Emails.Any(e => !e.IsDeleted && e.Address.ToLower().Contains(q))
+                || (digits.Length >= 4 && l.Guardian.Phones.Any(p => !p.IsDeleted
+                    && p.Number.Replace(" ", "").Replace("-", "").Contains(digits))));
+
+        // Scope the CHILDREN: super-admin / Chef de Groupe (maitrise.manage) see the whole group; a CU only sees
+        // children with an active assignment in one of their units.
+        var isGroupLevel = currentUser.IsSuperAdmin
+            || currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MaitriseManage);
+        if (!isGroupLevel)
+        {
+            var authorized = currentUser.AuthorizedUnitIds;
+            links = links.Where(l => l.Member.Assignments.Any(a =>
+                a.EndDate == null && !a.IsDeleted && authorized.Contains(a.UnitId)));
+        }
+
+        return await links
+            .OrderBy(l => l.Member.LastName).ThenBy(l => l.Member.FirstName)
+            .Take(25)
+            .Select(l => new ParentSearchResultDto(
+                l.GuardianId,
+                l.Guardian.FirstName + " " + l.Guardian.LastName,
+                l.RelationshipType,
+                l.MemberId,
+                l.Member.FirstName + " " + l.Member.LastName,
+                // Current unit for context (correlated sub-select, so a soft-deleted unit just yields null — the
+                // row is never dropped).
+                l.Member.Assignments
+                    .Where(a => a.EndDate == null && !a.IsDeleted)
+                    .Select(a => a.Unit.Name)
+                    .FirstOrDefault()))
+            .ToListAsync(ct);
+    }
+}
+
 // Create guardian + link (unit-scoped)
 public record CreateGuardianCommand(
     Guid MemberId, string FirstName, string LastName, string? Profession, string? ProfessionDomain, bool IsDeceased,
