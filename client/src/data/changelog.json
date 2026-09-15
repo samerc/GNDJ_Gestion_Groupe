@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-15",
+        "text": "Champs personnalisés — le réglage « Qui peut voir la valeur ? » est plus clair : les choix nomment désormais les personnes concernées (« Le membre et ses chefs » / « Les chefs uniquement (caché au membre) » / « Le chef de groupe uniquement ») au lieu de l'ambigu « Tout le monde ». La valeur reste toujours limitée aux personnes ayant accès à la fiche ; elle n'est jamais publique."
+      },
+      {
+        "date": "2026-09-15",
         "text": "Champs personnalisés — l'ordre d'affichage se règle désormais par glisser-déposer (plus de numéro à saisir). Chaque champ peut être ciblé pour n'apparaître que pour certains membres (maîtrise / jeunes, une branche, ou une unité précise) et sa valeur peut être restreinte à la vue de certains rôles (tout le monde / les chefs / le chef de groupe uniquement)."
       },
       {

@@ -43,8 +43,9 @@ const EDITABLE_BY_LABELS: Record<CustomFieldEditableBy, string> = {
 const ROLE_LABELS: Record<CustomFieldRole, string> = {
   all: 'Tous', maitrise: 'Maîtrise', youth: 'Jeunes',
 }
+// Compact badge labels for the list. Named-audience framing (member as the pivot) — see the select below.
 const VISIBLE_LABELS: Record<CustomFieldVisibleTo, string> = {
-  all: 'Tout le monde', leaders: 'Chefs', groupLeaders: 'Chef de groupe',
+  all: 'Membre + chefs', leaders: 'Chefs seulement', groupLeaders: 'Chef de groupe',
 }
 
 interface FormData {
@@ -328,17 +329,19 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Eye className="h-4 w-4 text-muted-foreground" />
-                <RequiredLabel htmlFor="cf-visible">Visible par</RequiredLabel>
+                <RequiredLabel htmlFor="cf-visible">Qui peut voir la valeur ?</RequiredLabel>
               </div>
+              {/* Named-audience framing: the chefs always see the value; the only real variable is whether the
+                  member himself sees it (then narrowing to the CG). Avoids the misleading « Tout le monde ». */}
               <Select value={form.visibleTo} onValueChange={(v) => setForm(f => ({ ...f, visibleTo: v as CustomFieldVisibleTo }))}>
                 <SelectTrigger id="cf-visible"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tout le monde</SelectItem>
-                  <SelectItem value="leaders">Chefs (maîtrise) — pas le membre</SelectItem>
-                  <SelectItem value="groupLeaders">Chef de groupe uniquement</SelectItem>
+                  <SelectItem value="all">Le membre et ses chefs</SelectItem>
+                  <SelectItem value="leaders">Les chefs uniquement (caché au membre)</SelectItem>
+                  <SelectItem value="groupLeaders">Le chef de groupe uniquement</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">Qui peut voir la valeur. « Tout le monde » inclut le membre lui-même.</p>
+              <p className="text-xs text-muted-foreground">Parmi les personnes ayant déjà accès à la fiche. Le champ n'est jamais public.</p>
             </div>
 
             <div className="space-y-3">
