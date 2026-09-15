@@ -153,8 +153,16 @@
   *::-webkit-scrollbar-thumb:hover {
     background-color: oklch(0.62 0.03 245 / 0.7);
   }
+  /* Text selection — explicit background AND text color so selected text stays clearly visible and readable
+     in BOTH themes. The previous single translucent-navy background (no dark override, no text color) was
+     near-invisible over the dark surface, so selected text in inputs "disappeared" in dark mode. */
   ::selection {
-    background: oklch(0.40 0.14 250 / 0.18);
+    background: oklch(0.72 0.12 230 / 0.32);
+    color: oklch(0.18 0.04 245);
+  }
+  .dark ::selection {
+    background: oklch(0.62 0.14 230 / 0.50);
+    color: oklch(0.98 0.005 240);
   }
 }
 

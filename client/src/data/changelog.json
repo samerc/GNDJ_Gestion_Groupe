@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-15",
+        "text": "Mode sombre — corrections de lisibilité : le texte sélectionné (dans les champs de saisie et partout ailleurs) apparaît désormais avec une surbrillance bien visible et un texte lisible ; et la ligne surlignée de la recherche (Ctrl-K) n'écrase plus le texte."
+      },
+      {
+        "date": "2026-09-15",
         "text": "Recherche globale (Ctrl-K) — on peut maintenant retrouver un membre à partir d'un de ses PARENTS : tapez le nom, le courriel ou le téléphone d'un parent et la recherche affiche ses enfants (avec leur unité). Pratique quand une maman nous écrit sans préciser de quel enfant il s'agit. Réservé aux chefs, résultats limités aux membres accessibles."
       },
       {
