@@ -151,6 +151,15 @@ const FIELD_LABELS: Record<string, string> = {
   IsMaitrise: 'Maîtrise', Email: 'Email', Code: 'Code', Reason: 'Motif', Title: 'Titre',
   ReceiptNumber: 'Reçu', ScoutYear: 'Année scoute', FirstName: 'Prénom', LastName: 'Nom',
   Portal: 'Portail',
+  // Member profile fields (Update Member / Ma fiche diff)
+  DateOfBirth: 'Date de naissance', Gender: 'Genre', CardNumber: 'Matricule',
+  ExternalCardNumber: 'N° de carte', BloodType: 'Groupe sanguin', Nationality: 'Nationalité',
+  School: 'École', Classe: 'Classe', Section: 'Section', ProfessionDomain: 'Domaine professionnel',
+  Profession: 'Profession', MedicalNotes: 'Notes médicales', Allergies: 'Allergies', Notes: 'Notes',
+  ParentsSituation: 'Situation des parents',
+  // Parent (guardian) fields
+  Parent: 'Parent', RelationshipType: 'Relation', IsPrimaryContact: 'Contact principal',
+  IsEmergencyContact: "Contact d'urgence", IsDeceased: 'Décédé(e)', Phone: 'Téléphone',
   // Resolved-name keys emitted by the handlers (member/unit/role names instead of GUIDs)
   ProposedUnit: 'Unité proposée', ProposedRole: 'Fonction proposée',
   FinalUnit: 'Unité finale', FinalRole: 'Fonction finale',

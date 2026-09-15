@@ -57,6 +57,9 @@ public class UpdateMyProfileCommandHandler(IApplicationDbContext context, IAudit
         if (entity is null)
             return Result<bool>.Failure("Membre introuvable.");
 
+        // Snapshot before applying, so the audit records exactly which fields the member changed.
+        var before = MemberAuditSnapshot.Capture(entity);
+
         // Update only the member-editable fields; locked fields (name/DOB/gender/card numbers) untouched.
         entity.Nationality = request.Nationality;
         entity.School = request.School;
@@ -73,9 +76,9 @@ public class UpdateMyProfileCommandHandler(IApplicationDbContext context, IAudit
         await HouseholdSync.PropagateParentsSituationAsync(context, entity.Id, entity.ParentsSituation, ct);
 
         await context.SaveChangesAsync(ct);
-        await auditService.LogAsync("Update", "Member", entity.Id,
-            newValues: new { entity.Nationality, entity.School, entity.Classe, entity.Section, entity.BloodType },
-            cancellationToken: ct);
+        // Log only the fields that actually changed (before → after).
+        var (oldValues, newValues) = MemberAuditSnapshot.Diff(before, MemberAuditSnapshot.Capture(entity));
+        await auditService.LogAsync("Update", "Member", entity.Id, oldValues: oldValues, newValues: newValues, cancellationToken: ct);
 
         return Result<bool>.Success(true);
     }

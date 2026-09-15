@@ -5,6 +5,14 @@
     "changes": [
       {
         "date": "2026-09-15",
+        "text": "Journal d'audit — la modification d'un membre indique désormais EXACTEMENT les champs modifiés (avant → après), au lieu d'une liste fixe (nom/prénom/matricule) qui ne montrait pas le vrai changement."
+      },
+      {
+        "date": "2026-09-15",
+        "text": "Journal d'audit — les modifications des PARENTS (nom, profession, relation, téléphone, courriel, ajout/suppression, liaison) sont désormais enregistrées (elles ne l'étaient pas du tout), avec le nom du parent concerné."
+      },
+      {
+        "date": "2026-09-15",
         "text": "Fratries — le nombre affiché (« N familles probables à examiner ») correspond désormais au vrai nombre de fratries restantes, pas à la limite d'affichage."
       },
       {

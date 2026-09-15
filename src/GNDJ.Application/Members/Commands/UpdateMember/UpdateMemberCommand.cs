@@ -97,7 +97,10 @@ public class UpdateMemberCommandHandler : IRequestHandler<UpdateMemberCommand, R
                 return Result<bool>.Failure($"Le numéro de carte « {ext} » est déjà attribué à un autre membre.");
         }
 
-        var oldValues = new { entity.FirstName, entity.LastName, entity.CardNumber };
+        // Snapshot every editable field BEFORE applying the changes so the audit records exactly what was
+        // modified (a diff), not a fixed subset — otherwise editing e.g. Section/Situation des parents showed an
+        // unchanged Nom/Prénom/Matricule in the log.
+        var before = MemberAuditSnapshot.Capture(entity);
 
         entity.FirstName = request.FirstName;
         entity.LastName = request.LastName;
@@ -121,7 +124,10 @@ public class UpdateMemberCommandHandler : IRequestHandler<UpdateMemberCommand, R
         await HouseholdSync.PropagateParentsSituationAsync(_context, entity.Id, entity.ParentsSituation, cancellationToken);
 
         await _context.SaveChangesAsync(cancellationToken);
-        await _auditService.LogAsync("Update", "Member", entity.Id, oldValues: oldValues, newValues: new { entity.FirstName, entity.LastName, entity.CardNumber }, cancellationToken: cancellationToken);
+
+        // Log only the fields that actually changed (before → after), so the audit detail is meaningful.
+        var (oldValues, newValues) = MemberAuditSnapshot.Diff(before, MemberAuditSnapshot.Capture(entity));
+        await _auditService.LogAsync("Update", "Member", entity.Id, oldValues: oldValues, newValues: newValues, cancellationToken: cancellationToken);
 
         return Result<bool>.Success(true);
     }

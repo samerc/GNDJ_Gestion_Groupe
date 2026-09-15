@@ -1,4 +1,5 @@
 using FluentValidation;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Common.Validation;
@@ -41,7 +42,7 @@ public class CreateMyGuardianValidator : AbstractValidator<CreateMyGuardianComma
     }
 }
 
-public class CreateMyGuardianHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<CreateMyGuardianCommand, Result<Guid>>
+public class CreateMyGuardianHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<CreateMyGuardianCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(CreateMyGuardianCommand request, CancellationToken ct)
     {
@@ -61,6 +62,12 @@ public class CreateMyGuardianHandler(IApplicationDbContext context, ICurrentUser
             IsPrimaryContact = request.IsPrimaryContact, IsEmergencyContact = request.IsEmergencyContact,
         });
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Create", "Guardian", guardian.Id, newValues: new
+        {
+            Parent = $"{request.FirstName} {request.LastName}".Trim(),
+            Member = await AuditNames.MemberAsync(context, memberId.Value, ct),
+            request.RelationshipType, request.Profession
+        }, cancellationToken: ct);
         return Result<Guid>.Success(guardian.Id);
     }
 }
@@ -83,19 +90,31 @@ public class UpdateMyGuardianValidator : AbstractValidator<UpdateMyGuardianComma
     }
 }
 
-public class UpdateMyGuardianHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<UpdateMyGuardianCommand, Result<bool>>
+public class UpdateMyGuardianHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<UpdateMyGuardianCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateMyGuardianCommand request, CancellationToken ct)
     {
         if (!await MyGuardianAccess.IsMine(context, currentUser, request.Id, ct)) return Result<bool>.Failure("Parent introuvable.");
         var entity = await context.Guardians.FindAsync([request.Id], ct);
         if (entity is null) return Result<bool>.Failure("Parent introuvable.");
+        var before = Snap(entity);
         entity.FirstName = request.FirstName; entity.LastName = request.LastName;
         entity.Profession = request.Profession; entity.ProfessionDomain = request.ProfessionDomain;
         entity.IsDeceased = request.IsDeceased; entity.Notes = request.Notes;
         await context.SaveChangesAsync(ct);
+        var (oldValues, newValues) = MemberAuditSnapshot.Diff(before, Snap(entity));
+        var parent = $"{entity.FirstName} {entity.LastName}".Trim();
+        oldValues["Parent"] = parent; newValues["Parent"] = parent;
+        await audit.LogAsync("Update", "Guardian", entity.Id, oldValues: oldValues, newValues: newValues, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
+
+    private static Dictionary<string, object?> Snap(Guardian g) => new()
+    {
+        ["FirstName"] = g.FirstName, ["LastName"] = g.LastName,
+        ["Profession"] = g.Profession, ["ProfessionDomain"] = g.ProfessionDomain,
+        ["IsDeceased"] = g.IsDeceased, ["Notes"] = g.Notes,
+    };
 }
 
 // ── Update my link (relationship + flags) ────────────────────────────────────
@@ -110,16 +129,21 @@ public class UpdateMyGuardianLinkValidator : AbstractValidator<UpdateMyGuardianL
     }
 }
 
-public class UpdateMyGuardianLinkHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<UpdateMyGuardianLinkCommand, Result<bool>>
+public class UpdateMyGuardianLinkHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<UpdateMyGuardianLinkCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateMyGuardianLinkCommand request, CancellationToken ct)
     {
         var link = await context.GuardianLinks.FindAsync([request.LinkId], ct);
         if (link is null || link.MemberId != currentUser.MemberId) return Result<bool>.Failure("Lien introuvable.");
+        var old = new { link.RelationshipType, link.IsPrimaryContact, link.IsEmergencyContact };
         link.RelationshipType = request.RelationshipType;
         link.IsPrimaryContact = request.IsPrimaryContact;
         link.IsEmergencyContact = request.IsEmergencyContact;
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Guardian", link.GuardianId,
+            oldValues: new { old.RelationshipType, old.IsPrimaryContact, old.IsEmergencyContact },
+            newValues: new { Parent = await AuditNames.GuardianAsync(context, link.GuardianId, ct), request.RelationshipType, request.IsPrimaryContact, request.IsEmergencyContact },
+            cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
@@ -127,14 +151,16 @@ public class UpdateMyGuardianLinkHandler(IApplicationDbContext context, ICurrent
 // ── Unlink a guardian from myself (the shared guardian record survives) ───────
 public record UnlinkMyGuardianCommand(Guid LinkId) : IRequest<Result<bool>>;
 
-public class UnlinkMyGuardianHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<UnlinkMyGuardianCommand, Result<bool>>
+public class UnlinkMyGuardianHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<UnlinkMyGuardianCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UnlinkMyGuardianCommand request, CancellationToken ct)
     {
         var link = await context.GuardianLinks.FindAsync([request.LinkId], ct);
         if (link is null || link.MemberId != currentUser.MemberId) return Result<bool>.Failure("Lien introuvable.");
+        var info = new { Parent = await AuditNames.GuardianAsync(context, link.GuardianId, ct), link.RelationshipType };
         context.GuardianLinks.Remove(link);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Delete", "Guardian", link.GuardianId, oldValues: info, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
@@ -163,7 +189,7 @@ public class AddMyGuardianEmailValidator : AbstractValidator<AddMyGuardianEmailC
     }
 }
 
-public class AddMyGuardianPhoneHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<AddMyGuardianPhoneCommand, Result<Guid>>
+public class AddMyGuardianPhoneHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<AddMyGuardianPhoneCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(AddMyGuardianPhoneCommand request, CancellationToken ct)
     {
@@ -171,21 +197,24 @@ public class AddMyGuardianPhoneHandler(IApplicationDbContext context, ICurrentUs
         var entity = new GuardianPhone { GuardianId = request.GuardianId, CountryCode = request.CountryCode, Number = request.Number, Type = request.Type, IsPrimary = request.IsPrimary };
         context.GuardianPhones.Add(entity);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Guardian", request.GuardianId, newValues: new { Parent = await AuditNames.GuardianAsync(context, request.GuardianId, ct), Phone = $"{request.CountryCode} {request.Number}".Trim(), request.Type }, cancellationToken: ct);
         return Result<Guid>.Success(entity.Id);
     }
 }
-public class DeleteMyGuardianPhoneHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<DeleteMyGuardianPhoneCommand, Result<bool>>
+public class DeleteMyGuardianPhoneHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<DeleteMyGuardianPhoneCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteMyGuardianPhoneCommand request, CancellationToken ct)
     {
         var entity = await context.GuardianPhones.FindAsync([request.Id], ct);
         if (entity is null || !await MyGuardianAccess.IsMine(context, currentUser, entity.GuardianId, ct)) return Result<bool>.Failure("Téléphone introuvable.");
+        var info = new { Parent = await AuditNames.GuardianAsync(context, entity.GuardianId, ct), Phone = $"{entity.CountryCode} {entity.Number}".Trim() };
         context.GuardianPhones.Remove(entity);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Guardian", entity.GuardianId, oldValues: info, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
-public class AddMyGuardianEmailHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<AddMyGuardianEmailCommand, Result<Guid>>
+public class AddMyGuardianEmailHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<AddMyGuardianEmailCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(AddMyGuardianEmailCommand request, CancellationToken ct)
     {
@@ -193,17 +222,20 @@ public class AddMyGuardianEmailHandler(IApplicationDbContext context, ICurrentUs
         var entity = new GuardianEmail { GuardianId = request.GuardianId, Address = request.Address, Type = request.Type, IsPrimary = request.IsPrimary };
         context.GuardianEmails.Add(entity);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Guardian", request.GuardianId, newValues: new { Parent = await AuditNames.GuardianAsync(context, request.GuardianId, ct), Email = request.Address, request.Type }, cancellationToken: ct);
         return Result<Guid>.Success(entity.Id);
     }
 }
-public class DeleteMyGuardianEmailHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<DeleteMyGuardianEmailCommand, Result<bool>>
+public class DeleteMyGuardianEmailHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<DeleteMyGuardianEmailCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteMyGuardianEmailCommand request, CancellationToken ct)
     {
         var entity = await context.GuardianEmails.FindAsync([request.Id], ct);
         if (entity is null || !await MyGuardianAccess.IsMine(context, currentUser, entity.GuardianId, ct)) return Result<bool>.Failure("Courriel introuvable.");
+        var info = new { Parent = await AuditNames.GuardianAsync(context, entity.GuardianId, ct), Email = entity.Address };
         context.GuardianEmails.Remove(entity);
         await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Guardian", entity.GuardianId, oldValues: info, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }
