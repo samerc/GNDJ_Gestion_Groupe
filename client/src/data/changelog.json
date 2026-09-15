@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-15",
+        "text": "Fratries — lors de la fusion d'une fratrie, vous choisissez désormais précisément les coordonnées à conserver pour CHAQUE parent : cochez/décochez chaque téléphone et courriel (y compris ceux de la fiche principale, pour retirer un numéro ou un email erroné) — plus de fusion « en aveugle » qui empilait tous les doublons. Vous pouvez aussi garder plusieurs adresses."
+      },
+      {
+        "date": "2026-09-15",
         "text": "Mode sombre — corrections de lisibilité : le texte sélectionné (dans les champs de saisie et partout ailleurs) apparaît désormais avec une surbrillance bien visible et un texte lisible ; et la ligne surlignée de la recherche (Ctrl-K) n'écrase plus le texte."
       },
       {

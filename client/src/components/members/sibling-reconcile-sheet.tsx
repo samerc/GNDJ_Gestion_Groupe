@@ -191,7 +191,7 @@ export function SiblingReconcileSheet({
               )}
 
               <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                Les parents et adresses choisis seront partagés par tous les enfants sélectionnés; les fiches de parents en double sont fusionnées (les coordonnées cochées sont conservées) et les doublons supprimés.
+                Les parents et adresses choisis sont partagés par tous les enfants sélectionnés. Pour chaque parent, seules les coordonnées cochées sont conservées (vous pouvez en retirer, même celles de la fiche principale) ; les fiches en double sont ensuite supprimées.
               </p>
             </div>
           )}
@@ -221,16 +221,14 @@ function ParentSection({ role, options, value, onChange, kept, onToggle }: {
 }) {
   if (options.length === 0) return null
   const many = options.length > 1
-  const canonical = options.find((g) => g.guardianId === value)
 
-  // The principal's own contacts are always kept; the checkbox list is the EXTRA contacts from the other records
-  // (deduped by value, excluding any the principal already has) that the CG can add or drop.
-  const ownPhoneKeys = new Set((canonical?.phones ?? []).map((c) => normPhone(c.value)))
-  const ownEmailKeys = new Set((canonical?.emails ?? []).map((c) => normEmail(c.value)))
-  const others = options.filter((g) => g.guardianId !== value)
-  const extraPhones = groupContacts(others.flatMap((g) => g.phones), normPhone).filter((g) => !ownPhoneKeys.has(normPhone(g.value)))
-  const extraEmails = groupContacts(others.flatMap((g) => g.emails), normEmail).filter((g) => !ownEmailKeys.has(normEmail(g.value)))
-  const hasExtras = extraPhones.length > 0 || extraEmails.length > 0
+  // Full UNION of this parent's phones/emails across ALL candidate records (deduped by value). The chosen
+  // principal keeps EXACTLY the checked ones — un-checking drops a contact even if it sat on the main record,
+  // so a wrong/old number or email is no longer force-kept. Default = all checked (initialized in load()).
+  const unionPhones = groupContacts(options.flatMap((g) => g.phones), normPhone)
+  const unionEmails = groupContacts(options.flatMap((g) => g.emails), normEmail)
+  // Only surface the picker when there's a real choice to make (duplicates exist, or >1 contact to keep/drop).
+  const showPicker = value !== NONE && (many || unionPhones.length + unionEmails.length > 1)
 
   return (
     <section>
@@ -270,12 +268,13 @@ function ParentSection({ role, options, value, onChange, kept, onToggle }: {
         </label>
       </div>
 
-      {/* Cherry-pick the OTHER records' contacts to keep on the principal (default all checked = keep both). */}
-      {value !== NONE && hasExtras && (
+      {/* Pick EXACTLY which of this parent's coordinates to keep on the merged fiche (full union of all records;
+          default all checked). Un-checking drops a contact — even one on the principal's own record. */}
+      {showPicker && (
         <div className="mt-2 rounded-md border border-dashed bg-muted/20 p-2.5">
-          <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Coordonnées supplémentaires à conserver sur la fiche principale</p>
+          <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Coordonnées à conserver pour ce {role.toLowerCase()}</p>
           <div className="flex flex-col gap-1">
-            {extraPhones.map((g) => {
+            {unionPhones.map((g) => {
               const on = g.ids.some((id) => kept.has(id))
               return (
                 <label key={g.ids[0]} className="flex cursor-pointer items-center gap-2 text-sm">
@@ -284,7 +283,7 @@ function ParentSection({ role, options, value, onChange, kept, onToggle }: {
                 </label>
               )
             })}
-            {extraEmails.map((g) => {
+            {unionEmails.map((g) => {
               const on = g.ids.some((id) => kept.has(id))
               return (
                 <label key={g.ids[0]} className="flex cursor-pointer items-center gap-2 text-sm">
@@ -293,6 +292,7 @@ function ParentSection({ role, options, value, onChange, kept, onToggle }: {
                 </label>
               )
             })}
+            {unionPhones.length + unionEmails.length === 0 && <p className="text-xs text-muted-foreground">Aucune coordonnée sur les fiches.</p>}
           </div>
         </div>
       )}

@@ -14,11 +14,12 @@ namespace GNDJ.Application.Siblings;
 // duplicate/inconsistent parent records.
 //
 // CHERRY-PICK: KeepPhoneIds/KeepEmailIds carry the guardian-contact rows the CG chose to keep on the merged
-// canonical parent (so "father of A has email X, father of B has email Y → keep both"). When they're non-null,
-// ONLY those contacts (among the candidate parents' pool) are ensured on the canonical — the canonical's own are
-// always kept, and unchecked duplicate-record contacts are dropped with their guardian. When null (e.g. the
-// member-fiche "Lier" flow), ALL duplicate parents' contacts are merged (previous behaviour). AddressIds lets the
-// CG keep MORE THAN ONE address (e.g. two homes) — each is shared to every sibling; the first is the primary.
+// canonical parent — chosen from the FULL union of that role's records (the canonical's own + the duplicates').
+// When non-null they are AUTHORITATIVE: the canonical ends with EXACTLY the checked contacts — checked duplicate
+// contacts are copied on, and any of the canonical's OWN contacts the CG un-checked are dropped too (so a wrong
+// email that happened to sit on the main record can be removed, not force-kept). When null (e.g. an old client),
+// ALL duplicate parents' contacts are merged onto the canonical (previous blind-merge behaviour). AddressIds lets
+// the CG keep MORE THAN ONE address (e.g. two homes) — each is shared to every sibling; the first is the primary.
 public record ApproveSiblingGroupCommand(
     IReadOnlyList<Guid> MemberIds,
     Guid? FatherGuardianId,
@@ -138,40 +139,27 @@ public class ApproveSiblingGroupCommandHandler(IApplicationDbContext context, IA
         var role = SiblingUtil.NormRole(roleLabel);
         if (!await context.Guardians.AnyAsync(g => g.Id == canonicalId, ct)) return;
 
-        // The canonical guardian's existing contact keys, for dedup. We do NOT load/mutate the canonical's nav
-        // collections — mutating a tracked parent's child collection triggers a spurious parent UPDATE that fails
-        // with a DbUpdateConcurrencyException (same gotcha as the multi-page documents feature). All new contacts
-        // are inserted straight through the DbSet with the FK set; these HashSets carry the dedup across the batch.
-        var phoneKeys = (await context.GuardianPhones.Where(p => p.GuardianId == canonicalId).Select(p => p.Number).ToListAsync(ct))
-            .Select(SiblingUtil.Digits).Where(d => d.Length >= 4).ToHashSet();
-        var emailKeys = (await context.GuardianEmails.Where(e => e.GuardianId == canonicalId).Select(e => e.Address).ToListAsync(ct))
-            .Select(SiblingUtil.NormEmail).Where(n => n.Length > 0).ToHashSet();
-
         // The same-role candidate parents among these members = the contact pool the CG could pick from. We only
-        // ever copy contacts from within this pool (so a stray id can't pull in an unrelated contact).
+        // ever touch contacts within this pool (so a stray id can't pull in / drop an unrelated contact).
         var poolGuardianIds = members.SelectMany(m => m.GuardianLinks)
             .Where(l => SiblingUtil.NormRole(l.RelationshipType) == role)
             .Select(l => l.GuardianId).Distinct().ToHashSet();
 
         var cherryPick = keepPhoneIds is not null || keepEmailIds is not null;
         if (cherryPick)
+            await ApplyCherryPickedContactsAsync(canonicalId, poolGuardianIds, keepPhoneIds ?? [], keepEmailIds ?? [], ct);
+
+        // For the non-cherry (blind-merge) path we dedup against the canonical's CURRENT contacts. We do NOT
+        // load/mutate the canonical's nav collections — mutating a tracked parent's child collection triggers a
+        // spurious parent UPDATE that fails with DbUpdateConcurrencyException (same gotcha as multi-page documents);
+        // new rows are inserted straight through the DbSet with the FK set.
+        HashSet<string> phoneKeys = [], emailKeys = [];
+        if (!cherryPick)
         {
-            // Copy ONLY the CG-selected contacts onto the canonical (its own are already kept above). Unchecked
-            // duplicate-record contacts are simply not copied; they vanish when their orphaned guardian is removed.
-            var keepP = (keepPhoneIds ?? []).ToHashSet();
-            foreach (var p in await context.GuardianPhones.Where(p => keepP.Contains(p.Id) && poolGuardianIds.Contains(p.GuardianId)).ToListAsync(ct))
-            {
-                var d = SiblingUtil.Digits(p.Number);
-                if (d.Length >= 4 && phoneKeys.Add(d))
-                    context.GuardianPhones.Add(new GuardianPhone { GuardianId = canonicalId, CountryCode = p.CountryCode, Number = p.Number, Type = p.Type, IsPrimary = false });
-            }
-            var keepE = (keepEmailIds ?? []).ToHashSet();
-            foreach (var e in await context.GuardianEmails.Where(e => keepE.Contains(e.Id) && poolGuardianIds.Contains(e.GuardianId)).ToListAsync(ct))
-            {
-                var n = SiblingUtil.NormEmail(e.Address);
-                if (n.Length > 0 && emailKeys.Add(n))
-                    context.GuardianEmails.Add(new GuardianEmail { GuardianId = canonicalId, Address = e.Address, Type = e.Type, IsPrimary = false });
-            }
+            phoneKeys = (await context.GuardianPhones.Where(p => p.GuardianId == canonicalId).Select(p => p.Number).ToListAsync(ct))
+                .Select(SiblingUtil.Digits).Where(d => d.Length >= 4).ToHashSet();
+            emailKeys = (await context.GuardianEmails.Where(e => e.GuardianId == canonicalId).Select(e => e.Address).ToListAsync(ct))
+                .Select(SiblingUtil.NormEmail).Where(n => n.Length > 0).ToHashSet();
         }
 
         foreach (var member in members)
@@ -189,6 +177,55 @@ public class ApproveSiblingGroupCommandHandler(IApplicationDbContext context, IA
                 if (!cherryPick) await MergeGuardianContactsAsync(canonicalId, dup.GuardianId, phoneKeys, emailKeys, ct);
                 context.GuardianLinks.Remove(dup);
             }
+        }
+    }
+
+    // AUTHORITATIVE cherry-pick: the canonical parent ends with EXACTLY the contacts the CG checked, chosen from the
+    // full union of the role's records. keepPhoneIds/keepEmailIds are row ids across the whole pool (canonical's own
+    // + duplicates'). We keep the canonical's own rows whose value is checked, DROP its own rows that were un-checked,
+    // and copy on the checked duplicate contacts (deduped by value). Contacts are soft-deleted (reversible).
+    private async Task ApplyCherryPickedContactsAsync(Guid canonicalId, HashSet<Guid> poolGuardianIds,
+        IReadOnlyList<Guid> keepPhoneIds, IReadOnlyList<Guid> keepEmailIds, CancellationToken ct)
+    {
+        var keepP = keepPhoneIds.ToHashSet();
+        var keepE = keepEmailIds.ToHashSet();
+
+        var poolPhones = await context.GuardianPhones.Where(p => poolGuardianIds.Contains(p.GuardianId)).ToListAsync(ct);
+        var poolEmails = await context.GuardianEmails.Where(e => poolGuardianIds.Contains(e.GuardianId)).ToListAsync(ct);
+
+        // The normalized values the CG chose to keep (only rows whose id was checked count).
+        var keptPhoneVals = poolPhones.Where(p => keepP.Contains(p.Id)).Select(p => SiblingUtil.Digits(p.Number)).Where(d => d.Length >= 4).ToHashSet();
+        var keptEmailVals = poolEmails.Where(e => keepE.Contains(e.Id)).Select(e => SiblingUtil.NormEmail(e.Address)).Where(n => n.Length > 0).ToHashSet();
+
+        // Canonical's own rows: keep the ones whose value is chosen, remove the rest (this is what lets the CG drop a
+        // wrong contact that sat on the main record). `have` tracks values already present so dups aren't re-added.
+        var have = new HashSet<string>();
+        foreach (var p in poolPhones.Where(p => p.GuardianId == canonicalId))
+        {
+            var d = SiblingUtil.Digits(p.Number);
+            if (d.Length >= 4 && keptPhoneVals.Contains(d)) have.Add(d);
+            else context.GuardianPhones.Remove(p);
+        }
+        var haveE = new HashSet<string>();
+        foreach (var e in poolEmails.Where(e => e.GuardianId == canonicalId))
+        {
+            var n = SiblingUtil.NormEmail(e.Address);
+            if (n.Length > 0 && keptEmailVals.Contains(n)) haveE.Add(n);
+            else context.GuardianEmails.Remove(e);
+        }
+
+        // Copy on the checked contacts from the OTHER (duplicate) records, deduped by value.
+        foreach (var p in poolPhones.Where(p => p.GuardianId != canonicalId && keepP.Contains(p.Id)))
+        {
+            var d = SiblingUtil.Digits(p.Number);
+            if (d.Length >= 4 && have.Add(d))
+                context.GuardianPhones.Add(new GuardianPhone { GuardianId = canonicalId, CountryCode = p.CountryCode, Number = p.Number, Type = p.Type, IsPrimary = false });
+        }
+        foreach (var e in poolEmails.Where(e => e.GuardianId != canonicalId && keepE.Contains(e.Id)))
+        {
+            var n = SiblingUtil.NormEmail(e.Address);
+            if (n.Length > 0 && haveE.Add(n))
+                context.GuardianEmails.Add(new GuardianEmail { GuardianId = canonicalId, Address = e.Address, Type = e.Type, IsPrimary = false });
         }
     }
 
