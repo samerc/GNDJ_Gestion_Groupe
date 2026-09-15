@@ -65,12 +65,33 @@ public class CustomFieldsController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Reorders the custom field definitions (drag-and-drop; DisplayOrder = position). Requires associations.manage.</summary>
+    [HttpPut("reorder")]
+    [HasPermission(Permissions.AssociationsManage)]
+    public async Task<IActionResult> Reorder([FromBody] ReorderCustomFieldsCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>Lists a member's custom field values. Requires members.view.</summary>
     [HttpGet("member/{memberId:guid}")]
     [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> GetMemberValues(Guid memberId)
     {
         var result = await Mediator.Send(new GetMemberCustomFieldValuesQuery(memberId));
+        return Ok(result);
+    }
+
+    /// <summary>Lists the custom fields that APPLY to a member (targeting) and that the caller may VIEW, with the
+    /// member's values merged. Drives the member "Infos complémentaires" tab + Ma fiche. Requires members.view;
+    /// the handler enforces per-member access + field visibility.</summary>
+    [HttpGet("member/{memberId:guid}/applicable")]
+    [HasPermission(Permissions.MembersView)]
+    public async Task<IActionResult> GetMemberApplicable(Guid memberId)
+    {
+        var result = await Mediator.Send(new GetMemberApplicableCustomFieldsQuery(memberId));
         return Ok(result);
     }
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useActiveCustomFields, useMemberCustomFieldValues, useSetMemberCustomFieldValue, useDeleteMemberCustomFieldValue, useSetMyCustomFieldValue, useDeleteMyCustomFieldValue, type CustomFieldListDto, type CustomFieldEditableBy, type MemberCustomFieldValueDto } from '@/services/custom-field-service'
+import { useMemberApplicableCustomFields, useSetMemberCustomFieldValue, useDeleteMemberCustomFieldValue, useSetMyCustomFieldValue, useDeleteMyCustomFieldValue, type CustomFieldEditableBy, type MemberCustomFieldDto } from '@/services/custom-field-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { parseApiError } from '@/lib/error-utils'
@@ -30,10 +30,10 @@ const EDITABLE_HINT: Record<CustomFieldEditableBy, string> = {
 }
 
 // One field's row: shows the current value, swaps to a type-appropriate editor on "edit", and
-// upserts via setMutation (delete clears it). Enter saves / Escape cancels. `existing` is the
-// member's saved value for this field, undefined when none has been set yet. `canEdit` gates the
-// edit/delete controls; `selfService` picks the own-record endpoints.
-function FieldRow({ field, existing, memberId, canEdit, selfService }: { field: CustomFieldListDto; existing: MemberCustomFieldValueDto | undefined; memberId: string; canEdit: boolean; selfService?: boolean }) {
+// upserts via setMutation (delete clears it). Enter saves / Escape cancels. `field` carries the member's
+// current value inline (value null when unset). `canEdit` gates the edit/delete controls; `selfService`
+// picks the own-record endpoints.
+function FieldRow({ field, memberId, canEdit, selfService }: { field: MemberCustomFieldDto; memberId: string; canEdit: boolean; selfService?: boolean }) {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
   // Instantiate both hook sets (rules of hooks) and pick per selfService — mutations don't fetch, so this is free.
@@ -41,15 +41,16 @@ function FieldRow({ field, existing, memberId, canEdit, selfService }: { field: 
   const delLeader = useDeleteMemberCustomFieldValue(memberId), delSelf = useDeleteMyCustomFieldValue(memberId)
   const setMutation = selfService ? setSelf : setLeader
   const deleteMutation = selfService ? delSelf : delLeader
+  const hasValue = field.value != null && field.value !== ''
 
   const startEdit = () => {
-    setValue(existing?.value ?? '')
+    setValue(field.value ?? '')
     setEditing(true)
   }
 
   const handleSave = async () => {
     try {
-      await setMutation.mutateAsync({ customFieldId: field.id, value })
+      await setMutation.mutateAsync({ customFieldId: field.fieldId, value })
       toast.success('Valeur enregistrée')
       setEditing(false)
     } catch (err) {
@@ -58,11 +59,11 @@ function FieldRow({ field, existing, memberId, canEdit, selfService }: { field: 
   }
 
   const handleDelete = async () => {
-    if (!existing) return
+    if (!hasValue) return
     try {
       // Self-service clears by field id; the leader endpoint clears by the value's id.
-      if (selfService) await delSelf.mutateAsync(field.id)
-      else await delLeader.mutateAsync(existing.id)
+      if (selfService) await delSelf.mutateAsync(field.fieldId)
+      else if (field.valueId) await delLeader.mutateAsync(field.valueId)
       toast.success('Valeur supprimée')
     } catch (err) {
       toast.error(parseApiError(err))
@@ -78,9 +79,9 @@ function FieldRow({ field, existing, memberId, canEdit, selfService }: { field: 
   const options: string[] = field.options ? (() => { try { return JSON.parse(field.options) as string[] } catch { return [] } })() : []
 
   const displayValue = () => {
-    if (!existing) return <span className="text-muted-foreground">—</span>
-    if (field.fieldType === 'boolean') return existing.value === 'true' ? 'Oui' : 'Non'
-    return existing.value
+    if (!hasValue) return <span className="text-muted-foreground">—</span>
+    if (field.fieldType === 'boolean') return field.value === 'true' ? 'Oui' : 'Non'
+    return field.value
   }
 
   const renderEditor = () => {
@@ -138,7 +139,7 @@ function FieldRow({ field, existing, memberId, canEdit, selfService }: { field: 
           <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={startEdit}>
             <Pencil className="h-3.5 w-3.5" />
           </Button></Tip>
-          {existing && (
+          {hasValue && (
             <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDelete} disabled={deleteMutation.isPending}>
               <Trash2 className="h-3.5 w-3.5 text-destructive" />
             </Button></Tip>
@@ -150,8 +151,9 @@ function FieldRow({ field, existing, memberId, canEdit, selfService }: { field: 
 }
 
 export function MemberCustomFields({ memberId, selfService }: Props) {
-  const { data: fields, isLoading: fieldsLoading } = useActiveCustomFields()
-  const { data: values, isLoading: valuesLoading } = useMemberCustomFieldValues(memberId)
+  // Fields that APPLY to this member (role/branche/unité targeting) AND the caller may VIEW — with values
+  // merged in. Server-filtered, so a member only ever receives fields they may see.
+  const { data: fields, isLoading: fieldsLoading } = useMemberApplicableCustomFields(memberId)
   const { user, hasPermission } = useAuthStore()
 
   // Current user's capability. A group manager (CG/ACG/super-admin) can edit any field; a unit leader
@@ -165,21 +167,20 @@ export function MemberCustomFields({ memberId, selfService }: Props) {
     return isUnitLeader // Member + UnitLeader fields: any unit leader (or above)
   }
 
-  if (fieldsLoading || valuesLoading) return <LoadingSpinner />
+  if (fieldsLoading) return <LoadingSpinner />
   if (!fields || fields.length === 0) return (
     <EmptyState
       icon={ListPlus}
       title="Aucun champ personnalisé"
-      description="Aucun champ personnalisé n'est configuré."
+      description="Aucun champ personnalisé ne s'applique à ce membre."
     />
   )
 
   return (
     <div className="space-y-2">
-      {fields.map(field => {
-        const existing = values?.find(v => v.customFieldId === field.id)
-        return <FieldRow key={field.id} field={field} existing={existing} memberId={memberId} canEdit={canEditField(field.editableBy)} selfService={selfService} />
-      })}
+      {fields.map(field => (
+        <FieldRow key={field.fieldId} field={field} memberId={memberId} canEdit={canEditField(field.editableBy)} selfService={selfService} />
+      ))}
     </div>
   )
 }

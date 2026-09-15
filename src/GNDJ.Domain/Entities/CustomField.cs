@@ -18,5 +18,16 @@ public class CustomField : BaseEntity
     // Default UnitLeader preserves the previous behaviour (only members.edit leaders could set values).
     public string EditableBy { get; set; } = "UnitLeader";
 
+    // ── Targeting: which members the field APPEARS for (applicability), and who may VIEW its value ──
+    // Applies only to members matching BOTH the role filter AND the scope filter (both default "all" =
+    // every member, the previous behaviour). See CustomFieldTargeting for the allowed values.
+    public string AppliesToRole { get; set; } = "all";      // all | maitrise | youth
+    public string AppliesToScope { get; set; } = "all";     // all | unitType | unit
+    public Guid? AppliesToUnitTypeId { get; set; }          // set when AppliesToScope == "unitType" (branche)
+    public Guid? AppliesToUnitId { get; set; }              // set when AppliesToScope == "unit"
+    // Who may SEE the value: "all" (everyone incl. the member), "leaders" (unit leaders + group leaders,
+    // hidden from the member), "groupLeaders" (chef de groupe only). Default "all" = the previous behaviour.
+    public string VisibleTo { get; set; } = "all";
+
     public ICollection<MemberCustomFieldValue> Values { get; set; } = [];
 }

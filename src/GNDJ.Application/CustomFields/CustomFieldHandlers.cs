@@ -13,9 +13,26 @@ namespace GNDJ.Application.CustomFields;
 // Options holds the JSON array of choices for "select"; ShowOnCard surfaces the value on the member card.
 
 // DTOs
-public record CustomFieldDto(Guid Id, string Name, string Code, string FieldType, string? Options, int DisplayOrder, bool IsActive, bool ShowOnCard, string EditableBy, int ValueCount);
+public record CustomFieldDto(Guid Id, string Name, string Code, string FieldType, string? Options, int DisplayOrder, bool IsActive, bool ShowOnCard, string EditableBy,
+    string AppliesToRole, string AppliesToScope, Guid? AppliesToUnitTypeId, Guid? AppliesToUnitId, string VisibleTo, int ValueCount);
 public record CustomFieldListDto(Guid Id, string Name, string Code, string FieldType, string? Options, bool ShowOnCard, string EditableBy);
 public record MemberCustomFieldValueDto(Guid Id, Guid CustomFieldId, string FieldName, string FieldCode, string FieldType, string? FieldOptions, string Value);
+
+// One custom field as it applies to a specific member: the definition + the member's value (null when unset).
+// Returned only for fields that (a) apply to the member and (b) the caller may view (see VisibleTo).
+public record MemberCustomFieldDto(Guid FieldId, string Name, string Code, string FieldType, string? Options, string EditableBy, Guid? ValueId, string? Value);
+
+// Allowed values for the field targeting (who it appears for / who may view it). Kept in sync with the
+// frontend (custom-field-service). "all" everywhere = the previous behaviour (global field, everyone views).
+public static class CustomFieldTargeting
+{
+    public const string RoleAll = "all", RoleMaitrise = "maitrise", RoleYouth = "youth";
+    public static readonly string[] Roles = [RoleAll, RoleMaitrise, RoleYouth];
+    public const string ScopeAll = "all", ScopeUnitType = "unitType", ScopeUnit = "unit";
+    public static readonly string[] Scopes = [ScopeAll, ScopeUnitType, ScopeUnit];
+    public const string VisibleAll = "all", VisibleLeaders = "leaders", VisibleGroupLeaders = "groupLeaders";
+    public static readonly string[] Visibilities = [VisibleAll, VisibleLeaders, VisibleGroupLeaders];
+}
 
 // Who may fill a custom field's value (see CustomField.EditableBy). Higher levels can also edit lower-scoped
 // fields: a group leader can edit everything; a unit leader can edit Member + UnitLeader fields; the member
@@ -71,6 +88,7 @@ public class GetCustomFieldsQueryHandler(IApplicationDbContext context) : IReque
             .OrderBy(cf => cf.DisplayOrder).ThenBy(cf => cf.Name)
             .Select(cf => new CustomFieldDto(
                 cf.Id, cf.Name, cf.Code, cf.FieldType, cf.Options, cf.DisplayOrder, cf.IsActive, cf.ShowOnCard, cf.EditableBy,
+                cf.AppliesToRole, cf.AppliesToScope, cf.AppliesToUnitTypeId, cf.AppliesToUnitId, cf.VisibleTo,
                 cf.Values.Count(v => !v.IsDeleted)
             ))
             .ToListAsync(ct);
@@ -116,10 +134,79 @@ public class GetMemberCustomFieldValuesQueryHandler(IApplicationDbContext contex
     }
 }
 
+// GetMemberApplicableCustomFields — the fields that APPLY to a specific member (targeting) AND that the caller
+// may VIEW (visibility), each merged with the member's stored value. Drives the member "Infos complémentaires"
+// tab + Ma fiche (replaces the old "all active fields" list, which ignored targeting). Non-viewable fields are
+// omitted entirely (defense-in-depth — the value never reaches a caller who shouldn't see it).
+public record GetMemberApplicableCustomFieldsQuery(Guid MemberId) : IRequest<List<MemberCustomFieldDto>>;
+
+public class GetMemberApplicableCustomFieldsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetMemberApplicableCustomFieldsQuery, List<MemberCustomFieldDto>>
+{
+    public async ValueTask<List<MemberCustomFieldDto>> Handle(GetMemberApplicableCustomFieldsQuery request, CancellationToken ct)
+    {
+        if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, request.MemberId, ct))
+            return [];
+
+        // The member's active-assignment context drives the applicability (role / branche / unité) filter.
+        // Project the scalar FKs (never null) and resolve unit-types + maîtrise separately, so a soft-deleted
+        // unit/role nav can't silently drop the row (the INNER-JOIN gotcha fixed elsewhere).
+        var active = await context.MemberAssignments
+            .Where(a => a.MemberId == request.MemberId && !a.IsDeleted && a.EndDate == null)
+            .Select(a => new { a.UnitId, a.FunctionalRoleId })
+            .ToListAsync(ct);
+        var unitIds = active.Select(a => a.UnitId).ToHashSet();
+        var roleIds = active.Select(a => a.FunctionalRoleId).ToHashSet();
+        var unitTypeIds = (await context.Units.IgnoreQueryFilters()
+            .Where(u => unitIds.Contains(u.Id)).Select(u => u.UnitTypeId).ToListAsync(ct)).ToHashSet();
+        var isMaitrise = await context.FunctionalRoles.IgnoreQueryFilters()
+            .AnyAsync(r => roleIds.Contains(r.Id) && r.IsMaitrise, ct);
+
+        // The caller's VIEW level relative to this member: a group manager sees everything; a members.edit
+        // leader of one of the member's active units sees "leaders" fields; the member (or anyone else) sees
+        // only "all" fields.
+        var canViewGroup = MemberAccess.IsGroupManager(currentUser); // super-admin included
+        var canViewLeaders = canViewGroup
+            || (currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit)
+                && active.Any(a => currentUser.AuthorizedUnitIds.Contains(a.UnitId)));
+
+        var fields = await context.CustomFields.Where(cf => cf.IsActive)
+            .OrderBy(cf => cf.DisplayOrder).ThenBy(cf => cf.Name).ToListAsync(ct);
+
+        var applicable = fields.Where(cf =>
+            // applies-to: role filter
+            (cf.AppliesToRole == CustomFieldTargeting.RoleAll
+                || (cf.AppliesToRole == CustomFieldTargeting.RoleMaitrise && isMaitrise)
+                || (cf.AppliesToRole == CustomFieldTargeting.RoleYouth && !isMaitrise))
+            // applies-to: scope filter (branche / unité)
+            && (cf.AppliesToScope != CustomFieldTargeting.ScopeUnitType || (cf.AppliesToUnitTypeId is Guid ut && unitTypeIds.Contains(ut)))
+            && (cf.AppliesToScope != CustomFieldTargeting.ScopeUnit || (cf.AppliesToUnitId is Guid un && unitIds.Contains(un)))
+            // visibility: who may see the value
+            && (cf.VisibleTo == CustomFieldTargeting.VisibleAll
+                || (cf.VisibleTo == CustomFieldTargeting.VisibleLeaders && canViewLeaders)
+                || (cf.VisibleTo == CustomFieldTargeting.VisibleGroupLeaders && canViewGroup)))
+            .ToList();
+
+        var values = await context.MemberCustomFieldValues
+            .Where(v => v.MemberId == request.MemberId)
+            .Select(v => new { v.Id, v.CustomFieldId, v.Value })
+            .ToListAsync(ct);
+        var byField = values.ToDictionary(v => v.CustomFieldId, v => (v.Id, v.Value));
+
+        return applicable.Select(cf =>
+        {
+            byField.TryGetValue(cf.Id, out var val);
+            return new MemberCustomFieldDto(cf.Id, cf.Name, cf.Code, cf.FieldType, cf.Options, cf.EditableBy,
+                val.Id == Guid.Empty ? null : val.Id, val.Value);
+        }).ToList();
+    }
+}
+
 // === Commands ===
 
 // CreateCustomField
-public record CreateCustomFieldCommand(string Name, string Code, string FieldType, string? Options, int DisplayOrder, bool IsActive, bool ShowOnCard, string EditableBy) : IRequest<Result<Guid>>;
+public record CreateCustomFieldCommand(string Name, string Code, string FieldType, string? Options, int DisplayOrder, bool IsActive, bool ShowOnCard, string EditableBy,
+    string AppliesToRole, string AppliesToScope, Guid? AppliesToUnitTypeId, Guid? AppliesToUnitId, string VisibleTo) : IRequest<Result<Guid>>;
 
 public class CreateCustomFieldCommandValidator : AbstractValidator<CreateCustomFieldCommand>
 {
@@ -134,6 +221,11 @@ public class CreateCustomFieldCommandValidator : AbstractValidator<CreateCustomF
             .WithMessage("Type de champ invalide (text, number, select, boolean).");
         RuleFor(x => x.EditableBy).Must(e => CustomFieldEditableBy.All.Contains(e))
             .WithMessage("Rôle de saisie invalide (Member, UnitLeader, GroupLeader).");
+        RuleFor(x => x.AppliesToRole).Must(r => CustomFieldTargeting.Roles.Contains(r)).WithMessage("Cible (rôle) invalide.");
+        RuleFor(x => x.AppliesToScope).Must(s => CustomFieldTargeting.Scopes.Contains(s)).WithMessage("Cible (portée) invalide.");
+        RuleFor(x => x.VisibleTo).Must(v => CustomFieldTargeting.Visibilities.Contains(v)).WithMessage("Visibilité invalide.");
+        RuleFor(x => x.AppliesToUnitTypeId).NotEmpty().When(x => x.AppliesToScope == CustomFieldTargeting.ScopeUnitType).WithMessage("Choisissez une branche.");
+        RuleFor(x => x.AppliesToUnitId).NotEmpty().When(x => x.AppliesToScope == CustomFieldTargeting.ScopeUnit).WithMessage("Choisissez une unité.");
     }
 }
 
@@ -154,7 +246,13 @@ public class CreateCustomFieldCommandHandler(IApplicationDbContext context, IAud
             DisplayOrder = request.DisplayOrder,
             IsActive = request.IsActive,
             ShowOnCard = request.ShowOnCard,
-            EditableBy = request.EditableBy
+            EditableBy = request.EditableBy,
+            AppliesToRole = request.AppliesToRole,
+            AppliesToScope = request.AppliesToScope,
+            // Only keep the id relevant to the chosen scope (avoid a stale branch id on a unit-scoped field).
+            AppliesToUnitTypeId = request.AppliesToScope == CustomFieldTargeting.ScopeUnitType ? request.AppliesToUnitTypeId : null,
+            AppliesToUnitId = request.AppliesToScope == CustomFieldTargeting.ScopeUnit ? request.AppliesToUnitId : null,
+            VisibleTo = request.VisibleTo,
         };
 
         context.CustomFields.Add(entity);
@@ -166,7 +264,8 @@ public class CreateCustomFieldCommandHandler(IApplicationDbContext context, IAud
 }
 
 // UpdateCustomField
-public record UpdateCustomFieldCommand(Guid Id, string Name, string Code, string FieldType, string? Options, int DisplayOrder, bool IsActive, bool ShowOnCard, string EditableBy) : IRequest<Result<bool>>;
+public record UpdateCustomFieldCommand(Guid Id, string Name, string Code, string FieldType, string? Options, int DisplayOrder, bool IsActive, bool ShowOnCard, string EditableBy,
+    string AppliesToRole, string AppliesToScope, Guid? AppliesToUnitTypeId, Guid? AppliesToUnitId, string VisibleTo) : IRequest<Result<bool>>;
 
 public class UpdateCustomFieldCommandValidator : AbstractValidator<UpdateCustomFieldCommand>
 {
@@ -181,6 +280,11 @@ public class UpdateCustomFieldCommandValidator : AbstractValidator<UpdateCustomF
             .WithMessage("Type de champ invalide (text, number, select, boolean).");
         RuleFor(x => x.EditableBy).Must(e => CustomFieldEditableBy.All.Contains(e))
             .WithMessage("Rôle de saisie invalide (Member, UnitLeader, GroupLeader).");
+        RuleFor(x => x.AppliesToRole).Must(r => CustomFieldTargeting.Roles.Contains(r)).WithMessage("Cible (rôle) invalide.");
+        RuleFor(x => x.AppliesToScope).Must(s => CustomFieldTargeting.Scopes.Contains(s)).WithMessage("Cible (portée) invalide.");
+        RuleFor(x => x.VisibleTo).Must(v => CustomFieldTargeting.Visibilities.Contains(v)).WithMessage("Visibilité invalide.");
+        RuleFor(x => x.AppliesToUnitTypeId).NotEmpty().When(x => x.AppliesToScope == CustomFieldTargeting.ScopeUnitType).WithMessage("Choisissez une branche.");
+        RuleFor(x => x.AppliesToUnitId).NotEmpty().When(x => x.AppliesToScope == CustomFieldTargeting.ScopeUnit).WithMessage("Choisissez une unité.");
     }
 }
 
@@ -206,6 +310,11 @@ public class UpdateCustomFieldCommandHandler(IApplicationDbContext context, IAud
         entity.IsActive = request.IsActive;
         entity.ShowOnCard = request.ShowOnCard;
         entity.EditableBy = request.EditableBy;
+        entity.AppliesToRole = request.AppliesToRole;
+        entity.AppliesToScope = request.AppliesToScope;
+        entity.AppliesToUnitTypeId = request.AppliesToScope == CustomFieldTargeting.ScopeUnitType ? request.AppliesToUnitTypeId : null;
+        entity.AppliesToUnitId = request.AppliesToScope == CustomFieldTargeting.ScopeUnit ? request.AppliesToUnitId : null;
+        entity.VisibleTo = request.VisibleTo;
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Update", "CustomField", entity.Id, oldValues: oldValues, newValues: new { entity.Name, entity.Code, entity.IsActive }, cancellationToken: ct);
@@ -236,6 +345,31 @@ public class DeleteCustomFieldCommandHandler(IApplicationDbContext context, IAud
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Delete", "CustomField", entity.Id, oldValues: new { entity.Name, entity.Code }, cancellationToken: ct);
 
+        return Result<bool>.Success(true);
+    }
+}
+
+// Reorder — sets DisplayOrder = position for the given ids (drag-and-drop on the admin list, replaces the
+// old manual "Ordre d'affichage" number). Mirrors ReorderDocumentTypes.
+public record ReorderCustomFieldsCommand(List<Guid> OrderedIds) : IRequest<Result<bool>>;
+
+public class ReorderCustomFieldsCommandValidator : AbstractValidator<ReorderCustomFieldsCommand>
+{
+    public ReorderCustomFieldsCommandValidator()
+        => RuleFor(x => x.OrderedIds).NotNull().Must(l => l.Count <= 1000).WithMessage("Trop d'éléments.");
+}
+
+public class ReorderCustomFieldsCommandHandler(IApplicationDbContext context) : IRequestHandler<ReorderCustomFieldsCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(ReorderCustomFieldsCommand request, CancellationToken ct)
+    {
+        var fields = await context.CustomFields.Where(cf => request.OrderedIds.Contains(cf.Id)).ToListAsync(ct);
+        for (var i = 0; i < request.OrderedIds.Count; i++)
+        {
+            var field = fields.FirstOrDefault(cf => cf.Id == request.OrderedIds[i]);
+            if (field is not null) field.DisplayOrder = i;
+        }
+        await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);
     }
 }

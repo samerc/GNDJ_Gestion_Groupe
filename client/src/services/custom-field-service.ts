@@ -7,6 +7,12 @@ import apiClient from '@/lib/api-client'
 // or GroupLeader (chef de groupe only). Reading is unaffected.
 export type CustomFieldEditableBy = 'Member' | 'UnitLeader' | 'GroupLeader'
 
+// Targeting — which members the field APPEARS for (applicability) and who may VIEW its value. Kept in sync
+// with the backend CustomFieldTargeting. "all" everywhere = the previous behaviour (global field, everyone views).
+export type CustomFieldRole = 'all' | 'maitrise' | 'youth'
+export type CustomFieldScope = 'all' | 'unitType' | 'unit'
+export type CustomFieldVisibleTo = 'all' | 'leaders' | 'groupLeaders'
+
 export interface CustomFieldDto {
   id: string
   name: string
@@ -17,7 +23,34 @@ export interface CustomFieldDto {
   isActive: boolean
   showOnCard: boolean
   editableBy: CustomFieldEditableBy
+  appliesToRole: CustomFieldRole
+  appliesToScope: CustomFieldScope
+  appliesToUnitTypeId: string | null
+  appliesToUnitId: string | null
+  visibleTo: CustomFieldVisibleTo
   valueCount: number
+}
+
+// The payload shared by create + update (targeting included). displayOrder is set on create (append to end)
+// and thereafter managed by the reorder endpoint — there's no manual number field anymore.
+export interface CustomFieldInput {
+  name: string; code: string; fieldType: string; options?: string | null; displayOrder: number
+  isActive: boolean; showOnCard: boolean; editableBy: CustomFieldEditableBy
+  appliesToRole: CustomFieldRole; appliesToScope: CustomFieldScope
+  appliesToUnitTypeId: string | null; appliesToUnitId: string | null; visibleTo: CustomFieldVisibleTo
+}
+
+// One custom field as it applies to a specific member (targeting + visibility already applied server-side),
+// with the member's stored value merged in (value null when unset). Drives the member "Infos" tab + Ma fiche.
+export interface MemberCustomFieldDto {
+  fieldId: string
+  name: string
+  code: string
+  fieldType: string
+  options: string | null
+  editableBy: CustomFieldEditableBy
+  valueId: string | null
+  value: string | null
 }
 
 export interface CustomFieldListDto {
@@ -66,12 +99,22 @@ export function useMemberCustomFieldValues(memberId: string) {
   })
 }
 
+// GET /custom-fields/member/{id}/applicable — the fields that APPLY to this member and the caller may VIEW,
+// with values merged. Drives the "Infos complémentaires" tab + Ma fiche. Sub-key of the member key so the
+// set/delete-value mutations (which invalidate ['custom-fields','member',id]) also refresh it.
+export function useMemberApplicableCustomFields(memberId: string) {
+  return useQuery({
+    queryKey: ['custom-fields', 'member', memberId, 'applicable'],
+    queryFn: () => apiClient.get<MemberCustomFieldDto[]>(`/custom-fields/member/${memberId}/applicable`).then(r => r.data),
+    enabled: !!memberId,
+  })
+}
+
 // POST /custom-fields — define a new field. Invalidates ['custom-fields'].
 export function useCreateCustomField() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; code: string; fieldType: string; options?: string | null; displayOrder: number; isActive: boolean; showOnCard: boolean; editableBy: CustomFieldEditableBy }) =>
-      apiClient.post('/custom-fields', data),
+    mutationFn: (data: CustomFieldInput) => apiClient.post('/custom-fields', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-fields'] }),
   })
 }
@@ -80,7 +123,7 @@ export function useCreateCustomField() {
 export function useUpdateCustomField() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name: string; code: string; fieldType: string; options?: string | null; displayOrder: number; isActive: boolean; showOnCard: boolean; editableBy: CustomFieldEditableBy }) =>
+    mutationFn: ({ id, ...data }: CustomFieldInput & { id: string }) =>
       apiClient.put(`/custom-fields/${id}`, { id, ...data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-fields'] }),
   })
@@ -91,6 +134,15 @@ export function useDeleteCustomField() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiClient.delete(`/custom-fields/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-fields'] }),
+  })
+}
+
+// PUT /custom-fields/reorder — drag-and-drop order (DisplayOrder = position).
+export function useReorderCustomFields() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (orderedIds: string[]) => apiClient.put('/custom-fields/reorder', { orderedIds }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-fields'] }),
   })
 }

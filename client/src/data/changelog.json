@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-15",
+        "text": "Champs personnalisés — l'ordre d'affichage se règle désormais par glisser-déposer (plus de numéro à saisir). Chaque champ peut être ciblé pour n'apparaître que pour certains membres (maîtrise / jeunes, une branche, ou une unité précise) et sa valeur peut être restreinte à la vue de certains rôles (tout le monde / les chefs / le chef de groupe uniquement)."
+      },
+      {
+        "date": "2026-09-15",
         "text": "Journal d'audit — toutes les modifications sont désormais enregistrées : coordonnées d'un membre (téléphone, courriel, adresse, courriel de contact — ajout/modification/suppression, côté chef ET depuis Ma fiche), parcours scouts, groupes de membres, réunions et présences, modèles de rapports, trombinoscopes et messages de contact. Chaque entrée indique le nom du membre/de l'unité concerné(e)."
       },
       {

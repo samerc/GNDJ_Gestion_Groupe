@@ -1,39 +1,50 @@
 // Admin CRUD screen for Custom Fields (super-admin) — admin-defined extra member attributes
 // (text/number/select/boolean) surfaced on the member "Infos complémentaires" tab and optionally on
-// the member card PDF (showOnCard). Not paginated (small set). For type=select, the comma-separated
-// options string is serialized to/from a JSON string array at the API boundary (see handleSubmit/openEdit).
+// the member card PDF (showOnCard). Not paginated (small set). Order is set by drag-and-drop (no manual
+// number). Each field can be TARGETED — it appears only for members matching a role (maîtrise/jeunes),
+// a branche (unit type) and/or a unité — and its value's VISIBILITY can be restricted (leaders / CG only).
+// For type=select, the comma-separated options string is serialized to/from a JSON string array (handleSubmit/openEdit).
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
+import { cn } from '@/lib/utils'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useCustomFields, useCreateCustomField, useUpdateCustomField, useDeleteCustomField, type CustomFieldDto, type CustomFieldEditableBy } from '@/services/custom-field-service'
+import {
+  useCustomFields, useCreateCustomField, useUpdateCustomField, useDeleteCustomField, useReorderCustomFields,
+  type CustomFieldDto, type CustomFieldEditableBy, type CustomFieldRole, type CustomFieldScope, type CustomFieldVisibleTo,
+} from '@/services/custom-field-service'
+import { useUnits } from '@/services/unit-service'
+import { useUnitTypes } from '@/services/unit-type-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RequiredLabel } from '@/components/shared/required-label'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pencil, Trash2, ListPlus } from 'lucide-react'
+import { Plus, Pencil, Trash2, ListPlus, GripVertical, Users, Eye } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { BackLink } from '@/components/shared/back-link'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 const FIELD_TYPE_LABELS: Record<string, string> = {
-  text: 'Texte',
-  number: 'Nombre',
-  select: 'Liste',
-  boolean: 'Oui/Non',
+  text: 'Texte', number: 'Nombre', select: 'Liste', boolean: 'Oui/Non',
 }
 
-// Who fills the field's value — label + short help shown in the admin form and the table.
+// Who fills the field's value — label shown in the admin form.
 const EDITABLE_BY_LABELS: Record<CustomFieldEditableBy, string> = {
-  Member: 'Le membre',
-  UnitLeader: "Chef d'unité",
-  GroupLeader: 'Chef de groupe',
+  Member: 'Le membre', UnitLeader: "Chef d'unité", GroupLeader: 'Chef de groupe',
+}
+const ROLE_LABELS: Record<CustomFieldRole, string> = {
+  all: 'Tous', maitrise: 'Maîtrise', youth: 'Jeunes',
+}
+const VISIBLE_LABELS: Record<CustomFieldVisibleTo, string> = {
+  all: 'Tout le monde', leaders: 'Chefs', groupLeaders: 'Chef de groupe',
 }
 
 interface FormData {
@@ -41,23 +52,24 @@ interface FormData {
   code: string
   fieldType: string
   options: string
-  displayOrder: number
   isActive: boolean
   showOnCard: boolean
   editableBy: CustomFieldEditableBy
+  appliesToRole: CustomFieldRole
+  appliesToScope: CustomFieldScope
+  appliesToUnitTypeId: string | null
+  appliesToUnitId: string | null
+  visibleTo: CustomFieldVisibleTo
 }
 
-const defaultForm: FormData = { name: '', code: '', fieldType: 'text', options: '', displayOrder: 0, isActive: true, showOnCard: false, editableBy: 'UnitLeader' }
+const defaultForm: FormData = {
+  name: '', code: '', fieldType: 'text', options: '', isActive: true, showOnCard: false, editableBy: 'UnitLeader',
+  appliesToRole: 'all', appliesToScope: 'all', appliesToUnitTypeId: null, appliesToUnitId: null, visibleTo: 'all',
+}
 
 // Slugify the display name into a stable storage code (lowercase, accents stripped, non-alnum → "_").
-// Auto-applied while typing the name unless the user has manually edited the code field (codeManual).
 function nameToCode(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_|_$/g, '')
+  return name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
 }
 
 export default function CustomFieldsPage({ embedded = false }: { embedded?: boolean } = {}) {
@@ -73,6 +85,20 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
   const createMutation = useCreateCustomField()
   const updateMutation = useUpdateCustomField()
   const deleteMutation = useDeleteCustomField()
+  const reorderMutation = useReorderCustomFields()
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  // Pickers for the "branche" / "unité" targeting (loaded only while the form is open).
+  const { data: unitTypesData } = useUnitTypes({ pageSize: 100 }, formOpen)
+  const { data: unitsData } = useUnits({ isActive: true, pageSize: 500 }, formOpen)
+  const unitTypes = unitTypesData?.items ?? []
+  const units = unitsData?.items ?? []
+
+  // Local order copy for a smooth drag (arrayMove locally, then persist). Synced from the query (render-phase),
+  // initialized from possibly-warm cache so the list is never stuck empty.
+  const [items, setItems] = useState<CustomFieldDto[]>(fields ?? [])
+  const [prevFields, setPrevFields] = useState(fields)
+  if (fields && fields !== prevFields) { setPrevFields(fields); setItems(fields) }
 
   const openCreate = () => {
     setEditing(null)
@@ -84,9 +110,13 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
 
   const openEdit = (item: CustomFieldDto) => {
     setEditing(item)
-    // Stored options are a JSON string array; show them back as the comma-separated text the user typed.
     const opts = item.options ? (() => { try { return (JSON.parse(item.options) as string[]).join(', ') } catch { return '' } })() : ''
-    setForm({ name: item.name, code: item.code, fieldType: item.fieldType, options: opts, displayOrder: item.displayOrder, isActive: item.isActive, showOnCard: item.showOnCard, editableBy: item.editableBy })
+    setForm({
+      name: item.name, code: item.code, fieldType: item.fieldType, options: opts, isActive: item.isActive,
+      showOnCard: item.showOnCard, editableBy: item.editableBy,
+      appliesToRole: item.appliesToRole, appliesToScope: item.appliesToScope,
+      appliesToUnitTypeId: item.appliesToUnitTypeId, appliesToUnitId: item.appliesToUnitId, visibleTo: item.visibleTo,
+    })
     setCodeManual(true) // never auto-rewrite an existing field's code from its name
     setError(''); clearAll()
     setFormOpen(true)
@@ -97,17 +127,27 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
     setError('')
     if (!validate({ name: !form.name, code: !form.code })) return
 
-    // Only "select" fields carry options; persist them as a JSON string array (null for other types).
     const optionsJson = form.fieldType === 'select' && form.options.trim()
       ? JSON.stringify(form.options.split(',').map(o => o.trim()).filter(Boolean))
       : null
 
+    // Only send the scope id relevant to the chosen scope (the backend also nulls the rest).
+    const payload = {
+      name: form.name, code: form.code, fieldType: form.fieldType, options: optionsJson,
+      isActive: form.isActive, showOnCard: form.showOnCard, editableBy: form.editableBy,
+      appliesToRole: form.appliesToRole, appliesToScope: form.appliesToScope,
+      appliesToUnitTypeId: form.appliesToScope === 'unitType' ? form.appliesToUnitTypeId : null,
+      appliesToUnitId: form.appliesToScope === 'unit' ? form.appliesToUnitId : null,
+      visibleTo: form.visibleTo,
+    }
+
     try {
       if (editing) {
-        await updateMutation.mutateAsync({ id: editing.id, name: form.name, code: form.code, fieldType: form.fieldType, options: optionsJson, displayOrder: form.displayOrder, isActive: form.isActive, showOnCard: form.showOnCard, editableBy: form.editableBy })
+        await updateMutation.mutateAsync({ id: editing.id, displayOrder: editing.displayOrder, ...payload })
         toast.success('Champ personnalisé modifié')
       } else {
-        await createMutation.mutateAsync({ name: form.name, code: form.code, fieldType: form.fieldType, options: optionsJson, displayOrder: form.displayOrder, isActive: form.isActive, showOnCard: form.showOnCard, editableBy: form.editableBy })
+        // Append new fields to the end (drag-and-drop then reorders); displayOrder just seeds the position.
+        await createMutation.mutateAsync({ displayOrder: items.length, ...payload })
         toast.success('Champ personnalisé créé')
       }
       setFormOpen(false)
@@ -128,7 +168,19 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
     }
   }
 
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const oldIndex = items.findIndex(i => i.id === active.id)
+    const newIndex = items.findIndex(i => i.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+    const next = arrayMove(items, oldIndex, newIndex)
+    setItems(next) // optimistic
+    reorderMutation.mutate(next.map(i => i.id), { onError: (err) => toast.error(parseApiError(err)) })
+  }
+
   const isSaving = createMutation.isPending || updateMutation.isPending
+  const canReorder = items.length > 1
 
   return (
     <div className="space-y-6">
@@ -143,7 +195,7 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
-      ) : !fields || fields.length === 0 ? (
+      ) : items.length === 0 ? (
         <EmptyState
           icon={ListPlus}
           title="Aucun champ personnalisé"
@@ -151,49 +203,22 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
           action={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Créer</Button>}
         />
       ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Code</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Rempli par</TableHead>
-                <TableHead className="text-center">Carte</TableHead>
-                <TableHead className="text-center">Ordre</TableHead>
-                <TableHead className="text-center">Actif</TableHead>
-                <TableHead className="w-24" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {fields.map((item) => (
-                <TableRow key={item.id} className="even:bg-muted/30">
-                  <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{item.code}</TableCell>
-                  <TableCell>{FIELD_TYPE_LABELS[item.fieldType] ?? item.fieldType}</TableCell>
-                  <TableCell className="text-muted-foreground">{EDITABLE_BY_LABELS[item.editableBy] ?? item.editableBy}</TableCell>
-                  <TableCell className="text-center">
-                    {item.showOnCard ? <Badge className="bg-blue-600">Carte</Badge> : <span className="text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell className="text-center text-muted-foreground">{item.displayOrder}</TableCell>
-                  <TableCell className="text-center">
-                    {item.isActive ? <Badge className="bg-green-600">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button></Tip>
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(item)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <>
+          {canReorder && <p className="text-xs text-muted-foreground">Glissez pour réordonner. Cet ordre s'applique à la fiche membre et à la carte.</p>}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy} disabled={!canReorder}>
+              <ul className="space-y-2">
+                {items.map((item) => (
+                  <SortableFieldRow key={item.id} item={item} canReorder={canReorder} onEdit={() => openEdit(item)} onDelete={() => setDeleting(item)} />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
+        </>
       )}
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-lg">
+        <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Modifier le champ personnalisé' : 'Nouveau champ personnalisé'}</DialogTitle>
           </DialogHeader>
@@ -212,7 +237,7 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
               <RequiredLabel htmlFor="cf-code" required>Code</RequiredLabel>
               <Input id="cf-code" className={fieldClass('code')} value={form.code} onChange={(e) => {
                 setForm(f => ({ ...f, code: e.target.value }))
-                setCodeManual(true) // user took over the code → stop auto-deriving it from the name
+                setCodeManual(true)
                 clearField('code')
               }} required />
             </div>
@@ -245,13 +270,77 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Qui peut renseigner ce champ. Un niveau supérieur peut toujours modifier les champs des niveaux inférieurs ; tout le monde peut le consulter.
+                Qui peut renseigner ce champ. Un niveau supérieur peut toujours modifier les champs des niveaux inférieurs.
               </p>
             </div>
-            <div className="space-y-2">
-              <RequiredLabel htmlFor="cf-order">Ordre d'affichage</RequiredLabel>
-              <Input id="cf-order" type="number" value={form.displayOrder} onChange={(e) => setForm(f => ({ ...f, displayOrder: parseInt(e.target.value) || 0 }))} />
+
+            {/* ── Targeting: which members the field appears for ── */}
+            <div className="space-y-3 rounded-md border p-3">
+              <p className="flex items-center gap-2 text-sm font-medium"><Users className="h-4 w-4 text-muted-foreground" />Apparaît pour</p>
+              <div className="space-y-2">
+                <RequiredLabel htmlFor="cf-role">Rôle</RequiredLabel>
+                <Select value={form.appliesToRole} onValueChange={(v) => setForm(f => ({ ...f, appliesToRole: v as CustomFieldRole }))}>
+                  <SelectTrigger id="cf-role"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les membres</SelectItem>
+                    <SelectItem value="maitrise">Maîtrise (chefs) uniquement</SelectItem>
+                    <SelectItem value="youth">Jeunes uniquement</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <RequiredLabel htmlFor="cf-scope">Portée</RequiredLabel>
+                <Select value={form.appliesToScope} onValueChange={(v) => setForm(f => ({ ...f, appliesToScope: v as CustomFieldScope, appliesToUnitTypeId: null, appliesToUnitId: null }))}>
+                  <SelectTrigger id="cf-scope"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes les unités</SelectItem>
+                    <SelectItem value="unitType">Une branche (type d'unité)</SelectItem>
+                    <SelectItem value="unit">Une unité</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {form.appliesToScope === 'unitType' && (
+                <div className="space-y-2">
+                  <RequiredLabel htmlFor="cf-branche" required>Branche</RequiredLabel>
+                  <Select value={form.appliesToUnitTypeId ?? ''} onValueChange={(v) => setForm(f => ({ ...f, appliesToUnitTypeId: v }))}>
+                    <SelectTrigger id="cf-branche"><SelectValue placeholder="Choisir une branche…" /></SelectTrigger>
+                    <SelectContent>
+                      {unitTypes.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {form.appliesToScope === 'unit' && (
+                <div className="space-y-2">
+                  <RequiredLabel htmlFor="cf-unit" required>Unité</RequiredLabel>
+                  <Select value={form.appliesToUnitId ?? ''} onValueChange={(v) => setForm(f => ({ ...f, appliesToUnitId: v }))}>
+                    <SelectTrigger id="cf-unit"><SelectValue placeholder="Choisir une unité…" /></SelectTrigger>
+                    <SelectContent>
+                      {units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">Le champ n'apparaît que pour les membres correspondant à ces critères.</p>
             </div>
+
+            {/* ── Visibility: who may see the value ── */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-muted-foreground" />
+                <RequiredLabel htmlFor="cf-visible">Visible par</RequiredLabel>
+              </div>
+              <Select value={form.visibleTo} onValueChange={(v) => setForm(f => ({ ...f, visibleTo: v as CustomFieldVisibleTo }))}>
+                <SelectTrigger id="cf-visible"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tout le monde</SelectItem>
+                  <SelectItem value="leaders">Chefs (maîtrise) — pas le membre</SelectItem>
+                  <SelectItem value="groupLeaders">Chef de groupe uniquement</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Qui peut voir la valeur. « Tout le monde » inclut le membre lui-même.</p>
+            </div>
+
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.isActive} onChange={(e) => setForm(f => ({ ...f, isActive: e.target.checked }))} />
@@ -286,5 +375,48 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
         onConfirm={(deleting?.valueCount ?? 0) > 0 ? () => { const d = deleting; setDeleting(null); if (d) openEdit(d) } : handleDelete}
       />
     </div>
+  )
+}
+
+// A single draggable custom-field row (grip handle + name/code/type + targeting/visibility badges + actions).
+function SortableFieldRow({ item, canReorder, onEdit, onDelete }: { item: CustomFieldDto; canReorder: boolean; onEdit: () => void; onDelete: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled: !canReorder })
+  const targeted = item.appliesToRole !== 'all' || item.appliesToScope !== 'all'
+  const restricted = item.visibleTo !== 'all'
+  return (
+    <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn('flex items-center gap-3 rounded-lg border bg-card p-3', isDragging && 'shadow-lg')}>
+      {canReorder ? (
+        <button {...attributes} {...listeners} className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing" aria-label="Déplacer">
+          <GripVertical className="h-4 w-4" />
+        </button>
+      ) : <span className="w-4" />}
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium">{item.name}</span>
+          <span className="font-mono text-xs text-muted-foreground">{item.code}</span>
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-1">
+          <Badge variant="outline">{FIELD_TYPE_LABELS[item.fieldType] ?? item.fieldType}</Badge>
+          {item.isActive ? <Badge className="bg-green-600">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}
+          <Badge variant="outline" className="gap-1 text-muted-foreground">Rempli : {EDITABLE_BY_LABELS[item.editableBy] ?? item.editableBy}</Badge>
+          {item.showOnCard && <Badge className="bg-blue-600">Carte</Badge>}
+          {targeted && (
+            <Tip content="Ce champ n'apparaît que pour certains membres (rôle / branche / unité).">
+              <span className="inline-flex"><Badge variant="outline" className="gap-1"><Users className="h-3 w-3" />{ROLE_LABELS[item.appliesToRole]}{item.appliesToScope !== 'all' ? ' · ciblé' : ''}</Badge></span>
+            </Tip>
+          )}
+          {restricted && (
+            <Tip content="La valeur de ce champ n'est visible que par certains rôles.">
+              <span className="inline-flex"><Badge variant="outline" className="gap-1"><Eye className="h-3 w-3" />{VISIBLE_LABELS[item.visibleTo]}</Badge></span>
+            </Tip>
+          )}
+        </div>
+      </div>
+      <div className="flex gap-1">
+        <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={onEdit}><Pencil className="h-4 w-4" /></Button></Tip>
+        <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
+      </div>
+    </li>
   )
 }
