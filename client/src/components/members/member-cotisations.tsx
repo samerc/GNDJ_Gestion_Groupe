@@ -7,6 +7,7 @@ import { useSettingValue } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
 import { formatMoney } from '@/lib/utils'
+import { defaultPaymentLine } from '@/lib/cotisation'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
@@ -54,8 +55,10 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
   const { data: cotisations, isLoading } = useMemberCotisations(memberId)
   const defaultAmount = useSettingValue('cotisation.default_amount')
   const currentScoutYear = useCurrentScoutYear()
-  // Configured full price per currency (e.g. $30 · 2 500 000 LBP) — shown as a target hint when entering a payment.
+  // Configured full price per currency (e.g. $30 · 2 500 000 LBP) — the single place the fee is set; shown as a
+  // hint when entering a payment AND used to pre-fill the first payment line (falls back to the legacy default_amount).
   const fullAmountsRaw = useSettingValue('cotisation.full_amounts')
+  const defaultCurrency = useSettingValue('cotisation.default_currency')
   const fullPriceHint = (() => {
     try {
       const obj = fullAmountsRaw ? JSON.parse(fullAmountsRaw) as Record<string, number> : {}
@@ -109,14 +112,14 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
   const [notes, setNotes] = useState('')
   const [payments, setPayments] = useState<PaymentLineInput[]>([
-    { amount: parseFloat(defaultAmount ?? '100'), currency: 'USD', paymentMethod: 'Cash' }
+    { ...defaultPaymentLine(fullAmountsRaw, defaultCurrency, defaultAmount), paymentMethod: 'Cash' }
   ])
 
   const openCreate = () => {
     setEditing(null)
     setPaymentDate(new Date().toISOString().split('T')[0])
     setNotes('')
-    setPayments([{ amount: parseFloat(defaultAmount ?? '100'), currency: 'USD', paymentMethod: 'Cash' }])
+    setPayments([{ ...defaultPaymentLine(fullAmountsRaw, defaultCurrency, defaultAmount), paymentMethod: 'Cash' }])
     setError('')
     setFormOpen(true)
   }

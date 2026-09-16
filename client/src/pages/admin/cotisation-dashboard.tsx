@@ -15,6 +15,7 @@ import {
   useAssociationDues, downloadReceipt, type UnpaidCotisationDto, type PaidCotisationDto, type ExemptCotisationDto,
 } from '@/services/cotisation-service'
 import { useSettingValue } from '@/services/settings-service'
+import { defaultPaymentLine } from '@/lib/cotisation'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { useQueryClient } from '@tanstack/react-query'
 import { parseApiError } from '@/lib/error-utils'
@@ -35,7 +36,9 @@ import { toast } from 'sonner'
 export default function CotisationDashboardPage() {
   const currentScoutYear = useCurrentScoutYear()
   const defaultAmount = useSettingValue('cotisation.default_amount')
-  // Configured full price per currency (e.g. $30 · 2 500 000 LBP) — shown as a target hint in the payment dialog.
+  const defaultCurrency = useSettingValue('cotisation.default_currency')
+  // Configured full price per currency (e.g. $30 · 2 500 000 LBP) — the single place the fee is set; shown as a
+  // hint in the payment dialog AND used to pre-fill the first payment line.
   const fullAmountsRaw = useSettingValue('cotisation.full_amounts')
   const fullPriceHint = (() => {
     try {
@@ -79,7 +82,8 @@ export default function CotisationDashboardPage() {
   const openPayDialog = (m: UnpaidCotisationDto) => {
     setPayFor(m)
     setPayDate(new Date().toISOString().split('T')[0])
-    setPayLines([{ amount: defaultAmount ?? '100', currency: 'USD', paymentMethod: 'Cash' }])
+    const dpl = defaultPaymentLine(fullAmountsRaw, defaultCurrency, defaultAmount)
+    setPayLines([{ amount: dpl.amount ? String(dpl.amount) : '', currency: dpl.currency, paymentMethod: 'Cash' }])
   }
   const addPayLine = () => setPayLines(ls => [...ls, { amount: '', currency: 'USD', paymentMethod: 'Cash' }])
   const removePayLine = (i: number) => setPayLines(ls => ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls)

@@ -66,7 +66,10 @@ const CONFIG_TABS: { key: string; label: string; Component: React.ComponentType<
 // to set them (the generic editor would let you save the dates out of order and break the campaign phases).
 const HIDDEN_KEYS = new Set(['site.content', 'card_config', 'member.cities', 'member.schools', 'member.classes', 'member.profession_domains', 'demande.rejection_reasons', 'ui.role_colors', 'pinned_professions',
   'documents.campaign_enabled', 'documents.scout_year', 'documents.deposit_start', 'documents.deposit_deadline', 'documents.correction_start', 'documents.correction_deadline', 'documents.final_deadline',
-  'documents.errors_sent_for', 'documents.errors_alert_for', 'documents.hold_applied_for', 'documents.hold_alert_for'])
+  'documents.errors_sent_for', 'documents.errors_alert_for', 'documents.hold_applied_for', 'documents.hold_alert_for',
+  // Merged into "Montants pleins (par devise)" (cotisation.full_amounts): the USD full price IS the cotisation
+  // amount and drives the payment-form prefill, so a separate "montant par défaut" field is redundant/confusing.
+  'cotisation.default_amount'])
 // Technical keys moved to an "Avancé" tab.
 const ADVANCED_KEYS = new Set(['app.base_url', 'user_domain'])
 

@@ -7,6 +7,7 @@ import { useSettingValue, useSettingArray } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { CampaignPhaseBanner } from '@/components/shared/campaign-phase-banner'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
+import { defaultPaymentLine } from '@/lib/cotisation'
 import { PERMISSIONS } from '@/lib/constants'
 import {
   useUnitDocumentsMatrix, useReviewDocumentMatrix, useUploadDocument, downloadDocument, downloadDocumentPage, downloadUnitDocumentsZip,
@@ -72,6 +73,9 @@ export default function UnitDocumentsPage() {
   const user = useAuthStore((s) => s.user)
   const currentScoutYear = useCurrentScoutYear()
   const defaultAmount = useSettingValue('cotisation.default_amount')
+  const defaultCurrency = useSettingValue('cotisation.default_currency')
+  // Configured full cotisation price per currency — used to pre-fill the first payment line (falls back to default_amount).
+  const fullAmountsRaw = useSettingValue('cotisation.full_amounts')
   // A group manager (super-admin / Chef de Groupe) can review ANY unit's documents via a full unit picker;
   // a chef d'unité is limited to their own authorized unit(s) (user.unitAccess). The backend matrix endpoint
   // already allows a manager on any unit (members.edit + all units granted), so this is a UI-only widening.
@@ -373,7 +377,7 @@ export default function UnitDocumentsPage() {
       setCotPaymentDate(member.cotisation.paymentDate ?? '')
       setCotNotes('')
     } else {
-      setCotPayments([{ amount: parseFloat(defaultAmount ?? '100'), currency: 'USD', paymentMethod: 'Cash' }])
+      setCotPayments([{ ...defaultPaymentLine(fullAmountsRaw, defaultCurrency, defaultAmount), paymentMethod: 'Cash' }])
       setCotPaymentDate(new Date().toISOString().split('T')[0])
       setCotNotes('')
     }
