@@ -40,6 +40,21 @@ export function useVerifyMyContact() {
   })
 }
 
+// POST /my-profile/review-contacts → the one-time contact-review popup « Confirmer »: apply the chosen courriel/
+// téléphone principal + parents' situation + per-parent urgence/décédé and stamp ContactReviewedAt. The caller
+// reloads the user afterward (clears needsContactReview), so no query invalidation here.
+export interface ReviewMyContactsInput {
+  primaryContactEmail: string | null
+  primaryPhoneId: string | null
+  parentsSituation: string | null
+  guardians: { guardianId: string; linkId: string; isDeceased: boolean; isEmergencyContact: boolean }[]
+}
+export function useReviewMyContacts() {
+  return useMutation({
+    mutationFn: (data: ReviewMyContactsInput) => apiClient.post('/my-profile/review-contacts', data),
+  })
+}
+
 // POST /my-profile/onboarding-seen → mark the first-login welcome tour as seen (server flag, so it doesn't
 // re-show on another device). Fire-and-forget; the component hides the tour optimistically regardless.
 export function useMarkOnboardingSeen() {

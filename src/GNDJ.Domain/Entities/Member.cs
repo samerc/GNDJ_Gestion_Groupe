@@ -49,7 +49,15 @@ public class Member : BaseEntity
     // When a member becomes a leader (CU/CG…), they're asked once on login to confirm their PERSONAL contact
     // details — email + phone (many still had a parent's on file). Set when they confirm/correct them; null =
     // not yet confirmed → the app shows a one-time blocking "verify your contact details" screen to leaders.
+    // SUPERSEDED by the unified contact-review popup (ContactReviewedAt) — kept for data/back-compat.
     public DateTime? ContactVerifiedAt { get; set; }
+
+    // One-time contact-review popup (for EVERYONE, not just leaders): on login the member is asked once to fix
+    // their household emails/phones, pick the courriel + téléphone principal (fixes "father's email is primary
+    // but the mother handles things"), set per-parent urgence/décédé and the parents' situation. Set when they
+    // click « Confirmer » (never shown again); null = not yet reviewed → the popup appears (skippable per session
+    // via « Plus tard »). Excludes super-admins. Also drives the CG/CU "Coordonnées vérifiées le …" fiche badge.
+    public DateTime? ContactReviewedAt { get; set; }
 
     // First-login welcome tour: set when the member dismisses/finishes the onboarding carousel, so it never
     // shows again (server-side, not localStorage — survives switching device/browser). Null = not yet seen.

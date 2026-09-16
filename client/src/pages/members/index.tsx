@@ -383,6 +383,13 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                   : <span className="font-medium text-amber-600 dark:text-amber-400">Jamais connecté</span>}
               </p>
             )}
+            {/* Contact-review state: has the member confirmed/fixed their coordonnées via the one-time popup? Lets
+                a CU/CG see who ignored it (e.g. to relance) right under the last-login line. */}
+            <p className="mt-0.5 text-xs">
+              {member.contactReviewedAt
+                ? <span className="text-emerald-600 dark:text-emerald-400">Coordonnées vérifiées le {new Date(member.contactReviewedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                : <span className="text-amber-600 dark:text-amber-400">Coordonnées à vérifier</span>}
+            </p>
             {/* Access delegation badge — visible to the CG so they know this member holds hidden extra access. */}
             {member.hasDelegatedAccess && (
               <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">

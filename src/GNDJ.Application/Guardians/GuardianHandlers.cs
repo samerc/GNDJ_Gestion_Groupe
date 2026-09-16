@@ -428,6 +428,53 @@ public class AddGuardianEmailCommandHandler : IRequestHandler<AddGuardianEmailCo
     }
 }
 
+// Update phone (scoped) — edit a guardian's phone in place (leaders). Own-scoped self-service equivalent lives
+// in MyGuardianHandlers.
+public record UpdateGuardianPhoneCommand(Guid Id, string CountryCode, string Number, string Type, bool IsPrimary) : IRequest<Result<bool>>;
+public class UpdateGuardianPhoneCommandHandler : IRequestHandler<UpdateGuardianPhoneCommand, Result<bool>>
+{
+    private readonly IApplicationDbContext _context;
+    private readonly ICurrentUserService _currentUser;
+    private readonly IAuditService _audit;
+    public UpdateGuardianPhoneCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) { _context = context; _currentUser = currentUser; _audit = audit; }
+    public async ValueTask<Result<bool>> Handle(UpdateGuardianPhoneCommand request, CancellationToken cancellationToken)
+    {
+        var entity = await _context.GuardianPhones.FindAsync([request.Id], cancellationToken);
+        if (entity is null) return Result<bool>.Failure("Téléphone introuvable.");
+        if (!await GuardianAccessHelper.CanAccessGuardian(_context, _currentUser, entity.GuardianId, cancellationToken))
+            return Result<bool>.Failure("Accès refusé.");
+        var old = $"{entity.CountryCode} {entity.Number}".Trim();
+        entity.CountryCode = request.CountryCode; entity.Number = request.Number; entity.Type = request.Type; entity.IsPrimary = request.IsPrimary;
+        await _context.SaveChangesAsync(cancellationToken);
+        await _audit.LogAsync("Update", "Guardian", entity.GuardianId, oldValues: new { Phone = old },
+            newValues: new { Parent = await AuditNames.GuardianAsync(_context, entity.GuardianId, cancellationToken), Phone = $"{request.CountryCode} {request.Number}".Trim(), request.Type }, cancellationToken: cancellationToken);
+        return Result<bool>.Success(true);
+    }
+}
+
+// Update email (scoped)
+public record UpdateGuardianEmailCommand(Guid Id, string Address, string Type, bool IsPrimary) : IRequest<Result<bool>>;
+public class UpdateGuardianEmailCommandHandler : IRequestHandler<UpdateGuardianEmailCommand, Result<bool>>
+{
+    private readonly IApplicationDbContext _context;
+    private readonly ICurrentUserService _currentUser;
+    private readonly IAuditService _audit;
+    public UpdateGuardianEmailCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) { _context = context; _currentUser = currentUser; _audit = audit; }
+    public async ValueTask<Result<bool>> Handle(UpdateGuardianEmailCommand request, CancellationToken cancellationToken)
+    {
+        var entity = await _context.GuardianEmails.FindAsync([request.Id], cancellationToken);
+        if (entity is null) return Result<bool>.Failure("Courriel introuvable.");
+        if (!await GuardianAccessHelper.CanAccessGuardian(_context, _currentUser, entity.GuardianId, cancellationToken))
+            return Result<bool>.Failure("Accès refusé.");
+        var old = entity.Address;
+        entity.Address = request.Address; entity.Type = request.Type; entity.IsPrimary = request.IsPrimary;
+        await _context.SaveChangesAsync(cancellationToken);
+        await _audit.LogAsync("Update", "Guardian", entity.GuardianId, oldValues: new { Email = old },
+            newValues: new { Parent = await AuditNames.GuardianAsync(_context, entity.GuardianId, cancellationToken), Email = request.Address, request.Type }, cancellationToken: cancellationToken);
+        return Result<bool>.Success(true);
+    }
+}
+
 // Delete phone (scoped)
 public record DeleteGuardianPhoneCommand(Guid Id) : IRequest<Result<bool>>;
 public class DeleteGuardianPhoneCommandHandler : IRequestHandler<DeleteGuardianPhoneCommand, Result<bool>>

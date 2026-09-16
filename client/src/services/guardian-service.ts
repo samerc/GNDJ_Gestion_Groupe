@@ -96,6 +96,26 @@ export function useAddGuardianEmail(memberId: string) {
   })
 }
 
+// PUT /guardians/phones/:id — edit a guardian phone in place (fix a typo / type / primary). Invalidates ['guardians', memberId].
+export function useUpdateGuardianPhone(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; countryCode: string; number: string; type: string; isPrimary: boolean }) =>
+      apiClient.put(`/guardians/phones/${id}`, { id, ...data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+  })
+}
+
+// PUT /guardians/emails/:id — edit a guardian email in place. Invalidates ['guardians', memberId].
+export function useUpdateGuardianEmail(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; address: string; type: string; isPrimary: boolean }) =>
+      apiClient.put(`/guardians/emails/${id}`, { id, ...data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+  })
+}
+
 // DELETE /guardians/phones/:phoneId; memberId only scopes cache invalidation ['guardians', memberId].
 export function useDeleteGuardianPhone(memberId: string) {
   const qc = useQueryClient()
@@ -161,6 +181,22 @@ export function useAddMyGuardianEmail(memberId: string) {
   return useMutation({
     mutationFn: ({ guardianId, ...data }: { guardianId: string; address: string; type: string; isPrimary: boolean }) =>
       apiClient.post(`/my-profile/guardians/${guardianId}/emails`, { guardianId, ...data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+  })
+}
+export function useUpdateMyGuardianPhone(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; countryCode: string; number: string; type: string; isPrimary: boolean }) =>
+      apiClient.put(`/my-profile/guardian-phones/${id}`, { id, ...data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
+  })
+}
+export function useUpdateMyGuardianEmail(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; address: string; type: string; isPrimary: boolean }) =>
+      apiClient.put(`/my-profile/guardian-emails/${id}`, { id, ...data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['guardians', memberId] }),
   })
 }

@@ -59,6 +59,7 @@ export interface MemberDetailDto {
   showProfession: boolean // offer the "En activité / Profession" option (false = youth in Meute/Ronde/Compagnie/Troupe → Classe/Section only)
   isSuperAdmin: boolean // the linked account is a super-admin — populated only for a super-admin viewer (else false)
   lastLoginAt: string | null // last sign-in of the linked account (null = never logged in / no account)
+  contactReviewedAt: string | null // when the member confirmed their coordonnées via the popup (null = not yet)
 }
 
 // Tab badge counts returned with the member detail (famille / unités / documents / cotisations / progression).

@@ -220,6 +220,96 @@ public class VerifyMyContactHandler(IApplicationDbContext context, ICurrentUserS
     }
 }
 
+// ── Contact-review popup (one-time « Vérifiez vos coordonnées ») ──────────────
+// The member confirms their household contacts in one atomic action: pick the courriel principal
+// (Member.PrimaryContactEmail — the address that receives password-reset/document mail) and the téléphone
+// principal (reuses per-list IsPrimary), set the parents' situation (propagated to a confirmed fratrie), and
+// per-parent urgence (GuardianLink.IsEmergencyContact) / décédé (Guardian.IsDeceased). Stamps ContactReviewedAt
+// so the popup never shows again. Individual add/edit/delete of contacts is done LIVE via the other self-service
+// endpoints BEFORE this confirm; this command only applies the "defaults" + flags + the stamp.
+public record GuardianReviewInput(Guid GuardianId, Guid LinkId, bool IsDeceased, bool IsEmergencyContact);
+public record ReviewMyContactsCommand(
+    string? PrimaryContactEmail, Guid? PrimaryPhoneId, string? ParentsSituation, List<GuardianReviewInput> Guardians
+) : IRequest<Result<bool>>;
+
+public class ReviewMyContactsValidator : AbstractValidator<ReviewMyContactsCommand>
+{
+    public ReviewMyContactsValidator()
+    {
+        RuleFor(x => x.PrimaryContactEmail).MaximumLength(150).NoHtml();
+        RuleFor(x => x.ParentsSituation).Must(s => s is "Unis" or "Séparés" or "Divorcés")
+            .When(x => !string.IsNullOrWhiteSpace(x.ParentsSituation))
+            .WithMessage("Situation des parents invalide.");
+        RuleFor(x => x.Guardians).Must(g => g == null || g.Count <= 20).WithMessage("Trop de parents.");
+    }
+}
+
+public class ReviewMyContactsHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<ReviewMyContactsCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(ReviewMyContactsCommand request, CancellationToken ct)
+    {
+        var memberId = MyContactAccess.OwnMemberId(currentUser);
+        if (memberId is null) return Result<bool>.Failure("Aucun membre associé à ce compte.");
+        var member = await context.Members.FindAsync([memberId.Value], ct);
+        if (member is null) return Result<bool>.Failure("Membre introuvable.");
+
+        // ── Courriel principal — must be one of the household emails (member's own or a linked guardian's).
+        var email = request.PrimaryContactEmail?.Trim();
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            var lower = email!.ToLower();
+            var ownEmail = await context.MemberEmails.AnyAsync(e => e.MemberId == memberId.Value && !e.IsDeleted && e.Address.ToLower() == lower, ct);
+            var guardianEmail = ownEmail || await context.GuardianEmails.AnyAsync(e => !e.IsDeleted && e.Address.ToLower() == lower
+                && context.GuardianLinks.Any(l => l.GuardianId == e.GuardianId && l.MemberId == memberId.Value && !l.IsDeleted), ct);
+            if (!ownEmail && !guardianEmail) return Result<bool>.Failure("Ce courriel ne fait pas partie de vos coordonnées.");
+            member.PrimaryContactEmail = email;
+        }
+        else member.PrimaryContactEmail = null; // "Automatique" — resolver falls back to own/guardian email
+
+        // ── Téléphone principal — set IsPrimary on the chosen phone within its own list (member's or a guardian's),
+        // clearing the siblings in that same list (spec: reuse per-list IsPrimary, no new field).
+        if (request.PrimaryPhoneId is { } phoneId)
+        {
+            var ownPhones = await context.MemberPhones.Where(p => p.MemberId == memberId.Value && !p.IsDeleted).ToListAsync(ct);
+            var target = ownPhones.FirstOrDefault(p => p.Id == phoneId);
+            if (target is not null)
+                foreach (var p in ownPhones) p.IsPrimary = p.Id == phoneId;
+            else
+            {
+                var gp = await context.GuardianPhones.FirstOrDefaultAsync(p => p.Id == phoneId && !p.IsDeleted
+                    && context.GuardianLinks.Any(l => l.GuardianId == p.GuardianId && l.MemberId == memberId.Value && !l.IsDeleted), ct);
+                if (gp is null) return Result<bool>.Failure("Téléphone introuvable.");
+                var siblings = await context.GuardianPhones.Where(p => p.GuardianId == gp.GuardianId && !p.IsDeleted).ToListAsync(ct);
+                foreach (var p in siblings) p.IsPrimary = p.Id == phoneId;
+            }
+        }
+
+        // ── Situation des parents (mirrored onto a confirmed fratrie).
+        member.ParentsSituation = string.IsNullOrWhiteSpace(request.ParentsSituation) ? null : request.ParentsSituation.Trim();
+        await HouseholdSync.PropagateParentsSituationAsync(context, memberId.Value, member.ParentsSituation, ct);
+
+        // ── Per-parent flags: urgence on the link (per child), décédé on the shared guardian (household fact).
+        foreach (var g in request.Guardians ?? [])
+        {
+            var link = await context.GuardianLinks.FirstOrDefaultAsync(l => l.Id == g.LinkId && l.MemberId == memberId.Value && l.GuardianId == g.GuardianId && !l.IsDeleted, ct);
+            if (link is null) continue; // ignore rows not linked to the caller (tampering / stale)
+            link.IsEmergencyContact = g.IsEmergencyContact;
+            var guardian = await context.Guardians.FindAsync([g.GuardianId], ct);
+            if (guardian is not null) guardian.IsDeceased = g.IsDeceased;
+        }
+
+        member.ContactReviewedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("ReviewContacts", "Member", member.Id, newValues: new
+        {
+            Member = await AuditNames.MemberAsync(context, member.Id, ct),
+            PrimaryEmail = member.PrimaryContactEmail, member.ParentsSituation
+        }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
 // ── Addresses ───────────────────────────────────────────────────────────────
 public record AddMyAddressCommand(string Type, string Country, string City, string? Details, bool IsPrimary) : IRequest<Result<Guid>>;
 public record UpdateMyAddressCommand(Guid Id, string Type, string Country, string City, string? Details, bool IsPrimary) : IRequest<Result<bool>>;

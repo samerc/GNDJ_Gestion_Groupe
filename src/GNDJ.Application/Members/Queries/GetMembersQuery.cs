@@ -332,7 +332,9 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
                 _currentUser.IsSuperAdmin
                     && _context.Users.Any(u => u.MemberId == m.Id && !u.IsDeleted && u.IsSuperAdmin),
                 // Last sign-in of the linked account (correlated subquery); null if it never logged in / no account.
-                _context.Users.Where(u => u.MemberId == m.Id && !u.IsDeleted).Select(u => u.LastLoginAt).FirstOrDefault()
+                _context.Users.Where(u => u.MemberId == m.Id && !u.IsDeleted).Select(u => u.LastLoginAt).FirstOrDefault(),
+                // When the member confirmed their coordonnées via the contact-review popup (null = not yet reviewed).
+                m.ContactReviewedAt
             ))
             .FirstOrDefaultAsync(cancellationToken);
     }

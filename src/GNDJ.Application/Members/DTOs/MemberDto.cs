@@ -67,7 +67,10 @@ public record MemberDetailDto(
     bool IsSuperAdmin,
     // Last time the linked user account signed in (null = a linked account that has NEVER logged in, or no account
     // at all — the panel distinguishes the two via Username). Shown in the panel header under the identifiant.
-    DateTime? LastLoginAt
+    DateTime? LastLoginAt,
+    // When the member confirmed their household contacts via the one-time contact-review popup (null = not yet).
+    // Lets a CU/CG see, right under the last-login line, who has vs. hasn't reviewed/fixed their coordonnées.
+    DateTime? ContactReviewedAt
 );
 
 // Counts shown as tab badges on the member detail panel — folded into the detail query so opening a member

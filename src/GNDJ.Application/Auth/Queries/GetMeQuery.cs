@@ -61,6 +61,10 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
         // super-admin by flag) who hasn't confirmed their personal email + phone is prompted once to verify them.
         var isLeader = unitAccess.Any(u => u.IsLeader || u.IsGroupLevel);
         var needsContactVerification = isLeader && !user.IsSuperAdmin && user.Member.ContactVerifiedAt is null;
+        // Unified contact-review popup (EVERYONE, not just leaders): shown once until the member confirms their
+        // household contacts. Excludes super-admins (they have no personal household to review). Skippable per
+        // session (client-side); ContactReviewedAt is stamped only on « Confirmer ».
+        var needsContactReview = !user.IsSuperAdmin && user.Member.ContactReviewedAt is null;
         // Prefill = the member's OWN email/phone (primary first), never a guardian's — so we don't invite them to
         // "confirm" a parent's; empty means they must type their personal one.
         string? suggestedEmail = null, suggestedPhoneCountry = null, suggestedPhone = null;
@@ -92,7 +96,8 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
             suggestedPhoneCountry,
             suggestedPhone,
             user.Member.OnboardingSeenAt != null,
-            isMaitrise
+            isMaitrise,
+            needsContactReview
         ));
     }
 }

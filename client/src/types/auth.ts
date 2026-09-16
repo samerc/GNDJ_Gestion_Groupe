@@ -40,6 +40,10 @@ export interface MeResponse {
   // True when the member holds an active maîtrise (leadership) role — pays the maîtrise cotisation, not the
   // youth one. Lets Ma fiche hide the cotisation when "la maîtrise ne paie pas" is toggled off.
   isMaitrise?: boolean
+  // True when the member hasn't confirmed their household contacts yet (ContactReviewedAt null; super-admins
+  // excluded). The app shows a one-time SKIPPABLE « Vérifiez vos coordonnées » modal (fix emails/phones, pick the
+  // courriel/téléphone principal, parents' situation + flags). Cleared after « Confirmer » (loadUser refreshes it).
+  needsContactReview?: boolean
 }
 
 export interface UnitAccess {

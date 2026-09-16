@@ -35,6 +35,11 @@ public class MyProfileController : BaseApiController
     [HttpPost("verify-contact")]
     public async Task<IActionResult> VerifyContact([FromBody] VerifyMyContactCommand command) => Wrap(await Mediator.Send(command));
 
+    /// <summary>One-time contact-review popup « Confirmer »: applies the caller's chosen courriel/téléphone
+    /// principal + parents' situation + per-parent urgence/décédé, and stamps ContactReviewedAt so it stops showing.</summary>
+    [HttpPost("review-contacts")]
+    public async Task<IActionResult> ReviewContacts([FromBody] ReviewMyContactsCommand command) => Wrap(await Mediator.Send(command));
+
     /// <summary>Marks the caller's first-login welcome tour as seen (so the carousel doesn't show again).</summary>
     [HttpPost("onboarding-seen")]
     public async Task<IActionResult> OnboardingSeen() => Wrap(await Mediator.Send(new MarkOnboardingSeenCommand()));
@@ -123,6 +128,11 @@ public class MyProfileController : BaseApiController
     public async Task<IActionResult> AddGuardianPhone(Guid guardianId, [FromBody] AddMyGuardianPhoneCommand command)
         => guardianId != command.GuardianId ? BadRequest(new { error = "L'identifiant ne correspond pas." }) : Wrap(await Mediator.Send(command));
 
+    /// <summary>Edits a phone of one of the caller's own linked guardians (fix a typo / type / primary flag).</summary>
+    [HttpPut("guardian-phones/{id:guid}")]
+    public async Task<IActionResult> UpdateGuardianPhone(Guid id, [FromBody] UpdateMyGuardianPhoneCommand command)
+        => id != command.Id ? BadRequest(new { error = "L'identifiant ne correspond pas." }) : Wrap(await Mediator.Send(command));
+
     /// <summary>Removes a phone from one of the caller's own linked guardians.</summary>
     [HttpDelete("guardian-phones/{id:guid}")]
     public async Task<IActionResult> DeleteGuardianPhone(Guid id) => Wrap(await Mediator.Send(new DeleteMyGuardianPhoneCommand(id)));
@@ -131,6 +141,11 @@ public class MyProfileController : BaseApiController
     [HttpPost("guardians/{guardianId:guid}/emails")]
     public async Task<IActionResult> AddGuardianEmail(Guid guardianId, [FromBody] AddMyGuardianEmailCommand command)
         => guardianId != command.GuardianId ? BadRequest(new { error = "L'identifiant ne correspond pas." }) : Wrap(await Mediator.Send(command));
+
+    /// <summary>Edits an email of one of the caller's own linked guardians (fix a typo / type / primary flag).</summary>
+    [HttpPut("guardian-emails/{id:guid}")]
+    public async Task<IActionResult> UpdateGuardianEmail(Guid id, [FromBody] UpdateMyGuardianEmailCommand command)
+        => id != command.Id ? BadRequest(new { error = "L'identifiant ne correspond pas." }) : Wrap(await Mediator.Send(command));
 
     /// <summary>Removes an email from one of the caller's own linked guardians.</summary>
     [HttpDelete("guardian-emails/{id:guid}")]

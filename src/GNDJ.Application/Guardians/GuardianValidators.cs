@@ -69,3 +69,24 @@ public class AddGuardianEmailCommandValidator : AbstractValidator<AddGuardianEma
         RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
     }
 }
+
+public class UpdateGuardianPhoneCommandValidator : AbstractValidator<UpdateGuardianPhoneCommand>
+{
+    public UpdateGuardianPhoneCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.CountryCode).NotEmpty().MaximumLength(10).NoHtml();
+        RuleFor(x => x.Number).NotEmpty().WithMessage("Le numéro est requis.").MaximumLength(30).NoHtml();
+        RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
+    }
+}
+
+public class UpdateGuardianEmailCommandValidator : AbstractValidator<UpdateGuardianEmailCommand>
+{
+    public UpdateGuardianEmailCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.Address).NotEmpty().EmailAddress().WithMessage("Adresse email invalide.").MaximumLength(254).RealEmail();
+        RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
+    }
+}

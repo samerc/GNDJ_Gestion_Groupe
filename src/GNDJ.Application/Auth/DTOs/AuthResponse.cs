@@ -45,7 +45,11 @@ public record MeResponse(
     bool HasSeenOnboarding = false,
     // True when the member holds at least one active maîtrise (leadership) role — i.e. pays the maîtrise
     // cotisation, not the youth one. Lets Ma fiche hide the cotisation when "la maîtrise ne paie pas" is on.
-    bool IsMaitrise = false
+    bool IsMaitrise = false,
+    // True when the member hasn't yet confirmed their household contacts via the one-time contact-review popup
+    // (ContactReviewedAt is null; super-admins excluded). The app shows a SKIPPABLE « Vérifiez vos coordonnées »
+    // modal (« Confirmer » stamps it; « Plus tard » defers for the session). Replaces the leader-only prompt.
+    bool NeedsContactReview = false
 );
 
 public record UnitAccessDto(

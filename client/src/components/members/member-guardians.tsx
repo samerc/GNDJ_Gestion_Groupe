@@ -4,10 +4,10 @@ import { toast } from 'sonner'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useDebounce } from '@/hooks/use-debounce'
-import { useMemberGuardians, useSearchGuardians, useCreateGuardian, useUpdateGuardian, useUpdateGuardianLink, useLinkGuardian, useUnlinkGuardian, useAddGuardianPhone, useAddGuardianEmail, useDeleteGuardianPhone, useDeleteGuardianEmail, useCreateMyGuardian, useUpdateMyGuardian, useUpdateMyGuardianLink, useUnlinkMyGuardian, useAddMyGuardianPhone, useAddMyGuardianEmail, useDeleteMyGuardianPhone, useDeleteMyGuardianEmail, type GuardianLinkDto, type GuardianSearchDto } from '@/services/guardian-service'
+import { useMemberGuardians, useSearchGuardians, useCreateGuardian, useUpdateGuardian, useUpdateGuardianLink, useLinkGuardian, useUnlinkGuardian, useAddGuardianPhone, useAddGuardianEmail, useUpdateGuardianPhone, useUpdateGuardianEmail, useDeleteGuardianPhone, useDeleteGuardianEmail, useCreateMyGuardian, useUpdateMyGuardian, useUpdateMyGuardianLink, useUnlinkMyGuardian, useAddMyGuardianPhone, useAddMyGuardianEmail, useUpdateMyGuardianPhone, useUpdateMyGuardianEmail, useDeleteMyGuardianPhone, useDeleteMyGuardianEmail, type GuardianLinkDto, type GuardianSearchDto } from '@/services/guardian-service'
 import { useSettingValue, useSettingArray } from '@/services/settings-service'
 import { SearchableSelect } from '@/components/shared/searchable-select'
-import { PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS } from '@/lib/options'
+import { PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, optionsWithCurrent } from '@/lib/options'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input'
@@ -69,6 +69,8 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
   const unlinkL = useUnlinkGuardian(memberId), unlinkS = useUnlinkMyGuardian(memberId)
   const addPhoneL = useAddGuardianPhone(memberId), addPhoneS = useAddMyGuardianPhone(memberId)
   const addEmailL = useAddGuardianEmail(memberId), addEmailS = useAddMyGuardianEmail(memberId)
+  const updPhoneL = useUpdateGuardianPhone(memberId), updPhoneS = useUpdateMyGuardianPhone(memberId)
+  const updEmailL = useUpdateGuardianEmail(memberId), updEmailS = useUpdateMyGuardianEmail(memberId)
   const deletePhoneL = useDeleteGuardianPhone(memberId), deletePhoneS = useDeleteMyGuardianPhone(memberId)
   const deleteEmailL = useDeleteGuardianEmail(memberId), deleteEmailS = useDeleteMyGuardianEmail(memberId)
   const createMutation = selfService ? createS : createL
@@ -78,6 +80,8 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
   const unlinkMutation = selfService ? unlinkS : unlinkL
   const addPhoneMutation = selfService ? addPhoneS : addPhoneL
   const addEmailMutation = selfService ? addEmailS : addEmailL
+  const updPhoneMutation = selfService ? updPhoneS : updPhoneL
+  const updEmailMutation = selfService ? updEmailS : updEmailL
   const deletePhoneMutation = selfService ? deletePhoneS : deletePhoneL
   const deleteEmailMutation = selfService ? deleteEmailS : deleteEmailL
   const defaultCountryCode = useSettingValue('default_country_code')
@@ -100,6 +104,9 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
   const [emailDialog, setEmailDialog] = useState<string | null>(null)
   const [phoneForm, setPhoneForm] = useState({ countryCode: '+961', number: '', type: 'Mobile', isPrimary: false })
   const [emailForm, setEmailForm] = useState({ address: '', type: 'Personnel', isPrimary: false })
+  // In-place edit of a guardian phone/email (fix a typo without delete+re-add).
+  const [editPhone, setEditPhone] = useState<{ id: string; countryCode: string; number: string; type: string; isPrimary: boolean } | null>(null)
+  const [editEmail, setEditEmail] = useState<{ id: string; address: string; type: string; isPrimary: boolean } | null>(null)
   const [unlinking, setUnlinking] = useState<GuardianLinkDto | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editForm, setEditForm] = useState({ id: '', firstName: '', lastName: '', profession: '', professionDomain: '', isDeceased: false, notes: '', linkId: '', relationshipType: 'Père', isPrimaryContact: false, isEmergencyContact: false })
@@ -189,6 +196,19 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
+  const handleEditPhone = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editPhone) return
+    try { await updPhoneMutation.mutateAsync(editPhone); toast.success('Téléphone modifié'); setEditPhone(null) }
+    catch (err) { toast.error(parseApiError(err)) }
+  }
+  const handleEditEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editEmail) return
+    try { await updEmailMutation.mutateAsync(editEmail); toast.success('Courriel modifié'); setEditEmail(null) }
+    catch (err) { toast.error(parseApiError(err)) }
+  }
+
   return (
     <div className="space-y-4">
       {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
@@ -259,7 +279,10 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                         {/* Copy + WhatsApp shortcuts — leaders only (hidden on the member's own Ma fiche). */}
                         {!selfService && <CopyButton value={formatPhoneDisplay(p.countryCode, p.number)} label="Copier le numéro" />}
                         {!selfService && <WhatsappLink countryCode={p.countryCode} number={p.number} />}
-                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="ml-auto h-7 w-7 opacity-60 transition-opacity group-hover:opacity-100" disabled={deletePhoneMutation.isPending} onClick={() => deletePhoneMutation.mutateAsync(p.id).then(() => toast.success('Téléphone supprimé')).catch(err => toast.error(parseApiError(err)))}>
+                        <Tip content="Modifier"><Button variant="ghost" size="icon" className="ml-auto h-7 w-7 opacity-60 transition-opacity group-hover:opacity-100" onClick={() => setEditPhone({ id: p.id, countryCode: p.countryCode, number: p.number, type: p.type, isPrimary: p.isPrimary })}>
+                          <Pencil className="h-3 w-3" />
+                        </Button></Tip>
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 opacity-60 transition-opacity group-hover:opacity-100" disabled={deletePhoneMutation.isPending} onClick={() => deletePhoneMutation.mutateAsync(p.id).then(() => toast.success('Téléphone supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button></Tip>
                       </div>
@@ -286,7 +309,10 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                         <span className="text-xs text-muted-foreground">{em.type}</span>
                         {em.isPrimary && <Badge variant="outline" className="h-5 text-xs">Principal</Badge>}
                         {!selfService && <CopyButton value={em.address} label="Copier le courriel" />}
-                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="ml-auto h-7 w-7 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" disabled={deleteEmailMutation.isPending} onClick={() => deleteEmailMutation.mutateAsync(em.id).then(() => toast.success('Courriel supprimé')).catch(err => toast.error(parseApiError(err)))}>
+                        <Tip content="Modifier"><Button variant="ghost" size="icon" className="ml-auto h-7 w-7 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" onClick={() => setEditEmail({ id: em.id, address: em.address, type: em.type, isPrimary: em.isPrimary })}>
+                          <Pencil className="h-3 w-3" />
+                        </Button></Tip>
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" disabled={deleteEmailMutation.isPending} onClick={() => deleteEmailMutation.mutateAsync(em.id).then(() => toast.success('Courriel supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button></Tip>
                       </div>
@@ -465,6 +491,39 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
               <Button type="submit" disabled={addEmailMutation.isPending}>Ajouter</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit guardian phone dialog */}
+      <Dialog open={!!editPhone} onOpenChange={() => setEditPhone(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Modifier le téléphone</DialogTitle></DialogHeader>
+          {editPhone && (
+            <form onSubmit={handleEditPhone} className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={editPhone.countryCode} onValueChange={(v) => setEditPhone(f => f && { ...f, countryCode: v })} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher un indicatif..." /></div>
+                <div className="sm:col-span-2 space-y-2"><RequiredLabel required>Numéro</RequiredLabel><PhoneInput dialCode={editPhone.countryCode} value={editPhone.number} onChange={(v) => setEditPhone(f => f && { ...f, number: v })} required /></div>
+              </div>
+              <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editPhone.type} onValueChange={(v) => setEditPhone(f => f && { ...f, type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{optionsWithCurrent(PHONE_TYPE_OPTIONS, editPhone.type).map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editPhone.isPrimary} onChange={(e) => setEditPhone(f => f && { ...f, isPrimary: e.target.checked })} />Principal</label>
+              <DialogFooter><Button variant="outline" type="button" onClick={() => setEditPhone(null)}>Annuler</Button><Button type="submit" disabled={updPhoneMutation.isPending}>{updPhoneMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button></DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit guardian email dialog */}
+      <Dialog open={!!editEmail} onOpenChange={() => setEditEmail(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Modifier le courriel</DialogTitle></DialogHeader>
+          {editEmail && (
+            <form onSubmit={handleEditEmail} className="space-y-4">
+              <div className="space-y-2"><RequiredLabel required>Adresse courriel</RequiredLabel><Input type="email" value={editEmail.address} onChange={(e) => setEditEmail(f => f && { ...f, address: e.target.value })} required /></div>
+              <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editEmail.type} onValueChange={(v) => setEditEmail(f => f && { ...f, type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{optionsWithCurrent(EMAIL_TYPE_OPTIONS, editEmail.type).map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editEmail.isPrimary} onChange={(e) => setEditEmail(f => f && { ...f, isPrimary: e.target.checked })} />Principal</label>
+              <DialogFooter><Button variant="outline" type="button" onClick={() => setEditEmail(null)}>Annuler</Button><Button type="submit" disabled={updEmailMutation.isPending}>{updEmailMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button></DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 

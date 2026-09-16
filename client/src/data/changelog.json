@@ -4,6 +4,14 @@
     "date": "2026-09-10",
     "changes": [
       {
+        "date": "2026-09-16",
+        "text": "Vérification des coordonnées — à la connexion, chaque membre voit désormais une fenêtre « Vérifiez vos coordonnées » (une seule fois, ignorable via « Plus tard ») pour corriger ses courriels et téléphones, choisir le COURRIEL et le TÉLÉPHONE principal (celui qui reçoit nos messages — souvent celui de la maman plutôt que du papa), indiquer la situation des parents et, par parent, le contact d'urgence et le statut décédé(e). Remplace l'ancien écran réservé aux chefs et s'applique à tous (y compris un nouveau membre issu d'une demande, à sa première connexion). Côté maîtrise : la fiche d'un membre indique, sous la dernière connexion, « Coordonnées vérifiées le … » ou « Coordonnées à vérifier » pour repérer qui n'a pas encore confirmé."
+      },
+      {
+        "date": "2026-09-16",
+        "text": "Ma fiche → Famille : on peut maintenant MODIFIER un téléphone ou un courriel d'un parent directement (icône crayon), sans devoir le supprimer puis le recréer (idem côté chefs sur la fiche d'un membre)."
+      },
+      {
         "date": "2026-09-15",
         "text": "Fratries — lors de la fusion d'une fratrie, vous choisissez désormais précisément les coordonnées à conserver pour CHAQUE parent : cochez/décochez chaque téléphone et courriel (y compris ceux de la fiche principale, pour retirer un numéro ou un email erroné) — plus de fusion « en aveugle » qui empilait tous les doublons. Vous pouvez aussi garder plusieurs adresses."
       },

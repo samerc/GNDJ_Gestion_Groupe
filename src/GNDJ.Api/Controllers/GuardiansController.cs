@@ -132,6 +132,28 @@ public class GuardiansController : BaseApiController
         return Created("", new { id = result.Value });
     }
 
+    /// <summary>Edits a guardian phone number (value/type/primary flag) in place. Requires members.edit.</summary>
+    [HttpPut("phones/{phoneId:guid}")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> UpdatePhone(Guid phoneId, [FromBody] UpdateGuardianPhoneCommand command)
+    {
+        if (phoneId != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    /// <summary>Edits a guardian email address (value/type/primary flag) in place. Requires members.edit.</summary>
+    [HttpPut("emails/{emailId:guid}")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> UpdateEmail(Guid emailId, [FromBody] UpdateGuardianEmailCommand command)
+    {
+        if (emailId != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>Deletes a guardian phone number. Requires members.edit.</summary>
     [HttpDelete("phones/{phoneId:guid}")]
     [HasPermission(Permissions.MembersEdit)]

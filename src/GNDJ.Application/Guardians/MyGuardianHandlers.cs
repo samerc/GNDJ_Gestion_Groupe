@@ -201,6 +201,60 @@ public class AddMyGuardianPhoneHandler(IApplicationDbContext context, ICurrentUs
         return Result<Guid>.Success(entity.Id);
     }
 }
+// Edit a guardian's phone/email in place (fix a typo, change the type/primary flag) — the missing piece so
+// guardian contacts aren't add/delete-only. Own-scoped: the contact's guardian must be linked to the caller.
+public record UpdateMyGuardianPhoneCommand(Guid Id, string CountryCode, string Number, string Type, bool IsPrimary) : IRequest<Result<bool>>;
+public record UpdateMyGuardianEmailCommand(Guid Id, string Address, string Type, bool IsPrimary) : IRequest<Result<bool>>;
+
+public class UpdateMyGuardianPhoneValidator : AbstractValidator<UpdateMyGuardianPhoneCommand>
+{
+    public UpdateMyGuardianPhoneValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.CountryCode).NotEmpty().MaximumLength(10).NoHtml();
+        RuleFor(x => x.Number).NotEmpty().WithMessage("Le numéro est requis.").MaximumLength(30).NoHtml();
+        RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
+    }
+}
+public class UpdateMyGuardianEmailValidator : AbstractValidator<UpdateMyGuardianEmailCommand>
+{
+    public UpdateMyGuardianEmailValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse courriel est requise.").EmailAddress().MaximumLength(150).NoHtml().RealEmail();
+        RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
+    }
+}
+
+public class UpdateMyGuardianPhoneHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<UpdateMyGuardianPhoneCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(UpdateMyGuardianPhoneCommand request, CancellationToken ct)
+    {
+        var entity = await context.GuardianPhones.FindAsync([request.Id], ct);
+        if (entity is null || !await MyGuardianAccess.IsMine(context, currentUser, entity.GuardianId, ct)) return Result<bool>.Failure("Téléphone introuvable.");
+        var old = $"{entity.CountryCode} {entity.Number}".Trim();
+        entity.CountryCode = request.CountryCode; entity.Number = request.Number; entity.Type = request.Type; entity.IsPrimary = request.IsPrimary;
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Guardian", entity.GuardianId, oldValues: new { Phone = old },
+            newValues: new { Parent = await AuditNames.GuardianAsync(context, entity.GuardianId, ct), Phone = $"{request.CountryCode} {request.Number}".Trim(), request.Type }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+public class UpdateMyGuardianEmailHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<UpdateMyGuardianEmailCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(UpdateMyGuardianEmailCommand request, CancellationToken ct)
+    {
+        var entity = await context.GuardianEmails.FindAsync([request.Id], ct);
+        if (entity is null || !await MyGuardianAccess.IsMine(context, currentUser, entity.GuardianId, ct)) return Result<bool>.Failure("Courriel introuvable.");
+        var old = entity.Address;
+        entity.Address = request.Address; entity.Type = request.Type; entity.IsPrimary = request.IsPrimary;
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Guardian", entity.GuardianId, oldValues: new { Email = old },
+            newValues: new { Parent = await AuditNames.GuardianAsync(context, entity.GuardianId, ct), Email = request.Address, request.Type }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
 public class DeleteMyGuardianPhoneHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<DeleteMyGuardianPhoneCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteMyGuardianPhoneCommand request, CancellationToken ct)

@@ -5085,6 +5085,39 @@ logged/alerted. Fix (frontend-only, DEV until deploy):
 - **error-report.ts `isBenignError`** now treats `isChunkLoadError` as benign → never reported to `/errors/report`
   / the admin alert (the ErrorBoundary already skips reporting benign errors). tsc + eslint + vite build clean.
 
+### Contact-review popup + guardian-contact edit + tracking (2026-09-16)
+One-time, SKIPPABLE « Vérifiez vos coordonnées » modal on login (for EVERYONE, replacing the leader-only prompt) so
+members fix the "father's email is primary but the mother handles things" problem. All on main, DEV until deploy
+(migration `AddMemberContactReviewed` applies on prod startup); live-verified end-to-end.
+- **Model:** `Member.ContactReviewedAt` (null = not reviewed). `GetMe`/`/auth/bootstrap` expose
+  `needsContactReview` = `!IsSuperAdmin && ContactReviewedAt is null` (`MeResponse.NeedsContactReview` /
+  `user.needsContactReview`).
+- **Backend** `ReviewMyContactsCommand` + `POST /my-profile/review-contacts` (auth-only, own member resolved
+  server-side): ATOMICALLY sets `PrimaryContactEmail` (validated ∈ the member's own emails ∪ their guardians'
+  emails — a stranger email → 400), the **téléphone principal** (per-list `IsPrimary` on the chosen member OR
+  guardian phone, clearing siblings — reuses the existing flag, no new field), `ParentsSituation`
+  (+`HouseholdSync.PropagateParentsSituationAsync` to a confirmed fratrie), per-parent **urgence**
+  (`GuardianLink.IsEmergencyContact`, per child) + **décédé** (`Guardian.IsDeceased`, shared household fact), and
+  stamps `ContactReviewedAt`. Audited `ReviewContacts`.
+- **Frontend** `components/members/contact-review-popup.tsx`: an OUTER gate (fires no queries unless it will show —
+  `needsContactReview && memberId && !sessionStorage skip`) + a Dialog: §1 courriel principal + téléphone principal
+  (radio across own + each parent's, with inline Ajouter/Supprimer via the existing self-service hooks; adding a
+  courriel auto-selects it as principal), §2 Vos parents (urgence + décédé, décédé styled quiet), §3 situation des
+  parents. « Plus tard » = sessionStorage skip (re-appears next login); « Confirmer » → command + `loadUser()`.
+  Mounted in AppLayout (`!impersonating && <ContactReviewPopup/>`); the leader full-screen gate + its import were
+  REMOVED; the welcome tour is gated `!user?.needsContactReview` so the two modals never stack. One-shot hydration
+  uses the render-phase reset pattern (not an effect — the React-Compiler eslint rule forbids setState-in-effect).
+  A converted demande member (ContactReviewedAt null by default) gets it on first login automatically.
+- **Guardian phone/email EDIT** (the "add the edit please" ask — guardian contacts were add/delete-only): new
+  `UpdateMyGuardianPhone/Email` (self) + `UpdateGuardianPhone/Email` (leader) commands/validators + `PUT
+  /my-profile/guardian-phones|emails/{id}` and `PUT /guardians/phones|emails/{id}`, hooks
+  (`useUpdate{My,}GuardianPhone/Email`), and a pencil wired into `MemberGuardians` (both modes) with edit dialogs.
+- **Tracking:** `MemberDetailDto.ContactReviewedAt` (+ `GetMembersQuery` projection + TS type) → the member panel
+  header shows, under the last-login line, "Coordonnées vérifiées le …" (green) or "Coordonnées à vérifier" (amber),
+  so a CU/CG sees who ignored the popup. (A members-list filter could follow.)
+- The leader `ContactVerifiedAt` / `VerifyMyContact` / `LeaderContactVerification.tsx` are now DEAD (superseded) but
+  left in place. Build clean (dotnet 0/0 + tsc + eslint + vite).
+
 ### Theme reverted to light on refresh — inline no-flash script blocked by CSP (2026-09-14)
 User: "no matter what theme I pick, it reverts to light on refresh." Root cause: the dark-mode work added an
 INLINE `<script>` in `index.html` (the no-flash theme applier), but the production CSP is `script-src 'self'`

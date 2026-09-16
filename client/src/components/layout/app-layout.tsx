@@ -11,8 +11,8 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useMaintenance } from '@/services/maintenance-service'
 import { MaintenancePage } from '@/components/shared/maintenance-page'
 import { ForcePasswordChange } from '@/components/auth/force-password-change'
-import { LeaderContactVerification } from '@/components/auth/leader-contact-verification'
 import { MemberWelcomeTour } from '@/components/onboarding/member-welcome-tour'
+import { ContactReviewPopup } from '@/components/members/contact-review-popup'
 import { ImpersonationBanner } from './impersonation-banner'
 import { useImpersonationStore } from '@/stores/impersonation-store'
 
@@ -61,9 +61,8 @@ export function AppLayout() {
   // email link already set their password (flag cleared) and never see this.
   if (user?.mustChangePassword && !impersonating) return <ForcePasswordChange />
 
-  // Leader first-login step (AFTER the password): confirm your personal contact details (email + phone). Many
-  // leaders were youth with a parent's on file; block the app once until they confirm/correct them.
-  if (user?.needsContactVerification && !impersonating) return <LeaderContactVerification />
+  // NOTE: the old leader-only "confirm your contact details" full-screen gate is replaced by the unified,
+  // SKIPPABLE ContactReviewPopup (mounted below) — shown to EVERYONE once until they confirm their coordonnées.
 
   // Managers get a horizontal top menubar (desktop) instead of the long left sidebar — the grouped admin nav
   // fits better as dropdowns and frees the width for the data-dense tables. Non-managers keep the left sidebar.
@@ -81,8 +80,11 @@ export function AppLayout() {
             them, and those fire mutations (marked-seen/dismiss) that the read-only mode would block. */}
         {!impersonating && <SessionWarning />}
         {!impersonating && <RentreeOverduePopup />}
-        {/* First-login welcome tour for regular members (self-gated; chefs/admins excluded — they get the guide). */}
-        {!impersonating && <MemberWelcomeTour />}
+        {/* One-time (skippable) contact-review popup — shown to everyone until they confirm their coordonnées. */}
+        {!impersonating && <ContactReviewPopup />}
+        {/* First-login welcome tour for regular members (self-gated; chefs/admins excluded — they get the guide).
+            Suppressed while contact review is pending so the two modals don't stack — the tour appears after it. */}
+        {!impersonating && !user?.needsContactReview && <MemberWelcomeTour />}
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header />
           {inMaintenance && !impersonating && (
