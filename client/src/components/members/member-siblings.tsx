@@ -5,6 +5,7 @@ import { useMemberSiblings, useUnlinkSibling } from '@/services/sibling-service'
 import { useMembers } from '@/services/member-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
@@ -45,13 +46,14 @@ export function MemberSiblings({ memberId, canManage = false, linkable = false }
   if (isLoading) return null
 
   return (
-    <div className="rounded-lg border bg-card p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-sm font-semibold"><Users className="h-4 w-4 text-primary" />Frères et sœurs</h3>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4 text-primary" />Frères et sœurs</CardTitle>
         {canManage && (
           <Button size="sm" variant="outline" onClick={() => setShowLink(true)}><Plus className="mr-1 h-4 w-4" />Lier un frère/sœur</Button>
         )}
-      </div>
+      </CardHeader>
+      <CardContent>
 
       {(!siblings || siblings.length === 0) ? (
         <p className="text-sm text-muted-foreground">Aucun frère ou sœur enregistré.</p>
@@ -128,6 +130,7 @@ export function MemberSiblings({ memberId, canManage = false, linkable = false }
         loading={unlink.isPending}
         variant="destructive"
       />
-    </div>
+      </CardContent>
+    </Card>
   )
 }

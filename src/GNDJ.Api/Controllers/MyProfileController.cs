@@ -40,6 +40,13 @@ public class MyProfileController : BaseApiController
     [HttpPost("review-contacts")]
     public async Task<IActionResult> ReviewContacts([FromBody] ReviewMyContactsCommand command) => Wrap(await Mediator.Send(command));
 
+    /// <summary>Sets (or clears) the caller's own primary contact email — the recipient for member-facing mail.</summary>
+    [HttpPut("primary-email")]
+    public async Task<IActionResult> SetPrimaryEmail([FromBody] PrimaryEmailBody body) => Wrap(await Mediator.Send(new SetMyPrimaryContactEmailCommand(body?.Email)));
+
+    /// <summary>Body for PUT /my-profile/primary-email.</summary>
+    public record PrimaryEmailBody(string? Email);
+
     /// <summary>Marks the caller's first-login welcome tour as seen (so the carousel doesn't show again).</summary>
     [HttpPost("onboarding-seen")]
     public async Task<IActionResult> OnboardingSeen() => Wrap(await Mediator.Send(new MarkOnboardingSeenCommand()));

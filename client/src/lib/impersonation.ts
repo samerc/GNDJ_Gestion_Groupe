@@ -48,3 +48,36 @@ export function clearImpersonation(): void {
 let onExpiry: (() => void) | null = null
 export function registerImpersonationExpiryHandler(cb: () => void): void { onExpiry = cb }
 export function triggerImpersonationExpiry(): void { onExpiry?.() }
+
+// ── New-tab handoff ──────────────────────────────────────────────────────────
+// "Voir comme" opens in a NEW browser tab so the admin keeps their own session in the original tab. The
+// impersonation token lives in per-tab sessionStorage, so it can't be shared directly. The admin tab mints the
+// token then drops a SHORT-LIVED handoff in localStorage (the only cross-tab channel); the new tab consumes it
+// once (removes it immediately) into its own sessionStorage slot. localStorage is used ONLY as a <60s courier —
+// the token never persists there. Works regardless of the admin's "remember me" (the new tab needs no admin auth;
+// the impersonation token alone makes it the member).
+export const IMPERSONATION_HANDOFF_KEY = 'imp.handoff'
+// The result the admin tab hands to the new tab: either the minted token, or the error to display.
+export interface ImpersonationHandoff {
+  ok: boolean
+  error?: string
+  accessToken?: string
+  memberId?: string
+  memberName?: string
+}
+
+export function writeImpersonationHandoff(d: ImpersonationHandoff): void {
+  try { localStorage.setItem(IMPERSONATION_HANDOFF_KEY, JSON.stringify({ ...d, ts: Date.now() })) } catch { /* ignore */ }
+}
+
+export function consumeImpersonationHandoff(): ImpersonationHandoff | null {
+  try {
+    const raw = localStorage.getItem(IMPERSONATION_HANDOFF_KEY)
+    if (!raw) return null
+    localStorage.removeItem(IMPERSONATION_HANDOFF_KEY) // single-use — remove before using
+    const d = JSON.parse(raw)
+    if (Date.now() - (d?.ts ?? 0) > 120_000) return null // stale (> 2 min)
+    if (d?.ok && (!d.accessToken || !d.memberId)) return null // malformed success
+    return { ok: !!d?.ok, error: d?.error, accessToken: d?.accessToken, memberId: d?.memberId, memberName: d?.memberName }
+  } catch { return null }
+}

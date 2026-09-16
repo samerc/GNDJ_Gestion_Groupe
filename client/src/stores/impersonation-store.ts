@@ -5,7 +5,9 @@ import { queryClient } from '@/lib/query-client'
 import { useAuthStore } from '@/stores/auth-store'
 import {
   getImpersonationTarget, setImpersonation, clearImpersonation, registerImpersonationExpiryHandler,
+  writeImpersonationHandoff,
 } from '@/lib/impersonation'
+import { parseApiError } from '@/lib/error-utils'
 
 // Reactive state for the "Voir comme" (impersonation) session. The token slot itself lives in
 // lib/impersonation (sessionStorage, read by the non-React api-client); this store drives the UI (banner,
@@ -20,6 +22,10 @@ interface ImpersonationState {
   // Begin viewing as `memberId`: mints the read-only token (with the ADMIN token — impersonation not yet
   // active), swaps it in, and reloads the profile so the whole app becomes the member. Throws on failure.
   start: (memberId: string) => Promise<void>
+  // Open the "Voir comme" session in a NEW tab (the admin keeps their own session in the current tab). Opens the
+  // tab synchronously (click gesture → no popup block), mints the token, and hands it off via localStorage; the
+  // /voir-comme route in the new tab consumes it. Non-async; reports failure via toast.
+  startInNewTab: (memberId: string) => void
   // Exit: drop the impersonation token (api-client falls back to the admin's untouched tokens) and reload the
   // admin profile.
   stop: () => Promise<void>
@@ -47,6 +53,16 @@ export const useImpersonationStore = create<ImpersonationState>((set) => {
         set({ starting: false })
         throw e
       }
+    },
+
+    startInNewTab: (memberId: string) => {
+      // Open the tab FIRST, synchronously, so it isn't blocked as a non-gesture popup. It shows a loader and waits
+      // for the handoff (storage event + poll). The current tab stays the admin (no impersonation state set here).
+      // We hand off the RESULT — token on success, the real error otherwise — so the new tab can react/report.
+      window.open('/voir-comme', '_blank')
+      apiClient.post<ImpersonateResponse>(`/auth/impersonate/${memberId}`)
+        .then(({ data }) => writeImpersonationHandoff({ ok: true, accessToken: data.accessToken, memberId: data.memberId, memberName: data.memberName }))
+        .catch((e) => { const msg = parseApiError(e); writeImpersonationHandoff({ ok: false, error: msg }); toast.error(msg) })
     },
 
     stop: async () => {

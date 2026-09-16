@@ -35,6 +35,7 @@ const LoginPage = lazy(() => import('@/pages/login'))
 const ForgotPasswordPage = lazy(() => import('@/pages/forgot-password'))
 const ForgotUsernamePage = lazy(() => import('@/pages/forgot-username'))
 const ResetPasswordPage = lazy(() => import('@/pages/reset-password'))
+const ImpersonationHandoff = lazy(() => import('@/components/layout/impersonation-handoff'))
 const InscriptionLandingPage = lazy(() => import('@/pages/inscription/index'))
 const ApplicantLoginPage = lazy(() => import('@/pages/inscription/login'))
 const ApplicantRegisterPage = lazy(() => import('@/pages/inscription/register'))
@@ -123,6 +124,9 @@ export default function App() {
         </Route>
 
         <Route path="/login" element={<LoginPage />} />
+        {/* "Voir comme" new-tab landing — public: the new tab may carry no admin auth of its own, only the
+            handed-off impersonation token. Consumes it, becomes the member, then redirects to the dashboard. */}
+        <Route path="/voir-comme" element={<ImpersonationHandoff />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/forgot-username" element={<ForgotUsernamePage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />

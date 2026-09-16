@@ -5118,6 +5118,40 @@ members fix the "father's email is primary but the mother handles things" proble
 - The leader `ContactVerifiedAt` / `VerifyMyContact` / `LeaderContactVerification.tsx` are now DEAD (superseded) but
   left in place. Build clean (dotnet 0/0 + tsc + eslint + vite).
 
+### Contact & famille tab merge + household coordonnées + Voir-comme in a new tab (2026-09-16)
+Follow-up UX batch (all on main, DEV until deploy; builds clean dotnet 0/0 + tsc + eslint + vite).
+- **Merged Contact + Famille → one "Contact & famille" tab** on BOTH Ma fiche (`my-profile.tsx`) and the CG/admin
+  member panel (`members/index.tsx`). On the admin panel the Coordonnées moved OUT of the Informations tab (now
+  identity+scolarité only). Removed a big block of now-duplicated inline contact dialogs/state/handlers/imports from
+  both files (the shared component owns it). GOTCHA: while deleting the admin panel's dead contact-dialog JSX by line
+  range I also removed the adjacent absence-detail dialog — restored it from `git diff`.
+- **`components/members/household-contacts.tsx` (`HouseholdContacts`, shared)** — "Coordonnées du foyer": ALL the
+  household phones + emails pooled in one place (the member's own + each parent's), each row tagged with the owner
+  (Vous / Père · X / Mère · Y) + an **Urgence** badge (member = per-contact flag; parent = the guardian link's
+  `IsEmergencyContact`, so it shows on all that parent's rows) + a **Principal** badge (email = matches
+  `PrimaryContactEmail`; phone = per-list IsPrimary). Add/edit/delete inline (owner picker on add, type derived from
+  owner; edit fixes the value + the parent's relation via the guardian link) + the courriel-principal picker +
+  member addresses. `selfService` (Ma fiche → my-profile hooks) vs leader (member panel → member-service hooks),
+  chosen via a `pick(selfService, self, leader)` helper (the two hook sets differ only in response generic, so it's
+  cast to the self-service type). New **self endpoint** `SetMyPrimaryContactEmailCommand` + `PUT /my-profile/primary-email`
+  (+ `useSetMyPrimaryContactEmail`) so a member can set their own primary contact email.
+- **Parents section shows details only** — `MemberGuardians` gained `hideContacts` (drops the phone/email blocks;
+  keeps name/relation/profession/flags + edit/unlink/add). `dashboard-unit-leader` still uses it WITH contacts (no
+  hideContacts), so the guardian-contact code stays alive.
+- **Design unified** — `MemberGuardians` + `MemberSiblings` restructured into proper `<Card>` (CardHeader title +
+  action button + CardContent) matching HouseholdContacts; parent entries are now plain bordered rows (removed the
+  tinted `bg-muted/30` header band); siblings moved from a plain box to a Card. So the tab is three consistent
+  titled Cards: Coordonnées du foyer · Parents / tuteurs · Frères et sœurs.
+- **"Voir comme" opens in a NEW tab** (the admin keeps their own session in the original tab). Since the
+  impersonation token lives in per-tab sessionStorage, the admin tab mints it then hands it to the new tab via a
+  short-lived localStorage courier (`writeImpersonationHandoff`/`consumeImpersonationHandoff` in `lib/impersonation`,
+  <2 min, single-use, carries ok|error). `impersonation-store.startInNewTab` opens the tab synchronously (no popup
+  block) → POSTs → writes the result. New PUBLIC route `/voir-comme` (`components/layout/impersonation-handoff.tsx`)
+  consumes it (instant via the `storage` event + a poll fallback), adopts the token, `loadUser`, → `/dashboard`;
+  shows the real error if the POST failed. Works regardless of the admin's remember-me (the new tab needs no admin
+  auth — the impersonation token alone makes it the member). The banner's **Quitter closes the tab** (falls back to
+  `stop()` if it can't). Verified the impersonate endpoint returns 200 + token on the live API.
+
 ### Theme reverted to light on refresh — inline no-flash script blocked by CSP (2026-09-14)
 User: "no matter what theme I pick, it reverts to light on refresh." Root cause: the dark-mode work added an
 INLINE `<script>` in `index.html` (the no-flash theme applier), but the production CSP is `script-src 'self'`

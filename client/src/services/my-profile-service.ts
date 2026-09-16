@@ -55,6 +55,15 @@ export function useReviewMyContacts() {
   })
 }
 
+// PUT /my-profile/primary-email → set (or clear, null) the caller's own primary contact email. Refreshes Ma fiche.
+export function useSetMyPrimaryContactEmail(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (email: string | null) => apiClient.put('/my-profile/primary-email', { email }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', memberId] }),
+  })
+}
+
 // POST /my-profile/onboarding-seen → mark the first-login welcome tour as seen (server flag, so it doesn't
 // re-show on another device). Fire-and-forget; the component hides the tour optimistically regardless.
 export function useMarkOnboardingSeen() {

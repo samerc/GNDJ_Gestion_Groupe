@@ -8,26 +8,20 @@
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { saveBlob } from '@/lib/download'
 import { useState, useRef, useCallback, useMemo, useEffect, type ReactNode, type ComponentType } from 'react'
-import { useParams, useNavigate } from 'react-router'
+import { useParams } from 'react-router'
 import { useImpersonationStore } from '@/stores/impersonation-store'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useMembers, useMember, useMemberUnitOptions, useCreateMember, useUpdateMember, useDeleteMember, useRestoreMember, useResetMemberPassword, useSetPrimaryContactEmail,
-  useSendAccess,
-  useAddPhone, useDeletePhone, useUpdatePhone, useAddEmail, useDeleteEmail, useUpdateEmail,
-  useAddAddress, useDeleteAddress, useUpdateAddress,
-  type MemberFormData, type MemberPhoneDto, type MemberEmailDto, type MemberAddressDto } from '@/services/member-service'
+import { useMembers, useMember, useMemberUnitOptions, useCreateMember, useUpdateMember, useDeleteMember, useRestoreMember, useResetMemberPassword,
+  useSendAccess, type MemberFormData } from '@/services/member-service'
 import { MemberPhoto } from '@/components/shared/member-photo'
 import { useUnits } from '@/services/unit-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tooltip'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input'
-import { WhatsappLink } from '@/components/shared/whatsapp-link'
 import { CopyButton } from '@/components/shared/copy-button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RequiredLabel } from '@/components/shared/required-label'
@@ -36,12 +30,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { SearchableSelect } from '@/components/shared/searchable-select'
-import { CitySelect } from '@/components/shared/city-select'
-import { useSettingArray, useSettingValue, useCities } from '@/services/settings-service'
+import { useSettingArray, useSettingValue } from '@/services/settings-service'
 import { SchoolSelect } from '@/components/shared/school-select'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberSiblings } from '@/components/members/member-siblings'
+import { HouseholdContacts } from '@/components/members/household-contacts'
 import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
@@ -50,11 +44,11 @@ import { MemberCustomFields } from '@/components/members/member-custom-fields'
 import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
 import { MemberImportDialog } from '@/components/admin/member-import-dialog'
-import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS, PARENTS_SITUATION_OPTIONS, optionsWithCurrent } from '@/lib/options'
+import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PARENTS_SITUATION_OPTIONS } from '@/lib/options'
 import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts, useMemberAbsencesByYear, type MemberAbsenceYear } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Phone, Mail, MapPin, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck, Star, Upload, Eye } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck, Star, Upload, Eye } from 'lucide-react'
 import { pushRecentMember, isFavoriteMember, toggleFavoriteMember } from '@/lib/recent-members'
 import { DelegationDialog } from './delegation-dialog'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
@@ -144,7 +138,6 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   const restoreMember = useRestoreMember()
   const resetPassword = useResetMemberPassword()
   const sendAccess = useSendAccess()
-  const setPrimary = useSetPrimaryContactEmail(memberId)
   const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
   const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
   const canDelete = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_DELETE))
@@ -157,32 +150,21 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   // refuses a super-admin target regardless).
   const canImpersonate = useAuthStore((s) => s.hasPermission(PERMISSIONS.MAITRISE_MANAGE))
   const currentMemberId = useAuthStore((s) => s.user?.memberId)
-  const startImpersonation = useImpersonationStore((s) => s.start)
-  const impersonating = useImpersonationStore((s) => s.starting)
-  const navigate = useNavigate()
+  const startImpersonationInNewTab = useImpersonationStore((s) => s.startInNewTab)
 
   // Tab item counts come from the member detail payload itself (folded into GET /members/{id}), so opening
   // a member is ONE request — no more firing five secondary list queries just to render these badges.
   const counts = member?.counts
-  const familleCount = counts?.famille ?? 0
   const unitesCount = counts?.unites ?? 0
   const dossierCount = (counts?.documents ?? 0) + (counts?.cotisations ?? 0)
   const progressionCount = counts?.progression ?? 0
 
   const pinnedNationalities = useSettingArray('pinned_nationalities')
-  const defaultCountryCode = useSettingValue('default_country_code')
-  const defaultCountry = useSettingValue('default_country')
   const schools = useSettingArray('member.schools')
   const classes = useSettingArray('member.classes')
   const professionDomains = useSettingArray('member.profession_domains')
-  const cities = useCities()
   // Per-year absence breakdown (leader-only endpoint — the member never sees this). Shown on the Médical tab.
   const { data: absencesByYear } = useMemberAbsencesByYear(memberId)
-
-  // Contact mutations (phones/emails/addresses save immediately via their own dialogs).
-  const addPhone = useAddPhone(memberId); const delPhone = useDeletePhone(memberId); const updPhone = useUpdatePhone(memberId)
-  const addEmail = useAddEmail(memberId); const delEmail = useDeleteEmail(memberId); const updEmail = useUpdateEmail(memberId)
-  const addAddress = useAddAddress(memberId); const delAddress = useDeleteAddress(memberId); const updAddress = useUpdateAddress(memberId)
 
   // Profil + Scolarité + Médical share one inline edit form (the header "Modifier" button).
   const [editing, setEditing] = useState(false)
@@ -230,20 +212,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   // Absence details popup: the selected scout year's absences (dates + réunion details).
   const [absenceYear, setAbsenceYear] = useState<MemberAbsenceYear | null>(null)
 
-  // Contact add/edit/delete dialog state.
-  const [phoneDialogOpen, setPhoneDialogOpen] = useState(false)
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
-  const [addressDialogOpen, setAddressDialogOpen] = useState(false)
-  const [deletingContact, setDeletingContact] = useState<{ type: 'phone' | 'email' | 'address'; id: string; label: string } | null>(null)
-  const [phoneForm, setPhoneForm] = useState({ countryCode: '+961', number: '', type: 'Mobile', isPrimary: false, isEmergency: false })
-  const [emailForm, setEmailForm] = useState({ address: '', type: 'Personnel', isPrimary: false, isEmergency: false })
-  const [addressForm, setAddressForm] = useState({ type: 'Domicile', country: 'Liban', city: '', details: '', isPrimary: false })
-  const [editingPhone, setEditingPhone] = useState<MemberPhoneDto | null>(null)
-  const [editPhoneForm, setEditPhoneForm] = useState({ countryCode: '', number: '', type: '', isPrimary: false, isEmergency: false })
-  const [editingEmail, setEditingEmail] = useState<MemberEmailDto | null>(null)
-  const [editEmailForm, setEditEmailForm] = useState({ address: '', type: '', isPrimary: false, isEmergency: false })
-  const [editingAddress, setEditingAddress] = useState<MemberAddressDto | null>(null)
-  const [editAddressForm, setEditAddressForm] = useState({ type: '', country: '', city: '', details: '', isPrimary: false })
+  // (Coordonnées add/edit/delete now live in the shared <HouseholdContacts> component.)
 
   if (isLoading) return <div className="flex items-center justify-center h-full"><LoadingSpinner /></div>
   if (!member) return null
@@ -320,39 +289,9 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
-  const setPrimaryEmail = async (email: string | null) => {
-    try { await setPrimary.mutateAsync(email); toast.success('Courriel de contact principal mis à jour') }
-    catch (err) { toast.error(parseApiError(err)) }
-  }
-
-  // Enter "Voir comme": mint the read-only token, then land on the member's dashboard (the current
-  // /members/:id page isn't reachable as most members). The amber banner drives the exit.
-  const handleImpersonate = async () => {
-    try {
-      await startImpersonation(memberId)
-      navigate('/dashboard')
-    } catch (err) { toast.error(parseApiError(err)) }
-  }
-  // Emails offered as the primary contact: the member's own + any guardian's (deduplicated).
-  const contactEmailOptions = Array.from(new Set([...member.emails.map(e => e.address), ...member.guardianEmails]))
-
-  // Contact handlers (immediate save).
-  const submitAddPhone = async (e: React.FormEvent) => { e.preventDefault(); await addPhone.mutateAsync(phoneForm); setPhoneDialogOpen(false); setPhoneForm({ countryCode: defaultCountryCode ?? '+961', number: '', type: 'Mobile', isPrimary: false, isEmergency: false }) }
-  const submitAddEmail = async (e: React.FormEvent) => { e.preventDefault(); await addEmail.mutateAsync(emailForm); setEmailDialogOpen(false); setEmailForm({ address: '', type: 'Personnel', isPrimary: false, isEmergency: false }) }
-  const submitAddAddress = async (e: React.FormEvent) => { e.preventDefault(); await addAddress.mutateAsync({ ...addressForm, details: addressForm.details || null }); setAddressDialogOpen(false); setAddressForm({ type: 'Domicile', country: defaultCountry ?? 'Liban', city: '', details: '', isPrimary: false }) }
-  const openEditPhone = (p: MemberPhoneDto) => { setEditPhoneForm({ countryCode: p.countryCode, number: p.number, type: p.type, isPrimary: p.isPrimary, isEmergency: p.isEmergency }); setEditingPhone(p) }
-  const submitEditPhone = async (e: React.FormEvent) => { e.preventDefault(); if (!editingPhone) return; try { await updPhone.mutateAsync({ id: editingPhone.id, ...editPhoneForm }); toast.success('Téléphone modifié'); setEditingPhone(null) } catch (err) { toast.error(parseApiError(err)) } }
-  const openEditEmail = (em: MemberEmailDto) => { setEditEmailForm({ address: em.address, type: em.type, isPrimary: em.isPrimary, isEmergency: em.isEmergency }); setEditingEmail(em) }
-  const submitEditEmail = async (e: React.FormEvent) => { e.preventDefault(); if (!editingEmail) return; try { await updEmail.mutateAsync({ id: editingEmail.id, ...editEmailForm }); toast.success('Courriel modifié'); setEditingEmail(null) } catch (err) { toast.error(parseApiError(err)) } }
-  const openEditAddress = (a: MemberAddressDto) => { setEditAddressForm({ type: a.type, country: a.country, city: a.city, details: a.details ?? '', isPrimary: a.isPrimary }); setEditingAddress(a) }
-  const submitEditAddress = async (e: React.FormEvent) => { e.preventDefault(); if (!editingAddress) return; try { await updAddress.mutateAsync({ id: editingAddress.id, ...editAddressForm, details: editAddressForm.details || null }); toast.success('Adresse modifiée'); setEditingAddress(null) } catch (err) { toast.error(parseApiError(err)) } }
-  const handleDeleteContact = async () => {
-    if (!deletingContact) return
-    if (deletingContact.type === 'phone') await delPhone.mutateAsync(deletingContact.id)
-    else if (deletingContact.type === 'email') await delEmail.mutateAsync(deletingContact.id)
-    else await delAddress.mutateAsync(deletingContact.id)
-    setDeletingContact(null)
-  }
+  // Enter "Voir comme" in a NEW tab so the admin keeps their own session in this tab. The new tab mints + adopts
+  // the read-only token and lands on the member's dashboard; the amber banner there drives the exit.
+  const handleImpersonate = () => startImpersonationInNewTab(memberId)
 
   const downloadCard = async () => {
     try {
@@ -435,8 +374,8 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                     </DropdownMenuItem>
                   )}
                   {canImpersonate && currentMemberId !== memberId && !member.isSuperAdmin && (
-                    <DropdownMenuItem onClick={handleImpersonate} disabled={impersonating}>
-                      <Eye className="mr-2 h-4 w-4" />Voir comme ce membre
+                    <DropdownMenuItem onClick={handleImpersonate}>
+                      <Eye className="mr-2 h-4 w-4" />Voir comme ce membre (nouvel onglet)
                     </DropdownMenuItem>
                   )}
                   {canDelete && (
@@ -467,7 +406,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         <TabsList className="mx-4 mt-3 shrink-0 justify-start overflow-x-auto flex-nowrap">
           <TabsTrigger value="info">Informations</TabsTrigger>
-          <TabsTrigger value="famille">Famille<TabCount n={familleCount} /></TabsTrigger>
+          <TabsTrigger value="famille">Contact &amp; famille</TabsTrigger>
           <TabsTrigger value="unites">Unités / Fonctions<TabCount n={unitesCount} /></TabsTrigger>
           <TabsTrigger value="dossier">Documents &amp; cotisations<TabCount n={dossierCount} /></TabsTrigger>
           <TabsTrigger value="progression">Progression<TabCount n={progressionCount} /></TabsTrigger>
@@ -624,80 +563,13 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
               )}
             </Section>
 
-            <Section icon={Contact} title="Coordonnées">
-              {/* Primary contact email — recipient for member-facing mail (password reset). */}
-              <div className="mb-4 rounded-lg border bg-muted/20 p-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-1.5 text-sm font-medium"><Mail className="h-3.5 w-3.5 text-muted-foreground" />Courriel de contact principal</p>
-                    <p className="text-xs text-muted-foreground">Adresse utilisée pour les emails au membre (réinitialisation du mot de passe…).</p>
-                  </div>
-                  {canEdit && (
-                    <Select value={member.primaryContactEmail ?? '__auto__'} onValueChange={(v) => setPrimaryEmail(v === '__auto__' ? null : v)} disabled={setPrimary.isPending}>
-                      <SelectTrigger className="w-full sm:w-72"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__auto__">Automatique (membre, sinon tuteur)</SelectItem>
-                        {contactEmailOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-                {contactEmailOptions.length === 0 && (
-                  <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">Aucune adresse email sur la fiche — ajoutez un courriel (membre ou tuteur) pour permettre l'envoi.</p>
-                )}
-              </div>
-              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <h5 className="flex items-center gap-1.5 text-sm font-medium"><Phone className="h-3.5 w-3.5 text-muted-foreground" />Téléphones</h5>
-                    {editing && <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => { setPhoneForm(f => ({ ...f, countryCode: defaultCountryCode ?? '+961' })); setPhoneDialogOpen(true) }}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>}
-                  </div>
-                  {member.phones.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
-                    <div className="space-y-1.5">{member.phones.map(p => (
-                      <div key={p.id} className="flex items-center gap-1.5 text-sm">
-                        <span className="flex-1">{formatPhoneDisplay(p.countryCode, p.number)} <span className="text-muted-foreground">({p.type})</span>{p.isEmergency && <Badge variant="destructive" className="ml-1 text-[9px]">Urgence</Badge>}</span>
-                        <CopyButton value={formatPhoneDisplay(p.countryCode, p.number)} label="Copier le numéro" />
-                        <WhatsappLink countryCode={p.countryCode} number={p.number} />
-                        {editing && <><button className="text-muted-foreground hover:text-foreground" onClick={() => openEditPhone(p)}><Pencil className="h-3 w-3" /></button><button className="text-destructive/80 hover:text-destructive" onClick={() => setDeletingContact({ type: 'phone', id: p.id, label: formatPhoneDisplay(p.countryCode, p.number) })}><Trash2 className="h-3 w-3" /></button></>}
-                      </div>
-                    ))}</div>
-                  )}
-                </div>
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <h5 className="flex items-center gap-1.5 text-sm font-medium"><Mail className="h-3.5 w-3.5 text-muted-foreground" />Courriels</h5>
-                    {editing && <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setEmailDialogOpen(true)}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>}
-                  </div>
-                  {member.emails.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
-                    <div className="space-y-1.5">{member.emails.map(e => (
-                      <div key={e.id} className="flex items-center gap-1.5 text-sm">
-                        <span className="flex-1 break-all">{e.address} <span className="text-muted-foreground">({e.type})</span></span>
-                        <CopyButton value={e.address} label="Copier le courriel" />
-                        {editing && <><button className="text-muted-foreground hover:text-foreground" onClick={() => openEditEmail(e)}><Pencil className="h-3 w-3" /></button><button className="text-destructive/80 hover:text-destructive" onClick={() => setDeletingContact({ type: 'email', id: e.id, label: e.address })}><Trash2 className="h-3 w-3" /></button></>}
-                      </div>
-                    ))}</div>
-                  )}
-                </div>
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <h5 className="flex items-center gap-1.5 text-sm font-medium"><MapPin className="h-3.5 w-3.5 text-muted-foreground" />Adresses</h5>
-                    {editing && <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => { setAddressForm(f => ({ ...f, country: defaultCountry ?? 'Liban' })); setAddressDialogOpen(true) }}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>}
-                  </div>
-                  {member.addresses.length === 0 ? <p className="text-sm text-muted-foreground">Aucune</p> : (
-                    <div className="space-y-1.5">{member.addresses.map(a => (
-                      <div key={a.id} className="flex items-center gap-1.5 text-sm">
-                        <span className="flex-1">{a.city}, {a.country} <span className="text-muted-foreground">({a.type})</span>{a.details && <span className="block text-xs text-muted-foreground">{a.details}</span>}</span>
-                        {editing && <><button className="text-muted-foreground hover:text-foreground" onClick={() => openEditAddress(a)}><Pencil className="h-3 w-3" /></button><button className="text-destructive/80 hover:text-destructive" onClick={() => setDeletingContact({ type: 'address', id: a.id, label: `${a.city}, ${a.country}` })}><Trash2 className="h-3 w-3" /></button></>}
-                      </div>
-                    ))}</div>
-                  )}
-                </div>
-              </div>
-            </Section>
           </TabsContent>
 
-          <TabsContent value="famille" className="mt-0 space-y-4">
-            <MemberGuardians memberId={memberId} />
+          {/* Contact & famille — the member's own coordonnées merged with their parents + fratrie (contact edits
+              are gated on canEdit, so they're available directly here without the Informations "Modifier" mode). */}
+          <TabsContent value="famille" className="mt-0 space-y-6">
+            <HouseholdContacts memberId={memberId} canEdit={canEdit} />
+            <MemberGuardians memberId={memberId} hideContacts />
             <MemberSiblings memberId={memberId} canManage={canManageSiblings} linkable />
           </TabsContent>
 
@@ -779,46 +651,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
         </div>
       </Tabs>
 
-      {/* Add phone / email / address dialogs */}
-      <Dialog open={phoneDialogOpen} onOpenChange={setPhoneDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Ajouter un téléphone</DialogTitle></DialogHeader>
-          <form onSubmit={submitAddPhone} className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={phoneForm.countryCode} onValueChange={(v) => setPhoneForm(f => ({ ...f, countryCode: v }))} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher un indicatif..." /></div>
-              <div className="col-span-2 space-y-2"><RequiredLabel required>Numéro</RequiredLabel><PhoneInput dialCode={phoneForm.countryCode} value={phoneForm.number} onChange={(v) => setPhoneForm(f => ({ ...f, number: v }))} required /></div>
-            </div>
-            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={phoneForm.type} onValueChange={(v) => setPhoneForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PHONE_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={phoneForm.isPrimary} onChange={(e) => setPhoneForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={phoneForm.isEmergency} onChange={(e) => setPhoneForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setPhoneDialogOpen(false)}>Annuler</Button><Button type="submit" disabled={addPhone.isPending}>{addPhone.isPending ? 'Ajout...' : 'Ajouter'}</Button></DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Ajouter un courriel</DialogTitle></DialogHeader>
-          <form onSubmit={submitAddEmail} className="space-y-4">
-            <div className="space-y-2"><RequiredLabel required>Adresse courriel</RequiredLabel><Input type="email" value={emailForm.address} onChange={(e) => setEmailForm(f => ({ ...f, address: e.target.value }))} required /></div>
-            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={emailForm.type} onValueChange={(v) => setEmailForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{EMAIL_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={emailForm.isPrimary} onChange={(e) => setEmailForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={emailForm.isEmergency} onChange={(e) => setEmailForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setEmailDialogOpen(false)}>Annuler</Button><Button type="submit" disabled={addEmail.isPending}>{addEmail.isPending ? 'Ajout...' : 'Ajouter'}</Button></DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Ajouter une adresse</DialogTitle></DialogHeader>
-          <form onSubmit={submitAddAddress} className="space-y-4">
-            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={addressForm.type} onValueChange={(v) => setAddressForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ADDRESS_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={addressForm.country} onValueChange={(v) => setAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><CitySelect value={addressForm.city} onChange={(city) => setAddressForm(f => ({ ...f, city }))} cities={cities} /></div></div>
-            <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={addressForm.details} onChange={(e) => setAddressForm(f => ({ ...f, details: e.target.value }))} placeholder="Rue, immeuble, appartement..." /></div>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={addressForm.isPrimary} onChange={(e) => setAddressForm(f => ({ ...f, isPrimary: e.target.checked }))} />Adresse principale</label>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setAddressDialogOpen(false)}>Annuler</Button><Button type="submit" disabled={addAddress.isPending}>{addAddress.isPending ? 'Ajout...' : 'Ajouter'}</Button></DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Absence details for the clicked scout year — dates + réunion type/title/unit/team + reason. */}
+      {/* Absence details popup: the selected scout year's absences (dates + réunion details). */}
       <Dialog open={!!absenceYear} onOpenChange={(o) => !o && setAbsenceYear(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -842,47 +675,6 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
           <DialogFooter><Button variant="outline" onClick={() => setAbsenceYear(null)}>Fermer</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Edit contact dialogs */}
-      <Dialog open={!!editingPhone} onOpenChange={() => setEditingPhone(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Modifier le téléphone</DialogTitle></DialogHeader>
-          <form onSubmit={submitEditPhone} className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={editPhoneForm.countryCode} onValueChange={(v) => setEditPhoneForm(f => ({ ...f, countryCode: v }))} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher un indicatif..." /></div>
-              <div className="col-span-2 space-y-2"><RequiredLabel required>Numéro</RequiredLabel><PhoneInput dialCode={editPhoneForm.countryCode} value={editPhoneForm.number} onChange={(v) => setEditPhoneForm(f => ({ ...f, number: v }))} required /></div>
-            </div>
-            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editPhoneForm.type} onValueChange={(v) => setEditPhoneForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{optionsWithCurrent(PHONE_TYPE_OPTIONS, editPhoneForm.type).map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editPhoneForm.isPrimary} onChange={(e) => setEditPhoneForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editPhoneForm.isEmergency} onChange={(e) => setEditPhoneForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingPhone(null)}>Annuler</Button><Button type="submit" disabled={updPhone.isPending}>Enregistrer</Button></DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={!!editingEmail} onOpenChange={() => setEditingEmail(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Modifier le courriel</DialogTitle></DialogHeader>
-          <form onSubmit={submitEditEmail} className="space-y-4">
-            <div className="space-y-2"><RequiredLabel required>Adresse</RequiredLabel><Input type="email" value={editEmailForm.address} onChange={(e) => setEditEmailForm(f => ({ ...f, address: e.target.value }))} required /></div>
-            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editEmailForm.type} onValueChange={(v) => setEditEmailForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{optionsWithCurrent(EMAIL_TYPE_OPTIONS, editEmailForm.type).map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editEmailForm.isPrimary} onChange={(e) => setEditEmailForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editEmailForm.isEmergency} onChange={(e) => setEditEmailForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingEmail(null)}>Annuler</Button><Button type="submit" disabled={updEmail.isPending}>Enregistrer</Button></DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={!!editingAddress} onOpenChange={() => setEditingAddress(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Modifier l'adresse</DialogTitle></DialogHeader>
-          <form onSubmit={submitEditAddress} className="space-y-4">
-            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editAddressForm.type} onValueChange={(v) => setEditAddressForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{optionsWithCurrent(ADDRESS_TYPE_OPTIONS, editAddressForm.type).map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={editAddressForm.country} onValueChange={(v) => setEditAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{optionsWithCurrent(COUNTRY_OPTIONS, editAddressForm.country).map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><CitySelect value={editAddressForm.city} onChange={(city) => setEditAddressForm(f => ({ ...f, city }))} cities={cities} /></div></div>
-            <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={editAddressForm.details} onChange={(e) => setEditAddressForm(f => ({ ...f, details: e.target.value }))} placeholder="Rue, immeuble..." /></div>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editAddressForm.isPrimary} onChange={(e) => setEditAddressForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingAddress(null)}>Annuler</Button><Button type="submit" disabled={updAddress.isPending}>Enregistrer</Button></DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <ConfirmDialog open={!!deletingContact} onOpenChange={() => setDeletingContact(null)} title="Supprimer" description={`Êtes-vous sûr de vouloir supprimer « ${deletingContact?.label} » ?`} confirmLabel="Supprimer" variant="destructive" onConfirm={handleDeleteContact} />
 
       {/* Accès délégué (CG/super-admin) */}
       {canDelegate && (

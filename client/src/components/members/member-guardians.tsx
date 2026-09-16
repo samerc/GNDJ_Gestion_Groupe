@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Tip } from '@/components/ui/tooltip'
-import { Plus, Pencil, Trash2, Phone, Mail, Search, UserPlus, Link } from 'lucide-react'
+import { Plus, Pencil, Trash2, Phone, Mail, Search, UserPlus, Link, Users } from 'lucide-react'
 
 const RELATIONSHIP_OPTIONS = [
   { value: 'Père', label: 'Père' },
@@ -57,9 +57,11 @@ function guardianInitials(firstName: string, lastName: string): string {
 // selfService = the member editing their OWN famille from Ma fiche (own-scoped endpoints, no members.edit,
 // and NO "search existing guardian" mode — a member must not enumerate other families). Leaders (member
 // detail) get the full component incl. search/link.
-interface MemberGuardiansProps { memberId: string; selfService?: boolean }
+// hideContacts = don't render the phone/email blocks (they live in the shared "Coordonnées du foyer" section);
+// the parent cards then show only who the people are (name, relation, profession, flags) + edit/unlink/add.
+interface MemberGuardiansProps { memberId: string; selfService?: boolean; hideContacts?: boolean }
 
-export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps) {
+export function MemberGuardians({ memberId, selfService, hideContacts }: MemberGuardiansProps) {
   const { data: guardians } = useMemberGuardians(memberId)
   // Call BOTH hook sets unconditionally (rules of hooks), then pick per `selfService`. Mutations don't
   // fetch, so instantiating the unused set is free.
@@ -210,28 +212,28 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
   }
 
   return (
-    <div className="space-y-4">
-      {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4 text-primary" />Parents / tuteurs</CardTitle>
+        <Button size="sm" variant="outline" onClick={openAdd}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
-      <div className="flex justify-end">
-        <Button size="sm" onClick={openAdd}><Plus className="mr-1 h-3 w-3" />Ajouter un parent</Button>
-      </div>
-
-      {!guardians || guardians.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">Aucun parent ou tuteur enregistré.</CardContent></Card>
-      ) : (
-        guardians.map(gl => (
-          <Card key={gl.linkId} className="overflow-hidden">
-            {/* Header: avatar with initials + name, relationship/flag badges, edit/remove actions. */}
-            <CardHeader className="border-b bg-muted/30">
-              <div className="flex items-start justify-between gap-3">
+        {!guardians || guardians.length === 0 ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">Aucun parent ou tuteur enregistré.</p>
+        ) : (
+          guardians.map(gl => (
+            <div key={gl.linkId} className="overflow-hidden rounded-md border">
+              {/* Header row: avatar + name + relationship/flag badges + edit/remove actions. */}
+              <div className="flex items-start justify-between gap-3 p-3">
                 <div className="flex items-start gap-3 min-w-0">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
                     {guardianInitials(gl.guardian.firstName, gl.guardian.lastName)}
                   </div>
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <CardTitle className="text-base leading-tight">{gl.guardian.firstName} {gl.guardian.lastName}</CardTitle>
+                      <span className="font-semibold leading-tight">{gl.guardian.firstName} {gl.guardian.lastName}</span>
                       <Badge variant="outline">{relationshipLabel(gl.relationshipType)}</Badge>
                       {gl.guardian.isDeceased && <Badge variant="secondary">Décédé(e)</Badge>}
                       {gl.isPrimaryContact && <Badge>Contact principal</Badge>}
@@ -255,9 +257,9 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                   </Button></Tip>
                 </div>
               </div>
-            </CardHeader>
-            {/* Contact blocks: phones + emails side by side on wider screens. */}
-            <CardContent className="grid gap-4 pt-4 sm:grid-cols-2">
+            {/* Contact blocks: phones + emails side by side on wider screens. Hidden when hideContacts (the
+                coordonnées live in the shared "Coordonnées du foyer" section instead). */}
+            {!hideContacts && <div className="grid gap-4 border-t p-3 sm:grid-cols-2">
               {/* Phones */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -320,10 +322,11 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        ))
-      )}
+            </div>}
+            </div>
+          ))
+        )}
+      </CardContent>
 
       {/* Add Guardian Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
@@ -595,6 +598,6 @@ export function MemberGuardians({ memberId, selfService }: MemberGuardiansProps)
         loading={unlinkMutation.isPending}
         onConfirm={handleUnlink}
       />
-    </div>
+    </Card>
   )
 }

@@ -9,8 +9,8 @@ import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useMember } from '@/services/member-service'
 import { useMemberGuardians } from '@/services/guardian-service'
-import { useReviewMyContacts, useAddMyEmail, useDeleteMyEmail, useAddMyPhone, useDeleteMyPhone } from '@/services/my-profile-service'
-import { useAddMyGuardianEmail, useDeleteMyGuardianEmail, useAddMyGuardianPhone, useDeleteMyGuardianPhone } from '@/services/guardian-service'
+import { useReviewMyContacts, useAddMyEmail, useDeleteMyEmail, useUpdateMyEmail, useAddMyPhone, useDeleteMyPhone, useUpdateMyPhone } from '@/services/my-profile-service'
+import { useAddMyGuardianEmail, useDeleteMyGuardianEmail, useUpdateMyGuardianEmail, useAddMyGuardianPhone, useDeleteMyGuardianPhone, useUpdateMyGuardianPhone, useUpdateMyGuardianLink } from '@/services/guardian-service'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,17 +19,29 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { parseApiError } from '@/lib/error-utils'
-import { EMAIL_TYPE_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, PARENTS_SITUATION_OPTIONS } from '@/lib/options'
-import { Mail, Phone, Plus, Trash2, Star, HeartPulse, AtSign } from 'lucide-react'
+import { PHONE_COUNTRY_CODES, PARENTS_SITUATION_OPTIONS } from '@/lib/options'
+import { Mail, Phone, Plus, Trash2, Pencil, Star, HeartPulse, AtSign } from 'lucide-react'
 import { toast } from 'sonner'
 
 const SKIP_KEY = 'contact-review.skip'
+
+const RELATIONSHIP_OPTIONS = [
+  { value: 'Père', label: 'Père' },
+  { value: 'Mère', label: 'Mère' },
+  { value: 'Tuteur', label: 'Tuteur' },
+  { value: 'TuteurLégal', label: 'Tuteur légal' },
+  { value: 'Autre', label: 'Autre' },
+]
 
 // Relationship label (accent/case-insensitive; imported values may be unaccented "Pere"/"Mere").
 const normRel = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 function relLabel(v: string): string {
   const m: Record<string, string> = { pere: 'Père', mere: 'Mère', tuteur: 'Tuteur', tuteurlegal: 'Tuteur légal', autre: 'Autre' }
   return m[normRel(v)] ?? v
+}
+// Map a stored relationship onto the canonical option value so an imported "Mere"/"Pere" pre-selects the Select.
+function canonicalRel(v: string): string {
+  return RELATIONSHIP_OPTIONS.find(r => normRel(r.value) === normRel(v))?.value ?? v
 }
 
 // Outer gate: decides whether the popup should show at all (only mounts the data-fetching dialog when it will),
@@ -57,12 +69,12 @@ function ContactReviewDialog({ memberId, onSkip }: { memberId: string; onSkip: (
   const { data: guardians } = useMemberGuardians(memberId)
 
   const review = useReviewMyContacts()
-  // Live contact add/delete (own + guardian) use the existing self-service hooks; they refetch the two queries.
-  // (In-place value editing lives on Ma fiche → Famille; here delete + re-add covers a fix.)
-  const addEmail = useAddMyEmail(memberId), delEmail = useDeleteMyEmail(memberId)
-  const addPhone = useAddMyPhone(memberId), delPhone = useDeleteMyPhone(memberId)
-  const addGEmail = useAddMyGuardianEmail(memberId), delGEmail = useDeleteMyGuardianEmail(memberId)
-  const addGPhone = useAddMyGuardianPhone(memberId), delGPhone = useDeleteMyGuardianPhone(memberId)
+  // Live contact add / edit / delete (own + guardian) via the existing self-service hooks; they refetch the two queries.
+  const addEmail = useAddMyEmail(memberId), delEmail = useDeleteMyEmail(memberId), updEmail = useUpdateMyEmail(memberId)
+  const addPhone = useAddMyPhone(memberId), delPhone = useDeleteMyPhone(memberId), updPhone = useUpdateMyPhone(memberId)
+  const addGEmail = useAddMyGuardianEmail(memberId), delGEmail = useDeleteMyGuardianEmail(memberId), updGEmail = useUpdateMyGuardianEmail(memberId)
+  const addGPhone = useAddMyGuardianPhone(memberId), delGPhone = useDeleteMyGuardianPhone(memberId), updGPhone = useUpdateMyGuardianPhone(memberId)
+  const updGLink = useUpdateMyGuardianLink(memberId) // to fix a parent's relationship (Père/Mère) from the edit dialog
 
   // Selection / flags — the decisions applied atomically on « Confirmer ».
   const [primaryEmail, setPrimaryEmail] = useState('')        // address of the courriel principal ('' = auto)
@@ -86,17 +98,24 @@ function ContactReviewDialog({ memberId, onSkip }: { memberId: string; onSkip: (
     setInitDone(true)
   }
 
-  // Add-contact dialogs (owner selector = Vous or a parent).
+  // Add-contact dialogs (owner selector = Vous or a parent). The contact's "type" is DERIVED from the owner
+  // (« Vous » → Personnel, a parent → their relationship, e.g. Père) — no separate Type field to fill.
   const owners: OwnerOption[] = [{ key: 'self', label: 'Vous' }, ...(guardians ?? []).map(g => ({ key: g.guardianId, label: `${relLabel(g.relationshipType)} · ${g.guardian.firstName}` }))]
-  const [emailForm, setEmailForm] = useState<{ owner: string; address: string; type: string } | null>(null)
-  const [phoneForm, setPhoneForm] = useState<{ owner: string; countryCode: string; number: string; type: string } | null>(null)
+  const typeForOwner = (key: string) => key === 'self' ? 'Personnel' : (relLabel(guardians?.find(g => g.guardianId === key)?.relationshipType ?? '') || 'Parent')
+  const [emailForm, setEmailForm] = useState<{ owner: string; address: string } | null>(null)
+  const [phoneForm, setPhoneForm] = useState<{ owner: string; countryCode: string; number: string } | null>(null)
+  // In-place edit — fix a wrong value AND correct the parent's relationship (Père/Mère…). owner is fixed here
+  // (moving a contact to another person = delete + re-add); relationship applies only to a parent contact.
+  const [editEmail, setEditEmail] = useState<{ id: string; owner: string; origAddress: string; address: string; isPrimary: boolean; isEmergency: boolean; linkId: string | null; relationship: string } | null>(null)
+  const [editPhone, setEditPhone] = useState<{ id: string; owner: string; countryCode: string; number: string; isPrimary: boolean; isEmergency: boolean; linkId: string | null; relationship: string } | null>(null)
 
   const submitAddEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!emailForm) return
+    const type = typeForOwner(emailForm.owner)
     try {
-      if (emailForm.owner === 'self') await addEmail.mutateAsync({ address: emailForm.address, type: emailForm.type, isPrimary: false, isEmergency: false })
-      else await addGEmail.mutateAsync({ guardianId: emailForm.owner, address: emailForm.address, type: emailForm.type, isPrimary: false })
+      if (emailForm.owner === 'self') await addEmail.mutateAsync({ address: emailForm.address, type, isPrimary: false, isEmergency: false })
+      else await addGEmail.mutateAsync({ guardianId: emailForm.owner, address: emailForm.address, type, isPrimary: false })
       setPrimaryEmail(emailForm.address.trim()) // they likely added it to make it the principal
       setEmailForm(null)
       toast.success('Courriel ajouté')
@@ -105,9 +124,10 @@ function ContactReviewDialog({ memberId, onSkip }: { memberId: string; onSkip: (
   const submitAddPhone = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!phoneForm) return
+    const type = typeForOwner(phoneForm.owner)
     try {
-      if (phoneForm.owner === 'self') await addPhone.mutateAsync({ countryCode: phoneForm.countryCode, number: phoneForm.number, type: phoneForm.type, isPrimary: false, isEmergency: false })
-      else await addGPhone.mutateAsync({ guardianId: phoneForm.owner, countryCode: phoneForm.countryCode, number: phoneForm.number, type: phoneForm.type, isPrimary: false })
+      if (phoneForm.owner === 'self') await addPhone.mutateAsync({ countryCode: phoneForm.countryCode, number: phoneForm.number, type, isPrimary: false, isEmergency: false })
+      else await addGPhone.mutateAsync({ guardianId: phoneForm.owner, countryCode: phoneForm.countryCode, number: phoneForm.number, type, isPrimary: false })
       setPhoneForm(null)
       toast.success('Téléphone ajouté')
     } catch (err) { toast.error(parseApiError(err)) }
@@ -128,6 +148,39 @@ function ContactReviewDialog({ memberId, onSkip }: { memberId: string; onSkip: (
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
+  // Apply a relationship change to the owning parent's link (so the "Père/Mère" label is corrected everywhere).
+  const applyRelationship = async (owner: string, linkId: string | null, relationship: string) => {
+    if (owner === 'self' || !linkId) return
+    const g = guardians?.find(x => x.guardianId === owner)
+    if (!g || normRel(g.relationshipType) === normRel(relationship)) return // unchanged
+    await updGLink.mutateAsync({ linkId, relationshipType: relationship, isPrimaryContact: g.isPrimaryContact, isEmergencyContact: g.isEmergencyContact })
+  }
+
+  const submitEditEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editEmail) return
+    try {
+      if (editEmail.owner === 'self') await updEmail.mutateAsync({ id: editEmail.id, address: editEmail.address, type: 'Personnel', isPrimary: editEmail.isPrimary, isEmergency: editEmail.isEmergency })
+      else await updGEmail.mutateAsync({ id: editEmail.id, address: editEmail.address, type: relLabel(editEmail.relationship), isPrimary: editEmail.isPrimary })
+      await applyRelationship(editEmail.owner, editEmail.linkId, editEmail.relationship)
+      // Keep the "principal" selection pointing at the (possibly changed) address.
+      if (primaryEmail && primaryEmail.toLowerCase() === editEmail.origAddress.toLowerCase()) setPrimaryEmail(editEmail.address.trim())
+      setEditEmail(null)
+      toast.success('Courriel modifié')
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
+  const submitEditPhone = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editPhone) return
+    try {
+      if (editPhone.owner === 'self') await updPhone.mutateAsync({ id: editPhone.id, countryCode: editPhone.countryCode, number: editPhone.number, type: 'Personnel', isPrimary: editPhone.isPrimary, isEmergency: editPhone.isEmergency })
+      else await updGPhone.mutateAsync({ id: editPhone.id, countryCode: editPhone.countryCode, number: editPhone.number, type: relLabel(editPhone.relationship), isPrimary: editPhone.isPrimary })
+      await applyRelationship(editPhone.owner, editPhone.linkId, editPhone.relationship)
+      setEditPhone(null)
+      toast.success('Téléphone modifié')
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
+
   const confirm = async () => {
     try {
       const g = (guardians ?? []).map(gl => ({
@@ -142,14 +195,15 @@ function ContactReviewDialog({ memberId, onSkip }: { memberId: string; onSkip: (
   }
 
   const loading = !member || !guardians
-  // Household email/phone rows (own + each parent's), for the "principal" pickers + delete.
+  // Household email/phone rows (own + each parent's), for the "principal" pickers + edit/delete. Each carries the
+  // fields the edit dialog needs (isPrimary/isEmergency to preserve; linkId/relationship for a parent).
   const emailRows = [
-    ...(member?.emails ?? []).map(e => ({ owner: 'self' as const, id: e.id, address: e.address, ownerLabel: 'Vous' })),
-    ...(guardians ?? []).flatMap(gl => gl.guardian.emails.map(em => ({ owner: gl.guardianId, id: em.id, address: em.address, ownerLabel: `${relLabel(gl.relationshipType)} · ${gl.guardian.firstName}` }))),
+    ...(member?.emails ?? []).map(e => ({ owner: 'self' as string, id: e.id, address: e.address, ownerLabel: 'Vous', isPrimary: e.isPrimary, isEmergency: e.isEmergency, linkId: null as string | null, relationship: '' })),
+    ...(guardians ?? []).flatMap(gl => gl.guardian.emails.map(em => ({ owner: gl.guardianId, id: em.id, address: em.address, ownerLabel: `${relLabel(gl.relationshipType)} · ${gl.guardian.firstName}`, isPrimary: em.isPrimary, isEmergency: false, linkId: gl.linkId as string | null, relationship: gl.relationshipType }))),
   ]
   const phoneRows = [
-    ...(member?.phones ?? []).map(p => ({ owner: 'self' as const, id: p.id, cc: p.countryCode, number: p.number, ownerLabel: 'Vous' })),
-    ...(guardians ?? []).flatMap(gl => gl.guardian.phones.map(p => ({ owner: gl.guardianId, id: p.id, cc: p.countryCode, number: p.number, ownerLabel: `${relLabel(gl.relationshipType)} · ${gl.guardian.firstName}` }))),
+    ...(member?.phones ?? []).map(p => ({ owner: 'self' as string, id: p.id, cc: p.countryCode, number: p.number, ownerLabel: 'Vous', isPrimary: p.isPrimary, isEmergency: p.isEmergency, linkId: null as string | null, relationship: '' })),
+    ...(guardians ?? []).flatMap(gl => gl.guardian.phones.map(p => ({ owner: gl.guardianId, id: p.id, cc: p.countryCode, number: p.number, ownerLabel: `${relLabel(gl.relationshipType)} · ${gl.guardian.firstName}`, isPrimary: p.isPrimary, isEmergency: false, linkId: gl.linkId as string | null, relationship: gl.relationshipType }))),
   ]
 
   return (
@@ -170,7 +224,7 @@ function ContactReviewDialog({ memberId, onSkip }: { memberId: string; onSkip: (
             <section className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-sm font-semibold"><Mail className="h-4 w-4" />Courriel principal</h3>
-                <Button size="sm" variant="outline" onClick={() => setEmailForm({ owner: owners[0].key, address: '', type: 'Personnel' })}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>
+                <Button size="sm" variant="outline" onClick={() => setEmailForm({ owner: owners[0].key, address: '' })}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>
               </div>
               {emailRows.length === 0 ? (
                 <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">Aucun courriel enregistré. Ajoutez-en un pour recevoir nos messages.</p>
@@ -186,6 +240,7 @@ function ContactReviewDialog({ memberId, onSkip }: { memberId: string; onSkip: (
                           <div className="text-xs text-muted-foreground">{r.ownerLabel}</div>
                         </div>
                         {selected && <Star className="h-3.5 w-3.5 shrink-0 fill-primary text-primary" />}
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Modifier" onClick={(e) => { e.preventDefault(); setEditEmail({ id: r.id, owner: r.owner, origAddress: r.address, address: r.address, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) }) }}><Pencil className="h-3.5 w-3.5" /></Button>
                         <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Supprimer" onClick={(e) => { e.preventDefault(); removeEmail(r.owner, r.id, r.address) }}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                       </label>
                     )
@@ -201,7 +256,7 @@ function ContactReviewDialog({ memberId, onSkip }: { memberId: string; onSkip: (
             <section className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-sm font-semibold"><Phone className="h-4 w-4" />Téléphone principal</h3>
-                <Button size="sm" variant="outline" onClick={() => setPhoneForm({ owner: owners[0].key, countryCode: '+961', number: '', type: 'Mobile' })}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>
+                <Button size="sm" variant="outline" onClick={() => setPhoneForm({ owner: owners[0].key, countryCode: '+961', number: '' })}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>
               </div>
               {phoneRows.length === 0 ? (
                 <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">Aucun téléphone enregistré.</p>
@@ -217,6 +272,7 @@ function ContactReviewDialog({ memberId, onSkip }: { memberId: string; onSkip: (
                           <div className="text-xs text-muted-foreground">{r.ownerLabel}</div>
                         </div>
                         {selected && <Star className="h-3.5 w-3.5 shrink-0 fill-primary text-primary" />}
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Modifier" onClick={(e) => { e.preventDefault(); setEditPhone({ id: r.id, owner: r.owner, countryCode: r.cc, number: r.number, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) }) }}><Pencil className="h-3.5 w-3.5" /></Button>
                         <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Supprimer" onClick={(e) => { e.preventDefault(); removePhone(r.owner, r.id) }}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                       </label>
                     )
@@ -282,12 +338,6 @@ function ContactReviewDialog({ memberId, onSkip }: { memberId: string; onSkip: (
                 </Select>
               </div>
               <div className="space-y-2"><label className="text-sm font-medium">Adresse</label><Input type="email" required value={emailForm.address} onChange={(e) => setEmailForm(f => f && { ...f, address: e.target.value })} placeholder="prenom.nom@exemple.com" /></div>
-              <div className="space-y-2"><label className="text-sm font-medium">Type</label>
-                <Select value={emailForm.type} onValueChange={(v) => setEmailForm(f => f && { ...f, type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{EMAIL_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
               <DialogFooter><Button type="button" variant="outline" onClick={() => setEmailForm(null)}>Annuler</Button><Button type="submit" disabled={addEmail.isPending || addGEmail.isPending}>Ajouter</Button></DialogFooter>
             </form>
           )}
@@ -310,13 +360,52 @@ function ContactReviewDialog({ memberId, onSkip }: { memberId: string; onSkip: (
                 <div className="space-y-2"><label className="text-sm font-medium">Indicatif</label><SearchableSelect value={phoneForm.countryCode} onValueChange={(v) => setPhoneForm(f => f && { ...f, countryCode: v })} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher..." /></div>
                 <div className="space-y-2 sm:col-span-2"><label className="text-sm font-medium">Numéro</label><PhoneInput dialCode={phoneForm.countryCode} value={phoneForm.number} onChange={(v) => setPhoneForm(f => f && { ...f, number: v })} required /></div>
               </div>
-              <div className="space-y-2"><label className="text-sm font-medium">Type</label>
-                <Select value={phoneForm.type} onValueChange={(v) => setPhoneForm(f => f && { ...f, type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{PHONE_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
               <DialogFooter><Button type="button" variant="outline" onClick={() => setPhoneForm(null)}>Annuler</Button><Button type="submit" disabled={addPhone.isPending || addGPhone.isPending}>Ajouter</Button></DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit email */}
+      <Dialog open={!!editEmail} onOpenChange={(o) => { if (!o) setEditEmail(null) }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Modifier le courriel</DialogTitle></DialogHeader>
+          {editEmail && (
+            <form onSubmit={submitEditEmail} className="space-y-4">
+              <div className="space-y-2"><label className="text-sm font-medium">Adresse</label><Input type="email" required value={editEmail.address} onChange={(e) => setEditEmail(f => f && { ...f, address: e.target.value })} placeholder="prenom.nom@exemple.com" /></div>
+              {editEmail.owner !== 'self' && (
+                <div className="space-y-2"><label className="text-sm font-medium">Type (relation du parent)</label>
+                  <Select value={editEmail.relationship} onValueChange={(v) => setEditEmail(f => f && { ...f, relationship: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{RELATIONSHIP_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              )}
+              <DialogFooter><Button type="button" variant="outline" onClick={() => setEditEmail(null)}>Annuler</Button><Button type="submit" disabled={updEmail.isPending || updGEmail.isPending || updGLink.isPending}>Enregistrer</Button></DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit phone */}
+      <Dialog open={!!editPhone} onOpenChange={(o) => { if (!o) setEditPhone(null) }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Modifier le téléphone</DialogTitle></DialogHeader>
+          {editPhone && (
+            <form onSubmit={submitEditPhone} className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="space-y-2"><label className="text-sm font-medium">Indicatif</label><SearchableSelect value={editPhone.countryCode} onValueChange={(v) => setEditPhone(f => f && { ...f, countryCode: v })} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher..." /></div>
+                <div className="space-y-2 sm:col-span-2"><label className="text-sm font-medium">Numéro</label><PhoneInput dialCode={editPhone.countryCode} value={editPhone.number} onChange={(v) => setEditPhone(f => f && { ...f, number: v })} required /></div>
+              </div>
+              {editPhone.owner !== 'self' && (
+                <div className="space-y-2"><label className="text-sm font-medium">Type (relation du parent)</label>
+                  <Select value={editPhone.relationship} onValueChange={(v) => setEditPhone(f => f && { ...f, relationship: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{RELATIONSHIP_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              )}
+              <DialogFooter><Button type="button" variant="outline" onClick={() => setEditPhone(null)}>Annuler</Button><Button type="submit" disabled={updPhone.isPending || updGPhone.isPending || updGLink.isPending}>Enregistrer</Button></DialogFooter>
             </form>
           )}
         </DialogContent>

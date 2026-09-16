@@ -5,6 +5,18 @@
     "changes": [
       {
         "date": "2026-09-16",
+        "text": "Fiche « Contact & famille » repensée — les onglets Contact et Famille sont fusionnés en un seul (sur Ma fiche et sur la fiche côté maîtrise). Toutes les coordonnées du foyer (les vôtres ET celles de chaque parent) sont désormais regroupées en haut dans « Coordonnées du foyer » : chaque téléphone et courriel indique à qui il appartient (Vous / Père / Mère…) et affiche l'étiquette « Urgence » si le parent est contact d'urgence. La section « Parents / tuteurs » ne montre plus que les informations des parents (sans répéter les numéros), et la présentation des trois sections (coordonnées, parents, frères et sœurs) est unifiée."
+      },
+      {
+        "date": "2026-09-16",
+        "text": "Coordonnées — on peut maintenant MODIFIER un téléphone ou un courriel (corriger une adresse erronée) directement là où il s'affiche, au lieu de le supprimer puis le recréer ; pour un parent, on peut aussi corriger sa relation (Père/Mère…) depuis la même fenêtre. Lors de l'ajout, plus de champ « Type » à remplir : il découle automatiquement de « À qui ? »."
+      },
+      {
+        "date": "2026-09-16",
+        "text": "« Voir comme » s'ouvre désormais dans un NOUVEL onglet — vous gardez votre propre session dans l'onglet d'origine et consultez la vue du membre à côté. Le bouton « Quitter » ferme l'onglet."
+      },
+      {
+        "date": "2026-09-16",
         "text": "Vérification des coordonnées — à la connexion, chaque membre voit désormais une fenêtre « Vérifiez vos coordonnées » (une seule fois, ignorable via « Plus tard ») pour corriger ses courriels et téléphones, choisir le COURRIEL et le TÉLÉPHONE principal (celui qui reçoit nos messages — souvent celui de la maman plutôt que du papa), indiquer la situation des parents et, par parent, le contact d'urgence et le statut décédé(e). Remplace l'ancien écran réservé aux chefs et s'applique à tous (y compris un nouveau membre issu d'une demande, à sa première connexion). Côté maîtrise : la fiche d'un membre indique, sous la dernière connexion, « Coordonnées vérifiées le … » ou « Coordonnées à vérifier » pour repérer qui n'a pas encore confirmé."
       },
       {

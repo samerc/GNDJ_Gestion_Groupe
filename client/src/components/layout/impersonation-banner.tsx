@@ -9,6 +9,12 @@ export function ImpersonationBanner() {
   const memberName = useImpersonationStore((s) => s.memberName)
   const stop = useImpersonationStore((s) => s.stop)
   if (!active) return null
+  // "Voir comme" runs in its own tab, so Quitter closes it. If the tab can't be closed (e.g. it was reloaded /
+  // not script-opened), fall back to exiting impersonation in place so the user isn't stuck as the member.
+  const quit = () => {
+    window.close()
+    setTimeout(() => { void stop() }, 120)
+  }
   return (
     <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-amber-500 px-4 py-1.5 text-center text-xs font-semibold text-amber-950 dark:bg-amber-600 dark:text-amber-50">
       <span className="flex items-center gap-1.5">
@@ -16,7 +22,7 @@ export function ImpersonationBanner() {
         Vous consultez en tant que <strong>{memberName}</strong> — lecture seule
       </span>
       <button
-        onClick={() => void stop()}
+        onClick={quit}
         className="rounded bg-amber-950/15 px-2 py-0.5 font-semibold hover:bg-amber-950/25 dark:bg-amber-50/20 dark:hover:bg-amber-50/30"
       >
         Quitter

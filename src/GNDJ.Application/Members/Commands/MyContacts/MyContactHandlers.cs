@@ -220,6 +220,41 @@ public class VerifyMyContactHandler(IApplicationDbContext context, ICurrentUserS
     }
 }
 
+// ── Set my primary contact email (self-service, own record) ───────────────────
+// The recipient for member-facing mail (password reset…). Must be one of the member's own or a linked
+// guardian's emails; null/empty = automatic (own email first, else a guardian's). Mirrors the leader
+// SetPrimaryContactEmailCommand but strictly own-scoped.
+public record SetMyPrimaryContactEmailCommand(string? Email) : IRequest<Result<bool>>;
+
+public class SetMyPrimaryContactEmailHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<SetMyPrimaryContactEmailCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(SetMyPrimaryContactEmailCommand request, CancellationToken ct)
+    {
+        var memberId = MyContactAccess.OwnMemberId(currentUser);
+        if (memberId is null) return Result<bool>.Failure("Aucun membre associé à ce compte.");
+        var member = await context.Members.FindAsync([memberId.Value], ct);
+        if (member is null) return Result<bool>.Failure("Membre introuvable.");
+
+        var email = request.Email?.Trim();
+        if (!string.IsNullOrEmpty(email))
+        {
+            var lower = email.ToLower();
+            var ownEmail = await context.MemberEmails.AnyAsync(e => e.MemberId == memberId.Value && !e.IsDeleted && e.Address.ToLower() == lower, ct);
+            var guardianEmail = ownEmail || await context.GuardianEmails.AnyAsync(e => !e.IsDeleted && e.Address.ToLower() == lower
+                && context.GuardianLinks.Any(l => l.GuardianId == e.GuardianId && l.MemberId == memberId.Value && !l.IsDeleted), ct);
+            if (!ownEmail && !guardianEmail) return Result<bool>.Failure("Ce courriel ne fait pas partie de vos coordonnées.");
+        }
+        member.PrimaryContactEmail = string.IsNullOrEmpty(email) ? null : email;
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Member", member.Id, newValues: new
+        {
+            Member = await AuditNames.MemberAsync(context, member.Id, ct), member.PrimaryContactEmail
+        }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
 // ── Contact-review popup (one-time « Vérifiez vos coordonnées ») ──────────────
 // The member confirms their household contacts in one atomic action: pick the courriel principal
 // (Member.PrimaryContactEmail — the address that receives password-reset/document mail) and the téléphone

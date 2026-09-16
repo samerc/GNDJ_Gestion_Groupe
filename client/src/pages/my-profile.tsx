@@ -1,36 +1,31 @@
 import { useAuthStore } from '@/stores/auth-store'
-import { useMember, type MemberFormData, type MemberPhoneDto, type MemberEmailDto, type MemberAddressDto } from '@/services/member-service'
-import { useUpdateMyProfile, useAddMyPhone, useUpdateMyPhone, useDeleteMyPhone, useAddMyEmail, useUpdateMyEmail, useDeleteMyEmail, useAddMyAddress, useUpdateMyAddress, useDeleteMyAddress } from '@/services/my-profile-service'
+import { useMember, type MemberFormData } from '@/services/member-service'
+import { useUpdateMyProfile } from '@/services/my-profile-service'
 import { MemberPhoto } from '@/components/shared/member-photo'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { SearchableSelect } from '@/components/shared/searchable-select'
-import { CitySelect } from '@/components/shared/city-select'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberSiblings } from '@/components/members/member-siblings'
+import { HouseholdContacts } from '@/components/members/household-contacts'
 import { DocumentsCta } from '@/components/members/documents-cta'
 import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
-import { useSettingArray, useSettingValue, useCities } from '@/services/settings-service'
+import { useSettingArray } from '@/services/settings-service'
 import { SchoolSelect } from '@/components/shared/school-select'
 import { parseApiError } from '@/lib/error-utils'
-import { BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS, PARENTS_SITUATION_OPTIONS, optionsWithCurrent } from '@/lib/options'
+import { BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PARENTS_SITUATION_OPTIONS } from '@/lib/options'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
 import { PERMISSIONS } from '@/lib/constants'
-import { Tip } from '@/components/ui/tooltip'
-import { Save, Phone, Mail, MapPin, Plus, Trash2, Pencil } from 'lucide-react'
+import { Save } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function MyProfilePage() {
@@ -42,26 +37,12 @@ export default function MyProfilePage() {
   const { data: member, isLoading } = useMember(memberId)
   // Ma fiche is always the caller's OWN record, so it uses the self-service endpoint (no members.edit
   // needed, and locked identity fields are never sent). Editable: nationalité/école/classe/section/
-  // groupe sanguin + médical — no approval.
+  // groupe sanguin + médical — no approval. Coordonnées (own + parents) live in <HouseholdContacts>.
   const updateMutation = useUpdateMyProfile(memberId)
   const pinnedNationalities = useSettingArray('pinned_nationalities')
-  const defaultCountryCode = useSettingValue('default_country_code')
-  const defaultCountry = useSettingValue('default_country')
   const schools = useSettingArray('member.schools')
   const classes = useSettingArray('member.classes')
   const professionDomains = useSettingArray('member.profession_domains')
-  const cities = useCities()
-
-  // Coordonnées use the SELF-SERVICE hooks (own record, no members.edit needed).
-  const addPhoneMutation = useAddMyPhone(memberId)
-  const deletePhoneMutation = useDeleteMyPhone(memberId)
-  const addEmailMutation = useAddMyEmail(memberId)
-  const deleteEmailMutation = useDeleteMyEmail(memberId)
-  const addAddressMutation = useAddMyAddress(memberId)
-  const deleteAddressMutation = useDeleteMyAddress(memberId)
-  const updatePhoneMutation = useUpdateMyPhone(memberId)
-  const updateEmailMutation = useUpdateMyEmail(memberId)
-  const updateAddressMutation = useUpdateMyAddress(memberId)
 
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<MemberFormData>({ firstName: '', lastName: '' })
@@ -70,65 +51,6 @@ export default function MyProfilePage() {
   const [error, setError] = useState('')
 
   useUnsavedChanges(editing)
-
-  const [phoneDialogOpen, setPhoneDialogOpen] = useState(false)
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
-  const [addressDialogOpen, setAddressDialogOpen] = useState(false)
-  const [deletingContact, setDeletingContact] = useState<{ type: 'phone' | 'email' | 'address'; id: string; label: string } | null>(null)
-
-  const [phoneForm, setPhoneForm] = useState({ countryCode: '+961', number: '', type: 'Mobile', isPrimary: false, isEmergency: false })
-  const [emailForm, setEmailForm] = useState({ address: '', type: 'Personnel', isPrimary: false, isEmergency: false })
-  const [addressForm, setAddressForm] = useState({ type: 'Domicile', country: 'Liban', city: '', details: '', isPrimary: false })
-
-  // Contact editing state
-  const [editingPhone, setEditingPhone] = useState<MemberPhoneDto | null>(null)
-  const [editPhoneForm, setEditPhoneForm] = useState({ countryCode: '', number: '', type: '', isPrimary: false, isEmergency: false })
-  const [editingEmail, setEditingEmail] = useState<MemberEmailDto | null>(null)
-  const [editEmailForm, setEditEmailForm] = useState({ address: '', type: '', isPrimary: false, isEmergency: false })
-  const [editingAddress, setEditingAddress] = useState<MemberAddressDto | null>(null)
-  const [editAddressForm, setEditAddressForm] = useState({ type: '', country: '', city: '', details: '', isPrimary: false })
-
-  const openEditPhone = (p: MemberPhoneDto) => {
-    setEditPhoneForm({ countryCode: p.countryCode, number: p.number, type: p.type, isPrimary: p.isPrimary, isEmergency: p.isEmergency })
-    setEditingPhone(p)
-  }
-  const handleUpdatePhone = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingPhone) return
-    try {
-      await updatePhoneMutation.mutateAsync({ id: editingPhone.id, ...editPhoneForm })
-      toast.success('Téléphone modifié')
-      setEditingPhone(null)
-    } catch (err) { toast.error(parseApiError(err)) } // toast (not setError): the edit dialog is open, a banner would hide behind it
-  }
-
-  const openEditEmail = (em: MemberEmailDto) => {
-    setEditEmailForm({ address: em.address, type: em.type, isPrimary: em.isPrimary, isEmergency: em.isEmergency })
-    setEditingEmail(em)
-  }
-  const handleUpdateEmail = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingEmail) return
-    try {
-      await updateEmailMutation.mutateAsync({ id: editingEmail.id, ...editEmailForm })
-      toast.success('Courriel modifié')
-      setEditingEmail(null)
-    } catch (err) { toast.error(parseApiError(err)) }
-  }
-
-  const openEditAddress = (a: MemberAddressDto) => {
-    setEditAddressForm({ type: a.type, country: a.country, city: a.city, details: a.details ?? '', isPrimary: a.isPrimary })
-    setEditingAddress(a)
-  }
-  const handleUpdateAddress = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingAddress) return
-    try {
-      await updateAddressMutation.mutateAsync({ id: editingAddress.id, ...editAddressForm, details: editAddressForm.details || null })
-      toast.success('Adresse modifiée')
-      setEditingAddress(null)
-    } catch (err) { toast.error(parseApiError(err)) }
-  }
 
   const startEdit = () => {
     if (!member) return
@@ -170,35 +92,6 @@ export default function MyProfilePage() {
     } catch (err) { setError(parseApiError(err)) }
   }
 
-  // Add-contact submits: surface failures (toast over the modal) and keep the dialog open with the typed
-  // data so nothing is lost; the mutation's isPending gates the button against a double-tap.
-  const handleAddPhone = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try { await addPhoneMutation.mutateAsync(phoneForm); toast.success('Téléphone ajouté'); setPhoneDialogOpen(false) }
-    catch (err) { toast.error(parseApiError(err)) }
-  }
-  const handleAddEmail = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try { await addEmailMutation.mutateAsync(emailForm); toast.success('Courriel ajouté'); setEmailDialogOpen(false) }
-    catch (err) { toast.error(parseApiError(err)) }
-  }
-  const handleAddAddress = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try { await addAddressMutation.mutateAsync({ ...addressForm, details: addressForm.details || null }); toast.success('Adresse ajoutée'); setAddressDialogOpen(false) }
-    catch (err) { toast.error(parseApiError(err)) }
-  }
-
-  const handleDeleteContact = async () => {
-    if (!deletingContact) return
-    try {
-      if (deletingContact.type === 'phone') await deletePhoneMutation.mutateAsync(deletingContact.id)
-      else if (deletingContact.type === 'email') await deleteEmailMutation.mutateAsync(deletingContact.id)
-      else await deleteAddressMutation.mutateAsync(deletingContact.id)
-      toast.success('Supprimé')
-      setDeletingContact(null)
-    } catch (err) { toast.error(parseApiError(err)) }
-  }
-
   if (isLoading || !member) return <LoadingSpinner variant="profile" />
 
   return (
@@ -218,7 +111,7 @@ export default function MyProfilePage() {
           </div>
         </div>
         {/* The Modifier button edits the Profil + Médical fields, so only show it on those tabs.
-            Other tabs (Contact, Famille, Documents…) have their own inline add/edit actions. */}
+            Other tabs (Contact & famille, Documents…) have their own inline add/edit actions. */}
         {(activeTab === 'profile' || activeTab === 'medical') && (
           !editing ? (
             <Button onClick={startEdit}>Modifier</Button>
@@ -241,9 +134,8 @@ export default function MyProfilePage() {
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v !== 'profile' && v !== 'medical') setEditing(false) }}>
         <TabsList className="overflow-x-auto flex-nowrap">
           <TabsTrigger value="profile">Profil</TabsTrigger>
-          <TabsTrigger value="contact">Contact ({member.phones.length + member.emails.length + member.addresses.length})</TabsTrigger>
+          <TabsTrigger value="contact">Contact &amp; famille</TabsTrigger>
           <TabsTrigger value="assignments">Unités / Fonctions</TabsTrigger>
-          <TabsTrigger value="famille">Famille</TabsTrigger>
           <TabsTrigger value="medical">Médical &amp; infos</TabsTrigger>
           <TabsTrigger value="progression">Progression</TabsTrigger>
         </TabsList>
@@ -372,25 +264,17 @@ export default function MyProfilePage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="contact" className="space-y-4">
-          <Card>
-            <CardHeader><div className="flex items-center justify-between"><CardTitle className="flex items-center gap-2"><Phone className="h-4 w-4" />Téléphones</CardTitle><Button size="sm" onClick={() => { setPhoneForm(f => ({ ...f, countryCode: defaultCountryCode ?? '+961' })); setPhoneDialogOpen(true) }}><Plus className="mr-1 h-3 w-3" />Ajouter</Button></div></CardHeader>
-            <CardContent>{member.phones.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : <div className="space-y-2">{member.phones.map(p => (<div key={p.id} className="flex items-center gap-3 rounded-md border p-3"><div className="flex-1"><span className="font-medium">{formatPhoneDisplay(p.countryCode, p.number)}</span><span className="ml-2 text-sm text-muted-foreground">{p.type}</span></div><div className="flex items-center gap-1">{p.isPrimary && <Badge>Principal</Badge>}{p.isEmergency && <Badge variant="destructive">Urgence</Badge>}<Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => openEditPhone(p)}><Pencil className="h-3.5 w-3.5" /></Button></Tip><Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setDeletingContact({ type: 'phone', id: p.id, label: formatPhoneDisplay(p.countryCode, p.number) })}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></Tip></div></div>))}</div>}</CardContent>
-          </Card>
-          <Card>
-            <CardHeader><div className="flex items-center justify-between"><CardTitle className="flex items-center gap-2"><Mail className="h-4 w-4" />Courriels</CardTitle><Button size="sm" onClick={() => setEmailDialogOpen(true)}><Plus className="mr-1 h-3 w-3" />Ajouter</Button></div></CardHeader>
-            <CardContent>{member.emails.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : <div className="space-y-2">{member.emails.map(e => (<div key={e.id} className="flex items-center gap-3 rounded-md border p-3"><div className="flex-1"><span className="font-medium">{e.address}</span><span className="ml-2 text-sm text-muted-foreground">{e.type}</span></div><div className="flex items-center gap-1">{e.isPrimary && <Badge>Principal</Badge>}<Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => openEditEmail(e)}><Pencil className="h-3.5 w-3.5" /></Button></Tip><Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setDeletingContact({ type: 'email', id: e.id, label: e.address })}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></Tip></div></div>))}</div>}</CardContent>
-          </Card>
-          <Card>
-            <CardHeader><div className="flex items-center justify-between"><CardTitle className="flex items-center gap-2"><MapPin className="h-4 w-4" />Adresses</CardTitle><Button size="sm" onClick={() => { setAddressForm(f => ({ ...f, country: defaultCountry ?? 'Liban' })); setAddressDialogOpen(true) }}><Plus className="mr-1 h-3 w-3" />Ajouter</Button></div></CardHeader>
-            <CardContent>{member.addresses.length === 0 ? <p className="text-sm text-muted-foreground">Aucune</p> : <div className="space-y-2">{member.addresses.map(a => (<div key={a.id} className="flex items-center gap-3 rounded-md border p-3"><div className="flex-1"><span className="font-medium">{a.city}, {a.country}</span>{a.details && <p className="text-sm text-muted-foreground">{a.details}</p>}</div><div className="flex items-center gap-1">{a.isPrimary && <Badge>Principal</Badge>}<Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => openEditAddress(a)}><Pencil className="h-3.5 w-3.5" /></Button></Tip><Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setDeletingContact({ type: 'address', id: a.id, label: `${a.city}` })}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></Tip></div></div>))}</div>}</CardContent>
-          </Card>
+        {/* Contact & famille — all household coordonnées pooled at top, then the parents (details only) + fratrie.
+            Each section is its own titled Card for a consistent look. */}
+        <TabsContent value="contact" className="space-y-6">
+          <HouseholdContacts memberId={memberId} selfService />
+          <MemberGuardians memberId={memberId} selfService hideContacts />
+          <MemberSiblings memberId={memberId} />
         </TabsContent>
 
         {/* A regular member can't edit their own assignments (leaders assign them); a leader
             (assignments.create) can manage them from here too. */}
         <TabsContent value="assignments"><MemberAssignments memberId={memberId} memberName={`${member.firstName} ${member.lastName}`} readOnly={!canManageOwnAssignments} selfPropose /></TabsContent>
-        <TabsContent value="famille" className="space-y-4"><MemberGuardians memberId={memberId} selfService /><MemberSiblings memberId={memberId} /></TabsContent>
 
         <TabsContent value="progression">
           <MemberProgression memberId={memberId} selfPropose />
@@ -418,88 +302,6 @@ export default function MyProfilePage() {
           <MemberCustomFields memberId={memberId} selfService />
         </TabsContent>
       </Tabs>
-
-      {/* Phone/Email/Address add dialogs — same as member detail */}
-      <Dialog open={phoneDialogOpen} onOpenChange={setPhoneDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Ajouter un téléphone</DialogTitle></DialogHeader>
-          <form onSubmit={handleAddPhone} className="space-y-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={phoneForm.countryCode} onValueChange={(v) => setPhoneForm(f => ({ ...f, countryCode: v }))} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher un indicatif..." /></div>
-              <div className="sm:col-span-2 space-y-2"><RequiredLabel required>Numéro</RequiredLabel><PhoneInput dialCode={phoneForm.countryCode} value={phoneForm.number} onChange={(v) => setPhoneForm(f => ({ ...f, number: v }))} required /></div>
-            </div>
-            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={phoneForm.type} onValueChange={(v) => setPhoneForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PHONE_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={phoneForm.isPrimary} onChange={(e) => setPhoneForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={phoneForm.isEmergency} onChange={(e) => setPhoneForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setPhoneDialogOpen(false)}>Annuler</Button><Button type="submit" disabled={addPhoneMutation.isPending}>{addPhoneMutation.isPending ? 'Ajout...' : 'Ajouter'}</Button></DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Ajouter un courriel</DialogTitle></DialogHeader>
-          <form onSubmit={handleAddEmail} className="space-y-4">
-            <div className="space-y-2"><RequiredLabel required>Adresse</RequiredLabel><Input type="email" value={emailForm.address} onChange={(e) => setEmailForm(f => ({ ...f, address: e.target.value }))} required /></div>
-            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={emailForm.type} onValueChange={(v) => setEmailForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{EMAIL_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setEmailDialogOpen(false)}>Annuler</Button><Button type="submit" disabled={addEmailMutation.isPending}>{addEmailMutation.isPending ? 'Ajout...' : 'Ajouter'}</Button></DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Ajouter une adresse</DialogTitle></DialogHeader>
-          <form onSubmit={handleAddAddress} className="space-y-4">
-            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={addressForm.type} onValueChange={(v) => setAddressForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ADDRESS_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={addressForm.country} onValueChange={(v) => setAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><CitySelect value={addressForm.city} onChange={(city) => setAddressForm(f => ({ ...f, city }))} cities={cities} /></div></div>
-            <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={addressForm.details} onChange={(e) => setAddressForm(f => ({ ...f, details: e.target.value }))} placeholder="Rue, immeuble..." /></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setAddressDialogOpen(false)}>Annuler</Button><Button type="submit" disabled={addAddressMutation.isPending}>{addAddressMutation.isPending ? 'Ajout...' : 'Ajouter'}</Button></DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      {/* Edit phone dialog */}
-      <Dialog open={!!editingPhone} onOpenChange={() => setEditingPhone(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Modifier le téléphone</DialogTitle></DialogHeader>
-          <form onSubmit={handleUpdatePhone} className="space-y-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={editPhoneForm.countryCode} onValueChange={(v) => setEditPhoneForm(f => ({ ...f, countryCode: v }))} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher un indicatif..." /></div>
-              <div className="sm:col-span-2 space-y-2"><RequiredLabel required>Numéro</RequiredLabel><PhoneInput dialCode={editPhoneForm.countryCode} value={editPhoneForm.number} onChange={(v) => setEditPhoneForm(f => ({ ...f, number: v }))} required /></div>
-            </div>
-            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editPhoneForm.type} onValueChange={(v) => setEditPhoneForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{optionsWithCurrent(PHONE_TYPE_OPTIONS, editPhoneForm.type).map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editPhoneForm.isPrimary} onChange={(e) => setEditPhoneForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editPhoneForm.isEmergency} onChange={(e) => setEditPhoneForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingPhone(null)}>Annuler</Button><Button type="submit" disabled={updatePhoneMutation.isPending}>{updatePhoneMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button></DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit email dialog */}
-      <Dialog open={!!editingEmail} onOpenChange={() => setEditingEmail(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Modifier le courriel</DialogTitle></DialogHeader>
-          <form onSubmit={handleUpdateEmail} className="space-y-4">
-            <div className="space-y-2"><RequiredLabel required>Adresse</RequiredLabel><Input type="email" value={editEmailForm.address} onChange={(e) => setEditEmailForm(f => ({ ...f, address: e.target.value }))} required /></div>
-            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editEmailForm.type} onValueChange={(v) => setEditEmailForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{optionsWithCurrent(EMAIL_TYPE_OPTIONS, editEmailForm.type).map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editEmailForm.isPrimary} onChange={(e) => setEditEmailForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editEmailForm.isEmergency} onChange={(e) => setEditEmailForm(f => ({ ...f, isEmergency: e.target.checked }))} />Urgence</label></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingEmail(null)}>Annuler</Button><Button type="submit" disabled={updateEmailMutation.isPending}>{updateEmailMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button></DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit address dialog */}
-      <Dialog open={!!editingAddress} onOpenChange={() => setEditingAddress(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Modifier l'adresse</DialogTitle></DialogHeader>
-          <form onSubmit={handleUpdateAddress} className="space-y-4">
-            <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editAddressForm.type} onValueChange={(v) => setEditAddressForm(f => ({ ...f, type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{optionsWithCurrent(ADDRESS_TYPE_OPTIONS, editAddressForm.type).map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={editAddressForm.country} onValueChange={(v) => setEditAddressForm(f => ({ ...f, country: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{optionsWithCurrent(COUNTRY_OPTIONS, editAddressForm.country).map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><CitySelect value={editAddressForm.city} onChange={(city) => setEditAddressForm(f => ({ ...f, city }))} cities={cities} /></div></div>
-            <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={editAddressForm.details} onChange={(e) => setEditAddressForm(f => ({ ...f, details: e.target.value }))} placeholder="Rue, immeuble..." /></div>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editAddressForm.isPrimary} onChange={(e) => setEditAddressForm(f => ({ ...f, isPrimary: e.target.checked }))} />Principal</label>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setEditingAddress(null)}>Annuler</Button><Button type="submit" disabled={updateAddressMutation.isPending}>{updateAddressMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button></DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <ConfirmDialog open={!!deletingContact} onOpenChange={() => setDeletingContact(null)} title="Supprimer" description={`Supprimer « ${deletingContact?.label} » ?`} confirmLabel="Supprimer" variant="destructive" loading={deletePhoneMutation.isPending || deleteEmailMutation.isPending || deleteAddressMutation.isPending} onConfirm={handleDeleteContact} />
-
     </div>
   )
 }
