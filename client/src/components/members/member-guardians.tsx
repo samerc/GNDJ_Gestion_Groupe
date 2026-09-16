@@ -408,7 +408,9 @@ export function MemberGuardians({ memberId, selfService, hideContacts }: MemberG
                   <RequiredLabel>Domaine</RequiredLabel>
                   <SearchableSelect
                     value={form.professionDomain}
-                    onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v }))}
+                    // Clearing the domain to "— Aucun —" also erases the free-text profession, so removing a
+                    // parent's profession is a single action.
+                    onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v, profession: v ? f.profession : '' }))}
                     options={domainOptions}
                     placeholder="Domaine d'activité..."
                     searchPlaceholder="Rechercher un domaine..."
@@ -559,7 +561,9 @@ export function MemberGuardians({ memberId, selfService, hideContacts }: MemberG
                 <RequiredLabel>Domaine</RequiredLabel>
                 <SearchableSelect
                   value={editForm.professionDomain}
-                  onValueChange={(v) => setEditForm(f => ({ ...f, professionDomain: v }))}
+                  // Clearing the domain to "— Aucun —" also erases the free-text profession (single action to
+                  // remove a parent's profession). Available to members too (Ma fiche uses this same form).
+                  onValueChange={(v) => setEditForm(f => ({ ...f, professionDomain: v, profession: v ? f.profession : '' }))}
                   options={domainOptions}
                   placeholder="Domaine d'activité..."
                   searchPlaceholder="Rechercher un domaine..."
