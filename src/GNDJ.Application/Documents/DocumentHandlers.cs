@@ -246,7 +246,12 @@ public class ReviewDocumentCommandHandler(IApplicationDbContext context, ICurren
         // member/document are context (same in both columns → shown unchanged); only Statut is highlighted.
         var memberName = await AuditNames.MemberAsync(context, entity.MemberId, ct);
         var typeName = await context.DocumentTypes.Where(dt => dt.Id == entity.DocumentTypeId).Select(dt => dt.Name).FirstOrDefaultAsync(ct) ?? "Document";
-        await auditService.LogAsync("Update", "MemberDocument", entity.Id,
+        // Outcome-specific action so the audit trail reads "Document accepté / refusé" instead of a generic
+        // "Modification" (a document decision isn't an edit). Falls back to a neutral review label otherwise.
+        var reviewAction = entity.Status == DocumentStatus.Approved ? "AcceptDocument"
+            : entity.Status == DocumentStatus.Rejected ? "RejectDocument"
+            : "ReviewDocument";
+        await auditService.LogAsync(reviewAction, "MemberDocument", entity.Id,
             oldValues: new { Member = memberName, Document = typeName, Status = oldStatus },
             newValues: new { Member = memberName, Document = typeName, entity.Status, entity.ReviewNotes },
             cancellationToken: ct);

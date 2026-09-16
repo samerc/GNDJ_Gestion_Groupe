@@ -74,6 +74,9 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   MergeMembers: { label: 'Fusion de membres', color: BLUE },
   SetDelegation: { label: "Délégation d'accès", color: BLUE },
   // Documents
+  AcceptDocument: { label: 'Document accepté', color: GREEN },
+  RejectDocument: { label: 'Document refusé', color: RED },
+  ReviewDocument: { label: 'Vérification de document', color: BLUE },
   AddPages: { label: 'Ajout de pages', color: BLUE },
   DeletePage: { label: 'Suppression de page', color: RED },
   UpdateDocumentCampaign: { label: 'Campagne documents modifiée', color: BLUE },
