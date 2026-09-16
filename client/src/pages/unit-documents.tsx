@@ -7,7 +7,8 @@ import { useSettingValue, useSettingArray } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { CampaignPhaseBanner } from '@/components/shared/campaign-phase-banner'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
-import { defaultPaymentLine } from '@/lib/cotisation'
+import { defaultPaymentLine, amountOnCurrencyChange, currencyLabel } from '@/lib/cotisation'
+import { useCurrencies } from '@/hooks/use-currencies'
 import { PERMISSIONS } from '@/lib/constants'
 import {
   useUnitDocumentsMatrix, useReviewDocumentMatrix, useUploadDocument, downloadDocument, downloadDocumentPage, downloadUnitDocumentsZip,
@@ -59,12 +60,6 @@ function docStatusLabel(cell: MemberDocCellDto): string {
   }
 }
 
-const CURRENCY_OPTIONS = [
-  { value: 'USD', label: '$' },
-  { value: 'LBP', label: 'ل.ل' },
-  { value: 'EUR', label: '€' },
-]
-
 // "Documents & Cotisations" — chef d'unité (CU) screen. A members × document-types matrix for the CU's
 // unit(s): each cell shows a member's upload status per doc type (with hover quick approve/reject + a
 // click-to-preview dialog), plus a trailing cotisation cell (payée / non payée / exempté) that opens a
@@ -76,6 +71,8 @@ export default function UnitDocumentsPage() {
   const defaultCurrency = useSettingValue('cotisation.default_currency')
   // Configured full cotisation price per currency — used to pre-fill the first payment line (falls back to default_amount).
   const fullAmountsRaw = useSettingValue('cotisation.full_amounts')
+  // Defined currencies (default first) for the payment-line dropdown — the CG-defined list, not hardcoded.
+  const { currencies, defaultCurrency: refCurrency } = useCurrencies()
   // A group manager (super-admin / Chef de Groupe) can review ANY unit's documents via a full unit picker;
   // a chef d'unité is limited to their own authorized unit(s) (user.unitAccess). The backend matrix endpoint
   // already allows a manager on any unit (members.edit + all units granted), so this is a UI-only widening.
@@ -787,7 +784,7 @@ export default function UnitDocumentsPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <RequiredLabel required>Paiements</RequiredLabel>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setCotPayments(p => [...p, { amount: 0, currency: 'USD', paymentMethod: 'Cash' }])}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setCotPayments(p => [...p, { amount: 0, currency: refCurrency, paymentMethod: 'Cash' }])}>
                     <Plus className="mr-1 h-3 w-3" />Ligne
                   </Button>
                 </div>
@@ -796,10 +793,10 @@ export default function UnitDocumentsPage() {
                     <div className="flex-1">
                       <Input type="number" step="0.01" min="0" placeholder="Montant" value={p.amount} onChange={(e) => setCotPayments(prev => prev.map((pp, i) => i === idx ? { ...pp, amount: parseFloat(e.target.value) || 0 } : pp))} required />
                     </div>
-                    <Select value={p.currency} onValueChange={(v) => setCotPayments(prev => prev.map((pp, i) => i === idx ? { ...pp, currency: v } : pp))}>
-                      <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                    <Select value={p.currency} onValueChange={(v) => setCotPayments(prev => prev.map((pp, i) => i === idx ? { ...pp, currency: v, amount: amountOnCurrencyChange(fullAmountsRaw, pp.currency, v, pp.amount) } : pp))}>
+                      <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {CURRENCY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.value}</SelectItem>)}
+                        {currencies.map(c => <SelectItem key={c.code} value={c.code}>{currencyLabel(c.code)}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <Select value={p.paymentMethod} onValueChange={(v) => setCotPayments(prev => prev.map((pp, i) => i === idx ? { ...pp, paymentMethod: v } : pp))}>

@@ -5326,6 +5326,30 @@ amounts? Two additions (all on main, DEV until deploy; migration-free — new se
   (equivalent 28.97); exact 2.5M LBP → Paid 100% (rate-independent); edit 204 (was 409). dotnet 0/0 + tsc + eslint
   + vite clean.
 
+### Cotisations — customizable currencies + payment UX (2026-09-17)
+Follow-ups from a CG cotisation walkthrough (all on main, DEV until deploy; migration-free — reuses the existing
+`cotisation.default_currency` + `cotisation.exchange_rates` settings). Three items:
+- **Currencies are now fully customizable (no hardcoded USD/EUR/LBP).** The DEFINED currency list = the reference/
+  default currency (rate 1) ∪ the exchange-rate map keys, edited together in ONE new **"Devises"** editor at the top
+  of Paramètres → Cotisations (`CurrenciesEditor` in settings.tsx): add/remove a currency, ★-mark the default (its
+  rate input is disabled = reference), set each other rate; self-persists BOTH settings on Save. `default_currency`
+  + `exchange_rates` are hidden from the generic per-row rendering (HIDDEN_KEYS). Everything draws its currency list
+  from this via the shared **`useCurrencies()`** hook (`hooks/use-currencies.ts`) + helpers in `lib/cotisation.ts`
+  (`buildCurrencies`/`currencyLabel`/`parseMoneyMap`/`fullAmountFor`): the 3 payment dropdowns (cotisation-dashboard,
+  member-cotisations, unit-documents) + the **"Montant de la cotisation (par devise)"** editor (rewritten to list one
+  amount field per defined currency instead of free-typing codes). `formatMoney` shows the code for any currency it
+  has no built-in symbol for (USD $ / EUR € / LBP ل.ل kept). Backend: the 2 cotisation validators now accept any
+  `^[A-Za-z]{2,10}$` code (dropped `Currency.All`) so a custom currency validates — needs the end-of-batch rebuild.
+- **Prefill amount on currency change (#1):** switching a payment line's currency re-fills the amount with the NEW
+  currency's full price when it wasn't manually typed (blank, or still the OLD currency's full price) —
+  `amountOnCurrencyChange` in lib/cotisation — so paying in LBP after a USD prefill no longer records "30 LBP".
+- **Overpayment "trop-perçu" (#3):** a fully-paid cotisation over 100% shows the excess (equivalent − reference full)
+  in the reference currency — member Cotisations banner + Ma fiche + the dashboard "Ont payé" list. The raw >100%
+  percent is otherwise not surfaced.
+- Cotisations settings tab reordered logically (PINNED_TOP): Devises card → Montant par devise → association
+  amounts → maîtrise amount → maîtrise paie. Verified: tsc + eslint + vite clean. NOTE: no custom currency SYMBOL
+  (a new currency shows its code) — easy to add later if wanted.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

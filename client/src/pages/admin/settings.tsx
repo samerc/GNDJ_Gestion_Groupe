@@ -17,11 +17,13 @@ import { cn } from '@/lib/utils'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { NATIONALITY_OPTIONS, PHONE_COUNTRY_CODES, COUNTRY_OPTIONS } from '@/lib/options'
-import { Save, X, Settings2, Search, Plus, Trash2 } from 'lucide-react'
+import { Save, X, Settings2, Search, Plus, Trash2, Star } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { ManagedListEditor } from '@/components/shared/managed-list-editor'
 import { LoginMessagesEditor } from '@/components/admin/login-messages-editor'
+import { useCurrencies } from '@/hooks/use-currencies'
+import { parseMoneyMap } from '@/lib/cotisation'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 
@@ -69,7 +71,11 @@ const HIDDEN_KEYS = new Set(['site.content', 'card_config', 'member.cities', 'me
   'documents.errors_sent_for', 'documents.errors_alert_for', 'documents.hold_applied_for', 'documents.hold_alert_for',
   // Merged into "Montants pleins (par devise)" (cotisation.full_amounts): the USD full price IS the cotisation
   // amount and drives the payment-form prefill, so a separate "montant par défaut" field is redundant/confusing.
-  'cotisation.default_amount'])
+  'cotisation.default_amount',
+  // Default currency + exchange rates are edited together in the unified "Devises" editor at the top of the
+  // Cotisations tab (default currency = reference, rate locked to 1; others get an editable rate), so they are
+  // hidden from the generic per-row rendering.
+  'cotisation.default_currency', 'cotisation.exchange_rates'])
 // Technical keys moved to an "Avancé" tab.
 const ADVANCED_KEYS = new Set(['app.base_url', 'user_domain'])
 
@@ -108,7 +114,13 @@ const CATEGORY_ORDER = ['members', 'famille', 'documents', 'cotisations', 'passa
 
 // Keys pinned to the top of their category tab (rest keep their natural order). The two inscription
 // period switches (portal open + submission window) lead the "Inscriptions" tab so the CG sees them first.
-const PINNED_TOP: Record<string, number> = { 'demande.enabled': 0, 'demande.submissions_open': 1 }
+const PINNED_TOP: Record<string, number> = {
+  'demande.enabled': 0, 'demande.submissions_open': 1,
+  // Cotisations tab, logical order under the "Devises" card (rendered separately, above these): the fee members
+  // pay first, then the association-dues configuration (association amounts → maîtrise amount → maîtrise pays).
+  'cotisation.full_amounts': 10,
+  'cotisation.association_amounts': 20, 'cotisation.maitrise_amount': 21, 'cotisation.maitrise_pays': 22,
+}
 
 // Tab a setting belongs to: ADVANCED_KEYS are pulled out of their natural category into "Avancé";
 // the lone "Contact" setting (contact form recipient) is folded into the "Email & contact" tab.
@@ -157,41 +169,137 @@ function ExchangeRateEditor({ value, onChange }: { value: string; onChange: (jso
   )
 }
 
-// Full cotisation price PER CURRENCY (cotisation.full_amounts). Same shape/UX as the exchange-rate editor but
-// the value is a full price, not a rate: stores { "USD": 30, "LBP": 2500000 }. Used to tell "payé en entier"
-// from "partiel" — each payment counts as a fraction of its OWN currency's full price. Empty = feature off.
+// Full cotisation price PER CURRENCY (cotisation.full_amounts). Stores { "USD": 30, "LBP": 2500000 }. Used to
+// tell "payé en entier" from "partiel" — each payment counts as a fraction of its OWN currency's full price.
+// Lists one amount field per DEFINED currency (from the Devises editor) so the two stay linked — no free-typing
+// a code that wouldn't match a payment currency. A blank field = no full price for that currency; all blank =
+// feature off (any payment counts as paid). An amount for a currency no longer defined is preserved but hidden.
 function FullAmountsEditor({ value, onChange }: { value: string; onChange: (json: string) => void }) {
-  const parseRows = (v: string): { code: string; amount: string }[] => {
-    try { return Object.entries(JSON.parse(v || '{}') as Record<string, number>).map(([code, amount]) => ({ code, amount: String(amount) })) }
-    catch { return [] }
+  const { currencies } = useCurrencies()
+  const amounts = parseMoneyMap(value)
+  const setAmount = (code: string, raw: string) => {
+    const next = { ...parseMoneyMap(value) } // keep amounts for currencies not shown (e.g. one just removed)
+    const n = Number(raw)
+    if (raw.trim() === '' || !(n > 0)) delete next[code]
+    else next[code] = n
+    onChange(JSON.stringify(next))
   }
-  const [rows, setRows] = useState(() => parseRows(value))
-  const [prevValue, setPrevValue] = useState(value)
-  if (value !== prevValue) { setPrevValue(value); setRows(parseRows(value)) }
+  return (
+    <div className="space-y-2">
+      {currencies.map(c => (
+        <div key={c.code} className="flex items-center gap-2">
+          <span className="w-16 text-sm font-medium">{c.code}{c.isDefault && <span className="ml-1 text-xs font-normal text-muted-foreground">(réf.)</span>}</span>
+          <Input className="w-40" type="number" step="any" placeholder="Montant plein"
+            value={amounts[c.code] ?? ''} onChange={(e) => setAmount(c.code, e.target.value)} />
+        </div>
+      ))}
+      <p className="text-xs text-muted-foreground">Montant plein de la cotisation dans chaque devise (ex. USD = 30, LBP = 2 500 000). Un membre est « payé en entier » quand la somme de ses paiements atteint le plein — chaque paiement comptant pour une fraction du plein de sa devise. Laisser tout vide = pas de suivi du plein (tout paiement compte comme payé). Gérez la liste des devises dans « Devises » ci-dessus.</p>
+    </div>
+  )
+}
 
-  const commit = (next: { code: string; amount: string }[]) => {
-    setRows(next)
-    const obj: Record<string, number> = {}
-    for (const r of next) {
-      const c = r.code.trim().toUpperCase()
-      const n = Number(r.amount)
-      if (c && !Number.isNaN(n) && n > 0) obj[c] = n
+// ── Unified currencies editor (cotisation.default_currency + cotisation.exchange_rates in ONE place) ──
+// Lists every DEFINED currency: the reference/default (rate locked to 1, marked with the star) plus the others,
+// each with its exchange rate (units per 1 reference, e.g. 1 USD = 89 500 LBP). The CG can add/remove currencies,
+// pick which is the default (its rate field is then disabled), and set every other rate — so the currency set is
+// fully customizable. Self-persists BOTH settings on Save. This is the single source of truth the payment forms
+// and the "montant par devise" editor draw their currency list from.
+type CurRow = { code: string; rate: string; isDefault: boolean }
+function buildCurRows(def: string, ratesJson: string): CurRow[] {
+  let rates: Record<string, number> = {}
+  try { rates = ratesJson ? JSON.parse(ratesJson) as Record<string, number> : {} } catch { /* ignore malformed */ }
+  const d = (def || 'USD').toUpperCase()
+  const rows: CurRow[] = [{ code: d, rate: '1', isDefault: true }]
+  for (const [code, rate] of Object.entries(rates)) {
+    if (code.toUpperCase() === d) continue
+    rows.push({ code: code.toUpperCase(), rate: String(rate), isDefault: false })
+  }
+  return rows
+}
+function CurrenciesEditor({ defaultCurrency, ratesJson }: { defaultCurrency: string; ratesJson: string }) {
+  const update = useUpdateSetting()
+  const [rows, setRows] = useState<CurRow[]>(() => buildCurRows(defaultCurrency, ratesJson))
+  // Re-sync when the persisted values change externally (render-phase reset; lazy init covers mount).
+  const [prevSig, setPrevSig] = useState(defaultCurrency + '|' + ratesJson)
+  const sig = defaultCurrency + '|' + ratesJson
+  if (sig !== prevSig) { setPrevSig(sig); setRows(buildCurRows(defaultCurrency, ratesJson)) }
+
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [err, setErr] = useState('')
+
+  const setDefault = (i: number) => setRows(rs => rs.map((r, j) => ({ ...r, isDefault: j === i, rate: j === i ? '1' : r.rate })))
+  const updateRow = (i: number, patch: Partial<CurRow>) => setRows(rs => rs.map((r, j) => j === i ? { ...r, ...patch } : r))
+  const addRow = () => setRows(rs => [...rs, { code: '', rate: '', isDefault: false }])
+  const removeRow = (i: number) => setRows(rs => rs.filter((_, j) => j !== i))
+
+  // Validate + serialize the rows to the (default currency, exchange-rates JSON) pair; a string is an error.
+  const serialize = (): { def: string; rates: string } | string => {
+    const cleaned = rows.map(r => ({ ...r, code: r.code.trim().toUpperCase() })).filter(r => r.code)
+    if (cleaned.length === 0) return 'Ajoutez au moins une devise.'
+    const def = cleaned.find(r => r.isDefault)
+    if (!def) return 'Choisissez une devise par défaut (★).'
+    const codes = cleaned.map(r => r.code)
+    if (new Set(codes).size !== codes.length) return 'Codes de devise en double.'
+    const rates: Record<string, number> = {}
+    for (const r of cleaned) {
+      if (r.isDefault) continue
+      const n = Number(r.rate)
+      if (!(n > 0)) return `Taux de change invalide pour ${r.code}.`
+      rates[r.code] = n
     }
-    onChange(JSON.stringify(obj))
+    return { def: def.code, rates: JSON.stringify(rates) }
+  }
+
+  // Dirty = the current rows differ from a freshly-built baseline of the persisted values.
+  const dirty = JSON.stringify(rows) !== JSON.stringify(buildCurRows(defaultCurrency, ratesJson))
+
+  const onSave = async () => {
+    const s = serialize()
+    if (typeof s === 'string') { setErr(s); return }
+    setErr(''); setSaving(true)
+    try {
+      await update.mutateAsync({ key: 'cotisation.default_currency', value: s.def })
+      await update.mutateAsync({ key: 'cotisation.exchange_rates', value: s.rates })
+      toast.success('Devises enregistrées'); setSaved(true); setTimeout(() => setSaved(false), 2000)
+    } catch (e) { setErr(parseApiError(e)) } finally { setSaving(false) }
   }
 
   return (
     <div className="space-y-2">
-      {rows.map((r, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <Input className="w-24" placeholder="USD" value={r.code} onChange={(e) => commit(rows.map((x, j) => j === i ? { ...x, code: e.target.value } : x))} />
-          <span className="text-sm text-muted-foreground">=</span>
-          <Input className="w-40" type="number" step="any" placeholder="Montant plein" value={r.amount} onChange={(e) => commit(rows.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))} />
-          <Tip content="Supprimer la devise"><Button type="button" variant="ghost" size="icon" onClick={() => commit(rows.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
-        </div>
-      ))}
-      <Button type="button" variant="outline" size="sm" onClick={() => commit([...rows, { code: '', amount: '' }])}><Plus className="mr-1 h-3.5 w-3.5" />Ajouter une devise</Button>
-      <p className="text-xs text-muted-foreground">Montant plein de la cotisation dans chaque devise (ex. USD = 30, LBP = 2 500 000). Un membre est « payé en entier » quand la somme de ses paiements atteint le plein — chaque paiement comptant pour une fraction du plein de sa devise. Vide = pas de suivi du plein.</p>
+      {err && <p className="text-sm text-destructive">{err}</p>}
+      <div className="space-y-2">
+        {rows.map((r, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <Tip content={r.isDefault ? 'Devise par défaut (référence)' : 'Définir comme devise par défaut'}>
+              <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => setDefault(i)}>
+                <Star className={cn('h-4 w-4', r.isDefault ? 'fill-amber-400 text-amber-500' : 'text-muted-foreground')} />
+              </Button>
+            </Tip>
+            <Input className="w-24" placeholder="USD" value={r.code}
+              onChange={(e) => updateRow(i, { code: e.target.value })} />
+            <span className="text-sm text-muted-foreground">=</span>
+            <Input className="w-40" type="number" step="any" placeholder="Taux" value={r.isDefault ? '1' : r.rate}
+              disabled={r.isDefault} title={r.isDefault ? 'La devise de référence a toujours un taux de 1' : undefined}
+              onChange={(e) => updateRow(i, { rate: e.target.value })} />
+            <span className="text-xs text-muted-foreground">{r.isDefault ? 'référence' : `pour 1 ${rows.find(x => x.isDefault)?.code || ''}`}</span>
+            <Tip content="Supprimer la devise">
+              <Button type="button" variant="ghost" size="icon" className="shrink-0" disabled={r.isDefault && rows.length === 1}
+                onClick={() => removeRow(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            </Tip>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={addRow}><Plus className="mr-1 h-3.5 w-3.5" />Ajouter une devise</Button>
+        {dirty && <Button type="button" size="sm" onClick={onSave} disabled={saving}><Save className="mr-1 h-3 w-3" />{saving ? 'Enregistrement...' : 'Enregistrer'}</Button>}
+        {saved && <Badge variant="default" className="text-xs">Enregistré</Badge>}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        La devise ★ est la référence (taux 1) : tous les montants et le total « équivalent » sont exprimés par rapport à elle.
+        Les autres devises ont un taux de change (nombre d'unités pour 1 devise de référence, ex. 1 USD = 89 500 LBP).
+        Ces devises alimentent partout les formulaires de paiement et « Montant de la cotisation (par devise) ».
+      </p>
     </div>
   )
 }
@@ -627,6 +735,18 @@ export default function SettingsPage() {
           <div className="min-w-0 flex-1">
             {activeCategory && (
               <>
+                {/* Cotisations section leads with the unified "Devises" editor (default currency + rates in one
+                    place), above the amount/dues settings. */}
+                {activeCategory === 'cotisations' && (
+                  <div className="mb-6 rounded-xl border border-border bg-card p-5 shadow-card">
+                    <h2 className="mb-1 text-lg font-semibold">Devises</h2>
+                    <p className="mb-4 text-sm text-muted-foreground">Devises acceptées pour les cotisations, la devise de référence et les taux de change.</p>
+                    <CurrenciesEditor
+                      defaultCurrency={(settings ?? []).find(s => s.key === 'cotisation.default_currency')?.value ?? 'USD'}
+                      ratesJson={(settings ?? []).find(s => s.key === 'cotisation.exchange_rates')?.value ?? '{}'}
+                    />
+                  </div>
+                )}
                 <div className="rounded-xl border border-border bg-card p-5 shadow-card">
                   {activeCategory === 'login' ? (
                     // Login-message settings split into two tabs (Membres / Inscription) — one editor per audience.

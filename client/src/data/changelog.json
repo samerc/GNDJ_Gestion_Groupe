@@ -5,6 +5,14 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Cotisations — devises personnalisables : la liste des devises acceptées se gère désormais dans Paramètres → Cotisations → « Devises » (un seul endroit). On y ajoute/retire une devise, on choisit la devise de référence (★, dont le taux est verrouillé à 1) et on saisit le taux de change des autres. Toute l'application (formulaires de paiement, « Montant de la cotisation par devise », totaux) suit automatiquement cette liste."
+      },
+      {
+        "date": "2026-09-17",
+        "text": "Cotisations — saisie facilitée : en changeant la devise d'une ligne de paiement, le montant se pré-remplit avec le plein de la nouvelle devise (ex. passer de USD à LBP propose 2 500 000 au lieu de laisser « 30 »), sauf si un montant a été saisi manuellement. Un éventuel trop-perçu (paiement supérieur au plein) est désormais signalé."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Cotisations — champs de montant fusionnés : l'ancien « Montant de cotisation par défaut » (en USD) faisait doublon avec la nouvelle grille « Montant de la cotisation (par devise) ». Il n'y a plus qu'un seul endroit où définir le montant (Paramètres → Cotisations → « Montant de la cotisation (par devise) »), et c'est lui qui pré-remplit désormais le formulaire de paiement."
       },
       {

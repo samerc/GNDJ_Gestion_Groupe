@@ -7,7 +7,8 @@ import { useSettingValue } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
 import { formatMoney } from '@/lib/utils'
-import { defaultPaymentLine } from '@/lib/cotisation'
+import { defaultPaymentLine, amountOnCurrencyChange, currencyLabel, fullAmountFor } from '@/lib/cotisation'
+import { useCurrencies } from '@/hooks/use-currencies'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
@@ -21,13 +22,6 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Tip } from '@/components/ui/tooltip'
 import { Plus, Download, Pencil, Trash2, Receipt, Ban, CheckCircle2, AlertTriangle } from 'lucide-react'
-
-const CURRENCY_OPTIONS = [
-  { value: 'USD', label: 'USD ($)' },
-  { value: 'LBP', label: 'LBP (ل.ل)' },
-  { value: 'EUR', label: 'EUR (€)' },
-]
-
 
 // "Cotisations" tab of the member detail page (CG/leader view). Lists paid cotisations per scout
 // year — each cotisation is one receipt with multiple multi-currency payment lines — with receipt
@@ -59,6 +53,8 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
   // hint when entering a payment AND used to pre-fill the first payment line (falls back to the legacy default_amount).
   const fullAmountsRaw = useSettingValue('cotisation.full_amounts')
   const defaultCurrency = useSettingValue('cotisation.default_currency')
+  // Defined currencies (default first) for the payment-line dropdowns — the CG-defined list, not hardcoded.
+  const { currencies, defaultCurrency: refCurrency } = useCurrencies()
   const fullPriceHint = (() => {
     try {
       const obj = fullAmountsRaw ? JSON.parse(fullAmountsRaw) as Record<string, number> : {}
@@ -86,6 +82,12 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
   const partialPercent = currentYearCotisation?.percentPaid ?? 0
   const partialRemaining = currentYearCotisation?.remainingReference ?? 0
   const partialRefCurrency = currentYearCotisation?.referenceCurrency ?? 'USD'
+  // Overpayment (fully paid AND over 100%) → the excess in the reference currency, shown on the "payée" banner.
+  const overpaidExcess = (() => {
+    if (!currentYearCotisation || currentYearCotisation.status !== 'Paid' || (currentYearCotisation.percentPaid ?? 0) <= 100) return 0
+    const refFull = fullAmountFor(fullAmountsRaw, currentYearCotisation.referenceCurrency)
+    return refFull ? currentYearCotisation.equivalentReference - refFull : 0
+  })()
   // Marking exempt opens a small dialog to capture an optional reason; removing an exemption is direct.
   const [exemptOpen, setExemptOpen] = useState(false)
   const [exemptReasonInput, setExemptReasonInput] = useState('')
@@ -134,7 +136,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
   }
 
   const addPaymentLine = () => {
-    setPayments(prev => [...prev, { amount: 0, currency: 'USD', paymentMethod: 'Cash' }])
+    setPayments(prev => [...prev, { amount: 0, currency: refCurrency, paymentMethod: 'Cash' }])
   }
 
   const removePaymentLine = (idx: number) => {
@@ -143,6 +145,13 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
 
   const updatePaymentLine = (idx: number, field: keyof PaymentLineInput, value: string | number) => {
     setPayments(prev => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p))
+  }
+
+  // Switching a line's currency re-fills the amount with the new currency's full price when it wasn't manually
+  // typed (0 or still the old currency's full price) — avoids recording e.g. "30 LBP" after a USD prefill.
+  const changeCurrency = (idx: number, newCur: string) => {
+    setPayments(prev => prev.map((p, i) =>
+      i === idx ? { ...p, currency: newCur, amount: amountOnCurrencyChange(fullAmountsRaw, p.currency, newCur, p.amount) } : p))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -227,6 +236,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
               <div className="mb-3 flex items-center justify-between rounded-md border border-green-200 dark:border-green-900 bg-green-50/60 dark:bg-green-950/30 px-3 py-2">
                 <span className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
                   <CheckCircle2 className="h-4 w-4" />Cotisation payée pour {year}
+                  {overpaidExcess > 0 && <span className="text-amber-600 dark:text-amber-400">· trop-perçu ≈ {formatMoney(overpaidExcess, partialRefCurrency)}</span>}
                 </span>
               </div>
             ) : hideMaitriseExpected ? null : (
@@ -363,10 +373,10 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
                     </div>
                     <div className="w-28 space-y-1">
                       <span className="text-xs text-muted-foreground">Devise</span>
-                      <Select value={p.currency} onValueChange={(v) => updatePaymentLine(idx, 'currency', v)}>
+                      <Select value={p.currency} onValueChange={(v) => changeCurrency(idx, v)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {CURRENCY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                          {currencies.map(c => <SelectItem key={c.code} value={c.code}>{currencyLabel(c.code)}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>

@@ -113,8 +113,10 @@ public class CreateCotisationCommandValidator : AbstractValidator<CreateCotisati
         RuleForEach(x => x.Payments).ChildRules(p =>
         {
             p.RuleFor(x => x.Amount).GreaterThan(0).WithMessage("Le montant doit être supérieur à 0.");
+            // Currencies are customizable (defined by the CG in Paramètres → Cotisations), so validate the code's
+            // FORMAT (2–10 letters) rather than a fixed set; the frontend only offers the defined currencies.
             p.RuleFor(x => x.Currency).NotEmpty().WithMessage("La devise est requise.")
-                .Must(c => Domain.Enums.Currency.All.Contains(c)).WithMessage("Devise invalide.");
+                .Matches("^[A-Za-z]{2,10}$").WithMessage("Devise invalide.");
             p.RuleFor(x => x.PaymentMethod).NotEmpty().WithMessage("Le mode de paiement est requis.").MaximumLength(50);
         });
     }
@@ -201,7 +203,7 @@ public class UpdateCotisationCommandValidator : AbstractValidator<UpdateCotisati
         RuleForEach(x => x.Payments).ChildRules(p =>
         {
             p.RuleFor(x => x.Amount).GreaterThan(0).WithMessage("Le montant doit être supérieur à 0.");
-            p.RuleFor(x => x.Currency).NotEmpty().Must(c => Domain.Enums.Currency.All.Contains(c)).WithMessage("Devise invalide.");
+            p.RuleFor(x => x.Currency).NotEmpty().Matches("^[A-Za-z]{2,10}$").WithMessage("Devise invalide.");
             p.RuleFor(x => x.PaymentMethod).NotEmpty().WithMessage("Le mode de paiement est requis.").MaximumLength(50);
         });
     }

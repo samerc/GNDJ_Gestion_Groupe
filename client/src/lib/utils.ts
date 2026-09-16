@@ -39,7 +39,8 @@ export function safeJsonArray<T = string>(json: string | null | undefined): T[] 
 
 // A cotisation amount with its currency symbol ($, €, or ل.ل for LBP), fr-FR grouping, 2 decimals.
 export function formatMoney(amount: number, currency: string): string {
-  const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'ل.ل'
+  // Known symbols for the common currencies; any other (custom) currency shows its code, e.g. "100,00 AED".
+  const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'LBP' ? 'ل.ل' : currency
   return `${amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} ${symbol}`
 }
 

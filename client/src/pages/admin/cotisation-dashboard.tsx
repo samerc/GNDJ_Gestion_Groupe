@@ -15,7 +15,8 @@ import {
   useAssociationDues, downloadReceipt, type UnpaidCotisationDto, type PaidCotisationDto, type ExemptCotisationDto,
 } from '@/services/cotisation-service'
 import { useSettingValue } from '@/services/settings-service'
-import { defaultPaymentLine } from '@/lib/cotisation'
+import { defaultPaymentLine, amountOnCurrencyChange, currencyLabel, fullAmountFor } from '@/lib/cotisation'
+import { useCurrencies } from '@/hooks/use-currencies'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { useQueryClient } from '@tanstack/react-query'
 import { parseApiError } from '@/lib/error-utils'
@@ -47,6 +48,8 @@ export default function CotisationDashboardPage() {
       return parts.length > 0 ? parts.join(' · ') : null
     } catch { return null }
   })()
+  // Defined currencies (default first) — payment dropdowns use this CG-defined list, not a hardcoded set.
+  const { currencies, defaultCurrency: refCurrency } = useCurrencies()
   const [scoutYear, setScoutYear] = useState(currentScoutYear)
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -85,10 +88,18 @@ export default function CotisationDashboardPage() {
     const dpl = defaultPaymentLine(fullAmountsRaw, defaultCurrency, defaultAmount)
     setPayLines([{ amount: dpl.amount ? String(dpl.amount) : '', currency: dpl.currency, paymentMethod: 'Cash' }])
   }
-  const addPayLine = () => setPayLines(ls => [...ls, { amount: '', currency: 'USD', paymentMethod: 'Cash' }])
+  const addPayLine = () => setPayLines(ls => [...ls, { amount: '', currency: refCurrency, paymentMethod: 'Cash' }])
   const removePayLine = (i: number) => setPayLines(ls => ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls)
   const updatePayLine = (i: number, patch: Partial<PayLine>) =>
     setPayLines(ls => ls.map((l, idx) => idx === i ? { ...l, ...patch } : l))
+  // Switching a line's currency re-fills the amount with the NEW currency's full price when it wasn't manually
+  // typed (blank, or still the old currency's full price) — so paying in LBP after a USD prefill doesn't record "30 LBP".
+  const changeCurrency = (i: number, newCur: string) =>
+    setPayLines(ls => ls.map((l, idx) => {
+      if (idx !== i) return l
+      const n = amountOnCurrencyChange(fullAmountsRaw, l.currency, newCur, parseFloat(l.amount) || 0)
+      return { ...l, currency: newCur, amount: n > 0 ? String(n) : '' }
+    }))
 
   // Totals per currency for the dialog footer (multi-currency, not converted).
   const payTotals = payLines.reduce<Record<string, number>>((acc, l) => {
@@ -457,6 +468,12 @@ export default function CotisationDashboardPage() {
                                                       <span className="text-xs text-muted-foreground">≈ {formatMoney(m.equivalentReference, m.referenceCurrency)}</span>
                                                     )}
                                                     {m.status === 'Partial' && <Badge className="bg-amber-500 hover:bg-amber-500">Partiel {m.percentPaid}%</Badge>}
+                                                    {/* Overpayment: fully paid AND over 100% → show the excess in the reference currency. */}
+                                                    {m.status === 'Paid' && m.percentPaid > 100 && (() => {
+                                                      const refFull = fullAmountFor(fullAmountsRaw, m.referenceCurrency)
+                                                      const excess = refFull ? m.equivalentReference - refFull : 0
+                                                      return excess > 0 ? <span className="text-xs text-amber-600 dark:text-amber-400">Trop-perçu ≈ {formatMoney(excess, m.referenceCurrency)}</span> : null
+                                                    })()}
                                                   </div>
                                                 ) : <span className="text-muted-foreground">—</span>}
                                               </td>
@@ -724,12 +741,10 @@ export default function CotisationDashboardPage() {
                   </div>
                   <div className="w-28 space-y-1">
                     {i === 0 && <span className="text-xs text-muted-foreground">Devise</span>}
-                    <Select value={line.currency} onValueChange={v => updatePayLine(i, { currency: v })}>
+                    <Select value={line.currency} onValueChange={v => changeCurrency(i, v)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="USD">USD ($)</SelectItem>
-                        <SelectItem value="EUR">EUR (€)</SelectItem>
-                        <SelectItem value="LBP">LBP (ل.ل)</SelectItem>
+                        {currencies.map(c => <SelectItem key={c.code} value={c.code}>{currencyLabel(c.code)}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
