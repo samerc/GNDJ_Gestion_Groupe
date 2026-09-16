@@ -11,6 +11,10 @@ export interface CotisationPaymentDto {
   paymentMethod: string
 }
 
+// Status is computed server-side (proportion-per-currency against the configured full price):
+// 'Paid' (fully covered) / 'Partial' (paid, short of full) / 'Unpaid' / 'Exempt'. percentPaid + remainingReference
+// (in referenceCurrency) express how much is left. fullPricingConfigured = a full price is set (else any payment = Paid).
+export type CotisationStatus = 'Paid' | 'Partial' | 'Unpaid' | 'Exempt'
 export interface MemberCotisationDto {
   id: string
   memberId: string
@@ -21,6 +25,12 @@ export interface MemberCotisationDto {
   willNotPay: boolean
   payments: CotisationPaymentDto[]
   createdAt: string
+  status: CotisationStatus
+  percentPaid: number
+  remainingReference: number
+  equivalentReference: number
+  referenceCurrency: string
+  fullPricingConfigured: boolean
 }
 
 export interface PaymentLineInput {
@@ -37,6 +47,9 @@ export interface CotisationFormData {
   payments: PaymentLineInput[]
 }
 
+// "À relancer" row = a member who paid NOTHING (status 'Unpaid') or only PART of the fee (status 'Partial').
+// For a partial payer: paidTotals = what they've paid so far (per currency), percentPaid + remainingReference
+// (in referenceCurrency) = how much is left.
 export interface UnpaidCotisationDto {
   memberId: string
   memberName: string
@@ -45,6 +58,11 @@ export interface UnpaidCotisationDto {
   contactEmail: string | null
   contactPhone: string | null
   parentName: string | null
+  status: CotisationStatus
+  percentPaid: number
+  remainingReference: number
+  referenceCurrency: string
+  paidTotals: CurrencyTotalDto[]
 }
 
 // A member marked exempt ("ne paiera pas") for the year — shown in the CG dashboard's per-unit "Exemptés"
@@ -74,22 +92,34 @@ export interface PaidCotisationDto {
   receiptNumber: string
   paymentDate: string
   totals: CurrencyTotalDto[]
+  status: CotisationStatus
+  percentPaid: number
+  equivalentReference: number
+  referenceCurrency: string
 }
 
 export interface UnitCotisationSummaryDto {
   unitName: string
   totalMembers: number
   paidMembers: number
+  partialMembers: number
   exemptMembers: number
   totals: CurrencyTotalDto[]
+  equivalentTotal: number
 }
 
+// membersWithPayment = FULLY paid; membersPartial = paid but short. equivalentTotal = all payments converted
+// into referenceCurrency (the "≈ $X collected" figure). fullPricingConfigured = a full price is set.
 export interface CotisationSummaryDto {
   totalActiveMembers: number
   membersWithPayment: number
+  membersPartial: number
   membersWithoutPayment: number
   membersExempt: number
   totalsByCurrency: CurrencyTotalDto[]
+  equivalentTotal: number
+  referenceCurrency: string
+  fullPricingConfigured: boolean
   byUnit: UnitCotisationSummaryDto[]
 }
 

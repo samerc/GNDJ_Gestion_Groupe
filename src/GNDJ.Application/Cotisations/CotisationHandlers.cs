@@ -14,11 +14,16 @@ public record CotisationPaymentDto(Guid Id, decimal Amount, string Currency, str
 
 // One member's cotisation for a scout year. A single record per (member, year) carrying multiple
 // payment lines (multi-currency). WillNotPay marks an exemption (see SetCotisationExemptCommand).
+// Status/PercentPaid/RemainingReference are computed server-side (CotisationCalc, proportion-per-currency)
+// so the member tab shows "payé en entier / partiel" consistently with the CG dashboard; when no full
+// price is configured, FullPricingConfigured is false and Status falls back to Paid on any payment.
 public record MemberCotisationDto(
     Guid Id, Guid MemberId, string ScoutYear,
     DateOnly PaymentDate, string ReceiptNumber, string? Notes,
     bool WillNotPay,
-    List<CotisationPaymentDto> Payments, DateTime CreatedAt
+    List<CotisationPaymentDto> Payments, DateTime CreatedAt,
+    string Status, int PercentPaid, decimal RemainingReference, decimal EquivalentReference,
+    string ReferenceCurrency, bool FullPricingConfigured
 );
 
 // Unit-scoping helper: super-admin, own member, or active leader of the member's unit.
@@ -56,17 +61,30 @@ public class GetMemberCotisationsQueryHandler(IApplicationDbContext context, ICu
         if (!await CotisationAccessHelper.CanAccessMember(context, currentUser, request.MemberId, ct))
             return Result<IReadOnlyList<MemberCotisationDto>>.Failure("Accès non autorisé à ce membre.");
 
-        var items = await context.MemberCotisations
+        // Load the cotisation rows, then compute the paid-in-full status in memory (CotisationCalc, using the
+        // configured full price per currency). A member has ≤1 row per year, so a per-row status is a per-year status.
+        var cfg = await CotisationCalc.LoadAsync(context, ct);
+        var rows = await context.MemberCotisations
             .Where(c => c.MemberId == request.MemberId)
             .Include(c => c.Payments.Where(p => !p.IsDeleted))
             .OrderByDescending(c => c.ScoutYear)
-            .Select(c => new MemberCotisationDto(
-                c.Id, c.MemberId, c.ScoutYear,
-                c.PaymentDate, c.ReceiptNumber, c.Notes, c.WillNotPay,
-                c.Payments.Where(p => !p.IsDeleted).Select(p => new CotisationPaymentDto(p.Id, p.Amount, p.Currency, p.PaymentMethod)).ToList(),
-                c.CreatedAt
-            ))
+            .Select(c => new
+            {
+                c.Id, c.MemberId, c.ScoutYear, c.PaymentDate, c.ReceiptNumber, c.Notes, c.WillNotPay, c.CreatedAt,
+                Payments = c.Payments.Where(p => !p.IsDeleted).Select(p => new CotisationPaymentDto(p.Id, p.Amount, p.Currency, p.PaymentMethod)).ToList()
+            })
             .ToListAsync(ct);
+
+        var items = rows.Select(c =>
+        {
+            var tuples = c.Payments.Select(p => (p.Amount, p.Currency)).ToList();
+            var (status, percent, remaining) = CotisationCalc.Evaluate(tuples, c.WillNotPay, cfg);
+            return new MemberCotisationDto(
+                c.Id, c.MemberId, c.ScoutYear, c.PaymentDate, c.ReceiptNumber, c.Notes, c.WillNotPay,
+                c.Payments, c.CreatedAt,
+                status, percent, remaining, CotisationCalc.EquivalentInReference(tuples, cfg),
+                cfg.ReferenceCurrency, cfg.HasFullPricing);
+        }).ToList();
 
         return Result<IReadOnlyList<MemberCotisationDto>>.Success(items);
     }
@@ -193,9 +211,11 @@ public class UpdateCotisationCommandHandler(IApplicationDbContext context, ICurr
 {
     public async ValueTask<Result<bool>> Handle(UpdateCotisationCommand request, CancellationToken ct)
     {
-        var entity = await context.MemberCotisations
-            .Include(c => c.Payments.Where(p => !p.IsDeleted))
-            .FirstOrDefaultAsync(c => c.Id == request.Id, ct);
+        // Load the parent WITHOUT its Payments navigation, and the existing lines as a standalone list. Mutating
+        // the tracked parent's .Payments collection (Add/Remove) triggers a spurious parent UPDATE that throws
+        // DbUpdateConcurrencyException (the same gotcha documented for multi-page documents / sibling contacts),
+        // so we manipulate CotisationPayments only through the DbSet and never touch entity.Payments.
+        var entity = await context.MemberCotisations.FirstOrDefaultAsync(c => c.Id == request.Id, ct);
         if (entity is null)
             return Result<bool>.Failure("Cotisation introuvable.");
 
@@ -207,14 +227,15 @@ public class UpdateCotisationCommandHandler(IApplicationDbContext context, ICurr
 
         // Full replace: drop every existing payment line and re-add from the request (the UI sends the
         // complete set each time, so there's no per-line diff to track).
-        foreach (var existing in entity.Payments.ToList())
-        {
-            context.CotisationPayments.Remove(existing);
-        }
+        var existingLines = await context.CotisationPayments
+            .Where(p => p.CotisationId == entity.Id && !p.IsDeleted)
+            .ToListAsync(ct);
+        context.CotisationPayments.RemoveRange(existingLines);
         foreach (var p in request.Payments)
         {
-            entity.Payments.Add(new CotisationPayment
+            context.CotisationPayments.Add(new CotisationPayment
             {
+                CotisationId = entity.Id,
                 Amount = p.Amount,
                 Currency = p.Currency,
                 PaymentMethod = p.PaymentMethod
@@ -380,17 +401,24 @@ public class GetReceiptDataQueryHandler(IApplicationDbContext context, ICurrentU
 // Cotisation summary for dashboard (group-wide + per-unit paid/exempt counts and currency totals).
 public record GetCotisationSummaryQuery(string ScoutYear) : IRequest<CotisationSummaryDto>;
 
+// MembersWithPayment = FULLY paid (fraction ≥ 1, or any payment when no full price is configured).
+// MembersPartial = paid something but short of the full fee. EquivalentTotal = all payments converted into
+// the reference currency (the "≈ $X collected" figure). ReferenceCurrency labels that equivalent.
 public record CotisationSummaryDto(
     int TotalActiveMembers,
     int MembersWithPayment,
+    int MembersPartial,
     int MembersWithoutPayment,
     int MembersExempt,
     List<CurrencyTotalDto> TotalsByCurrency,
+    decimal EquivalentTotal,
+    string ReferenceCurrency,
+    bool FullPricingConfigured,
     List<UnitCotisationSummaryDto> ByUnit
 );
 
 public record CurrencyTotalDto(string Currency, decimal Total, int Count);
-public record UnitCotisationSummaryDto(string UnitName, int TotalMembers, int PaidMembers, int ExemptMembers, List<CurrencyTotalDto> Totals);
+public record UnitCotisationSummaryDto(string UnitName, int TotalMembers, int PaidMembers, int PartialMembers, int ExemptMembers, List<CurrencyTotalDto> Totals, decimal EquivalentTotal);
 
 public class GetCotisationSummaryQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetCotisationSummaryQuery, CotisationSummaryDto>
 {
@@ -423,20 +451,33 @@ public class GetCotisationSummaryQueryHandler(IApplicationDbContext context, ICu
             .SelectMany(c => c.Payments.Select(p => new { c.MemberId, p.Amount, p.Currency }))
             .ToList();
 
-        // Paid = a cotisation with at least one payment line. Exempt = "will not pay" with no payment.
-        var paidSet = cotisations.Where(c => c.Payments.Count > 0).Select(c => c.MemberId).Distinct().ToHashSet();
-        var exemptSet = cotisations.Where(c => c.WillNotPay && c.Payments.Count == 0).Select(c => c.MemberId).Distinct().ToHashSet();
+        // Classify each member using the configured full price per currency (proportion-per-currency):
+        // fully Paid (fraction ≥ 1) / Partial (paid something, short of full) / Exempt ("will not pay", no payment).
+        var cfg = await CotisationCalc.LoadAsync(context, ct);
+        var paidSet = new HashSet<Guid>();      // fully paid
+        var partialSet = new HashSet<Guid>();   // paid but short of full
+        var exemptSet = new HashSet<Guid>();
+        foreach (var c in cotisations)
+        {
+            var (status, _, _) = CotisationCalc.Evaluate(
+                c.Payments.Select(p => (p.Amount, p.Currency)).ToList(), c.WillNotPay, cfg);
+            if (status == CotisationCalc.StatusPaid) paidSet.Add(c.MemberId);
+            else if (status == CotisationCalc.StatusPartial) partialSet.Add(c.MemberId);
+            else if (status == CotisationCalc.StatusExempt) exemptSet.Add(c.MemberId);
+        }
 
-        // When "la maîtrise ne paie pas" is toggled off for the year, treat every (unpaid) maîtrise member as
-        // exempt so they don't read as "impayés" on the dashboard (mirrors the per-member "ne paiera pas").
+        // When "la maîtrise ne paie pas" is toggled off for the year, treat every not-fully-paid maîtrise member
+        // as exempt so they don't read as "impayés"/"partiels" on the dashboard (mirrors the per-member "ne paiera pas").
         if (!await MaitriseCotisation.PaysAsync(context, ct))
             foreach (var id in await MaitriseCotisation.MemberIdsAsync(context, activeMemberIds, ct))
-                if (!paidSet.Contains(id)) exemptSet.Add(id);
+                if (!paidSet.Contains(id)) { partialSet.Remove(id); exemptSet.Add(id); }
 
         var totalsByCurrency = payments
             .GroupBy(p => p.Currency)
             .Select(g => new CurrencyTotalDto(g.Key, g.Sum(p => p.Amount), g.Count()))
             .ToList();
+        // Rough total collected, converted into the reference (default) currency for a single-number view.
+        var equivalentTotal = CotisationCalc.EquivalentInReference(payments.Select(p => (p.Amount, p.Currency)), cfg);
 
         var unitGroups = activeAssignments
             .GroupBy(a => a.UnitName)
@@ -445,12 +486,14 @@ public class GetCotisationSummaryQueryHandler(IApplicationDbContext context, ICu
                 var unitMemberIds = g.Select(a => a.MemberId).Distinct().ToList();
                 var unitPayments = payments.Where(p => unitMemberIds.Contains(p.MemberId)).ToList();
                 var unitPaid = unitMemberIds.Count(id => paidSet.Contains(id));
+                var unitPartial = unitMemberIds.Count(id => partialSet.Contains(id));
                 var unitExempt = unitMemberIds.Count(id => exemptSet.Contains(id));
                 var unitTotals = unitPayments
                     .GroupBy(p => p.Currency)
                     .Select(cg => new CurrencyTotalDto(cg.Key, cg.Sum(p => p.Amount), cg.Count()))
                     .ToList();
-                return new UnitCotisationSummaryDto(g.Key, unitMemberIds.Count, unitPaid, unitExempt, unitTotals);
+                var unitEquivalent = CotisationCalc.EquivalentInReference(unitPayments.Select(p => (p.Amount, p.Currency)), cfg);
+                return new UnitCotisationSummaryDto(g.Key, unitMemberIds.Count, unitPaid, unitPartial, unitExempt, unitTotals, unitEquivalent);
             })
             .OrderBy(u => u.UnitName)
             .ToList();
@@ -458,22 +501,30 @@ public class GetCotisationSummaryQueryHandler(IApplicationDbContext context, ICu
         return new CotisationSummaryDto(
             activeMemberIds.Count,
             paidSet.Count,
-            // "without payment" excludes both paid and exempt members.
-            activeMemberIds.Count - paidSet.Count - exemptSet.Count,
+            partialSet.Count,
+            // "without payment" (impayés) excludes fully-paid, partial, and exempt members.
+            activeMemberIds.Count - paidSet.Count - partialSet.Count - exemptSet.Count,
             exemptSet.Count,
             totalsByCurrency,
+            equivalentTotal,
+            cfg.ReferenceCurrency,
+            cfg.HasFullPricing,
             unitGroups
         );
     }
 }
 
-// Dashboard: unpaid cotisations for a scout year. Carries each member's UNIT (id for grouping/linking) and
-// a resolved follow-up CONTACT (parent name + email + phone) so the CG can actually chase the payment — not
-// just read a list of names. CG-only (members.edit gate), so exposing contact here is fine.
+// Dashboard: cotisations to chase ("à relancer") for a scout year = members who paid NOTHING (Unpaid) OR
+// paid only PART of the fee (Partial). Carries each member's UNIT (id for grouping/linking), a resolved
+// follow-up CONTACT (parent name + email + phone), and — for a partial payer — how much they've already paid
+// (PaidTotals per currency), the percentage, and the amount still owed (RemainingReference, in the reference
+// currency). CG-only (members.edit gate), so exposing contact here is fine.
 public record GetUnpaidCotisationsQuery(string ScoutYear) : IRequest<IReadOnlyList<UnpaidCotisationDto>>;
 public record UnpaidCotisationDto(
     Guid MemberId, string MemberName, Guid UnitId, string UnitName,
-    string? ContactEmail, string? ContactPhone, string? ParentName);
+    string? ContactEmail, string? ContactPhone, string? ParentName,
+    string Status, int PercentPaid, decimal RemainingReference, string ReferenceCurrency,
+    List<CurrencyTotalDto> PaidTotals);
 
 public class GetUnpaidCotisationsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetUnpaidCotisationsQuery, IReadOnlyList<UnpaidCotisationDto>>
 {
@@ -492,36 +543,56 @@ public class GetUnpaidCotisationsQueryHandler(IApplicationDbContext context, ICu
             query = query.Where(a => authorizedUnitIds.Contains(a.UnitId));
         }
 
-        // Settled = paid (has a payment line) OR exempt ("will not pay"). Both drop off the unpaid list.
-        var settledMemberIds = await context.MemberCotisations
-            .Where(c => c.ScoutYear == request.ScoutYear && (c.WillNotPay || c.Payments.Any(p => !p.IsDeleted)))
-            .Select(c => c.MemberId)
-            .ToListAsync(ct);
-
-        // When the maîtrise doesn't pay this year, its members aren't "à relancer" — drop them from the list.
-        if (!await MaitriseCotisation.PaysAsync(context, ct))
-        {
-            var maitriseIds = await query.Where(a => a.FunctionalRole.IsMaitrise).Select(a => a.MemberId).Distinct().ToListAsync(ct);
-            settledMemberIds = settledMemberIds.Union(maitriseIds).ToList();
-        }
-
-        // Materialize then dedup in memory — a member with two active assignments would appear twice.
+        // All active members in scope (one row per member — a member with two active assignments would repeat).
         var rows = await query
-            .Where(a => !settledMemberIds.Contains(a.MemberId))
             .Select(a => new { a.MemberId, MemberName = a.Member.FirstName + " " + a.Member.LastName, a.UnitId, UnitName = a.Unit.Name })
             .ToListAsync(ct);
-
         var deduped = rows.DistinctBy(r => r.MemberId).ToList();
-        var memberIds = deduped.Select(r => r.MemberId).ToList();
+        var allIds = deduped.Select(r => r.MemberId).ToList();
+
+        // This year's cotisations (payments + exempt flag) for those members, and the full-price config.
+        var cfg = await CotisationCalc.LoadAsync(context, ct);
+        var cotisations = (await context.MemberCotisations
+            .Where(c => c.ScoutYear == request.ScoutYear && allIds.Contains(c.MemberId))
+            .Select(c => new { c.MemberId, c.WillNotPay, Payments = c.Payments.Where(p => !p.IsDeleted).Select(p => new { p.Amount, p.Currency }).ToList() })
+            .ToListAsync(ct))
+            .ToDictionary(c => c.MemberId);
+
+        // When the maîtrise doesn't pay this year, its members aren't "à relancer" — drop them from the list.
+        var maitriseExcluded = new HashSet<Guid>();
+        if (!await MaitriseCotisation.PaysAsync(context, ct))
+            maitriseExcluded = await MaitriseCotisation.MemberIdsAsync(context, allIds, ct);
+
+        // Keep only members whose status is Unpaid or Partial (fully-paid + exempt drop off).
+        var toChase = new List<(Guid MemberId, string Status, int Percent, decimal Remaining, List<CurrencyTotalDto> PaidTotals)>();
+        foreach (var r in deduped)
+        {
+            if (maitriseExcluded.Contains(r.MemberId)) continue;
+            var tuples = cotisations.TryGetValue(r.MemberId, out var c)
+                ? c.Payments.Select(p => (p.Amount, p.Currency)).ToList()
+                : new List<(decimal, string)>();
+            var willNotPay = c?.WillNotPay ?? false;
+            var (status, percent, remaining) = CotisationCalc.Evaluate(tuples, willNotPay, cfg);
+            if (status != CotisationCalc.StatusUnpaid && status != CotisationCalc.StatusPartial) continue;
+            var paidTotals = tuples
+                .GroupBy(p => p.Item2)
+                .Select(g => new CurrencyTotalDto(g.Key, g.Sum(p => p.Item1), g.Count()))
+                .ToList();
+            toChase.Add((r.MemberId, status, percent, remaining, paidTotals));
+        }
 
         // Batch-resolve follow-up contacts once (no N+1), then build the DTOs. Ordered by unit then name so
         // the frontend can group per unit and hand each CU their own section.
-        var contacts = await UnpaidContactResolver.LoadAsync(context, memberIds, ct);
-        return deduped
-            .Select(r =>
+        var chaseIds = toChase.Select(t => t.MemberId).ToList();
+        var contacts = await UnpaidContactResolver.LoadAsync(context, chaseIds, ct);
+        var byMember = deduped.ToDictionary(r => r.MemberId);
+        return toChase
+            .Select(t =>
             {
-                var (email, phone, parent) = contacts.Resolve(r.MemberId);
-                return new UnpaidCotisationDto(r.MemberId, r.MemberName, r.UnitId, r.UnitName, email, phone, parent);
+                var m = byMember[t.MemberId];
+                var (email, phone, parent) = contacts.Resolve(t.MemberId);
+                return new UnpaidCotisationDto(m.MemberId, m.MemberName, m.UnitId, m.UnitName, email, phone, parent,
+                    t.Status, t.Percent, t.Remaining, cfg.ReferenceCurrency, t.PaidTotals);
             })
             .OrderBy(r => r.UnitName).ThenBy(r => r.MemberName)
             .ToList();
@@ -535,7 +606,8 @@ public record GetPaidCotisationsQuery(string ScoutYear) : IRequest<IReadOnlyList
 public record PaidCotisationDto(
     Guid MemberId, string MemberName, Guid UnitId, string UnitName,
     Guid CotisationId, string ReceiptNumber, DateOnly PaymentDate,
-    List<CurrencyTotalDto> Totals);
+    List<CurrencyTotalDto> Totals,
+    string Status, int PercentPaid, decimal EquivalentReference, string ReferenceCurrency);
 
 public class GetPaidCotisationsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetPaidCotisationsQuery, IReadOnlyList<PaidCotisationDto>>
 {
@@ -559,12 +631,15 @@ public class GetPaidCotisationsQueryHandler(IApplicationDbContext context, ICurr
         var byMember = rows.DistinctBy(r => r.MemberId).ToDictionary(r => r.MemberId);
         var memberIds = byMember.Keys.ToList();
 
-        // Paid = a cotisation with ≥1 (non-deleted) payment line, for a member in scope, this year.
+        // Paid = a cotisation with ≥1 (non-deleted) payment line, for a member in scope, this year. Each row
+        // carries its paid-in-full status (a partial payer appears here with a "Partiel" badge AND in the
+        // "à relancer" list with what's left) + the equivalent total in the reference currency.
+        var cfg = await CotisationCalc.LoadAsync(context, ct);
         var paid = await context.MemberCotisations
             .Where(c => c.ScoutYear == request.ScoutYear && memberIds.Contains(c.MemberId) && c.Payments.Any(p => !p.IsDeleted))
             .Select(c => new
             {
-                c.Id, c.MemberId, c.ReceiptNumber, c.PaymentDate,
+                c.Id, c.MemberId, c.ReceiptNumber, c.PaymentDate, c.WillNotPay,
                 Payments = c.Payments.Where(p => !p.IsDeleted).Select(p => new { p.Amount, p.Currency }).ToList()
             })
             .ToListAsync(ct);
@@ -574,11 +649,14 @@ public class GetPaidCotisationsQueryHandler(IApplicationDbContext context, ICurr
             .Select(c =>
             {
                 var m = byMember[c.MemberId];
-                var totals = c.Payments
+                var tuples = c.Payments.Select(p => (p.Amount, p.Currency)).ToList();
+                var totals = tuples
                     .GroupBy(p => p.Currency)
                     .Select(g => new CurrencyTotalDto(g.Key, g.Sum(p => p.Amount), g.Count()))
                     .ToList();
-                return new PaidCotisationDto(c.MemberId, m.MemberName, m.UnitId, m.UnitName, c.Id, c.ReceiptNumber, c.PaymentDate, totals);
+                var (status, percent, _) = CotisationCalc.Evaluate(tuples, c.WillNotPay, cfg);
+                return new PaidCotisationDto(c.MemberId, m.MemberName, m.UnitId, m.UnitName, c.Id, c.ReceiptNumber, c.PaymentDate, totals,
+                    status, percent, CotisationCalc.EquivalentInReference(tuples, cfg), cfg.ReferenceCurrency);
             })
             .OrderBy(r => r.UnitName).ThenBy(r => r.MemberName)
             .ToList();

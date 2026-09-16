@@ -5,6 +5,14 @@
     "changes": [
       {
         "date": "2026-09-16",
+        "text": "Cotisations multi-devises — suivi du paiement en entier : on peut définir un montant plein PAR DEVISE (ex. 30 USD et 2 500 000 LBP) dans Paramètres → Cotisations. Chaque paiement compte alors comme une fraction du plein de sa devise, donc un règlement mixte (moitié en dollars, moitié en livres) ou en livres exactes est reconnu comme « payé en entier » quel que soit le taux. Le tableau de bord distingue désormais « Payé en entier / Partiel / Impayé », la liste « À relancer » inclut les paiements partiels (avec le % versé et le reste à payer), et un total « équivalent » (converti dans la devise de référence) est affiché en plus des totaux par devise. Les montants restent enregistrés dans la devise réellement versée (ex. 2 600 000 LBP, pas 30 $)."
+      },
+      {
+        "date": "2026-09-16",
+        "text": "Correction : la modification d'une cotisation (ajout/changement d'une ligne de paiement) échouait avec une erreur « Cette information vient d'être modifiée ». Les paiements sont désormais enregistrés correctement."
+      },
+      {
+        "date": "2026-09-16",
         "text": "Tableau des demandes d'inscription revu : les colonnes « Nom » et « Prénom » sont désormais séparées ; une colonne « Statut » triable (À étudier / Acceptée / Refusée) et une colonne « Réponse » (unité acceptée ou motif de refus) ont été ajoutées ; l'unité suggérée n'apparaît plus dans le tableau mais dans le dossier (bouton « Unité suggérée — appliquer ») ; et un badge « Frère/sœur » signale une demande dont l'un des proches est un frère ou une sœur."
       },
       {

@@ -54,8 +54,15 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
   const { data: cotisations, isLoading } = useMemberCotisations(memberId)
   const defaultAmount = useSettingValue('cotisation.default_amount')
   const currentScoutYear = useCurrentScoutYear()
-  const defaultCurrency = useSettingValue('cotisation.default_currency') ?? 'USD'
-  const exchangeRatesRaw = useSettingValue('cotisation.exchange_rates')
+  // Configured full price per currency (e.g. $30 · 2 500 000 LBP) — shown as a target hint when entering a payment.
+  const fullAmountsRaw = useSettingValue('cotisation.full_amounts')
+  const fullPriceHint = (() => {
+    try {
+      const obj = fullAmountsRaw ? JSON.parse(fullAmountsRaw) as Record<string, number> : {}
+      const parts = Object.entries(obj).filter(([, v]) => v > 0).map(([c, v]) => formatMoney(v, c))
+      return parts.length > 0 ? parts.join(' · ') : null
+    } catch { return null }
+  })()
   const createMutation = useCreateCotisation(memberId)
   const updateMutation = useUpdateCotisation(memberId)
   const deleteMutation = useDeleteCotisation(memberId)
@@ -68,27 +75,14 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
   const isExempt = !!exemptMarker
   const exemptReason = exemptMarker?.notes ?? null
 
-  // Convert a payment amount into the org's default currency, mirroring the receipt total logic:
-  // rate = how many units of that currency per 1 default currency, so amount / rate = default. Same
-  // currency (or missing rate) → as-is. Used to tell "paid in full" from "partiel" against the expected amount.
-  const rates: Record<string, number> = (() => {
-    try { return exchangeRatesRaw ? JSON.parse(exchangeRatesRaw) : {} } catch { return {} }
-  })()
-  const toDefault = (amount: number, currency: string) => {
-    if (currency === defaultCurrency) return amount
-    const rate = Number(rates[currency])
-    return rate > 0 ? amount / rate : amount
-  }
-  // Paid this year = a real cotisation (with payment lines) exists for the current year. Total the
-  // payments in the default currency and compare to the expected amount to flag a PARTIAL payment.
-  const paidCotisationsThisYear = (cotisations ?? []).filter(c => c.scoutYear === year && c.payments.length > 0)
-  const isPaidThisYear = paidCotisationsThisYear.length > 0
-  const totalPaidDefault = paidCotisationsThisYear.reduce(
-    (sum, c) => sum + c.payments.reduce((s, p) => s + toDefault(p.amount, p.currency), 0), 0)
-  const expectedAmount = parseFloat(defaultAmount ?? '') || 0
-  // Partial = paid something, an expected amount is configured, and the total falls short (small epsilon
-  // to absorb float/rounding noise).
-  const isPartialThisYear = isPaidThisYear && expectedAmount > 0 && totalPaidDefault < expectedAmount - 0.01
+  // Current-year cotisation status. The backend computes "payé en entier / partiel" (proportion-per-currency
+  // against the configured full price per currency), so we just read it off the row instead of re-deriving.
+  const currentYearCotisation = (cotisations ?? []).find(c => c.scoutYear === year && c.payments.length > 0)
+  const isPaidThisYear = currentYearCotisation?.status === 'Paid'
+  const isPartialThisYear = currentYearCotisation?.status === 'Partial'
+  const partialPercent = currentYearCotisation?.percentPaid ?? 0
+  const partialRemaining = currentYearCotisation?.remainingReference ?? 0
+  const partialRefCurrency = currentYearCotisation?.referenceCurrency ?? 'USD'
   // Marking exempt opens a small dialog to capture an optional reason; removing an exemption is direct.
   const [exemptOpen, setExemptOpen] = useState(false)
   const [exemptReasonInput, setExemptReasonInput] = useState('')
@@ -222,7 +216,8 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
               <div className="mb-3 flex items-center justify-between rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 px-3 py-2">
                 <span className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
                   <AlertTriangle className="h-4 w-4" />
-                  Cotisation partielle pour {year} — {formatMoney(totalPaidDefault, defaultCurrency)} / {formatMoney(expectedAmount, defaultCurrency)}
+                  Cotisation partielle pour {year} — {partialPercent}% payé
+                  {partialRemaining > 0 && <> · reste ≈ {formatMoney(partialRemaining, partialRefCurrency)}</>}
                 </span>
               </div>
             ) : isPaidThisYear ? (
@@ -355,6 +350,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
                   <Plus className="mr-1 h-3 w-3" />Ajouter une ligne
                 </Button>
               </div>
+              {fullPriceHint && <p className="text-xs text-muted-foreground">Cotisation pleine : {fullPriceHint}</p>}
               <div className="space-y-2">
                 {payments.map((p, idx) => (
                   <div key={idx} className="flex flex-wrap gap-2 items-end">

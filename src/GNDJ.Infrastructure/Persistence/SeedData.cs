@@ -646,6 +646,10 @@ public static class SeedData
             // truth — the year the CG opens). The old cotisation.current_scout_year setting was retired.
             new() { Key = "cotisation.default_currency", Value = "USD", Category = "cotisations", Label = "Devise par défaut", Description = "Devise par défaut pour les cotisations et le calcul du total", ValueType = "string" },
             new() { Key = "cotisation.exchange_rates", Value = "{\"LBP\":89500,\"EUR\":0.92}", Category = "cotisations", Label = "Taux de change", Description = "Taux de change par rapport à la devise par défaut (ex: 1 USD = 89500 LBP)", ValueType = "json" },
+            // Full cotisation price PER CURRENCY (e.g. {"USD":30,"LBP":2500000}). Used to tell "payé en entier" from
+            // "partiel" : chaque paiement compte comme une fraction du plein DE SA propre devise (payer exactement
+            // 2 500 000 LBP = plein, indépendamment du taux). Vide {} = pas de suivi du plein (tout paiement = payé).
+            new() { Key = "cotisation.full_amounts", Value = "{}", Category = "cotisations", Label = "Montants pleins (par devise)", Description = "Montant plein de la cotisation dans chaque devise (ex. 30 USD et 2 500 000 LBP). Sert à distinguer « payé en entier » de « partiel » : chaque paiement compte comme une fraction du plein de sa devise. Laisser vide pour ne pas suivre le plein (tout paiement compte comme payé).", ValueType = "json" },
             // Association / maîtrise dues — INTERNAL (never shown to members). Used to compute what the group
             // owes each association (per member) and the leaders' own cotisation. Amounts in the default currency.
             new() { Key = "cotisation.association_amounts", Value = "{}", Category = "cotisations", Label = "Cotisation par association", Description = "Montant dû à chaque association par membre (sert à calculer ce que le groupe verse à chaque association). Interne — non visible par les membres.", ValueType = "json" },

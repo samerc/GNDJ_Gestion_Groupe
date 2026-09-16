@@ -5295,6 +5295,37 @@ Dark mode (added 2026-08-26) works ONLY via `.dark` on `<html>` flipping the CSS
   cards in the group dashboard are slightly dim but legible.
 - Verified: `dark:` went 0 → 205 across 54 files; tsc + eslint (--max-warnings=0) + vite build all clean. DEV until deploy.
 
+### Cotisations — full-payment tracking per currency + equivalent total (2026-09-16)
+A CG asks: with a $30 fee, families often pay in LBP (or a mix) — how do we know who paid IN FULL, and see the
+amounts? Two additions (all on main, DEV until deploy; migration-free — new setting seeds on prod startup):
+- **Model = PROPORTION PER CURRENCY.** New setting **`cotisation.full_amounts`** (json `{"USD":30,"LBP":2500000}`,
+  category cotisations, seeds via SeedMissingSettings; empty `{}` = feature off → any payment counts as paid, old
+  behaviour). Each payment counts as a fraction of ITS OWN currency's full price, summed: $15 = 50%, 1 250 000 LBP
+  = 50%, both = 100% (full); **paying exactly 2 500 000 LBP = full regardless of the exchange rate** (the LBP price
+  is set on its own, not derived from USD × rate). A currency with no full price falls back to converting to the
+  reference via the rate. Shared `Application/Common/CotisationCalc.cs` (`Config`/`LoadAsync`/`Fraction`/
+  `EquivalentInReference`/`Evaluate` → status Paid/Partial/Unpaid/Exempt + percent + remaining-in-reference); used
+  by every cotisation read (member tab, summary, unpaid, paid) so the status is authoritative server-side.
+- **Amounts stay stored in the currency actually paid** (2 600 000 LBP is stored as LBP, never converted). The
+  dashboard shows per-currency totals PLUS a converted **"≈ $X équivalent"** (reference currency, via exchange rate)
+  when >1 currency. The receipt PDF's converted total was already there (`ReceiptService`).
+- **3-state dashboard** (`cotisation-dashboard.tsx` + summary DTO): Payé en entier / **Partiel** / Impayé / Exempté;
+  progress bar has an amber partial segment; per-unit table gained a Partiel column; the **"à relancer" list now
+  includes partial payers** (status badge + % paid + "déjà payé X" + "reste ≈ $Y"). A partial row's action is
+  **"Compléter"** → the member file (the inline create would reject a duplicate cotisation), unpaid rows keep the
+  inline "Paiement"/"Ne paiera pas". Member tab + Ma fiche read the DTO status (dropped the old client-side
+  convert-to-default guess). Payment dialogs show a "Cotisation pleine : $30 · 2 500 000 LBP" hint.
+- Settings UI: new `FullAmountsEditor` (mirrors the exchange-rate row editor) for `cotisation.full_amounts`.
+- **BUG FIXED (pre-existing, unrelated but on this path): editing ANY cotisation 409'd** ("Cette information vient
+  d'être modifiée"). `UpdateCotisationCommandHandler` mutated the tracked parent's `.Payments` nav collection
+  (Add/Remove) → spurious parent UPDATE → DbUpdateConcurrencyException (the documented multi-page-docs / sibling
+  gotcha). Fixed: load the parent WITHOUT Include(Payments), load/replace lines via the `CotisationPayments` DbSet
+  with the FK, never touch `entity.Payments`. So all cotisation edits (and the partial top-up flow) now work.
+- Verified live end-to-end (throwaway cotisations, cleaned up + setting restored to `{}`): $15 → Partial 50% reste
+  $15 (member DTO + summary partial count + unpaid row w/ paidTotals); mixed $15 + 1.25M LBP → Paid 100%
+  (equivalent 28.97); exact 2.5M LBP → Paid 100% (rate-independent); edit 204 (was 409). dotnet 0/0 + tsc + eslint
+  + vite clean.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

@@ -154,6 +154,45 @@ function ExchangeRateEditor({ value, onChange }: { value: string; onChange: (jso
   )
 }
 
+// Full cotisation price PER CURRENCY (cotisation.full_amounts). Same shape/UX as the exchange-rate editor but
+// the value is a full price, not a rate: stores { "USD": 30, "LBP": 2500000 }. Used to tell "payé en entier"
+// from "partiel" — each payment counts as a fraction of its OWN currency's full price. Empty = feature off.
+function FullAmountsEditor({ value, onChange }: { value: string; onChange: (json: string) => void }) {
+  const parseRows = (v: string): { code: string; amount: string }[] => {
+    try { return Object.entries(JSON.parse(v || '{}') as Record<string, number>).map(([code, amount]) => ({ code, amount: String(amount) })) }
+    catch { return [] }
+  }
+  const [rows, setRows] = useState(() => parseRows(value))
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) { setPrevValue(value); setRows(parseRows(value)) }
+
+  const commit = (next: { code: string; amount: string }[]) => {
+    setRows(next)
+    const obj: Record<string, number> = {}
+    for (const r of next) {
+      const c = r.code.trim().toUpperCase()
+      const n = Number(r.amount)
+      if (c && !Number.isNaN(n) && n > 0) obj[c] = n
+    }
+    onChange(JSON.stringify(obj))
+  }
+
+  return (
+    <div className="space-y-2">
+      {rows.map((r, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <Input className="w-24" placeholder="USD" value={r.code} onChange={(e) => commit(rows.map((x, j) => j === i ? { ...x, code: e.target.value } : x))} />
+          <span className="text-sm text-muted-foreground">=</span>
+          <Input className="w-40" type="number" step="any" placeholder="Montant plein" value={r.amount} onChange={(e) => commit(rows.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))} />
+          <Tip content="Supprimer la devise"><Button type="button" variant="ghost" size="icon" onClick={() => commit(rows.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" onClick={() => commit([...rows, { code: '', amount: '' }])}><Plus className="mr-1 h-3.5 w-3.5" />Ajouter une devise</Button>
+      <p className="text-xs text-muted-foreground">Montant plein de la cotisation dans chaque devise (ex. USD = 30, LBP = 2 500 000). Un membre est « payé en entier » quand la somme de ses paiements atteint le plein — chaque paiement comptant pour une fraction du plein de sa devise. Vide = pas de suivi du plein.</p>
+    </div>
+  )
+}
+
 // Per-association dues editor (cotisation.association_amounts). Lists every association with an amount input;
 // stores { "<associationId>": amount } (keyed by id so a rename doesn't break it). Blank = not set (dropped).
 // Internal figure — used to compute what the group owes each association per member; never shown to members.
@@ -303,6 +342,7 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
   const isNumber = setting.valueType === 'number'
   const isDate = setting.valueType === 'date'
   const isExchangeRates = setting.key === 'cotisation.exchange_rates'
+  const isFullAmounts = setting.key === 'cotisation.full_amounts'
   const isAssociationAmounts = setting.key === 'cotisation.association_amounts'
   // Long free-text settings → a roomy textarea instead of a cramped one-line input. Match the message/text
   // keys (intro/result messages, terms, maintenance message…); a length fallback catches any future long value.
@@ -381,6 +421,8 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
               : <ManagedListEditor settingKey={setting.key} />
           ) : isExchangeRates ? (
             <ExchangeRateEditor value={value} onChange={setValue} />
+          ) : isFullAmounts ? (
+            <FullAmountsEditor value={value} onChange={setValue} />
           ) : isAssociationAmounts ? (
             <AssociationAmountsEditor value={value} onChange={setValue} />
           ) : isSelectSingle ? (

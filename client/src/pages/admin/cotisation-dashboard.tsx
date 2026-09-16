@@ -3,8 +3,10 @@
 // progress bar, a per-unit breakdown, and an ACTIONABLE follow-up list of members with no payment — grouped
 // by unit, each row showing the parent + email/phone (clickable mailto:/tel:) so the CG can chase the money,
 // clickable to open the member file, with inline "record a payment" and "ne paiera pas" actions, plus CSV
-// export and print. "Payé" = a cotisation with a payment line; exempt ("ne paiera pas") members are excluded
-// from impayés. Multi-currency (USD/EUR/LBP) — totals are per-currency, not converted.
+// export and print. "Payé en entier" vs "Partiel" is computed proportion-per-currency against the configured
+// full price per currency (Paramètres → Cotisations → Montants pleins); the "à relancer" list = impayés +
+// partiels (a partial row shows % paid + reste). Exempt ("ne paiera pas") members are excluded from impayés.
+// Multi-currency (USD/EUR/LBP) — per-currency totals PLUS a converted "≈ X" equivalent in the reference currency.
 import { useState, useMemo } from 'react'
 import { saveBlob } from '@/lib/download'
 import { useNavigate } from 'react-router'
@@ -33,6 +35,15 @@ import { toast } from 'sonner'
 export default function CotisationDashboardPage() {
   const currentScoutYear = useCurrentScoutYear()
   const defaultAmount = useSettingValue('cotisation.default_amount')
+  // Configured full price per currency (e.g. $30 · 2 500 000 LBP) — shown as a target hint in the payment dialog.
+  const fullAmountsRaw = useSettingValue('cotisation.full_amounts')
+  const fullPriceHint = (() => {
+    try {
+      const obj = fullAmountsRaw ? JSON.parse(fullAmountsRaw) as Record<string, number> : {}
+      const parts = Object.entries(obj).filter(([, v]) => v > 0).map(([c, v]) => formatMoney(v, c))
+      return parts.length > 0 ? parts.join(' · ') : null
+    } catch { return null }
+  })()
   const [scoutYear, setScoutYear] = useState(currentScoutYear)
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -212,6 +223,9 @@ export default function CotisationDashboardPage() {
   const paidPercentage = summary && summary.totalActiveMembers > 0
     ? Math.round((summary.membersWithPayment / summary.totalActiveMembers) * 100)
     : 0
+  const partialPercentage = summary && summary.totalActiveMembers > 0
+    ? Math.round((summary.membersPartial / summary.totalActiveMembers) * 100)
+    : 0
 
   return (
     <div className="space-y-6">
@@ -244,7 +258,10 @@ export default function CotisationDashboardPage() {
                   <CheckCircle className="h-8 w-8 text-green-600" />
                   <div>
                     <div className="text-2xl font-bold text-green-700 dark:text-green-300">{summary.membersWithPayment}</div>
-                    <p className="text-sm text-muted-foreground">Ont payé ({paidPercentage}%)</p>
+                    <p className="text-sm text-muted-foreground">
+                      {summary.fullPricingConfigured ? 'Payé en entier' : 'Ont payé'} ({paidPercentage}%)
+                      {summary.membersPartial > 0 && <span className="ml-1 text-amber-600 dark:text-amber-400">· {summary.membersPartial} partiel(s)</span>}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -275,6 +292,11 @@ export default function CotisationDashboardPage() {
                       <div className="text-2xl font-bold">0</div>
                     )}
                     <p className="text-sm text-muted-foreground">Total perçu</p>
+                    {/* Rough single-figure total, every currency converted into the reference currency via the
+                        configured exchange rate — only shown when there's more than one currency to combine. */}
+                    {summary.totalsByCurrency.length > 1 && summary.equivalentTotal > 0 && (
+                      <p className="text-xs text-muted-foreground">≈ {formatMoney(summary.equivalentTotal, summary.referenceCurrency)} (équivalent)</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -287,13 +309,15 @@ export default function CotisationDashboardPage() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Progression des paiements</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-4 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-green-600 transition-all"
-                  style={{ width: `${paidPercentage}%` }}
-                />
+              {/* Green = fully paid, amber = partial. */}
+              <div className="flex h-4 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full bg-green-600 transition-all" style={{ width: `${paidPercentage}%` }} />
+                <div className="h-full bg-amber-500 transition-all" style={{ width: `${partialPercentage}%` }} />
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">{paidPercentage}% des membres ont payé leur cotisation</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {paidPercentage}% {summary.fullPricingConfigured ? 'ont payé en entier' : 'ont payé'}
+                {summary.membersPartial > 0 && <span> · {partialPercentage}% partiellement</span>}
+              </p>
             </CardContent>
           </Card>
 
@@ -325,6 +349,7 @@ export default function CotisationDashboardPage() {
                         <th className="px-3 py-2 text-left font-medium">Unité</th>
                         <th className="px-3 py-2 text-center font-medium">Membres</th>
                         <th className="px-3 py-2 text-center font-medium">Payé</th>
+                        <th className="px-3 py-2 text-center font-medium">Partiel</th>
                         <th className="px-3 py-2 text-center font-medium">Impayé</th>
                         <th className="px-3 py-2 text-right font-medium">Montants perçus</th>
                       </tr>
@@ -333,7 +358,7 @@ export default function CotisationDashboardPage() {
                       const toRelance = unpaidByUnit.get(u.unitName) ?? []
                       const paidList = paidByUnit.get(u.unitName) ?? []
                       const exemptList = exemptByUnit.get(u.unitName) ?? []
-                      const impaye = u.totalMembers - u.paidMembers - u.exemptMembers
+                      const impaye = u.totalMembers - u.paidMembers - u.partialMembers - u.exemptMembers
                       // Expandable if the unit has anyone paid, exempt, OR unpaid — click reveals all lists.
                       const canExpand = paidList.length > 0 || exemptList.length > 0 || toRelance.length > 0
                       const isOpen = expandedUnits.has(u.unitName)
@@ -356,7 +381,12 @@ export default function CotisationDashboardPage() {
                               <Badge className="bg-green-600">{u.paidMembers}</Badge>
                             </td>
                             <td className="px-3 py-2 text-center">
-                              {/* Unpaid = members minus paid minus exempt (exempt shown separately, not as impayés) */}
+                              {u.partialMembers > 0
+                                ? <Badge className="bg-amber-500 hover:bg-amber-500">{u.partialMembers}</Badge>
+                                : <Badge variant="outline">0</Badge>}
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              {/* Unpaid = members minus fully-paid minus partial minus exempt (each shown separately) */}
                               {impaye > 0 ? (
                                 <Badge variant="destructive">{impaye}</Badge>
                               ) : (
@@ -370,6 +400,9 @@ export default function CotisationDashboardPage() {
                                   {u.totals.map(t => (
                                     <div key={t.currency} className="text-sm">{formatMoney(t.total, t.currency)}</div>
                                   ))}
+                                  {u.totals.length > 1 && u.equivalentTotal > 0 && (
+                                    <div className="text-xs text-muted-foreground">≈ {formatMoney(u.equivalentTotal, summary.referenceCurrency)}</div>
+                                  )}
                                 </div>
                               ) : (
                                 <span className="text-muted-foreground">—</span>
@@ -380,7 +413,7 @@ export default function CotisationDashboardPage() {
                               always shown when printing so the full chase list comes out on paper. */}
                           {canExpand && (
                             <tr className={isOpen ? '' : 'hidden print:table-row'}>
-                              <td colSpan={5} className="bg-muted/5 px-3 pb-4 pt-1">
+                              <td colSpan={6} className="bg-muted/5 px-3 pb-4 pt-1">
                                 {/* Members who PAID — name (→ member file), date, amounts, and a receipt download. */}
                                 {paidList.length > 0 && (
                                   <div className="mb-3">
@@ -414,8 +447,12 @@ export default function CotisationDashboardPage() {
                                               <td className="px-3 py-2 text-muted-foreground">{new Date(m.paymentDate).toLocaleDateString('fr-FR')}</td>
                                               <td className="px-3 py-2 text-right">
                                                 {m.totals.length > 0 ? (
-                                                  <div className="space-y-0.5">
+                                                  <div className="flex flex-col items-end gap-0.5">
                                                     {m.totals.map(t => <div key={t.currency}>{formatMoney(t.total, t.currency)}</div>)}
+                                                    {m.totals.length > 1 && m.equivalentReference > 0 && (
+                                                      <span className="text-xs text-muted-foreground">≈ {formatMoney(m.equivalentReference, m.referenceCurrency)}</span>
+                                                    )}
+                                                    {m.status === 'Partial' && <Badge className="bg-amber-500 hover:bg-amber-500">Partiel {m.percentPaid}%</Badge>}
                                                   </div>
                                                 ) : <span className="text-muted-foreground">—</span>}
                                               </td>
@@ -480,13 +517,14 @@ export default function CotisationDashboardPage() {
                                 <div>
                                 <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                                   <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
-                                  À relancer — {toRelance.length} membre{toRelance.length > 1 ? 's' : ''} sans cotisation
+                                  À relancer — {toRelance.length} membre{toRelance.length > 1 ? 's' : ''} (impayés + partiels)
                                 </div>
                                 <div className="overflow-x-auto rounded-md border bg-background">
-                                  <table className="w-full text-sm min-w-[560px]">
+                                  <table className="w-full text-sm min-w-[620px]">
                                     <thead>
                                       <tr className="border-b bg-muted/40 text-left">
                                         <th className="px-3 py-2 font-medium">Membre</th>
+                                        <th className="px-3 py-2 font-medium">Statut</th>
                                         <th className="px-3 py-2 font-medium">Père</th>
                                         <th className="px-3 py-2 font-medium">Contact</th>
                                         <th className="px-3 py-2 font-medium text-right no-print">Actions</th>
@@ -504,6 +542,21 @@ export default function CotisationDashboardPage() {
                                               {m.memberName}
                                               <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60 no-print" />
                                             </button>
+                                          </td>
+                                          {/* Impayé (rien versé) vs Partiel (versé une partie) — a partial shows the % paid,
+                                              what's already been paid, and the amount still owed in the reference currency. */}
+                                          <td className="px-3 py-2">
+                                            {m.status === 'Partial' ? (
+                                              <div className="flex flex-col gap-0.5">
+                                                <Badge className="w-fit bg-amber-500 hover:bg-amber-500">Partiel {m.percentPaid}%</Badge>
+                                                <span className="text-xs text-muted-foreground">
+                                                  Déjà : {m.paidTotals.map(t => formatMoney(t.total, t.currency)).join(' + ')}
+                                                  {m.remainingReference > 0 && ` · reste ≈ ${formatMoney(m.remainingReference, m.referenceCurrency)}`}
+                                                </span>
+                                              </div>
+                                            ) : (
+                                              <Badge variant="destructive" className="w-fit">Impayé</Badge>
+                                            )}
                                           </td>
                                           <td className="px-3 py-2 text-muted-foreground">{m.parentName ?? '—'}</td>
                                           <td className="px-3 py-2">
@@ -526,12 +579,22 @@ export default function CotisationDashboardPage() {
                                           </td>
                                           <td className="px-3 py-2 text-right no-print">
                                             <div className="inline-flex gap-1.5">
-                                              <Button variant="outline" size="sm" className="h-8" onClick={() => openPayDialog(m)}>
-                                                <Receipt className="mr-1 h-3.5 w-3.5" /> Paiement
-                                              </Button>
-                                              <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => openExemptDialog(m)} disabled={setExempt.isPending}>
-                                                <Ban className="mr-1 h-3.5 w-3.5" /> Ne paiera pas
-                                              </Button>
+                                              {m.status === 'Partial' ? (
+                                                // A partial payer already has a cotisation row — the inline create would
+                                                // reject a duplicate, so send the CG to the member file to add a line.
+                                                <Button variant="outline" size="sm" className="h-8" onClick={() => navigate(`/members/${m.memberId}`)}>
+                                                  <Receipt className="mr-1 h-3.5 w-3.5" /> Compléter
+                                                </Button>
+                                              ) : (
+                                                <>
+                                                  <Button variant="outline" size="sm" className="h-8" onClick={() => openPayDialog(m)}>
+                                                    <Receipt className="mr-1 h-3.5 w-3.5" /> Paiement
+                                                  </Button>
+                                                  <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => openExemptDialog(m)} disabled={setExempt.isPending}>
+                                                    <Ban className="mr-1 h-3.5 w-3.5" /> Ne paiera pas
+                                                  </Button>
+                                                </>
+                                              )}
                                             </div>
                                           </td>
                                         </tr>
@@ -647,6 +710,7 @@ export default function CotisationDashboardPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Lignes de paiement</label>
+              {fullPriceHint && <p className="text-xs text-muted-foreground">Cotisation pleine : {fullPriceHint}</p>}
               {payLines.map((line, i) => (
                 <div key={i} className="flex items-end gap-2">
                   <div className="flex-1 space-y-1">
