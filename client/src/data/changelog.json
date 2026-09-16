@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-16",
+        "text": "Tableau des demandes d'inscription revu : les colonnes « Nom » et « Prénom » sont désormais séparées ; une colonne « Statut » triable (À étudier / Acceptée / Refusée) et une colonne « Réponse » (unité acceptée ou motif de refus) ont été ajoutées ; l'unité suggérée n'apparaît plus dans le tableau mais dans le dossier (bouton « Unité suggérée — appliquer ») ; et un badge « Frère/sœur » signale une demande dont l'un des proches est un frère ou une sœur."
+      },
+      {
+        "date": "2026-09-16",
         "text": "Journal d'audit — l'acceptation ou le refus d'un document s'affiche désormais comme « Document accepté » (vert) ou « Document refusé » (rouge) au lieu du terme générique « Modification »."
       },
       {

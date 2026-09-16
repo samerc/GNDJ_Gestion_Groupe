@@ -90,6 +90,28 @@ function statusInfo(d: DemandeReview): { border: string; label: string } {
   return { border: 'border-l-blue-500', label: 'À étudier' }
 }
 
+// Badge colour for the "Statut" column.
+function statusBadgeClass(d: DemandeReview): string {
+  if (d.status === 'Approved') return 'bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300'
+  if (d.status === 'Declined') return 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300'
+  return 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300'
+}
+// Sort order for the "Statut" column: to-study first, then accepted, then declined.
+function statusRank(d: DemandeReview): number {
+  return d.status === 'Approved' ? 1 : d.status === 'Declined' ? 2 : 0
+}
+
+// A "proche scout" who is a brother/sister (mirrors the backend IsSiblingRelation) — used to flag the demande
+// so the CG immediately sees a sibling already/also in the group.
+function isSiblingRelation(rel?: string | null): boolean {
+  if (!rel) return false
+  const r = rel.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  return r.includes('frere') || r.includes('soeur') || r.includes('broth') || r.includes('sist') || r.includes('jumeau') || r.includes('jumelle')
+}
+function siblingProche(d: DemandeReview) {
+  return d.scoutRelations.find((r) => isSiblingRelation(r.relationship))
+}
+
 function relationsSummary(d: DemandeReview): string {
   return d.scoutRelations.map((r) => {
     const name = [r.firstName, r.lastName].filter(Boolean).join(' ') || '—'
@@ -99,7 +121,7 @@ function relationsSummary(d: DemandeReview): string {
   }).join('\n')
 }
 
-type SortKey = 'name' | 'age' | 'classe'
+type SortKey = 'lastName' | 'firstName' | 'age' | 'classe' | 'status'
 
 export default function DemandeValidationPage() {
   const scoutYear = useSettingValue('demande.scout_year') ?? '2026-2027'
@@ -114,7 +136,7 @@ export default function DemandeValidationPage() {
   const [ageMax, setAgeMax] = useState('')
   const [search, setSearch] = useState('')
   const [showOccupancy, setShowOccupancy] = useState(false)
-  const [sortKey, setSortKey] = useState<SortKey>('name')
+  const [sortKey, setSortKey] = useState<SortKey>('lastName')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
   // Optional ?account=<id> — set when arriving from the "Comptes d'inscription" page to view one account's demandes.
@@ -217,6 +239,9 @@ export default function DemandeValidationPage() {
       switch (sortKey) {
         case 'age': return ((a.age ?? -1) - (b.age ?? -1)) * dir
         case 'classe': return (a.classe ?? '').localeCompare(b.classe ?? '') * dir
+        case 'firstName': return ((a.firstName ?? '').localeCompare(b.firstName ?? '') || (a.lastName ?? '').localeCompare(b.lastName ?? '')) * dir
+        case 'status': return ((statusRank(a) - statusRank(b)) || `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`)) * dir
+        case 'lastName':
         default: return `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`) * dir
       }
     })
@@ -547,14 +572,15 @@ export default function DemandeValidationPage() {
                 <TableHead className="w-10">
                   <HeaderCheckbox checked={allSelected} indeterminate={someSelected} onChange={toggleAll} />
                 </TableHead>
-                <SortableHead label="Nom" k="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableHead label="Nom" k="lastName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableHead label="Prénom" k="firstName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortableHead label="Âge" k="age" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-center" />
                 <TableHead className="text-center">Genre</TableHead>
                 <SortableHead label="Classe" k="classe" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <TableHead className="hidden md:table-cell">École</TableHead>
-                <TableHead className="hidden text-center md:table-cell">Relations</TableHead>
-                <TableHead className="hidden text-center md:table-cell">Fratrie</TableHead>
-                <TableHead>Unité</TableHead>
+                <TableHead className="hidden text-center md:table-cell">Proches</TableHead>
+                <SortableHead label="Statut" k="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <TableHead>Réponse</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -565,8 +591,7 @@ export default function DemandeValidationPage() {
                 const isSibling = (accountCounts[d.accountId] ?? 0) > 1 // amber-tinted row when same account has ≥2 demandes
                 const miss = missingInfo(d)
                 const decidedUnit = d.decidedUnitId ? occByUnit[d.decidedUnitId] : undefined
-                // Only undecided rows show the one-click suggested-unit chip; decided rows show their chosen unit.
-                const sug = !d.decidedUnitId && d.status === 'Submitted' ? suggestUnit(d, occList) : null
+                const sib = siblingProche(d) // a "proche scout" who is a brother/sister → flag it (see #5)
                 return (
                   <TableRow key={d.id} className={`cursor-pointer ${isSibling ? 'bg-amber-50/40 dark:bg-amber-950/30' : ''}`} onClick={() => setDetailId(d.id)}>
                     <TableCell className={`border-l-4 ${si.border}`} title={si.label} onClick={(e) => e.stopPropagation()}>
@@ -574,37 +599,42 @@ export default function DemandeValidationPage() {
                     </TableCell>
                     <TableCell className="font-medium">
                       <span className="inline-flex items-center gap-1.5">
-                        {d.lastName} {d.firstName}
+                        {d.lastName}
                         {miss.length > 0 && <span title={`Dossier incomplet : ${miss.join(', ')}`}><AlertTriangle className="h-3.5 w-3.5 text-amber-500" /></span>}
                       </span>
                       {d.serialNumber && <div className="font-mono text-xs font-normal text-muted-foreground">{d.serialNumber}</div>}
                     </TableCell>
+                    <TableCell>{d.firstName}</TableCell>
                     <TableCell className="text-center text-muted-foreground">{d.age ?? '—'}</TableCell>
                     <TableCell className="text-center text-muted-foreground">{genderShort(d.gender)}</TableCell>
                     <TableCell className="text-muted-foreground">{d.classe}</TableCell>
                     <TableCell className="hidden text-muted-foreground md:table-cell" title={d.school ?? ''}>{schoolCode(d.school)}</TableCell>
                     <TableCell className="hidden text-center md:table-cell">
-                      {d.scoutRelations.length > 0 && (
-                        <span className="inline-flex cursor-help items-center gap-1 text-xs text-muted-foreground" title={relationsSummary(d)}>
-                          <Tent className="h-3.5 w-3.5" />{d.scoutRelations.length}
-                        </span>
-                      )}
+                      <div className="flex flex-col items-center gap-1">
+                        {d.scoutRelations.length > 0 && (
+                          <span className="inline-flex cursor-help items-center gap-1 text-xs text-muted-foreground" title={relationsSummary(d)}>
+                            <Tent className="h-3.5 w-3.5" />{d.scoutRelations.length}
+                          </span>
+                        )}
+                        {sib && (
+                          <span title={`Frère/sœur parmi les proches : ${[sib.firstName, sib.lastName].filter(Boolean).join(' ') || '—'}${sib.relatedMemberName ? ` — déjà membre (${sib.relatedMemberName})` : ''}`}>
+                            <Badge variant="outline" className="border-amber-400 bg-amber-50 px-1.5 text-[10px] text-amber-700 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-300">Frère/sœur</Badge>
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
-                    <TableCell className="hidden text-center md:table-cell">{siblingsTogether && d.siblings.length > 0 && <Badge variant="outline" className="text-xs">{d.siblings.length}</Badge>}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      {decidedUnit ? (
-                        <span className="inline-flex items-center gap-1 text-muted-foreground">
-                          {decidedUnit.unitCode}
-                          {unitFull(decidedUnit) && <span title="Quota atteint"><AlertTriangle className="h-3.5 w-3.5 text-amber-500" /></span>}
+                      <Badge variant="outline" className={`whitespace-nowrap border-transparent text-xs ${statusBadgeClass(d)}`}>{si.label}</Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {d.status === 'Approved' ? (
+                        <span className="inline-flex items-center gap-1">
+                          {decidedUnit?.unitCode ?? d.decidedUnitName ?? '—'}
+                          {decidedUnit && unitFull(decidedUnit) && <span title="Quota atteint"><AlertTriangle className="h-3.5 w-3.5 text-amber-500" /></span>}
                         </span>
-                      ) : sug ? (
-                        <Tip content={`Unité suggérée — cliquer pour accepter${unitFull(sug) ? ' (quota atteint)' : ''}`}>
-                        <button type="button" className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-primary hover:bg-primary/10" onClick={() => openApprove(d, sug.unitId)}>
-                          <Sparkles className="h-3 w-3" />{sug.unitCode}
-                          {unitFull(sug) && <AlertTriangle className="h-3 w-3 text-amber-500" />}
-                        </button>
-                        </Tip>
-                      ) : <span className="text-muted-foreground">—</span>}
+                      ) : d.status === 'Declined' ? (
+                        <span className="block max-w-[14rem] truncate text-red-700 dark:text-red-300" title={d.decisionNotes ?? 'Refusée'}>Refusée{d.decisionNotes ? ` · ${d.decisionNotes}` : ''}</span>
+                      ) : <span>—</span>}
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       {!locked && (
@@ -1009,7 +1039,9 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{[r.firstName, r.lastName].filter(Boolean).join(' ') || '—'}</span>
                     <Badge variant="outline" className="text-xs">{RELATION_LABEL[r.status] ?? r.status}</Badge>
-                    {r.relationship && <span className="text-xs text-muted-foreground">{r.relationship}</span>}
+                    {r.relationship && (isSiblingRelation(r.relationship)
+                      ? <Badge variant="outline" className="border-amber-400 bg-amber-50 text-[10px] text-amber-700 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-300">{r.relationship}</Badge>
+                      : <span className="text-xs text-muted-foreground">{r.relationship}</span>)}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     {r.otherGroupName && <span>Groupe : {r.otherGroupName}{r.status === 'OtherGroup' ? (r.otherGroupIsFormer ? ' (ancien)' : ' (membre actuel)') : ''}. </span>}
@@ -1070,6 +1102,12 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
                 {suggested && unit === suggested.unitId && !d.decidedUnitId && <span className="inline-flex items-center gap-0.5 text-xs font-normal text-primary"><Sparkles className="h-3 w-3" />suggérée</span>}
                 {d.decidedUnitId && !unitDirty && <span className="text-xs font-normal text-emerald-600">· enregistrée</span>}
               </label>
+              {/* The suggested unit lives here (in the demande), not as a chip in the table — one click to apply it. */}
+              {suggested && unit !== suggested.unitId && (
+                <button type="button" onClick={() => setUnit(suggested.unitId)} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-primary hover:bg-primary/10">
+                  <Sparkles className="h-3 w-3" />Unité suggérée : {suggested.unitCode}{unitFull(suggested) ? ' (quota atteint)' : ''} — appliquer
+                </button>
+              )}
               <div className="flex items-center gap-2">
                 <div className="min-w-0 flex-1"><UnitSelect occupancy={occupancy} d={d} value={unit} onChange={setUnit} /></div>
                 {unitDirty && (
