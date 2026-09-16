@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Plus, Trash2, Megaphone, CalendarClock, Pencil, Check } from 'lucide-react'
 import { useSetting, useUpdateSetting } from '@/services/settings-service'
 import { Button } from '@/components/ui/button'
@@ -12,8 +12,9 @@ interface Msg { text: string; start: string; end: string }
 
 // Editor for a "login.*_messages" json setting: a LIST of announcement banners, each with its own optional
 // start/end display window. Messages are READ-ONLY by default (a summary card); click "Modifier" to edit one
-// inline. Adding/removing/editing marks the list dirty; the whole array is persisted with the footer "Enregistrer".
-// Self-contained — the setting is CG-editable (category "login") via the standard PUT /settings/{key}.
+// inline. Every change AUTO-SAVES: finishing a message ("Enregistrer" on the row) or removing one persists the
+// whole array immediately, and a safety net saves any pending edit if you navigate away — so a message is never
+// silently lost (there is no separate footer "save" step to forget). CG-editable (category "login") via PUT /settings/{key}.
 export function LoginMessagesEditor({ settingKey }: { settingKey: string }) {
   const { data: setting, isLoading } = useSetting(settingKey)
   const update = useUpdateSetting()
@@ -31,21 +32,35 @@ export function LoginMessagesEditor({ settingKey }: { settingKey: string }) {
     setEditing(null)
   }
 
-  const edit = (i: number, patch: Partial<Msg>) => { setRows((r) => r.map((m, j) => (j === i ? { ...m, ...patch } : m))); setDirty(true) }
-  const addRow = () => { setEditing(rows.length); setRows((r) => [...r, { text: '', start: '', end: '' }]); setDirty(true) }
-  const removeRow = (i: number) => {
-    setRows((r) => r.filter((_, j) => j !== i)); setDirty(true)
-    // Keep the "currently editing" pointer valid as indices shift.
-    setEditing((e) => (e === null ? null : e === i ? null : e > i ? e - 1 : e))
-  }
-
-  const save = async () => {
-    // Drop empty-text rows; store empty dates as null.
-    const clean = rows.map((r) => ({ text: r.text.trim(), start: r.start || null, end: r.end || null })).filter((r) => r.text)
+  // Persist a given list to the server (defaults to the current rows). Empty-text rows are dropped, empty dates
+  // stored as null. Called on every commit — the collapse-to-summary is a real save, not just a visual "done".
+  const persist = async (list: Msg[]) => {
+    const clean = list.map((r) => ({ text: r.text.trim(), start: r.start || null, end: r.end || null })).filter((r) => r.text)
     try {
       await update.mutateAsync({ key: settingKey, value: JSON.stringify(clean) })
+      setDirty(false)
       toast.success(clean.length ? 'Messages enregistrés' : 'Aucun message — bannière masquée')
     } catch (e) { toast.error(parseApiError(e)) }
+  }
+
+  // Safety net: if the user leaves the page while a message still has unsaved edits (e.g. they typed but didn't
+  // click "Enregistrer" on the row), persist it on unmount so nothing is silently dropped. A ref keeps the latest
+  // rows/dirty so the unmount cleanup (which runs once) sees the current state, not a stale snapshot.
+  const pending = useRef<{ rows: Msg[]; dirty: boolean }>({ rows, dirty })
+  useEffect(() => { pending.current = { rows, dirty } })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => () => { if (pending.current.dirty) void persist(pending.current.rows) }, [])
+
+  const edit = (i: number, patch: Partial<Msg>) => { setRows((r) => r.map((m, j) => (j === i ? { ...m, ...patch } : m))); setDirty(true) }
+  const addRow = () => { setEditing(rows.length); setRows((r) => [...r, { text: '', start: '', end: '' }]); setDirty(true) }
+  // Finishing a message saves it right away and collapses to the summary card.
+  const commitRow = () => { setEditing(null); void persist(rows) }
+  const removeRow = (i: number) => {
+    const next = rows.filter((_, j) => j !== i)
+    setRows(next); setDirty(true)
+    // Keep the "currently editing" pointer valid as indices shift.
+    setEditing((e) => (e === null ? null : e === i ? null : e > i ? e - 1 : e))
+    void persist(next) // removal is immediate — persist the new list
   }
 
   if (isLoading) return <LoadingSpinner variant="table" />
@@ -60,22 +75,19 @@ export function LoginMessagesEditor({ settingKey }: { settingKey: string }) {
       ) : (
         <div className="space-y-3">
           {rows.map((m, i) => (editing === i
-            ? <EditRow key={i} m={m} onChange={(p) => edit(i, p)} onRemove={() => removeRow(i)} onDone={() => setEditing(null)} />
+            ? <EditRow key={i} m={m} saving={update.isPending} onChange={(p) => edit(i, p)} onRemove={() => removeRow(i)} onDone={commitRow} />
             : <ViewRow key={i} m={m} onEdit={() => setEditing(i)} onRemove={() => removeRow(i)} />
           ))}
         </div>
       )}
 
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
-        <Button type="button" variant="outline" size="sm" onClick={addRow}><Plus className="mr-1.5 h-4 w-4" />Ajouter un message</Button>
-        <Button type="button" size="sm" onClick={save} disabled={!dirty || update.isPending}>
-          <Check className="mr-1.5 h-4 w-4" />{update.isPending ? 'Enregistrement…' : 'Enregistrer'}
-        </Button>
-        {dirty && <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Modifications non enregistrées</span>}
+        <Button type="button" variant="outline" size="sm" onClick={addRow} disabled={update.isPending}><Plus className="mr-1.5 h-4 w-4" />Ajouter un message</Button>
+        {update.isPending && <span className="text-xs font-medium text-muted-foreground">Enregistrement…</span>}
       </div>
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Chaque message s'affiche entre sa date de début (vide = immédiatement) et sa date de fin (vide = jusqu'à sa suppression).
-        Plusieurs messages actifs s'affichent l'un sous l'autre sur l'écran de connexion.
+        Chaque message est enregistré automatiquement. Il s'affiche entre sa date de début (vide = immédiatement) et sa
+        date de fin (vide = jusqu'à sa suppression). Plusieurs messages actifs s'affichent l'un sous l'autre sur l'écran de connexion.
       </p>
     </div>
   )
@@ -110,9 +122,9 @@ function ViewRow({ m, onEdit, onRemove }: { m: Msg; onEdit: () => void; onRemove
   )
 }
 
-// Inline edit form for one message: text + start/end pickers + live status. "Terminer" collapses back to the
-// summary (changes are kept in the list and persisted by the footer "Enregistrer").
-function EditRow({ m, onChange, onRemove, onDone }: { m: Msg; onChange: (p: Partial<Msg>) => void; onRemove: () => void; onDone: () => void }) {
+// Inline edit form for one message: text + start/end pickers + live status. "Enregistrer" saves this message
+// (persists the whole list) and collapses back to the summary card — there is no separate save step to forget.
+function EditRow({ m, saving, onChange, onRemove, onDone }: { m: Msg; saving: boolean; onChange: (p: Partial<Msg>) => void; onRemove: () => void; onDone: () => void }) {
   const st = status(m)
   return (
     <div className="space-y-3 rounded-lg border border-primary/40 bg-primary/5 p-4 shadow-2xs">
@@ -144,7 +156,9 @@ function EditRow({ m, onChange, onRemove, onDone }: { m: Msg; onChange: (p: Part
         </span>
       </div>
       <div className="pl-7">
-        <Button type="button" variant="outline" size="sm" onClick={onDone}><Check className="mr-1.5 h-4 w-4" />Terminer</Button>
+        <Button type="button" size="sm" onClick={onDone} disabled={saving}>
+          <Check className="mr-1.5 h-4 w-4" />{saving ? 'Enregistrement…' : 'Enregistrer'}
+        </Button>
       </div>
     </div>
   )

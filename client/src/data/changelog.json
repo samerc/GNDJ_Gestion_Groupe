@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-16",
+        "text": "Messages de la page de connexion (Paramètres → Connexion) : correction d'un problème où un message saisi n'était pas conservé et disparaissait en changeant de page. Chaque message est désormais enregistré automatiquement dès qu'on termine sa saisie ou qu'on le supprime — il n'y a plus de bouton « Enregistrer » séparé à ne pas oublier, et une saisie en cours est sauvegardée même si l'on quitte la page."
+      },
+      {
+        "date": "2026-09-16",
         "text": "Fiche « Contact & famille » repensée — les onglets Contact et Famille sont fusionnés en un seul (sur Ma fiche et sur la fiche côté maîtrise). Toutes les coordonnées du foyer (les vôtres ET celles de chaque parent) sont désormais regroupées en haut dans « Coordonnées du foyer » : chaque téléphone et courriel indique à qui il appartient (Vous / Père / Mère…) et affiche l'étiquette « Urgence » si le parent est contact d'urgence. La section « Parents / tuteurs » ne montre plus que les informations des parents (sans répéter les numéros), et la présentation des trois sections (coordonnées, parents, frères et sœurs) est unifiée."
       },
       {
