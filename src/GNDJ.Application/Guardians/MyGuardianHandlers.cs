@@ -52,7 +52,8 @@ public class CreateMyGuardianHandler(IApplicationDbContext context, ICurrentUser
         var guardian = new Guardian
         {
             FirstName = request.FirstName, LastName = request.LastName,
-            Profession = request.Profession, ProfessionDomain = request.ProfessionDomain, IsDeceased = request.IsDeceased, Notes = request.Notes,
+            // Notes are staff-only (CG/CU) — a member creating a parent never sets them.
+            Profession = request.Profession, ProfessionDomain = request.ProfessionDomain, IsDeceased = request.IsDeceased, Notes = null,
         };
         context.Guardians.Add(guardian);
         context.GuardianLinks.Add(new GuardianLink
@@ -100,7 +101,9 @@ public class UpdateMyGuardianHandler(IApplicationDbContext context, ICurrentUser
         var before = Snap(entity);
         entity.FirstName = request.FirstName; entity.LastName = request.LastName;
         entity.Profession = request.Profession; entity.ProfessionDomain = request.ProfessionDomain;
-        entity.IsDeceased = request.IsDeceased; entity.Notes = request.Notes;
+        entity.IsDeceased = request.IsDeceased;
+        // Notes are a STAFF-only annotation — a member self-editing their parent must not set or clear them
+        // (they never receive the note in the first place; see GetMemberGuardiansQuery). Preserve entity.Notes.
         await context.SaveChangesAsync(ct);
         var (oldValues, newValues) = MemberAuditSnapshot.Diff(before, Snap(entity));
         var parent = $"{entity.FirstName} {entity.LastName}".Trim();

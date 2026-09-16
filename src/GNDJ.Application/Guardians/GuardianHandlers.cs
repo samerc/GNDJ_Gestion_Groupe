@@ -58,6 +58,11 @@ public class GetMemberGuardiansQueryHandler : IRequestHandler<GetMemberGuardians
         if (!await GuardianAccessHelper.CanAccessMember(_context, _currentUser, request.MemberId, cancellationToken))
             return Result<IReadOnlyList<GuardianLinkDto>>.Failure("Accès refusé.");
 
+        // Guardian Notes are a STAFF-only annotation (CG/CU). CanAccessMember also lets a member view their OWN
+        // family (Ma fiche), so gate Notes on the leader signal (members.edit; super-admin holds it) — a member
+        // must never receive a note written about their parent.
+        var isLeader = _currentUser.IsSuperAdmin || _currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit);
+
         var result = await _context.GuardianLinks
             .Where(gl => gl.MemberId == request.MemberId && !gl.IsDeleted)
             .Select(gl => new GuardianLinkDto(
@@ -69,6 +74,10 @@ public class GetMemberGuardiansQueryHandler : IRequestHandler<GetMemberGuardians
                 )
             ))
             .ToListAsync(cancellationToken);
+
+        // Strip Notes for non-leaders (fetched above, withheld here — never leaves the server to a member).
+        if (!isLeader)
+            result = result.Select(gl => gl with { Guardian = gl.Guardian with { Notes = null } }).ToList();
 
         return Result<IReadOnlyList<GuardianLinkDto>>.Success(result);
     }

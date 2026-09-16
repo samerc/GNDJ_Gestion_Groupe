@@ -412,6 +412,7 @@ export function MemberGuardians({ memberId, selfService, hideContacts }: MemberG
                     options={domainOptions}
                     placeholder="Domaine d'activité..."
                     searchPlaceholder="Rechercher un domaine..."
+                    clearable
                   />
                 </div>
                 <div className="space-y-2">
@@ -562,6 +563,7 @@ export function MemberGuardians({ memberId, selfService, hideContacts }: MemberG
                   options={domainOptions}
                   placeholder="Domaine d'activité..."
                   searchPlaceholder="Rechercher un domaine..."
+                  clearable
                 />
               </div>
               <div className="space-y-2">
@@ -576,10 +578,14 @@ export function MemberGuardians({ memberId, selfService, hideContacts }: MemberG
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editForm.isPrimaryContact} onChange={(e) => setEditForm(f => ({ ...f, isPrimaryContact: e.target.checked }))} />Contact principal</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editForm.isEmergencyContact} onChange={(e) => setEditForm(f => ({ ...f, isEmergencyContact: e.target.checked }))} />Urgence</label>
             </div>
-            <div className="space-y-2">
-              <RequiredLabel>Notes</RequiredLabel>
-              <textarea className="flex min-h-14 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} />
-            </div>
+            {/* Notes are a staff-only annotation (CG/CU). Never shown in self-service — a member must not see or
+                edit a note written about their parent (the server also withholds it from members). */}
+            {!selfService && (
+              <div className="space-y-2">
+                <RequiredLabel>Notes</RequiredLabel>
+                <textarea className="flex min-h-14 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+              </div>
+            )}
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setEditDialogOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={updateMutation.isPending || updateLinkMutation.isPending}>{updateMutation.isPending || updateLinkMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button>

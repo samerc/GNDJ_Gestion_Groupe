@@ -5,6 +5,14 @@
     "changes": [
       {
         "date": "2026-09-16",
+        "text": "Confidentialité — les notes ajoutées sur un parent par la maîtrise (CG/chef) ne sont plus visibles par le membre : elles n'apparaissent pas sur Ma fiche et le membre ne peut pas les voir ni les modifier lorsqu'il met à jour ses parents (la note est conservée)."
+      },
+      {
+        "date": "2026-09-16",
+        "text": "Parents — on peut désormais retirer la profession d'un parent : videz le champ « Profession » et choisissez « — Aucun — » dans la liste « Domaine » (nouvelle option), puis enregistrez."
+      },
+      {
+        "date": "2026-09-16",
         "text": "Messages de la page de connexion (Paramètres → Connexion) : correction d'un problème où un message saisi n'était pas conservé et disparaissait en changeant de page. Chaque message est désormais enregistré automatiquement dès qu'on termine sa saisie ou qu'on le supprime — il n'y a plus de bouton « Enregistrer » séparé à ne pas oublier, et une saisie en cours est sauvegardée même si l'on quitte la page."
       },
       {

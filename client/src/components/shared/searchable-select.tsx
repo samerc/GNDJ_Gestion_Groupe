@@ -23,6 +23,9 @@ interface SearchableSelectProps {
   placeholder?: string
   searchPlaceholder?: string
   emptyMessage?: string
+  // When true, offer a "— Aucun —" entry at the top that resets the value to '' (so an optional field can be
+  // cleared, e.g. a parent's profession domain). Off by default so required selects don't offer an empty choice.
+  clearable?: boolean
 }
 
 export function SearchableSelect({
@@ -33,6 +36,7 @@ export function SearchableSelect({
   placeholder = 'Sélectionner...',
   searchPlaceholder = 'Rechercher...',
   emptyMessage = 'Aucun résultat.',
+  clearable = false,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false)
 
@@ -60,6 +64,12 @@ export function SearchableSelect({
             <CommandInput placeholder={searchPlaceholder} />
             <CommandList>
               <CommandEmpty>{emptyMessage}</CommandEmpty>
+              {clearable && value && (
+                <CommandItem value="— Aucun —" onSelect={() => { onValueChange(''); setOpen(false) }} className="text-muted-foreground">
+                  <Check className="mr-2 h-4 w-4 opacity-0" />
+                  — Aucun —
+                </CommandItem>
+              )}
               {pinned.length > 0 && (
                 <CommandGroup heading="Fréquent">
                   {pinned.map(o => (
