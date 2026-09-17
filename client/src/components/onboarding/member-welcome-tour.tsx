@@ -73,7 +73,9 @@ export function MemberWelcomeTour() {
   // Shows automatically to a regular member who hasn't seen it, OR whenever they hit "Revoir le tutoriel"
   // (replay overrides the once-per-member flag). Chefs/admins are excluded (isRegularMember is false, and the
   // menu entry that sets replay is gated the same way).
-  const show = replay || (isRegularMember && !user?.hasSeenOnboarding && !dismissed)
+  // Manual replay ("Revoir le tutoriel") always shows. The AUTO first-login showing waits until the member has
+  // dealt with the contact-review popup (needsContactReview) so the two don't stack.
+  const show = replay || (isRegularMember && !user?.hasSeenOnboarding && !dismissed && !user?.needsContactReview)
 
   // Any dismissal (skip / finish / CTA / outside-click) closes the tour. On the FIRST viewing it marks it seen
   // (optimistic: flip the cached flag immediately; the server call is best-effort). A replay of an already-seen

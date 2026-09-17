@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Tutoriel de bienvenue : « Revoir le tutoriel » (menu du compte) fonctionne désormais à tout moment, même si le membre n'a pas encore validé ses coordonnées. Et à la première connexion, un membre qui n'a fait ni l'un ni l'autre voit maintenant les DEUX à la suite : d'abord la vérification des coordonnées, puis le tutoriel (au lieu d'un seul des deux)."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Changer de compte : l'indicateur à côté de chaque compte est plus clair — « Mémorisé » (bascule immédiate, sans mot de passe) ou « Mot de passe » (demandé à la première bascule), au lieu d'une coche verte qui pouvait laisser croire que le compte était sélectionné."
       },
       {

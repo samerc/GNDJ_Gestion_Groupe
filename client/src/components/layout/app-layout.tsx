@@ -87,7 +87,9 @@ export function AppLayout() {
         {!impersonating && <ContactReviewPopup />}
         {/* First-login welcome tour for regular members (self-gated; chefs/admins excluded — they get the guide).
             Suppressed while contact review is pending so the two modals don't stack — the tour appears after it. */}
-        {!impersonating && !user?.needsContactReview && <MemberWelcomeTour />}
+        {/* Always mounted (except while impersonating) so "Revoir le tutoriel" works on demand; the component
+            itself suppresses the AUTO first-login showing while the contact-review popup is still pending. */}
+        {!impersonating && <MemberWelcomeTour />}
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header />
           {inMaintenance && !impersonating && (
