@@ -59,5 +59,15 @@ export function isBenignError(reason: unknown): boolean {
   // DOM mutations by browser translation extensions (Google Translate / "Traduire cette page") race React's
   // commit and throw these — not our bug (see translate-guard.ts, which also stops them crashing the page).
   if (msg.includes("insertBefore' on 'Node'") || msg.includes("removeChild' on 'Node'")) return true
+  // In-app browsers (Gmail/Instagram/Facebook/WhatsApp on iOS) and some password-manager/autofill wrappers
+  // inject a script that talks to the iOS WKWebView native bridge on pagehide; on a normal page there's no
+  // native host, so window.webkit.messageHandlers is undefined and it throws. Not our code (the whole stack is
+  // an injected inline script, none of our /assets chunks) and it fires after the user has left the page.
+  if (
+    msg.includes('webkit.messageHandlers') ||
+    msg.includes('sendDataToNative') ||
+    msg.includes('sendPageHideMessage')
+  )
+    return true
   return false
 }

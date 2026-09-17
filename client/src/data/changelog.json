@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Journal des erreurs : les erreurs provoquées par les navigateurs intégrés (ouverture d'un lien depuis Gmail, Instagram, Facebook ou WhatsApp sur iPhone) ou certains gestionnaires de mots de passe ne sont plus signalées — elles proviennent du téléphone du visiteur, pas de l'application, et n'ont aucun impact."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Documents à plusieurs pages : on peut désormais supprimer la « page principale » (page 1) d'un document — la page suivante prend alors sa place. Le bouton de suppression apparaît sur la page principale dès qu'il y a au moins une autre page (s'il n'y a qu'une page, supprimez le document entier)."
       },
       {
