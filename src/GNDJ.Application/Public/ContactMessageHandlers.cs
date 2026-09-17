@@ -12,7 +12,11 @@ namespace GNDJ.Application.Public;
 public record ContactMessageDto(
     Guid Id, string SenderName, string SenderEmail, string Subject, string Message,
     bool IsRead, DateTime CreatedAt, DateTime? RepliedAt, string? ReplySubject, string? ReplyBody,
-    Guid? ClaimedByUserId, string? ClaimedByName, DateTime? ClaimedAt);
+    Guid? ClaimedByUserId, string? ClaimedByName, DateTime? ClaimedAt,
+    // Deliverable reply address: the SenderEmail for a normal address, the member's REAL contact email when the
+    // sender typed their "@{user_domain}" login username, or null when it's a username with no real email on file
+    // (so the dialog can warn instead of pretending it will be delivered).
+    string? ReplyToEmail = null);
 
 public record ContactMessageListDto(IReadOnlyList<ContactMessageDto> Items, int Total, int UnreadCount, bool HasMore);
 
@@ -59,6 +63,15 @@ public class GetContactMessagesQueryHandler(IApplicationDbContext context)
 
         var hasMore = items.Count > size;
         if (hasMore) items = items.Take(size).ToList();
+
+        // Resolve each sender's deliverable reply address (a login username -> the member's real email) so the
+        // inbox dialog shows/uses the address a reply would actually reach. Batched (one lookup for the page).
+        var replyMap = await ContactReplyEmail.ResolveManyAsync(context, items.Select(i => i.SenderEmail), ct);
+        items = items.Select(i => i with
+        {
+            ReplyToEmail = replyMap.TryGetValue(i.SenderEmail?.Trim() ?? "", out var to) ? to : i.SenderEmail,
+        }).ToList();
+
         return new ContactMessageListDto(items, total, unreadCount, hasMore);
     }
 }
@@ -115,8 +128,16 @@ public class ReplyContactMessageCommandHandler(IApplicationDbContext context, IC
         if (m is null) return Result<bool>.Failure("Message introuvable.");
         if (string.IsNullOrWhiteSpace(m.SenderEmail)) return Result<bool>.Failure("Ce message n'a pas d'adresse de réponse.");
 
-        // Queue the reply to the sender's address via the durable outbox (never blocks; survives restart).
-        await emailQueue.EnqueueAsync(new EmailJob("adhoc_message", m.SenderEmail.Trim(), new Dictionary<string, string>
+        // The sender may have typed their login username (…@scouts.gndj) instead of a real email — resolve it to
+        // the member's real contact email so the reply is actually delivered.
+        var replyTo = await ContactReplyEmail.ResolveAsync(context, m.SenderEmail, ct);
+        if (string.IsNullOrWhiteSpace(replyTo))
+            return Result<bool>.Failure(
+                "Impossible de répondre par email : l'expéditeur a saisi son identifiant de connexion et aucune " +
+                "adresse email réelle n'est enregistrée sur sa fiche. Ajoutez une adresse à sa fiche, puis réessayez.");
+
+        // Queue the reply to the resolved address via the durable outbox (never blocks; survives restart).
+        await emailQueue.EnqueueAsync(new EmailJob("adhoc_message", replyTo.Trim(), new Dictionary<string, string>
         {
             ["subject"] = subject,
             ["body"] = body,

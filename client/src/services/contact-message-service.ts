@@ -17,6 +17,9 @@ export interface ContactMessageDto {
   claimedByUserId: string | null
   claimedByName: string | null
   claimedAt: string | null
+  // Deliverable reply address: the senderEmail for a normal address, the member's real contact email when the
+  // sender typed their login username, or null when it's a username with no real email on file (can't reply).
+  replyToEmail: string | null
 }
 
 export interface ContactMessageListDto {

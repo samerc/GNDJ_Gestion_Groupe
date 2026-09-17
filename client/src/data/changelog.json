@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Messages de contact : quand une personne a saisi son identifiant de connexion (…@scouts.gndj) au lieu de son adresse email, la réponse est automatiquement envoyée à sa vraie adresse (courriel de contact du membre ou d'un parent) — l'adresse réelle est affichée dans la fenêtre de réponse. Si aucune adresse réelle n'est enregistrée sur sa fiche, l'application prévient qu'il faut d'abord en ajouter une plutôt que d'envoyer dans le vide."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Journal des erreurs : les erreurs provoquées par les navigateurs intégrés (ouverture d'un lien depuis Gmail, Instagram, Facebook ou WhatsApp sur iPhone) ou certains gestionnaires de mots de passe ne sont plus signalées — elles proviennent du téléphone du visiteur, pas de l'application, et n'ont aucun impact."
       },
       {

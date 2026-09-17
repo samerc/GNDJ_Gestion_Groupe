@@ -206,9 +206,16 @@ function MessageDialog({
 
   if (!message) return null
 
+  // The sender may have typed their login username instead of a real email. The backend resolves the address a
+  // reply would actually reach: replyToEmail = the real email (may differ from senderEmail), or null when the
+  // username has no real email on file (can't reply by email).
+  const replyTo = message.replyToEmail
+  const emailMismatch = !!replyTo && replyTo.trim().toLowerCase() !== message.senderEmail.trim().toLowerCase()
+  const noReplyEmail = !replyTo
+
   const send = () => {
     reply.mutate({ id: message.id, subject, body }, {
-      onSuccess: () => { toast.success('Réponse envoyée à ' + message.senderEmail); onClose() },
+      onSuccess: () => { toast.success('Réponse envoyée à ' + (replyTo ?? message.senderEmail)); onClose() },
       onError: (e) => toast.error(parseApiError(e)),
     })
   }
@@ -225,7 +232,8 @@ function MessageDialog({
           <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3 text-sm">
             <div className="min-w-0">
               <p className="font-medium">{message.senderName}</p>
-              <a href={`mailto:${message.senderEmail}`} className="text-primary hover:underline">{message.senderEmail}</a>
+              <a href={`mailto:${replyTo ?? message.senderEmail}`} className="text-primary hover:underline">{message.senderEmail}</a>
+              {emailMismatch && <span className="ml-1 text-xs text-muted-foreground">(→ {replyTo})</span>}
             </div>
             <span className="text-xs text-muted-foreground">{fmt(message.createdAt)}</span>
           </div>
@@ -273,7 +281,20 @@ function MessageDialog({
                   className="flex min-h-[8rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">La réponse sera envoyée par email à {message.senderEmail}.</p>
+              {noReplyEmail ? (
+                <p className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-2 text-xs text-amber-800 dark:text-amber-300">
+                  Impossible de répondre par email : l'expéditeur a saisi son identifiant de connexion
+                  ({message.senderEmail}) et aucune adresse email réelle n'est enregistrée sur sa fiche. Ajoutez
+                  une adresse à sa fiche, puis réessayez.
+                </p>
+              ) : emailMismatch ? (
+                <p className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-2 text-xs text-amber-800 dark:text-amber-300">
+                  L'expéditeur a saisi son identifiant de connexion ({message.senderEmail}). La réponse sera
+                  envoyée à son adresse réelle : <span className="font-medium">{replyTo}</span>.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">La réponse sera envoyée par email à {replyTo}.</p>
+              )}
             </div>
           )}
         </div>
@@ -297,7 +318,7 @@ function MessageDialog({
             ) : (
               <>
                 <Button variant="outline" onClick={() => onReplyToggle(false)}>Annuler</Button>
-                <Button onClick={send} disabled={reply.isPending || !subject.trim() || !body.trim()}>
+                <Button onClick={send} disabled={reply.isPending || !subject.trim() || !body.trim() || noReplyEmail}>
                   <Send className="mr-1.5 h-4 w-4" />{reply.isPending ? 'Envoi…' : 'Envoyer la réponse'}
                 </Button>
               </>
