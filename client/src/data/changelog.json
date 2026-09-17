@@ -5,6 +5,14 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Liste des membres : nouveau filtre « Tous » (à côté de Actifs / Anciens) pour rechercher à la fois parmi les membres actifs et anciens."
+      },
+      {
+        "date": "2026-09-17",
+        "text": "Liste des membres : la recherche accepte désormais plusieurs mots — « prénom nom » (ex. « kate abi jaoude ») fonctionne, chaque mot pouvant correspondre au prénom, au nom ou au matricule. Auparavant, écrire le prénom ET le nom ensemble ne donnait aucun résultat."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Fiche membre : le chef peut désormais modifier l'identifiant de connexion d'un membre (l'adresse …@scouts.gndj qu'il saisit pour se connecter) — utile pour corriger un identifiant ou distinguer deux membres du même nom. Un bouton crayon apparaît à côté de l'identifiant ; l'unicité est vérifiée. Cela ne change que la connexion, pas l'adresse email de contact."
       },
       {

@@ -837,9 +837,15 @@ export default function MembersPage() {
   const [page, setPage] = useState(1)
   // Remember the last view (unit filter + Actifs/Anciens) between visits — a CU almost always works one unit.
   const [unitFilter, setUnitFilter] = useState<string>(() => localStorage.getItem('members.unitFilter') ?? 'all')
-  const [showAlumni, setShowAlumni] = useState(() => localStorage.getItem('members.showAlumni') === '1')
+  // View: Actifs (default) / Anciens / Tous (both, for searching across active + former at once).
+  const [viewMode, setViewMode] = useState<'active' | 'alumni' | 'all'>(() => {
+    const v = localStorage.getItem('members.viewMode')
+    return v === 'alumni' || v === 'all' ? v : 'active'
+  })
+  const showAlumni = viewMode === 'alumni'
+  const showAll = viewMode === 'all'
   useEffect(() => { localStorage.setItem('members.unitFilter', unitFilter) }, [unitFilter])
-  useEffect(() => { localStorage.setItem('members.showAlumni', showAlumni ? '1' : '0') }, [showAlumni])
+  useEffect(() => { localStorage.setItem('members.viewMode', viewMode) }, [viewMode])
   // Names per page (persisted) + family-name A–Z index (transient jump within the current view).
   const [pageSize, setPageSize] = useState<number>(() => {
     const v = Number(localStorage.getItem('members.pageSize'))
@@ -896,7 +902,7 @@ export default function MembersPage() {
   // Units shown in the filter depend on the view: only units that HAVE members in Actifs vs Anciens (so an
   // empty unit is hidden under Actifs but appears under Anciens if it still has former members). Re-fetched
   // when the toggle flips. `units` (all active units) is kept for the create form + resolving the selected name.
-  const { data: unitOptions } = useMemberUnitOptions(showAlumni)
+  const { data: unitOptions } = useMemberUnitOptions(showAlumni, showAll)
   const { data: units } = useUnits({ pageSize: 100 })
 
   // If the selected unit vanished from the options for the current view (e.g. it's empty under Actifs), fall
@@ -917,6 +923,7 @@ export default function MembersPage() {
     search: debouncedSearch || undefined,
     unitId, noUnit, maitrise,
     alumni: showAlumni || undefined,
+    all: showAll || undefined,
     sortBy, sortDir,
     page, pageSize, letter: letter || undefined,
   })
@@ -932,7 +939,7 @@ export default function MembersPage() {
   const createMutation = useCreateMember()
 
   // Absence counts for the selected unit (active view only, running calendar scout year) → a small badge per row.
-  const { data: absenceCountsRaw } = useUnitAbsenceCounts(unitId, calendarScoutYear(), !!unitId && !showAlumni)
+  const { data: absenceCountsRaw } = useUnitAbsenceCounts(unitId, calendarScoutYear(), !!unitId && viewMode === 'active')
   const absenceCounts = useMemo(() => {
     const m = new Map<string, number>()
     for (const a of absenceCountsRaw ?? []) m.set(a.memberId, a.count)
@@ -1008,22 +1015,18 @@ export default function MembersPage() {
               <SelectItem value="none">Sans unité</SelectItem>
             </SelectContent>
           </Select>
-          {/* Actifs / Anciens toggle */}
+          {/* Actifs / Anciens / Tous toggle. "Tous" searches across active + former members at once. */}
           <div className="flex h-8 shrink-0 items-center rounded-md border p-0.5 text-xs">
-            <button
-              type="button"
-              className={cn('h-full rounded px-2.5 font-medium transition-colors', !showAlumni ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}
-              onClick={() => { setShowAlumni(false); setPage(1) }}
-            >
-              Actifs
-            </button>
-            <button
-              type="button"
-              className={cn('h-full rounded px-2.5 font-medium transition-colors', showAlumni ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}
-              onClick={() => { setShowAlumni(true); setPage(1) }}
-            >
-              Anciens
-            </button>
+            {([['active', 'Actifs'], ['alumni', 'Anciens'], ['all', 'Tous']] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                className={cn('h-full rounded px-2.5 font-medium transition-colors', viewMode === mode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}
+                onClick={() => { setViewMode(mode); setPage(1) }}
+              >
+                {label}
+              </button>
+            ))}
           </div>
           {/* Names per page */}
           <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>

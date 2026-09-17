@@ -54,9 +54,10 @@ public class MembersController : BaseApiController
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search, [FromQuery] Guid? unitId, [FromQuery] Guid? teamId,
         [FromQuery] bool? noUnit, [FromQuery] bool? alumni, [FromQuery] string? sortBy, [FromQuery] string? sortDir,
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] bool? maitrise = null, [FromQuery] string? letter = null)
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] bool? maitrise = null, [FromQuery] string? letter = null,
+        [FromQuery] bool all = false)
     {
-        var result = await Mediator.Send(new GetMembersQuery(search, unitId, teamId, noUnit, alumni, sortBy, sortDir, page, pageSize, maitrise, letter));
+        var result = await Mediator.Send(new GetMembersQuery(search, unitId, teamId, noUnit, alumni, sortBy, sortDir, page, pageSize, maitrise, letter, all));
         return Ok(result);
     }
 
@@ -68,8 +69,8 @@ public class MembersController : BaseApiController
     /// <param name="alumni">When true, count former members per unit instead of active ones.</param>
     [HttpGet("unit-options")]
     [HasPermission(Permissions.MembersView)]
-    public async Task<IActionResult> GetUnitOptions([FromQuery] bool alumni = false)
-        => Ok(await Mediator.Send(new GetMemberUnitOptionsQuery(alumni)));
+    public async Task<IActionResult> GetUnitOptions([FromQuery] bool alumni = false, [FromQuery] bool all = false)
+        => Ok(await Mediator.Send(new GetMemberUnitOptionsQuery(alumni, all)));
 
     /// <summary>Upcoming member birthdays within the given window (leaders only, unit-scoped: a CU sees their
     /// unit(s), a Chef de Groupe/super-admin sees everyone). Requires members.edit.</summary>

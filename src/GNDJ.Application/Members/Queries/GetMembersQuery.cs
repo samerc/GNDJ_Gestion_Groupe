@@ -12,7 +12,7 @@ namespace GNDJ.Application.Members.Queries;
 public record GetMembersQuery(
     string? Search, Guid? UnitId, Guid? TeamId, bool? NoUnit, bool? Alumni,
     string? SortBy, string? SortDir,
-    int Page = 1, int PageSize = 50, bool? Maitrise = null, string? Letter = null
+    int Page = 1, int PageSize = 50, bool? Maitrise = null, string? Letter = null, bool All = false
 ) : IRequest<PaginatedList<MemberListDto>>;
 
 public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, PaginatedList<MemberListDto>>
@@ -30,7 +30,9 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
     {
         var query = _context.Members.AsQueryable();
         var authorizedUnitIds = _currentUser.AuthorizedUnitIds;
-        var isAlumni = request.Alumni == true;
+        var isSuper = _currentUser.IsSuperAdmin;
+        var isAll = request.All;                       // "Tous": active + former in one list
+        var isAlumni = !isAll && request.Alumni == true;
         // Group-level managers (super-admin or a Chef de Groupe — holds maitrise.manage) see the whole
         // group, so they get the unscoped alumni view (all former members), not just their units.
         var isGroupLevel = _currentUser.IsSuperAdmin
@@ -42,7 +44,26 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
         if (!_currentUser.IsSuperAdmin && !_currentUser.Permissions.Contains(Domain.Enums.Permissions.MembersEdit))
             query = query.Where(_ => false);
 
-        if (isAlumni)
+        if (isAll)
+        {
+            // "Tous": active AND former members in one list. Group managers (super-admin / Chef de Groupe) see
+            // everyone; a CU is limited to members with ANY assignment (active or ended) in their units.
+            if (!isSuper && !isGroupLevel)
+                query = query.Where(m => m.Assignments.Any(a => authorizedUnitIds.Contains(a.UnitId)));
+
+            if (request.NoUnit == true)
+                query = query.Where(m => !m.Assignments.Any(a => a.EndDate == null)); // no active assignment anywhere
+            else if (request.UnitId.HasValue)
+            {
+                var uid = request.UnitId.Value;
+                if (!isSuper && !authorizedUnitIds.Contains(uid))
+                    query = query.Where(_ => false);
+                else
+                    query = query.Where(m => m.Assignments.Any(a => a.UnitId == uid)); // active or ended in this unit
+            }
+            // else (group manager, no unit filter): all members — no further filter.
+        }
+        else if (isAlumni)
         {
             // Alumni view: members who HAD an assignment in the unit that has ended and who
             // are NOT currently active in that unit (i.e. they moved away or left).
@@ -96,21 +117,29 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
         if (request.Maitrise == true)
             query = query.Where(m => m.Assignments.Any(a =>
                 a.FunctionalRole.IsMaitrise
-                && (isAlumni ? a.EndDate != null : a.EndDate == null)
-                && (_currentUser.IsSuperAdmin || authorizedUnitIds.Contains(a.UnitId))));
+                && (isAll || (isAlumni ? a.EndDate != null : a.EndDate == null))
+                && (isSuper || authorizedUnitIds.Contains(a.UnitId))));
 
         if (request.TeamId.HasValue)
             query = query.Where(m => m.Assignments.Any(a => a.TeamId == request.TeamId.Value && a.EndDate == null));
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
+            // Multi-term search: split on spaces and require EVERY term to match (AND), each against any of
+            // first name / last name / card number (OR). So "kate abi jaoude" matches a member named Kate
+            // ABI JAOUDE (kate→first, abi/jaoude→last) — a single LIKE on the whole phrase would find nothing.
             // Accent-insensitive: unaccent() strips diacritics so "rhea" matches "Rhéa". Both sides are
             // unaccent()'d inside the expression tree so EF translates them to SQL (never run in-process).
-            var search = request.Search.ToLower();
-            query = query.Where(m =>
-                Common.DbFns.Unaccent(m.FirstName.ToLower()).Contains(Common.DbFns.Unaccent(search)) ||
-                Common.DbFns.Unaccent(m.LastName.ToLower()).Contains(Common.DbFns.Unaccent(search)) ||
-                (m.CardNumber != null && m.CardNumber.ToLower().Contains(search)));
+            var terms = request.Search.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var raw in terms)
+            {
+                var term = raw; // capture per-iteration for the closure
+                query = query.Where(m =>
+                    Common.DbFns.Unaccent(m.FirstName.ToLower()).Contains(Common.DbFns.Unaccent(term)) ||
+                    Common.DbFns.Unaccent(m.LastName.ToLower()).Contains(Common.DbFns.Unaccent(term)) ||
+                    (m.CardNumber != null && m.CardNumber.ToLower().Contains(term)) ||
+                    (m.ExternalCardNumber != null && m.ExternalCardNumber.ToLower().Contains(term)));
+            }
         }
 
         // Family-name A–Z index: keep only last names starting with the chosen letter. Accent-insensitive
@@ -139,12 +168,16 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
 
         var scopeUnitId = request.UnitId;
 
-        // Alumni results expose identity only — contact details are withheld.
+        // Contact details are withheld for former members (identity only). In the Alumni view that's every row;
+        // in the "Tous" view it's per-row — a member with no active assignment in the caller's scope. Active
+        // rows keep their contact.
         var projected = ordered.ThenBy(m => m.FirstName)
             .Select(m => new MemberListDto(
                 m.Id, m.FirstName, m.LastName, m.DateOfBirth, m.Gender, m.CardNumber, m.ExternalCardNumber,
-                isAlumni ? null : m.Emails.Where(e => e.IsPrimary && !e.IsDeleted).Select(e => e.Address).FirstOrDefault(),
-                isAlumni ? null : m.Phones.Where(p => p.IsPrimary && !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault(),
+                isAlumni || (isAll && !m.Assignments.Any(a => a.EndDate == null && (isSuper || authorizedUnitIds.Contains(a.UnitId))))
+                    ? null : m.Emails.Where(e => e.IsPrimary && !e.IsDeleted).Select(e => e.Address).FirstOrDefault(),
+                isAlumni || (isAll && !m.Assignments.Any(a => a.EndDate == null && (isSuper || authorizedUnitIds.Contains(a.UnitId))))
+                    ? null : m.Phones.Where(p => p.IsPrimary && !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault(),
                 m.PhotoPath,
                 m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Code).FirstOrDefault(),
                 m.Assignments.Where(a => a.EndDate == null).Select(a => a.Team != null ? a.Team.Name : null).FirstOrDefault(),
@@ -165,7 +198,9 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
         // just this page — active doc types + approved-doc counts + current-year cotisation status — so it's
         // 3 extra set-based queries, never N+1. "Complete docs" = an Approved document for EVERY active
         // document type; "cotisation OK" = a current-year cotisation that's paid (has a payment) or exempt.
-        if (!isAlumni && result.Items.Count > 0)
+        // Compliance badges are for the active-members view only (skipped for Alumni and the combined "Tous"
+        // list, which is a search/lookup view — the active subset there simply shows no badge).
+        if (!isAlumni && !isAll && result.Items.Count > 0)
         {
             var ids = result.Items.Select(i => i.Id).ToList();
 
@@ -211,7 +246,7 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
 // still has former members. Scoped like the member list: super-admin / Chef de Groupe see all units; a CU sees
 // their own; a non-manager gets nothing.
 public record MemberUnitOptionDto(Guid Id, string Name, string Code, int Count);
-public record GetMemberUnitOptionsQuery(bool Alumni) : IRequest<IReadOnlyList<MemberUnitOptionDto>>;
+public record GetMemberUnitOptionsQuery(bool Alumni, bool All = false) : IRequest<IReadOnlyList<MemberUnitOptionDto>>;
 
 public class GetMemberUnitOptionsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
     : IRequestHandler<GetMemberUnitOptionsQuery, IReadOnlyList<MemberUnitOptionDto>>
@@ -227,7 +262,12 @@ public class GetMemberUnitOptionsQueryHandler(IApplicationDbContext context, ICu
         var assignments = context.MemberAssignments
             .Where(a => !a.IsDeleted && !a.Member.IsDeleted && !a.Unit.IsDeleted);
 
-        if (request.Alumni)
+        if (request.All)
+        {
+            // "Tous": any assignment (active or ended) means the unit has members in the combined view — no
+            // end-date filter.
+        }
+        else if (request.Alumni)
             // Alumni-of-a-unit: an ended assignment there AND no active assignment in that same unit.
             assignments = assignments.Where(a => a.EndDate != null
                 && !a.Member.Assignments.Any(b => b.UnitId == a.UnitId && b.EndDate == null && !b.IsDeleted));

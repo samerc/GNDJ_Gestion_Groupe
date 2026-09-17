@@ -103,7 +103,7 @@ export interface MemberFormData {
 
 // Paginated member list. alumni=true switches to former-members (identity only); default is active.
 // maitrise=true restricts to leadership (maîtrise) role holders across the caller's units.
-export function useMembers(params: { search?: string; unitId?: string; teamId?: string; noUnit?: boolean; alumni?: boolean; maitrise?: boolean; sortBy?: string; sortDir?: string; page?: number; pageSize?: number; letter?: string }) {
+export function useMembers(params: { search?: string; unitId?: string; teamId?: string; noUnit?: boolean; alumni?: boolean; all?: boolean; maitrise?: boolean; sortBy?: string; sortDir?: string; page?: number; pageSize?: number; letter?: string }) {
   return useQuery({
     queryKey: ['members', params],
     queryFn: () => apiClient.get<PaginatedResult<MemberListDto>>('/members', { params }).then(r => r.data),
@@ -182,10 +182,10 @@ export function useCommitMemberImport() {
 // Units that have members in the current view (active by default, or former members when alumni=true), for the
 // members-page filter dropdown — so empty units are hidden. Re-fetched when the Actifs/Anciens toggle flips.
 export interface MemberUnitOption { id: string; name: string; code: string; count: number }
-export function useMemberUnitOptions(alumni: boolean) {
+export function useMemberUnitOptions(alumni: boolean, all = false) {
   return useQuery({
-    queryKey: ['members', 'unit-options', alumni],
-    queryFn: () => apiClient.get<MemberUnitOption[]>('/members/unit-options', { params: { alumni } }).then(r => r.data),
+    queryKey: ['members', 'unit-options', alumni, all],
+    queryFn: () => apiClient.get<MemberUnitOption[]>('/members/unit-options', { params: { alumni, all } }).then(r => r.data),
   })
 }
 
