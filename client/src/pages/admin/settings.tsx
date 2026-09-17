@@ -11,6 +11,7 @@ import { useSettings, useUpdateSetting, type SettingDto } from '@/services/setti
 import { useAssociations } from '@/services/association-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { AmountInput } from '@/components/ui/amount-input'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
@@ -72,10 +73,10 @@ const HIDDEN_KEYS = new Set(['site.content', 'card_config', 'member.cities', 'me
   // Merged into "Montants pleins (par devise)" (cotisation.full_amounts): the USD full price IS the cotisation
   // amount and drives the payment-form prefill, so a separate "montant par défaut" field is redundant/confusing.
   'cotisation.default_amount',
-  // Default currency + exchange rates are edited together in the unified "Devises" editor at the top of the
-  // Cotisations tab (default currency = reference, rate locked to 1; others get an editable rate), so they are
-  // hidden from the generic per-row rendering.
-  'cotisation.default_currency', 'cotisation.exchange_rates'])
+  // Default currency + exchange rates + symbols are edited together in the unified "Devises" editor at the top of
+  // the Cotisations tab (default currency = reference, rate locked to 1; others get an editable rate + a symbol),
+  // so they are hidden from the generic per-row rendering.
+  'cotisation.default_currency', 'cotisation.exchange_rates', 'cotisation.currency_symbols'])
 // Technical keys moved to an "Avancé" tab.
 const ADVANCED_KEYS = new Set(['app.base_url', 'user_domain'])
 
@@ -189,8 +190,8 @@ function FullAmountsEditor({ value, onChange }: { value: string; onChange: (json
       {currencies.map(c => (
         <div key={c.code} className="flex items-center gap-2">
           <span className="w-16 text-sm font-medium">{c.code}{c.isDefault && <span className="ml-1 text-xs font-normal text-muted-foreground">(réf.)</span>}</span>
-          <Input className="w-40" type="number" step="any" placeholder="Montant plein"
-            value={amounts[c.code] ?? ''} onChange={(e) => setAmount(c.code, e.target.value)} />
+          <AmountInput className="w-40" placeholder="Montant plein"
+            value={amounts[c.code] ?? ''} onValueChange={(n) => setAmount(c.code, n > 0 ? String(n) : '')} />
         </div>
       ))}
       <p className="text-xs text-muted-foreground">Montant plein de la cotisation dans chaque devise (ex. USD = 30, LBP = 2 500 000). Un membre est « payé en entier » quand la somme de ses paiements atteint le plein — chaque paiement comptant pour une fraction du plein de sa devise. Laisser tout vide = pas de suivi du plein (tout paiement compte comme payé). Gérez la liste des devises dans « Devises » ci-dessus.</p>
@@ -204,25 +205,28 @@ function FullAmountsEditor({ value, onChange }: { value: string; onChange: (json
 // pick which is the default (its rate field is then disabled), and set every other rate — so the currency set is
 // fully customizable. Self-persists BOTH settings on Save. This is the single source of truth the payment forms
 // and the "montant par devise" editor draw their currency list from.
-type CurRow = { code: string; rate: string; isDefault: boolean }
-function buildCurRows(def: string, ratesJson: string): CurRow[] {
+type CurRow = { code: string; rate: string; symbol: string; isDefault: boolean }
+function buildCurRows(def: string, ratesJson: string, symbolsJson: string): CurRow[] {
   let rates: Record<string, number> = {}
+  let symbols: Record<string, string> = {}
   try { rates = ratesJson ? JSON.parse(ratesJson) as Record<string, number> : {} } catch { /* ignore malformed */ }
+  try { symbols = symbolsJson ? JSON.parse(symbolsJson) as Record<string, string> : {} } catch { /* ignore malformed */ }
+  const sym = (c: string) => symbols[c] ?? symbols[c.toUpperCase()] ?? ''
   const d = (def || 'USD').toUpperCase()
-  const rows: CurRow[] = [{ code: d, rate: '1', isDefault: true }]
+  const rows: CurRow[] = [{ code: d, rate: '1', symbol: sym(d), isDefault: true }]
   for (const [code, rate] of Object.entries(rates)) {
     if (code.toUpperCase() === d) continue
-    rows.push({ code: code.toUpperCase(), rate: String(rate), isDefault: false })
+    rows.push({ code: code.toUpperCase(), rate: String(rate), symbol: sym(code.toUpperCase()), isDefault: false })
   }
   return rows
 }
-function CurrenciesEditor({ defaultCurrency, ratesJson }: { defaultCurrency: string; ratesJson: string }) {
+function CurrenciesEditor({ defaultCurrency, ratesJson, symbolsJson }: { defaultCurrency: string; ratesJson: string; symbolsJson: string }) {
   const update = useUpdateSetting()
-  const [rows, setRows] = useState<CurRow[]>(() => buildCurRows(defaultCurrency, ratesJson))
+  const [rows, setRows] = useState<CurRow[]>(() => buildCurRows(defaultCurrency, ratesJson, symbolsJson))
   // Re-sync when the persisted values change externally (render-phase reset; lazy init covers mount).
-  const [prevSig, setPrevSig] = useState(defaultCurrency + '|' + ratesJson)
-  const sig = defaultCurrency + '|' + ratesJson
-  if (sig !== prevSig) { setPrevSig(sig); setRows(buildCurRows(defaultCurrency, ratesJson)) }
+  const [prevSig, setPrevSig] = useState(defaultCurrency + '|' + ratesJson + '|' + symbolsJson)
+  const sig = defaultCurrency + '|' + ratesJson + '|' + symbolsJson
+  if (sig !== prevSig) { setPrevSig(sig); setRows(buildCurRows(defaultCurrency, ratesJson, symbolsJson)) }
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -230,11 +234,11 @@ function CurrenciesEditor({ defaultCurrency, ratesJson }: { defaultCurrency: str
 
   const setDefault = (i: number) => setRows(rs => rs.map((r, j) => ({ ...r, isDefault: j === i, rate: j === i ? '1' : r.rate })))
   const updateRow = (i: number, patch: Partial<CurRow>) => setRows(rs => rs.map((r, j) => j === i ? { ...r, ...patch } : r))
-  const addRow = () => setRows(rs => [...rs, { code: '', rate: '', isDefault: false }])
+  const addRow = () => setRows(rs => [...rs, { code: '', rate: '', symbol: '', isDefault: false }])
   const removeRow = (i: number) => setRows(rs => rs.filter((_, j) => j !== i))
 
-  // Validate + serialize the rows to the (default currency, exchange-rates JSON) pair; a string is an error.
-  const serialize = (): { def: string; rates: string } | string => {
+  // Validate + serialize the rows to the (default currency, exchange-rates, symbols) triple; a string is an error.
+  const serialize = (): { def: string; rates: string; symbols: string } | string => {
     const cleaned = rows.map(r => ({ ...r, code: r.code.trim().toUpperCase() })).filter(r => r.code)
     if (cleaned.length === 0) return 'Ajoutez au moins une devise.'
     const def = cleaned.find(r => r.isDefault)
@@ -242,17 +246,19 @@ function CurrenciesEditor({ defaultCurrency, ratesJson }: { defaultCurrency: str
     const codes = cleaned.map(r => r.code)
     if (new Set(codes).size !== codes.length) return 'Codes de devise en double.'
     const rates: Record<string, number> = {}
+    const symbols: Record<string, string> = {}
     for (const r of cleaned) {
+      if (r.symbol.trim()) symbols[r.code] = r.symbol.trim()
       if (r.isDefault) continue
       const n = Number(r.rate)
       if (!(n > 0)) return `Taux de change invalide pour ${r.code}.`
       rates[r.code] = n
     }
-    return { def: def.code, rates: JSON.stringify(rates) }
+    return { def: def.code, rates: JSON.stringify(rates), symbols: JSON.stringify(symbols) }
   }
 
   // Dirty = the current rows differ from a freshly-built baseline of the persisted values.
-  const dirty = JSON.stringify(rows) !== JSON.stringify(buildCurRows(defaultCurrency, ratesJson))
+  const dirty = JSON.stringify(rows) !== JSON.stringify(buildCurRows(defaultCurrency, ratesJson, symbolsJson))
 
   const onSave = async () => {
     const s = serialize()
@@ -261,6 +267,7 @@ function CurrenciesEditor({ defaultCurrency, ratesJson }: { defaultCurrency: str
     try {
       await update.mutateAsync({ key: 'cotisation.default_currency', value: s.def })
       await update.mutateAsync({ key: 'cotisation.exchange_rates', value: s.rates })
+      await update.mutateAsync({ key: 'cotisation.currency_symbols', value: s.symbols })
       toast.success('Devises enregistrées'); setSaved(true); setTimeout(() => setSaved(false), 2000)
     } catch (e) { setErr(parseApiError(e)) } finally { setSaving(false) }
   }
@@ -268,9 +275,12 @@ function CurrenciesEditor({ defaultCurrency, ratesJson }: { defaultCurrency: str
   return (
     <div className="space-y-2">
       {err && <p className="text-sm text-destructive">{err}</p>}
+      <div className="hidden items-center gap-2 px-1 text-xs text-muted-foreground sm:flex">
+        <span className="w-9 shrink-0" /><span className="w-24">Devise</span><span className="w-5" /><span className="w-40">Taux de change</span><span className="w-28">Symbole</span>
+      </div>
       <div className="space-y-2">
         {rows.map((r, i) => (
-          <div key={i} className="flex items-center gap-2">
+          <div key={i} className="flex flex-wrap items-center gap-2">
             <Tip content={r.isDefault ? 'Devise par défaut (référence)' : 'Définir comme devise par défaut'}>
               <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => setDefault(i)}>
                 <Star className={cn('h-4 w-4', r.isDefault ? 'fill-amber-400 text-amber-500' : 'text-muted-foreground')} />
@@ -279,9 +289,12 @@ function CurrenciesEditor({ defaultCurrency, ratesJson }: { defaultCurrency: str
             <Input className="w-24" placeholder="USD" value={r.code}
               onChange={(e) => updateRow(i, { code: e.target.value })} />
             <span className="text-sm text-muted-foreground">=</span>
-            <Input className="w-40" type="number" step="any" placeholder="Taux" value={r.isDefault ? '1' : r.rate}
+            <AmountInput className="w-40" placeholder="Taux" value={r.isDefault ? 1 : r.rate}
               disabled={r.isDefault} title={r.isDefault ? 'La devise de référence a toujours un taux de 1' : undefined}
-              onChange={(e) => updateRow(i, { rate: e.target.value })} />
+              onValueChange={(n) => updateRow(i, { rate: n > 0 ? String(n) : '' })} />
+            <Input className="w-28" placeholder="Symbole" value={r.symbol}
+              title="Symbole affiché (ex. $, ل.ل). Laisser vide pour afficher le code."
+              onChange={(e) => updateRow(i, { symbol: e.target.value })} />
             <span className="text-xs text-muted-foreground">{r.isDefault ? 'référence' : `pour 1 ${rows.find(x => x.isDefault)?.code || ''}`}</span>
             <Tip content="Supprimer la devise">
               <Button type="button" variant="ghost" size="icon" className="shrink-0" disabled={r.isDefault && rows.length === 1}
@@ -333,8 +346,8 @@ function AssociationAmountsEditor({ value, onChange }: { value: string; onChange
       {associations.map(a => (
         <div key={a.id} className="flex items-center gap-2">
           <span className="w-48 shrink-0 truncate text-sm" title={a.name}>{a.name}</span>
-          <Input className="w-40" type="number" step="any" placeholder="Montant"
-            value={amounts[a.id] ?? ''} onChange={(e) => commit({ ...amounts, [a.id]: e.target.value })} />
+          <AmountInput className="w-40" placeholder="Montant"
+            value={amounts[a.id] ?? ''} onValueChange={(n) => commit({ ...amounts, [a.id]: n > 0 ? String(n) : '' })} />
         </div>
       ))}
       <p className="text-xs text-muted-foreground">Montant dû à chaque association par membre (dans la devise par défaut). Interne — non visible par les membres.</p>
@@ -744,6 +757,7 @@ export default function SettingsPage() {
                     <CurrenciesEditor
                       defaultCurrency={(settings ?? []).find(s => s.key === 'cotisation.default_currency')?.value ?? 'USD'}
                       ratesJson={(settings ?? []).find(s => s.key === 'cotisation.exchange_rates')?.value ?? '{}'}
+                      symbolsJson={(settings ?? []).find(s => s.key === 'cotisation.currency_symbols')?.value ?? '{}'}
                     />
                   </div>
                 )}

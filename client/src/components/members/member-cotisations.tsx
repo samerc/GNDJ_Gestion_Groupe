@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { AmountInput } from '@/components/ui/amount-input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -369,7 +370,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
                   <div key={idx} className="flex flex-wrap gap-2 items-end">
                     <div className="flex-1 min-w-[7rem] space-y-1">
                       <span className="text-xs text-muted-foreground">Montant</span>
-                      <Input type="number" step="0.01" min="0" value={p.amount} onChange={(e) => updatePaymentLine(idx, 'amount', parseFloat(e.target.value) || 0)} required />
+                      <AmountInput value={p.amount} onValueChange={(n) => updatePaymentLine(idx, 'amount', n)} required />
                     </div>
                     <div className="w-28 space-y-1">
                       <span className="text-xs text-muted-foreground">Devise</span>

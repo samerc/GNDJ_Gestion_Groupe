@@ -37,11 +37,22 @@ export function safeJsonArray<T = string>(json: string | null | undefined): T[] 
   }
 }
 
-// A cotisation amount with its currency symbol ($, €, or ل.ل for LBP), fr-FR grouping, 2 decimals.
+// Runtime currency → symbol registry. Seeded with the common defaults, then updated from the customizable
+// cotisation.currency_symbols setting (see CurrencySymbolsSync, mounted in AppLayout) so any currency the CG
+// defines shows its own symbol. A currency with no symbol falls back to its code (e.g. "100,00 AED").
+const currencySymbols: Record<string, string> = { USD: '$', EUR: '€', LBP: 'ل.ل' }
+export function setCurrencySymbols(map: Record<string, string>) {
+  for (const [k, v] of Object.entries(map)) {
+    const code = k.trim().toUpperCase()
+    if (code) currencySymbols[code] = (v ?? '').trim() || code // blank symbol → show the code
+  }
+}
+export function currencySymbol(code: string): string { return currencySymbols[code] || code }
+
+// A cotisation amount with its currency symbol (from the registry, else the code). Comma thousands separators +
+// period decimals (English/Lebanese convention, matching the AmountInput fields), 2 decimals — e.g. "2,500,000.00 ل.ل".
 export function formatMoney(amount: number, currency: string): string {
-  // Known symbols for the common currencies; any other (custom) currency shows its code, e.g. "100,00 AED".
-  const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'LBP' ? 'ل.ل' : currency
-  return `${amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} ${symbol}`
+  return `${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currencySymbol(currency)}`
 }
 
 // Derive a plain-text meta description from CMS body HTML: strip tags, collapse whitespace, truncate.

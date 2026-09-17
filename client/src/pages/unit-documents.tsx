@@ -21,6 +21,7 @@ import { useUnits } from '@/services/unit-service'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { AmountInput } from '@/components/ui/amount-input'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -791,7 +792,7 @@ export default function UnitDocumentsPage() {
                 {cotPayments.map((p, idx) => (
                   <div key={idx} className="flex gap-2 items-end">
                     <div className="flex-1">
-                      <Input type="number" step="0.01" min="0" placeholder="Montant" value={p.amount} onChange={(e) => setCotPayments(prev => prev.map((pp, i) => i === idx ? { ...pp, amount: parseFloat(e.target.value) || 0 } : pp))} required />
+                      <AmountInput placeholder="Montant" value={p.amount} onValueChange={(n) => setCotPayments(prev => prev.map((pp, i) => i === idx ? { ...pp, amount: n } : pp))} required />
                     </div>
                     <Select value={p.currency} onValueChange={(v) => setCotPayments(prev => prev.map((pp, i) => i === idx ? { ...pp, currency: v, amount: amountOnCurrencyChange(fullAmountsRaw, pp.currency, v, pp.amount) } : pp))}>
                       <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>

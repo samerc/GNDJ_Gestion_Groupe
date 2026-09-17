@@ -5347,8 +5347,24 @@ Follow-ups from a CG cotisation walkthrough (all on main, DEV until deploy; migr
   in the reference currency — member Cotisations banner + Ma fiche + the dashboard "Ont payé" list. The raw >100%
   percent is otherwise not surfaced.
 - Cotisations settings tab reordered logically (PINNED_TOP): Devises card → Montant par devise → association
-  amounts → maîtrise amount → maîtrise paie. Verified: tsc + eslint + vite clean. NOTE: no custom currency SYMBOL
-  (a new currency shows its code) — easy to add later if wanted.
+  amounts → maîtrise amount → maîtrise paie.
+- **Per-currency SYMBOL (added same day):** new setting `cotisation.currency_symbols` (json `{"USD":"$","LBP":"ل.ل"}`,
+  category cotisations, seeds via SeedMissingSettings + backend rebuild); a symbol column in the Devises editor
+  (saves all 3 keys together). A runtime registry in `lib/utils.ts` (`setCurrencySymbols`/`currencySymbol`) feeds
+  `formatMoney`; `components/shared/currency-symbols-sync.tsx` (mounted in AppLayout) loads the setting into it. A
+  currency with no symbol shows its code.
+- **Comma thousands separators on amount fields (added same day):** new `components/ui/amount-input.tsx`
+  (`AmountInput` — text input, comma-grouped as you type e.g. 2,500,000, emits a plain number, caret preserved like
+  PhoneInput) applied to the money fields (the 3 payment dialogs' amount, the Devises rate, "Montant par devise",
+  association amounts). `formatMoney` switched fr-FR spaces → `en-US` grouping (commas + period decimals) so displays
+  match the inputs. NOT applied to non-money number inputs (years/counts) — grouping a year is wrong. The generic
+  Settings number widget (e.g. maîtrise_amount) is left unformatted.
+- **EUR removed** from the dev DB's exchange rates + the seed default (fresh DBs); on PROD the existing
+  `cotisation.exchange_rates` row keeps EUR until a CG removes it via the Devises editor (SeedMissingSettings never
+  overwrites an existing row). One historical EUR payment line exists — it still displays; its equivalent now
+  converts 1:1 (no rate).
+- Verified live: custom currency "AED" payment accepted by the rebuilt backend (was rejected pre-rebuild), invalid
+  code "12$" → 400; currency_symbols seeded on startup + PUT round-trip 204; tsc + eslint + vite + dotnet all clean.
 
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to

@@ -5,6 +5,14 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Montants affichés et saisis avec séparateurs de milliers : les champs de montant (cotisations, taux de change, montants par devise, cotisations par association…) affichent désormais les virgules pendant la saisie (ex. 2,500,000), et les montants affichés dans l'application suivent le même format."
+      },
+      {
+        "date": "2026-09-17",
+        "text": "Cotisations — symbole personnalisable par devise : dans Paramètres → Cotisations → « Devises », on peut définir un symbole pour chaque devise (ex. $ pour USD, ل.ل pour LBP). Une devise sans symbole affiche simplement son code."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Cotisations — devises personnalisables : la liste des devises acceptées se gère désormais dans Paramètres → Cotisations → « Devises » (un seul endroit). On y ajoute/retire une devise, on choisit la devise de référence (★, dont le taux est verrouillé à 1) et on saisit le taux de change des autres. Toute l'application (formulaires de paiement, « Montant de la cotisation par devise », totaux) suit automatiquement cette liste."
       },
       {

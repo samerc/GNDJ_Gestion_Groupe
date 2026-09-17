@@ -13,6 +13,7 @@ import { MaintenancePage } from '@/components/shared/maintenance-page'
 import { ForcePasswordChange } from '@/components/auth/force-password-change'
 import { MemberWelcomeTour } from '@/components/onboarding/member-welcome-tour'
 import { ContactReviewPopup } from '@/components/members/contact-review-popup'
+import { CurrencySymbolsSync } from '@/components/shared/currency-symbols-sync'
 import { ImpersonationBanner } from './impersonation-banner'
 import { useImpersonationStore } from '@/stores/impersonation-store'
 
@@ -76,6 +77,8 @@ export function AppLayout() {
         {!isManager && <Sidebar />}
         <MobileSidebar />
         <Toaster richColors position="top-center" />
+        {/* Loads the customizable currency symbols into the formatMoney registry (renders nothing). */}
+        <CurrencySymbolsSync />
         {/* Suppress the member's own idle-timer / reminders / tour while impersonating — we're viewing, not
             them, and those fire mutations (marked-seen/dismiss) that the read-only mode would block. */}
         {!impersonating && <SessionWarning />}

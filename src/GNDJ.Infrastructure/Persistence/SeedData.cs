@@ -645,7 +645,10 @@ public static class SeedData
             // NOTE: the cotisation "année scoute en cours" now follows passage.scout_year (single source of
             // truth — the year the CG opens). The old cotisation.current_scout_year setting was retired.
             new() { Key = "cotisation.default_currency", Value = "USD", Category = "cotisations", Label = "Devise par défaut", Description = "Devise par défaut pour les cotisations et le calcul du total", ValueType = "string" },
-            new() { Key = "cotisation.exchange_rates", Value = "{\"LBP\":89500,\"EUR\":0.92}", Category = "cotisations", Label = "Taux de change", Description = "Taux de change par rapport à la devise par défaut (ex: 1 USD = 89500 LBP)", ValueType = "json" },
+            new() { Key = "cotisation.exchange_rates", Value = "{\"LBP\":89500}", Category = "cotisations", Label = "Taux de change", Description = "Taux de change par rapport à la devise par défaut (ex: 1 USD = 89500 LBP)", ValueType = "json" },
+            // Optional display symbol per currency ({"USD":"$","LBP":"ل.ل"}). Shown in place of the code wherever an
+            // amount is formatted; a currency with no symbol falls back to its code. Edited in the "Devises" editor.
+            new() { Key = "cotisation.currency_symbols", Value = "{\"USD\":\"$\",\"LBP\":\"ل.ل\"}", Category = "cotisations", Label = "Symboles des devises", Description = "Symbole affiché pour chaque devise (ex. $ pour USD). Sans symbole, le code de la devise est affiché.", ValueType = "json" },
             // Full cotisation price PER CURRENCY (e.g. {"USD":30,"LBP":2500000}). Used to tell "payé en entier" from
             // "partiel" : chaque paiement compte comme une fraction du plein DE SA propre devise (payer exactement
             // 2 500 000 LBP = plein, indépendamment du taux). Vide {} = pas de suivi du plein (tout paiement = payé).

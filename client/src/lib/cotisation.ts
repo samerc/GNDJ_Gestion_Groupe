@@ -1,3 +1,5 @@
+import { currencySymbol } from '@/lib/utils'
+
 // Parse a { "CODE": number } JSON object (exchange rates / full amounts). Malformed → empty.
 export function parseMoneyMap(raw: string | null | undefined): Record<string, number> {
   try { return raw ? (JSON.parse(raw) as Record<string, number>) : {} } catch { return {} }
@@ -27,12 +29,11 @@ export function fullAmountFor(fullAmountsRaw: string | null | undefined, currenc
   return typeof v === 'number' && v > 0 ? v : undefined
 }
 
-// Short display label for a currency: code + a known symbol when we have one (USD ($), LBP (ل.ل), EUR (€)),
-// else just the code (a custom currency shows plainly, e.g. "AED").
-const KNOWN_SYMBOLS: Record<string, string> = { USD: '$', EUR: '€', LBP: 'ل.ل' }
+// Short display label for a currency: code + its symbol when one is set (USD ($), LBP (ل.ل)), else just the
+// code (a custom currency with no symbol shows plainly, e.g. "AED"). Symbol comes from the runtime registry.
 export function currencyLabel(code: string): string {
-  const s = KNOWN_SYMBOLS[code]
-  return s ? `${code} (${s})` : code
+  const s = currencySymbol(code)
+  return s && s !== code ? `${code} (${s})` : code
 }
 
 // When the CG switches a payment line's currency, re-fill the amount with the NEW currency's full price — but

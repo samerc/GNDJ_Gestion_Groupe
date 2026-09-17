@@ -24,6 +24,7 @@ import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
 import { formatMoney } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { AmountInput } from '@/components/ui/amount-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -736,8 +737,8 @@ export default function CotisationDashboardPage() {
                 <div key={i} className="flex items-end gap-2">
                   <div className="flex-1 space-y-1">
                     {i === 0 && <span className="text-xs text-muted-foreground">Montant</span>}
-                    <Input type="number" min={0} step="0.01" value={line.amount}
-                      onChange={e => updatePayLine(i, { amount: e.target.value })} placeholder="0.00" />
+                    <AmountInput value={line.amount}
+                      onValueChange={n => updatePayLine(i, { amount: n > 0 ? String(n) : '' })} placeholder="0.00" />
                   </div>
                   <div className="w-28 space-y-1">
                     {i === 0 && <span className="text-xs text-muted-foreground">Devise</span>}
