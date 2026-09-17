@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Ma fiche : correction d'un blocage où la page restait indéfiniment en chargement pour un membre sans affectation active (par exemple un membre de retour, en attente de son placement de l'année). Sa propre fiche s'affiche désormais correctement, quel que soit son statut d'affectation ; l'accès aux fiches des autres membres reste protégé comme avant."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Messages de contact : quand une personne a saisi son identifiant de connexion (…@scouts.gndj) au lieu de son adresse email, la réponse est automatiquement envoyée à sa vraie adresse (courriel de contact du membre ou d'un parent) — l'adresse réelle est affichée dans la fenêtre de réponse. Si aucune adresse réelle n'est enregistrée sur sa fiche, l'application prévient qu'il faut d'abord en ajouter une plutôt que d'envoyer dans le vide."
       },
       {

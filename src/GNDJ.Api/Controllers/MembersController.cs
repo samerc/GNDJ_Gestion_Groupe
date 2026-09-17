@@ -112,8 +112,13 @@ public class MembersController : BaseApiController
 
     /// <summary>Gets a member's full profile. Requires members.view; own profile or members in authorized units.</summary>
     /// <response code="404">No accessible member with this id.</response>
+    // Auth-only (NOT [HasPermission(MembersView)]): the handler enforces access via MemberAccess
+    // (own record | leader of the member's unit | group manager | super-admin) and returns null → 404
+    // otherwise, so IDOR stays blocked. The controller-level permission gate wrongly denied a member their
+    // OWN fiche (Ma fiche) when they hold no members.view — e.g. a returning member with no CURRENT active
+    // assignment (between assignments / awaiting this year's placement) has no role → no permissions → the
+    // gate 403'd and Ma fiche skeletoned forever. Own-access must never depend on a leader permission.
     [HttpGet("{id:guid}")]
-    [HasPermission(Permissions.MembersView)]
     [ProducesResponseType(404)]
     public async Task<IActionResult> GetById(Guid id)
     {
