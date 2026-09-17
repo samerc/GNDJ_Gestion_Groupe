@@ -363,6 +363,19 @@ export function useSetPrimaryContactEmail(memberId: string) {
   })
 }
 
+// Change the member's login username (the identifier they sign in with). Invalidates the member list + detail
+// so the header reflects the new identifier.
+export function useUpdateMemberUsername(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (username: string) => apiClient.put(`/members/${memberId}/username`, { username }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members', memberId] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+    },
+  })
+}
+
 // Contact mutations — phones/emails/addresses are sub-resources; all invalidate the member detail.
 export function useAddPhone(memberId: string) {
   const qc = useQueryClient()

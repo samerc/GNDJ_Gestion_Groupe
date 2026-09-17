@@ -14,7 +14,7 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { useMembers, useMember, useMemberUnitOptions, useCreateMember, useUpdateMember, useDeleteMember, useRestoreMember, useResetMemberPassword,
-  useSendAccess, type MemberFormData } from '@/services/member-service'
+  useSendAccess, useUpdateMemberUsername, type MemberFormData } from '@/services/member-service'
 import { MemberPhoto } from '@/components/shared/member-photo'
 import { useUnits } from '@/services/unit-service'
 import { useAuthStore } from '@/stores/auth-store'
@@ -137,6 +137,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   const deleteMember = useDeleteMember()
   const restoreMember = useRestoreMember()
   const resetPassword = useResetMemberPassword()
+  const updateUsername = useUpdateMemberUsername(memberId)
   const sendAccess = useSendAccess()
   const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
   const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
@@ -181,6 +182,8 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   // Reset password (one-time credentials).
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [resetCreds, setResetCreds] = useState<{ username: string; password: string; sentToEmail: string | null } | null>(null)
+  // Username-edit dialog: null = closed, otherwise the value being typed (seeded from the current identifier).
+  const [usernameEdit, setUsernameEdit] = useState<string | null>(null)
 
   // Access delegation ("accès délégué") — CG grants this member extra hidden access (full CG or per-area).
   const [delegationOpen, setDelegationOpen] = useState(false)
@@ -278,6 +281,17 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
     finally { setResetConfirmOpen(false) }
   }
 
+  // Save the edited login username (identifier). Closes the dialog on success.
+  const saveUsername = async () => {
+    const next = usernameEdit?.trim()
+    if (!next || next === member?.username) { setUsernameEdit(null); return }
+    try {
+      await updateUsername.mutateAsync(next)
+      toast.success('Identifiant modifié')
+      setUsernameEdit(null)
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
+
   // Send (or resend) this member's activation email — their username + a link to set their own password.
   const handleResendAccess = async () => {
     try {
@@ -312,7 +326,15 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                 identifiant; line 3 = last sign-in, or "Jamais connecté" for an account that never logged in. */}
             <p className="flex items-center gap-1 text-xs text-muted-foreground">
               {member.username
-                ? <>Identifiant : <span className="font-medium text-foreground">{member.username}</span><CopyButton value={member.username} label="Copier l'identifiant" className="ml-0.5" /></>
+                ? <>Identifiant : <span className="font-medium text-foreground">{member.username}</span><CopyButton value={member.username} label="Copier l'identifiant" className="ml-0.5" />
+                    {canEdit && (
+                      <Tip content="Modifier l'identifiant de connexion">
+                        <Button variant="ghost" size="icon" className="ml-0.5 h-6 w-6" aria-label="Modifier l'identifiant"
+                          onClick={() => setUsernameEdit(member.username ?? '')}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </Tip>
+                    )}</>
                 : <span className="italic">Aucun compte utilisateur</span>}
             </p>
             {member.username && (
@@ -686,6 +708,32 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
       <ConfirmDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen} title="Supprimer le membre"
         description={`${member.firstName} ${member.lastName} sera déplacé(e) vers la Corbeille (son compte est désactivé). Vous pourrez le/la restaurer jusqu'à sa suppression définitive automatique. Continuer ?`}
         confirmLabel="Supprimer" variant="destructive" loading={deleteMember.isPending} onConfirm={handleDelete} />
+
+      {/* Edit the login username (identifier) */}
+      <Dialog open={usernameEdit !== null} onOpenChange={(o) => !o && setUsernameEdit(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Modifier l'identifiant</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              L'identifiant est ce que <strong>{member.firstName} {member.lastName}</strong> saisit pour se connecter
+              (au format <code className="rounded bg-muted px-1">prenom.nom@scouts.gndj</code>). Cela ne change que la
+              connexion — pas l'adresse email de contact. Prévenez le membre du nouvel identifiant.
+            </p>
+            <div className="space-y-1.5">
+              <RequiredLabel htmlFor="username-edit">Identifiant de connexion</RequiredLabel>
+              <Input id="username-edit" value={usernameEdit ?? ''} onChange={(e) => setUsernameEdit(e.target.value)}
+                autoComplete="off" spellCheck={false} placeholder="prenom.nom@scouts.gndj"
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveUsername() } }} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUsernameEdit(null)}>Annuler</Button>
+            <Button onClick={saveUsername} disabled={updateUsername.isPending || !usernameEdit?.trim() || usernameEdit.trim() === member.username}>
+              {updateUsername.isPending ? 'Enregistrement…' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reset password */}
       <ConfirmDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen} title="Réinitialiser le mot de passe"

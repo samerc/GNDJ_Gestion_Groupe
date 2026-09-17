@@ -10,6 +10,7 @@ using GNDJ.Application.Members.Commands.DeleteMember;
 using GNDJ.Application.Members.Commands.DeletePhone;
 using GNDJ.Application.Members.Commands.ResetMemberPassword;
 using GNDJ.Application.Members.Commands.SetPrimaryContactEmail;
+using GNDJ.Application.Members.Commands.UpdateUsername;
 using GNDJ.Application.Members.Commands.UpdateAddress;
 using GNDJ.Application.Members.Commands.UpdateEmail;
 using GNDJ.Application.Members.Commands.UpdateMember;
@@ -256,6 +257,18 @@ public class MembersController : BaseApiController
     }
 
     public record SetPrimaryEmailRequest(string? Email);
+
+    /// <summary>Changes the member's login username (the identifier they sign in with). Requires members.edit; affects login only.</summary>
+    [HttpPut("{id:guid}/username")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> UpdateUsername(Guid id, [FromBody] UpdateUsernameRequest body)
+    {
+        var result = await Mediator.Send(new UpdateMemberUsernameCommand(id, body?.Username ?? ""));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    public record UpdateUsernameRequest(string? Username);
 
     /// <summary>
     /// Lists every member who currently holds an access delegation ("accès délégué") — for the Accès maîtrise

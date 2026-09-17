@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Fiche membre : le chef peut désormais modifier l'identifiant de connexion d'un membre (l'adresse …@scouts.gndj qu'il saisit pour se connecter) — utile pour corriger un identifiant ou distinguer deux membres du même nom. Un bouton crayon apparaît à côté de l'identifiant ; l'unicité est vérifiée. Cela ne change que la connexion, pas l'adresse email de contact."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Ma fiche : correction d'un blocage où la page restait indéfiniment en chargement pour un membre sans affectation active (par exemple un membre de retour, en attente de son placement de l'année). Sa propre fiche s'affiche désormais correctement, quel que soit son statut d'affectation ; l'accès aux fiches des autres membres reste protégé comme avant."
       },
       {
