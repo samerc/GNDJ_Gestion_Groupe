@@ -7,6 +7,7 @@
 // converted demande member sees it on first login to confirm the info they submitted. Suppressed while impersonating.
 import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
+import { useContactReviewStore } from '@/stores/contact-review-store'
 import { useMember } from '@/services/member-service'
 import { useMemberGuardians } from '@/services/guardian-service'
 import { useReviewMyContacts, useAddMyEmail, useDeleteMyEmail, useUpdateMyEmail, useAddMyPhone, useDeleteMyPhone, useUpdateMyPhone } from '@/services/my-profile-service'
@@ -22,8 +23,6 @@ import { parseApiError } from '@/lib/error-utils'
 import { PHONE_COUNTRY_CODES, PARENTS_SITUATION_OPTIONS } from '@/lib/options'
 import { Mail, Phone, Plus, Trash2, Pencil, Star, HeartPulse, AtSign } from 'lucide-react'
 import { toast } from 'sonner'
-
-const SKIP_KEY = 'contact-review.skip'
 
 const RELATIONSHIP_OPTIONS = [
   { value: 'Père', label: 'Père' },
@@ -48,15 +47,15 @@ function canonicalRel(v: string): string {
 // so a member who has already reviewed (or a super-admin) fires no extra queries.
 export function ContactReviewPopup() {
   const user = useAuthStore((s) => s.user)
-  const [skipped, setSkipped] = useState(() => {
-    try { return sessionStorage.getItem(SKIP_KEY) === '1' } catch { return false }
-  })
+  // Shared skip flag (see contact-review-store) so the welcome tour can react when the member defers this popup.
+  const skipped = useContactReviewStore((s) => s.skipped)
+  const skip = useContactReviewStore((s) => s.skip)
   const shouldShow = !!user?.needsContactReview && !!user?.memberId && !skipped
   if (!shouldShow) return null
   return (
     <ContactReviewDialog
       memberId={user!.memberId}
-      onSkip={() => { try { sessionStorage.setItem(SKIP_KEY, '1') } catch { /* private mode */ } setSkipped(true) }}
+      onSkip={skip}
     />
   )
 }
