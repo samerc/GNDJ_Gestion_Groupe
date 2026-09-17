@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router'
-import { Hand, FileText, UserRound, SunMoon, ArrowRight, ChevronLeft } from 'lucide-react'
+import { Hand, FileText, UserRound, SunMoon, Users, ArrowRight, ChevronLeft } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
-import { useMarkOnboardingSeen } from '@/services/my-profile-service'
+import { useMarkOnboardingSeen, useSwitchAccounts } from '@/services/my-profile-service'
 import { useIsRegularMember } from '@/lib/use-is-manager'
 import { useOnboardingTour } from '@/stores/onboarding-store'
 
@@ -45,6 +45,14 @@ const STEPS: Step[] = [
   },
 ]
 
+// Shown ONLY to a member who has confirmed brother(s)/sister(s) in the group (added after "Vos réglages",
+// since switching lives in that same account menu). Tells the parent they can hop between their children.
+const SIBLING_STEP: Step = {
+  icon: Users,
+  title: 'Passer d’un enfant à l’autre',
+  body: "Vous avez plusieurs enfants au groupe ? Depuis votre menu (en haut à droite), « Changer de compte » vous permet de basculer vers le compte d’un frère ou d’une sœur. La première fois, le mot de passe de ce compte est demandé ; ensuite, sur cet appareil, le changement est instantané.",
+}
+
 export function MemberWelcomeTour() {
   const user = useAuthStore((s) => s.user)
   const markSeen = useMarkOnboardingSeen()
@@ -54,6 +62,13 @@ export function MemberWelcomeTour() {
   const closeReplay = useOnboardingTour((s) => s.close)
   const [step, setStep] = useState(0)
   const [dismissed, setDismissed] = useState(false)
+
+  // Add the account-switch step only for a member who actually has confirmed siblings (else it's noise).
+  const { data: siblings } = useSwitchAccounts(isRegularMember && !!user?.memberId)
+  const steps = useMemo(
+    () => (siblings && siblings.length > 0 ? [...STEPS, SIBLING_STEP] : STEPS),
+    [siblings],
+  )
 
   // Shows automatically to a regular member who hasn't seen it, OR whenever they hit "Revoir le tutoriel"
   // (replay overrides the once-per-member flag). Chefs/admins are excluded (isRegularMember is false, and the
@@ -76,9 +91,9 @@ export function MemberWelcomeTour() {
 
   if (!show) return null
 
-  const current = STEPS[step]
+  const current = steps[Math.min(step, steps.length - 1)]
   const Icon = current.icon
-  const isLast = step === STEPS.length - 1
+  const isLast = step === steps.length - 1
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) finish() }}>
@@ -99,7 +114,7 @@ export function MemberWelcomeTour() {
 
           {/* progress dots */}
           <div className="mt-5 flex items-center gap-1.5">
-            {STEPS.map((_, i) => (
+            {steps.map((_, i) => (
               <span
                 key={i}
                 className={`h-1.5 rounded-full transition-all ${i === step ? 'w-5 bg-primary' : 'w-1.5 bg-muted-foreground/30'}`}

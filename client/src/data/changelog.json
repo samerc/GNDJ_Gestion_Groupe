@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Tutoriel de bienvenue : une étape « Passer d'un enfant à l'autre » s'affiche désormais pour les membres qui ont un frère ou une sœur confirmé(e) au groupe, pour leur faire découvrir le changement de compte."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Coordonnées d'une fratrie confirmée : valider « Vérifiez vos coordonnées » pour un enfant reporte les choix du foyer sur ses frères et sœurs (courriel principal, situation des parents, contact d'urgence / parent décédé) et marque leur vérification comme faite — le parent ne refait donc plus la démarche pour chaque enfant."
       },
       {
