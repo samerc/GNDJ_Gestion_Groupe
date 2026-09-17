@@ -3,6 +3,7 @@ using GNDJ.Application.Guardians;
 using GNDJ.Application.Members.Commands.MyContacts;
 using GNDJ.Application.Members.Commands.MyOnboarding;
 using GNDJ.Application.Members.Commands.UpdateMyProfile;
+using GNDJ.Application.Members.Queries.MySwitchAccounts;
 using GNDJ.Application.Reports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -28,6 +29,16 @@ public class MyProfileController : BaseApiController
         var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return NoContent();
+    }
+
+    /// <summary>Confirmed-sibling accounts the caller can switch to (name + login username). Auth-only, own
+    /// family. Powers the account switcher; switching itself reuses the login/refresh endpoints.</summary>
+    [HttpGet("switch-accounts")]
+    public async Task<IActionResult> SwitchAccounts()
+    {
+        var result = await Mediator.Send(new GetMySwitchAccountsQuery());
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
     }
 
     /// <summary>Leader first-login step: confirm/correct the caller's own PERSONAL email + phone (sets the email

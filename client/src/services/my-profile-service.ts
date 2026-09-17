@@ -138,3 +138,22 @@ export async function viewMyTrombinoscope(unitId: string, scoutYear: string) {
   const res = await apiClient.get('/my-profile/trombinoscope', { params: { unitId, scoutYear }, responseType: 'blob' })
   openBlob(res.data, 'application/pdf')
 }
+
+// ── Account switching (siblings) ──────────────────────────────────────────
+// A confirmed-sibling account the signed-in member can switch to (name + login username to sign in with).
+export interface SwitchAccountDto {
+  memberId: string
+  name: string
+  username: string
+}
+
+// The caller's confirmed-sibling accounts (auth-only; empty when the member has no confirmed fratrie). Powers
+// the header account switcher. 5-min staleTime — siblings rarely change during a session.
+export function useSwitchAccounts(enabled = true) {
+  return useQuery({
+    queryKey: ['my-profile', 'switch-accounts'],
+    queryFn: () => apiClient.get<SwitchAccountDto[]>('/my-profile/switch-accounts').then((r) => r.data),
+    enabled,
+    staleTime: 5 * 60 * 1000,
+  })
+}

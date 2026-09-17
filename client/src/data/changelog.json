@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Changer de compte entre frères et sœurs : un parent connecté sur le compte d'un enfant peut basculer vers le compte d'un frère ou d'une sœur (fratrie confirmée) depuis le menu du compte (en haut à droite). La première bascule vers un compte demande son mot de passe une seule fois ; ensuite, sur cet appareil, le changement est instantané (un compte « mémorisé » est signalé par une coche verte)."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Champs de mot de passe : une icône « œil » permet désormais d'afficher/masquer le mot de passe saisi (connexion, inscription, activation, réinitialisation, changement de mot de passe, serveurs SMTP)."
       },
       {

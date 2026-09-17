@@ -5366,6 +5366,37 @@ Follow-ups from a CG cotisation walkthrough (all on main, DEV until deploy; migr
 - Verified live: custom currency "AED" payment accepted by the rebuilt backend (was rejected pre-rebuild), invalid
   code "12$" → 400; currency_symbols seeded on startup + PUT round-trip 204; tsc + eslint + vite + dotnet all clean.
 
+### Switch between sibling accounts (2026-09-17)
+A parent signed into one child can hop to a **confirmed sibling's** account without logging out. Security model
+(the user's choice): **password once, then remembered** — the first switch to a sibling on a device asks for THAT
+account's password; the client then pools its refresh token so later switches are instant. All on main, DEV until
+deploy (migration-free; needs the backend rebuild for the new endpoint).
+- **Backend:** `GetMySwitchAccountsQuery` (auth-only, resolves the caller's OWN member id) → confirmed siblings
+  (same `SiblingGroupId`) that have a usable login, returning `{memberId, name, username}`. `GET /my-profile/
+  switch-accounts`. Deliberately narrow exposure (name + login identifier of one's own confirmed fratrie); the
+  password gate means listing the username grants nothing on its own. Switching itself REUSES the existing
+  login/refresh endpoints — no new switch/impersonation endpoint (this is a real session as the sibling, full
+  access, NOT read-only like "Voir comme").
+- **Client multi-session pool** (`lib/account-pool.ts`): stores each authenticated member account's refresh token
+  in the member realm's backing store (localStorage when remembered, else sessionStorage), keyed by memberId.
+  Cleared on logout (leave the whole family on this device). Auth store (`auth-store.ts`): `loadUser` pools the
+  active account with its freshest token + name; **`switchToAccount(memberId)`** snapshots the current account then
+  mints a fresh session by calling `/auth/refresh` with the pooled token (bare axios so the active interceptor
+  can't hijack it) — updates the pool with the ROTATED token (single rotating token per user, so this is required),
+  throws `NO_SESSION` on a stale token (removed from pool → caller prompts for password); **`addAndSwitchAccount(
+  username, password)`** = a login for the new account (current pooled first so it stays switchable). Both
+  `queryClient.clear()` on switch so no cross-account data leak.
+- **UI:** in the avatar/account menu (`user-menu.tsx`) — a "Changer de compte" section (only when the member has
+  confirmed siblings; hidden while impersonating) listing each sibling with initials + a green ✓ (remembered →
+  instant) or a key (needs password). First switch opens a small "Se connecter en tant que …" password dialog
+  (username shown read-only). `useSwitchAccounts()` in my-profile-service.
+- **Verified live** (test fratrie Jad+Marc MATAR, both `Gndj2026!`): endpoint lists the sibling with username;
+  login-as-sibling (add) + refresh-with-stored-token (instant switch) both work; the old token 401s after rotation
+  (proving the pool must store the new one — it does). dotnet 0/0 + tsc + eslint + vite clean. NOTE: dev has a
+  labeled **"TEST account switch demo"** sibling group (Jad+Marc MATAR — not real siblings, no shared guardian);
+  remove it via the Fratries page (Confirmées → unlink) or `DELETE FROM sibling_groups WHERE notes='TEST account
+  switch demo'` + null their `sibling_group_id`.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a
