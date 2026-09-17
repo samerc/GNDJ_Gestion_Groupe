@@ -94,6 +94,10 @@ const UNITS: Record<string, string> = {
   'demande.notes_max_length': 'caractères',
 }
 
+// Number settings that hold a MONETARY amount in the reference/default currency → formatted with thousands
+// separators (AmountInput) and shown with the default-currency suffix, instead of a plain number input.
+const MONEY_KEYS = new Set(['cotisation.maitrise_amount'])
+
 const CATEGORY_LABELS: Record<string, string> = {
   members: 'Membres',
   famille: 'Famille',
@@ -323,6 +327,7 @@ function CurrenciesEditor({ defaultCurrency, ratesJson, symbolsJson }: { default
 function AssociationAmountsEditor({ value, onChange }: { value: string; onChange: (json: string) => void }) {
   const { data } = useAssociations({ pageSize: 100 })
   const associations = data?.items ?? []
+  const { defaultCurrency } = useCurrencies() // amounts are in the reference currency — shown next to each field
   const parse = (v: string): Record<string, string> => {
     try { return Object.fromEntries(Object.entries(JSON.parse(v || '{}') as Record<string, number | string>).map(([k, val]) => [k, String(val)])) }
     catch { return {} }
@@ -348,6 +353,7 @@ function AssociationAmountsEditor({ value, onChange }: { value: string; onChange
           <span className="w-48 shrink-0 truncate text-sm" title={a.name}>{a.name}</span>
           <AmountInput className="w-40" placeholder="Montant"
             value={amounts[a.id] ?? ''} onValueChange={(n) => commit({ ...amounts, [a.id]: n > 0 ? String(n) : '' })} />
+          <span className="text-sm text-muted-foreground">{defaultCurrency}</span>
         </div>
       ))}
       <p className="text-xs text-muted-foreground">Montant dû à chaque association par membre (dans la devise par défaut). Interne — non visible par les membres.</p>
@@ -468,6 +474,9 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
   const isExchangeRates = setting.key === 'cotisation.exchange_rates'
   const isFullAmounts = setting.key === 'cotisation.full_amounts'
   const isAssociationAmounts = setting.key === 'cotisation.association_amounts'
+  // Monetary number settings (e.g. maîtrise cotisation) are shown comma-formatted with the default-currency suffix.
+  const isMoney = isNumber && MONEY_KEYS.has(setting.key)
+  const { defaultCurrency } = useCurrencies()
   // Long free-text settings → a roomy textarea instead of a cramped one-line input. Match the message/text
   // keys (intro/result messages, terms, maintenance message…); a length fallback catches any future long value.
   const isLongText = /(text|terms|message|tagline)/i.test(setting.key) || (setting.value?.length ?? 0) > 80
@@ -555,8 +564,12 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
             </div>
           ) : isNumber ? (
             <div className="flex items-center gap-2">
-              <Input type="number" value={value} onChange={(e) => setValue(e.target.value)} className="max-w-[12rem]" />
-              {UNITS[setting.key] && <span className="text-sm text-muted-foreground">{UNITS[setting.key]}</span>}
+              {isMoney
+                ? <AmountInput value={value} onValueChange={(n) => setValue(String(n))} className="max-w-[12rem]" />
+                : <Input type="number" value={value} onChange={(e) => setValue(e.target.value)} className="max-w-[12rem]" />}
+              {isMoney
+                ? <span className="text-sm text-muted-foreground">{defaultCurrency}</span>
+                : UNITS[setting.key] && <span className="text-sm text-muted-foreground">{UNITS[setting.key]}</span>}
             </div>
           ) : isDate ? (
             <div className="space-y-1">

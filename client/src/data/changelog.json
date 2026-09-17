@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Cotisations — la devise de référence est indiquée à côté des montants qui y sont exprimés (cotisation par association, cotisation de la maîtrise), et le champ « Cotisation de la maîtrise » est désormais formaté avec séparateurs de milliers comme les autres champs de montant."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Montants affichés et saisis avec séparateurs de milliers : les champs de montant (cotisations, taux de change, montants par devise, cotisations par association…) affichent désormais les virgules pendant la saisie (ex. 2,500,000), et les montants affichés dans l'application suivent le même format."
       },
       {
