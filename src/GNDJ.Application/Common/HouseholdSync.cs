@@ -58,6 +58,64 @@ public static class HouseholdSync
         await ctx.SaveChangesAsync(ct);
     }
 
+    // After a member completes the "Vérifiez vos coordonnées" review, carry the household-level choices onto their
+    // confirmed siblings so a parent does it ONCE for the family, not once per child: marks each sibling's review
+    // as done (stops the popup re-appearing), copies the chosen primary contact email where it's actually valid
+    // for the sibling (own or a guardian's address), and mirrors each parent's décédé / contact-d'urgence flags
+    // onto the sibling's matching parent — matched by NAME, so it works whether or not the duplicate parent records
+    // were merged. (Situation is mirrored by PropagateParentsSituationAsync; a shared guardian's own contacts are
+    // already shared.) Stages into the caller's transaction (no SaveChanges here) — call before the handler saves.
+    public static async Task PropagateContactReviewAsync(
+        IApplicationDbContext ctx, Guid memberId, string? primaryEmail,
+        IReadOnlyList<(Guid GuardianId, bool IsDeceased, bool IsEmergency)> guardians, CancellationToken ct)
+    {
+        var ids = await SiblingIdsAsync(ctx, memberId, ct);
+        if (ids.Count == 0) return;
+
+        // Map each reviewed parent's flags to its normalized name, so we can find the matching parent on a sibling.
+        var reviewedIds = guardians.Select(g => g.GuardianId).Distinct().ToList();
+        var reviewedNames = (await ctx.Guardians.Where(g => reviewedIds.Contains(g.Id))
+                .Select(g => new { g.Id, g.FirstName, g.LastName }).ToListAsync(ct))
+            .ToDictionary(g => g.Id, g => TextNormalization.NormalizeKey($"{g.FirstName} {g.LastName}"));
+        var flagByName = new Dictionary<string, (bool Dead, bool Urgent)>();
+        foreach (var g in guardians)
+            if (reviewedNames.TryGetValue(g.GuardianId, out var nm) && !string.IsNullOrEmpty(nm))
+                flagByName[nm] = (g.IsDeceased, g.IsEmergency);
+
+        var email = string.IsNullOrWhiteSpace(primaryEmail) ? null : primaryEmail.Trim();
+        var lower = email?.ToLowerInvariant();
+        var now = DateTime.UtcNow;
+
+        var siblings = await ctx.Members.Where(m => ids.Contains(m.Id)).ToListAsync(ct);
+        foreach (var sib in siblings)
+        {
+            sib.ContactReviewedAt = now; // family reviewed once → don't nag the sibling
+            if (lower is not null)
+            {
+                var ownHas = await ctx.MemberEmails.AnyAsync(e => e.MemberId == sib.Id && !e.IsDeleted && e.Address.ToLower() == lower, ct);
+                var has = ownHas || await ctx.GuardianEmails.AnyAsync(e => !e.IsDeleted && e.Address.ToLower() == lower
+                    && ctx.GuardianLinks.Any(l => l.GuardianId == e.GuardianId && l.MemberId == sib.Id && !l.IsDeleted), ct);
+                if (has) sib.PrimaryContactEmail = email;
+            }
+        }
+
+        // Décédé (on the parent) + urgence (on the child's link) onto each sibling's matching parent, by name.
+        if (flagByName.Count > 0)
+        {
+            var links = await ctx.GuardianLinks.Where(l => ids.Contains(l.MemberId) && !l.IsDeleted).ToListAsync(ct);
+            var gids = links.Select(l => l.GuardianId).Distinct().ToList();
+            var gById = (await ctx.Guardians.Where(g => gids.Contains(g.Id)).ToListAsync(ct)).ToDictionary(g => g.Id);
+            foreach (var l in links)
+            {
+                if (!gById.TryGetValue(l.GuardianId, out var gd)) continue;
+                var nm = TextNormalization.NormalizeKey($"{gd.FirstName} {gd.LastName}");
+                if (!flagByName.TryGetValue(nm, out var f)) continue;
+                l.IsEmergencyContact = f.Urgent;
+                gd.IsDeceased = f.Dead;
+            }
+        }
+    }
+
     // True when every sibling already holds exactly the source's addresses (so nothing needs mirroring).
     private static bool AlreadyMirrored(List<MemberAddress> source, List<MemberAddress> existing, int siblingCount)
     {

@@ -335,6 +335,12 @@ public class ReviewMyContactsHandler(IApplicationDbContext context, ICurrentUser
         }
 
         member.ContactReviewedAt = DateTime.UtcNow;
+
+        // Do it ONCE for the family: carry the household choices onto confirmed siblings (mark them reviewed so the
+        // popup doesn't re-appear, copy the primary contact email where valid, mirror parents' urgence/décédé).
+        await HouseholdSync.PropagateContactReviewAsync(context, memberId.Value, member.PrimaryContactEmail,
+            (request.Guardians ?? []).Select(g => (g.GuardianId, g.IsDeceased, g.IsEmergencyContact)).ToList(), ct);
+
         await context.SaveChangesAsync(ct);
         await audit.LogAsync("ReviewContacts", "Member", member.Id, newValues: new
         {

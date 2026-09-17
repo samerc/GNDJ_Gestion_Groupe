@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Coordonnées d'une fratrie confirmée : valider « Vérifiez vos coordonnées » pour un enfant reporte les choix du foyer sur ses frères et sœurs (courriel principal, situation des parents, contact d'urgence / parent décédé) et marque leur vérification comme faite — le parent ne refait donc plus la démarche pour chaque enfant."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Changer de compte entre frères et sœurs : un parent connecté sur le compte d'un enfant peut basculer vers le compte d'un frère ou d'une sœur (fratrie confirmée) depuis le menu du compte (en haut à droite). La première bascule vers un compte demande son mot de passe une seule fois ; ensuite, sur cet appareil, le changement est instantané (un compte « mémorisé » est signalé par une coche verte)."
       },
       {
