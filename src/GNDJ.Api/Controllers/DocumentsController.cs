@@ -262,6 +262,22 @@ public class DocumentsController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Deletes page 1 (the primary file) of a document by promoting the next page to primary, and
+    /// removes the old primary file from disk. Fails if the document has no other page. Requires documents.delete.</summary>
+    [HttpDelete("{id:guid}/primary-page")]
+    [HasPermission(Permissions.DocumentsDelete)]
+    public async Task<IActionResult> DeletePrimaryPage(Guid id)
+    {
+        var result = await Mediator.Send(new DeleteDocumentPrimaryPageCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+
+        var uploadsRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "uploads"));
+        var fullPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), result.Value!.FilePath));
+        if (fullPath.StartsWith(uploadsRoot))
+            try { if (System.IO.File.Exists(fullPath)) System.IO.File.Delete(fullPath); } catch { /* best effort */ }
+        return NoContent();
+    }
+
     /// <summary>Lists documents expiring within the given window. Requires documents.view.</summary>
     /// <param name="daysAhead">Look-ahead window in days (default 30).</param>
     [HttpGet("expiring")]

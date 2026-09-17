@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Documents à plusieurs pages : on peut désormais supprimer la « page principale » (page 1) d'un document — la page suivante prend alors sa place. Le bouton de suppression apparaît sur la page principale dès qu'il y a au moins une autre page (s'il n'y a qu'une page, supprimez le document entier)."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Tutoriel de bienvenue : une étape « Passer d'un enfant à l'autre » s'affiche désormais pour les membres qui ont un frère ou une sœur confirmé(e) au groupe, pour leur faire découvrir le changement de compte."
       },
       {

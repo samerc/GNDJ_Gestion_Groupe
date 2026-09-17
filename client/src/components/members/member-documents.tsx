@@ -2,7 +2,7 @@ import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { saveBlob, filenameFromDisposition } from '@/lib/download'
 import { toast } from 'sonner'
 import { useState, useRef } from 'react'
-import { useMemberDocuments, useUploadDocument, useReviewDocument, useDeleteDocument, useAddDocumentPages, useDeleteDocumentPage, downloadDocument, downloadDocumentPage, type MemberDocumentDto, type DocumentPageDto } from '@/services/document-service'
+import { useMemberDocuments, useUploadDocument, useReviewDocument, useDeleteDocument, useAddDocumentPages, useDeleteDocumentPage, useDeleteDocumentPrimaryPage, downloadDocument, downloadDocumentPage, type MemberDocumentDto, type DocumentPageDto } from '@/services/document-service'
 import { useDocumentTypeList, downloadMemberTemplatePdf, type DocumentTypeListDto } from '@/services/document-type-service'
 import { useSettingValue, useSettingArray } from '@/services/settings-service'
 import { useDocumentCampaign } from '@/services/documents-campaign-service'
@@ -52,6 +52,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const deleteMutation = useDeleteDocument(memberId)
   const addPagesMutation = useAddDocumentPages(memberId)
   const deletePageMutation = useDeleteDocumentPage(memberId)
+  const deletePrimaryPageMutation = useDeleteDocumentPrimaryPage(memberId)
 
   // Upload limits come from settings (documents.max_file_size_mb / documents.allowed_file_types) — shown to
   // the user AND enforced client-side — so the on-screen text always matches what the server actually accepts.
@@ -149,6 +150,17 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const handleDeletePage = async (pageId: string) => {
     try {
       await deletePageMutation.mutateAsync(pageId)
+      toast.success('Page supprimée')
+    } catch (err) {
+      toast.error(parseApiError(err))
+    }
+  }
+
+  // Delete page 1 (the primary file): the backend promotes the next page to primary. Only offered when the
+  // document has another page (else there's nothing to promote — delete the whole document instead).
+  const handleDeletePrimaryPage = async (docId: string) => {
+    try {
+      await deletePrimaryPageMutation.mutateAsync(docId)
       toast.success('Page supprimée')
     } catch (err) {
       toast.error(parseApiError(err))
@@ -596,7 +608,15 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       <Download className="h-4 w-4" />
                     </Button></Tip>
                     {p.isPrimary ? (
-                      <span className="px-1 text-[10px] text-muted-foreground">page principale</span>
+                      <>
+                        <span className="px-1 text-[10px] text-muted-foreground">page principale</span>
+                        {/* Delete page 1 only when another page can take its place (else delete the whole document). */}
+                        {hasPermission(PERMISSIONS.DOCUMENTS_DELETE) && (openDoc?.pages.length ?? 0) > 1 && (
+                          <Tip content="Supprimer la page"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" disabled={deletePrimaryPageMutation.isPending} onClick={() => openDoc && handleDeletePrimaryPage(openDoc.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button></Tip>
+                        )}
+                      </>
                     ) : hasPermission(PERMISSIONS.DOCUMENTS_DELETE) && (
                       <Tip content="Supprimer la page"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" disabled={deletePageMutation.isPending} onClick={() => p.pageId && handleDeletePage(p.pageId)}>
                         <Trash2 className="h-4 w-4" />

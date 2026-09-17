@@ -376,6 +376,47 @@ public class DeleteDocumentPageCommandHandler(IApplicationDbContext context, ICu
     }
 }
 
+// Delete the PRIMARY page (page 1) of a multi-page document by PROMOTING the next page to primary: the first
+// extra page's file becomes the document's inline file, and that page row is removed. Only valid when the
+// document has ≥1 extra page (otherwise page 1 is the whole document — delete the document instead). The OLD
+// primary file is returned so the controller removes it from disk (the promoted page's file stays — it's now
+// the document's file). Gated documents.delete at the controller.
+public record DeleteDocumentPrimaryPageCommand(Guid DocumentId) : IRequest<Result<PageFileRef>>;
+
+public class DeleteDocumentPrimaryPageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService) : IRequestHandler<DeleteDocumentPrimaryPageCommand, Result<PageFileRef>>
+{
+    public async ValueTask<Result<PageFileRef>> Handle(DeleteDocumentPrimaryPageCommand request, CancellationToken ct)
+    {
+        // Load the document WITHOUT its Pages nav (mutating a tracked parent's child collection throws a spurious
+        // concurrency exception — the documented multi-page gotcha); manipulate pages via the DbSet only.
+        var doc = await context.MemberDocuments.FirstOrDefaultAsync(d => d.Id == request.DocumentId, ct);
+        if (doc is null) return Result<PageFileRef>.Failure("Document introuvable.");
+        if (!await DocumentAccessHelper.CanAccessMember(context, currentUser, doc.MemberId, ct))
+            return Result<PageFileRef>.Failure("Accès non autorisé.");
+
+        // The next page (lowest PageOrder) is promoted to primary.
+        var promoted = await context.MemberDocumentPages
+            .Where(p => p.MemberDocumentId == doc.Id)
+            .OrderBy(p => p.PageOrder).ThenBy(p => p.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+        if (promoted is null)
+            return Result<PageFileRef>.Failure("C'est la seule page du document. Supprimez plutôt le document entier.");
+
+        var oldPrimaryPath = doc.FilePath; // deleted from disk by the controller
+        doc.FilePath = promoted.FilePath;  // the promoted page's file is now the document's inline file (page 1)
+        doc.FileName = promoted.FileName;
+        doc.FileSize = promoted.FileSize;
+        doc.MimeType = promoted.MimeType;
+        context.MemberDocumentPages.Remove(promoted); // remove the row only — its FILE now belongs to the document
+
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("DeletePage", "MemberDocument", doc.Id,
+            oldValues: new { Member = await AuditNames.MemberAsync(context, doc.MemberId, ct), RemovedPage = "Page 1", PromotedTo = promoted.FileName },
+            cancellationToken: ct);
+        return Result<PageFileRef>.Success(new PageFileRef(oldPrimaryPath));
+    }
+}
+
 // Resolves the on-disk path for an extra page download (own/leader access via the parent document's member).
 public record GetDocumentPageFileQuery(Guid PageId) : IRequest<DocumentFileDto?>;
 

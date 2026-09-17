@@ -135,6 +135,19 @@ export function useDeleteDocumentPage(memberId: string) {
   })
 }
 
+// Delete page 1 (the primary file) of a document — the backend promotes the next page to primary.
+export function useDeleteDocumentPrimaryPage(memberId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (docId: string) => apiClient.delete(`/documents/${docId}/primary-page`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents', memberId] })
+      qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+    },
+  })
+}
+
 // GET /documents/{id}/download (page 1) or /documents/pages/{pageId}/download (extra page) — raw blob (not a hook).
 export function downloadDocument(id: string) {
   return apiClient.get(`/documents/${id}/download`, { responseType: 'blob' })
