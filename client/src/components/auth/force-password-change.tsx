@@ -9,7 +9,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { PasswordRules } from '@/components/auth/password-rules'
 import { usePasswordPolicy, passwordMeetsPolicy } from '@/lib/password-policy'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { parseApiError } from '@/lib/error-utils'
@@ -66,18 +66,18 @@ export function ForcePasswordChange() {
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="fpc-current">Mot de passe actuel</Label>
-              <Input id="fpc-current" type="password" value={current} onChange={(e) => setCurrent(e.target.value)}
+              <PasswordInput id="fpc-current" value={current} onChange={(e) => setCurrent(e.target.value)}
                 required autoComplete="current-password" placeholder="Celui que vous venez d'utiliser" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="fpc-new">Nouveau mot de passe</Label>
-              <Input id="fpc-new" type="password" value={next} onChange={(e) => setNext(e.target.value)}
+              <PasswordInput id="fpc-new" value={next} onChange={(e) => setNext(e.target.value)}
                 required autoComplete="new-password" />
               <div className="pt-1"><PasswordRules password={next} /></div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="fpc-confirm">Confirmez le mot de passe</Label>
-              <Input id="fpc-confirm" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)}
+              <PasswordInput id="fpc-confirm" value={confirm} onChange={(e) => setConfirm(e.target.value)}
                 required autoComplete="new-password" />
               {confirm.length > 0 && confirm !== next && (
                 <p className="text-xs text-destructive">Les mots de passe ne correspondent pas.</p>

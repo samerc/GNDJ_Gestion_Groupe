@@ -8,7 +8,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { PasswordRules } from '@/components/auth/password-rules'
 import { usePasswordPolicy, passwordMeetsPolicy } from '@/lib/password-policy'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import {
@@ -186,16 +186,16 @@ export function UserMenu() {
             {passwordError && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{passwordError}</div>}
             <div className="space-y-2">
               <RequiredLabel required>Mot de passe actuel</RequiredLabel>
-              <Input type="password" value={passwordForm.currentPassword} onChange={(e) => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))} required autoComplete="current-password" />
+              <PasswordInput value={passwordForm.currentPassword} onChange={(e) => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))} required autoComplete="current-password" />
             </div>
             <div className="space-y-2">
               <RequiredLabel required>Nouveau mot de passe</RequiredLabel>
-              <Input type="password" value={passwordForm.newPassword} onChange={(e) => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))} required autoComplete="new-password" />
+              <PasswordInput value={passwordForm.newPassword} onChange={(e) => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))} required autoComplete="new-password" />
               <div className="pt-1"><PasswordRules password={passwordForm.newPassword} /></div>
             </div>
             <div className="space-y-2">
               <RequiredLabel required>Confirmer le nouveau mot de passe</RequiredLabel>
-              <Input type="password" value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))} required autoComplete="new-password" />
+              <PasswordInput value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))} required autoComplete="new-password" />
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setChangePasswordOpen(false)}>Annuler</Button>

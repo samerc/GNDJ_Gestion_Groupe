@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Champs de mot de passe : une icône « œil » permet désormais d'afficher/masquer le mot de passe saisi (connexion, inscription, activation, réinitialisation, changement de mot de passe, serveurs SMTP)."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Cotisations — la devise de référence est indiquée à côté des montants qui y sont exprimés (cotisation par association, cotisation de la maîtrise), et le champ « Cotisation de la maîtrise » est désormais formaté avec séparateurs de milliers comme les autres champs de montant."
       },
       {

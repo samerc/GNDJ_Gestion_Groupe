@@ -6,6 +6,7 @@ import { useInviteInfo, useClaimInvite } from '@/services/applicant-service'
 import { ApplicantAuthShell } from '@/components/applicant/applicant-auth-shell'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { HoneypotField } from '@/components/shared/honeypot-field'
@@ -141,13 +142,13 @@ export default function ApplicantInvitationPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Mot de passe</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password"
+              <PasswordInput id="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password"
                 className={password && !pwdValid ? 'border-destructive' : ''} />
               <PasswordRules password={password} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm">Confirmer le mot de passe</Label>
-              <Input id="confirm" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required autoComplete="new-password"
+              <PasswordInput id="confirm" value={confirm} onChange={(e) => setConfirm(e.target.value)} required autoComplete="new-password"
                 className={confirm && !match ? 'border-destructive' : ''} />
               {confirm && !match && <p className="text-xs text-destructive">Les mots de passe ne correspondent pas.</p>}
             </div>

@@ -4,7 +4,7 @@ import { useApplicantResetPassword } from '@/services/applicant-service'
 import { ApplicantAuthShell } from '@/components/applicant/applicant-auth-shell'
 import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { HoneypotField } from '@/components/shared/honeypot-field'
@@ -86,12 +86,12 @@ export default function ApplicantResetPasswordPage() {
               {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
               <div className="space-y-2">
                 <Label htmlFor="newPassword">Nouveau mot de passe</Label>
-                <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required autoFocus autoComplete="new-password" />
+                <PasswordInput id="newPassword" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required autoFocus autoComplete="new-password" />
                 <div className="pt-1"><PasswordRules password={newPassword} /></div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-                <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required autoComplete="new-password" />
+                <PasswordInput id="confirmPassword" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required autoComplete="new-password" />
               </div>
               <Button type="submit" className="w-full" disabled={mutation.isPending}>
                 {mutation.isPending ? 'Réinitialisation...' : 'Réinitialiser le mot de passe'}

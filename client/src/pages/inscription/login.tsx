@@ -8,6 +8,7 @@ import { ApplicantAuthShell } from '@/components/applicant/applicant-auth-shell'
 import { LoginAnnouncement } from '@/components/login-announcement'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { HoneypotField } from '@/components/shared/honeypot-field'
@@ -91,7 +92,7 @@ export default function ApplicantLoginPage() {
                 <Label htmlFor="password">Mot de passe</Label>
                 <Link to="/inscription/forgot-password" className="text-sm text-primary hover:underline">Mot de passe oublié ?</Link>
               </div>
-              <Input id="password" name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+              <PasswordInput id="password" name="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
             </div>
             {/* "Rester connecté" (default ON): garde la session ~30 jours; décochez sur un appareil partagé. */}
             <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground select-none">

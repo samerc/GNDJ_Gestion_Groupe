@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import { useResetPassword } from '@/services/email-service'
 import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { HoneypotField } from '@/components/shared/honeypot-field'
@@ -103,9 +103,8 @@ export default function ResetPasswordPage() {
               )}
               <div className="space-y-2">
                 <Label htmlFor="newPassword">Nouveau mot de passe</Label>
-                <Input
+                <PasswordInput
                   id="newPassword"
-                  type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
@@ -116,9 +115,8 @@ export default function ResetPasswordPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-                <Input
+                <PasswordInput
                   id="confirmPassword"
-                  type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required

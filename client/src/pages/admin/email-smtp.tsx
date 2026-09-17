@@ -11,6 +11,7 @@ import {
 } from '@/services/email-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
@@ -224,7 +225,7 @@ function SmtpTab() {
               </div>
               <div className="space-y-2">
                 <RequiredLabel required={!editing}>Mot de passe{editing ? ' (laisser vide pour ne pas changer)' : ''}</RequiredLabel>
-                <Input type="password" value={form.password} onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))} required={!editing} />
+                <PasswordInput value={form.password} onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))} required={!editing} />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
