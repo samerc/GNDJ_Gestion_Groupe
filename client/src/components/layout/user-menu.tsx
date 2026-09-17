@@ -22,7 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, KeyRound, IdCard, MonitorSmartphone, FileText, Image as ImageIcon, Sparkles, Globe, Sun, Moon, Monitor, Users, Check } from 'lucide-react'
+import { LogOut, KeyRound, IdCard, MonitorSmartphone, FileText, Image as ImageIcon, Sparkles, Globe, Sun, Moon, Monitor, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useThemeStore, type Theme } from '@/stores/theme-store'
@@ -159,8 +159,10 @@ export function UserMenu() {
             <p className="text-muted-foreground text-xs">{user?.email}</p>
           </div>
           <DropdownMenuSeparator />
-          {/* Sibling account switcher (only when the member has confirmed siblings). A green check = remembered
-              on this device (instant); a key = the first switch will ask for that account's password. */}
+          {/* Sibling account switcher (only when the member has confirmed siblings). "Mémorisé" = the account is
+              remembered on this device (instant switch, no password); "Mot de passe" = the first switch will ask
+              for that account's password once. These are OTHER accounts to switch to — the current account is
+              shown at the top, so we avoid a checkmark here (it would read as "selected"). */}
           {siblingAccounts && siblingAccounts.length > 0 && (
             <>
               <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-muted-foreground">
@@ -175,8 +177,12 @@ export function UserMenu() {
                   {switchingId === acc.memberId
                     ? <span className="text-xs text-muted-foreground">…</span>
                     : pooledIds.has(acc.memberId)
-                      ? <Check className="h-3.5 w-3.5 text-green-600" />
-                      : <KeyRound className="h-3 w-3 text-muted-foreground" />}
+                      ? <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                          title="Compte mémorisé sur cet appareil — bascule immédiate, sans mot de passe">Mémorisé</span>
+                      : <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground"
+                          title="La première bascule vers ce compte demandera son mot de passe">
+                          <KeyRound className="h-3 w-3" />Mot de passe
+                        </span>}
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
