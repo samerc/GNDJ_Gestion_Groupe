@@ -20,13 +20,13 @@ import { Tip } from '@/components/ui/tooltip'
 import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus, Files, Plus, Camera } from 'lucide-react'
 
 // Status badge for a doc. Expiry overrides the workflow status (an expired doc reads "Expiré"
-// regardless of approval). Workflow: upload → "En attente" → "Accepté" / "Refusé".
+// regardless of approval). Workflow: upload → "En cours de vérification" → "Accepté" / "Refusé".
 function statusBadge(status: string, isExpired: boolean) {
   if (isExpired) return <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />Expiré</Badge>
   switch (status) {
     case 'Approved': return <Badge className="gap-1 bg-green-600"><CheckCircle className="h-3 w-3" />Accepté</Badge>
     case 'Rejected': return <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" />Refusé</Badge>
-    default: return <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" />En attente</Badge>
+    default: return <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" />En cours de vérification</Badge>
   }
 }
 
@@ -368,7 +368,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                   {/* Reassure the parent/member that a pending doc is normal (not a problem). Hidden for reviewers (CU),
                       who understand the workflow — shown only when the viewer can't approve documents. */}
                   {doc && doc.status !== 'Approved' && doc.status !== 'Rejected' && !doc.isExpired && !hasPermission(PERMISSIONS.DOCUMENTS_APPROVE) && (
-                    <p className="mt-1 text-xs text-muted-foreground">En attente de vérification par la maîtrise — aucune action requise de votre part.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">En cours de vérification par la maîtrise — aucune action requise de votre part.</p>
                   )}
                   {!doc && (
                     <p className="mt-1 text-xs text-muted-foreground">Aucun document envoyé</p>
@@ -563,7 +563,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
           <DialogHeader><DialogTitle>Changer le statut du document</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <p className="text-sm">Document : <span className="font-medium">{reviewOpen?.title}</span></p>
-            <p className="text-sm text-muted-foreground">Statut actuel : {reviewOpen?.status === 'Approved' ? 'Accepté' : reviewOpen?.status === 'Rejected' ? 'Refusé' : 'En attente'}</p>
+            <p className="text-sm text-muted-foreground">Statut actuel : {reviewOpen?.status === 'Approved' ? 'Accepté' : reviewOpen?.status === 'Rejected' ? 'Refusé' : 'En cours de vérification'}</p>
             <div className="space-y-2">
               <RequiredLabel>Notes (optionnel)</RequiredLabel>
               <textarea

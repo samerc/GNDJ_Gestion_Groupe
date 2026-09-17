@@ -30,7 +30,7 @@ export function DocumentsCta({ memberId }: { memberId: string }) {
       ? `${rejected} document(s) à corriger` + (missing > 0 ? ` · ${missing} à envoyer` : '')
       : missing > 0
         ? 'Dossier en cours — envoyez vos documents'
-        : 'Documents envoyés — en attente de validation'
+        : 'Documents envoyés — en cours de vérification'
 
   return (
     <Link
@@ -45,7 +45,7 @@ export function DocumentsCta({ memberId }: { memberId: string }) {
           <span className="font-semibold">Mes documents</span>
           {/* Show approved/total, plus a pending hint so "0/2" doesn't look like nothing was submitted. */}
           <span className="text-sm font-medium text-muted-foreground">
-            {approved}/{total}{pending > 0 && <span className="text-amber-600 dark:text-amber-400"> · {pending} en attente</span>}
+            {approved}/{total}{pending > 0 && <span className="text-amber-600 dark:text-amber-400"> · {pending} en cours de vérification</span>}
           </span>
         </div>
         <p className="text-sm text-muted-foreground">{label}</p>

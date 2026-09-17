@@ -57,7 +57,7 @@ function docStatusLabel(cell: MemberDocCellDto): string {
   switch (cell.status) {
     case 'Approved': return 'Accepté'
     case 'Rejected': return 'Refusé'
-    default: return 'En attente'
+    default: return 'En cours de vérification'
   }
 }
 
@@ -93,7 +93,7 @@ export default function UnitDocumentsPage() {
   const canUpload = hasPermission(PERMISSIONS.DOCUMENTS_CREATE)
 
   // ─── Inline upload from a matrix cell ──────────────
-  // useUploadDocument('') invalidates ['documents','matrix'] on success, so the cell flips to "En attente".
+  // useUploadDocument('') invalidates ['documents','matrix'] on success, so the cell flips to "En cours de vérification".
   const uploadMutation = useUploadDocument('')
   const [uploadTarget, setUploadTarget] = useState<{ member: MemberDocRowDto; docType: DocTypeColumnDto } | null>(null)
   const [uploadExpiry, setUploadExpiry] = useState('')
@@ -480,7 +480,7 @@ export default function UnitDocumentsPage() {
           {/* Legend */}
           <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-muted-foreground px-1">
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400"><CheckCircle className="h-4 w-4" /></span> Accepté</span>
-            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400"><Clock className="h-4 w-4" /></span> En attente</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400"><Clock className="h-4 w-4" /></span> En cours de vérification</span>
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400"><XCircle className="h-4 w-4" /></span> Refusé</span>
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400"><AlertTriangle className="h-4 w-4" /></span> Expiré</span>
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-muted text-muted-foreground"><Minus className="h-4 w-4" /></span> Manquant</span>

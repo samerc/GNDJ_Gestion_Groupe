@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-17",
+        "text": "Documents : le statut « En attente » d'un document déposé s'appelle désormais « En cours de vérification » — plus clair pour les parents (le document est bien reçu et en cours de contrôle par la maîtrise, aucune action n'est requise de leur part). Changé partout : fiche du membre, barre « Mes documents » et tableau des documents par unité."
+      },
+      {
+        "date": "2026-09-17",
         "text": "Tutoriel de bienvenue : « Revoir le tutoriel » (menu du compte) fonctionne désormais à tout moment, même si le membre n'a pas encore validé ses coordonnées. À la première connexion, la vérification des coordonnées et le tutoriel sont indépendants et présentés l'un après l'autre (jamais superposés) : le tutoriel apparaît dès que la vérification est fermée, qu'elle ait été confirmée ou reportée (« Plus tard »)."
       },
       {
