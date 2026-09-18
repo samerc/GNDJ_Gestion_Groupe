@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-18",
+        "text": "Fratries — adresses (un seul membre actif) : quand une fratrie n'a qu'UN membre actif (les autres sont anciens), la déclaration automatique retient l'adresse de ce membre actif pour toute la famille — c'est l'adresse à jour du foyer — au lieu de la mettre « à vérifier ». Sur les données réelles, cela résout 71 familles de plus automatiquement."
+      },
+      {
+        "date": "2026-09-18",
         "text": "Fratries — adresses (familles inactives) : pour une fratrie dont TOUS les membres sont sans unité (anciens / inactifs), la déclaration automatique unifie l'adresse dès qu'elles se ressemblent suffisamment (seuil assoupli) — l'adresse importe peu pour ces familles, donc on garde la plus complète au lieu de la mettre « à vérifier ». Les adresses réellement différentes (deux villes) restent à vérifier même pour ces familles."
       },
       {

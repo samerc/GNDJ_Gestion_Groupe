@@ -24,9 +24,10 @@ namespace GNDJ.Application.Siblings;
 // home (worst-pair similarity ≥ UnifyThreshold, e.g. "5ème"/"5", "Bldg"/"building", "Rue X"/"X" — Lebanese place
 // names have no standard spelling) → auto-unify: set the fullest (most complete) spelling on every sibling
 // (replaces the variants; reversible soft-delete). A family whose members are ALL unit-less (inactive/alumni)
-// auto-unifies at a LOOSER bar (UnitlessUnifyThreshold) since the address is low-stakes there. (3) they GENUINELY
-// differ → we DON'T guess, we flag the group (AddressNeedsReview) for the CG to open the reconcile wizard and pick.
-// Separated/divorced families skip addresses entirely (handled manually).
+// auto-unifies at a LOOSER bar (UnitlessUnifyThreshold) since the address is low-stakes there; and a family with
+// exactly ONE active member (the rest anciens) uses THAT member's own address (the current, maintained household)
+// regardless of similarity. (3) they GENUINELY differ → we DON'T guess, we flag the group (AddressNeedsReview) for
+// the CG to open the reconcile wizard and pick. Separated/divorced families skip addresses entirely (handled manually).
 public record AutoDeclareSiblingsCommand(bool Simulate) : IRequest<Result<AutoDeclareSiblingsResultDto>>;
 
 // The CG-only note stamped on auto-created groups (never shown to members).
@@ -145,14 +146,31 @@ public class AutoDeclareSiblingsCommandHandler(IApplicationDbContext context, IA
             }
             else
             {
-                // Differing keys. Auto-unify onto the fullest spelling when the addresses are near-identical
-                // (worst-pair ≥ UnifyThreshold) — OR, for a family whose members are ALL unit-less (inactive /
-                // alumni, address low-stakes), when they're merely "similar enough" (≥ UnitlessUnifyThreshold).
-                // Otherwise leave it to the CG to pick (review).
+                // Differing keys. Resolve automatically in three cases, else leave it to the CG (review):
+                //  (4) exactly ONE member is active (the rest are anciens) → the active member's address is the
+                //      current, maintained household → use IT for the whole family (authoritative, any similarity);
+                //  (2) near-identical spellings of one home (worst-pair ≥ UnifyThreshold) → fullest;
+                //  (3) ALL members unit-less (inactive/alumni, low-stakes) + similar enough → fullest.
                 var distinctAddrs = nonEmpty.GroupBy(AddrKey).Select(g => g.First()).ToList();
                 var worst = WorstPairSimilarity(distinctAddrs);
                 bool allUnitless = memIds.All(id => byId[id].Unit == null);         // no visible active assignment
-                if (worst >= UnifyThreshold || (allUnitless && worst >= UnitlessUnifyThreshold))
+
+                // (4) the single active member's own (fullest) address, if there's exactly one active member with one.
+                var activeIds = memIds.Where(id => byId[id].Unit != null).ToList();
+                ARow? activeAddr = null;
+                if (activeIds.Count == 1)
+                {
+                    var actList = (addrByMember.GetValueOrDefault(activeIds[0]) ?? [])
+                        .Where(a => !string.IsNullOrWhiteSpace(a.City) || !string.IsNullOrWhiteSpace(a.Details)).ToList();
+                    if (actList.Count > 0) activeAddr = Fullest(actList);
+                }
+
+                if (activeAddr is { } aa)
+                {
+                    addressStatus = "agree"; unifyReplace = true;                    // use the active member's address
+                    canonical = (aa.Country, aa.City, aa.Details, aa.Type);
+                }
+                else if (worst >= UnifyThreshold || (allUnitless && worst >= UnitlessUnifyThreshold))
                 {
                     addressStatus = "agree";                                        // counts as "unified" in the preview
                     unifyReplace = true;
