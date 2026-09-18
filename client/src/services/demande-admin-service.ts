@@ -180,6 +180,16 @@ export function useDeleteDemande() {
   })
 }
 
+// POST /demandes/relations/{id}/unlink-member → remove an auto-matched sibling on a proche-scout relation, so the
+// conversion won't share the household's guardians / declare a fratrie for that pair. Invalidates ['demandes'].
+export function useUnlinkRelationMember() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (relationId: string) => apiClient.post(`/demandes/relations/${relationId}/unlink-member`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes'] }) },
+  })
+}
+
 // PUT /demandes/{id}/unit → save the pre-selected unit WITHOUT deciding (staged); status stays as-is.
 // Lets the CG lock in / change "unité d'affectation (si accepté)" and come back later. Invalidates ['demandes'].
 export function useSetDemandeUnit() {

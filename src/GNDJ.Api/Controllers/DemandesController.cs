@@ -102,6 +102,17 @@ public class DemandesController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Removes the auto-matched sibling on a proche-scout relation (so the conversion won't share the
+    /// household's guardians / declare a fratrie for that pair). Requires demande.manage.</summary>
+    [HttpPost("relations/{relationId:guid}/unlink-member")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> UnlinkRelationMember(Guid relationId)
+    {
+        var result = await Mediator.Send(new ClearScoutRelationMatchCommand(relationId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>Lists groups of duplicate demandes (same child submitted more than once) for the scout year, so
     /// the CG can merge them. Only mergeable demandes (not yet converted/sent). Requires demande.view.</summary>
     [HttpGet("duplicates")]

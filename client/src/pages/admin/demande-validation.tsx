@@ -11,7 +11,7 @@ import { useSearchParams } from 'react-router'
 import { useSettingValue, useSchoolCode } from '@/services/settings-service'
 import {
   useDemandesForReview, useUnitOccupancy, useDecideDemande, useDeleteDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useCloseCampaign,
-  useCampaignStatus, useSetSubmissions, useSetDemandeUnit,
+  useCampaignStatus, useSetSubmissions, useSetDemandeUnit, useUnlinkRelationMember,
   useExportDecisions, useImportDecisions, useUnsubmittedCount, useSendSubmissionReminders, useRejectionReasons,
   type DemandeReview, type UnitOccupancy, type ImportDecisionsResult, type RejectionReason,
 } from '@/services/demande-admin-service'
@@ -895,6 +895,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
   const [editing, setEditing] = useState(false)
   const suggested = useMemo(() => suggestUnit(d, occupancy), [d, occupancy])
   const setUnitMutation = useSetDemandeUnit()
+  const unlinkMatch = useUnlinkRelationMember() // "Retirer le lien" on an auto-matched sibling proche
   // Local decision draft: pre-fill unit with the already-decided unit, else the suggestion.
   const [unit, setUnit] = useState(d.decidedUnitId ?? suggested?.unitId ?? '')
   const [note, setNote] = useState(d.status === 'Approved' ? (d.decisionNotes ?? '') : '')
@@ -1048,11 +1049,25 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
                     {r.lastUnit && <span>Dernière unité : {r.lastUnit}. </span>}
                     {r.lastFunction && <span>Fonction : {r.lastFunction}.</span>}
                   </div>
-                  {/* Auto-matched to a real member (a "scout actuel" relation) — surfaced so the CG can confirm the link. */}
+                  {/* Auto-matched to a real member (a "scout actuel" relation). Surfaced so the CG can confirm — on
+                      acceptance the household's guardians are shared with that member + a fratrie is declared. The
+                      CG can Retirer the link (a wrong name-match) so that sharing/declaration is skipped. */}
                   {r.relatedMemberId && r.relatedMemberName && (
-                    <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                      <Link2 className="h-3.5 w-3.5" />
-                      Lié à un membre : {r.relatedMemberName}{r.relatedMemberUnit ? ` (${r.relatedMemberUnit})` : ''}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                        <Link2 className="h-3.5 w-3.5" />
+                        Lié à un membre : {r.relatedMemberName}{r.relatedMemberUnit ? ` (${r.relatedMemberUnit})` : ''}
+                      </span>
+                      {!locked && r.id && (
+                        <button type="button" className="text-xs text-muted-foreground underline hover:text-destructive disabled:opacity-50"
+                          disabled={unlinkMatch.isPending}
+                          onClick={async () => {
+                            try { await unlinkMatch.mutateAsync(r.id!); toast.success('Lien retiré') }
+                            catch (e) { toast.error(parseApiError(e)) }
+                          }}>
+                          Retirer le lien
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

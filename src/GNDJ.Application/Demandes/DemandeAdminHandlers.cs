@@ -5,6 +5,7 @@ using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Validation;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Siblings;
 using GNDJ.Domain.Entities;
 using GNDJ.Domain.Enums;
 using Mediator;
@@ -1021,6 +1022,10 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             return set;
         }
 
+        // Members created this batch, keyed by account — used below to declare fratries when a household named a
+        // sibling already in the group (the created child + the matched member become a confirmed fratrie).
+        var createdByAccount = new Dictionary<Guid, List<Member>>();
+
         foreach (var d in approved)
         {
             var unitId = d.DecidedUnitId!.Value;
@@ -1110,6 +1115,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
 
             d.CreatedMemberId = member.Id;
             d.ResponseSentAt = DateTime.UtcNow;
+            (createdByAccount.TryGetValue(d.ApplicantAccountId, out var cm) ? cm : createdByAccount[d.ApplicantAccountId] = []).Add(member);
 
             var approvedVars = new Dictionary<string, string>
             {
@@ -1163,6 +1169,23 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                             context.GuardianLinks.Add(new GuardianLink { GuardianId = guardian.Id, MemberId = mid, RelationshipType = ag.Relationship, IsPrimaryContact = ag.IsPrimaryContact, IsEmergencyContact = ag.IsEmergencyContact });
                     }
                 }
+
+            // Declare the fratrie explicitly: the child(ren) converted for this account + the matched existing
+            // member(s) become a confirmed SiblingGroup (so they show under "Frères et sœurs" and get household
+            // sync — sharing guardians alone no longer drives the sibling UI, which keys on SiblingGroupId).
+            var existingSiblingMembers = (await context.Members
+                .Where(m => siblingMemberIds.Contains(m.Id) && !m.IsDeleted).ToListAsync(ct))
+                .ToDictionary(m => m.Id);
+            foreach (var (accId, rels) in acctSiblingRelations)
+            {
+                var created = createdByAccount.GetValueOrDefault(accId) ?? [];
+                if (created.Count == 0) continue; // no child converted for this account → nothing new to declare
+                var family = new List<Member>(created);
+                foreach (var r in rels)
+                    if (existingSiblingMembers.TryGetValue(r.RelatedMemberId!.Value, out var em)) family.Add(em);
+                if (family.Count >= 2)
+                    await SiblingDeclare.EnsureGroupAsync(context, family, "Fratrie détectée à l'inscription (proche déclaré)", ct);
+            }
         }
 
         await context.SaveChangesAsync(ct);
@@ -1219,6 +1242,31 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         .Replace(' ', '.').Replace('é', 'e').Replace('è', 'e').Replace('ê', 'e').Replace('ë', 'e')
         .Replace('à', 'a').Replace('â', 'a').Replace('ä', 'a').Replace('ù', 'u').Replace('û', 'u').Replace('ü', 'u')
         .Replace('ô', 'o').Replace('ö', 'o').Replace('î', 'i').Replace('ï', 'i').Replace('ç', 'c').Replace("'", "");
+}
+
+// ============================================================
+// Retirer le lien : the CG removes an auto-matched sibling on a proche-scout relation (a NAME match the app made
+// to an existing member). Clearing RelatedMemberId means the conversion won't share the household's guardians nor
+// declare the fratrie for that pair. The match is applied by default (Approuver = leave it); this is the "Retirer".
+// ============================================================
+public record ClearScoutRelationMatchCommand(Guid RelationId) : IRequest<Result<bool>>;
+
+public class ClearScoutRelationMatchCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<ClearScoutRelationMatchCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(ClearScoutRelationMatchCommand request, CancellationToken ct)
+    {
+        if (!MemberAccess.IsGroupManager(currentUser)) return Result<bool>.Failure("Accès réservé au chef de groupe.");
+
+        var relation = await context.ApplicantScoutRelations.FirstOrDefaultAsync(r => r.Id == request.RelationId, ct);
+        if (relation is null) return Result<bool>.Failure("Relation introuvable.");
+        if (relation.RelatedMemberId is null) return Result<bool>.Success(true); // idempotent — nothing linked
+
+        relation.RelatedMemberId = null;
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("ClearScoutRelationMatch", "ApplicantScoutRelation", relation.Id, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
 }
 
 // ============================================================
