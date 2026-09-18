@@ -17,6 +17,16 @@ const NONE = '__none__'
 const normPhone = (s: string) => s.replace(/\D/g, '')
 const normEmail = (s: string) => s.trim().toLowerCase()
 
+// The "fullest" (most complete) address: most non-empty fields, then longest text, primary as tiebreak. Used as the
+// default pre-selected address so working the "à vérifier" list is mostly a 1-click confirm (the good/most-complete
+// spelling is already chosen — e.g. "Rue Girgi Zeidan" over "Girgi Zeidan", or a full address over a one-word stub).
+function fullestAddress(addrs: SiblingAddress[]): SiblingAddress | undefined {
+  const fields = (a: SiblingAddress) => (a.city?.trim() ? 1 : 0) + (a.details?.trim() ? 1 : 0)
+  const len = (a: SiblingAddress) => ((a.city ?? '') + (a.details ?? '')).length
+  return [...addrs].sort((a, b) =>
+    fields(b) - fields(a) || len(b) - len(a) || (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0))[0]
+}
+
 // Group a list of contacts by their normalized value, collecting every row id that shares it — so a checkbox can
 // toggle ALL ids of one value at once (two duplicate parent records may hold the same email under different ids).
 function groupContacts(contacts: SiblingContact[], norm: (s: string) => string) {
@@ -68,8 +78,10 @@ export function SiblingReconcileSheet({
       setData(d)
       const best = (gs: SiblingGuardian[]) => gs.length ? [...gs].sort((a, b) => b.linkedMemberIds.length - a.linkedMemberIds.length)[0].guardianId : NONE
       setFather(best(d.fathers)); setMother(best(d.mothers))
-      const primary = d.addresses.find((a) => a.isPrimary) ?? d.addresses[0]
-      setAddresses(new Set(primary ? [primary.addressId] : []))
+      // Default to the most COMPLETE address (not just the primary/first), so the "à vérifier" worklist is mostly
+      // a 1-click confirm — the good spelling / fullest address is pre-picked; the CG only overrides genuine 2-home cases.
+      const pick = fullestAddress(d.addresses)
+      setAddresses(new Set(pick ? [pick.addressId] : []))
       const allContactIds = [...d.fathers, ...d.mothers].flatMap((g) => [...g.phones, ...g.emails]).map((c) => c.id)
       setKeptContacts(new Set(allContactIds))
     } catch (e) { toast.error(parseApiError(e)); setLoadFailed(true) }

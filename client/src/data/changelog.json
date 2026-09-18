@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-18",
+        "text": "Fratries — adresses : la déclaration automatique unifie maintenant aussi les adresses quasi identiques (mêmes rue et ville écrites différemment — « 5ème »/« 5 », « Bldg »/« building »… fréquent pour les localités libanaises sans orthographe standard) : elle garde l'orthographe la plus complète pour toute la fratrie, au lieu de les envoyer « à vérifier ». Et quand vous vérifiez une adresse, la plus complète est déjà pré-sélectionnée — un simple clic pour confirmer dans la plupart des cas ; vous ne tranchez vraiment que les familles avec deux domiciles réellement différents."
+      },
+      {
+        "date": "2026-09-18",
         "text": "Fratries — signalements : dans la section « Frères et sœurs » de sa fiche (Ma fiche), un membre peut désormais « Signaler une erreur » (il manque un frère/sœur, une personne n'est pas de la famille, autre). Le signalement arrive au chef de groupe (notification + onglet « Signalements » sur la page Fratries) qui corrige puis marque comme résolu."
       },
       {

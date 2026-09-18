@@ -19,10 +19,13 @@ namespace GNDJ.Application.Siblings;
 // also uses — those catch DUPLICATE parent records and need the CG's merge, so they stay in the review flow).
 //
 // Addresses: a fratrie should have one household, but there's no human here to pick which address is canonical, so
-// we only auto-unify when it's unambiguous — if the family's addresses AGREE (same normalized city+street+building)
-// we fill the empties; if they DIFFER we DON'T guess, we flag the group (AddressNeedsReview) for the CG to open the
-// reconcile wizard and pick. Additive only — never deletes or overwrites an existing address. Separated/divorced
-// families skip addresses entirely (handled manually).
+// we only auto-unify when it's unambiguous. Three cases: (1) the family's addresses AGREE (same normalized
+// city+street+building) → fill the empties (additive). (2) they're NEAR-IDENTICAL spelling/format variants of one
+// home (worst-pair similarity ≥ UnifyThreshold, e.g. "5ème"/"5", "Bldg"/"building", "Rue X"/"X" — Lebanese place
+// names have no standard spelling) → auto-unify: set the fullest (most complete) spelling on every sibling
+// (replaces the variants; reversible soft-delete). (3) they GENUINELY differ → we DON'T guess, we flag the group
+// (AddressNeedsReview) for the CG to open the reconcile wizard and pick. Separated/divorced families skip addresses
+// entirely (handled manually).
 public record AutoDeclareSiblingsCommand(bool Simulate) : IRequest<Result<AutoDeclareSiblingsResultDto>>;
 
 // The CG-only note stamped on auto-created groups (never shown to members).
@@ -36,6 +39,10 @@ public class AutoDeclareSiblingsCommandHandler(IApplicationDbContext context, IA
 {
     private const int GuardianBucketCap = 15;   // a guardian linked to >15 members is bad data, not a family
     private const int PreviewCap = 300;          // families detailed in the preview (counts are always the true total)
+    // Worst-pair address similarity (0-1) at/above which differing addresses are treated as spelling variants of
+    // ONE home and auto-unified (onto the fullest spelling) instead of sent to review. Conservative on purpose:
+    // ≥0.95 = essentially the same address (verified on the real data). Lower it to widen the auto-unify net.
+    private const double UnifyThreshold = 0.95;
 
     public async ValueTask<Result<AutoDeclareSiblingsResultDto>> Handle(AutoDeclareSiblingsCommand request, CancellationToken ct)
     {
@@ -121,6 +128,7 @@ public class AutoDeclareSiblingsCommandHandler(IApplicationDbContext context, IA
             var distinctKeys = nonEmpty.Select(AddrKey).Distinct().ToList();
 
             string addressStatus;
+            bool unifyReplace = false;                                              // overwrite the variants onto the fullest
             (string Country, string City, string? Details, string? Type)? canonical = null;
             if (separated) addressStatus = "separated";
             else if (distinctKeys.Count == 0) addressStatus = "none";              // nobody has an address
@@ -130,10 +138,23 @@ public class AutoDeclareSiblingsCommandHandler(IApplicationDbContext context, IA
                 var c = nonEmpty[0];
                 canonical = (c.Country, c.City, c.Details, c.Type);
             }
-            else addressStatus = "review";                                          // differing addresses → CG picks
+            else
+            {
+                // Differing keys. If they're all NEAR-IDENTICAL (spelling/format variants of one home), auto-unify
+                // onto the fullest spelling; otherwise leave it to the CG to pick (review).
+                var distinctAddrs = nonEmpty.GroupBy(AddrKey).Select(g => g.First()).ToList();
+                if (WorstPairSimilarity(distinctAddrs) >= UnifyThreshold)
+                {
+                    addressStatus = "agree";                                        // counts as "unified" in the preview
+                    unifyReplace = true;
+                    var c = Fullest(distinctAddrs);
+                    canonical = (c.Country, c.City, c.Details, c.Type);
+                }
+                else addressStatus = "review";                                      // genuinely differ → CG picks
+            }
 
             decisions.Add(new FamilyDecision(memIds, compParents[root].OrderBy(x => x).Take(4).ToList(),
-                groupAction, addressStatus, withoutAddress, canonical));
+                groupAction, addressStatus, withoutAddress, canonical, unifyReplace));
         }
 
         // ── Counts (always the true totals) ──
@@ -187,6 +208,12 @@ public class AutoDeclareSiblingsCommandHandler(IApplicationDbContext context, IA
             var groupsById = (await context.SiblingGroups.Where(g => existingGroupIds.Contains(g.Id)).ToListAsync(ct))
                 .ToDictionary(g => g.Id);
 
+            // Load the tracked addresses of the unify (near-identical) families' members — we normalize every
+            // sibling onto the fullest spelling (update-in-place / soft-delete extras).
+            var unifyMemberIds = decisions.Where(d => d.UnifyReplace).SelectMany(d => d.MemberIds).Distinct().ToList();
+            var addrByMember = (await context.MemberAddresses.Where(a => unifyMemberIds.Contains(a.MemberId)).ToListAsync(ct))
+                .GroupBy(a => a.MemberId).ToDictionary(g => g.Key, g => g.ToList());
+
             foreach (var d in decisions)
             {
                 var fam = d.MemberIds.Select(id => byId[id]).ToList();
@@ -216,6 +243,33 @@ public class AutoDeclareSiblingsCommandHandler(IApplicationDbContext context, IA
                 foreach (var m in fam) m.SiblingGroupId = keeper.Id;
 
                 if (d.AddressStatus == "review") keeper.AddressNeedsReview = true;
+                else if (d.UnifyReplace && d.Canonical is { } uc)
+                {
+                    // Near-identical spellings of one home → set the fullest onto EVERY sibling. For a sibling who
+                    // already has address rows, update the first in place to the canonical + soft-delete any extras
+                    // (they're all variants of the same home); a sibling with none gets it added. Reversible.
+                    foreach (var mid in d.MemberIds)
+                    {
+                        var existing = (addrByMember.GetValueOrDefault(mid) ?? [])
+                            .Where(a => !string.IsNullOrWhiteSpace(a.City) || !string.IsNullOrWhiteSpace(a.Details)).ToList();
+                        if (existing.Count == 0)
+                        {
+                            context.MemberAddresses.Add(new MemberAddress
+                            {
+                                MemberId = mid,
+                                Type = string.IsNullOrWhiteSpace(uc.Type) ? "Domicile" : uc.Type!,
+                                Country = uc.Country, City = uc.City, Details = uc.Details, IsPrimary = true
+                            });
+                        }
+                        else
+                        {
+                            var first = existing[0];
+                            first.Country = uc.Country; first.City = uc.City; first.Details = uc.Details;
+                            if (string.IsNullOrWhiteSpace(first.Type)) first.Type = string.IsNullOrWhiteSpace(uc.Type) ? "Domicile" : uc.Type!;
+                            foreach (var extra in existing.Skip(1)) context.MemberAddresses.Remove(extra); // soft-deleted
+                        }
+                    }
+                }
                 else if (d.AddressStatus == "agree" && d.Canonical is { } c)
                 {
                     // Fill-only-if-empty: copy the family's one home onto siblings who have NO address (never touch
@@ -251,10 +305,62 @@ public class AutoDeclareSiblingsCommandHandler(IApplicationDbContext context, IA
     private static string AddrKey(ARow a) =>
         TextNormalization.NormalizeKey(a.City) + "|" + TextNormalization.NormalizeKey(a.Details ?? "") + "|" + TextNormalization.NormalizeKey(a.Country);
 
+    // ── Address similarity + "fullest" helpers (near-identical spelling variants → auto-unify) ──
+
+    // Worst (minimum) pairwise similarity across the family's distinct addresses (1.0 for a single address).
+    private static double WorstPairSimilarity(List<ARow> addrs)
+    {
+        double worst = 1.0;
+        for (int i = 0; i < addrs.Count; i++)
+            for (int j = i + 1; j < addrs.Count; j++)
+                worst = Math.Min(worst, Similarity(AddrText(addrs[i]), AddrText(addrs[j])));
+        return worst;
+    }
+
+    // The "fullest" (most complete) address: most non-empty fields, then the longest text — the spelling to keep.
+    private static ARow Fullest(List<ARow> addrs) => addrs
+        .OrderByDescending(a => (string.IsNullOrWhiteSpace(a.City) ? 0 : 1) + (string.IsNullOrWhiteSpace(a.Details) ? 0 : 1))
+        .ThenByDescending(a => ((a.City ?? "") + (a.Details ?? "")).Length)
+        .First();
+
+    // Normalized comparison text for an address (accent/case-insensitive city + street/building).
+    private static string AddrText(ARow a) =>
+        (TextNormalization.NormalizeKey(a.City) + " " + TextNormalization.NormalizeKey(a.Details ?? "")).Trim();
+
+    // Character-level similarity ratio (1 - Levenshtein/maxLen), 0..1.
+    private static double Similarity(string a, string b)
+    {
+        if (a == b) return 1.0;
+        int max = Math.Max(a.Length, b.Length);
+        if (max == 0) return 1.0;
+        return 1.0 - (double)Levenshtein(a, b) / max;
+    }
+
+    private static int Levenshtein(string a, string b)
+    {
+        if (a.Length == 0) return b.Length;
+        if (b.Length == 0) return a.Length;
+        var prev = new int[b.Length + 1];
+        var cur = new int[b.Length + 1];
+        for (int j = 0; j <= b.Length; j++) prev[j] = j;
+        for (int i = 1; i <= a.Length; i++)
+        {
+            cur[0] = i;
+            for (int j = 1; j <= b.Length; j++)
+            {
+                int cost = a[i - 1] == b[j - 1] ? 0 : 1;
+                cur[j] = Math.Min(Math.Min(prev[j] + 1, cur[j - 1] + 1), prev[j - 1] + cost);
+            }
+            (prev, cur) = (cur, prev);
+        }
+        return prev[b.Length];
+    }
+
     private sealed record MRow(Guid Id, string First, string Last, DateOnly? Dob, string? Photo, string? Unit, Guid? GroupId, string? Situation);
     private sealed record ARow(string Country, string City, string? Details, string? Type);
     private sealed record FamilyDecision(List<Guid> MemberIds, List<string> SharedParents, string GroupAction,
-        string AddressStatus, List<Guid> MembersWithoutAddress, (string Country, string City, string? Details, string? Type)? Canonical);
+        string AddressStatus, List<Guid> MembersWithoutAddress, (string Country, string City, string? Details, string? Type)? Canonical,
+        bool UnifyReplace = false);
 
     // Tiny union-find (disjoint-set) with path compression, keyed by member Guid.
     private sealed class Dsu
