@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-18",
+        "text": "Connexion : la durée de la session « Rester connecté » passe de 30 à 90 jours. Concrètement, tant qu'un membre ou un parent ouvre l'application au moins une fois tous les 3 mois, il reste connecté — la durée se renouvelle à chaque ouverture. Une nouvelle connexion n'est demandée qu'après un trimestre complet sans ouvrir l'application."
+      },
+      {
+        "date": "2026-09-18",
         "text": "Photos : suppression des anciennes références photo héritées de l'ancien système (WEBDEV), qui ne correspondaient à aucune image dans la nouvelle application — les membres affichaient déjà leurs initiales. Les nouvelles photos seront prises cette année. (Nettoyage de données appliqué automatiquement.)"
       },
       {
