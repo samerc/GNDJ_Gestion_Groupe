@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-18",
+        "text": "Fratries : nouvel outil (page Fratries → Suggestions) pour déclarer automatiquement, en une fois, toutes les fratries évidentes — les membres qui partagent exactement la même fiche parent (fratrie certaine). On simule d'abord pour voir le résultat (nombre de familles et de membres, adresses unifiées / à vérifier), puis on applique. Les familles dont les adresses diffèrent sont signalées « à vérifier » (le chef de groupe choisit ensuite l'adresse), et rien n'est jamais supprimé. Cela permet aux parents de basculer entre les comptes de leurs enfants et harmonise les informations du foyer."
+      },
+      {
+        "date": "2026-09-18",
         "text": "Connexion : la durée de la session « Rester connecté » passe de 30 à 90 jours. Concrètement, tant qu'un membre ou un parent ouvre l'application au moins une fois tous les 3 mois, il reste connecté — la durée se renouvelle à chaque ouverture. Une nouvelle connexion n'est demandée qu'après un trimestre complet sans ouvrir l'application."
       },
       {

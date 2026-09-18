@@ -58,6 +58,19 @@ public class SiblingsController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>
+    /// One-time backfill: auto-declare the obvious fratries (members sharing the EXACT SAME parent record).
+    /// `simulate=true` (default) previews WITHOUT writing; `simulate=false` applies. Requires maitrise.manage.
+    /// </summary>
+    [HttpPost("auto-declare")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> AutoDeclare([FromQuery] bool simulate = true)
+    {
+        var result = await Mediator.Send(new AutoDeclareSiblingsCommand(simulate));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     /// <summary>Manually link two members as siblings (merging groups if needed). Requires maitrise.manage.</summary>
     [HttpPost("link")]
     [HasPermission(Permissions.MaitriseManage)]

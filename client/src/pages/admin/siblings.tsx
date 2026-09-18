@@ -5,8 +5,10 @@ import {
   useSiblingSuggestions, useSiblingGroups,
   useRejectSiblingSuggestion, useUnlinkSibling,
   useDuplicateSuggestions, useMergeMembers, DUPLICATE_MATCH_KEYS,
+  useAutoDeclareSiblings,
   type SiblingSuggestion,
   type DuplicateGroup, type DuplicateMember, type MemberMergeFields,
+  type AutoDeclareResult,
 } from '@/services/sibling-service'
 import { SiblingReconcileSheet } from '@/components/members/sibling-reconcile-sheet'
 import { Card, CardContent } from '@/components/ui/card'
@@ -87,10 +89,6 @@ function SuggestionsTab() {
     } catch (e) { toast.error(parseApiError(e)) }
   }
 
-  if (isLoading) return <LoadingSpinner variant="table" />
-  if (!data || suggestions.length === 0)
-    return <EmptyState icon={Sparkles} title="Aucune suggestion" description="Aucune fratrie probable à examiner pour le moment." />
-
   // Client-side filter (only the loaded page is filtered): matches any member's name/unit or the shared evidence.
   const term = searchKey(search.trim())
   const filtered = term
@@ -100,25 +98,37 @@ function SuggestionsTab() {
     : suggestions
   // The server caps the detailed list — say so when there are more families than are shown.
   const capped = total > suggestions.length
+  const empty = !isLoading && (!data || suggestions.length === 0)
 
   return (
     <>
-      <div className="relative mb-3 max-w-sm">
-        <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Rechercher un nom, une unité…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
-      </div>
-      <p className="mb-3 text-sm text-muted-foreground">
-        {term
-          ? `${filtered.length} résultat(s) sur ${total} famille(s) probable(s) à examiner.`
-          : `${total} famille(s) probable(s) à examiner${capped ? ` (les ${suggestions.length} premières sont affichées)` : ''}.`}
-        {' '}Cliquez sur une famille pour ouvrir ses informations communes (parents, adresses, contacts) sur le côté et la confirmer.
-      </p>
-      {filtered.length === 0 ? (
-        <EmptyState icon={Sparkles} title="Aucun résultat" description="Aucune fratrie probable ne correspond à votre recherche." />
+      {/* TEMPORARY one-time backfill tool (remove after the initial run). */}
+      <AutoDeclareBanner />
+
+      {isLoading ? (
+        <LoadingSpinner variant="table" />
+      ) : empty ? (
+        <EmptyState icon={Sparkles} title="Aucune suggestion" description="Aucune fratrie probable à examiner pour le moment." />
       ) : (
-        <div className="space-y-3">
-          {filtered.map((s, i) => <SuggestionRow key={i} suggestion={s} onReview={() => setReviewing(s)} onReject={() => setRejecting(s)} />)}
-        </div>
+        <>
+          <div className="relative mb-3 max-w-sm">
+            <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Rechercher un nom, une unité…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
+          </div>
+          <p className="mb-3 text-sm text-muted-foreground">
+            {term
+              ? `${filtered.length} résultat(s) sur ${total} famille(s) probable(s) à examiner.`
+              : `${total} famille(s) probable(s) à examiner${capped ? ` (les ${suggestions.length} premières sont affichées)` : ''}.`}
+            {' '}Cliquez sur une famille pour ouvrir ses informations communes (parents, adresses, contacts) sur le côté et la confirmer.
+          </p>
+          {filtered.length === 0 ? (
+            <EmptyState icon={Sparkles} title="Aucun résultat" description="Aucune fratrie probable ne correspond à votre recherche." />
+          ) : (
+            <div className="space-y-3">
+              {filtered.map((s, i) => <SuggestionRow key={i} suggestion={s} onReview={() => setReviewing(s)} onReject={() => setRejecting(s)} />)}
+            </div>
+          )}
+        </>
       )}
 
       {/* Details open in a right-side drawer (keeps the list compact). Keyed so it remounts per family. */}
@@ -134,6 +144,96 @@ function SuggestionsTab() {
         loading={reject.isPending}
       />
     </>
+  )
+}
+
+// ── TEMPORARY one-time backfill: auto-declare the obvious fratries (members sharing the exact same parent record) ──
+// Simulate first (previews the counts + a sample, writes nothing) → then Apply. Remove this component after the
+// initial prod run; new families are declared automatically going forward.
+function AutoDeclareBanner() {
+  const auto = useAutoDeclareSiblings()
+  const [result, setResult] = useState<AutoDeclareResult | null>(null)
+  const [confirm, setConfirm] = useState(false)
+
+  const run = async (simulate: boolean) => {
+    try {
+      const r = await auto.mutateAsync(simulate)
+      setResult(r)
+      if (!simulate) { setConfirm(false); toast.success(`${r.familiesTotal} fratrie(s) déclarée(s) — ${r.membersTotal} membres.`) }
+    } catch (e) { toast.error(parseApiError(e)); setConfirm(false) }
+  }
+
+  const sim = result?.simulated ? result : null // a preview is showing (not yet applied)
+
+  return (
+    <Card className="mb-4 border-primary/30 bg-primary/5">
+      <CardContent className="space-y-3 p-4">
+        <div className="flex items-start gap-3">
+          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+          <div className="min-w-0">
+            <div className="font-semibold">Déclaration automatique des fratries évidentes</div>
+            <p className="text-sm text-muted-foreground">
+              Regroupe les membres qui partagent le <strong>même parent</strong> (fiche parent identique = fratrie certaine).
+              Simulez d'abord pour voir le résultat, puis appliquez. Les familles dont les adresses diffèrent sont signalées
+              « à vérifier » (vous choisissez ensuite l'adresse dans la fenêtre habituelle). Opération unique.
+            </p>
+          </div>
+        </div>
+
+        {sim && (
+          <div className="rounded-md border bg-background p-3 text-sm">
+            <div className="mb-2 font-medium">
+              Aperçu : {sim.familiesTotal} fratrie(s) · {sim.membersTotal} membre(s)
+              {sim.familiesTotal === 0 && ' — rien à déclarer (tout est déjà à jour).'}
+            </div>
+            {sim.familiesTotal > 0 && (
+              <>
+                <div className="mb-3 flex flex-wrap gap-2 text-xs">
+                  <Badge variant="secondary">{sim.newGroups} nouveau(x) groupe(s)</Badge>
+                  {sim.extendedGroups > 0 && <Badge variant="secondary">{sim.extendedGroups} étendu(s)</Badge>}
+                  <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">{sim.addressAgree} adresse(s) unifiée(s)</Badge>
+                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">{sim.addressReview} adresse(s) à vérifier</Badge>
+                  {sim.separatedSkipped > 0 && <Badge variant="outline">{sim.separatedSkipped} séparé(s) — adresse non modifiée</Badge>}
+                </div>
+                <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
+                  {sim.preview.map((f, i) => (
+                    <div key={i} className="flex items-start justify-between gap-2 border-b pb-1.5 text-xs last:border-0">
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{f.members.map((m) => `${m.firstName} ${m.lastName}`).join(', ')}</div>
+                        <div className="truncate text-muted-foreground">Parents : {f.sharedParents.join(', ')}</div>
+                      </div>
+                      {f.addressStatus === 'review' && <Badge className="shrink-0 bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">adresse à vérifier</Badge>}
+                      {f.addressStatus === 'agree' && <Badge className="shrink-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">adresse ✓</Badge>}
+                      {f.addressStatus === 'separated' && <Badge variant="outline" className="shrink-0">séparés</Badge>}
+                    </div>
+                  ))}
+                  {sim.familiesTotal > sim.preview.length && (
+                    <div className="pt-1 text-center text-muted-foreground">… et {sim.familiesTotal - sim.preview.length} autre(s) famille(s).</div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => run(true)} disabled={auto.isPending}>Simuler</Button>
+          {sim && sim.familiesTotal > 0 && (
+            <Button onClick={() => setConfirm(true)} disabled={auto.isPending}>Appliquer ({sim.familiesTotal} fratries)</Button>
+          )}
+        </div>
+      </CardContent>
+
+      <ConfirmDialog
+        open={confirm}
+        onOpenChange={(o) => !o && setConfirm(false)}
+        title="Déclarer ces fratries ?"
+        description={`${sim?.familiesTotal ?? 0} fratrie(s) (${sim?.membersTotal ?? 0} membres) seront déclarées. Les adresses des familles « à vérifier » ne sont PAS modifiées — vous les traiterez ensuite dans les fratries confirmées. Vous pourrez délier une fratrie manuellement si besoin.`}
+        confirmLabel="Appliquer"
+        onConfirm={() => run(false)}
+        loading={auto.isPending}
+      />
+    </Card>
   )
 }
 

@@ -167,6 +167,39 @@ export function useUnlinkSibling() {
   })
 }
 
+// ── One-time auto-declare backfill (temporary tool) ──
+// A family the backfill would declare, for the simulate preview.
+export interface AutoDeclareFamily {
+  members: SiblingCandidateMember[]
+  sharedParents: string[]
+  groupAction: string // "new" | "extended"
+  addressStatus: string // "agree" | "review" | "separated" | "none"
+}
+
+export interface AutoDeclareResult {
+  simulated: boolean
+  familiesTotal: number
+  membersTotal: number
+  newGroups: number
+  extendedGroups: number
+  addressAgree: number
+  addressReview: number
+  separatedSkipped: number
+  preview: AutoDeclareFamily[]
+}
+
+// POST /siblings/auto-declare?simulate=… → auto-declare the obvious fratries (shared parent record). Simulate = preview only.
+export function useAutoDeclareSiblings() {
+  const invalidate = useSiblingInvalidate()
+  return useMutation({
+    mutationFn: (simulate: boolean) =>
+      apiClient.post<AutoDeclareResult>('/siblings/auto-declare', null, { params: { simulate } }).then((r) => r.data),
+    onSuccess: (data) => {
+      if (!data.simulated) invalidate() // only refresh the lists after a real apply
+    },
+  })
+}
+
 // ── Duplicate members ("Doublons" tab) ──
 export interface DuplicateMember {
   memberId: string
