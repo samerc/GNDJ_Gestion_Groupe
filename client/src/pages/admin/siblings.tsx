@@ -5,11 +5,11 @@ import {
   useSiblingSuggestions, useSiblingGroups,
   useRejectSiblingSuggestion, useUnlinkSibling,
   useDuplicateSuggestions, useMergeMembers, DUPLICATE_MATCH_KEYS,
-  useAutoDeclareSiblings,
+  useAutoDeclareSiblings, useReunifyFratrieAddresses,
   useSiblingReports, useResolveSiblingReport,
   type SiblingSuggestion, type SiblingGroup as SiblingGroupType,
   type DuplicateGroup, type DuplicateMember, type MemberMergeFields,
-  type AutoDeclareResult, type SiblingReport,
+  type AutoDeclareResult, type ReunifyAddressesResult, type SiblingReport,
 } from '@/services/sibling-service'
 import { SiblingReconcileSheet } from '@/components/members/sibling-reconcile-sheet'
 import { Card, CardContent } from '@/components/ui/card'
@@ -105,8 +105,9 @@ function SuggestionsTab() {
 
   return (
     <>
-      {/* TEMPORARY one-time backfill tool (remove after the initial run). */}
+      {/* TEMPORARY one-time backfill tools (remove after the initial run). */}
       <AutoDeclareBanner />
+      <ReunifyAddressesBanner />
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -235,6 +236,78 @@ function AutoDeclareBanner() {
         confirmLabel="Appliquer"
         onConfirm={() => run(false)}
         loading={auto.isPending}
+      />
+    </Card>
+  )
+}
+
+// ── TEMPORARY one-time follow-up: re-apply the address rules to the fratries flagged « à vérifier — adresse » ──
+// For families declared on an earlier run whose build had fewer address rules. Simulate previews how many the current
+// rules can now resolve (single active member / near-identical spellings / all unit-less), then Apply unifies them
+// onto the household address and clears the flag. Genuinely-different families stay flagged. Reversible.
+function ReunifyAddressesBanner() {
+  const reunify = useReunifyFratrieAddresses()
+  const [result, setResult] = useState<ReunifyAddressesResult | null>(null)
+  const [confirm, setConfirm] = useState(false)
+
+  const run = async (simulate: boolean) => {
+    try {
+      const r = await reunify.mutateAsync(simulate)
+      setResult(r)
+      if (!simulate) { setConfirm(false); toast.success(`${r.resolved} adresse(s) de fratrie unifiée(s).`) }
+    } catch (e) { toast.error(parseApiError(e)); setConfirm(false) }
+  }
+
+  const sim = result?.simulated ? result : null // a preview is showing (not yet applied)
+
+  return (
+    <Card className="mb-4 border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40">
+      <CardContent className="space-y-3 p-4">
+        <div className="flex items-start gap-3">
+          <MapPinned className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="min-w-0">
+            <div className="font-semibold">Unifier les adresses des fratries « à vérifier »</div>
+            <p className="text-sm text-muted-foreground">
+              Réapplique les règles d'adresse aux fratries déjà déclarées mais signalées « à vérifier — adresse ».
+              Unifie automatiquement celles que les règles actuelles savent résoudre (un seul membre actif → son adresse,
+              orthographes quasi identiques, ou tous inactifs) et retire le drapeau. Les familles dont les adresses
+              diffèrent vraiment restent « à vérifier » (à traiter à la main). Réversible. Simulez d'abord.
+            </p>
+          </div>
+        </div>
+
+        {sim && (
+          <div className="rounded-md border bg-background p-3 text-sm">
+            <div className="mb-2 font-medium">
+              Aperçu : {sim.groupsFlagged} fratrie(s) « à vérifier »
+              {sim.groupsFlagged === 0 && ' — aucune à traiter.'}
+            </div>
+            {sim.groupsFlagged > 0 && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">{sim.resolved} unifiée(s) automatiquement</Badge>
+                <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">{sim.stillReview} restent à vérifier</Badge>
+                {sim.separated > 0 && <Badge variant="outline">{sim.separated} séparé(s) — non modifiée</Badge>}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => run(true)} disabled={reunify.isPending}>Simuler</Button>
+          {sim && sim.resolved > 0 && (
+            <Button onClick={() => setConfirm(true)} disabled={reunify.isPending}>Unifier ({sim.resolved})</Button>
+          )}
+        </div>
+      </CardContent>
+
+      <ConfirmDialog
+        open={confirm}
+        onOpenChange={(o) => !o && setConfirm(false)}
+        title="Unifier ces adresses ?"
+        description={`${sim?.resolved ?? 0} fratrie(s) verront leur adresse de foyer unifiée sur l'adresse la plus complète et leur drapeau « à vérifier » retiré. Les ${sim?.stillReview ?? 0} famille(s) dont les adresses diffèrent vraiment restent à traiter à la main. Réversible.`}
+        confirmLabel="Unifier"
+        onConfirm={() => run(false)}
+        loading={reunify.isPending}
       />
     </Card>
   )

@@ -243,6 +243,26 @@ export function useAutoDeclareSiblings() {
   })
 }
 
+// ── One-time follow-up: re-apply the address rules to the "à vérifier — adresse" fratries (temporary tool) ──
+export interface ReunifyAddressesResult {
+  simulated: boolean
+  groupsFlagged: number // flagged groups examined
+  resolved: number // now auto-unified (flag cleared)
+  stillReview: number // still genuinely different (flag kept)
+  separated: number // separated/divorced (left untouched)
+}
+
+export function useReunifyFratrieAddresses() {
+  const invalidate = useSiblingInvalidate()
+  return useMutation({
+    mutationFn: (simulate: boolean) =>
+      apiClient.post<ReunifyAddressesResult>('/siblings/reunify-addresses', null, { params: { simulate } }).then((r) => r.data),
+    onSuccess: (data) => {
+      if (!data.simulated) invalidate() // only refresh the lists after a real apply
+    },
+  })
+}
+
 // ── Duplicate members ("Doublons" tab) ──
 export interface DuplicateMember {
   memberId: string

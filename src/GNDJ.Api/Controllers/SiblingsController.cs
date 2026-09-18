@@ -71,6 +71,20 @@ public class SiblingsController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>
+    /// One-time follow-up: re-apply the address rules to the fratries flagged "à vérifier — adresse" (for families
+    /// declared on an earlier build with fewer address rules). Unifies the ones the current rules can resolve + clears
+    /// their flag; genuinely-different ones stay flagged. `simulate=true` (default) previews. Requires maitrise.manage.
+    /// </summary>
+    [HttpPost("reunify-addresses")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> ReunifyAddresses([FromQuery] bool simulate = true)
+    {
+        var result = await Mediator.Send(new ReunifyFratrieAddressesCommand(simulate));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     /// <summary>Manually link two members as siblings (merging groups if needed). Requires maitrise.manage.</summary>
     [HttpPost("link")]
     [HasPermission(Permissions.MaitriseManage)]

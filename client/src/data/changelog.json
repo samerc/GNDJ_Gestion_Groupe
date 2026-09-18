@@ -4,6 +4,10 @@
     "date": "2026-09-10",
     "changes": [
       {
+        "date": "2026-09-19",
+        "text": "Fratries — unifier les adresses « à vérifier » : nouvel outil (page Fratries) qui réapplique les règles d'adresse aux fratries déjà déclarées mais signalées « à vérifier — adresse ». Utile si la déclaration automatique a été lancée sur une version antérieure de l'application : il unifie automatiquement les familles que les règles actuelles savent résoudre (un seul membre actif → son adresse, orthographes quasi identiques, ou familles inactives) et retire leur drapeau ; celles dont les adresses diffèrent vraiment restent « à vérifier » à traiter à la main. Simulez d'abord, puis appliquez. Réversible."
+      },
+      {
         "date": "2026-09-18",
         "text": "Fratries — adresses (un seul membre actif) : quand une fratrie n'a qu'UN membre actif (les autres sont anciens), la déclaration automatique retient l'adresse de ce membre actif pour toute la famille — c'est l'adresse à jour du foyer — au lieu de la mettre « à vérifier ». Sur les données réelles, cela résout 71 familles de plus automatiquement."
       },
