@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-18",
+        "text": "Comptes manquants : nouvelle page (menu Unités & maîtrise) pour créer un identifiant de connexion aux membres qui n'en ont pas encore. On choisit une portée (tous les membres actifs, ou une unité), on voit qui n'a pas de compte, et on crée les comptes un par un ou en bloc. Les membres avec un email reçoivent un lien d'activation ; pour les autres, un mot de passe temporaire s'affiche à l'écran (à communiquer à la main). L'action est aussi disponible directement dans « Envoyer les accès »."
+      },
+      {
+        "date": "2026-09-18",
         "text": "Fratries : nouvel outil (page Fratries → Suggestions) pour déclarer automatiquement, en une fois, toutes les fratries évidentes — les membres qui partagent exactement la même fiche parent (fratrie certaine). On simule d'abord pour voir le résultat (nombre de familles et de membres, adresses unifiées / à vérifier), puis on applique. Les familles dont les adresses diffèrent sont signalées « à vérifier » (le chef de groupe choisit ensuite l'adresse), et rien n'est jamais supprimé. Cela permet aux parents de basculer entre les comptes de leurs enfants et harmonise les informations du foyer."
       },
       {

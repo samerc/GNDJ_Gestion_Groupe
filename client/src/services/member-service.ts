@@ -305,6 +305,73 @@ export function useSendAccess() {
   })
 }
 
+// ── "Comptes manquants" — create logins for members who have none ──
+export interface MissingLogin {
+  memberId: string
+  memberName: string
+  unitName: string | null
+  hasEmail: boolean
+  contactEmail: string | null
+}
+
+// Single-create result: temporaryPassword is set only for a member with NO email (relay by hand); otherwise an
+// activation link was emailed to sentToEmail.
+export interface CreateLoginResult {
+  username: string
+  temporaryPassword: string | null
+  sentToEmail: string | null
+}
+
+export interface MissingLoginCred {
+  memberId: string
+  memberName: string
+  username: string
+  temporaryPassword: string
+}
+
+// Bulk-create result: emailSent got an activation link; noEmailCreds are the accounts to relay by hand.
+export interface CreateMissingLoginsResult {
+  created: number
+  emailSent: number
+  alreadyHad: number
+  noAccess: number
+  noEmailCreds: MissingLoginCred[]
+}
+
+// Active members WITHOUT a login. unitId → that unit; omit unitId → all active missing group-wide (group-manager only).
+export function useMissingLogins(unitId?: string, enabled = true) {
+  return useQuery({
+    queryKey: ['members', 'missing-logins', unitId ?? 'all'],
+    queryFn: () => apiClient.get<MissingLogin[]>('/members/missing-logins', { params: { unitId } }).then(r => r.data),
+    enabled,
+  })
+}
+
+// Create a login for one member (email → activation link; no email → temp password returned to show on screen).
+export function useCreateMemberLogin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (memberId: string) => apiClient.post<CreateLoginResult>(`/members/${memberId}/create-login`).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members', 'missing-logins'] })
+      qc.invalidateQueries({ queryKey: ['members', 'access-candidates'] })
+    },
+  })
+}
+
+// Bulk-create logins for a scope (unit / all active / an explicit member list).
+export function useCreateMissingLogins() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { unitId?: string; memberIds?: string[]; allActive?: boolean }) =>
+      apiClient.post<CreateMissingLoginsResult>('/members/create-logins', body).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['members', 'missing-logins'] })
+      qc.invalidateQueries({ queryKey: ['members', 'access-candidates'] })
+    },
+  })
+}
+
 // CG/leader resets a member's password → returns a fresh temp password + the address it was emailed to
 // (sentToEmail is null when the member has no email on file — creds are then shown on screen only).
 export function useResetMemberPassword() {

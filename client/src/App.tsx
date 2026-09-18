@@ -64,6 +64,7 @@ const MaitrisesPage = lazy(() => import('@/pages/maitrises'))
 const SiblingsPage = lazy(() => import('@/pages/admin/siblings'))
 const MemberGroupsPage = lazy(() => import('@/pages/admin/member-groups'))
 const CommunicationsAccesPage = lazy(() => import('@/pages/admin/communications-acces'))
+const MissingLoginsPage = lazy(() => import('@/pages/admin/missing-logins'))
 const ManagedListsPage = lazy(() => import('@/pages/admin/managed-lists'))
 const CampPage = lazy(() => import('@/pages/camp'))
 const CampsAdminPage = lazy(() => import('@/pages/admin/camps'))
@@ -194,6 +195,7 @@ export default function App() {
               {/* Back-compat: "Envoyer les accès" + "Message aux chefs" merged into "Communications & accès". */}
               <Route path="/admin/send-access" element={<Navigate to="/admin/communications-acces?tab=acces" replace />} />
               <Route path="/admin/communications" element={<Navigate to="/admin/communications-acces?tab=chefs" replace />} />
+              <Route path="/admin/missing-logins" element={<MissingLoginsPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
               <Route path="/admin/documents-suivi" element={<DocumentsSuiviPage />} />

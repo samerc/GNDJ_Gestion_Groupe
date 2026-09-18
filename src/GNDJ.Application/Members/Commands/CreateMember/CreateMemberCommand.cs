@@ -140,30 +140,9 @@ public class CreateMemberCommandHandler : IRequestHandler<CreateMemberCommand, R
         };
         _context.Members.Add(member);
 
-        // Generate username
-        var domain = await _context.Settings
-            .Where(s => s.Key == "user_domain")
-            .Select(s => s.Value)
-            .FirstOrDefaultAsync(cancellationToken) ?? "scouts.gndj";
-
-        var fn = Normalize(request.FirstName);
-        var ln = Normalize(request.LastName);
-        var email = $"{fn}.{ln}@{domain}";
-
-        // On a duplicate, disambiguate with the father's first initial (e.g. georges.a.khoury). Falls back
-        // to a numeric suffix if no father name was given or the initialled variant is also taken.
-        if (await _context.Users.AnyAsync(u => u.Email == email, cancellationToken))
-        {
-            var fatherInitial = Normalize(request.FatherName ?? "").FirstOrDefault(char.IsLetter);
-            var mid = fatherInitial != default ? $".{fatherInitial}" : "";
-            email = $"{fn}{mid}.{ln}@{domain}";
-            var suffix = 2;
-            while (await _context.Users.AnyAsync(u => u.Email == email, cancellationToken))
-            {
-                email = $"{fn}{mid}.{ln}{suffix}@{domain}";
-                suffix++;
-            }
-        }
+        // Generate the synthetic login username (shared with the "create missing logins" tool via UsernameFactory).
+        var domain = await Common.UsernameFactory.GetDomainAsync(_context, cancellationToken);
+        var email = await Common.UsernameFactory.GenerateUniqueAsync(_context, request.FirstName, request.LastName, request.FatherName, domain, cancellationToken);
 
         // Generate temporary password
         var tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}";
@@ -247,18 +226,5 @@ public class CreateMemberCommandHandler : IRequestHandler<CreateMemberCommand, R
         await _auditService.LogAsync("Create", "Member", member.Id, newValues: new { member.FirstName, member.LastName, Username = email }, cancellationToken: cancellationToken);
 
         return Result<CreateMemberResult>.Success(new CreateMemberResult(member.Id, email, tempPassword));
-    }
-
-    private static string Normalize(string name)
-    {
-        return name.Trim().ToLower()
-            .Replace(' ', '.')
-            .Replace('é', 'e').Replace('è', 'e').Replace('ê', 'e').Replace('ë', 'e')
-            .Replace('à', 'a').Replace('â', 'a').Replace('ä', 'a')
-            .Replace('ù', 'u').Replace('û', 'u').Replace('ü', 'u')
-            .Replace('ô', 'o').Replace('ö', 'o')
-            .Replace('î', 'i').Replace('ï', 'i')
-            .Replace('ç', 'c')
-            .Replace("'", "");
     }
 }

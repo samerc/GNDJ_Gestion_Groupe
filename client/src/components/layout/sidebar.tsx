@@ -46,6 +46,7 @@ import {
   GitMerge,
   MonitorSmartphone,
   MessageSquare,
+  UserPlus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -156,6 +157,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/member-groups', label: 'Groupes', icon: Users, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/siblings', label: 'Fratries', icon: Users, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/communications-acces', label: 'Communications & accès', icon: Megaphone, permission: PERMISSIONS.MEMBERS_RESET_PASSWORD },
+      { path: '/admin/missing-logins', label: 'Comptes manquants', icon: UserPlus, permission: PERMISSIONS.MEMBERS_RESET_PASSWORD },
     ],
   },
   {

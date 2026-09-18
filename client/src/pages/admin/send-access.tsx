@@ -4,10 +4,10 @@
 // with none checked, the primary button sends to the whole unit (optionally only those never logged in).
 // The app only knows the mail was QUEUED — delivery/bounces live in the SMTP provider's dashboard.
 import { useState } from 'react'
-import { Key, Send, CheckCircle2, AlertTriangle, Info } from 'lucide-react'
+import { Key, Send, CheckCircle2, AlertTriangle, Info, UserPlus } from 'lucide-react'
 import { useUnits } from '@/services/unit-service'
 import { useIsManager } from '@/lib/use-is-manager'
-import { useAccessCandidates, useSendAccess, type SendAccessResult } from '@/services/member-service'
+import { useAccessCandidates, useSendAccess, useCreateMissingLogins, type SendAccessResult } from '@/services/member-service'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -15,6 +15,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/shared/empty-state'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmailDeliveryWarning } from '@/components/shared/email-delivery-warning'
+import { LoginCredsDialog, type LoginCred } from '@/components/admin/login-creds-dialog'
 import { formatDateLong } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
@@ -40,9 +41,21 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
 
   const { data: candidates, isLoading } = useAccessCandidates(isAll ? undefined : (unitId || undefined), isAll)
   const send = useSendAccess()
+  const createMissing = useCreateMissingLogins()
+  const [creds, setCreds] = useState<{ emailSent: number; alreadyHad: number; list: LoginCred[] } | null>(null)
 
   // Reset per-unit UI state in the change handler (not an effect) — keeps selection tied to the unit.
   const onUnitChange = (id: string) => { setUnitId(id); setSelected(new Set()); setResult(null) }
+
+  // Members in this scope who have NO login yet → offer to create their accounts inline (then they become sendable).
+  const noAccountIds = (candidates ?? []).filter(c => !c.hasAccount).map(c => c.memberId)
+  const handleCreateMissing = async () => {
+    try {
+      const r = await createMissing.mutateAsync({ memberIds: noAccountIds })
+      setCreds({ emailSent: r.emailSent, alreadyHad: r.alreadyHad, list: r.noEmailCreds })
+      toast.success(`${r.created} compte(s) créé(s)` + (r.emailSent ? ` · ${r.emailSent} email(s) d'activation` : ''))
+    } catch (e) { toast.error(parseApiError(e)) }
+  }
 
   const eligible = (c: { hasAccount: boolean; hasEmail: boolean }) => c.hasAccount && c.hasEmail
   const toggle = (id: string) => setSelected(prev => {
@@ -195,12 +208,30 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
             <p className="text-sm text-muted-foreground">
               {unitName} · {candidates.length} membre(s) · {eligibleIds.length} avec compte + email
             </p>
-            <Button onClick={handleSend} disabled={send.isPending}>
-              <Send className="mr-2 h-4 w-4" />
-              {send.isPending ? 'Envoi…' : sendLabel}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {noAccountIds.length > 0 && (
+                <Button variant="outline" onClick={handleCreateMissing} disabled={createMissing.isPending}>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  {createMissing.isPending ? 'Création…' : `Créer les ${noAccountIds.length} comptes manquants`}
+                </Button>
+              )}
+              <Button onClick={handleSend} disabled={send.isPending}>
+                <Send className="mr-2 h-4 w-4" />
+                {send.isPending ? 'Envoi…' : sendLabel}
+              </Button>
+            </div>
           </div>
         </>
+      )}
+
+      {creds && (
+        <LoginCredsDialog
+          open={!!creds}
+          onOpenChange={(o) => !o && setCreds(null)}
+          emailSent={creds.emailSent}
+          alreadyHad={creds.alreadyHad}
+          creds={creds.list}
+        />
       )}
 
       {/* Result summary of the last send */}

@@ -247,6 +247,50 @@ public class MembersController : BaseApiController
     // AllNonMaitrise = send to every active non-leadership member group-wide (group-manager only).
     public record SendAccessRequest(Guid? UnitId, List<Guid>? MemberIds, bool OnlyNeverLoggedIn, string? TemplateCode, bool AllNonMaitrise = false);
 
+    /// <summary>
+    /// Lists active members who have NO login account. unitId → that unit (unit-leader or group); omit unitId to
+    /// list ALL active members missing a login across the group (incl. maîtrise), group-manager only. Requires members.reset_password.
+    /// </summary>
+    [HttpGet("missing-logins")]
+    [HasPermission(Permissions.MembersResetPassword)]
+    public async Task<IActionResult> MissingLogins([FromQuery] Guid? unitId)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Members.GetMissingLoginsQuery(unitId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Creates a login for one member who has none: generates a prenom.nom username, then either emails a
+    /// set-password activation link (if the member has a contact email) or returns a temp password to show on
+    /// screen (no email). Requires members.reset_password; unit-scoped in the handler.
+    /// </summary>
+    [HttpPost("{id:guid}/create-login")]
+    [HasPermission(Permissions.MembersResetPassword)]
+    public async Task<IActionResult> CreateLogin(Guid id)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Members.CreateMemberLoginCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Bulk-creates logins for members without one — a whole unit (unitId), all active members (allActive,
+    /// group-manager only), or an explicit memberIds list. Emails activation links to those with an email and
+    /// returns the credentials of the no-email members to relay by hand. Requires members.reset_password.
+    /// </summary>
+    [HttpPost("create-logins")]
+    [HasPermission(Permissions.MembersResetPassword)]
+    public async Task<IActionResult> CreateLogins([FromBody] CreateLoginsRequest body)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Members.CreateMissingLoginsCommand(body?.UnitId, body?.MemberIds, body?.AllActive ?? false));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    // AllActive = every active member missing a login group-wide (group-manager only); else unitId or an explicit list.
+    public record CreateLoginsRequest(Guid? UnitId, List<Guid>? MemberIds, bool AllActive = false);
+
     /// <summary>Sets (or clears with an empty body) the member's primary contact email — the recipient for member-facing mail. Requires members.edit.</summary>
     [HttpPut("{id:guid}/primary-email")]
     [HasPermission(Permissions.MembersEdit)]
