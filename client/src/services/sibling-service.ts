@@ -188,6 +188,7 @@ export interface DuplicateMember {
   notes: string | null
   primaryContactEmail: string | null
   photoPath: string | null
+  username: string | null
   unitName: string | null
   hasAccount: boolean
   isActiveMember: boolean
@@ -219,6 +220,7 @@ export interface MemberMergeFields {
   notes: string | null
   primaryContactEmail: string | null
   photoPath: string | null
+  username: string | null
 }
 
 // The fields duplicate detection can match on (must mirror the backend DuplicateMatchKeys).

@@ -20,7 +20,7 @@ public record DuplicateMemberDto(
     Guid MemberId, string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender,
     string? CardNumber, string? ExternalCardNumber, string? BloodType, string? Nationality, string? School,
     string? Classe, string? Section, string? ProfessionDomain, string? Profession, string? MedicalNotes,
-    string? Allergies, string? Notes, string? PrimaryContactEmail, string? PhotoPath,
+    string? Allergies, string? Notes, string? PrimaryContactEmail, string? PhotoPath, string? Username,
     string? UnitName, bool HasAccount, bool IsActiveMember, int AssignmentCount, DateTime CreatedAt);
 
 // A set of members that look like the same person.
@@ -76,6 +76,7 @@ public class GetDuplicateMemberSuggestionsQueryHandler(IApplicationDbContext con
                 m.CardNumber, m.ExternalCardNumber, m.BloodType, m.Nationality, m.School,
                 m.Classe, m.Section, m.ProfessionDomain, m.Profession, m.MedicalNotes,
                 m.Allergies, m.Notes, m.PrimaryContactEmail, m.PhotoPath,
+                context.Users.Where(u => u.MemberId == m.Id && !u.IsDeleted).Select(u => u.Email).FirstOrDefault(),
                 m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(),
                 context.Users.Any(u => u.MemberId == m.Id && !u.IsDeleted),
                 m.Assignments.Any(a => a.EndDate == null),
@@ -152,6 +153,11 @@ public class MergeMembersCommandValidator : AbstractValidator<MergeMembersComman
             RuleFor(x => x.Fields.Notes).MaximumLength(2000).NoHtml();
             RuleFor(x => x.Fields.PrimaryContactEmail).MaximumLength(254).RealEmail();
             RuleFor(x => x.Fields.PhotoPath).MaximumLength(500).NoHtml();
+            // Login username (User.Email) — only validated when the CG chose to change it.
+            RuleFor(x => x.Fields.Username).MaximumLength(254)
+                .Matches(@"^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$")
+                .When(x => !string.IsNullOrWhiteSpace(x.Fields.Username))
+                .WithMessage("L'identifiant doit être au format prenom.nom@scouts.gndj (sans espaces).");
         });
     }
 }
@@ -173,6 +179,17 @@ public class MergeMembersCommandHandler(IApplicationDbContext context, ICurrentU
         if (!found.Contains(request.KeeperId)) return Result<int>.Failure("Le membre à conserver est introuvable.");
         var missing = losers.Where(l => !found.Contains(l)).ToList();
         if (missing.Count > 0) return Result<int>.Failure("Un ou plusieurs doublons sont introuvables.");
+
+        // If the CG chose a login username, make sure no OTHER account (not the keeper's or a loser's — those are
+        // handled by the merge) already uses it. Losers' logins are freed during the merge, so they don't conflict.
+        var username = request.Fields.Username?.Trim();
+        if (!string.IsNullOrWhiteSpace(username))
+        {
+            var lower = username.ToLower();
+            var taken = await context.Users.AnyAsync(u => !u.IsDeleted && u.Email.ToLower() == lower
+                && u.MemberId != request.KeeperId && !losers.Contains(u.MemberId), ct);
+            if (taken) return Result<int>.Failure("Cet identifiant est déjà utilisé par un autre compte.");
+        }
 
         await mergeService.MergeAsync(request.KeeperId, losers, request.Fields, ct);
 

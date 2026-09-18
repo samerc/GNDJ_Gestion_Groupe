@@ -369,6 +369,7 @@ function DuplicatesTab() {
 // Fields the CG can choose from when merging (label + accessor). The internal matricule is intentionally absent —
 // the keeper always keeps its own. Order = most likely to differ / matter first.
 const MERGE_FIELDS: { key: keyof MemberMergeFields; label: string; get: (m: DuplicateMember) => string | null }[] = [
+  { key: 'username', label: 'Identifiant de connexion', get: (m) => m.username },
   { key: 'externalCardNumber', label: 'N° de carte (SDL/GDL)', get: (m) => m.externalCardNumber },
   { key: 'firstName', label: 'Prénom', get: (m) => m.firstName },
   { key: 'lastName', label: 'Nom', get: (m) => m.lastName },

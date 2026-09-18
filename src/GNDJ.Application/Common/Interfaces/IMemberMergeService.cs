@@ -17,4 +17,6 @@ public record MemberMergeFields(
     string? FirstName, string? LastName, DateOnly? DateOfBirth, string? Gender,
     string? ExternalCardNumber, string? BloodType, string? Nationality, string? School, string? Classe,
     string? Section, string? ProfessionDomain, string? Profession, string? MedicalNotes, string? Allergies,
-    string? Notes, string? PrimaryContactEmail, string? PhotoPath);
+    string? Notes, string? PrimaryContactEmail, string? PhotoPath,
+    // The login username (User.Email) the surviving member should keep. Null = keep the keeper's current login.
+    string? Username = null);

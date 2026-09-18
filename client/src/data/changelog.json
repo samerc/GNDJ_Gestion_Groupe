@@ -4,6 +4,10 @@
     "date": "2026-09-10",
     "changes": [
       {
+        "date": "2026-09-18",
+        "text": "Fusion de doublons (membres) : on peut désormais choisir l'identifiant de connexion à conserver, et les PARENTS en double sont automatiquement fusionnés — deux fiches d'un même enfant contenaient chacune le père et la mère, ce qui donnait des parents en double après fusion ; ils sont maintenant regroupés (un seul père, une seule mère, en réunissant leurs coordonnées), y compris quand le nom du parent comporte une petite faute de frappe ou un accent différent."
+      },
+      {
         "date": "2026-09-17",
         "text": "Documents : le statut « En attente » d'un document déposé s'appelle désormais « En cours de vérification » — plus clair pour les parents (le document est bien reçu et en cours de contrôle par la maîtrise, aucune action n'est requise de leur part). Changé partout : fiche du membre, barre « Mes documents » et tableau des documents par unité."
       },

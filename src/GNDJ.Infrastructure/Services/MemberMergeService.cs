@@ -90,12 +90,19 @@ public class MemberMergeService : IMemberMergeService
                 }
                 else if (loserHasUser)
                 {
-                    await Exec("UPDATE users SET is_active = false, refresh_token = NULL, refresh_token_expiry = NULL WHERE member_id = {0}", [loser], ct);
+                    // Disable the loser's login AND free its username (prefix it) so the surviving member can reuse
+                    // that username if the CG chose it. The loser is soft-deleted, so its email no longer matters.
+                    await Exec("UPDATE users SET is_active = false, refresh_token = NULL, refresh_token_expiry = NULL, " +
+                               "email = left(member_id::text, 8) || '.merged.' || email WHERE member_id = {0}", [loser], ct);
                 }
 
                 // ── Soft-delete the loser (also frees its card numbers from the is_deleted-filtered unique indexes) ──
                 await Exec("UPDATE members SET is_deleted = true, deleted_at = {1}, external_card_number = NULL, sibling_group_id = NULL WHERE id = {0}", [loser, DateTime.UtcNow], ct);
             }
+
+            // ── Dedup the keeper's now-merged PARENTS: two duplicate members each entered the same parent as a
+            //    separate guardian record, so the keeper ends up linked to the same parent twice. Collapse them. ──
+            await DedupKeeperGuardiansAsync(keeperId, ct);
 
             // ── Apply the chosen field values to the keeper (LAST, so a carried external card number can't collide) ──
             // Done via a tracked EF entity (not raw SQL) so nulls map cleanly. The keeper row wasn't touched by the
@@ -120,6 +127,12 @@ public class MemberMergeService : IMemberMergeService
             keeper.PhotoPath = fields.PhotoPath;
             await _context.SaveChangesAsync(ct);
 
+            // ── Login username (User.Email): apply the CG's choice to the surviving member's account, if any. The
+            //    losers' usernames were freed above, so this can't collide with them (a third-party collision was
+            //    pre-checked in the handler; the unique index is the final backstop → rollback). ──
+            if (!string.IsNullOrWhiteSpace(fields.Username))
+                await Exec("UPDATE users SET email = {1} WHERE member_id = {0} AND NOT is_deleted", [keeperId, fields.Username.Trim()], ct);
+
             await tx.CommitAsync(ct);
             _logger.LogInformation("Merged {Count} member(s) into {Keeper}.", losers.Count, keeperId);
         }
@@ -131,4 +144,62 @@ public class MemberMergeService : IMemberMergeService
     }
 
     private Task Exec(string sql, object[] p, CancellationToken ct) => _context.Database.ExecuteSqlRawAsync(sql, p, ct);
+
+    // Collapse duplicate PARENTS now linked to the keeper. Two things create duplicates when merging duplicate
+    // MEMBER records: (a) the same parent entered as two guardian records with slightly different spelling, and
+    // (b) each duplicate member had its own "Père"/"Mère". Since the keeper is ONE child, all its "Père" links
+    // point to the same father and all its "Mère" links to the same mother — so we group père/mère links BY ROLE
+    // (catches a typo'd surname / different emails), and every OTHER role by normalized name (a child can have
+    // several tuteurs). Keeps a canonical (prefer one also linked to OTHER families, then the richest in
+    // contacts), moves the duplicates' phones/emails onto it (deduped by value), drops the keeper's duplicate
+    // link, and soft-deletes a duplicate left linked to nobody. Only merges duplicates linked to the keeper ALONE
+    // (LinkCount = 1) so a guardian genuinely shared with another family is never stripped.
+    private async Task DedupKeeperGuardiansAsync(Guid keeperId, CancellationToken ct)
+    {
+        // Column aliases are snake_case: EF maps the unmapped result type's properties through the DB naming
+        // convention (ContactCount -> contact_count), so the SELECT must emit those exact names.
+        var rows = await _context.Database.SqlQueryRaw<GuardianDedupRow>(
+            "SELECT g.id AS \"id\", " +
+            "f_unaccent(lower(btrim(coalesce(g.first_name,'') || ' ' || coalesce(g.last_name,'')))) AS \"name_key\", " +
+            "f_unaccent(lower(btrim(coalesce(gl_keeper.relationship_type,'')))) AS \"role\", " +
+            "(SELECT count(*) FROM guardian_links gl WHERE gl.guardian_id = g.id AND NOT gl.is_deleted) AS \"link_count\", " +
+            "(SELECT count(*) FROM guardian_phones p WHERE p.guardian_id = g.id AND NOT p.is_deleted) + " +
+            "(SELECT count(*) FROM guardian_emails e WHERE e.guardian_id = g.id AND NOT e.is_deleted) AS \"contact_count\" " +
+            "FROM guardians g " +
+            "JOIN guardian_links gl_keeper ON gl_keeper.guardian_id = g.id AND gl_keeper.member_id = {0} AND NOT gl_keeper.is_deleted " +
+            "WHERE NOT g.is_deleted", keeperId)
+            .ToListAsync(ct);
+
+        // Group key: père/mère collapse by ROLE (same child ⇒ same parent, even with a typo); other roles by name.
+        static string GroupKey(GuardianDedupRow r) =>
+            r.Role is "pere" or "mere" ? "role:" + r.Role : "name:" + (r.NameKey ?? "");
+
+        foreach (var group in rows.GroupBy(GroupKey)
+            .Where(g => g.Key != "name:" && g.Count() > 1)) // skip nameless "other" rows; need ≥2 to dedup
+        {
+            var ordered = group.OrderByDescending(r => r.LinkCount).ThenByDescending(r => r.ContactCount).ThenBy(r => r.Id).ToList();
+            var canonical = ordered[0].Id;
+            foreach (var dup in ordered.Skip(1))
+            {
+                if (dup.LinkCount != 1) continue; // shared with another family — leave it alone
+                var d = new object[] { canonical, dup.Id };
+                await Exec("DELETE FROM guardian_phones l WHERE l.guardian_id = {1} AND EXISTS (SELECT 1 FROM guardian_phones k WHERE k.guardian_id = {0} AND regexp_replace(k.number,'\\D','','g') = regexp_replace(l.number,'\\D','','g'))", d, ct);
+                await Exec("UPDATE guardian_phones SET guardian_id = {0} WHERE guardian_id = {1}", d, ct);
+                await Exec("DELETE FROM guardian_emails l WHERE l.guardian_id = {1} AND EXISTS (SELECT 1 FROM guardian_emails k WHERE k.guardian_id = {0} AND lower(k.address) = lower(l.address))", d, ct);
+                await Exec("UPDATE guardian_emails SET guardian_id = {0} WHERE guardian_id = {1}", d, ct);
+                await Exec("DELETE FROM guardian_links WHERE member_id = {0} AND guardian_id = {1}", [keeperId, dup.Id], ct);
+                await Exec("UPDATE guardians SET is_deleted = true, deleted_at = {1} WHERE id = {0} AND NOT EXISTS (SELECT 1 FROM guardian_links gl WHERE gl.guardian_id = {0} AND NOT gl.is_deleted)", [dup.Id, DateTime.UtcNow], ct);
+            }
+        }
+    }
+
+    // Row shape for the guardian-dedup query (settable props so EF can materialize an unmapped type by column name).
+    private sealed class GuardianDedupRow
+    {
+        public Guid Id { get; set; }
+        public string? NameKey { get; set; }
+        public string? Role { get; set; }
+        public int LinkCount { get; set; }
+        public int ContactCount { get; set; }
+    }
 }
