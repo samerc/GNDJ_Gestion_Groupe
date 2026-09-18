@@ -23,9 +23,10 @@ namespace GNDJ.Application.Siblings;
 // city+street+building) → fill the empties (additive). (2) they're NEAR-IDENTICAL spelling/format variants of one
 // home (worst-pair similarity ≥ UnifyThreshold, e.g. "5ème"/"5", "Bldg"/"building", "Rue X"/"X" — Lebanese place
 // names have no standard spelling) → auto-unify: set the fullest (most complete) spelling on every sibling
-// (replaces the variants; reversible soft-delete). (3) they GENUINELY differ → we DON'T guess, we flag the group
-// (AddressNeedsReview) for the CG to open the reconcile wizard and pick. Separated/divorced families skip addresses
-// entirely (handled manually).
+// (replaces the variants; reversible soft-delete). A family whose members are ALL unit-less (inactive/alumni)
+// auto-unifies at a LOOSER bar (UnitlessUnifyThreshold) since the address is low-stakes there. (3) they GENUINELY
+// differ → we DON'T guess, we flag the group (AddressNeedsReview) for the CG to open the reconcile wizard and pick.
+// Separated/divorced families skip addresses entirely (handled manually).
 public record AutoDeclareSiblingsCommand(bool Simulate) : IRequest<Result<AutoDeclareSiblingsResultDto>>;
 
 // The CG-only note stamped on auto-created groups (never shown to members).
@@ -43,6 +44,10 @@ public class AutoDeclareSiblingsCommandHandler(IApplicationDbContext context, IA
     // ONE home and auto-unified (onto the fullest spelling) instead of sent to review. Conservative on purpose:
     // ≥0.95 = essentially the same address (verified on the real data). Lower it to widen the auto-unify net.
     private const double UnifyThreshold = 0.95;
+    // Relaxed threshold used ONLY when EVERY member of the family is unit-less (no active assignment = inactive /
+    // alumni). For those the address is low-stakes, so a looser "similar enough" bar auto-picks the fullest spelling
+    // instead of adding to the review worklist. Still excludes genuinely-different addresses (two towns score < 0.6).
+    private const double UnitlessUnifyThreshold = 0.70;
 
     public async ValueTask<Result<AutoDeclareSiblingsResultDto>> Handle(AutoDeclareSiblingsCommand request, CancellationToken ct)
     {
@@ -140,10 +145,14 @@ public class AutoDeclareSiblingsCommandHandler(IApplicationDbContext context, IA
             }
             else
             {
-                // Differing keys. If they're all NEAR-IDENTICAL (spelling/format variants of one home), auto-unify
-                // onto the fullest spelling; otherwise leave it to the CG to pick (review).
+                // Differing keys. Auto-unify onto the fullest spelling when the addresses are near-identical
+                // (worst-pair ≥ UnifyThreshold) — OR, for a family whose members are ALL unit-less (inactive /
+                // alumni, address low-stakes), when they're merely "similar enough" (≥ UnitlessUnifyThreshold).
+                // Otherwise leave it to the CG to pick (review).
                 var distinctAddrs = nonEmpty.GroupBy(AddrKey).Select(g => g.First()).ToList();
-                if (WorstPairSimilarity(distinctAddrs) >= UnifyThreshold)
+                var worst = WorstPairSimilarity(distinctAddrs);
+                bool allUnitless = memIds.All(id => byId[id].Unit == null);         // no visible active assignment
+                if (worst >= UnifyThreshold || (allUnitless && worst >= UnitlessUnifyThreshold))
                 {
                     addressStatus = "agree";                                        // counts as "unified" in the preview
                     unifyReplace = true;

@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-18",
+        "text": "Fratries — adresses (familles inactives) : pour une fratrie dont TOUS les membres sont sans unité (anciens / inactifs), la déclaration automatique unifie l'adresse dès qu'elles se ressemblent suffisamment (seuil assoupli) — l'adresse importe peu pour ces familles, donc on garde la plus complète au lieu de la mettre « à vérifier ». Les adresses réellement différentes (deux villes) restent à vérifier même pour ces familles."
+      },
+      {
+        "date": "2026-09-18",
         "text": "Fratries — adresses : la déclaration automatique unifie maintenant aussi les adresses quasi identiques (mêmes rue et ville écrites différemment — « 5ème »/« 5 », « Bldg »/« building »… fréquent pour les localités libanaises sans orthographe standard) : elle garde l'orthographe la plus complète pour toute la fratrie, au lieu de les envoyer « à vérifier ». Et quand vous vérifiez une adresse, la plus complète est déjà pré-sélectionnée — un simple clic pour confirmer dans la plupart des cas ; vous ne tranchez vraiment que les familles avec deux domiciles réellement différents."
       },
       {
