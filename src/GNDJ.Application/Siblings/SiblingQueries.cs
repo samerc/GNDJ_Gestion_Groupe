@@ -237,10 +237,16 @@ public class GetSiblingGroupsQueryHandler(IApplicationDbContext context)
                 m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(), m.SiblingGroupId))
             .ToListAsync(ct);
 
+        // The per-group flags/notes (address-review worklist + CG-only auto-detected note).
+        var meta = (await context.SiblingGroups.Select(g => new { g.Id, g.AddressNeedsReview, g.Notes }).ToListAsync(ct))
+            .ToDictionary(g => g.Id, g => (g.AddressNeedsReview, g.Notes));
+
         var groups = rows
             .GroupBy(m => m.SiblingGroupId!.Value)
             .Select(g => new SiblingGroupDto(g.Key,
-                g.OrderBy(m => m.DateOfBirth ?? DateOnly.MaxValue).ThenBy(m => m.LastName).ThenBy(m => m.FirstName).ToList()))
+                g.OrderBy(m => m.DateOfBirth ?? DateOnly.MaxValue).ThenBy(m => m.LastName).ThenBy(m => m.FirstName).ToList(),
+                meta.TryGetValue(g.Key, out var mm) && mm.AddressNeedsReview,
+                meta.TryGetValue(g.Key, out var m2) ? m2.Notes : null))
             .Where(g => g.Members.Count >= 1)
             .ToList();
 

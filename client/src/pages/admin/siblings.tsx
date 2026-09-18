@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { Users, X, Search, Sparkles, ChevronRight, Phone, Mail, MapPin, UserRound, GitMerge, Copy } from 'lucide-react'
+import { Users, X, Search, Sparkles, ChevronRight, Phone, Mail, MapPin, UserRound, GitMerge, Copy, MapPinned, Flag, Check } from 'lucide-react'
 import {
   useSiblingSuggestions, useSiblingGroups,
   useRejectSiblingSuggestion, useUnlinkSibling,
   useDuplicateSuggestions, useMergeMembers, DUPLICATE_MATCH_KEYS,
   useAutoDeclareSiblings,
-  type SiblingSuggestion,
+  useSiblingReports, useResolveSiblingReport,
+  type SiblingSuggestion, type SiblingGroup as SiblingGroupType,
   type DuplicateGroup, type DuplicateMember, type MemberMergeFields,
-  type AutoDeclareResult,
+  type AutoDeclareResult, type SiblingReport,
 } from '@/services/sibling-service'
 import { SiblingReconcileSheet } from '@/components/members/sibling-reconcile-sheet'
 import { Card, CardContent } from '@/components/ui/card'
@@ -47,10 +48,12 @@ export default function SiblingsPage() {
         <TabsList>
           <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
           <TabsTrigger value="confirmed">Fratries confirmées</TabsTrigger>
+          <TabsTrigger value="reports"><ReportsTabLabel /></TabsTrigger>
           <TabsTrigger value="duplicates">Doublons</TabsTrigger>
         </TabsList>
         <TabsContent value="suggestions" className="mt-4"><SuggestionsTab /></TabsContent>
         <TabsContent value="confirmed" className="mt-4"><ConfirmedTab /></TabsContent>
+        <TabsContent value="reports" className="mt-4"><ReportsTab /></TabsContent>
         <TabsContent value="duplicates" className="mt-4"><DuplicatesTab /></TabsContent>
       </Tabs>
     </div>
@@ -301,6 +304,10 @@ function ConfirmedTab() {
   const { data: groups, isLoading } = useSiblingGroups(debounced)
   const unlink = useUnlinkSibling()
   const [unlinkTarget, setUnlinkTarget] = useState<{ id: string; name: string } | null>(null)
+  // Only show the families the auto-declare backfill flagged "adresse à vérifier" (the worklist).
+  const [reviewOnly, setReviewOnly] = useState(false)
+  // The group whose address the CG is verifying → reuse the reconcile drawer (picking an address clears the flag).
+  const [reviewing, setReviewing] = useState<SiblingGroupType | null>(null)
 
   const doUnlink = async () => {
     if (!unlinkTarget) return
@@ -308,20 +315,31 @@ function ConfirmedTab() {
     catch (e) { toast.error(parseApiError(e)) }
   }
 
+  const reviewCount = (groups ?? []).filter((g) => g.addressNeedsReview).length
+  const shown = reviewOnly ? (groups ?? []).filter((g) => g.addressNeedsReview) : (groups ?? [])
+
   return (
     <>
-      <div className="relative mb-3 max-w-sm">
-        <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Rechercher un membre…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <div className="relative max-w-sm flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Rechercher un membre…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
+        </div>
+        {/* Address-review worklist toggle — the families the backfill couldn't unify by address. */}
+        <Button variant={reviewOnly ? 'default' : 'outline'} size="sm" onClick={() => setReviewOnly((v) => !v)}
+          className={reviewOnly ? '' : 'text-amber-700 dark:text-amber-300'}>
+          <MapPinned className="mr-1.5 h-4 w-4" />À vérifier — adresse{reviewCount > 0 ? ` (${reviewCount})` : ''}
+        </Button>
       </div>
 
       {isLoading ? <LoadingSpinner variant="table" />
-        : !groups || groups.length === 0
-          ? <EmptyState icon={Users} title="Aucune fratrie confirmée" description="Confirmez des suggestions ou liez des membres manuellement depuis leur fiche." />
+        : shown.length === 0
+          ? <EmptyState icon={Users} title={reviewOnly ? 'Aucune adresse à vérifier' : 'Aucune fratrie confirmée'}
+              description={reviewOnly ? 'Toutes les fratries ont une adresse harmonisée.' : 'Confirmez des suggestions ou liez des membres manuellement depuis leur fiche.'} />
           : (
             <div className="space-y-3">
-              {groups.map((g) => (
-                <Card key={g.groupId}>
+              {shown.map((g) => (
+                <Card key={g.groupId} className={g.addressNeedsReview ? 'border-amber-300 dark:border-amber-800' : undefined}>
                   <CardContent className="flex flex-wrap items-center gap-2 p-4">
                     {g.members.map((m) => (
                       <span key={m.memberId} className="flex items-center gap-1 rounded-full border bg-muted/40 py-1 pl-3 pr-1 text-sm">
@@ -335,7 +353,14 @@ function ConfirmedTab() {
                         </Button>
                       </span>
                     ))}
-                    <Link to={`/members/${g.members[0]?.memberId}`} target="_blank" rel="noopener noreferrer" className="ml-auto text-muted-foreground hover:text-foreground" title="Ouvrir">
+                    {g.addressNeedsReview && (
+                      <Button size="sm" variant="outline" className="ml-auto border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-300"
+                        onClick={() => setReviewing(g)}>
+                        <MapPinned className="mr-1.5 h-4 w-4" />Vérifier l'adresse
+                      </Button>
+                    )}
+                    <Link to={`/members/${g.members[0]?.memberId}`} target="_blank" rel="noopener noreferrer"
+                      className={`${g.addressNeedsReview ? '' : 'ml-auto '}text-muted-foreground hover:text-foreground`} title="Ouvrir">
                       <ChevronRight className="h-4 w-4" />
                     </Link>
                   </CardContent>
@@ -343,6 +368,17 @@ function ConfirmedTab() {
               ))}
             </div>
           )}
+
+      {/* Reconcile drawer to pick the family's canonical address — approving (with an address) clears the flag. */}
+      {reviewing && (
+        <SiblingReconcileSheet
+          key={reviewing.groupId}
+          memberIds={reviewing.members.map((m) => m.memberId)}
+          title="Vérifier l'adresse de la fratrie"
+          confirmLabel="Harmoniser l'adresse"
+          onClose={() => setReviewing(null)}
+        />
+      )}
 
       <ConfirmDialog
         open={!!unlinkTarget}
@@ -354,6 +390,78 @@ function ConfirmedTab() {
         loading={unlink.isPending}
         variant="destructive"
       />
+    </>
+  )
+}
+
+// ── Signalements de fratrie (member-filed error reports → CG worklist) ──
+const REPORT_KIND_LABELS: Record<string, string> = {
+  missing: 'Il manque un frère/sœur',
+  wrong: "Une personne n'est pas de la fratrie",
+  other: 'Autre',
+}
+
+// The tab label carries a pending-count badge so the CG sees new reports at a glance.
+function ReportsTabLabel() {
+  const { data } = useSiblingReports(false)
+  const n = data?.length ?? 0
+  return (
+    <span className="flex items-center gap-1.5">
+      Signalements
+      {n > 0 && <Badge className="h-5 min-w-5 justify-center bg-amber-500 px-1 text-[11px] text-white">{n}</Badge>}
+    </span>
+  )
+}
+
+function ReportsTab() {
+  const [includeResolved, setIncludeResolved] = useState(false)
+  const { data: reports, isLoading } = useSiblingReports(includeResolved)
+  const resolve = useResolveSiblingReport()
+
+  const doResolve = async (r: SiblingReport, on: boolean) => {
+    try { await resolve.mutateAsync({ id: r.id, resolve: on }); toast.success(on ? 'Signalement résolu' : 'Signalement rouvert') }
+    catch (e) { toast.error(parseApiError(e)) }
+  }
+
+  return (
+    <>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">
+          Signalements des membres sur leur fratrie (frère/sœur manquant, erreur…). Corrigez via « Fratries confirmées » ou la fiche du membre, puis marquez comme résolu.
+        </p>
+        <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-sm">
+          <input type="checkbox" checked={includeResolved} onChange={(e) => setIncludeResolved(e.target.checked)} className="h-4 w-4 rounded" />
+          Voir les résolus
+        </label>
+      </div>
+
+      {isLoading ? <LoadingSpinner variant="table" />
+        : !reports || reports.length === 0
+          ? <EmptyState icon={Flag} title="Aucun signalement" description="Les membres n'ont signalé aucune erreur de fratrie." />
+          : (
+            <div className="space-y-2">
+              {reports.map((r) => (
+                <Card key={r.id} className={r.status === 'Resolved' ? 'opacity-70' : 'border-amber-300 dark:border-amber-800'}>
+                  <CardContent className="flex items-start gap-3 p-4">
+                    <Flag className={`mt-0.5 h-4 w-4 shrink-0 ${r.status === 'Resolved' ? 'text-muted-foreground' : 'text-amber-500'}`} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <Link to={`/members/${r.reporterMemberId}`} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">{r.reporterName || 'Membre'}</Link>
+                        <span className="text-xs text-muted-foreground">· {r.reporterUnit ?? 'Sans unité'}</span>
+                        <Badge variant="secondary" className="text-[11px]">{REPORT_KIND_LABELS[r.kind] ?? r.kind}</Badge>
+                        {r.status === 'Resolved' && <Badge className="bg-emerald-600 text-[11px]">Résolu</Badge>}
+                      </div>
+                      {r.note && <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{r.note}</p>}
+                      <p className="mt-1 text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    </div>
+                    {r.status === 'Resolved'
+                      ? <Button size="sm" variant="ghost" onClick={() => doResolve(r, false)} disabled={resolve.isPending}>Rouvrir</Button>
+                      : <Button size="sm" variant="outline" onClick={() => doResolve(r, true)} disabled={resolve.isPending}><Check className="mr-1 h-4 w-4" />Résolu</Button>}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
     </>
   )
 }

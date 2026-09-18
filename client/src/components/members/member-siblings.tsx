@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { Users, X, Plus, Search } from 'lucide-react'
-import { useMemberSiblings, useUnlinkSibling } from '@/services/sibling-service'
+import { Users, X, Plus, Search, Flag } from 'lucide-react'
+import { useMemberSiblings, useUnlinkSibling, useCreateSiblingReport } from '@/services/sibling-service'
 import { useMembers } from '@/services/member-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { SiblingReconcileSheet } from '@/components/members/sibling-reconcile-sheet'
 import { parseApiError } from '@/lib/error-utils'
@@ -16,12 +16,14 @@ import { toast } from 'sonner'
 
 // "Frères et sœurs" section on a member fiche. Shows the member's CONFIRMED siblings (from their fratrie group).
 // `canManage` (CG) enables linking another member as a sibling + unlinking one; `linkable` makes siblings click
-// through to their fiche (admin panel only — not on a youth's own Ma fiche).
-export function MemberSiblings({ memberId, canManage = false, linkable = false }: { memberId: string; canManage?: boolean; linkable?: boolean }) {
+// through to their fiche (admin panel only — not on a youth's own Ma fiche). `canReport` (member's OWN Ma fiche)
+// shows a "Signaler une erreur" button so the member can flag a missing/wrong sibling to the CG.
+export function MemberSiblings({ memberId, canManage = false, linkable = false, canReport = false }: { memberId: string; canManage?: boolean; linkable?: boolean; canReport?: boolean }) {
   const { data: siblings, isLoading } = useMemberSiblings(memberId)
   const unlink = useUnlinkSibling()
   const [unlinkTarget, setUnlinkTarget] = useState<{ id: string; name: string } | null>(null)
   const [showLink, setShowLink] = useState(false)
+  const [showReport, setShowReport] = useState(false)
   // The member being linked → opens the reconcile drawer (choose canonical parents/address for the whole family),
   // same flow as the Fratries page. The family set = this member + its existing siblings + the chosen target.
   const [reconcileTarget, setReconcileTarget] = useState<string | null>(null)
@@ -49,9 +51,9 @@ export function MemberSiblings({ memberId, canManage = false, linkable = false }
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4 text-primary" />Frères et sœurs</CardTitle>
-        {canManage && (
-          <Button size="sm" variant="outline" onClick={() => setShowLink(true)}><Plus className="mr-1 h-4 w-4" />Lier un frère/sœur</Button>
-        )}
+        {canManage
+          ? <Button size="sm" variant="outline" onClick={() => setShowLink(true)}><Plus className="mr-1 h-4 w-4" />Lier un frère/sœur</Button>
+          : canReport && <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setShowReport(true)}><Flag className="mr-1 h-4 w-4" />Signaler une erreur</Button>}
       </CardHeader>
       <CardContent>
 
@@ -120,6 +122,9 @@ export function MemberSiblings({ memberId, canManage = false, linkable = false }
         />
       )}
 
+      {/* Member "Signaler une erreur" — flags a fratrie problem to the CG (who fixes it via link/unlink). */}
+      {canReport && <ReportSiblingDialog open={showReport} onOpenChange={setShowReport} />}
+
       <ConfirmDialog
         open={!!unlinkTarget}
         onOpenChange={(o) => !o && setUnlinkTarget(null)}
@@ -132,5 +137,49 @@ export function MemberSiblings({ memberId, canManage = false, linkable = false }
       />
       </CardContent>
     </Card>
+  )
+}
+
+// The three problem kinds a member can flag (keep in sync with the backend SiblingReportKinds).
+const REPORT_KINDS = [
+  { value: 'missing', label: 'Il manque un frère ou une sœur' },
+  { value: 'wrong', label: "Une des personnes n'est pas de ma famille" },
+  { value: 'other', label: 'Autre problème' },
+] as const
+
+// Member-facing report dialog: pick a problem + optional note → sent to the Chef de Groupe.
+function ReportSiblingDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const report = useCreateSiblingReport()
+  const [kind, setKind] = useState<string>('missing')
+  const [note, setNote] = useState('')
+
+  const submit = async () => {
+    try {
+      await report.mutateAsync({ kind, note: note.trim() || undefined })
+      toast.success('Signalement envoyé à la maîtrise. Merci !')
+      onOpenChange(false); setNote(''); setKind('missing')
+    } catch (e) { toast.error(parseApiError(e)) }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Signaler une erreur de fratrie</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">Indiquez le problème : un chef de groupe le corrigera.</p>
+        <div className="space-y-1.5">
+          {REPORT_KINDS.map((k) => (
+            <label key={k.value} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${kind === k.value ? 'border-primary/50 bg-primary/5' : ''}`}>
+              <input type="radio" checked={kind === k.value} onChange={() => setKind(k.value)} className="h-4 w-4" />
+              {k.label}
+            </label>
+          ))}
+        </div>
+        <textarea className="min-h-20 w-full rounded-md border bg-background p-2 text-sm" placeholder="Précisez si besoin (nom du frère/sœur manquant…)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
+          <Button onClick={submit} disabled={report.isPending}>{report.isPending ? 'Envoi…' : 'Envoyer'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

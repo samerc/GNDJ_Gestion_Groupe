@@ -29,3 +29,17 @@ public class SiblingRejectionConfiguration : IEntityTypeConfiguration<SiblingRej
         builder.HasIndex(e => new { e.MemberAId, e.MemberBId }).IsUnique();
     }
 }
+
+// Member-filed fratrie error reports (CG worklist). Filter by status + newest first.
+public class SiblingReportConfiguration : IEntityTypeConfiguration<SiblingReport>
+{
+    public void Configure(EntityTypeBuilder<SiblingReport> builder)
+    {
+        builder.ToTable("sibling_reports");
+        builder.HasKey(e => e.Id);
+        builder.Property(e => e.Kind).HasMaxLength(30).IsRequired();
+        builder.Property(e => e.Note).HasMaxLength(1000);
+        builder.Property(e => e.Status).HasMaxLength(20).IsRequired();
+        builder.HasIndex(e => new { e.Status, e.CreatedAt });
+    }
+}

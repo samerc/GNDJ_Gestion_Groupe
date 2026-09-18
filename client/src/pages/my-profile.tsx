@@ -269,7 +269,7 @@ export default function MyProfilePage() {
         <TabsContent value="contact" className="space-y-6">
           <HouseholdContacts memberId={memberId} selfService />
           <MemberGuardians memberId={memberId} selfService hideContacts />
-          <MemberSiblings memberId={memberId} />
+          <MemberSiblings memberId={memberId} canReport />
         </TabsContent>
 
         {/* A regular member can't edit their own assignments (leaders assign them); a leader

@@ -102,6 +102,35 @@ public class SiblingsController : BaseApiController
         return Ok(result.Value);
     }
 
+    // ── "Signaler une erreur" — member-filed fratrie error reports → CG worklist ──
+
+    public record ReportRequest(string Kind, string? Note);
+
+    /// <summary>A member reports a fratrie problem (missing sibling / wrong sibling / other). Auth-only (own member).</summary>
+    [HttpPost("report")]
+    public async Task<IActionResult> Report([FromBody] ReportRequest req)
+    {
+        var result = await Mediator.Send(new CreateSiblingReportCommand(req.Kind, req.Note));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    /// <summary>The fratrie error-report worklist. Requires maitrise.manage.</summary>
+    [HttpGet("reports")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> Reports([FromQuery] bool includeResolved = false)
+        => Ok(await Mediator.Send(new GetSiblingReportsQuery(includeResolved)));
+
+    /// <summary>Mark a fratrie report resolved (or reopen it). Requires maitrise.manage.</summary>
+    [HttpPost("reports/{id:guid}/resolve")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> ResolveReport(Guid id, [FromQuery] bool resolve = true)
+    {
+        var result = await Mediator.Send(new ResolveSiblingReportCommand(id, resolve));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     // ── Duplicate members ("Doublons" tab): same name + same DOB = likely the same person entered twice ──
 
     /// <summary>Suggested duplicate members. Match keys are configurable via `keys` (lastName,firstName,dob,gender,nationality,school; default = name+DOB). Requires maitrise.manage.</summary>

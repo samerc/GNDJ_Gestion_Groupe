@@ -5,6 +5,22 @@
     "changes": [
       {
         "date": "2026-09-18",
+        "text": "Fratries — signalements : dans la section « Frères et sœurs » de sa fiche (Ma fiche), un membre peut désormais « Signaler une erreur » (il manque un frère/sœur, une personne n'est pas de la famille, autre). Le signalement arrive au chef de groupe (notification + onglet « Signalements » sur la page Fratries) qui corrige puis marque comme résolu."
+      },
+      {
+        "date": "2026-09-18",
+        "text": "Fratries — adresses à vérifier : sur l'onglet « Fratries confirmées », un filtre « À vérifier — adresse » liste les familles dont la déclaration automatique n'a pas pu harmoniser l'adresse (orthographes différentes / deux domiciles). Un bouton « Vérifier l'adresse » ouvre la fenêtre habituelle pour choisir l'adresse de la famille ; ce choix retire la famille de la liste."
+      },
+      {
+        "date": "2026-09-18",
+        "text": "Fratries — inscriptions : lors du traitement des demandes, quand une famille a déclaré un frère/sœur déjà membre, ce lien est affiché au chef de groupe qui peut le « Retirer » s'il est erroné. À l'acceptation, la fratrie est désormais déclarée explicitement (les enfants apparaissent dans « Frères et sœurs »), pas seulement par parents partagés."
+      },
+      {
+        "date": "2026-09-18",
+        "text": "Fratries — foyer : quand on modifie l'adresse d'un membre lié à une fratrie confirmée, elle n'est plus recopiée sur les frères et sœurs si les parents sont séparés ou divorcés (ces familles ont deux domiciles et se gèrent à la main). La situation des parents, elle, reste toujours synchronisée."
+      },
+      {
+        "date": "2026-09-18",
         "text": "Comptes manquants : nouvelle page (menu Unités & maîtrise) pour créer un identifiant de connexion aux membres qui n'en ont pas encore. On choisit une portée (tous les membres actifs, ou une unité), on voit qui n'a pas de compte, et on crée les comptes un par un ou en bloc. Les membres avec un email reçoivent un lien d'activation ; pour les autres, un mot de passe temporaire s'affiche à l'écran (à communiquer à la main). L'action est aussi disponible directement dans « Envoyer les accès »."
       },
       {

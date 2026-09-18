@@ -40,6 +40,11 @@ public static class HouseholdSync
     {
         var ids = await SiblingIdsAsync(ctx, memberId, ct);
         if (ids.Count == 0) return;
+        // Separated / divorced households have TWO homes → never mirror one child's address onto the others
+        // (those are handled manually, per the CG's decision). Situation still syncs (PropagateParentsSituation);
+        // only the address unification is skipped when the family isn't a single united household.
+        var situation = await ctx.Members.Where(m => m.Id == memberId).Select(m => m.ParentsSituation).FirstOrDefaultAsync(ct);
+        if (IsSeparatedOrDivorced(situation)) return;
         var source = await ctx.MemberAddresses.Where(a => a.MemberId == memberId).ToListAsync(ct);
         // Never mirror an EMPTY source onto the siblings: that would wipe every sibling's address (e.g. a youth
         // removing their own last address via Ma fiche would silently clear the whole fratrie). We only propagate
@@ -114,6 +119,14 @@ public static class HouseholdSync
                 gd.IsDeceased = f.Dead;
             }
         }
+    }
+
+    // Parents' situation is "Séparés" / "Divorcés" (two homes) → skip household ADDRESS sync. Accent/case-insensitive.
+    private static bool IsSeparatedOrDivorced(string? situation)
+    {
+        if (string.IsNullOrWhiteSpace(situation)) return false;
+        var k = TextNormalization.RemoveDiacritics(situation).ToLowerInvariant();
+        return k.Contains("separ") || k.Contains("divorc");
     }
 
     // True when every sibling already holds exactly the source's addresses (so nothing needs mirroring).

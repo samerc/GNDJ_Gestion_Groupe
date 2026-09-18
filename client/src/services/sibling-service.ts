@@ -30,6 +30,10 @@ export interface SiblingSuggestionsResult {
 export interface SiblingGroup {
   groupId: string
   members: SiblingCandidateMember[]
+  // Flags a family the auto-declare backfill couldn't unify by address (different spellings / two homes) — the CG
+  // opens the reconcile wizard to pick the canonical address, which clears the flag. notes = CG-only auto note.
+  addressNeedsReview: boolean
+  notes: string | null
 }
 
 export interface MemberSibling {
@@ -105,6 +109,45 @@ export function useMemberSiblings(memberId: string | undefined) {
     queryKey: ['siblings', 'member', memberId],
     queryFn: () => apiClient.get<MemberSibling[]>(`/siblings/member/${memberId}`).then((r) => r.data),
     enabled: !!memberId,
+  })
+}
+
+// ── "Signaler une erreur" (fratrie error reports) ──
+// A member flags a fratrie problem from their fiche; the CG resolves it (worklist on the Fratries page).
+export interface SiblingReport {
+  id: string
+  reporterMemberId: string
+  reporterName: string
+  reporterUnit: string | null
+  kind: string // "missing" | "wrong" | "other"
+  note: string | null
+  status: string // "Pending" | "Resolved"
+  createdAt: string
+  resolvedAt: string | null
+}
+
+// POST /siblings/report → a member reports a fratrie problem (auth-only, own member server-side).
+export function useCreateSiblingReport() {
+  return useMutation({
+    mutationFn: (data: { kind: string; note?: string }) => apiClient.post('/siblings/report', data).then((r) => r.data),
+  })
+}
+
+// GET /siblings/reports → the CG worklist (pending, or including resolved).
+export function useSiblingReports(includeResolved = false) {
+  return useQuery({
+    queryKey: ['siblings', 'reports', includeResolved],
+    queryFn: () => apiClient.get<SiblingReport[]>('/siblings/reports', { params: { includeResolved } }).then((r) => r.data),
+  })
+}
+
+// POST /siblings/reports/{id}/resolve → mark a report resolved (or reopen it).
+export function useResolveSiblingReport() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, resolve = true }: { id: string; resolve?: boolean }) =>
+      apiClient.post(`/siblings/reports/${id}/resolve`, null, { params: { resolve } }).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['siblings', 'reports'] }),
   })
 }
 

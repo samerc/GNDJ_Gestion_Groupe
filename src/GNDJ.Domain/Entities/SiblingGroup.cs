@@ -27,3 +27,17 @@ public class SiblingRejection : BaseEntity
     public Guid MemberAId { get; set; }
     public Guid MemberBId { get; set; }
 }
+
+// A member-filed "Signaler une erreur" report about their fratrie (from the "Frères et sœurs" section of their
+// fiche / Ma fiche): a missing sibling, someone who isn't their sibling, or another problem. It's a WORKLIST for
+// the Chef de Groupe (who fixes it via Link/Unlink); members flag, the CG resolves. Kind = "missing" |
+// "wrong" | "other". Status = "Pending" | "Resolved".
+public class SiblingReport : BaseEntity
+{
+    public Guid ReporterMemberId { get; set; }
+    public string Kind { get; set; } = "other";
+    public string? Note { get; set; }
+    public string Status { get; set; } = "Pending";
+    public Guid? ResolvedByUserId { get; set; }
+    public DateTime? ResolvedAt { get; set; }
+}
