@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-18",
+        "text": "Photos : suppression des anciennes références photo héritées de l'ancien système (WEBDEV), qui ne correspondaient à aucune image dans la nouvelle application — les membres affichaient déjà leurs initiales. Les nouvelles photos seront prises cette année. (Nettoyage de données appliqué automatiquement.)"
+      },
+      {
+        "date": "2026-09-18",
         "text": "Fusion de doublons (membres) : on peut désormais choisir l'identifiant de connexion à conserver, et les PARENTS en double sont automatiquement fusionnés — deux fiches d'un même enfant contenaient chacune le père et la mère, ce qui donnait des parents en double après fusion ; ils sont maintenant regroupés (un seul père, une seule mère, en réunissant leurs coordonnées), y compris quand le nom du parent comporte une petite faute de frappe ou un accent différent."
       },
       {
