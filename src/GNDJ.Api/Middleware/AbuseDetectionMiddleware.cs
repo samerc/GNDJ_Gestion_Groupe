@@ -134,7 +134,12 @@ public partial class AbuseDetectionMiddleware
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var user = context.User.FindFirst("sub")?.Value
             ?? context.User.FindFirst("applicant_id")?.Value;
-        _logger.LogWarning(
+        // Honeypot trips are routine, high-volume bot noise (a hidden field only a bot fills) — log at
+        // Information so they stay in the file log for forensics but DON'T flood the Warning+ DB sink that
+        // feeds the "Journal des erreurs". Genuine attack signatures (script/SQLi/oversized) stay at Warning
+        // (rarer, higher-signal, worth surfacing).
+        var level = reason == "honeypot" ? LogLevel.Information : LogLevel.Warning;
+        _logger.Log(level,
             "Abuse pattern blocked: {Reason} on {Method} {Path} from IP {IP} user {User}",
             reason, context.Request.Method, context.Request.Path, ip, user ?? "anonymous");
 

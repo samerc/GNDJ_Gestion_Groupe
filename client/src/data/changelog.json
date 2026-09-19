@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Journal des erreurs — moins de bruit : les blocages « honeypot » (robots qui remplissent le champ piège caché des formulaires publics, ex. mot de passe oublié) ne sont plus enregistrés comme des erreurs. Le blocage fonctionne toujours ; il est simplement journalisé discrètement (fichier) au lieu d'inonder le Journal des erreurs. Les vraies signatures d'attaque (script / injection SQL) restent signalées."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Site public (mobile) — le menu (☰) propose maintenant directement « Demande d'inscription » (quand les inscriptions sont ouvertes) et « Espace membres », donc plus besoin de descendre jusqu'au pied de page ; sur une page de rubrique, le contenu s'affiche avant la liste des sous-pages ; sur la fiche d'une unité, les infos clés (âge, effectif, contacts de la maîtrise) passent au-dessus du texte de présentation ; les longs titres ne débordent plus ; les filtres (actualités/agenda/ressources) et les boutons de pagination sont plus faciles à toucher ; et les menus déroulants du site sont accessibles au clavier."
       },
       {
