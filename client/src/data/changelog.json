@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Mobile — notation du Camp BP : sur téléphone, la grille de notation (qui obligeait à faire défiler horizontalement en perdant de vue le nom du membre) devient une fiche par membre avec les champs empilés et étiquetés (Année, Force, candidat Père/Mère, « Ne vient pas », cas particulier) et des champs de saisie et cases à cocher plus grands. Le tableau est conservé sur ordinateur."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Mobile — validation des passages : sur téléphone, le tableau (qui défilait horizontalement) devient une liste de fiches par membre — unité actuelle → proposée (ou « Quitte le groupe »), équipe/fonction, notes du chef d'unité (affichées en entier), décision — avec des boutons Accepter / Rejeter / Modifier lisibles. Sur ordinateur, les notes du chef d'unité tronquées s'affichent désormais en entier au survol. Tableau conservé sur ordinateur."
       },
       {

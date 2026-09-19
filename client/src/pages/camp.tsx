@@ -139,7 +139,9 @@ export default function CampPage() {
       {isLoading ? <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div> :
        (grading ?? []).length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Aucun membre dans votre unité.</p> :
        (
-        <div className="overflow-x-auto rounded-lg border">
+        <>
+        {/* Desktop: dense grading table. Phones get a per-member card grid below (md:hidden). */}
+        <div className="hidden overflow-x-auto rounded-lg border md:block">
           <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-muted/50 text-xs text-muted-foreground">
               <tr>
@@ -184,6 +186,52 @@ export default function CampPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile: one card per member with stacked, labelled fields — the wide grading table forced
+            constant horizontal scrolling (and lost the name column) on a phone. */}
+        <div className="divide-y rounded-lg border md:hidden">
+          {visible.map(g => {
+            const r = rows[g.memberId] ?? { attending: g.isAttending, force: g.force, annee: g.annee, isLeaderCandidate: g.isLeaderCandidate, notes: g.notes ?? '' }
+            const absent = !r.attending
+            return (
+              <div key={g.memberId} className={`p-3 ${absent ? 'bg-muted/30' : ''}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className={`font-medium ${absent ? 'text-muted-foreground' : ''}`}>{g.firstName} {g.lastName}</div>
+                    <div className="text-xs text-muted-foreground">{g.teamName ?? '—'}</div>
+                  </div>
+                  <label className="flex shrink-0 items-center gap-2 text-xs">
+                    <input type="checkbox" className="h-5 w-5 accent-orange-500" checked={absent}
+                      onChange={e => set(g.memberId, { attending: !e.target.checked })} />
+                    Ne vient pas
+                  </label>
+                </div>
+                {!absent && (
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <label className="space-y-1 text-xs font-medium text-muted-foreground">Année
+                      <Input type="number" min={1} max={10} value={r.annee ?? ''} onChange={e => set(g.memberId, { annee: e.target.value ? Number(e.target.value) : null })} className="h-10" />
+                    </label>
+                    <label className="space-y-1 text-xs font-medium text-muted-foreground">Force /5
+                      <Select value={r.force?.toString() ?? ''} onValueChange={v => set(g.memberId, { force: v ? Number(v) : null })}>
+                        <SelectTrigger className="h-10"><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectContent>{[1, 2, 3, 4, 5].map(n => <SelectItem key={n} value={n.toString()}>{n}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </label>
+                    <label className="col-span-2 flex items-center gap-2 text-sm">
+                      <input type="checkbox" className="h-5 w-5 accent-primary" checked={r.isLeaderCandidate}
+                        onChange={e => set(g.memberId, { isLeaderCandidate: e.target.checked })} />
+                      Candidat Père / Mère
+                    </label>
+                    <label className="col-span-2 space-y-1 text-xs font-medium text-muted-foreground">Cas particulier
+                      <Input value={r.notes} onChange={e => set(g.memberId, { notes: e.target.value })} className="h-10" placeholder="—" />
+                    </label>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        </>
       )}
     </div>
   )
