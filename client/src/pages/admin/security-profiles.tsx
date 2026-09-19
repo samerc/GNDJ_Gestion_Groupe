@@ -389,7 +389,7 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
           </div>
           {canManage && tab === 'perms' && (
             <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
-              {saved && <span className="text-sm text-green-600">Enregistré</span>}
+              {saved && <span className="text-sm text-green-600 dark:text-green-400">Enregistré</span>}
               {hasChanges && (
                 <>
                   <Button variant="outline" size="sm" onClick={handleReset}>Annuler</Button>

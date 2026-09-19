@@ -15,6 +15,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -23,6 +24,7 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-hover: var(--destructive-hover);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -55,6 +57,8 @@
   --popover-foreground: oklch(0.18 0.04 245);
   --primary: oklch(0.40 0.14 250);
   --primary-foreground: oklch(0.99 0 0);
+  /* Hover fill for solid primary buttons — DARKER than primary in the light theme (visible over a light page). */
+  --primary-hover: oklch(0.33 0.15 250);
   --secondary: oklch(1 0 0);
   --secondary-foreground: oklch(0.30 0.10 250);
   --muted: oklch(0.92 0.012 240);
@@ -63,6 +67,7 @@
   --accent-foreground: oklch(0.99 0 0);
   --destructive: oklch(0.577 0.245 27);
   --destructive-foreground: oklch(0.985 0 0);
+  --destructive-hover: oklch(0.50 0.235 27);
   --border: oklch(0.87 0.018 240);
   --input: oklch(0.89 0.015 240);
   --ring: oklch(0.40 0.14 250);
@@ -86,6 +91,9 @@
   --popover-foreground: oklch(0.92 0.01 240);
   --primary: oklch(0.55 0.15 250);
   --primary-foreground: oklch(0.99 0 0);
+  /* Hover fill for solid primary buttons — LIGHTER than primary in dark mode (a clear change over a dark page,
+     unlike the old `bg-primary/90` opacity trick which was nearly invisible against the dark background). */
+  --primary-hover: oklch(0.64 0.16 250);
   --secondary: oklch(0.25 0.06 245);
   --secondary-foreground: oklch(0.90 0.01 240);
   --muted: oklch(0.25 0.05 245);
@@ -94,6 +102,7 @@
   --accent-foreground: oklch(0.99 0 0);
   --destructive: oklch(0.577 0.245 27);
   --destructive-foreground: oklch(0.985 0 0);
+  --destructive-hover: oklch(0.66 0.22 27);
   --border: oklch(0.28 0.05 245);
   --input: oklch(0.28 0.05 245);
   --ring: oklch(0.55 0.15 250);

@@ -146,7 +146,7 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
         type="button"
         onClick={() => fileInputRef.current?.click()}
         disabled={loading}
-        className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
+        className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover transition-colors"
         style={{ width: size * 0.35, height: size * 0.35, minWidth: 20, minHeight: 20 }}
         title="Modifier la photo"
       >
@@ -159,7 +159,7 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
           type="button"
           onClick={handlePhotoDelete}
           disabled={loading}
-          className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full bg-destructive text-white shadow-sm hover:bg-destructive/90 transition-colors"
+          className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full bg-destructive text-white shadow-sm hover:bg-destructive-hover transition-colors"
           style={{ width: size * 0.35, height: size * 0.35, minWidth: 20, minHeight: 20 }}
           title="Supprimer la photo"
         >

@@ -112,7 +112,7 @@ export default function MissingLoginsPage({ embedded = false }: { embedded?: boo
                     <td className="p-2">
                       {m.hasEmail
                         ? <span className="inline-flex items-center gap-1 text-muted-foreground"><Mail className="h-3.5 w-3.5" />{m.contactEmail}</span>
-                        : <span className="inline-flex items-center gap-1 text-amber-600"><AlertTriangle className="h-3.5 w-3.5" />aucun (mot de passe à l'écran)</span>}
+                        : <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3.5 w-3.5" />aucun (mot de passe à l'écran)</span>}
                     </td>
                     <td className="p-2 text-right">
                       <Button size="sm" variant="outline" onClick={() => createFor(m)} disabled={busyId === m.memberId || createAll.isPending}>

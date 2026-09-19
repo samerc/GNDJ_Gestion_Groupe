@@ -224,7 +224,7 @@ function FamillesTab({ campId }: { campId: string }) {
                     <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
                       <span className={cn('block h-full rounded-full', low ? 'bg-blue-500' : high ? 'bg-amber-500' : 'bg-primary/60')} style={{ width: `${Math.max(6, pct)}%` }} />
                     </span>
-                    <span className={cn('w-8 shrink-0 text-right text-sm font-medium tabular-nums', low && 'text-blue-600', high && 'text-amber-600')}>{f.avgNote}</span>
+                    <span className={cn('w-8 shrink-0 text-right text-sm font-medium tabular-nums', low && 'text-blue-600 dark:text-blue-400', high && 'text-amber-600 dark:text-amber-400')}>{f.avgNote}</span>
                   </span>
                 </button>
               )

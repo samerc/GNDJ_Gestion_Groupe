@@ -139,7 +139,7 @@ export default function RentreeTemplatePage() {
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{t.assigneeType === 'members' ? (t.assigneeMemberNames.join(', ') || 'Membres') : ROLE_LABEL(t.assigneeRole)}{t.fanOutPerUnit && ' · par unité'}</span>
                     {(t.defaultDeadlineLabel || t.deadlineAnchor) && <span className="inline-flex items-center gap-1"><CalendarClock className="h-3 w-3" />{t.deadlineAnchor ? anchorLabel(t.deadlineAnchor) : t.defaultDeadlineLabel}</span>}
-                    {getRentreeProgress(t.progressKey) && <span className="inline-flex items-center gap-1 text-emerald-600"><Activity className="h-3 w-3" />{getRentreeProgress(t.progressKey)!.label}</span>}
+                    {getRentreeProgress(t.progressKey) && <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><Activity className="h-3 w-3" />{getRentreeProgress(t.progressKey)!.label}</span>}
                     {getRentreeAction(t.actionKey) && <span className="inline-flex items-center gap-1 text-primary"><Zap className="h-3 w-3" />{getRentreeAction(t.actionKey)!.label}</span>}
                     {t.dependsOnTemplateIds.length > 0 && <span className="inline-flex items-center gap-1"><Link2 className="h-3 w-3" />{t.dependsOnTemplateIds.length} préalable(s)</span>}
                   </div>

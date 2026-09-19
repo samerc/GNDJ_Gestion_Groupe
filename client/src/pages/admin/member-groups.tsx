@@ -343,7 +343,7 @@ function MemberPane({ group, members, unitId, unitName, grouped }: {
       <div className="min-w-0">
         <p className="truncate font-medium">{m.lastName} {m.firstName}</p>
         <p className="truncate text-xs text-muted-foreground">
-          {m.email ?? <span className="text-amber-600">Aucun email</span>}{m.phone ? ` · ${m.phone}` : ''}
+          {m.email ?? <span className="text-amber-600 dark:text-amber-400">Aucun email</span>}{m.phone ? ` · ${m.phone}` : ''}
         </p>
       </div>
       <span className="shrink-0 text-xs text-muted-foreground">{m.roleName}{m.teamName ? ` · ${m.teamName}` : ''}</span>

@@ -92,7 +92,7 @@ export function PassageProjection({ scoutYear }: { scoutYear: string }) {
                     <div className="text-sm text-muted-foreground">
                       <span className="font-medium text-foreground">{totals.now}</span> membres actuels ·
                       {' '}<span className="font-medium text-foreground">{totals.next}</span> l'an prochain
-                      {totals.leaving > 0 && <> · <span className="font-medium text-orange-600">{totals.leaving}</span> quittent</>}
+                      {totals.leaving > 0 && <> · <span className="font-medium text-orange-600 dark:text-orange-400">{totals.leaving}</span> quittent</>}
                     </div>
                   )}
                 </div>
@@ -105,7 +105,7 @@ export function PassageProjection({ scoutYear }: { scoutYear: string }) {
                     </p>
                   )}
                   {data.missingLines > 0 && (
-                    <p className="flex items-start gap-1.5 text-xs text-amber-700">
+                    <p className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
                       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                       {data.missingLines} membre(s) sans proposition de passage — supposés rester dans leur unité.
                     </p>
@@ -141,10 +141,10 @@ export function PassageProjection({ scoutYear }: { scoutYear: string }) {
                               </span>
                             </td>
                             <td className="px-3 py-2 text-center text-muted-foreground">{r.currentCount}</td>
-                            <td className="px-3 py-2 text-center">{r.arrivals.length > 0 ? <span className="text-green-700">+{r.arrivals.length}</span> : <span className="text-muted-foreground">—</span>}</td>
-                            <td className="px-3 py-2 text-center">{departures > 0 ? <span className="text-orange-600">−{departures}</span> : <span className="text-muted-foreground">—</span>}</td>
+                            <td className="px-3 py-2 text-center">{r.arrivals.length > 0 ? <span className="text-green-700 dark:text-green-400">+{r.arrivals.length}</span> : <span className="text-muted-foreground">—</span>}</td>
+                            <td className="px-3 py-2 text-center">{departures > 0 ? <span className="text-orange-600 dark:text-orange-400">−{departures}</span> : <span className="text-muted-foreground">—</span>}</td>
                             <td className="px-3 py-2 text-center">
-                              <span className={`font-semibold ${r.overQuota ? 'text-red-600' : ''}`}>{r.projected}</span>
+                              <span className={`font-semibold ${r.overQuota ? 'text-red-600 dark:text-red-400' : ''}`}>{r.projected}</span>
                             </td>
                             <td className="px-3 py-2 text-right">
                               {r.u.quota != null
@@ -184,7 +184,7 @@ export function PassageProjection({ scoutYear }: { scoutYear: string }) {
 
 // One coloured column of member names in the expanded unit detail.
 function MemberList({ title, tone, items }: { title: string; tone: 'slate' | 'green' | 'orange'; items: string[] }) {
-  const head = tone === 'green' ? 'text-green-700' : tone === 'orange' ? 'text-orange-600' : 'text-muted-foreground'
+  const head = tone === 'green' ? 'text-green-700 dark:text-green-400' : tone === 'orange' ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground'
   return (
     <div>
       <div className={`mb-1 text-xs font-semibold ${head}`}>{title} — {items.length}</div>

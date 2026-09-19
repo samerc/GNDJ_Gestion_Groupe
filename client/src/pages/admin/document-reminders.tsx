@@ -114,7 +114,7 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
                 <span className="text-sm text-muted-foreground">
                   {selectedUnit.incompleteCount} incomplet{selectedUnit.incompleteCount > 1 ? 's' : ''}
                   {selectedUnit.withEmailCount < selectedUnit.incompleteCount && (
-                    <span className="text-amber-600"> · {selectedUnit.incompleteCount - selectedUnit.withEmailCount} sans email</span>
+                    <span className="text-amber-600 dark:text-amber-400"> · {selectedUnit.incompleteCount - selectedUnit.withEmailCount} sans email</span>
                   )}
                 </span>
                 <Button
@@ -176,7 +176,7 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
                         </div>
                       </td>
                       <td className="p-2 text-muted-foreground">
-                        {c.contactEmail ?? <span className="inline-flex items-center gap-1 text-amber-600"><AlertTriangle className="h-3.5 w-3.5" />aucun</span>}
+                        {c.contactEmail ?? <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3.5 w-3.5" />aucun</span>}
                       </td>
                       <td className="p-2 text-right">
                         <Button size="sm" variant="outline" disabled={!c.hasEmail || send.isPending} onClick={() => sendMember(c.memberId)}>
@@ -214,7 +214,7 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
                     })}
                   </div>
                   <div className="mt-1.5 text-xs text-muted-foreground">
-                    {c.contactEmail ?? <span className="inline-flex items-center gap-1 text-amber-600"><AlertTriangle className="h-3.5 w-3.5" />aucun email</span>}
+                    {c.contactEmail ?? <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3.5 w-3.5" />aucun email</span>}
                   </div>
                 </div>
               ))}
@@ -227,9 +227,9 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
         <Card>
           <CardContent className="space-y-1 pt-4 text-sm">
             <p className="font-medium">Dernier envoi</p>
-            <p className="text-green-600">{result.sent} relance(s) envoyée(s)</p>
+            <p className="text-green-600 dark:text-green-400">{result.sent} relance(s) envoyée(s)</p>
             {result.compliant > 0 && <p className="text-muted-foreground">{result.compliant} ignoré(s) (dossier déjà complet)</p>}
-            {result.noEmail > 0 && <p className="text-amber-600">{result.noEmail} sans email de contact</p>}
+            {result.noEmail > 0 && <p className="text-amber-600 dark:text-amber-400">{result.noEmail} sans email de contact</p>}
           </CardContent>
         </Card>
       )}

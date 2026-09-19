@@ -1290,7 +1290,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
               <label className="flex items-center gap-2 text-sm font-medium">
                 Unité d'affectation (si accepté)
                 {suggested && unit === suggested.unitId && !d.decidedUnitId && <span className="inline-flex items-center gap-0.5 text-xs font-normal text-primary"><Sparkles className="h-3 w-3" />suggérée</span>}
-                {d.decidedUnitId && !unitDirty && <span className="text-xs font-normal text-emerald-600">· enregistrée</span>}
+                {d.decidedUnitId && !unitDirty && <span className="text-xs font-normal text-emerald-600 dark:text-emerald-400">· enregistrée</span>}
               </label>
               {/* The suggested unit lives here (in the demande), not as a chip in the table — one click to apply it. */}
               {suggested && unit !== suggested.unitId && (

@@ -86,7 +86,7 @@ function SessionTable({
                     <tr key={s.id} className={`border-b align-middle ${i % 2 === 1 ? 'bg-muted/10' : ''}`}>
                       <td className="px-3 py-2">
                         {s.isOnline ? (
-                          <span className="inline-flex items-center gap-1.5 text-emerald-600">
+                          <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                             <span className="h-2 w-2 rounded-full bg-emerald-500" />En ligne
                           </span>
                         ) : (

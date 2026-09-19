@@ -42,7 +42,7 @@ export function SuperAdminsSection() {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Crown className="h-4 w-4 text-amber-600" />Super administrateurs
+            <Crown className="h-4 w-4 text-amber-600 dark:text-amber-400" />Super administrateurs
           </CardTitle>
           <Button size="sm" onClick={() => setPickerOpen(true)}>
             <UserPlus className="mr-1 h-4 w-4" />Ajouter

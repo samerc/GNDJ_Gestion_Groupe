@@ -126,14 +126,14 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">{status.enabled ? phaseLabel : 'Campagne inactive'}</span>
-            {status.enabled && status.uploadOpen && <span className="flex items-center gap-1 text-sm text-emerald-600"><CheckCircle2 className="h-4 w-4" />Dépôt ouvert</span>}
-            {status.enabled && !status.uploadOpen && status.phase !== 'Inactive' && <span className="flex items-center gap-1 text-sm text-amber-600"><Clock className="h-4 w-4" />Dépôt fermé</span>}
+            {status.enabled && status.uploadOpen && <span className="flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" />Dépôt ouvert</span>}
+            {status.enabled && !status.uploadOpen && status.phase !== 'Inactive' && <span className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400"><Clock className="h-4 w-4" />Dépôt fermé</span>}
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="À vérifier (en attente)" value={data.pendingReviewCount} tone={data.pendingReviewCount > 0 ? 'text-amber-600' : 'text-emerald-600'} />
-            <Stat label="Dossiers incomplets" value={data.incompleteCount} tone={data.incompleteCount > 0 ? 'text-red-600' : 'text-emerald-600'} />
-            <Stat label="Membres en attente" value={data.onHoldCount} tone={data.onHoldCount > 0 ? 'text-red-600' : ''} />
-            <Stat label="Vérification" value={data.verificationDone ? 'Terminée' : 'En cours'} tone={data.verificationDone ? 'text-emerald-600 text-lg' : 'text-amber-600 text-lg'} />
+            <Stat label="À vérifier (en attente)" value={data.pendingReviewCount} tone={data.pendingReviewCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'} />
+            <Stat label="Dossiers incomplets" value={data.incompleteCount} tone={data.incompleteCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'} />
+            <Stat label="Membres en attente" value={data.onHoldCount} tone={data.onHoldCount > 0 ? 'text-red-600 dark:text-red-400' : ''} />
+            <Stat label="Vérification" value={data.verificationDone ? 'Terminée' : 'En cours'} tone={data.verificationDone ? 'text-emerald-600 dark:text-emerald-400 text-lg' : 'text-amber-600 dark:text-amber-400 text-lg'} />
           </div>
 
           {/* Manual steps */}
@@ -146,7 +146,7 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
             </Button>
           </div>
           {!data.verificationDone && (
-            <p className="text-xs text-amber-600">
+            <p className="text-xs text-amber-600 dark:text-amber-400">
               La vérification n'est pas terminée ({data.pendingReviewCount} document(s) encore en attente de revue). L'étape automatique attend que toutes les unités aient terminé ; vous pouvez néanmoins lancer une étape manuellement.
             </p>
           )}
@@ -209,9 +209,9 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
                     <tr key={u.unitId} className={`border-b ${i % 2 ? 'bg-muted/10' : ''}`}>
                       <td className="px-3 py-2 font-medium">{u.unitName}</td>
                       <td className="px-3 py-2 text-center">
-                        {u.pendingCount > 0 ? <span className="font-semibold text-amber-600">{u.pendingCount}</span> : <span className="text-emerald-600">✓</span>}
+                        {u.pendingCount > 0 ? <span className="font-semibold text-amber-600 dark:text-amber-400">{u.pendingCount}</span> : <span className="text-emerald-600 dark:text-emerald-400">✓</span>}
                       </td>
-                      <td className="px-3 py-2 text-center">{u.incompleteCount > 0 ? <span className="text-red-600">{u.incompleteCount}</span> : <span className="text-muted-foreground">—</span>}</td>
+                      <td className="px-3 py-2 text-center">{u.incompleteCount > 0 ? <span className="text-red-600 dark:text-red-400">{u.incompleteCount}</span> : <span className="text-muted-foreground">—</span>}</td>
                     </tr>
                   ))}
                 </tbody>

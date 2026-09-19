@@ -184,15 +184,15 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
                       </td>
                       <td className="p-2 font-medium">{c.memberName}</td>
                       <td className="p-2 text-muted-foreground">{c.username ?? '—'}</td>
-                      <td className="p-2 text-muted-foreground">{c.contactEmail ?? <span className="text-amber-600">aucun</span>}</td>
+                      <td className="p-2 text-muted-foreground">{c.contactEmail ?? <span className="text-amber-600 dark:text-amber-400">aucun</span>}</td>
                       <td className="p-2 text-muted-foreground">{c.lastLoginAt ? formatDateLong(c.lastLoginAt) : <span className="text-muted-foreground/70">jamais</span>}</td>
                       <td className="p-2">
                         {!c.hasAccount ? (
-                          <span className="inline-flex items-center gap-1 text-amber-600"><AlertTriangle className="h-3.5 w-3.5" />Pas de compte</span>
+                          <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3.5 w-3.5" />Pas de compte</span>
                         ) : !c.hasEmail ? (
-                          <span className="inline-flex items-center gap-1 text-amber-600"><AlertTriangle className="h-3.5 w-3.5" />Pas d'email</span>
+                          <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3.5 w-3.5" />Pas d'email</span>
                         ) : c.lastLoginAt ? (
-                          <span className="inline-flex items-center gap-1 text-green-600"><CheckCircle2 className="h-3.5 w-3.5" />Déjà connecté</span>
+                          <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400"><CheckCircle2 className="h-3.5 w-3.5" />Déjà connecté</span>
                         ) : (
                           <span className="text-muted-foreground">Prêt</span>
                         )}
@@ -215,14 +215,14 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">{c.memberName}</div>
                     <div className="truncate text-xs text-muted-foreground">{c.username ?? '—'}</div>
-                    <div className="truncate text-xs text-muted-foreground">{c.contactEmail ?? <span className="text-amber-600">aucun email</span>}</div>
+                    <div className="truncate text-xs text-muted-foreground">{c.contactEmail ?? <span className="text-amber-600 dark:text-amber-400">aucun email</span>}</div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
                       {!c.hasAccount ? (
-                        <span className="inline-flex items-center gap-1 text-amber-600"><AlertTriangle className="h-3.5 w-3.5" />Pas de compte</span>
+                        <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3.5 w-3.5" />Pas de compte</span>
                       ) : !c.hasEmail ? (
-                        <span className="inline-flex items-center gap-1 text-amber-600"><AlertTriangle className="h-3.5 w-3.5" />Pas d'email</span>
+                        <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3.5 w-3.5" />Pas d'email</span>
                       ) : c.lastLoginAt ? (
-                        <span className="inline-flex items-center gap-1 text-green-600"><CheckCircle2 className="h-3.5 w-3.5" />Déjà connecté</span>
+                        <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400"><CheckCircle2 className="h-3.5 w-3.5" />Déjà connecté</span>
                       ) : (
                         <span className="text-muted-foreground">Prêt</span>
                       )}
@@ -269,10 +269,10 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
         <Card>
           <CardContent className="space-y-1 pt-4 text-sm">
             <p className="font-medium">Dernier envoi</p>
-            <p className="text-green-600">{result.sent} accès envoyé(s)</p>
+            <p className="text-green-600 dark:text-green-400">{result.sent} accès envoyé(s)</p>
             {result.skipped > 0 && <p className="text-muted-foreground">{result.skipped} ignoré(s) (déjà connectés)</p>}
-            {result.noEmail > 0 && <p className="text-amber-600">{result.noEmail} sans email de contact</p>}
-            {result.noAccount > 0 && <p className="text-amber-600">{result.noAccount} sans compte utilisateur</p>}
+            {result.noEmail > 0 && <p className="text-amber-600 dark:text-amber-400">{result.noEmail} sans email de contact</p>}
+            {result.noAccount > 0 && <p className="text-amber-600 dark:text-amber-400">{result.noAccount} sans compte utilisateur</p>}
           </CardContent>
         </Card>
       )}

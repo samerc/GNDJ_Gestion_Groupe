@@ -188,7 +188,7 @@ function SuggestionRow({ suggestion, onReview, onReject }: { suggestion: Sibling
                   </span>
                   <span className="font-medium">{m.firstName} {m.lastName}</span>
                   <span className="text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}{age != null ? ` · ${age} ans` : ''}</span>
-                  {m.siblingGroupId && <span className="text-xs text-emerald-600">(déjà en fratrie)</span>}
+                  {m.siblingGroupId && <span className="text-xs text-emerald-600 dark:text-emerald-400">(déjà en fratrie)</span>}
                 </span>
               )
             })}
@@ -379,7 +379,7 @@ function DuplicatesTab() {
           </label>
         ))}
       </div>
-      {keys.length === 0 && <p className="mt-1.5 text-xs text-amber-600">Cochez au moins un critère (sinon les critères par défaut nom + prénom + date de naissance sont utilisés).</p>}
+      {keys.length === 0 && <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">Cochez au moins un critère (sinon les critères par défaut nom + prénom + date de naissance sont utilisés).</p>}
     </div>
   )
 
