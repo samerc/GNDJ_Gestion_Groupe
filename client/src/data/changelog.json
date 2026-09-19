@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Site public (mobile) — le menu (☰) propose maintenant directement « Demande d'inscription » (quand les inscriptions sont ouvertes) et « Espace membres », donc plus besoin de descendre jusqu'au pied de page ; sur une page de rubrique, le contenu s'affiche avant la liste des sous-pages ; sur la fiche d'une unité, les infos clés (âge, effectif, contacts de la maîtrise) passent au-dessus du texte de présentation ; les longs titres ne débordent plus ; les filtres (actualités/agenda/ressources) et les boutons de pagination sont plus faciles à toucher ; et les menus déroulants du site sont accessibles au clavier."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Inscription (mobile) — assistant plus clair : l'assistant d'inscription indique maintenant « Étape N sur 4 » avec une barre de progression et une coche sur les étapes terminées, les onglets d'étape sont plus faciles à toucher, le bouton « Retour » enregistre un brouillon avant de quitter (fini la perte d'une demande commencée), le bouton final affiche « Soumission… » pendant l'envoi, le récapitulatif propose un bouton « Modifier » par section pour corriger directement, et la zone de notes n'agrandit plus l'écran à la saisie sur iPhone."
       },
       {

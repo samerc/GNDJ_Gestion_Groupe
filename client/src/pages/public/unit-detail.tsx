@@ -156,8 +156,9 @@ export default function PublicUnitDetailPage() {
             )}
           </div>
 
-          {/* Sidebar */}
-          <aside className="space-y-8">
+          {/* Sidebar — on mobile it comes FIRST (order-first) so the key facts (âge, effectif, how to reach the
+              maîtrise) sit above the long presentation text; back to the right column on desktop. */}
+          <aside className="order-first space-y-8 lg:order-none">
             <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">En bref</h3>
               <dl className="mt-4 space-y-3 text-sm">

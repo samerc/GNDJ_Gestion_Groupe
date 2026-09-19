@@ -121,7 +121,7 @@ export function PublicLayout() {
                   <button className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground hover:bg-accent/10">
                     {p.title} <ChevronDown className="h-3.5 w-3.5" />
                   </button>
-                  <div className="invisible absolute left-0 top-full z-50 min-w-48 rounded-xl border border-border bg-card p-1.5 opacity-0 shadow-elevated transition-all group-hover:visible group-hover:opacity-100">
+                  <div className="invisible absolute left-0 top-full z-50 min-w-48 rounded-xl border border-border bg-card p-1.5 opacity-0 shadow-elevated transition-all group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
                     <Link to={`/p/${p.slug}`} className="block rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent/10">{p.title}</Link>
                     <div className="my-1 border-t border-border" />
                     {p.children.map((c) => (
@@ -138,7 +138,7 @@ export function PublicLayout() {
                 <button className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground hover:bg-accent/10">
                   Plus <ChevronDown className="h-3.5 w-3.5" />
                 </button>
-                <div className="invisible absolute right-0 top-full z-50 max-h-[70vh] min-w-56 overflow-y-auto rounded-xl border border-border bg-card p-1.5 opacity-0 shadow-elevated transition-all group-hover:visible group-hover:opacity-100">
+                <div className="invisible absolute right-0 top-full z-50 max-h-[70vh] min-w-56 overflow-y-auto rounded-xl border border-border bg-card p-1.5 opacity-0 shadow-elevated transition-all group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
                   {overflowPages.map((p) => (
                     <div key={p.slug}>
                       <Link to={`/p/${p.slug}`} className="block rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent/10">{p.title}</Link>
@@ -156,7 +156,7 @@ export function PublicLayout() {
                   <button className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground hover:bg-accent/10">
                     {item.label} <ChevronDown className="h-3.5 w-3.5" />
                   </button>
-                  <div className="invisible absolute left-0 top-full z-50 min-w-44 rounded-xl border border-border bg-card p-1.5 opacity-0 shadow-elevated transition-all group-hover:visible group-hover:opacity-100">
+                  <div className="invisible absolute left-0 top-full z-50 min-w-44 rounded-xl border border-border bg-card p-1.5 opacity-0 shadow-elevated transition-all group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
                     {item.children.map((c) => (
                       <NavLink key={c.to} to={c.to} className={({ isActive }) => cn('block rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent/10', isActive ? 'text-primary' : 'text-foreground/80')}>{c.label}</NavLink>
                     ))}
@@ -196,7 +196,17 @@ export function PublicLayout() {
                 <NavLink key={item.to} to={item.to} onClick={() => setMobileOpen(false)}
                   className={({ isActive }) => cn('rounded-lg px-3 py-2.5 text-base font-medium', isActive ? 'bg-accent/10 text-primary' : 'text-foreground/80 hover:bg-accent/10')}>{item.label}</NavLink>
               ))}
-              {/* Espace membres / Demande d'inscription live in the hero + footer, not the menu. */}
+              {/* Membership actions — surfaced in the mobile menu so a parent who lands on a shared article/agenda
+                  link can enroll or sign in without scrolling all the way to the footer (they're in the hero +
+                  footer on desktop). The join CTA shows only while inscriptions are open. */}
+              <div className="mt-2 space-y-2 border-t border-border pt-3">
+                {inscriptionsOpen && (
+                  <Link to="/inscription" onClick={() => setMobileOpen(false)}
+                    className="block rounded-lg bg-primary px-3 py-2.5 text-center text-base font-semibold text-primary-foreground">Demande d'inscription</Link>
+                )}
+                <Link to="/login" onClick={() => setMobileOpen(false)}
+                  className="block rounded-lg border border-border px-3 py-2.5 text-center text-base font-medium text-foreground/80 hover:bg-accent/10">Espace membres</Link>
+              </div>
             </nav>
           </div>
         )}

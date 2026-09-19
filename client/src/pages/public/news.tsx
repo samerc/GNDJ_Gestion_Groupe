@@ -75,7 +75,7 @@ export default function PublicNewsPage() {
 
   const chip = (label: string, f: NewsFilter) => (
     <button key={label} onClick={() => applyFilter(f)}
-      className={cn('rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
+      className={cn('rounded-full border min-h-9 px-3.5 py-2 text-sm font-medium transition-colors',
         isActive(f) ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-foreground/70 hover:bg-accent/10')}>
       {label}
     </button>
@@ -124,10 +124,10 @@ export default function PublicNewsPage() {
             {data && data.totalPages > 1 && (
               <div className="mt-10 flex items-center justify-center gap-3">
                 <button disabled={!data.hasPreviousPage} onClick={() => setPage((p) => p - 1)}
-                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium disabled:opacity-40">Précédent</button>
+                  className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium min-h-11 disabled:opacity-40">Précédent</button>
                 <span className="text-sm text-muted-foreground">Page {data.page} / {data.totalPages}</span>
                 <button disabled={!data.hasNextPage} onClick={() => setPage((p) => p + 1)}
-                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium disabled:opacity-40">Suivant</button>
+                  className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium min-h-11 disabled:opacity-40">Suivant</button>
               </div>
             )}
           </>

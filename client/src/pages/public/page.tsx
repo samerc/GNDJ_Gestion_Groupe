@@ -33,7 +33,9 @@ export default function PublicStandalonePage() {
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <div className={cn('grid gap-10', hasSideNav && 'lg:grid-cols-4')}>
           {hasSideNav && (
-            <aside className="lg:col-span-1">
+            // order-last on mobile so the page CONTENT comes first (the section's sibling-page list is a long
+            // block that otherwise pushed the actual page below the fold); back to the left column on desktop.
+            <aside className="order-last lg:order-none lg:col-span-1">
               <nav className="flex flex-col gap-1 lg:sticky lg:top-24">
                 <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{section!.title}</p>
                 <Link to={`/p/${section!.slug}`} className={cn('rounded-lg px-3 py-2 text-sm font-medium transition-colors', section!.slug === slug ? 'bg-accent/10 text-primary' : 'text-foreground/70 hover:bg-accent/5 hover:text-foreground')}>{section!.title}</Link>
@@ -43,7 +45,7 @@ export default function PublicStandalonePage() {
               </nav>
             </aside>
           )}
-          <div className={cn(hasSideNav && 'lg:col-span-3')}>
+          <div className={cn(hasSideNav ? 'lg:col-span-3' : 'mx-auto w-full max-w-3xl')}>
             {/* CMS body — author HTML, sanitized by RichContent (DOMPurify) before render */}
             <RichContent html={page.bodyHtml} />
           </div>
