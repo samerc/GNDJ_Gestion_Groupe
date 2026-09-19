@@ -50,9 +50,12 @@ public static class EntreeStageResolver
 
         // Active entrée stages for those type codes (exact name). Re-filter by code+name in memory so a name
         // can only satisfy its own code.
+        // s.UnitType is nullable (a stage can be global), but EF LEFT-JOINs it — a global stage's code is NULL and
+        // codes.Contains(NULL) is false, so globals are excluded (entrée stages are always per-branch). The `!`
+        // just silences the C# nullable warning; it's erased at compile time and doesn't change the translation.
         var stages = await context.ScoutStages
-            .Where(s => s.IsActive && codes.Contains(s.UnitType.Code) && wantedNames.Contains(s.Name))
-            .Select(s => new { Code = s.UnitType.Code, s.Name, s.Id })
+            .Where(s => s.IsActive && codes.Contains(s.UnitType!.Code) && wantedNames.Contains(s.Name))
+            .Select(s => new { Code = s.UnitType!.Code, s.Name, s.Id })
             .ToListAsync(ct);
 
         var stageByCode = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);

@@ -93,8 +93,10 @@ public class GetPassagesByUnitQueryHandler(IApplicationDbContext context, ICurre
                 p.Member.FirstName + " " + p.Member.LastName,
                 p.Member.CardNumber,
                 p.Member.DateOfBirth,
-                // age = year diff, minus 1 if this year's birthday hasn't occurred yet
-                p.Member.DateOfBirth != null ? today.Year - p.Member.DateOfBirth.Value.Year - (today < new DateOnly(today.Year, p.Member.DateOfBirth.Value.Month, p.Member.DateOfBirth.Value.Day) ? 1 : 0) : null,
+                // age = year diff, minus 1 if this year's birthday hasn't occurred yet. Compare month/day directly
+                // (NOT via new DateOnly(today.Year, …)) so a 29 Feb birthday doesn't build an invalid date in a
+                // non-leap year — make_date(2026, 2, 29) throws 22008 in Postgres and crashes the whole query.
+                p.Member.DateOfBirth != null ? today.Year - p.Member.DateOfBirth.Value.Year - ((today.Month < p.Member.DateOfBirth.Value.Month || (today.Month == p.Member.DateOfBirth.Value.Month && today.Day < p.Member.DateOfBirth.Value.Day)) ? 1 : 0) : null,
                 p.CurrentUnitId, p.CurrentUnit.Code, p.CurrentUnit.Name,
                 p.CurrentTeamId != null ? context.Teams.Where(t => t.Id == p.CurrentTeamId).Select(t => t.Name).FirstOrDefault() : null,
                 p.CurrentRole.Name,
@@ -146,7 +148,10 @@ public class GetAllPassagesQueryHandler(IApplicationDbContext context, ICurrentU
                 p.Member.FirstName + " " + p.Member.LastName,
                 p.Member.CardNumber,
                 p.Member.DateOfBirth,
-                p.Member.DateOfBirth != null ? today.Year - p.Member.DateOfBirth.Value.Year - (today < new DateOnly(today.Year, p.Member.DateOfBirth.Value.Month, p.Member.DateOfBirth.Value.Day) ? 1 : 0) : null,
+                // age = year diff, minus 1 if this year's birthday hasn't occurred yet. Compare month/day directly
+                // (NOT via new DateOnly(today.Year, …)) so a 29 Feb birthday doesn't build an invalid date in a
+                // non-leap year — make_date(2026, 2, 29) throws 22008 in Postgres and crashes the whole query.
+                p.Member.DateOfBirth != null ? today.Year - p.Member.DateOfBirth.Value.Year - ((today.Month < p.Member.DateOfBirth.Value.Month || (today.Month == p.Member.DateOfBirth.Value.Month && today.Day < p.Member.DateOfBirth.Value.Day)) ? 1 : 0) : null,
                 p.CurrentUnitId, p.CurrentUnit.Code, p.CurrentUnit.Name,
                 p.CurrentTeamId != null ? context.Teams.Where(t => t.Id == p.CurrentTeamId).Select(t => t.Name).FirstOrDefault() : null,
                 p.CurrentRole.Name,

@@ -60,8 +60,10 @@ public record DemandeStatisticsDto(
 
 static class DemandeAdminHelpers
 {
+    // Compare month/day directly rather than building new DateOnly(on.Year, dob.Month, dob.Day): a 29 Feb birthday
+    // in a non-leap year would throw ArgumentOutOfRangeException (and 22008 if ever translated to SQL make_date).
     public static int? AgeAt(DateOnly? dob, DateOnly on)
-        => dob is null ? null : on.Year - dob.Value.Year - (on < new DateOnly(on.Year, dob.Value.Month, dob.Value.Day) ? 1 : 0);
+        => dob is null ? null : on.Year - dob.Value.Year - ((on.Month < dob.Value.Month || (on.Month == dob.Value.Month && on.Day < dob.Value.Day)) ? 1 : 0);
 
     public static readonly string[] AgeGroupOrder =
         ["Moins de 8 ans", "8–10 ans", "11–13 ans", "14–17 ans", "18 ans et +", "Non renseignée"];

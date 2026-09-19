@@ -5451,6 +5451,20 @@ applies on prod startup; build 0/0, tsc+eslint+vite clean).
   tombstoned pairs via union-find over the surviving pairs (`SplitByRejections`) — a fully-rejected pair
   disappears, a partly-rejected trio keeps the rest. `SiblingUtil.Pair` reused (internal, same assembly).
 
+### Passage page 500 — 29-Feb DOB crash (2026-09-19, DEV until deploy)
+Prod report (a CU opening `/api/v1/passages/unit/{id}`): **`22008: date field value out of range: 2026-02-29`**.
+Root cause: the passage age projection (`PassageHandlers.cs`, 2 queries) computed age with
+`today < new DateOnly(today.Year, dob.Month, dob.Day)`, which EF translates to `make_date(2026, 2, 29)` — invalid
+in a non-leap year, so the whole unit's passage list 500s if ANY member has a **29 Feb** DOB (dev has 2: the ABOU
+RJEILY twins, born 2012-02-29; the prod unit had one). Fix: compare **month/day directly**
+(`today.Month < dob.Month || (today.Month == dob.Month && today.Day < dob.Day)`) — no date construction, leap-safe
+in both SQL and C#. Applied the same to `DemandeAdminHelpers.AgeAt` (a static in-memory helper that would throw
+`ArgumentOutOfRangeException` on a 29-Feb DOB). `ReportDataCollector` + `DashboardHandlers` already compute age
+in-memory via `DayOfYear` (no `make_date`, no crash) — left as-is. Verified on dev: old `make_date(2026,2,29)`
+reproduces the error; the new expression returns the correct age (14) for the 2012-02-29 members. Also cleaned a
+pre-existing CS8602 warning in `EntreeStageResolver` (`s.UnitType!.Code`, nullable after the global-progression
+batch) to keep the build 0/0. DEV until deploy — **prod still 500s on that unit until the next deploy**.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a
