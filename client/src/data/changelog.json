@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Mobile — tableaux de configuration : les listes Serveurs SMTP, Modèles d'email et Journal d'audit se font désormais défiler proprement sur téléphone au lieu de se tasser en colonnes illisibles ; le détail d'une entrée d'audit (dates, avant/après) s'empile correctement sur petit écran."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Mobile — Envoyer les accès & Relance documents : sur téléphone, les tableaux de membres (qui défilaient horizontalement) deviennent des listes de fiches — identifiant / email / statut d'accès et le bouton d'envoi restent visibles sans défilement latéral. Tableaux conservés sur ordinateur."
       },
       {

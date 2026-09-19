@@ -161,7 +161,8 @@ function SmtpTab() {
         <EmptyState icon={Server} title="Aucun serveur SMTP" description="Configurez votre premier serveur SMTP." action={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Creer</Button>} />
       ) : (
         <div className="rounded-lg border">
-          <Table>
+          {/* min-w so the 7 columns scroll horizontally on a phone instead of squishing into unreadable stacks. */}
+          <Table className="min-w-[720px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Nom</TableHead>

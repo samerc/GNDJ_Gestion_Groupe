@@ -283,7 +283,7 @@ function DiffViewer({ oldJson, newJson }: { oldJson: string | null; newJson: str
 
   return (
     <div className="rounded-md border text-sm overflow-hidden">
-      <div className={`grid ${both ? 'grid-cols-[10rem_1fr_1fr]' : 'grid-cols-[10rem_1fr]'} bg-muted/50 font-medium text-muted-foreground text-xs uppercase`}>
+      <div className={`grid ${both ? 'grid-cols-[6rem_1fr_1fr] sm:grid-cols-[10rem_1fr_1fr]' : 'grid-cols-[6rem_1fr] sm:grid-cols-[10rem_1fr]'} bg-muted/50 font-medium text-muted-foreground text-xs uppercase`}>
         <div className="px-3 py-1.5">Champ</div>
         {both ? <><div className="px-3 py-1.5">Avant</div><div className="px-3 py-1.5">Après</div></> : <div className="px-3 py-1.5">Valeur</div>}
       </div>
@@ -293,7 +293,7 @@ function DiffViewer({ oldJson, newJson }: { oldJson: string | null; newJson: str
           const nv = newObj?.[k]
           const changed = both && formatVal(ov) !== formatVal(nv)
           return (
-            <div key={k} className={`grid ${both ? 'grid-cols-[10rem_1fr_1fr]' : 'grid-cols-[10rem_1fr]'} ${changed ? 'bg-amber-50 dark:bg-amber-950/40' : ''}`}>
+            <div key={k} className={`grid ${both ? 'grid-cols-[6rem_1fr_1fr] sm:grid-cols-[10rem_1fr_1fr]' : 'grid-cols-[6rem_1fr] sm:grid-cols-[10rem_1fr]'} ${changed ? 'bg-amber-50 dark:bg-amber-950/40' : ''}`}>
               <div className="px-3 py-1.5 font-medium text-muted-foreground">{fieldLabel(k)}</div>
               {both ? (
                 <>
@@ -423,7 +423,8 @@ export default function AuditLogsPage() {
       ) : (
         <>
           <div className="rounded-lg border">
-            <Table>
+            {/* min-w so the columns scroll horizontally on a phone instead of squishing (email/IP unreadable). */}
+            <Table className="min-w-[720px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-40">Date</TableHead>
@@ -493,7 +494,7 @@ export default function AuditLogsPage() {
           </DialogHeader>
           {detail && (
             <div className="space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div><span className="text-muted-foreground">Date :</span> {new Date(detail.timestamp).toLocaleString('fr-FR')}</div>
                 <div><span className="text-muted-foreground">Utilisateur :</span> {detail.userEmail ?? '—'}</div>
                 <div><span className="text-muted-foreground">Action :</span> {ACTION_LABELS[detail.action]?.label ?? detail.action}</div>

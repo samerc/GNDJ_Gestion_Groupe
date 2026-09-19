@@ -210,7 +210,8 @@ function TemplatesTab() {
         <EmptyState icon={FileText} title="Aucun modèle d'email" description="Créez votre premier modèle d'email." action={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Créer</Button>} />
       ) : (
         <div className="rounded-lg border">
-          <Table>
+          {/* min-w so the columns scroll horizontally on a phone instead of squishing into unreadable stacks. */}
+          <Table className="min-w-[640px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Nom</TableHead>
