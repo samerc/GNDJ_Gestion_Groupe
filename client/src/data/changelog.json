@@ -5,7 +5,7 @@
     "changes": [
       {
         "date": "2026-09-20",
-        "text": "Passage — un seul bouton « Modifier » par membre : l'icône « Modifier » redondante (colonne d'actions à droite) a été retirée ; on garde le bouton libellé « Modifier le choix » (qui rouvre les trois options : Pas de changement / Proposer / Quitte le groupe) et l'icône « Supprimer »."
+        "text": "Passage — un seul bouton « Modifier » par membre : le bouton « Modifier le choix » est devenu une petite icône crayon placée à côté de l'icône « Supprimer » dans la colonne d'actions (elle rouvre les trois options : Pas de changement / Proposer / Quitte le groupe)."
       },
       {
         "date": "2026-09-20",

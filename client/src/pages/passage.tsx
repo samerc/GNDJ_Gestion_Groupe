@@ -399,11 +399,14 @@ export default function PassagePage() {
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
+  // A member's line can still be changed by the CU until the CG FINALIZES the passage. Approved (incl.
+  // auto-approved "no change") + Pending lines are re-openable; Finalized/Rejected are locked. The pencil
+  // in the actions column (re-opens the three choices) shows only when editable AND not already editing.
+  const canEditRow = (row: MemberRow) =>
+    !!row.passage && (row.passage.status === 'Pending' || row.passage.status === 'Approved') && !editingRows.has(row.memberId)
+
   // Proposition cell/section — shared by the desktop table and the mobile cards.
   const renderProposition = (row: MemberRow) => {
-    // A line can still be changed by the CU until the CG FINALIZES the passage. Approved (incl. auto-approved
-    // "no change") + Pending lines are re-openable; Finalized/Rejected are locked.
-    const editable = !!row.passage && (row.passage.status === 'Pending' || row.passage.status === 'Approved')
     const showActions = !row.passage || editingRows.has(row.memberId)
 
     if (!showActions) {
@@ -421,13 +424,6 @@ export default function PassagePage() {
           )}
           <div className="flex items-center gap-2">
             {statusBadge(row.passage!)}
-            {editable && (
-              // Visible outline button (was a low-contrast ghost that CUs missed) — re-opens the three choices
-              // so a CU can change an already-made proposal until the CG finalizes it.
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => startEditRow(row.memberId)}>
-                <Pencil className="mr-1 h-3 w-3" />Modifier le choix
-              </Button>
-            )}
           </div>
         </div>
       )
@@ -624,6 +620,9 @@ export default function PassagePage() {
                   </div>
                   {row.passage && (
                     <div className="flex gap-1 shrink-0">
+                      {canEditRow(row) && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEditRow(row.memberId)}><Pencil className="h-3.5 w-3.5" /></Button>
+                      )}
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeletingPassage(row.passage)} title="Supprimer"><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                     </div>
                   )}
@@ -683,6 +682,11 @@ export default function PassagePage() {
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex gap-1">
+                      {canEditRow(row) && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEditRow(row.memberId)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       {row.passage && (
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeletingPassage(row.passage)} title="Supprimer">
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
