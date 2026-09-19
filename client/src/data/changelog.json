@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Inscription (mobile) — assistant plus clair : l'assistant d'inscription indique maintenant « Étape N sur 4 » avec une barre de progression et une coche sur les étapes terminées, les onglets d'étape sont plus faciles à toucher, le bouton « Retour » enregistre un brouillon avant de quitter (fini la perte d'une demande commencée), le bouton final affiche « Soumission… » pendant l'envoi, le récapitulatif propose un bouton « Modifier » par section pour corriger directement, et la zone de notes n'agrandit plus l'écran à la saisie sur iPhone."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Mobile — coordonnées des parents : les lignes téléphone/courriel de la section Famille ne débordent plus sur téléphone (le texte se tronque proprement) et les boutons Modifier / Supprimer sont plus grands au toucher (compacts sur ordinateur)."
       },
       {

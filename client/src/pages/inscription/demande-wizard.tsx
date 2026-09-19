@@ -328,6 +328,16 @@ export default function DemandeWizardPage() {
     finally { setSaving(false) }
   }
 
+  // Leaving via "Retour" must not silently discard a not-yet-persisted (new) demande — save a draft first,
+  // like moving between steps does. On a save error, stay put with a toast rather than lose the input.
+  async function handleBack() {
+    if (readonly) { navigate('/inscription/portail'); return }
+    setSaving(true)
+    try { await persist() } catch (err) { toast.error(parseApiError(err)); setSaving(false); return }
+    setSaving(false)
+    navigate('/inscription/portail')
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -335,7 +345,7 @@ export default function DemandeWizardPage() {
           {readonly ? 'Demande' : demandeId === 'new' ? 'Nouvelle demande' : 'Modifier la demande'}
           {child.firstName && ` — ${child.firstName} ${child.lastName}`}
         </h1>
-        <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate('/inscription/portail')}><ChevronLeft className="mr-1 h-4 w-4" />Retour</Button>
+        <Button variant="outline" size="sm" className="shrink-0" onClick={handleBack} disabled={saving}><ChevronLeft className="mr-1 h-4 w-4" />Retour</Button>
       </div>
 
       {readonly && (
@@ -348,17 +358,34 @@ export default function DemandeWizardPage() {
         </div>
       )}
 
-      {/* Stepper */}
-      <div className="flex items-center gap-1 overflow-x-auto">
-        {STEPS.map((s, i) => (
-          <button key={s} onClick={() => go(i)}
-            className={cn('flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-              i === step ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent')}>
-            <span className={cn('flex h-5 w-5 items-center justify-center rounded-full text-xs',
-              i === step ? 'bg-white/20' : 'bg-muted')}>{i + 1}</span>
-            {s}
-          </button>
-        ))}
+      {/* Stepper — explicit "Étape N sur M" + a progress bar so a stressed parent always knows where they are
+          and that there are more steps; completed steps show a check; pills are ≥40px tall for touch. */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-medium">Étape {step + 1} sur {STEPS.length} — {STEPS[step]}</span>
+          <span className="text-muted-foreground">{Math.round(((step + 1) / STEPS.length) * 100)}%</span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-full bg-primary transition-all" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+        </div>
+        <div className="flex items-center gap-1 overflow-x-auto pb-1">
+          {STEPS.map((s, i) => {
+            const done = i < step
+            return (
+              <button key={s} onClick={() => go(i)}
+                className={cn('flex min-h-10 items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                  i === step ? 'bg-primary text-primary-foreground'
+                    : done ? 'text-primary hover:bg-accent'
+                    : 'text-muted-foreground hover:bg-accent')}>
+                <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs',
+                  i === step ? 'bg-white/20' : done ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+                  {done ? <Check className="h-3 w-3" /> : i + 1}
+                </span>
+                {s}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <Card>
@@ -435,7 +462,7 @@ export default function DemandeWizardPage() {
               <Field label="Notes médicales"><Input value={child.medicalNotes ?? ''} onChange={(e) => setC({ medicalNotes: e.target.value || null })} /></Field>
               <Field label={`Notes / demandes particulières (${(child.parentNotes ?? '').length}/${notesMax})`}>
                 <textarea value={child.parentNotes ?? ''} maxLength={notesMax} onChange={(e) => setC({ parentNotes: e.target.value || null })}
-                  className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-2xs focus-visible:outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                  className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-base shadow-2xs focus-visible:outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 md:text-sm"
                   placeholder="Ex. : préférence d'unité, informations utiles…" />
               </Field>
               <div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3 sm:col-span-2">
@@ -629,13 +656,19 @@ export default function DemandeWizardPage() {
           {step === 3 && (
             <div className="space-y-4 text-sm">
               <div className="rounded-lg border p-4">
-                <div className="font-semibold mb-2">Enfant</div>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="font-semibold">Enfant</span>
+                  {!readonly && <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setStep(0)}>Modifier</Button>}
+                </div>
                 <p>{child.firstName} {child.lastName} · {child.dateOfBirth ? new Date(child.dateOfBirth).toLocaleDateString('fr-FR') : '—'} · {child.gender}</p>
                 <p className="text-muted-foreground">{child.school} · {child.classe} · {child.nationality}</p>
                 {child.parentNotes && <p className="mt-2 rounded bg-muted/40 p-2 text-muted-foreground">{child.parentNotes}</p>}
               </div>
               <div className="rounded-lg border p-4">
-                <div className="font-semibold mb-2">Parents / tuteurs</div>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="font-semibold">Parents / tuteurs</span>
+                  {!readonly && <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setStep(1)}>Modifier</Button>}
+                </div>
                 {guardians.filter((g) => g.firstName || g.lastName).map((g, i) => (
                   <p key={i}>{g.relationship} : {g.firstName} {g.lastName}{g.phoneNumber ? ` · ${g.phoneNumber}` : ''}{g.email ? ` · ${g.email}` : ''}</p>
                 ))}
@@ -644,7 +677,10 @@ export default function DemandeWizardPage() {
               </div>
               {relations.filter((r) => r.firstName || r.lastName).length > 0 && (
                 <div className="rounded-lg border p-4">
-                  <div className="font-semibold mb-2">Proches scouts</div>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="font-semibold">Proches scouts</span>
+                    {!readonly && <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setStep(2)}>Modifier</Button>}
+                  </div>
                   {relations.filter((r) => r.firstName || r.lastName).map((r, i) => (
                     <p key={i}>{r.firstName} {r.lastName}{r.relationship ? ` (${r.relationship})` : ''} — {r.status === 'CurrentInGroup' ? `Membre GNDJ${r.lastUnit ? ` · ${r.lastUnit}` : ''}` : r.status === 'AncienInGroup' ? 'ancien' : r.otherGroupName || 'autre groupe'}</p>
                   ))}
@@ -667,7 +703,7 @@ export default function DemandeWizardPage() {
         {step < 3 ? (
           <Button onClick={() => go(step + 1)} disabled={saving}>{saving ? 'Enregistrement…' : 'Suivant'}<ChevronRight className="ml-1 h-4 w-4" /></Button>
         ) : !readonly ? (
-          <Button onClick={handleSubmit} disabled={saving || submitMutation.isPending}><Send className="mr-1 h-4 w-4" />{existing?.status === 'Submitted' ? 'Mettre à jour' : 'Soumettre la demande'}</Button>
+          <Button onClick={handleSubmit} disabled={saving || submitMutation.isPending}><Send className="mr-1 h-4 w-4" />{(saving || submitMutation.isPending) ? 'Soumission…' : existing?.status === 'Submitted' ? 'Mettre à jour' : 'Soumettre la demande'}</Button>
         ) : (
           <Button onClick={() => navigate('/inscription/portail')}><Check className="mr-1 h-4 w-4" />Fermer</Button>
         )}
