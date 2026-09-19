@@ -6,16 +6,27 @@ namespace GNDJ.Application.Common.Interfaces;
 // DECLINE. Names only — no contact details. The Réf. (demande id) column is the matching key. A "Codes"
 // reference sheet lists every valid code + its meaning and drives an in-cell dropdown. Implemented via ClosedXML.
 
-// One export row = one submitted demande (child + parents' names + current staged status + the PREFILL for the
-// Décision cell: the unit CODE when already staged-approved, the reason code / "--" when staged-declined, else "").
+// One export row = one submitted demande — the FULL file so the Maîtrise can review everything in Excel (child
+// identity + school + medical + contacts + household + detailed parents/proches/fratrie) PLUS the current staged
+// status and the PREFILL for the single Décision cell (the unit CODE when already staged-approved, the reason
+// code / "--" when staged-declined, else ""). Parents/ScoutRelations/Siblings are pre-formatted multi-line strings.
 public record DemandeExportRow(
-    Guid Id, string FirstName, string LastName, string? DateOfBirth, string? Gender,
-    string? Classe, string? School, string Parents, int Siblings, int ScoutRelations,
-    string CurrentStatus, string PrefillDecision);
+    Guid Id, string SerialNumber, string PrefillDecision, string CurrentStatus,
+    string FirstName, string LastName, string? DateOfBirth, int? Age, string? Gender, string? Nationality,
+    string? Classe, string? Section, string? School, string? BloodType, string? Allergies, string? MedicalNotes,
+    string? Phone, string? Email,
+    string? AddressCountry, string? AddressCity, string? AddressDetails, string? ParentsSituation,
+    string Parents, string ScoutRelations, string Siblings,
+    string? PreviousDemande, string? ParentNotes, string? SubmittedAt);
 
 // One parsed decision row from an uploaded file (RowNumber for error messages; Id from the Réf. column; the
 // single Décision cell = a unit code, a reason code, or "--").
 public record DemandeDecisionRow(int RowNumber, Guid? Id, string? Decision);
+
+// Thrown by Parse when the uploaded file is missing a REQUIRED column (Réf. or Décision) — e.g. the CG renamed
+// or deleted its header. Carries a user-facing French message the import handler surfaces as-is, so the failure
+// is loud and specific instead of silently importing nothing.
+public class DemandeSheetFormatException(string message) : Exception(message);
 
 public interface IDemandeSheetService
 {

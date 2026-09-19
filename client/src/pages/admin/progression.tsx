@@ -30,6 +30,9 @@ import { CSS } from '@dnd-kit/utilities'
 const PROG_RANK: Record<string, number> = { MEU: 0, RON: 1, TRO: 2, COM: 3, CLA: 4, CLAN: 4, NOY: 5, JEM: 6, FEU: 7, CAR: 8, GRP: 9, G: 9 }
 const progRank = (code?: string) => PROG_RANK[(code ?? '').toUpperCase()] ?? 99
 
+// Sentinel for the "Global" pill (stages/badges with no unit type — available to every branch).
+const GLOBAL = '__global__'
+
 export default function ProgressionPage() {
   const { data: unitTypesData } = useUnitTypesQuery({ pageSize: 100 })
   const unitTypes = (unitTypesData?.items ?? [])
@@ -48,7 +51,7 @@ export default function ProgressionPage() {
         <p className="text-sm text-muted-foreground">Étapes et badges, par type d'unité.</p>
       </div>
 
-      {/* Unit-type pills */}
+      {/* Unit-type pills + a "Global" pill for cross-branch items (no unit type). */}
       <div className="flex flex-wrap gap-2">
         {unitTypes.map(ut => (
           <button
@@ -62,27 +65,46 @@ export default function ProgressionPage() {
             {ut.name}
           </button>
         ))}
+        <button
+          onClick={() => setSelected(GLOBAL)}
+          title="Étapes et badges disponibles pour tous les types d'unité (indépendants de l'unité du membre)"
+          className={cn(
+            'rounded-full border px-4 py-1.5 text-sm font-medium transition-colors',
+            selected === GLOBAL ? 'border-primary bg-primary text-primary-foreground' : 'border-dashed border-border bg-card hover:bg-muted'
+          )}
+        >
+          Global (tous les types)
+        </button>
       </div>
 
       {!selected ? (
         <EmptyState icon={Star} title="Aucun type d'unité" description="Créez d'abord des types d'unité." />
       ) : (
-        <Tabs defaultValue="stages">
-          <TabsList>
-            <TabsTrigger value="stages"><Star className="mr-1 h-4 w-4" />Étapes</TabsTrigger>
-            <TabsTrigger value="badges"><Award className="mr-1 h-4 w-4" />Badges</TabsTrigger>
-          </TabsList>
-          <TabsContent value="stages"><StagesLadder unitTypeId={selected} /></TabsContent>
-          <TabsContent value="badges"><BadgesGrid unitTypeId={selected} /></TabsContent>
-        </Tabs>
+        <>
+          {selected === GLOBAL && (
+            <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              Ces étapes et badges <strong>ne sont liés à aucun type d'unité</strong> : ils apparaissent pour n'importe quel membre, quelle que soit son unité.
+            </p>
+          )}
+          <Tabs defaultValue="stages">
+            <TabsList>
+              <TabsTrigger value="stages"><Star className="mr-1 h-4 w-4" />Étapes</TabsTrigger>
+              <TabsTrigger value="badges"><Award className="mr-1 h-4 w-4" />Badges</TabsTrigger>
+            </TabsList>
+            <TabsContent value="stages"><StagesLadder unitTypeId={selected === GLOBAL ? null : selected} /></TabsContent>
+            <TabsContent value="badges"><BadgesGrid unitTypeId={selected === GLOBAL ? null : selected} /></TabsContent>
+          </Tabs>
+        </>
       )}
     </div>
   )
 }
 
 // ════════════════════════ Étapes (ladder) ════════════════════════
-export function StagesLadder({ unitTypeId }: { unitTypeId: string }) {
-  const { data, isLoading } = useScoutStages(unitTypeId)
+// unitTypeId null = the GLOBAL ladder (stages with no unit type, shown for every member).
+export function StagesLadder({ unitTypeId }: { unitTypeId: string | null }) {
+  const isGlobal = unitTypeId === null
+  const { data, isLoading } = useScoutStages(isGlobal ? undefined : unitTypeId, isGlobal)
   const createMutation = useCreateScoutStage()
   const updateMutation = useUpdateScoutStage()
   const deleteMutation = useDeleteScoutStage()
@@ -221,7 +243,7 @@ function StageCard({ stage, index, busy, checked, onCheck, onEdit, onDelete, onT
 function StageFormDialog({ open, stage, unitTypeId, nextOrder, createMutation, updateMutation, onClose }: {
   open: boolean
   stage: ScoutStageDto | null
-  unitTypeId: string
+  unitTypeId: string | null
   nextOrder: number
   createMutation: ReturnType<typeof useCreateScoutStage>
   updateMutation: ReturnType<typeof useUpdateScoutStage>
@@ -277,8 +299,10 @@ function StageFormDialog({ open, stage, unitTypeId, nextOrder, createMutation, u
 }
 
 // ════════════════════════ Badges (grid) ════════════════════════
-export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
-  const { data, isLoading } = useBadges(unitTypeId)
+// unitTypeId null = the GLOBAL grid (badges with no unit type, shown for every member).
+export function BadgesGrid({ unitTypeId }: { unitTypeId: string | null }) {
+  const isGlobal = unitTypeId === null
+  const { data, isLoading } = useBadges(isGlobal ? undefined : unitTypeId, isGlobal)
   const createMutation = useCreateBadge()
   const updateMutation = useUpdateBadge()
   const deleteMutation = useDeleteBadge()
@@ -378,7 +402,7 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
 function BadgeFormDialog({ open, badge, unitTypeId, nextOrder, createMutation, updateMutation, onClose }: {
   open: boolean
   badge: BadgeDto | null
-  unitTypeId: string
+  unitTypeId: string | null
   nextOrder: number
   createMutation: ReturnType<typeof useCreateBadge>
   updateMutation: ReturnType<typeof useUpdateBadge>

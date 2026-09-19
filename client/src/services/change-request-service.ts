@@ -20,7 +20,8 @@ export interface ChangeRequestDto {
 export function useProposeProgression() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { unitId: string; scoutStageId: string; badgeId?: string | null; date: string; location?: string | null; notes?: string | null }) =>
+    // unitId null = a global-stage proposal ("Général" — no unit).
+    mutationFn: (data: { unitId: string | null; scoutStageId: string; badgeId?: string | null; date: string; location?: string | null; notes?: string | null }) =>
       apiClient.post('/change-requests/progression', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['change-requests', 'mine'] }),
   })

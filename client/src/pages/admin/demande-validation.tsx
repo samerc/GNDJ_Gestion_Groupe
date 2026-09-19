@@ -112,6 +112,11 @@ function siblingProche(d: DemandeReview) {
   return d.scoutRelations.find((r) => isSiblingRelation(r.relationship))
 }
 
+// Distinct, non-empty, French-sorted values for a filter dropdown (module scope → stable, no hook dep).
+function distinctValues(vals: (string | null | undefined)[]): string[] {
+  return [...new Set(vals.map((v) => v?.trim()).filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b, 'fr'))
+}
+
 function relationsSummary(d: DemandeReview): string {
   return d.scoutRelations.map((r) => {
     const name = [r.firstName, r.lastName].filter(Boolean).join(' ') || '—'
@@ -135,6 +140,20 @@ export default function DemandeValidationPage() {
   const [ageMin, setAgeMin] = useState('')
   const [ageMax, setAgeMax] = useState('')
   const [search, setSearch] = useState('')
+  // Extra CLIENT-SIDE filters (applied over the fully-loaded set in `rows`, so they don't shrink `all` and never
+  // affect the send-gate). Their option lists are built from the loaded data. This lets the CG narrow on many more
+  // fields — école, unité décidée, nationalité, ville, situation des parents, réponse envoyée — plus quality flags.
+  const [fSchool, setFSchool] = useState('all')
+  const [fUnit, setFUnit] = useState('all')          // decided unit id, 'none' = undecided, 'all' = any
+  const [fNationality, setFNationality] = useState('all')
+  const [fCity, setFCity] = useState('all')
+  const [fSituation, setFSituation] = useState('all')
+  const [fSent, setFSent] = useState('all')          // response sent? all / sent / notsent
+  const [fRelation, setFRelation] = useState('all')  // proche-scout relation type
+  const [fIncomplete, setFIncomplete] = useState(false)
+  const [fHasRelations, setFHasRelations] = useState(false)
+  const [fSibling, setFSibling] = useState(false)    // brother/sister among proches OR ≥2 demandes on the account
+  const [fPrevious, setFPrevious] = useState(false)  // a previous demande was declared
   const [showOccupancy, setShowOccupancy] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('lastName')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
@@ -219,6 +238,38 @@ export default function DemandeValidationPage() {
     return m
   }, [all])
 
+  // Distinct dropdown option lists for the extra client-side filters, built from the loaded data (accent/case
+  // preserved for display; only non-empty values, sorted). Recomputed only when the data changes.
+  const schoolOptions = useMemo(() => distinctValues(all.map((d) => d.school)), [all])
+  const nationalityOptions = useMemo(() => distinctValues(all.map((d) => d.nationality)), [all])
+  const cityOptions = useMemo(() => distinctValues(all.map((d) => d.addressCity)), [all])
+  const relationOptions = useMemo(() => distinctValues(all.flatMap((d) => d.scoutRelations.map((r) => r.status))), [all])
+
+  // A single predicate for every extra client-side filter (kept out of `rows` for readability; memoized so the
+  // rows useMemo has a stable dep). Each clause is a no-op when its control is at "all"/false.
+  const matchesFilters = useMemo(() => (d: DemandeReview) =>
+    (fSchool === 'all' || d.school === fSchool) &&
+    (fUnit === 'all' || (fUnit === 'none' ? !d.decidedUnitId : d.decidedUnitId === fUnit)) &&
+    (fNationality === 'all' || d.nationality === fNationality) &&
+    (fCity === 'all' || d.addressCity === fCity) &&
+    (fSituation === 'all' || d.parentsSituation === fSituation) &&
+    (fSent === 'all' || (fSent === 'sent' ? !!d.responseSentAt : !d.responseSentAt)) &&
+    (fRelation === 'all' || d.scoutRelations.some((r) => r.status === fRelation)) &&
+    (!fIncomplete || missingInfo(d).length > 0) &&
+    (!fHasRelations || d.scoutRelations.length > 0) &&
+    (!fSibling || !!siblingProche(d) || (accountCounts[d.accountId] ?? 0) > 1) &&
+    (!fPrevious || !!d.hasPreviousDemande),
+  [fSchool, fUnit, fNationality, fCity, fSituation, fSent, fRelation, fIncomplete, fHasRelations, fSibling, fPrevious, accountCounts])
+
+  // How many extra filters are active (for the "Réinitialiser" button + a count badge).
+  const activeExtraFilters =
+    [fSchool, fUnit, fNationality, fCity, fSituation, fSent, fRelation].filter((v) => v !== 'all').length +
+    [fIncomplete, fHasRelations, fSibling, fPrevious].filter(Boolean).length
+  const resetExtraFilters = () => {
+    setFSchool('all'); setFUnit('all'); setFNationality('all'); setFCity('all'); setFSituation('all')
+    setFSent('all'); setFRelation('all'); setFIncomplete(false); setFHasRelations(false); setFSibling(false); setFPrevious(false)
+  }
+
   // filter (search) → sort → group siblings adjacent
   const rows = useMemo(() => {
     // Multi-field + multi-term search: each space-separated word must match SOMEWHERE in the row's
@@ -233,7 +284,9 @@ export default function DemandeValidationPage() {
       ...d.guardians.flatMap((g) => [g.firstName, g.lastName, g.profession, g.professionDomain, g.email, g.phoneNumber]),
       ...d.scoutRelations.flatMap((r) => [r.firstName, r.lastName, r.otherGroupName, r.lastUnit, r.lastFunction, r.relatedMemberName]),
     ].filter(Boolean).join(' '))
-    const filtered = tokens.length ? all.filter((d) => { const h = haystack(d); return tokens.every((t) => h.includes(t)) }) : all
+    // Apply the extra dropdown/flag filters first, then the free-text search tokens.
+    const base = all.filter(matchesFilters)
+    const filtered = tokens.length ? base.filter((d) => { const h = haystack(d); return tokens.every((t) => h.includes(t)) }) : base
     const dir = sortDir === 'asc' ? 1 : -1
     const sorted = [...filtered].sort((a, b) => {
       switch (sortKey) {
@@ -257,7 +310,7 @@ export default function DemandeValidationPage() {
       }
     }
     return grouped
-  }, [all, search, sortKey, sortDir, siblingsTogether, accountCounts])
+  }, [all, search, sortKey, sortDir, siblingsTogether, accountCounts, matchesFilters])
 
   // Send gate: there must be staged decisions to send AND no demande still undecided.
   // status==='all' forces the user to view the full set so a filtered-out 'Submitted' can't be missed.
@@ -450,7 +503,7 @@ export default function DemandeValidationPage() {
       {/* Secondary toolbar: work the decisions in Excel (export → fill → import) + remind non-submitters. */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-2">
         <span className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Outils</span>
-        <Tip content="Une seule colonne Décision : saisir le code de l'unité (C2, M2…) pour accepter, ou un code de motif (« -- » = par défaut) pour refuser. La feuille « Codes » liste tout.">
+        <Tip content="Le fichier contient toutes les informations de chaque demande. Remplissez la seule colonne « Décision » : le code de l'unité (C2, M2…) pour accepter, ou un code de motif (« -- » = par défaut) pour refuser. La feuille « Codes » liste tout. Seules les colonnes Réf. et Décision sont relues à l'import — le reste peut être trié/annoté librement.">
           <Button variant="outline" size="sm" disabled={exportMutation.isPending} onClick={handleExport}>
             <Download className="mr-2 h-4 w-4" />Exporter (Excel)
           </Button>
@@ -504,12 +557,13 @@ export default function DemandeValidationPage() {
       </Card>
 
       {/* Filters */}
-      <Card><CardContent className="flex flex-wrap items-end gap-3 py-4">
+      <Card><CardContent className="space-y-3 py-4">
+        <div className="flex flex-wrap items-end gap-3">
         <div className="w-full space-y-1 sm:w-auto">
           <label className="text-xs font-medium">Recherche</label>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="w-full pl-8 pr-7 sm:w-56" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nom ou prénom..." />
+            <Input className="w-full pl-8 pr-7 sm:w-56" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nom, email, téléphone, parent…" />
             {search && <Tip content="Effacer"><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setSearch('')}><X className="h-3.5 w-3.5" /></button></Tip>}
           </div>
         </div>
@@ -527,6 +581,71 @@ export default function DemandeValidationPage() {
         <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">Classe</label><Input className="w-full sm:w-28" value={classe} onChange={(e) => setClasse(e.target.value)} placeholder="ex. EB2" /></div>
         <div className="flex-1 space-y-1 sm:flex-none"><label className="text-xs font-medium">Âge min</label><Input className="w-full sm:w-20" type="number" value={ageMin} onChange={(e) => setAgeMin(e.target.value)} /></div>
         <div className="flex-1 space-y-1 sm:flex-none"><label className="text-xs font-medium">Âge max</label><Input className="w-full sm:w-20" type="number" value={ageMax} onChange={(e) => setAgeMax(e.target.value)} /></div>
+        </div>
+
+        {/* Extra client-side filters (over the loaded set) — narrow on many more fields. */}
+        <div className="flex flex-wrap items-end gap-3 border-t pt-3">
+          <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">École</label>
+            <Select value={fSchool} onValueChange={setFSchool}><SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes</SelectItem>
+                {schoolOptions.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent></Select></div>
+          <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">Unité décidée</label>
+            <Select value={fUnit} onValueChange={setFUnit}><SelectTrigger className="w-full sm:w-52"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes</SelectItem>
+                <SelectItem value="none">Aucune (non décidée)</SelectItem>
+                {occList.map((u) => <SelectItem key={u.unitId} value={u.unitId}>{u.unitCode} — {u.unitName}</SelectItem>)}
+              </SelectContent></Select></div>
+          <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">Nationalité</label>
+            <Select value={fNationality} onValueChange={setFNationality}><SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes</SelectItem>
+                {nationalityOptions.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+              </SelectContent></Select></div>
+          <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">Ville</label>
+            <Select value={fCity} onValueChange={setFCity}><SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes</SelectItem>
+                {cityOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent></Select></div>
+          <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">Situation parents</label>
+            <Select value={fSituation} onValueChange={setFSituation}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes</SelectItem>
+                <SelectItem value="Unis">Unis</SelectItem>
+                <SelectItem value="Séparés">Séparés</SelectItem>
+                <SelectItem value="Divorcés">Divorcés</SelectItem>
+              </SelectContent></Select></div>
+          <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">Réponse</label>
+            <Select value={fSent} onValueChange={setFSent}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes</SelectItem>
+                <SelectItem value="notsent">Non envoyée</SelectItem>
+                <SelectItem value="sent">Envoyée</SelectItem>
+              </SelectContent></Select></div>
+          {relationOptions.length > 0 && (
+            <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">Proche scout</label>
+              <Select value={fRelation} onValueChange={setFRelation}><SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  {relationOptions.map((s) => <SelectItem key={s} value={s}>{RELATION_LABEL[s] ?? s}</SelectItem>)}
+                </SelectContent></Select></div>
+          )}
+        </div>
+
+        {/* Boolean quality flags + reset. */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-3 text-sm">
+          <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fIncomplete} onChange={(e) => setFIncomplete(e.target.checked)} />Dossier incomplet</label>
+          <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fHasRelations} onChange={(e) => setFHasRelations(e.target.checked)} />Avec proches scouts</label>
+          <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fSibling} onChange={(e) => setFSibling(e.target.checked)} />Fratrie / frère-sœur</label>
+          <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fPrevious} onChange={(e) => setFPrevious(e.target.checked)} />Demande précédente</label>
+          <span className="ml-auto text-xs text-muted-foreground">{rows.length} résultat(s)</span>
+          {activeExtraFilters > 0 && (
+            <Button variant="ghost" size="sm" onClick={resetExtraFilters}><X className="mr-1 h-3.5 w-3.5" />Réinitialiser ({activeExtraFilters})</Button>
+          )}
+        </div>
       </CardContent></Card>
 
       {/* Bulk action bar */}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { parseApiError } from '@/lib/error-utils'
 import {
@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { Plus, Pencil, Trash2, Shield, ArchiveRestore, Star, GripVertical } from 'lucide-react'
+import { Plus, Pencil, Trash2, Shield, ArchiveRestore, Star, GripVertical, Search, ArrowUpDown, ArrowUp, ArrowDown, X } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -31,6 +31,29 @@ interface FunctionalRolesListProps {
   showUnitTypeColumn?: boolean
   showUnitTypeField?: boolean
   sortable?: boolean // drag-to-rank mode (unit-type page); the order sets the rank
+}
+
+// Column-sort keys for the all-types table view (null = keep the incoming order: archived last, rank order).
+type RoleSortKey = 'name' | 'code' | 'unitType' | 'profile' | 'members'
+
+// Accent/case-insensitive normaliser for the search box.
+const normText = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+// Clickable table header that toggles sort on its column (module scope → stable component).
+function SortTh({ label, k, sortKey, sortDir, onSort, className }: {
+  label: string; k: RoleSortKey; sortKey: RoleSortKey | null; sortDir: 'asc' | 'desc'
+  onSort: (k: RoleSortKey) => void; className?: string
+}) {
+  const active = sortKey === k
+  return (
+    <th className={cn('px-3 py-2 font-medium', className)}>
+      <button type="button" onClick={() => onSort(k)} className="inline-flex items-center gap-1 hover:text-foreground">
+        {label}
+        {active ? (sortDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />)
+          : <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/40" />}
+      </button>
+    </th>
+  )
 }
 
 // Manages functional roles (fonctions) — create/edit/delete + bulk delete, with two layouts:
@@ -68,14 +91,67 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
   const [bulkConfirm, setBulkConfirm] = useState(false)
   const [bulkBusy, setBulkBusy] = useState(false)
   const [unitTypeFilter, setUnitTypeFilter] = useState('') // all-types view only: '' = all, 'global' = no type, else a unit-type id
+  // Table-view search / filters / column sort (ignored in drag-to-rank mode).
+  const [search, setSearch] = useState('')
+  const [profileFilter, setProfileFilter] = useState('all')     // 'all' or a security-profile name
+  const [statusFilter, setStatusFilter] = useState('all')       // all | active | archived (default keeps archived visible, greyed)
+  const [maitriseFilter, setMaitriseFilter] = useState('all')   // all | maitrise | youth
+  const [sortKey, setSortKey] = useState<RoleSortKey | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [form, setForm] = useState<FunctionalRoleFormData>({ name: '', code: '', securityProfileId: '' })
   const [error, setError] = useState('')
   const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
 
-  // All-types table view can be filtered by unit type (Tous / Global / a specific type). Other views ignore it.
-  const visibleRoles = !roles ? [] : (!showUnitTypeColumn || unitTypeFilter === '')
-    ? roles
-    : unitTypeFilter === 'global' ? roles.filter(r => !r.unitTypeId) : roles.filter(r => r.unitTypeId === unitTypeFilter)
+  const toggleSort = (k: RoleSortKey) => {
+    if (sortKey === k) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortKey(k); setSortDir('asc') }
+  }
+
+  // Distinct security-profile names for the profile filter dropdown (from the full set).
+  const profileOptions = useMemo(
+    () => [...new Set((roles ?? []).map(r => r.securityProfileName).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr')),
+    [roles])
+
+  // All-types table view: unit-type + profile + status + maîtrise filters, then a text search, then an optional
+  // column sort. Other (drag) views ignore all of this and use `roles`/`typeActive` directly.
+  const visibleRoles = useMemo(() => {
+    if (!roles) return []
+    let list = roles
+    // Unit-type filter (Tous / Global / a specific type).
+    if (showUnitTypeColumn && unitTypeFilter !== '')
+      list = unitTypeFilter === 'global' ? list.filter(r => !r.unitTypeId) : list.filter(r => r.unitTypeId === unitTypeFilter)
+    // Status (active / archived / all).
+    if (statusFilter === 'active') list = list.filter(r => !r.isArchived)
+    else if (statusFilter === 'archived') list = list.filter(r => r.isArchived)
+    // Profile.
+    if (profileFilter !== 'all') list = list.filter(r => r.securityProfileName === profileFilter)
+    // Maîtrise vs youth.
+    if (maitriseFilter === 'maitrise') list = list.filter(r => r.isMaitrise)
+    else if (maitriseFilter === 'youth') list = list.filter(r => !r.isMaitrise)
+    // Text search across name / code / unit type / profile / description.
+    const q = normText(search.trim())
+    if (q) list = list.filter(r => normText([r.name, r.code, r.unitTypeName ?? '', r.securityProfileName, r.description ?? ''].join(' ')).includes(q))
+    // Column sort (when a header was clicked).
+    if (sortKey) {
+      const dir = sortDir === 'asc' ? 1 : -1
+      list = [...list].sort((a, b) => {
+        switch (sortKey) {
+          case 'code': return a.code.localeCompare(b.code, 'fr') * dir
+          case 'unitType': return (a.unitTypeName ?? '').localeCompare(b.unitTypeName ?? '', 'fr') * dir
+          case 'profile': return a.securityProfileName.localeCompare(b.securityProfileName, 'fr') * dir
+          case 'members': return (a.assignmentCount - b.assignmentCount) * dir
+          case 'name':
+          default: return a.name.localeCompare(b.name, 'fr') * dir
+        }
+      })
+    }
+    return list
+  }, [roles, showUnitTypeColumn, unitTypeFilter, statusFilter, profileFilter, maitriseFilter, search, sortKey, sortDir])
+
+  const activeFilterCount =
+    (unitTypeFilter !== '' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0) +
+    (profileFilter !== 'all' ? 1 : 0) + (maitriseFilter !== 'all' ? 1 : 0) + (search.trim() ? 1 : 0)
+  const resetFilters = () => { setUnitTypeFilter(''); setStatusFilter('all'); setProfileFilter('all'); setMaitriseFilter('all'); setSearch('') }
 
   const toggleOne = (id: string) => setSelected(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   // Select-all operates on the currently-VISIBLE (filtered) rows only.
@@ -175,17 +251,17 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
   const RowActions = ({ role }: { role: FunctionalRoleDto }) => (
     <div className="flex gap-1">
       {role.isArchived ? (
-        <Button variant="ghost" size="icon" className="h-7 w-7" title="Réactiver" onClick={() => handleUnarchive(role)} disabled={unarchiveMutation.isPending}>
+        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" title="Réactiver" onClick={() => handleUnarchive(role)} disabled={unarchiveMutation.isPending}>
           <ArchiveRestore className="h-3.5 w-3.5 text-primary" />
         </Button>
       ) : sortable && (
-        <Button variant="ghost" size="icon" className="h-7 w-7" title={role.isDefaultForNewMembers ? 'Fonction par défaut des nouveaux membres' : 'Définir comme fonction par défaut des nouveaux membres'}
+        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" title={role.isDefaultForNewMembers ? 'Fonction par défaut des nouveaux membres' : 'Définir comme fonction par défaut des nouveaux membres'}
           onClick={() => handleSetDefault(role)} disabled={setDefaultMutation.isPending}>
           <Star className={cn('h-3.5 w-3.5', role.isDefaultForNewMembers ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground')} />
         </Button>
       )}
-      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(role)}><Pencil className="h-3.5 w-3.5" /></Button>
-      <Button variant="ghost" size="icon" className="h-7 w-7" title={role.usedByMembers ? 'Archiver' : 'Supprimer'} onClick={() => setDeleting(role)}>
+      <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => openEdit(role)}><Pencil className="h-3.5 w-3.5" /></Button>
+      <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" title={role.usedByMembers ? 'Archiver' : 'Supprimer'} onClick={() => setDeleting(role)}>
         <Trash2 className="h-3.5 w-3.5 text-destructive" />
       </Button>
     </div>
@@ -269,20 +345,51 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
           ) : (
             // ── Table view (all-types admin page) ──
             <div className="space-y-3">
-              {/* Filter by unit type (Tous / Global / a specific type). */}
-              {showUnitTypeColumn && (
-                <div className="flex flex-wrap items-center gap-2">
+              {/* Search + filters (all-types view). Controls stack full-width on mobile. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input className="h-9 w-full pl-8 pr-7" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une fonction..." />
+                  {search && <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setSearch('')} aria-label="Effacer"><X className="h-3.5 w-3.5" /></button>}
+                </div>
+                {showUnitTypeColumn && (
                   <Select value={unitTypeFilter || 'all'} onValueChange={(v) => { setUnitTypeFilter(v === 'all' ? '' : v); setSelected(new Set()) }}>
-                    <SelectTrigger className="h-9 w-full sm:w-72"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-9 w-full sm:w-56"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tous les types d'unité</SelectItem>
                       <SelectItem value="global">Global (tous les types)</SelectItem>
                       {unitTypes?.items.map(ut => <SelectItem key={ut.id} value={ut.id}>{ut.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <span className="text-xs text-muted-foreground">{visibleRoles.length} fonction{visibleRoles.length > 1 ? 's' : ''}</span>
-                </div>
-              )}
+                )}
+                <Select value={profileFilter} onValueChange={(v) => { setProfileFilter(v); setSelected(new Set()) }}>
+                  <SelectTrigger className="h-9 w-full sm:w-48"><SelectValue placeholder="Profil" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les profils</SelectItem>
+                    {profileOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={maitriseFilter} onValueChange={(v) => { setMaitriseFilter(v); setSelected(new Set()) }}>
+                  <SelectTrigger className="h-9 w-full sm:w-40"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes (maîtrise + jeunes)</SelectItem>
+                    <SelectItem value="maitrise">Maîtrise</SelectItem>
+                    <SelectItem value="youth">Jeunes</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setSelected(new Set()) }}>
+                  <SelectTrigger className="h-9 w-full sm:w-40"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes</SelectItem>
+                    <SelectItem value="active">Actives</SelectItem>
+                    <SelectItem value="archived">Archivées</SelectItem>
+                  </SelectContent>
+                </Select>
+                {activeFilterCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => { resetFilters(); setSelected(new Set()) }}><X className="mr-1 h-3.5 w-3.5" />Réinitialiser</Button>
+                )}
+                <span className="text-xs text-muted-foreground sm:ml-auto">{visibleRoles.length} fonction{visibleRoles.length > 1 ? 's' : ''}</span>
+              </div>
 
               {visibleRoles.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Aucune fonction pour ce filtre.</p>
@@ -299,11 +406,11 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
                               ref={el => { if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected }}
                               onChange={toggleAll} />
                           </th>
-                          <th className="px-3 py-2 font-medium">Nom</th>
-                          <th className="px-3 py-2 font-medium">Code</th>
-                          {showUnitTypeColumn && <th className="px-3 py-2 font-medium">Type d'unité</th>}
-                          <th className="px-3 py-2 font-medium">Profil</th>
-                          <th className="px-3 py-2 text-center font-medium">Membres</th>
+                          <SortTh label="Nom" k="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                          <SortTh label="Code" k="code" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                          {showUnitTypeColumn && <SortTh label="Type d'unité" k="unitType" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />}
+                          <SortTh label="Profil" k="profile" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                          <SortTh label="Membres" k="members" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-center" />
                           <th className="w-20" />
                         </tr>
                       </thead>

@@ -1,4 +1,5 @@
 using FluentValidation;
+using GNDJ.Application.Applicants; // ApplicantGuardianDto / ApplicantScoutRelationDto (for formatting the full file)
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
@@ -27,33 +28,17 @@ public class ExportDemandeDecisionsQueryHandler(IApplicationDbContext context, I
         var demandes = await context.Demandes
             .Where(d => d.ScoutYear == request.ScoutYear && d.ResponseSentAt == null && d.Status != DemandeStatus.Draft)
             .OrderBy(d => d.LastName).ThenBy(d => d.FirstName)
-            .Select(d => new
-            {
-                d.Id, d.ApplicantAccountId, d.FirstName, d.LastName, d.DateOfBirth, d.Gender, d.Classe, d.School,
-                d.Status, d.DecidedUnitId, d.DecisionNotes
-            })
             .ToListAsync(ct);
 
-        var accountIds = demandes.Select(d => d.ApplicantAccountId).Distinct().ToList();
-        // Parents' names per account (no contact details).
-        var guardians = (await context.ApplicantGuardians
-                .Where(g => accountIds.Contains(g.ApplicantAccountId))
-                .Select(g => new { g.ApplicantAccountId, g.FirstName, g.LastName }).ToListAsync(ct))
-            .GroupBy(g => g.ApplicantAccountId)
-            .ToDictionary(g => g.Key, g => string.Join(", ", g.Select(x => $"{x.FirstName} {x.LastName}".Trim())));
-        var relationCounts = (await context.ApplicantScoutRelations
-                .Where(r => accountIds.Contains(r.ApplicantAccountId))
-                .Select(r => r.ApplicantAccountId).ToListAsync(ct))
-            .GroupBy(x => x).ToDictionary(g => g.Key, g => g.Count());
-        var siblingCounts = demandes.GroupBy(d => d.ApplicantAccountId).ToDictionary(g => g.Key, g => g.Count());
+        // Build the FULL reviewable file (child + household + detailed parents/proches/fratrie) — the exact same
+        // projection the CG review table uses, so the Excel carries everything the on-screen file shows.
+        var dtos = await DemandeReviewProjection.BuildAsync(context, demandes, request.ScoutYear, LebanonClock.Today, ct);
 
-        // Unit CODE per decided unit (for prefilling a staged approval) + all active units (code,name) for the
-        // reference sheet / dropdown.
-        var unitIds = demandes.Where(d => d.DecidedUnitId != null).Select(d => d.DecidedUnitId!.Value).Distinct().ToList();
-        var unitCodeById = await context.Units.Where(u => unitIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Code, ct);
-        var activeUnits = await context.Units.Where(u => u.IsActive).OrderBy(u => u.Name)
-            .Select(u => new { u.Code, u.Name }).ToListAsync(ct);
-        var activeUnitList = activeUnits.Select(u => (u.Code, u.Name)).ToList();
+        // Unit CODE per unit (for prefilling a staged approval) + all active units (code,name) for the reference
+        // sheet / dropdown.
+        var allUnits = await context.Units.Select(u => new { u.Id, u.Code, u.Name, u.IsActive }).ToListAsync(ct);
+        var unitCodeById = allUnits.ToDictionary(u => u.Id, u => u.Code);
+        var activeUnitList = allUnits.Where(u => u.IsActive).OrderBy(u => u.Name).Select(u => (u.Code, u.Name)).ToList();
 
         // Rejection reasons (managed list) — (code,label) for the reference sheet + normalized(text)→code so a
         // staged decline prefills the reason code it was decided with (falls back to "--").
@@ -74,7 +59,7 @@ public class ExportDemandeDecisionsQueryHandler(IApplicationDbContext context, I
         };
 
         // Prefill the single Décision cell from the current staged decision.
-        string Prefill(Guid id, string status, Guid? unitId, string? notes)
+        string Prefill(string status, Guid? unitId, string? notes)
         {
             if (status == DemandeStatus.Approved && unitId != null)
                 return unitCodeById.GetValueOrDefault(unitId.Value, "");
@@ -86,19 +71,64 @@ public class ExportDemandeDecisionsQueryHandler(IApplicationDbContext context, I
             return "";
         }
 
-        var rows = demandes.Select(d => new DemandeExportRow(
-            d.Id, d.FirstName, d.LastName, d.DateOfBirth?.ToString("dd/MM/yyyy"), d.Gender, d.Classe, d.School,
-            guardians.GetValueOrDefault(d.ApplicantAccountId, ""),
-            Math.Max(0, siblingCounts.GetValueOrDefault(d.ApplicantAccountId, 1) - 1),
-            relationCounts.GetValueOrDefault(d.ApplicantAccountId, 0),
-            StatusLabel(d.Status),
-            Prefill(d.Id, d.Status, d.DecidedUnitId, d.DecisionNotes)))
+        var rows = dtos.Select(d => new DemandeExportRow(
+            d.Id, d.SerialNumber ?? "", Prefill(d.Status, d.DecidedUnitId, d.DecisionNotes), StatusLabel(d.Status),
+            d.FirstName, d.LastName, d.DateOfBirth?.ToString("dd/MM/yyyy"), d.Age, d.Gender, d.Nationality,
+            d.Classe, d.Section, d.School, d.BloodType, d.Allergies, d.MedicalNotes,
+            FormatPhone(d.PhoneCountryCode, d.PhoneNumber), d.Email,
+            d.AddressCountry, d.AddressCity, d.AddressDetails, d.ParentsSituation,
+            FormatGuardians(d.Guardians), FormatRelations(d.ScoutRelations), FormatSiblings(d.Siblings),
+            d.HasPreviousDemande ? $"Oui{(string.IsNullOrWhiteSpace(d.PreviousDemandeYear) ? "" : $" ({d.PreviousDemandeYear})")}" : "",
+            d.ParentNotes, d.SubmittedAt?.ToString("dd/MM/yyyy")))
             .ToList();
 
         var bytes = sheet.Export($"Demandes {request.ScoutYear}", rows, activeUnitList, reasonList, defaultReasonLabel);
         var fileName = $"Demandes_{request.ScoutYear.Replace(" ", "")}.xlsx";
         return Result<ExportResult>.Success(new ExportResult(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName));
     }
+
+    // ── Full-file formatters (multi-line strings written into single Excel cells with wrap) ──────────────────
+    private static string FormatPhone(string? cc, string? number)
+        => string.Join(" ", new[] { cc, number }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+
+    private static string FormatGuardians(IReadOnlyList<ApplicantGuardianDto> gs)
+        => string.Join("\n", gs.Select(g =>
+        {
+            var name = $"{g.FirstName} {g.LastName}".Trim();
+            var rel = string.IsNullOrWhiteSpace(g.Relationship) ? "Parent" : g.Relationship;
+            var parts = new List<string> { $"{rel} : {name}".Trim() };
+            var phone = FormatPhone(g.PhoneCountryCode, g.PhoneNumber);
+            if (!string.IsNullOrWhiteSpace(phone)) parts.Add(phone);
+            if (!string.IsNullOrWhiteSpace(g.Email)) parts.Add(g.Email!);
+            var prof = string.Join(" ", new[] { g.ProfessionDomain, g.Profession }.Where(s => !string.IsNullOrWhiteSpace(s)));
+            if (!string.IsNullOrWhiteSpace(prof)) parts.Add(prof);
+            if (g.IsEmergencyContact) parts.Add("(urgence)");
+            if (g.IsDeceased) parts.Add("(décédé·e)");
+            return string.Join(" · ", parts);
+        }));
+
+    private static string FormatRelations(IReadOnlyList<ApplicantScoutRelationDto> rs)
+        => string.Join("\n", rs.Select(r =>
+        {
+            var name = $"{r.FirstName} {r.LastName}".Trim();
+            var status = r.Status switch
+            {
+                "CurrentInGroup" => "Membre GNDJ",
+                "AncienInGroup" => "Ancien membre GNDJ",
+                "OtherGroup" => "Autre groupe",
+                _ => r.Status,
+            };
+            var where = !string.IsNullOrWhiteSpace(r.OtherGroupName) ? r.OtherGroupName
+                : !string.IsNullOrWhiteSpace(r.LastUnit) ? r.LastUnit : null;
+            var s = $"{(string.IsNullOrWhiteSpace(name) ? "—" : name)} — {status}";
+            if (!string.IsNullOrWhiteSpace(where)) s += $" ({where})";
+            if (!string.IsNullOrWhiteSpace(r.Relationship)) s += $" [{r.Relationship}]";
+            if (!string.IsNullOrWhiteSpace(r.RelatedMemberName)) s += $" → membre : {r.RelatedMemberName}{(string.IsNullOrWhiteSpace(r.RelatedMemberUnit) ? "" : $" ({r.RelatedMemberUnit})")}";
+            return s;
+        }));
+
+    private static string FormatSiblings(IReadOnlyList<SiblingDto> sibs)
+        => string.Join("\n", sibs.Select(s => $"{s.FirstName} {s.LastName}".Trim()));
 }
 
 // ── Import ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -122,6 +152,7 @@ public class ImportDemandeDecisionsCommandHandler(IApplicationDbContext context,
     {
         IReadOnlyList<DemandeDecisionRow> rows;
         try { rows = sheet.Parse(request.File); }
+        catch (DemandeSheetFormatException ex) { return Result<ImportDemandeDecisionsResult>.Failure(ex.Message); } // missing Réf./Décision column
         catch { return Result<ImportDemandeDecisionsResult>.Failure("Fichier illisible. Utilisez le modèle exporté (.xlsx)."); }
 
         // Decidable demandes of this year, keyed by id.

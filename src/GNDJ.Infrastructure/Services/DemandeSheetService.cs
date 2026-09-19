@@ -10,26 +10,49 @@ namespace GNDJ.Infrastructure.Services;
 // the import.
 public class DemandeSheetService : IDemandeSheetService
 {
-    // Header labels — the same strings drive the export layout and the import column lookup.
+    // Header labels — the same strings drive the export layout and the import column lookup. Only H_Ref (the
+    // matching key) and H_Decision (what the CG fills) are READ back on import; every other column is purely
+    // informational (the full file, for reviewing in Excel) and is ignored by the parser.
     private const string H_Ref = "Réf. (ne pas modifier)";
+    private const string H_Serial = "N°";
+    private const string H_Decision = "Décision (code unité ou motif)";
+    private const string H_Status = "Statut actuel";
     private const string H_First = "Prénom";
     private const string H_Last = "Nom";
     private const string H_Dob = "Naissance";
+    private const string H_Age = "Âge";
     private const string H_Gender = "Genre";
+    private const string H_Nationality = "Nationalité";
     private const string H_Classe = "Classe";
+    private const string H_Section = "Section";
     private const string H_School = "École";
-    private const string H_Parents = "Parents";
-    private const string H_Siblings = "Fratrie";
+    private const string H_Blood = "Groupe sanguin";
+    private const string H_Allergies = "Allergies";
+    private const string H_Medical = "Notes médicales";
+    private const string H_Phone = "Téléphone";
+    private const string H_Email = "Email";
+    private const string H_AddrCountry = "Adresse — pays";
+    private const string H_AddrCity = "Adresse — ville";
+    private const string H_AddrDetails = "Adresse — détails";
+    private const string H_Situation = "Situation des parents";
+    private const string H_Parents = "Parents / tuteurs";
     private const string H_Relations = "Proches scouts";
-    private const string H_Status = "Statut actuel";
-    private const string H_Decision = "Décision (code unité ou motif)";
+    private const string H_Siblings = "Fratrie (mêmes parents)";
+    private const string H_Previous = "Demande précédente";
+    private const string H_Notes = "Notes des parents";
+    private const string H_Submitted = "Soumise le";
 
     private static readonly string[] Headers =
     {
-        H_Ref, H_First, H_Last, H_Dob, H_Gender, H_Classe, H_School, H_Parents, H_Siblings, H_Relations,
-        H_Status, H_Decision,
+        H_Ref, H_Serial, H_Decision, H_Status, H_First, H_Last, H_Dob, H_Age, H_Gender, H_Nationality,
+        H_Classe, H_Section, H_School, H_Blood, H_Allergies, H_Medical, H_Phone, H_Email,
+        H_AddrCountry, H_AddrCity, H_AddrDetails, H_Situation, H_Parents, H_Relations, H_Siblings,
+        H_Previous, H_Notes, H_Submitted,
     };
-    private const int DecisionCol = 12; // 1-based index of H_Decision in Headers
+    private const int DecisionCol = 3;   // 1-based index of H_Decision in Headers (kept near the left so it's easy to fill)
+    private const int RefCol = 1;        // 1-based index of H_Ref
+    // Columns holding pre-formatted multi-line text — rendered with wrap so the CG sees every line.
+    private static readonly int[] WrapCols = { 15, 16, 23, 24, 25, 27 }; // Allergies, Notes médicales, Parents, Proches, Fratrie, Notes
 
     public byte[] Export(string title, IReadOnlyList<DemandeExportRow> rows,
         IReadOnlyList<(string Code, string Name)> units,
@@ -47,25 +70,54 @@ public class DemandeSheetService : IDemandeSheetService
         headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
         ws.SheetView.FreezeRows(1);
 
-        // Data
+        // Highlight the Décision header so the CG immediately sees the one column to fill.
+        ws.Cell(1, DecisionCol).Style.Fill.BackgroundColor = XLColor.LightYellow;
+
+        // Data — one row per demande with the FULL file; the CG only fills the Décision cell.
         var r = 2;
         foreach (var row in rows)
         {
-            ws.Cell(r, 1).Value = row.Id.ToString();
-            ws.Cell(r, 2).Value = row.FirstName;
-            ws.Cell(r, 3).Value = row.LastName;
-            ws.Cell(r, 4).Value = row.DateOfBirth ?? "";
-            ws.Cell(r, 5).Value = row.Gender ?? "";
-            ws.Cell(r, 6).Value = row.Classe ?? "";
-            ws.Cell(r, 7).Value = row.School ?? "";
-            ws.Cell(r, 8).Value = row.Parents;
-            ws.Cell(r, 9).Value = row.Siblings;
-            ws.Cell(r, 10).Value = row.ScoutRelations;
-            ws.Cell(r, 11).Value = row.CurrentStatus;
-            ws.Cell(r, DecisionCol).Value = row.PrefillDecision; // unit code (accepté) / reason code or "--" (refusé)
+            var c = 1;
+            ws.Cell(r, c++).Value = row.Id.ToString();          // Réf.
+            ws.Cell(r, c++).Value = row.SerialNumber;           // N°
+            ws.Cell(r, c++).Value = row.PrefillDecision;        // Décision — unit code (accepté) / reason code or "--" (refusé)
+            ws.Cell(r, c++).Value = row.CurrentStatus;          // Statut actuel
+            ws.Cell(r, c++).Value = row.FirstName;
+            ws.Cell(r, c++).Value = row.LastName;
+            ws.Cell(r, c++).Value = row.DateOfBirth ?? "";
+            if (row.Age.HasValue) ws.Cell(r, c).Value = row.Age.Value; c++;
+            ws.Cell(r, c++).Value = row.Gender ?? "";
+            ws.Cell(r, c++).Value = row.Nationality ?? "";
+            ws.Cell(r, c++).Value = row.Classe ?? "";
+            ws.Cell(r, c++).Value = row.Section ?? "";
+            ws.Cell(r, c++).Value = row.School ?? "";
+            ws.Cell(r, c++).Value = row.BloodType ?? "";
+            ws.Cell(r, c++).Value = row.Allergies ?? "";
+            ws.Cell(r, c++).Value = row.MedicalNotes ?? "";
+            ws.Cell(r, c++).Value = row.Phone ?? "";
+            ws.Cell(r, c++).Value = row.Email ?? "";
+            ws.Cell(r, c++).Value = row.AddressCountry ?? "";
+            ws.Cell(r, c++).Value = row.AddressCity ?? "";
+            ws.Cell(r, c++).Value = row.AddressDetails ?? "";
+            ws.Cell(r, c++).Value = row.ParentsSituation ?? "";
+            ws.Cell(r, c++).Value = row.Parents;                // multi-line
+            ws.Cell(r, c++).Value = row.ScoutRelations;         // multi-line
+            ws.Cell(r, c++).Value = row.Siblings;               // multi-line
+            ws.Cell(r, c++).Value = row.PreviousDemande ?? "";
+            ws.Cell(r, c++).Value = row.ParentNotes ?? "";
+            ws.Cell(r, c++).Value = row.SubmittedAt ?? "";
             r++;
         }
         var lastRow = Math.Max(2, r - 1);
+
+        // Multi-line text columns: top-aligned + wrapped so every line shows.
+        if (r > 2)
+            foreach (var wc in WrapCols)
+            {
+                var cells = ws.Range(2, wc, lastRow, wc).Style;
+                cells.Alignment.WrapText = true;
+                cells.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+            }
 
         // Reference sheet: every valid code + its meaning. Also serves as the dropdown source for the Décision
         // column so the CG picks a code instead of typing it.
@@ -108,10 +160,12 @@ public class DemandeSheetService : IDemandeSheetService
         }
 
         // Grey the Réf. key column so the CG treats it as read-only.
-        ws.Range(2, 1, lastRow, 1).Style.Font.FontColor = XLColor.Gray;
+        ws.Range(2, RefCol, lastRow, RefCol).Style.Font.FontColor = XLColor.Gray;
         ws.Columns().AdjustToContents();
-        ws.Column(1).Width = 20;
+        ws.Column(RefCol).Width = 20;
         ws.Column(DecisionCol).Width = 18;
+        // Fixed widths for the wide multi-line columns (AdjustToContents would blow them out); wrap does the rest.
+        foreach (var wc in WrapCols) ws.Column(wc).Width = 34;
 
         using var ms = new MemoryStream();
         wb.SaveAs(ms);
@@ -138,6 +192,14 @@ public class DemandeSheetService : IDemandeSheetService
         }
         int Col(string header) => cols.TryGetValue(header, out var c) ? c : 0;
         int refC = Col(H_Ref), decC = Col(H_Decision);
+
+        // The import matches rows by the Réf. (id) column and reads the Décision column — nothing else. Inserting,
+        // reordering, editing or deleting ANY other column is harmless (they're ignored). But if one of these two
+        // required columns is gone (header renamed/deleted), fail loudly rather than silently importing nothing.
+        if (refC == 0)
+            throw new DemandeSheetFormatException("Colonne « Réf. (ne pas modifier) » introuvable. Réimportez le fichier exporté sans renommer ni supprimer cette colonne.");
+        if (decC == 0)
+            throw new DemandeSheetFormatException("Colonne « Décision (code unité ou motif) » introuvable. Réimportez le fichier exporté sans renommer ni supprimer cette colonne.");
 
         var list = new List<DemandeDecisionRow>();
         for (var rr = 2; rr <= lastRow; rr++)

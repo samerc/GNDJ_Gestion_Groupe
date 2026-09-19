@@ -4,27 +4,29 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
 // ─── Scout Stages ──────────────────────────
+// unitTypeId/unitTypeName are null for a GLOBAL stage (available to every unit type).
 export interface ScoutStageDto {
-  id: string; unitTypeId: string; unitTypeName: string; code: string; name: string
+  id: string; unitTypeId: string | null; unitTypeName: string | null; code: string; name: string
   description: string | null; displayOrder: number; isActive: boolean; isBadgeStage: boolean; progressionCount: number
 }
 export interface ScoutStageListDto { id: string; code: string; name: string; isBadgeStage: boolean }
-export interface ScoutStageFormData { unitTypeId: string; code: string; name: string; description?: string | null; displayOrder: number; isActive: boolean; isBadgeStage: boolean }
+export interface ScoutStageFormData { unitTypeId: string | null; code: string; name: string; description?: string | null; displayOrder: number; isActive: boolean; isBadgeStage: boolean }
 
-// GET /scout-stages — full stage list, optionally filtered by unit type. Keyed ['scout-stages', unitTypeId].
-export function useScoutStages(unitTypeId?: string) {
+// GET /scout-stages — full stage list, filtered by unit type OR globalOnly (the no-unit-type stages).
+export function useScoutStages(unitTypeId?: string, globalOnly?: boolean) {
   return useQuery({
-    queryKey: ['scout-stages', unitTypeId],
-    queryFn: () => apiClient.get<ScoutStageDto[]>('/scout-stages', { params: { unitTypeId } }).then(r => r.data),
+    queryKey: ['scout-stages', unitTypeId, globalOnly],
+    queryFn: () => apiClient.get<ScoutStageDto[]>('/scout-stages', { params: { unitTypeId, globalOnly: globalOnly || undefined } }).then(r => r.data),
   })
 }
 
-// GET /scout-stages/list — slim list for pickers; requires unitTypeId.
-export function useScoutStageList(unitTypeId: string) {
+// GET /scout-stages/list — slim list for pickers. global=true → the global (no unit type) stages ("Général");
+// otherwise the given unit type's OWN stages only.
+export function useScoutStageList(unitTypeId: string, global = false) {
   return useQuery({
-    queryKey: ['scout-stages', 'list', unitTypeId],
-    queryFn: () => apiClient.get<ScoutStageListDto[]>('/scout-stages/list', { params: { unitTypeId } }).then(r => r.data),
-    enabled: !!unitTypeId,
+    queryKey: ['scout-stages', 'list', unitTypeId, global],
+    queryFn: () => apiClient.get<ScoutStageListDto[]>('/scout-stages/list', { params: { unitTypeId: unitTypeId || undefined, global: global || undefined } }).then(r => r.data),
+    enabled: !!unitTypeId || global,
   })
 }
 
@@ -66,27 +68,29 @@ export function useReorderScoutStages() {
 }
 
 // ─── Badges ────────────────────────────────
+// unitTypeId/unitTypeName are null for a GLOBAL badge (available to every unit type).
 export interface BadgeDto {
-  id: string; unitTypeId: string; unitTypeName: string; code: string; name: string
+  id: string; unitTypeId: string | null; unitTypeName: string | null; code: string; name: string
   description: string | null; displayOrder: number; isActive: boolean; progressionCount: number
 }
 export interface BadgeListDto { id: string; code: string; name: string }
-export interface BadgeFormData { unitTypeId: string; code: string; name: string; description?: string | null; displayOrder: number; isActive: boolean }
+export interface BadgeFormData { unitTypeId: string | null; code: string; name: string; description?: string | null; displayOrder: number; isActive: boolean }
 
-// GET /badges — full badge list, optionally filtered by unit type. Keyed ['badges', unitTypeId].
-export function useBadges(unitTypeId?: string) {
+// GET /badges — full badge list, filtered by unit type OR globalOnly (the no-unit-type badges).
+export function useBadges(unitTypeId?: string, globalOnly?: boolean) {
   return useQuery({
-    queryKey: ['badges', unitTypeId],
-    queryFn: () => apiClient.get<BadgeDto[]>('/badges', { params: { unitTypeId } }).then(r => r.data),
+    queryKey: ['badges', unitTypeId, globalOnly],
+    queryFn: () => apiClient.get<BadgeDto[]>('/badges', { params: { unitTypeId, globalOnly: globalOnly || undefined } }).then(r => r.data),
   })
 }
 
-// GET /badges/list — slim list for pickers; requires unitTypeId.
-export function useBadgeList(unitTypeId: string) {
+// GET /badges/list — slim list for pickers. global=true → the global (no unit type) badges; otherwise the
+// given unit type's OWN badges only.
+export function useBadgeList(unitTypeId: string, global = false) {
   return useQuery({
-    queryKey: ['badges', 'list', unitTypeId],
-    queryFn: () => apiClient.get<BadgeListDto[]>('/badges/list', { params: { unitTypeId } }).then(r => r.data),
-    enabled: !!unitTypeId,
+    queryKey: ['badges', 'list', unitTypeId, global],
+    queryFn: () => apiClient.get<BadgeListDto[]>('/badges/list', { params: { unitTypeId: unitTypeId || undefined, global: global || undefined } }).then(r => r.data),
+    enabled: !!unitTypeId || global,
   })
 }
 
@@ -120,13 +124,14 @@ export function useDeleteBadge() {
 
 // ─── Member Progressions ───────────────────
 export interface MemberProgressionDto {
-  id: string; memberId: string; unitId: string; unitName: string
+  id: string; memberId: string; unitId: string | null; unitName: string | null // null = global (no unit)
   scoutStageId: string; scoutStageCode: string; scoutStageName: string
   badgeId: string | null; badgeCode: string | null; badgeName: string | null
   date: string; location: string | null; notes: string | null; createdAt: string
 }
 
-export interface CreateProgressionData { memberId: string; unitId: string; scoutStageId: string; badgeId?: string | null; date: string; location?: string | null; notes?: string | null }
+// unitId null = a global-stage progression ("Général" — no unit).
+export interface CreateProgressionData { memberId: string; unitId: string | null; scoutStageId: string; badgeId?: string | null; date: string; location?: string | null; notes?: string | null }
 
 // GET /progressions/member/{id} — a member's progression history. Keyed ['progressions', memberId].
 export function useMemberProgressions(memberId: string) {

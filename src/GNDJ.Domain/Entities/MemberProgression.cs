@@ -6,7 +6,7 @@ namespace GNDJ.Domain.Entities;
 public class MemberProgression : BaseEntity
 {
     public Guid MemberId { get; set; }
-    public Guid UnitId { get; set; }
+    public Guid? UnitId { get; set; } // null = a GLOBAL progression (a stage/badge with no unit type — "Général")
     public Guid ScoutStageId { get; set; }
     public Guid? BadgeId { get; set; } // Only when the stage is a badge stage
     public DateOnly Date { get; set; }
@@ -14,7 +14,7 @@ public class MemberProgression : BaseEntity
     public string? Notes { get; set; }
 
     public Member Member { get; set; } = null!;
-    public Unit Unit { get; set; } = null!;
+    public Unit? Unit { get; set; } // null for a global progression
     public ScoutStage ScoutStage { get; set; } = null!;
     public Badge? Badge { get; set; }
 }

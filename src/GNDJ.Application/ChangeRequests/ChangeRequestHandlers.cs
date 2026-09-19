@@ -18,7 +18,7 @@ public static class ChangeRequestKinds { public const string Progression = "Prog
 public static class ChangeRequestStatus { public const string Pending = "Pending", Approved = "Approved", Rejected = "Rejected"; }
 
 // Serialized payloads (stored in PayloadJson).
-public record ProgressionPayload(Guid UnitId, Guid ScoutStageId, Guid? BadgeId, DateOnly Date, string? Location, string? Notes);
+public record ProgressionPayload(Guid? UnitId, Guid ScoutStageId, Guid? BadgeId, DateOnly Date, string? Location, string? Notes); // UnitId null = a global-stage proposal (no unit)
 public record AssignmentPayload(Guid UnitId, Guid? TeamId, Guid FunctionalRoleId, DateOnly StartDate);
 
 public record MemberChangeRequestDto(
@@ -39,13 +39,13 @@ static class ChangeRequestAccess
 }
 
 // ── Propose: Progression (member) ────────────────────────────────────────────
-public record ProposeProgressionCommand(Guid UnitId, Guid ScoutStageId, Guid? BadgeId, DateOnly Date, string? Location, string? Notes) : IRequest<Result<Guid>>;
+public record ProposeProgressionCommand(Guid? UnitId, Guid ScoutStageId, Guid? BadgeId, DateOnly Date, string? Location, string? Notes) : IRequest<Result<Guid>>;
 
 public class ProposeProgressionValidator : AbstractValidator<ProposeProgressionCommand>
 {
     public ProposeProgressionValidator()
     {
-        RuleFor(x => x.UnitId).NotEmpty();
+        // UnitId optional: null = a global-stage proposal (no unit).
         RuleFor(x => x.ScoutStageId).NotEmpty();
         RuleFor(x => x.Date).LessThanOrEqualTo(_ => LebanonClock.Today).WithMessage("La date ne peut pas être dans le futur.");
         RuleFor(x => x.Location).MaximumLength(200).NoHtml();
@@ -60,20 +60,27 @@ public class ProposeProgressionHandler(IApplicationDbContext context, ICurrentUs
         var memberId = currentUser.MemberId;
         if (memberId is null) return Result<Guid>.Failure("Aucun membre associé à ce compte.");
 
-        // The target unit must exist and be active. A member may propose progression for ANY unit (the CU/CG
-        // reviews it) — not just units they've belonged to.
-        if (!await context.Units.AnyAsync(u => u.Id == request.UnitId && u.IsActive, ct))
-            return Result<Guid>.Failure("Unité introuvable.");
-
         var stage = await context.ScoutStages.FindAsync([request.ScoutStageId], ct);
         if (stage is null) return Result<Guid>.Failure("Étape introuvable.");
         if (stage.IsBadgeStage && request.BadgeId is null) return Result<Guid>.Failure("Un badge est requis pour cette étape.");
 
-        var badgeName = request.BadgeId is null ? null : (await context.Badges.FindAsync([request.BadgeId.Value], ct))?.Name;
-        var unitName = (await context.Units.FindAsync([request.UnitId], ct))?.Name ?? "";
-        var summary = $"Progression : {stage.Name}{(badgeName is null ? "" : $" · {badgeName}")} — {unitName}";
+        // A GLOBAL stage (no unit type) is proposed WITHOUT a unit ("Général"); a per-type stage needs a unit.
+        // A member may propose against ANY active unit (the CU/CG reviews it) — not just units they've belonged to.
+        var isGlobalStage = stage.UnitTypeId is null;
+        Guid? unitId = isGlobalStage ? null : request.UnitId;
+        var unitLabel = "Général";
+        if (!isGlobalStage)
+        {
+            if (unitId is null) return Result<Guid>.Failure("L'unité est requise.");
+            var unit = await context.Units.FirstOrDefaultAsync(u => u.Id == unitId && u.IsActive, ct);
+            if (unit is null) return Result<Guid>.Failure("Unité introuvable.");
+            unitLabel = unit.Name;
+        }
 
-        var payload = JsonSerializer.Serialize(new ProgressionPayload(request.UnitId, request.ScoutStageId, request.BadgeId, request.Date, request.Location, request.Notes));
+        var badgeName = request.BadgeId is null ? null : (await context.Badges.FindAsync([request.BadgeId.Value], ct))?.Name;
+        var summary = $"Progression : {stage.Name}{(badgeName is null ? "" : $" · {badgeName}")} — {unitLabel}";
+
+        var payload = JsonSerializer.Serialize(new ProgressionPayload(unitId, request.ScoutStageId, request.BadgeId, request.Date, request.Location, request.Notes));
         var entity = new MemberChangeRequest { MemberId = memberId.Value, Kind = ChangeRequestKinds.Progression, PayloadJson = payload, Summary = summary, Status = ChangeRequestStatus.Pending };
         context.MemberChangeRequests.Add(entity);
         await context.SaveChangesAsync(ct);
@@ -280,7 +287,9 @@ public class ReviewChangeRequestHandler(IApplicationDbContext context, ICurrentU
             if (entity.Kind == ChangeRequestKinds.Progression)
             {
                 var p = JsonSerializer.Deserialize<ProgressionPayload>(entity.PayloadJson)!;
-                if (!currentUser.IsSuperAdmin && !currentUser.AuthorizedUnitIds.Contains(p.UnitId))
+                // A global-stage proposal has no target unit (UnitId null) — CanManageMember above already
+                // authorized the reviewer for this member, so no per-unit check applies.
+                if (!currentUser.IsSuperAdmin && p.UnitId is not null && !currentUser.AuthorizedUnitIds.Contains(p.UnitId.Value))
                     return Result<bool>.Failure("Vous ne gérez pas l'unité cible de cette demande.");
                 context.MemberProgressions.Add(new MemberProgression
                 {

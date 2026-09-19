@@ -16,23 +16,25 @@ namespace GNDJ.Api.Controllers;
 [Route("api/v1/scout-stages")]
 public class ScoutStagesController : BaseApiController
 {
-    /// <summary>Lists scout stages, optionally filtered by unit type. Requires progression.view.</summary>
+    /// <summary>Lists scout stages, optionally filtered by unit type (or globalOnly for the no-unit-type stages). Requires progression.view.</summary>
     /// <param name="unitTypeId">Optional unit-type filter; omit for all stages.</param>
+    /// <param name="globalOnly">When true, returns only the global (no unit type) stages.</param>
     [HttpGet]
     [HasPermission(Permissions.ProgressionView)]
-    public async Task<IActionResult> GetAll([FromQuery] Guid? unitTypeId)
+    public async Task<IActionResult> GetAll([FromQuery] Guid? unitTypeId, [FromQuery] bool globalOnly = false)
     {
-        var result = await Mediator.Send(new GetScoutStagesQuery(unitTypeId));
+        var result = await Mediator.Send(new GetScoutStagesQuery(unitTypeId, globalOnly));
         return Ok(result);
     }
 
-    /// <summary>Lists active stages of a unit type for pickers (ladder view). Requires progression.view.</summary>
-    /// <param name="unitTypeId">Unit type whose stages to list.</param>
+    /// <summary>Lists active stages for pickers: a unit type's own stages, or (global=true) the global stages. Requires progression.view.</summary>
+    /// <param name="unitTypeId">Unit type whose stages to list (ignored when global=true).</param>
+    /// <param name="global">When true, returns the global (no unit type) stages instead.</param>
     [HttpGet("list")]
     [HasPermission(Permissions.ProgressionView)]
-    public async Task<IActionResult> GetList([FromQuery] Guid unitTypeId)
+    public async Task<IActionResult> GetList([FromQuery] Guid? unitTypeId, [FromQuery] bool global = false)
     {
-        var result = await Mediator.Send(new GetScoutStageListQuery(unitTypeId));
+        var result = await Mediator.Send(new GetScoutStageListQuery(unitTypeId, global));
         return Ok(result);
     }
 
@@ -90,23 +92,25 @@ public class ScoutStagesController : BaseApiController
 [Route("api/v1/badges")]
 public class BadgesController : BaseApiController
 {
-    /// <summary>Lists badges, optionally filtered by unit type. Requires progression.view.</summary>
+    /// <summary>Lists badges, optionally filtered by unit type (or globalOnly for the no-unit-type badges). Requires progression.view.</summary>
     /// <param name="unitTypeId">Optional unit-type filter; omit for all badges.</param>
+    /// <param name="globalOnly">When true, returns only the global (no unit type) badges.</param>
     [HttpGet]
     [HasPermission(Permissions.ProgressionView)]
-    public async Task<IActionResult> GetAll([FromQuery] Guid? unitTypeId)
+    public async Task<IActionResult> GetAll([FromQuery] Guid? unitTypeId, [FromQuery] bool globalOnly = false)
     {
-        var result = await Mediator.Send(new GetBadgesQuery(unitTypeId));
+        var result = await Mediator.Send(new GetBadgesQuery(unitTypeId, globalOnly));
         return Ok(result);
     }
 
-    /// <summary>Lists active badges of a unit type for pickers (chip grid). Requires progression.view.</summary>
-    /// <param name="unitTypeId">Unit type whose badges to list.</param>
+    /// <summary>Lists active badges for pickers: a unit type's own badges, or (global=true) the global badges. Requires progression.view.</summary>
+    /// <param name="unitTypeId">Unit type whose badges to list (ignored when global=true).</param>
+    /// <param name="global">When true, returns the global (no unit type) badges instead.</param>
     [HttpGet("list")]
     [HasPermission(Permissions.ProgressionView)]
-    public async Task<IActionResult> GetList([FromQuery] Guid unitTypeId)
+    public async Task<IActionResult> GetList([FromQuery] Guid? unitTypeId, [FromQuery] bool global = false)
     {
-        var result = await Mediator.Send(new GetBadgeListQuery(unitTypeId));
+        var result = await Mediator.Send(new GetBadgeListQuery(unitTypeId, global));
         return Ok(result);
     }
 

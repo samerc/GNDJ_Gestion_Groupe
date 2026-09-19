@@ -18,6 +18,9 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Tip } from '@/components/ui/tooltip'
 import { Plus, Pencil, Trash2, Star, Award, MapPin, Calendar, X } from 'lucide-react'
 
+// Sentinel for the "Général (hors unité)" option in the unit picker — a global-stage progression (no unit).
+const GENERAL = '__general__'
+
 // "Progression" tab of the member detail page / Ma fiche / CU dashboard. Lists the member's
 // recorded progression entries (a scout stage, plus a badge when the stage is a badge-stage,
 // with date/location/notes) and lets a manager add/delete them. Stage & badge pickers are
@@ -84,14 +87,18 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
     ? (proposableUnits ?? []).map(u => ({ unitId: u.id, unitName: u.name, unitTypeId: u.unitTypeId, isActive: false }))
     : memberUnits
 
-  // Stages/badges load for the SELECTED unit's type (fall back to props / active assignment).
+  // "Général (hors unité)" = the separate global entity: global stages/badges, recorded with NO unit.
+  const isGeneral = form.unitId === GENERAL
+
+  // Stages/badges load for the SELECTED unit's type (fall back to props / active assignment), OR the GLOBAL
+  // list when "Général" is selected — so global items are their own list, not mixed into every unit.
   const selectedUnit = unitPickerOptions.find(u => u.unitId === form.unitId)
-  const selectedUnitTypeId = selectedUnit?.unitTypeId ?? propUnitTypeId ?? activeAssignment?.unitTypeId
-  const { data: stages } = useScoutStageList(selectedUnitTypeId ?? '')
+  const selectedUnitTypeId = isGeneral ? undefined : (selectedUnit?.unitTypeId ?? propUnitTypeId ?? activeAssignment?.unitTypeId)
+  const { data: stages } = useScoutStageList(isGeneral ? '' : (selectedUnitTypeId ?? ''), isGeneral)
 
   // Badges only load (and the badge field only shows) when the chosen stage is a badge-stage.
   const selectedStage = stages?.find(s => s.id === form.scoutStageId)
-  const { data: badges } = useBadgeList(selectedStage?.isBadgeStage ? (selectedUnitTypeId ?? '') : '')
+  const { data: badges } = useBadgeList(selectedStage?.isBadgeStage ? (isGeneral ? '' : (selectedUnitTypeId ?? '')) : '', isGeneral && !!selectedStage?.isBadgeStage)
 
   const openCreate = () => {
     setEditing(null)
@@ -106,7 +113,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
   const openEdit = (p: MemberProgressionDto) => {
     setEditing(p)
     setForm({
-      unitId: p.unitId, scoutStageId: p.scoutStageId, badgeId: p.badgeId ?? '',
+      unitId: p.unitId ?? GENERAL, scoutStageId: p.scoutStageId, badgeId: p.badgeId ?? '', // no unit → Général
       date: p.date.split('T')[0], location: p.location ?? '', notes: p.notes ?? '',
     })
     setError('')
@@ -122,7 +129,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
     if (!form.date) { setError("La date est requise."); return }
 
     const payload = {
-      unitId: form.unitId,
+      unitId: isGeneral ? null : form.unitId, // Général → no unit (global stage)
       scoutStageId: form.scoutStageId,
       badgeId: selectedStage?.isBadgeStage ? form.badgeId : null,
       date: form.date,
@@ -157,8 +164,9 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
 
   if (isLoading) return <LoadingSpinner />
 
-  // Show the add/propose button to a manager (with a target unit) or to a member proposing on their own fiche.
-  const canAddOrPropose = (canManage && memberUnits.length > 0) || proposing
+  // Show the add/propose button to a manager or to a member proposing on their own fiche. A manager can always
+  // add — at minimum a "Général" (global) progression, even if the member has no current unit.
+  const canAddOrPropose = canManage || proposing
 
   return (
     <div className="space-y-4">
@@ -226,7 +234,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
                     <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(p.date).toLocaleDateString('fr-FR')}</span>
                       {p.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{p.location}</span>}
-                      <span>{p.unitName}</span>
+                      <span>{p.unitName ?? 'Général'}</span>
                     </div>
                     {p.notes && <p className="mt-1 text-xs text-muted-foreground">{p.notes}</p>}
                   </div>
@@ -264,6 +272,8 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
                   {unitPickerOptions.map(u => (
                     <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}{proposing ? '' : (u.isActive ? ' (actuelle)' : ' (ancienne)')}</SelectItem>
                   ))}
+                  {/* Separate entity for the cross-branch (global) items — not tied to any unit. */}
+                  <SelectItem value={GENERAL}>Général (hors unité)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

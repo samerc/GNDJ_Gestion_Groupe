@@ -5397,6 +5397,41 @@ deploy (migration-free; needs the backend rebuild for the new endpoint).
   remove it via the Fratries page (Confirmées → unlink) or `DELETE FROM sibling_groups WHERE notes='TEST account
   switch demo'` + null their `sibling_group_id`.
 
+### Batch 2026-09-19 — global progression items + demande/passage/fonctions UX (DEV until deploy)
+A batch of adjustments; all on main, DEV until deploy. Two migrations generated + applied to dev; backend rebuilt
+(0/0), frontend tsc+eslint+vite clean.
+- **Progression: GLOBAL étapes/badges as a separate "Général" entity.** `ScoutStage.UnitTypeId` +
+  `Badge.UnitTypeId` are now **nullable** (null = global, available to every branch; migration
+  `MakeProgressionUnitTypeNullable`) AND `MemberProgression.UnitId` is nullable (a global progression has no unit;
+  migration `MakeProgressionUnitNullable`). Admin `Progression scoute` gained a **"Global (tous les types)"** pill
+  (sentinel `'__global__'`) to manage them apart; `Get{ScoutStages,Badges}Query` gained `GlobalOnly` (+ controller
+  `?globalOnly=`); create commands accept null UnitTypeId (with a "…globale…" dup-code message). The picker `/list`
+  endpoints take `?global=` and are **NOT merged** — a real unit returns ONLY its own items, `global=true` returns
+  ONLY globals. Member form (`member-progression.tsx`) unit picker has a separate **"Général (hors unité)"** option
+  (`GENERAL='__general__'`) → global items only, stored with null unit (shown "Général"). Create/Update/Propose
+  commands + `ProgressionPayload` all nullable-unit + global-stage logic (a global stage forces null unit; the
+  review-approve skips the per-unit authz check when `p.UnitId` is null). Add-button gate relaxed to
+  `canManage || proposing`. `EntreeStageResolver` + passage entrée-dedup verified safe. Key gotcha this session:
+  the FIRST attempt merged globals into every unit's list, which the user rejected ("separate entity, not in all
+  units") → reverted to the separate-option model above.
+- **Demandes — export Excel = the FULL file + robust import.** `DemandeSheetService`/`IDemandeSheetService`/
+  `DemandeSheetHandlers`: the decisions `.xlsx` now carries every field per demande (built via the shared
+  `DemandeReviewProjection.BuildAsync`), with `Réf.` + a highlighted `Décision` (col 3, dropdown) kept at the left.
+  Import reads ONLY `Réf.` (id) + `Décision` **by header name** (reorder/edit/sort/annotate anything else is
+  harmless); a new typed `DemandeSheetFormatException` makes the import **fail loudly** if either header is
+  renamed/deleted (was silently importing nothing).
+- **Demandes — filter on many more fields** (`demande-validation.tsx`, client-side over the loaded set so the
+  send-gate is unaffected): École / Unité décidée / Nationalité / Ville / Situation parents / Réponse envoyée /
+  Proche-scout type dropdowns + toggles (Dossier incomplet / Avec proches / Fratrie / Demande précédente) + result
+  count + Réinitialiser. Via a memoized `matchesFilters`.
+- **Passages — "Sans passage" as a top stat card** (`passage-validation.tsx`): 5th amber card (uses
+  `missingInScope`, grid → `lg:grid-cols-5`); bottom block trimmed to a one-line hint.
+- **Fonctions — search / sort / filter / mobile** (`functional-roles-list.tsx`, table mode only): search box +
+  sortable columns (module-scope `SortTh`) + Profil / Maîtrise-Jeunes / Statut filters + Réinitialiser; controls
+  stack on mobile, row actions `h-9 w-9 sm:h-7 sm:w-7`. Drag-to-rank unit-type view untouched.
+- NOTE: dev admin password is NOT `Admin123!` (dev synced from prod) → backend verified via build + psql schema
+  checks (both migrations applied, columns nullable YES), not live JWT calls.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

@@ -5,6 +5,26 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Progression — étapes et badges « globaux » : on peut désormais créer des étapes et des badges qui ne dépendent d'aucune branche. Dans « Progression scoute », un onglet « Global (tous les types) » permet de les gérer à part. Lorsqu'on ajoute une progression à un membre, le sélecteur d'unité propose une entrée séparée « Général (hors unité) » qui affiche uniquement ces éléments globaux — ils ne se mélangent donc plus à la liste de chaque unité. Une unité n'affiche que ses propres étapes/badges."
+      },
+      {
+        "date": "2026-09-19",
+        "text": "Demandes — export Excel complet : le fichier exporté pour les décisions contient maintenant toutes les informations de chaque demande (identité, école, classe, coordonnées, adresse, situation des parents, parents et proches scouts détaillés, fratrie, notes…), en plus de la colonne « Décision » à remplir. À l'import, seules les colonnes « Réf. » et « Décision » sont relues : on peut trier, annoter, réorganiser ou compléter le reste librement sans rien casser. Si l'une de ces deux colonnes est renommée ou supprimée, l'import affiche désormais un message clair au lieu de n'importer silencieusement rien."
+      },
+      {
+        "date": "2026-09-19",
+        "text": "Demandes — filtres enrichis : l'écran de validation des demandes permet de filtrer sur beaucoup plus de champs (école, unité décidée, nationalité, ville, situation des parents, réponse envoyée ou non, type de proche scout) et par indicateurs (dossier incomplet, avec proches, fratrie / frère-sœur, demande précédente), avec un compteur de résultats et un bouton « Réinitialiser »."
+      },
+      {
+        "date": "2026-09-19",
+        "text": "Passages — indicateur « Sans passage » remonté en haut : le nombre de membres actifs encore sans ligne de passage s'affiche maintenant comme une carte de statistique en haut de la page (à côté de Total / En attente / Acceptés / Rejetés), au lieu d'une ligne en bas."
+      },
+      {
+        "date": "2026-09-19",
+        "text": "Fonctions — recherche, tri et filtres : la page « Fonctions » gagne une barre de recherche, des colonnes triables (nom, code, type d'unité, profil, membres) et des filtres (profil, maîtrise/jeunes, actives/archivées) ; le tout fonctionne bien sur téléphone."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Journal des erreurs — moins de bruit : les blocages « honeypot » (robots qui remplissent le champ piège caché des formulaires publics, ex. mot de passe oublié) ne sont plus enregistrés comme des erreurs. Le blocage fonctionne toujours ; il est simplement journalisé discrètement (fichier) au lieu d'inonder le Journal des erreurs. Les vraies signatures d'attaque (script / injection SQL) restent signalées."
       },
       {

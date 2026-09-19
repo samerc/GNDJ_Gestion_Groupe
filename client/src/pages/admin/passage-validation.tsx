@@ -46,6 +46,7 @@ import {
   XCircle,
   ToggleLeft,
   ToggleRight,
+  UserX,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -344,7 +345,7 @@ export default function PassageValidationPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardContent className="flex items-center gap-3 pt-6">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
@@ -386,6 +387,18 @@ export default function PassageValidationPage() {
             <div>
               <p className="text-2xl font-bold">{summary?.rejected ?? 0}</p>
               <p className="text-xs text-muted-foreground">Rejetés</p>
+            </div>
+          </CardContent>
+        </Card>
+        {/* Members still without a passage line — finalize is blocked until this is 0 (reflects the unit filter). */}
+        <Card className={missingInScope > 0 ? 'border-amber-300 dark:border-amber-800' : undefined}>
+          <CardContent className="flex items-center gap-3 pt-6">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${missingInScope > 0 ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400' : 'bg-muted text-muted-foreground'}`}>
+              <UserX className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{missingInScope}</p>
+              <p className="text-xs text-muted-foreground">Sans passage{unitFilter !== '_all' ? ' (unité)' : ''}</p>
             </div>
           </CardContent>
         </Card>
@@ -609,10 +622,8 @@ export default function PassageValidationPage() {
       <div className="flex flex-col items-end gap-2 pt-4">
         {missingInScope > 0 && (
           <div className="w-full rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-300">
-            <strong>{missingInScope} membre(s) actif(s) sans ligne de passage</strong>
-            {unitFilter === '_all' ? ' (toutes unités)' : ' dans cette unité'}.
-            {' '}Le passage ne peut pas être finalisé tant que chaque membre n'a pas une décision
-            (proposition ou « Pas de changement »).
+            Finalisation bloquée : {missingInScope} membre(s) actif(s) {unitFilter === '_all' ? '(toutes unités)' : 'de cette unité'} n'ont pas encore de ligne de passage
+            (proposition ou « Pas de changement »). Voir la carte « Sans passage » en haut.
           </div>
         )}
         {missingInScope === 0 && pendingCount > 0 && unitFilter === '_all' && (
