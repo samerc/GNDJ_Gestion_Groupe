@@ -177,10 +177,28 @@ export function LoginForm() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Connexion...' : 'Se connecter'}
             </Button>
-            {/* Passwordless option — additive, next to the password field. */}
-            <Button type="button" variant="outline" className="w-full" onClick={switchToCode}>
-              <Mail className="mr-2 h-4 w-4" /> Se connecter avec un code
-            </Button>
+
+            {/* "ou" divider before the alternative sign-in method. */}
+            <div className="relative py-1">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+              <div className="relative flex justify-center"><span className="bg-card px-2 text-xs text-muted-foreground">ou</span></div>
+            </div>
+
+            {/* Passwordless option — additive, next to the password. Presented as an explained, accent-tinted
+                callout (an always-visible explanation, not a hover tooltip — parents are mostly on mobile). */}
+            <div className="space-y-2 rounded-lg border border-teal-300 bg-teal-50 p-3 dark:border-teal-800 dark:bg-teal-950/40">
+              <div className="flex items-start gap-2 text-xs text-teal-900 dark:text-teal-200">
+                <Mail className="mt-0.5 h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
+                <span>
+                  <span className="font-medium">Pas de mot de passe&nbsp;?</span> Recevez un code par email pour vous
+                  connecter — pratique pour une première connexion ou si vous l'avez oublié.
+                </span>
+              </div>
+              <Button type="button" onClick={switchToCode} className="w-full bg-teal-600 text-white hover:bg-teal-700">
+                <Mail className="mr-2 h-4 w-4" /> Se connecter avec un code
+              </Button>
+            </div>
+
             <div className="flex flex-col items-center gap-1 text-center">
               <Link to="/forgot-password" className="text-sm text-primary hover:underline">Mot de passe oublié ?</Link>
               <Link to="/forgot-username" className="text-sm text-primary hover:underline">Identifiant oublié ?</Link>
