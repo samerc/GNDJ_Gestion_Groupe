@@ -342,7 +342,8 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string }) {
                 <div className="text-xs text-muted-foreground">{b.code}{b.progressionCount > 0 ? ` · ${b.progressionCount} membre${b.progressionCount > 1 ? 's' : ''}` : ''}</div>
               </div>
               <Tip content={b.isActive ? 'Désactiver' : 'Activer'}><Switch checked={b.isActive} onCheckedChange={() => toggleActive(b)} disabled={updateMutation.isPending} /></Tip>
-              <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+              {/* Visible by default on touch (no hover); mouse users get the hover-reveal. */}
+              <div className="flex gap-0.5 opacity-100 transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100">
                 <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(b)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
                 <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(b)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></Tip>
               </div>

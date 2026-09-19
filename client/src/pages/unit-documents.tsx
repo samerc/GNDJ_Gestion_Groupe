@@ -557,12 +557,14 @@ export default function UnitDocumentsPage() {
                             tabIndex={0}
                             onClick={() => cell.documentId ? openPreview(member, cell, docType) : canUpload ? startUpload(member, docType) : undefined}
                           >
-                            {/* Empty + uploadable: swap the "missing" dash for an upload icon on hover so the CU
-                                sees the cell is clickable to send the document. */}
+                            {/* Empty + uploadable. On a mouse (pointer-fine): show the "missing" dash and swap it
+                                for an upload icon on hover. On touch (pointer-coarse, no hover): show a persistent
+                                subtle upload icon so the CU sees the cell is tappable to send the document. */}
                             {!cell.documentId && canUpload ? (
                               <>
-                                <span className="group-hover:hidden"><Minus className="h-5 w-5" /></span>
-                                <span className="hidden group-hover:inline text-blue-500"><Upload className="h-5 w-5" /></span>
+                                <span className="hidden pointer-coarse:inline text-blue-500/70"><Upload className="h-5 w-5" /></span>
+                                <span className="pointer-coarse:hidden group-hover:hidden"><Minus className="h-5 w-5" /></span>
+                                <span className="hidden pointer-coarse:hidden group-hover:inline text-blue-500"><Upload className="h-5 w-5" /></span>
                               </>
                             ) : (
                               docStatusIcon(cell)

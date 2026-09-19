@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Mobile — boutons d'action visibles au toucher : plusieurs boutons (Modifier / Supprimer sur l'historique des postes et sur les badges, suppression d'une notification, actions sur les coordonnées des parents) n'apparaissaient qu'au survol de la souris et étaient donc introuvables sur téléphone/tablette. Ils sont maintenant toujours visibles sur écran tactile (le survol reste discret sur ordinateur). Sur la grille des documents d'unité, une case sans document affiche désormais une icône d'envoi visible au toucher pour indiquer qu'on peut téléverser en tapant dessus."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Mobile — menu de navigation amélioré : le menu latéral (icône ☰) s'ouvre désormais comme une vraie fenêtre modale — le fond derrière ne défile plus, la touche Échap le ferme, et le focus clavier y reste (accessibilité). Les fenêtres et panneaux latéraux qui dépassaient la hauteur de l'écran défilent maintenant correctement (plus de boutons coupés en bas sur téléphone), la croix de fermeture (×) est plus facile à toucher, et les barres d'onglets trop longues se font défiler sans masquer le premier onglet."
       },
       {

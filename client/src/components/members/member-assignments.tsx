@@ -297,7 +297,8 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
                           {a.notes && <p className="text-xs text-muted-foreground mt-0.5 italic">{a.notes}</p>}
                         </div>
                         {!readOnly && (
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 shrink-0">
+                          // Visible by default on touch (no hover); mouse users get the hover-reveal.
+                          <div className="flex gap-1 shrink-0 opacity-100 transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100">
                             <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(a)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button></Tip>

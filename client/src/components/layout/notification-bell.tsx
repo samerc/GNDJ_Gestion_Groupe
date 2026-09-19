@@ -137,13 +137,14 @@ export function NotificationBell() {
                       <p className="mt-1 text-[11px] text-muted-foreground/70">{timeAgo(n.createdAt)}</p>
                     </div>
                   </button>
-                  {/* Delete this notification (visible on hover / focus; always visible on touch). */}
+                  {/* Delete this notification: visible by default (incl. touch, which has no hover); a mouse
+                      (pointer-fine) gets the hover-reveal so the row stays clean on desktop. */}
                   <button
                     type="button"
                     aria-label="Supprimer cette notification"
                     disabled={removeOne.isPending}
                     onClick={() => removeOne.mutate(n.id)}
-                    className="mt-0.5 shrink-0 rounded p-1 text-muted-foreground/50 opacity-0 transition-opacity hover:bg-muted hover:text-destructive focus:opacity-100 group-hover/notif:opacity-100"
+                    className="mt-0.5 shrink-0 rounded p-1 text-muted-foreground/50 opacity-100 transition-opacity hover:bg-muted hover:text-destructive focus:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover/notif:opacity-100"
                   >
                     <X className="h-4 w-4" />
                   </button>

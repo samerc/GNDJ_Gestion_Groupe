@@ -281,10 +281,10 @@ export function MemberGuardians({ memberId, selfService, hideContacts }: MemberG
                         {/* Copy + WhatsApp shortcuts — leaders only (hidden on the member's own Ma fiche). */}
                         {!selfService && <CopyButton value={formatPhoneDisplay(p.countryCode, p.number)} label="Copier le numéro" />}
                         {!selfService && <WhatsappLink countryCode={p.countryCode} number={p.number} />}
-                        <Tip content="Modifier"><Button variant="ghost" size="icon" className="ml-auto h-7 w-7 opacity-60 transition-opacity group-hover:opacity-100" onClick={() => setEditPhone({ id: p.id, countryCode: p.countryCode, number: p.number, type: p.type, isPrimary: p.isPrimary })}>
+                        <Tip content="Modifier"><Button variant="ghost" size="icon" className="ml-auto h-7 w-7 opacity-100 transition-opacity pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" onClick={() => setEditPhone({ id: p.id, countryCode: p.countryCode, number: p.number, type: p.type, isPrimary: p.isPrimary })}>
                           <Pencil className="h-3 w-3" />
                         </Button></Tip>
-                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 opacity-60 transition-opacity group-hover:opacity-100" disabled={deletePhoneMutation.isPending} onClick={() => deletePhoneMutation.mutateAsync(p.id).then(() => toast.success('Téléphone supprimé')).catch(err => toast.error(parseApiError(err)))}>
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 opacity-100 transition-opacity pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" disabled={deletePhoneMutation.isPending} onClick={() => deletePhoneMutation.mutateAsync(p.id).then(() => toast.success('Téléphone supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button></Tip>
                       </div>
@@ -311,10 +311,10 @@ export function MemberGuardians({ memberId, selfService, hideContacts }: MemberG
                         <span className="text-xs text-muted-foreground">{em.type}</span>
                         {em.isPrimary && <Badge variant="outline" className="h-5 text-xs">Principal</Badge>}
                         {!selfService && <CopyButton value={em.address} label="Copier le courriel" />}
-                        <Tip content="Modifier"><Button variant="ghost" size="icon" className="ml-auto h-7 w-7 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" onClick={() => setEditEmail({ id: em.id, address: em.address, type: em.type, isPrimary: em.isPrimary })}>
+                        <Tip content="Modifier"><Button variant="ghost" size="icon" className="ml-auto h-7 w-7 shrink-0 opacity-100 transition-opacity pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" onClick={() => setEditEmail({ id: em.id, address: em.address, type: em.type, isPrimary: em.isPrimary })}>
                           <Pencil className="h-3 w-3" />
                         </Button></Tip>
-                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" disabled={deleteEmailMutation.isPending} onClick={() => deleteEmailMutation.mutateAsync(em.id).then(() => toast.success('Courriel supprimé')).catch(err => toast.error(parseApiError(err)))}>
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-100 transition-opacity pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" disabled={deleteEmailMutation.isPending} onClick={() => deleteEmailMutation.mutateAsync(em.id).then(() => toast.success('Courriel supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button></Tip>
                       </div>
