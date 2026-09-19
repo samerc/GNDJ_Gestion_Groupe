@@ -624,7 +624,6 @@ export default function PassagePage() {
                   </div>
                   {row.passage && (
                     <div className="flex gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPropose(row)} title="Modifier"><ArrowRightLeft className="h-3.5 w-3.5" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeletingPassage(row.passage)} title="Supprimer"><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                     </div>
                   )}
@@ -685,14 +684,9 @@ export default function PassagePage() {
                   <td className="px-3 py-2">
                     <div className="flex gap-1">
                       {row.passage && (
-                        <>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPropose(row)} title="Modifier">
-                            <ArrowRightLeft className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeletingPassage(row.passage)} title="Supprimer">
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
-                        </>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeletingPassage(row.passage)} title="Supprimer">
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
                       )}
                     </div>
                   </td>

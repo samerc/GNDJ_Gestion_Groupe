@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-20",
+        "text": "Passage — un seul bouton « Modifier » par membre : l'icône « Modifier » redondante (colonne d'actions à droite) a été retirée ; on garde le bouton libellé « Modifier le choix » (qui rouvre les trois options : Pas de changement / Proposer / Quitte le groupe) et l'icône « Supprimer »."
+      },
+      {
+        "date": "2026-09-20",
         "text": "Passage — le bouton « Pas de changement » de la barre de sélection multiple est désormais un bouton plein vert, cohérent avec les boutons pleins « Déplacer vers… » (bleu) et « Supprimer la proposition » (rouge) à côté ; il ne s'affiche plus en noir sur fond sombre."
       },
       {
