@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Mobile — coordonnées des parents : les lignes téléphone/courriel de la section Famille ne débordent plus sur téléphone (le texte se tronque proprement) et les boutons Modifier / Supprimer sont plus grands au toucher (compacts sur ordinateur)."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Mobile — tableaux de configuration : les listes Serveurs SMTP, Modèles d'email et Journal d'audit se font désormais défiler proprement sur téléphone au lieu de se tasser en colonnes illisibles ; le détail d'une entrée d'audit (dates, avant/après) s'empile correctement sur petit écran."
       },
       {
