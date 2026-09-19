@@ -1,7 +1,14 @@
 namespace GNDJ.Application.Common.Interfaces;
 
-// One email to send: the template code, the recipient, and the {{variable}} substitutions.
-public record EmailJob(string TemplateCode, string ToEmail, Dictionary<string, string> Variables);
+// A PER-SEND email attachment: a file to attach to THIS email only (distinct from a template's fixed
+// attachments). Path is an ABSOLUTE file path under an allowed, NON-web-served archive root (e.g. the
+// audit-log year archive) — the sender validates it before attaching. Name is the display file name.
+public record EmailAttachment(string Name, string Path);
+
+// One email to send: the template code, the recipient, the {{variable}} substitutions, and optional
+// per-send file attachments (usually none; used e.g. by the audit-log year archive to attach the CSV).
+public record EmailJob(string TemplateCode, string ToEmail, Dictionary<string, string> Variables,
+    IReadOnlyList<EmailAttachment>? Attachments = null);
 
 // Durable email outbox. Enqueuing PERSISTS the email as a row (email_outbox) and returns quickly; a
 // background sender delivers it, so HTTP requests never block on SMTP and a queued email survives a process

@@ -5492,6 +5492,43 @@ reproduces the error; the new expression returns the correct age (14) for the 20
 pre-existing CS8602 warning in `EntreeStageResolver` (`s.UnitType!.Code`, nullable after the global-progression
 batch) to keep the build 0/0. DEV until deploy — **prod still 500s on that unit until the next deploy**.
 
+### Audit-log retention — auto archive+clear on new scout year (2026-09-19, DEV until deploy)
+Chosen retention model (with the CG): keep ~12 months, and **at each new scout year the whole audit trail is
+exported, emailed to admin + CG, and cleared**. Made it AUTOMATIC on year rollover (no scheduler, no checklist).
+- **Trigger:** `UpdateSettingCommandHandler` — when **`passage.scout_year` moves FORWARD** to a new year (parsed
+  leading 4-digit start year; guarded so a correction/re-set never fires, and by an idempotency marker). So
+  *setting the new year IS the trigger* — set it when you want the fresh log (it can fire a bit early if you set
+  the year ahead, which is fine: nothing is lost, the new year's log just starts then).
+- **Flow** (`Application/AuditLogs/AuditYearArchive.RunAsync`, irreversible-safe ordering): build a CSV of the
+  WHOLE trail → **persist it to a durable, NON-web-served folder FIRST** (`IAuditArchiveStorage` →
+  `AuditArchive:Directory`, else `<cwd>/archives/audit`; NOT `uploads/content`, which `ContentFilesController`
+  serves anonymously — the CSV holds emails/IPs/PII) → in ONE transaction `ExecuteDelete` the trail + write a
+  surviving **`ArchiveAnnuelle`** audit row + advance the marker **`audit.last_archived_year`** → commit → THEN
+  email admin (super-admins) + CG (group-level role holders, resolved via `ContactEmailResolver`) via the durable
+  outbox, with the CSV as a **per-send attachment** (unless > 15 MB → notification-only). If the durable write
+  fails the year is NOT changed (`UpdateSetting` returns an error) so nothing is lost silently. Idempotent (marker
+  → a retry / same-year re-set never re-archives).
+- **Per-send email attachments (new capability):** `OutboxEmail.AttachmentsJson` (migration
+  `AddOutboxEmailAttachments`) + `EmailJob.Attachments` (`EmailAttachment(Name, Path)`) + `IEmailService.SendAsync`
+  gained an optional `extraAttachments`; `EmailService` validates each per-send path is under an allowed archive
+  root (config `AuditArchive:Directory` / `<cwd>/archives`) before attaching — never web-served content. The
+  outbox sender deserializes the row's attachments and passes them. Template attachments (uploads/content) are
+  unchanged. Seeded template `audit_year_archive` ({{year}}/{{count}}/{{date}}/{{note}}).
+- **Ops (`deploy/`):** `backup-db.ps1` now ALSO rclone-syncs the audit-archive folder OFF-server
+  (`backup.auditArchiveDir` → `<remote>/audit`, kept, never pruned) and its status notification goes to
+  `backup.alertTo` = **admin + CG**. **PROD:** set `AuditArchive:Directory` in appsettings.Production.json to a
+  folder OUTSIDE the site (e.g. `C:\gndj-backups\audit`) so a deploy never wipes it, and point
+  `backup.auditArchiveDir` at the same folder. The internal marker `audit.last_archived_year` is hidden from the
+  Settings UI (client HIDDEN_KEYS).
+- **Verified live end-to-end** (dev, then fully restored): rolling `passage.scout_year` 2026-2027 → 2027-2028
+  archived 9072 rows to a 3.1 MB CSV under `archives/audit/`, cleared the trail to just the `ArchiveAnnuelle`
+  row, set the marker, and queued **11 outbox emails** (super-admin + CG/ACG contact emails) each carrying the
+  CSV attachment (sent via smtp4dev). Then restored dev exactly (audit_logs, scout_year, marker, outbox, admin
+  hash, archive dir). Build 0/0, tsc+eslint clean. NOTE on tooling: after `dotnet ef migrations add`, REBUILD
+  before running with `--no-build` — `migrations add` writes the new snapshot `.cs` but does not recompile it, so
+  a `--no-build` run trips EF's runtime `PendingModelChangesWarning` (not real drift). Also updated the global
+  `dotnet-ef` tool to match the runtime (10.0.12).
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

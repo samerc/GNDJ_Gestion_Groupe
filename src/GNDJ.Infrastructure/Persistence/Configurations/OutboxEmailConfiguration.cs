@@ -19,6 +19,8 @@ public class OutboxEmailConfiguration : IEntityTypeConfiguration<OutboxEmail>
         // Store the status as an int (default enum-to-int) so the poll predicate is a cheap integer compare.
         builder.Property(e => e.Status).HasConversion<int>();
         builder.Property(e => e.LastError).HasMaxLength(2000);
+        // Per-send attachments (JSON [{Name,Path}]); usually null, so plain text (not jsonb) is fine.
+        builder.Property(e => e.AttachmentsJson);
 
         // The sender's hot query: WHERE status = Pending AND next_attempt_at <= now ORDER BY created_at.
         builder.HasIndex(e => new { e.Status, e.NextAttemptAt });

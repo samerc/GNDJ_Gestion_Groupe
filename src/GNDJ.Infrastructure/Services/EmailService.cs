@@ -5,6 +5,7 @@ using GNDJ.Application.Common.Interfaces;
 using GNDJ.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 
 namespace GNDJ.Infrastructure.Services;
 
@@ -22,11 +23,13 @@ public class EmailService : IEmailService
 {
     private readonly GndjDbContext _context;
     private readonly IMemoryCache _cache;
+    private readonly IConfiguration _config;
 
-    public EmailService(GndjDbContext context, IMemoryCache cache)
+    public EmailService(GndjDbContext context, IMemoryCache cache, IConfiguration config)
     {
         _context = context;
         _cache = cache;
+        _config = config;
     }
 
     // Resolved, connection-ready template — no EF entities, safe to cache/share across scopes.
@@ -43,7 +46,8 @@ public class EmailService : IEmailService
     private static readonly TimeSpan TemplateTtl = TimeSpan.FromSeconds(60); // template/SMTP change rarely
     private static readonly TimeSpan OverrideTtl = TimeSpan.FromSeconds(15); // safety toggle — refresh quickly
 
-    public async Task SendAsync(string templateCode, string toEmail, Dictionary<string, string> variables, CancellationToken ct = default)
+    public async Task SendAsync(string templateCode, string toEmail, Dictionary<string, string> variables,
+        IReadOnlyList<EmailAttachment>? extraAttachments = null, CancellationToken ct = default)
     {
         var resolved = await ResolveTemplateAsync(templateCode, ct);
 
@@ -90,7 +94,38 @@ public class EmailService : IEmailService
                 message.Attachments.Add(new Attachment(path) { Name = string.IsNullOrWhiteSpace(att.Name) ? Path.GetFileName(path) : att.Name });
         }
 
+        // Per-send attachments (e.g. the audit-log year-archive CSV): the caller supplies an absolute path,
+        // validated to sit under an allowed, NON-web-served archive root (never uploads/content). A missing
+        // file or an out-of-root path is skipped, never fails the send.
+        if (extraAttachments is not null)
+            foreach (var att in extraAttachments)
+            {
+                var full = ResolvePerSendAttachmentPath(att.Path);
+                if (full is not null && File.Exists(full))
+                    message.Attachments.Add(new Attachment(full) { Name = string.IsNullOrWhiteSpace(att.Name) ? Path.GetFileName(full) : att.Name });
+            }
+
         await client.SendMailAsync(message, ct);
+    }
+
+    // Accepts a per-send attachment's ABSOLUTE path only if it resolves inside an allowed archive root
+    // (config AuditArchive:Directory, else <cwd>/archives). This keeps per-send attachments off the
+    // anonymously-served uploads/content tree — they are internal archive files (audit CSV), not public content.
+    private string? ResolvePerSendAttachmentPath(string absPath)
+    {
+        if (string.IsNullOrWhiteSpace(absPath)) return null;
+        var full = Path.GetFullPath(absPath);
+        foreach (var root in AllowedArchiveRoots())
+            if (full.StartsWith(Path.GetFullPath(root), StringComparison.OrdinalIgnoreCase))
+                return full;
+        return null;
+    }
+
+    private IEnumerable<string> AllowedArchiveRoots()
+    {
+        var configured = _config["AuditArchive:Directory"];
+        if (!string.IsNullOrWhiteSpace(configured)) yield return configured;
+        yield return Path.Combine(Directory.GetCurrentDirectory(), "archives");
     }
 
     // Maps a stored attachment URL (/api/v1/content/files/{file}) to its physical path under uploads/content.

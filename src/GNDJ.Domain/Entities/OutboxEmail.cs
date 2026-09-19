@@ -35,6 +35,12 @@ public class OutboxEmail
     // cap survives restarts) and lets the admin outbox view show which provider carried each mail. Nullable:
     // legacy rows and rows never yet attempted have no server. No FK — a deleted server just leaves a dangling id.
     public Guid? SmtpServerId { get; set; }
+
+    // Optional PER-SEND file attachments for THIS email only (distinct from a template's fixed attachments):
+    // a JSON array of [{Name, Path}] where Path is an ABSOLUTE file path under an allowed, NON-web-served
+    // archive root (e.g. the audit-log year archive). Null/empty for ordinary emails. Set by EnqueueAsync
+    // from EmailJob.Attachments; read + attached by the sender. Never a web-served content file.
+    public string? AttachmentsJson { get; set; }
 }
 
 public enum OutboxEmailStatus

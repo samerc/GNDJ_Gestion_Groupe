@@ -46,6 +46,8 @@ public class OutboxEmailQueue : IEmailQueue
                     TemplateCode = job.TemplateCode,
                     ToEmail = job.ToEmail,
                     PayloadJson = JsonSerializer.Serialize(job.Variables),
+                    // Per-send attachments (usually none) → JSON array of {Name,Path}; null when empty.
+                    AttachmentsJson = job.Attachments is { Count: > 0 } ? JsonSerializer.Serialize(job.Attachments) : null,
                     Status = OutboxEmailStatus.Pending,
                     CreatedAt = now,
                     NextAttemptAt = now, // due immediately

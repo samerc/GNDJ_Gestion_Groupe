@@ -66,6 +66,9 @@ public static class DependencyInjection
         services.AddSingleton<IOutboxSignal, OutboxSignal>();
         services.AddSingleton<IEmailQueue, OutboxEmailQueue>();
 
+        // Writes the yearly audit-log archive CSV to a durable, non-web-served folder (stateless → singleton).
+        services.AddSingleton<IAuditArchiveStorage, AuditArchiveStorage>();
+
         // Best-effort admin alerting on server/client errors (singleton: owns its own scope, never throws).
         services.AddSingleton<IErrorNotifier, ErrorNotifier>();
 

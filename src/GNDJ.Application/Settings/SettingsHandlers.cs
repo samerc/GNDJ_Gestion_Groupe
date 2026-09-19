@@ -1,7 +1,9 @@
+using GNDJ.Application.AuditLogs;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace GNDJ.Application.Settings;
 
@@ -61,12 +63,20 @@ public class UpdateSettingCommandHandler : IRequestHandler<UpdateSettingCommand,
     private readonly IApplicationDbContext _context;
     private readonly IAuditService _auditService;
     private readonly ICurrentUserService _currentUser;
+    private readonly IEmailQueue _emailQueue;
+    private readonly IAuditArchiveStorage _auditArchive;
+    private readonly ILogger<UpdateSettingCommandHandler> _logger;
 
-    public UpdateSettingCommandHandler(IApplicationDbContext context, IAuditService auditService, ICurrentUserService currentUser)
+    public UpdateSettingCommandHandler(IApplicationDbContext context, IAuditService auditService,
+        ICurrentUserService currentUser, IEmailQueue emailQueue, IAuditArchiveStorage auditArchive,
+        ILogger<UpdateSettingCommandHandler> logger)
     {
         _context = context;
         _auditService = auditService;
         _currentUser = currentUser;
+        _emailQueue = emailQueue;
+        _auditArchive = auditArchive;
+        _logger = logger;
     }
 
     public async ValueTask<Result<bool>> Handle(UpdateSettingCommand request, CancellationToken cancellationToken)
@@ -117,11 +127,50 @@ public class UpdateSettingCommandHandler : IRequestHandler<UpdateSettingCommand,
         }
 
         var oldValue = entity.Value;
+
+        // New scout year → automatically archive & clear the audit trail (retention: ~12 months, exported +
+        // emailed to admin/CG at each rollover). Fires ONLY when passage.scout_year moves FORWARD to a genuinely
+        // new year (not a correction / a re-set of the same year — guarded by the last-archived marker), so
+        // setting the year IS the trigger. The archive exports the whole log to a durable off-server file FIRST,
+        // then deletes; if it fails we do NOT change the year (return an error) so nothing is lost silently.
+        if (string.Equals(request.Key, "passage.scout_year", StringComparison.Ordinal))
+        {
+            var newStart = ParseStartYear(value);
+            var oldStart = ParseStartYear(oldValue);
+            var lastArchived = await _context.Settings
+                .Where(s => s.Key == AuditYearArchive.MarkerKey).Select(s => s.Value)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (newStart is int ns && oldStart is int os && ns > os &&
+                !string.Equals(value, lastArchived, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    await AuditYearArchive.RunAsync(_context, _emailQueue, _auditService, _auditArchive,
+                        closingYearLabel: oldValue, newYear: value, _logger, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Audit year archive failed on scout-year rollover to {NewYear}; year NOT changed", value);
+                    return Result<bool>.Failure(
+                        "Impossible d'archiver le journal d'audit avant de changer l'année scoute. " +
+                        "L'année n'a pas été modifiée. Détail : " + ex.Message);
+                }
+            }
+        }
+
         entity.Value = value;
 
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Update", "Setting", null, oldValues: new { entity.Key, Value = oldValue }, newValues: new { entity.Key, entity.Value }, cancellationToken: cancellationToken);
 
         return Result<bool>.Success(true);
+    }
+
+    // Extract the leading 4-digit start year from a scout-year string like "2026-2027" (→ 2026). Null if none.
+    private static int? ParseStartYear(string? v)
+    {
+        if (string.IsNullOrWhiteSpace(v)) return null;
+        var m = System.Text.RegularExpressions.Regex.Match(v, "\\d{4}");
+        return m.Success && int.TryParse(m.Value, out var y) ? y : null;
     }
 }

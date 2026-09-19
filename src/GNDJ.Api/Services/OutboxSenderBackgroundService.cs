@@ -212,7 +212,11 @@ public class OutboxSenderBackgroundService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var email = scope.ServiceProvider.GetRequiredService<IEmailService>();
         var vars = JsonSerializer.Deserialize<Dictionary<string, string>>(row.PayloadJson) ?? new();
-        await email.SendAsync(row.TemplateCode, row.ToEmail, vars, timeoutCts.Token);
+        // Optional per-send attachments (e.g. the audit-log year-archive CSV) stored on the row.
+        var attachments = string.IsNullOrWhiteSpace(row.AttachmentsJson)
+            ? null
+            : JsonSerializer.Deserialize<List<EmailAttachment>>(row.AttachmentsJson);
+        await email.SendAsync(row.TemplateCode, row.ToEmail, vars, attachments, timeoutCts.Token);
         return true;
     }
 

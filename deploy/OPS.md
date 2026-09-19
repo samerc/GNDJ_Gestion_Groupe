@@ -34,9 +34,16 @@ notepad ops-alert.config.json     # fill in SMTP password, DB password, alertTo,
   `from` must be a **@gndj.org** address (verified sender → DKIM/SPF align). All group sending goes via
   SMTP2GO/SendGrid; **Zoho is receiving-only** (mailboxes/MX), never used for sending.
 - **database.password** — the `gndj_admin` password.
-- **alertTo** — your email (`ai@bahriah.com`).
+- **alertTo** — **admin + chef(s) de groupe** addresses. These receive the backup status AND the yearly
+  audit-archive off-server sync notice.
 - **health.url** — `https://new.gndj.org/health` (public URL; the probe uses a browser UA so
   Cloudflare doesn't block it).
+- **backup.auditArchiveDir** — the folder the APP writes the yearly audit-log CSV archives to (when a new
+  scout year is created the audit trail is exported there, then cleared). MUST match the app's
+  **`AuditArchive:Directory`** in `appsettings.Production.json` — set BOTH to a folder OUTSIDE the site
+  (e.g. `C:\gndj-backups\audit`) so a deploy never wipes it. `backup-db.ps1` rclone-syncs it to
+  `<rcloneRemote>/audit` (kept forever, not pruned). Leave empty to skip the off-server audit sync (the
+  archive is still emailed to admin + CG by the app).
 
 ### b. Install rclone + connect your cloud (for off-server backups)
 ```powershell

@@ -5,8 +5,10 @@
   1. pg_dump the database to a timestamped custom-format (.dump) file in the local backup dir.
   2. Copy it OFF the server to a cloud remote (OneDrive/Google Drive) via rclone - so a full disk
      crash does not take the backups with it.
-  3. Prune local + remote copies older than the retention window.
-  4. Email a success/failure summary (always on failure; on success if notifyOnSuccess).
+  2b. Also sync the yearly audit-log archives (backup.auditArchiveDir) off-server (kept, not pruned).
+  3. Prune local + remote DB dumps older than the retention window.
+  4. Email a success/failure summary to backup.alertTo (admin + CG) - always on failure; on success
+     if notifyOnSuccess.
 
   Run ELEVATED on the prod server (or via the SYSTEM scheduled task from install-ops-tasks.ps1).
   All settings/secrets come from deploy\ops-alert.config.json (gitignored). See deploy\OPS.md.
@@ -74,7 +76,23 @@ try {
         $log += "WARNING: no rcloneRemote configured - backup is LOCAL ONLY (lost if the server dies)."
     }
 
-    # Step 3. Prune local copies older than the retention window.
+    # Step 2b. Sync the audit-log year archives OFF-server too (best-effort — a failure here must NOT fail the
+    # DB backup). The app writes a CSV per scout year to backup.auditArchiveDir (config AuditArchive:Directory,
+    # e.g. C:\gndj-backups\audit) when a new year is created; we push those to <remote>/audit. NOT pruned —
+    # these yearly archives are the permanent record of the cleared audit trail (12-month retention model).
+    if ($bk.rcloneRemote -and $bk.auditArchiveDir) {
+        try {
+            if (Test-Path $bk.auditArchiveDir) {
+                & $rcloneExe @rc copy $bk.auditArchiveDir "$($bk.rcloneRemote)/audit" --no-traverse
+                if ($LASTEXITCODE -ne 0) { throw "rclone copy (audit) exited with code $LASTEXITCODE" }
+                $log += "Audit archives synced to $($bk.rcloneRemote)/audit"
+            }
+        } catch {
+            $log += "WARNING: audit-archive sync failed: $($_.Exception.Message)"
+        }
+    }
+
+    # Step 3. Prune local copies older than the retention window (DB dumps only — NOT the audit archives).
     $cutoff = (Get-Date).AddDays(-[int]$bk.retentionDays)
     Get-ChildItem $bk.dir -Filter "gndj_*.dump" |
         Where-Object { $_.LastWriteTime -lt $cutoff } |

@@ -1094,6 +1094,19 @@ public static class SeedData
                 IsActive = true
             });
 
+        // Yearly audit-log archive: sent to admin + CG when a new scout year is created — the whole audit trail
+        // of the closing year is exported, cleared, and (unless too big) attached as a CSV. Delivered via the app
+        // outbox with a per-send attachment (see AuditYearArchive). Editable in Admin → Email.
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "audit_year_archive"))
+            toAdd.Add(new EmailTemplate
+            {
+                Name = "Archive annuelle du journal d'audit", Code = "audit_year_archive", Module = "auth",
+                Subject = "Journal d'audit {{year}} archivé — GNDJ",
+                BodyHtml = "<h2>Journal d'audit archivé</h2><p>À l'ouverture de la nouvelle année scoute, le journal d'audit de l'année <strong>{{year}}</strong> a été archivé puis vidé (conservation d'environ 12 mois).</p><ul><li><strong>Entrées archivées :</strong> {{count}}</li><li><strong>Date de l'archivage :</strong> {{date}}</li></ul><p>{{note}}</p><p>Une copie a également été conservée hors-serveur avec les sauvegardes. Conservez cet email et sa pièce jointe : c'est l'archive de l'année écoulée.</p><p>— Application GNDJ</p>",
+                Variables = "[{\"key\":\"year\",\"label\":\"Année archivée\"},{\"key\":\"count\",\"label\":\"Nombre d'entrées\"},{\"key\":\"date\",\"label\":\"Date de l'archivage\"},{\"key\":\"note\",\"label\":\"Note (pièce jointe)\"}]",
+                IsActive = true
+            });
+
         // Yearly rentrée onboarding emails sent to the leaders (chefs) via the Communications tool. Two audiences:
         // a RETURNING chef gets the seasonal reminder; a NEW chef gets the same + a "prise en main" (how to log in
         // and navigate). BOTH now embed the activation (set-password) link so ONE email onboards the chef AND lets

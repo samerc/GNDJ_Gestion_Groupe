@@ -12,7 +12,7 @@
     "fromName": "GNDJ Ops"
   },
 
-  "_comment_alertTo": "Where ops alerts (backup status + site down/recovered) are emailed. One or more addresses.",
+  "_comment_alertTo": "Where ops alerts (backup status + site down/recovered + audit-archive sync) are emailed. Put the ADMIN + CHEF(S) DE GROUPE addresses here (one or more).",
   "alertTo": ["you@example.com"],
 
   "database": {
@@ -29,7 +29,9 @@
     "rcloneConfig": "C:\\ProgramData\\rclone\\rclone.conf",
     "rcloneExe": "",
     "retentionDays": 30,
-    "notifyOnSuccess": true
+    "notifyOnSuccess": true,
+    "_comment_audit": "auditArchiveDir = the folder the APP writes the yearly audit-log CSV archives to. MUST match the app's AuditArchive:Directory in appsettings.Production.json (put it OUTSIDE the site so a deploy never wipes it). backup-db.ps1 rclone-syncs it to <rcloneRemote>/audit (kept, never pruned). Leave empty to skip the off-server audit sync.",
+    "auditArchiveDir": "C:\\gndj-backups\\audit"
   },
 
   "health": {

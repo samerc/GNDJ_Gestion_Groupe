@@ -68,6 +68,7 @@ const CONFIG_TABS: { key: string; label: string; Component: React.ComponentType<
 // order); their internal idempotency markers are never user-editable. Hidden here so there is ONE place
 // to set them (the generic editor would let you save the dates out of order and break the campaign phases).
 const HIDDEN_KEYS = new Set(['site.content', 'card_config', 'member.cities', 'member.schools', 'member.classes', 'member.profession_domains', 'demande.rejection_reasons', 'ui.role_colors', 'pinned_professions',
+  'audit.last_archived_year', // internal marker: which scout year's audit log was last auto-archived+cleared
   'documents.campaign_enabled', 'documents.scout_year', 'documents.deposit_start', 'documents.deposit_deadline', 'documents.correction_start', 'documents.correction_deadline', 'documents.final_deadline',
   'documents.errors_sent_for', 'documents.errors_alert_for', 'documents.hold_applied_for', 'documents.hold_alert_for',
   // Merged into "Montants pleins (par devise)" (cotisation.full_amounts): the USD full price IS the cotisation
