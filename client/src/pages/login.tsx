@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Navigate, Link } from 'react-router'
-import { UserPlus, ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePublicSiteConfig } from '@/services/public-service'
 import { LoginForm } from '@/components/auth/login-form'
@@ -44,7 +44,7 @@ export default function LoginPage() {
           {/* LEFT — branding: the GNDJ logo on a white tile (the logo has a white background + dark navy text, so
               a white tile keeps it readable in BOTH light and dark themes). Stacks on top on mobile; vertically
               centered beside the form on desktop. */}
-          <div className="flex flex-col items-center border-b bg-muted/30 p-6 text-center md:w-2/5 md:items-start md:justify-center md:border-b-0 md:border-r md:p-8 md:text-left">
+          <div className="flex flex-col items-center justify-center border-b bg-muted/30 p-6 text-center md:w-2/5 md:border-b-0 md:border-r md:p-8">
             <div className="mb-4 rounded-xl bg-white p-3 shadow-sm ring-1 ring-black/5">
               <img src={gndjLogo} alt="GNDJ — Groupe Notre-Dame Jamhour" className="w-32 md:w-40" />
             </div>
@@ -69,33 +69,28 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Secondary items stay in a compact centered column under the (wide) card. */}
-        <div className="mx-auto max-w-md">
-          {/* Cross-link for parents who want to enroll a child (only while enrollment is open). */}
+        {/* Light footer under the card (Google-style plain links, not floating boxes). */}
+        <div className="mx-auto mt-6 max-w-md space-y-2">
+          {/* Enrollment cross-link for parents (only while enrollment is open). */}
           {inscriptionsOpen && (
-            <Link
-              to="/inscription"
-              className="mt-5 flex items-center gap-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm transition-colors hover:bg-accent/15"
-            >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
-                <UserPlus className="h-4 w-4" />
-              </span>
-              <span className="min-w-0 flex-1 leading-tight">
-                <span className="block text-muted-foreground">Vous souhaitez inscrire un enfant&nbsp;?</span>
-                <span className="block font-medium text-accent">Demande d'inscription →</span>
-              </span>
-            </Link>
+            <p className="text-center text-sm text-muted-foreground">
+              Vous souhaitez inscrire un enfant&nbsp;?{' '}
+              <Link to="/inscription" className="font-medium text-accent underline-offset-2 hover:underline">
+                Demande d'inscription →
+              </Link>
+            </p>
           )}
 
           {/* Help line for members/parents who can't log in (configurable via demande.support_email). */}
           <SupportNote email={config?.supportEmail} />
 
-          {/* Footer — back to the public site + copyright. */}
-          <div className="mt-5 flex flex-col items-center gap-1 text-center text-xs text-muted-foreground">
-            <Link to="/" className="flex items-center gap-1.5 transition-colors hover:text-foreground">
+          {/* Back to the public site + copyright, one compact line. */}
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 pt-1 text-center text-xs text-muted-foreground">
+            <Link to="/" className="inline-flex items-center gap-1 transition-colors hover:text-foreground">
               <ArrowLeft className="h-3.5 w-3.5" /> Retour au site
             </Link>
-            <p>© {new Date().getFullYear()} Groupe Notre Dame - Jamhour — Tous droits réservés</p>
+            <span className="text-muted-foreground/50">·</span>
+            <span>© {new Date().getFullYear()} Groupe Notre-Dame - Jamhour</span>
           </div>
         </div>
       </div>
