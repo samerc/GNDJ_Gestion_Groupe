@@ -13,7 +13,7 @@ export function LoginAnnouncement({ message, tone = 'primary' }: { message?: str
     : 'border-primary/50 bg-primary/10'
   const icon = tone === 'accent' ? 'text-accent' : 'text-primary'
   return (
-    <div className={`mb-6 flex items-start gap-3 rounded-xl border-2 px-4 py-3.5 shadow-card ${box}`} role="status">
+    <div className={`mb-5 flex items-start gap-3 rounded-2xl border-2 px-4 py-3.5 shadow-card ${box}`} role="status">
       <Megaphone className={`mt-0.5 h-5 w-5 shrink-0 ${icon}`} />
       <p className="whitespace-pre-line break-words text-sm font-medium leading-relaxed text-foreground">{text}</p>
     </div>
