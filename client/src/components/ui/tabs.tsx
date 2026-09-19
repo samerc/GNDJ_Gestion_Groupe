@@ -14,7 +14,10 @@ const TabsList = React.forwardRef<
     className={cn(
       // max-w-full + overflow-x-auto make every tab bar mobile-safe by default: it still hugs its content
       // when the tabs fit, but scrolls horizontally instead of overflowing/clipping when they don't.
-      "inline-flex h-10 max-w-full items-center justify-center overflow-x-auto rounded-md bg-muted p-1 text-muted-foreground",
+      // justify-start (not center): when the tabs overflow, centering would push the first/active tab off
+      // the left edge into non-scrollable-to territory. With an inline-flex that hugs its content, this is a
+      // no-op when the tabs fit and a fix only in the overflow case.
+      "inline-flex h-10 max-w-full items-center justify-start overflow-x-auto rounded-md bg-muted p-1 text-muted-foreground",
       className
     )}
     {...props}

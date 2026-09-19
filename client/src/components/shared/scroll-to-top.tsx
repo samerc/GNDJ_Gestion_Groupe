@@ -4,7 +4,8 @@ import { cn } from '@/lib/utils'
 
 // A floating "back to top" button for long pages (e.g. the document-verification matrix). The app scrolls INSIDE
 // <main> (see AppLayout), not the window, so it watches that container (falling back to the window) and appears
-// once you've scrolled past `threshold`px. Fixed bottom-right, below dialogs (z-40 < the z-50 dialog overlay).
+// once you've scrolled past `threshold`px. Fixed bottom-right at z-30 so it sits BELOW every overlay (the mobile
+// nav drawer / Sheet backdrop at z-50 and dialogs at z-50) and can't punch through a dimmed backdrop.
 export function ScrollToTop({ threshold = 400 }: { threshold?: number }) {
   const [visible, setVisible] = useState(false)
 
@@ -33,7 +34,7 @@ export function ScrollToTop({ threshold = 400 }: { threshold?: number }) {
       aria-label="Retour en haut"
       title="Retour en haut"
       className={cn(
-        'fixed bottom-5 right-5 z-40 flex h-11 w-11 items-center justify-center rounded-full',
+        'fixed bottom-5 right-5 z-30 flex h-11 w-11 items-center justify-center rounded-full',
         'bg-primary text-primary-foreground shadow-lg ring-1 ring-black/5 transition hover:brightness-110',
       )}
     >

@@ -20,7 +20,6 @@ import {
   ChevronsRight,
   ChevronDown,
   ChevronRight,
-  X,
   Receipt,
   FileWarning,
   Route,
@@ -49,6 +48,7 @@ import {
   UserPlus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { usePendingDemandeCount } from '@/services/demande-admin-service'
 import { usePendingChangeRequestsCount } from '@/services/change-request-service'
@@ -423,18 +423,19 @@ export function MobileSidebar() {
   const { mobileOpen, setMobileOpen } = useSidebarStore()
   const theme = useRoleTheme() // drawer colour by role (used by everyone on mobile, incl. managers)
 
-  if (!mobileOpen) return null
-
+  // Rendered through the Sheet primitive (Radix Dialog) rather than a hand-rolled <aside>+backdrop, so the mobile
+  // nav gets a proper focus trap, body-scroll lock, Escape-to-close and dialog ARIA for free — it's the only nav
+  // on mobile for every role. Sheet's built-in top-right close handles dismissal; p-0/gap-0 + a fixed width give
+  // us the themed full-height drawer. NavContent closes the drawer on navigate.
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-        onClick={() => setMobileOpen(false)}
-      />
-      {/* Drawer */}
-      <aside style={{ backgroundColor: theme.color }} className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col text-white lg:hidden">
-        <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
+    <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+      <SheetContent
+        side="left"
+        style={{ backgroundColor: theme.color }}
+        className="flex w-64 max-w-[85vw] flex-col gap-0 border-r border-white/10 p-0 text-white"
+      >
+        <SheetTitle className="sr-only">Menu de navigation</SheetTitle>
+        <div className="flex h-16 items-center border-b border-white/10 px-4">
           {/* Brand = the "Accueil" home link (→ role-aware /dashboard); closes the drawer on navigate. */}
           <Link to="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
             <BrandMark className="h-9 w-9" />
@@ -443,20 +444,12 @@ export function MobileSidebar() {
               <span className="text-[11px] font-medium text-white/55">Gestion de groupe</span>
             </div>
           </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setMobileOpen(false)}
-            className="h-8 w-8 text-white/50 hover:text-white hover:bg-white/10"
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </div>
         <div className="flex-1 overflow-auto py-3">
           <NavContent collapsed={false} onNavigate={() => setMobileOpen(false)} />
         </div>
-      </aside>
-    </>
+      </SheetContent>
+    </Sheet>
   )
 }
 
