@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Mode sombre — corrections : les boutons (« Nouvelle équipe » et tous les boutons principaux/destructifs) ont désormais un effet de survol bien visible en mode sombre (l'ancien effet était quasi imperceptible sur fond sombre). Audit du mode sombre sur toute l'application : quelques textes colorés (chiffres/statuts en vert, orange, ambre, rouge) qui apparaissaient trop peu contrastés sur fond sombre ont été éclaircis (projection des passages, vérification des documents, camp, envoi des accès, relances, fratries, sessions…)."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Journal d'audit — archivage annuel automatique : à la création d'une nouvelle année scoute (quand vous changez l'« Année scoute » du passage), le journal d'audit de l'année écoulée est automatiquement exporté en CSV, conservé hors-serveur avec les sauvegardes, envoyé par email à l'administrateur et au chef de groupe, puis vidé (conservation d'environ 12 mois). L'export est toujours effectué AVANT l'effacement : en cas de problème, l'année n'est pas changée et rien n'est perdu. La sauvegarde quotidienne notifie aussi l'administrateur et le chef de groupe."
       },
       {
