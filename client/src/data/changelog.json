@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-20",
+        "text": "Les pastilles de statut (« En attente », « Pas de changement », « Quitte le groupe », etc.) ne changent plus de couleur au survol — ce sont des étiquettes, pas des boutons (correction sur toute l'application)."
+      },
+      {
+        "date": "2026-09-20",
         "text": "Passage — un seul bouton « Modifier » par membre : le bouton « Modifier le choix » est devenu une petite icône crayon placée à côté de l'icône « Supprimer » dans la colonne d'actions (elle rouvre les trois options : Pas de changement / Proposer / Quitte le groupe)."
       },
       {

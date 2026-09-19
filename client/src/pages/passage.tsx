@@ -369,7 +369,7 @@ export default function PassagePage() {
       case 'Approved': return <Badge className="bg-green-600">{passage.proposedUnitId === passage.currentUnitId && passage.proposedRoleName === passage.currentRoleName ? 'Pas de changement' : 'Accepté'}</Badge>
       case 'Rejected': return <Badge variant="destructive">Rejeté</Badge>
       case 'Finalized': return <Badge className="bg-blue-600">Finalisé</Badge>
-      default: return <Badge className="bg-yellow-500 text-white hover:bg-yellow-500">En attente</Badge>
+      default: return <Badge className="bg-yellow-500 text-white">En attente</Badge>
     }
   }
 
