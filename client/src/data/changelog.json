@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Mobile — tableau de bord des cotisations : sur téléphone, la liste « à relancer » d'une unité (impayés + partiels) devient des fiches — membre, statut, parent, email/téléphone/WhatsApp cliquables, et les boutons Paiement / Ne paiera pas / Compléter — au lieu d'un tableau qui défilait horizontalement en masquant les actions. La saisie d'un paiement en plusieurs lignes ne déborde plus (montant sur une ligne, devise/méthode en dessous). L'année scoute est maintenant choisie dans une liste (fini les fautes de frappe qui vidaient l'écran)."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Mobile — notation du Camp BP : sur téléphone, la grille de notation (qui obligeait à faire défiler horizontalement en perdant de vue le nom du membre) devient une fiche par membre avec les champs empilés et étiquetés (Année, Force, candidat Père/Mère, « Ne vient pas », cas particulier) et des champs de saisie et cases à cocher plus grands. Le tableau est conservé sur ordinateur."
       },
       {

@@ -224,6 +224,15 @@ export default function CotisationDashboardPage() {
     return { members, total }
   }, [dues, duesMode])
 
+  // Year picker options (current + previous 4) — replaces the error-prone free-text year box (a typo
+  // like "2026" silently returned empty data).
+  const yearOptions = useMemo(() => {
+    const start = parseInt((currentScoutYear || '').split('-')[0], 10)
+    const list = Number.isFinite(start) ? Array.from({ length: 5 }, (_, i) => `${start - i}-${start - i + 1}`) : []
+    if (scoutYear && !list.includes(scoutYear)) list.unshift(scoutYear)
+    return list
+  }, [currentScoutYear, scoutYear])
+
   const exportCsv = () => {
     if (!unpaid || unpaid.length === 0) return
     const header = ['Unité', 'Membre', 'Père', 'Email', 'Téléphone']
@@ -249,7 +258,10 @@ export default function CotisationDashboardPage() {
         <h1 className="text-2xl font-bold">Tableau de bord — Cotisations</h1>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Année scoute :</span>
-          <Input className="w-36" value={scoutYear} onChange={e => setScoutYear(e.target.value)} />
+          <Select value={scoutYear} onValueChange={setScoutYear}>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>{yearOptions.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -541,7 +553,7 @@ export default function CotisationDashboardPage() {
                                   <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
                                   À relancer — {toRelance.length} membre{toRelance.length > 1 ? 's' : ''} (impayés + partiels)
                                 </div>
-                                <div className="overflow-x-auto rounded-md border bg-background">
+                                <div className="hidden overflow-x-auto rounded-md border bg-background md:block">
                                   <table className="w-full text-sm min-w-[620px]">
                                     <thead>
                                       <tr className="border-b bg-muted/40 text-left">
@@ -623,6 +635,47 @@ export default function CotisationDashboardPage() {
                                       ))}
                                     </tbody>
                                   </table>
+                                </div>
+                                {/* Mobile: card list for the actionable à-relancer members (in the table their
+                                    Contact + Paiement/Ne paiera pas actions scrolled off-screen on a phone). */}
+                                <div className="divide-y rounded-md border bg-background md:hidden">
+                                  {toRelance.map((m) => (
+                                    <div key={m.memberId} className="p-2.5">
+                                      <button className="font-medium text-primary hover:underline" onClick={() => navigate(`/members/${m.memberId}`)}>{m.memberName}</button>
+                                      <div className="mt-1">
+                                        {m.status === 'Partial' ? (
+                                          <div className="flex flex-col gap-0.5">
+                                            <Badge className="w-fit bg-amber-500 hover:bg-amber-500">Partiel {m.percentPaid}%</Badge>
+                                            <span className="text-xs text-muted-foreground">
+                                              Déjà : {m.paidTotals.map(t => formatMoney(t.total, t.currency)).join(' + ')}
+                                              {m.remainingReference > 0 && ` · reste ≈ ${formatMoney(m.remainingReference, m.referenceCurrency)}`}
+                                            </span>
+                                          </div>
+                                        ) : <Badge variant="destructive" className="w-fit">Impayé</Badge>}
+                                      </div>
+                                      <div className="mt-1 text-xs text-muted-foreground">Père : {m.parentName ?? '—'}</div>
+                                      <div className="mt-1 flex flex-col gap-0.5 text-sm">
+                                        {m.contactEmail && <a href={`mailto:${m.contactEmail}`} className="inline-flex items-center gap-1.5 text-primary hover:underline"><Mail className="h-3.5 w-3.5" />{m.contactEmail}</a>}
+                                        {m.contactPhone && (
+                                          <span className="inline-flex items-center gap-1.5">
+                                            <a href={`tel:${m.contactPhone.replace(/\s+/g, '')}`} className="inline-flex items-center gap-1.5 text-primary hover:underline"><Phone className="h-3.5 w-3.5" />{m.contactPhone}</a>
+                                            <WhatsappTextLink phone={m.contactPhone} />
+                                          </span>
+                                        )}
+                                        {!m.contactEmail && !m.contactPhone && <span className="text-xs text-muted-foreground">Aucun contact</span>}
+                                      </div>
+                                      <div className="mt-2 flex flex-wrap gap-1.5 no-print">
+                                        {m.status === 'Partial' ? (
+                                          <Button variant="outline" size="sm" onClick={() => navigate(`/members/${m.memberId}`)}><Receipt className="mr-1 h-3.5 w-3.5" />Compléter</Button>
+                                        ) : (
+                                          <>
+                                            <Button variant="outline" size="sm" onClick={() => openPayDialog(m)}><Receipt className="mr-1 h-3.5 w-3.5" />Paiement</Button>
+                                            <Button variant="outline" size="sm" className="text-muted-foreground" onClick={() => openExemptDialog(m)} disabled={setExempt.isPending}><Ban className="mr-1 h-3.5 w-3.5" />Ne paiera pas</Button>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
                                 </div>
                                 )}
@@ -734,34 +787,38 @@ export default function CotisationDashboardPage() {
               <label className="text-sm font-medium">Lignes de paiement</label>
               {fullPriceHint && <p className="text-xs text-muted-foreground">Cotisation pleine : {fullPriceHint}</p>}
               {payLines.map((line, i) => (
-                <div key={i} className="flex items-end gap-2">
+                // Mobile: amount on its own line, then devise + méthode + supprimer in a row below (so the fixed
+                // w-28/w-36 selects can't overflow a phone-width dialog). Inline on ≥sm.
+                <div key={i} className="flex flex-col gap-2 rounded-md border p-2 sm:flex-row sm:items-end sm:border-0 sm:p-0">
                   <div className="flex-1 space-y-1">
                     {i === 0 && <span className="text-xs text-muted-foreground">Montant</span>}
                     <AmountInput value={line.amount}
                       onValueChange={n => updatePayLine(i, { amount: n > 0 ? String(n) : '' })} placeholder="0.00" />
                   </div>
-                  <div className="w-28 space-y-1">
-                    {i === 0 && <span className="text-xs text-muted-foreground">Devise</span>}
-                    <Select value={line.currency} onValueChange={v => changeCurrency(i, v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {currencies.map(c => <SelectItem key={c.code} value={c.code}>{currencyLabel(c.code)}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1 space-y-1 sm:w-28 sm:flex-none">
+                      {i === 0 && <span className="text-xs text-muted-foreground">Devise</span>}
+                      <Select value={line.currency} onValueChange={v => changeCurrency(i, v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {currencies.map(c => <SelectItem key={c.code} value={c.code}>{currencyLabel(c.code)}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex-1 space-y-1 sm:w-36 sm:flex-none">
+                      {i === 0 && <span className="text-xs text-muted-foreground">Méthode</span>}
+                      <Select value={line.paymentMethod} onValueChange={v => updatePayLine(i, { paymentMethod: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_METHOD_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-muted-foreground"
+                      onClick={() => removePayLine(i)} disabled={payLines.length === 1} aria-label="Retirer la ligne">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <div className="w-36 space-y-1">
-                    {i === 0 && <span className="text-xs text-muted-foreground">Méthode</span>}
-                    <Select value={line.paymentMethod} onValueChange={v => updatePayLine(i, { paymentMethod: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {PAYMENT_METHOD_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-muted-foreground"
-                    onClick={() => removePayLine(i)} disabled={payLines.length === 1} aria-label="Retirer la ligne">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </div>
               ))}
               <Button type="button" variant="outline" size="sm" onClick={addPayLine}>
