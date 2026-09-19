@@ -69,8 +69,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Light footer under the card (Google-style plain links, not floating boxes). */}
-        <div className="mx-auto mt-6 max-w-md space-y-2">
+        {/* Light footer under the card (Google-style plain links, not floating boxes). Spans the full card
+            width so the lines don't wrap on desktop (still wraps naturally on a narrow phone). */}
+        <div className="mt-6 space-y-2">
           {/* Enrollment cross-link for parents (only while enrollment is open). */}
           {inscriptionsOpen && (
             <p className="text-center text-sm text-muted-foreground">
