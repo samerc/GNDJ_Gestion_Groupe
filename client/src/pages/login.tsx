@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Navigate, Link } from 'react-router'
-import { Compass, UserPlus, ArrowLeft } from 'lucide-react'
+import { UserPlus, ArrowLeft } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePublicSiteConfig } from '@/services/public-service'
 import { LoginForm } from '@/components/auth/login-form'
@@ -8,13 +8,15 @@ import { AccountChooser } from '@/components/auth/account-chooser'
 import { SupportNote } from '@/components/support-note'
 import { LoginAnnouncement } from '@/components/login-announcement'
 import { getDeviceAccounts } from '@/lib/device-accounts'
+import gndjLogo from '@/assets/gndj-logo.png'
 
 // "Espace membres" — login screen for existing members/chefs (JWT auth). Anonymous-only: an
 // already-authenticated user is bounced to /dashboard.
 //
-// Google-style two-pane layout: a constant branding pane on the left (stacks on top on mobile) and an
-// interactive pane on the right that shows either the « Choisir un compte » list (when this device has saved
-// accounts) or the sign-in form. Responsive — `md:flex-row` splits into two columns on desktop, one on mobile.
+// Google-style two-pane layout: a constant branding pane on the left (GNDJ logo; stacks on top on mobile) and
+// an interactive pane on the right that shows either the « Choisir un compte » list (when this device has saved
+// accounts) or the sign-in form, with any admin announcement above it. `md:flex` = two columns on desktop, one
+// on mobile.
 export default function LoginPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { data: config } = usePublicSiteConfig()
@@ -37,23 +39,22 @@ export default function LoginPage() {
       <div className="pointer-events-none absolute -bottom-32 -left-24 h-96 w-96 rounded-full bg-primary/15 blur-3xl" />
 
       <div className="relative z-10 w-full max-w-md md:max-w-3xl">
-        {/* Admin-scheduled announcement banners (login.member_messages), full width above the card. */}
-        {config?.loginMessages?.map((m, i) => <LoginAnnouncement key={i} message={m} tone="primary" />)}
-
         {/* Two-pane card. */}
         <div className="overflow-hidden rounded-2xl border bg-card shadow-elevated md:flex">
-          {/* LEFT — branding (constant). Stacks on top on mobile. */}
-          <div className="flex flex-col items-center border-b bg-muted/30 p-6 text-center md:w-2/5 md:items-start md:border-b-0 md:border-r md:p-8 md:text-left">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-white shadow-elevated ring-1 ring-white/10">
-              <Compass className="h-6 w-6" strokeWidth={2.2} />
+          {/* LEFT — branding: the GNDJ logo on a white tile (the logo has a white background + dark navy text, so
+              a white tile keeps it readable in BOTH light and dark themes). Stacks on top on mobile; vertically
+              centered beside the form on desktop. */}
+          <div className="flex flex-col items-center border-b bg-muted/30 p-6 text-center md:w-2/5 md:items-start md:justify-center md:border-b-0 md:border-r md:p-8 md:text-left">
+            <div className="mb-4 rounded-xl bg-white p-3 shadow-sm ring-1 ring-black/5">
+              <img src={gndjLogo} alt="GNDJ — Groupe Notre-Dame Jamhour" className="w-32 md:w-40" />
             </div>
-            <span className="mb-2 rounded-full bg-primary/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">Membres</span>
             <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">pour accéder à votre espace membres GNDJ</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">pour accéder à votre espace membres</p>
           </div>
 
-          {/* RIGHT — interactive: chooser or form. */}
+          {/* RIGHT — interactive: admin announcement (if any) then the chooser or form. */}
           <div className="flex-1 p-6 md:p-8">
+            {config?.loginMessages?.map((m, i) => <LoginAnnouncement key={i} message={m} tone="primary" />)}
             {view === 'chooser' ? (
               <AccountChooser
                 onUseAnother={() => { setPrefill(''); setView('form') }}
@@ -70,32 +71,32 @@ export default function LoginPage() {
 
         {/* Secondary items stay in a compact centered column under the (wide) card. */}
         <div className="mx-auto max-w-md">
-        {/* Cross-link for parents who want to enroll a child (only while enrollment is open). */}
-        {inscriptionsOpen && (
-          <Link
-            to="/inscription"
-            className="mt-5 flex items-center gap-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm transition-colors hover:bg-accent/15"
-          >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
-              <UserPlus className="h-4 w-4" />
-            </span>
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block text-muted-foreground">Vous souhaitez inscrire un enfant&nbsp;?</span>
-              <span className="block font-medium text-accent">Demande d'inscription →</span>
-            </span>
-          </Link>
-        )}
+          {/* Cross-link for parents who want to enroll a child (only while enrollment is open). */}
+          {inscriptionsOpen && (
+            <Link
+              to="/inscription"
+              className="mt-5 flex items-center gap-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm transition-colors hover:bg-accent/15"
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
+                <UserPlus className="h-4 w-4" />
+              </span>
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block text-muted-foreground">Vous souhaitez inscrire un enfant&nbsp;?</span>
+                <span className="block font-medium text-accent">Demande d'inscription →</span>
+              </span>
+            </Link>
+          )}
 
-        {/* Help line for members/parents who can't log in (configurable via demande.support_email). */}
-        <SupportNote email={config?.supportEmail} />
+          {/* Help line for members/parents who can't log in (configurable via demande.support_email). */}
+          <SupportNote email={config?.supportEmail} />
 
-        {/* Footer — back to the public site + copyright, on one compact line. */}
-        <div className="mt-5 flex flex-col items-center gap-1 text-center text-xs text-muted-foreground">
-          <Link to="/" className="flex items-center gap-1.5 transition-colors hover:text-foreground">
-            <ArrowLeft className="h-3.5 w-3.5" /> Retour au site
-          </Link>
-          <p>© {new Date().getFullYear()} Groupe Notre Dame - Jamhour — Tous droits réservés</p>
-        </div>
+          {/* Footer — back to the public site + copyright. */}
+          <div className="mt-5 flex flex-col items-center gap-1 text-center text-xs text-muted-foreground">
+            <Link to="/" className="flex items-center gap-1.5 transition-colors hover:text-foreground">
+              <ArrowLeft className="h-3.5 w-3.5" /> Retour au site
+            </Link>
+            <p>© {new Date().getFullYear()} Groupe Notre Dame - Jamhour — Tous droits réservés</p>
+          </div>
         </div>
       </div>
     </div>
