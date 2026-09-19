@@ -1,8 +1,9 @@
-// Admin screen (super-admin): read-only audit log viewer.
-// Paged, filterable by entity/action/date range; row click opens a detail dialog
-// that renders the old/new JSON snapshots as a friendly key-value table.
+// Admin screen (audit.view = CG/super-admin): read-only audit log viewer.
+// Paged, filterable by entity/action/user/date range + free-text search; row click opens a detail dialog
+// that renders the old/new JSON snapshots as a friendly before→after table. Exportable to CSV; super-admin
+// can clear the trail (which downloads a CSV backup of the deleted rows first).
 import { useState } from 'react'
-import { useAuditLogs, useAuditFilterOptions, useClearAuditLogs, type AuditLogDto } from '@/services/audit-service'
+import { useAuditLogs, useAuditFilterOptions, useClearAuditLogs, useExportAuditLogs, type AuditLogDto, type AuditFilters } from '@/services/audit-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { parseApiError } from '@/lib/error-utils'
@@ -15,306 +16,17 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { ScrollText, Eye, Trash2, Search, X } from 'lucide-react'
+import { ScrollText, Eye, Trash2, Search, X, Download } from 'lucide-react'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Tip } from '@/components/ui/tooltip'
-
-// Colour buckets reused across the many domain actions below.
-const GREEN = 'bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300'
-const BLUE = 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300'
-const RED = 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300'
-const PURPLE = 'bg-purple-100 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300'
-const ORANGE = 'bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300'
-const GRAY = 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-
-// French label + colour for every audit action string emitted by the backend handlers. Anything not
-// listed falls back to the raw action string with no colour (so a new action is still shown, just untranslated).
-const ACTION_LABELS: Record<string, { label: string; color: string }> = {
-  // Generic CRUD
-  Create: { label: 'Création', color: GREEN },
-  Update: { label: 'Modification', color: BLUE },
-  Delete: { label: 'Suppression', color: RED },
-  // Auth / sessions
-  Login: { label: 'Connexion', color: PURPLE },
-  LoginFailed: { label: 'Échec connexion', color: ORANGE },
-  Logout: { label: 'Déconnexion', color: GRAY },
-  ChangePassword: { label: 'Changement de mot de passe', color: PURPLE },
-  PasswordReset: { label: 'Réinitialisation du mot de passe', color: PURPLE },
-  ResetPassword: { label: 'Réinitialisation du mot de passe', color: PURPLE },
-  ResetApplicantPassword: { label: 'Réinit. mot de passe (parent)', color: PURPLE },
-  SignOutOtherDevices: { label: 'Déconnexion des autres appareils', color: PURPLE },
-  DisconnectSession: { label: 'Session déconnectée', color: PURPLE },
-  GrantSuperAdmin: { label: 'Super-admin accordé', color: PURPLE },
-  RevokeSuperAdmin: { label: 'Super-admin retiré', color: RED },
-  VerifyContact: { label: 'Coordonnées confirmées', color: BLUE },
-  VerifyEmailManual: { label: 'Email vérifié (manuel)', color: BLUE },
-  // Assignments / passage
-  CorrectUnit: { label: "Correction d'unité", color: BLUE },
-  Transfer: { label: 'Transfert', color: BLUE },
-  EndAssignment: { label: "Fin d'affectation", color: BLUE },
-  BulkCreate: { label: 'Proposition en lot', color: GREEN },
-  Review: { label: 'Révision', color: BLUE },
-  BulkReview: { label: 'Révision en lot', color: BLUE },
-  Finalize: { label: 'Finalisation', color: GREEN },
-  Toggle: { label: 'Activation / désactivation', color: GRAY },
-  // Demandes
-  Decide: { label: 'Décision', color: BLUE },
-  BulkDecide: { label: 'Décision en lot', color: BLUE },
-  SetUnit: { label: 'Unité définie', color: BLUE },
-  EditDemande: { label: 'Modification de la demande', color: BLUE },
-  MergeDemandes: { label: 'Fusion de demandes', color: BLUE },
-  SendResponses: { label: 'Envoi des réponses', color: GRAY },
-  CloseCampaign: { label: 'Clôture de la campagne', color: RED },
-  ImportDecisions: { label: 'Import des décisions', color: BLUE },
-  DeleteAccount: { label: 'Suppression du compte', color: RED },
-  UpdateRejectionReasons: { label: 'Motifs de refus modifiés', color: BLUE },
-  // Members
-  Restore: { label: 'Restauration', color: GREEN },
-  Purge: { label: 'Suppression définitive', color: RED },
-  MergeMembers: { label: 'Fusion de membres', color: BLUE },
-  SetDelegation: { label: "Délégation d'accès", color: BLUE },
-  // Documents
-  AcceptDocument: { label: 'Document accepté', color: GREEN },
-  RejectDocument: { label: 'Document refusé', color: RED },
-  ReviewDocument: { label: 'Vérification de document', color: BLUE },
-  AddPages: { label: 'Ajout de pages', color: BLUE },
-  DeletePage: { label: 'Suppression de page', color: RED },
-  UpdateDocumentCampaign: { label: 'Campagne documents modifiée', color: BLUE },
-  SendDocumentCampaignErrors: { label: "Emails d'erreur (campagne)", color: GRAY },
-  ApplyDocumentCampaignHold: { label: 'Dossiers mis en attente', color: ORANGE },
-  ReactivateMember: { label: 'Membre réactivé', color: GREEN },
-  // Communications / emails
-  SendLeaderMessage: { label: 'Message aux chefs', color: GRAY },
-  SendAccess: { label: 'Envoi des accès', color: GRAY },
-  SendDocumentReminders: { label: 'Relance documents', color: GRAY },
-  SendSubmissionReminders: { label: 'Relance des non-soumis', color: GRAY },
-  // Roles / access / structure
-  Archive: { label: 'Archivage', color: ORANGE },
-  Unarchive: { label: 'Réactivation', color: GREEN },
-  SetDefault: { label: 'Fonction par défaut', color: BLUE },
-  Merge: { label: 'Fusion', color: BLUE },
-  SetGroupAccess: { label: 'Accès maîtrise modifié', color: BLUE },
-  // Rentrée
-  OpenInscriptions: { label: 'Ouverture des inscriptions', color: GREEN },
-  OpenPassage: { label: 'Ouverture du passage', color: GREEN },
-  // Managed lists
-  RenameListValue: { label: 'Valeur renommée', color: BLUE },
-  ArchiveListValue: { label: 'Valeur archivée', color: ORANGE },
-  DeleteListValue: { label: 'Valeur supprimée', color: RED },
-  AddListValue: { label: 'Valeur ajoutée', color: GREEN },
-  UnarchiveListValue: { label: 'Valeur réactivée', color: GREEN },
-  // Fratries
-  ApproveSiblingGroup: { label: 'Fratrie confirmée', color: GREEN },
-  RejectSiblingSuggestion: { label: 'Fratrie rejetée', color: RED },
-  LinkSiblings: { label: 'Fratrie liée', color: BLUE },
-  UnlinkSibling: { label: 'Fratrie déliée', color: ORANGE },
-  // Réunions / groupes / autres
-  Approve: { label: 'Approbation', color: GREEN },
-  SaveAttendance: { label: 'Présences enregistrées', color: BLUE },
-  SendMessage: { label: 'Message envoyé', color: GRAY },
-  Reply: { label: 'Réponse', color: GRAY },
-}
-
-const ENTITY_LABELS: Record<string, string> = {
-  User: 'Utilisateur',
-  ApplicantAccount: "Compte d'inscription",
-  Member: 'Membre',
-  Unit: 'Unité',
-  Team: 'Équipe',
-  Association: 'Association',
-  UnitType: "Type d'unité",
-  FunctionalRole: 'Fonction',
-  SecurityProfile: 'Profil de sécurité',
-  MemberAssignment: 'Affectation',
-  MemberDocument: 'Document',
-  MemberCotisation: 'Cotisation',
-  MemberProgression: 'Progression',
-  MemberChangeRequest: 'Demande de modification',
-  DocumentType: 'Type de document',
-  Setting: 'Paramètre',
-  Guardian: 'Parent',
-  GuardianLink: 'Lien parent',
-  Passage: 'Passage',
-  Demande: "Demande d'inscription",
-  SiblingGroup: 'Fratrie',
-  SiblingRejection: 'Fratrie rejetée',
-  ApiKey: 'Clé API',
-  CustomField: 'Champ personnalisé',
-  Event: 'Événement',
-  NewsPost: 'Actualité',
-  Page: 'Page',
-  Resource: 'Ressource',
-  ScoutStage: 'Étape',
-  Badge: 'Badge',
-  SmtpServer: 'Serveur SMTP',
-  EmailTemplate: "Modèle d'email",
-  SiteContent: 'Contenu du site',
-  UnitTypeProgression: 'Parcours scout',
-  MemberGroup: 'Groupe de membres',
-  Meeting: 'Réunion',
-  ReportTemplate: 'Modèle de rapport',
-  Trombinoscope: 'Trombinoscope',
-  ContactMessage: 'Message de contact',
-}
-
-// Human labels for the raw snapshot field names, so the detail reads in French instead of PascalCase keys.
-const FIELD_LABELS: Record<string, string> = {
-  Member: 'Membre', Unit: 'Unité', Team: 'Équipe', Role: 'Fonction',
-  StartDate: 'Début', EndDate: 'Fin', Name: 'Nom', Totem: 'Totem', Adjective: 'Adjectif',
-  Description: 'Description', Color1: 'Couleur 1', Color2: 'Couleur 2', DisplayOrder: 'Ordre',
-  IsMaitrise: 'Maîtrise', Email: 'Email', Code: 'Code', Reason: 'Motif', Title: 'Titre',
-  ReceiptNumber: 'Reçu', ScoutYear: 'Année scoute', FirstName: 'Prénom', LastName: 'Nom',
-  Portal: 'Portail',
-  // Member profile fields (Update Member / Ma fiche diff)
-  DateOfBirth: 'Date de naissance', Gender: 'Genre', CardNumber: 'Matricule',
-  ExternalCardNumber: 'N° de carte', BloodType: 'Groupe sanguin', Nationality: 'Nationalité',
-  School: 'École', Classe: 'Classe', Section: 'Section', ProfessionDomain: 'Domaine professionnel',
-  Profession: 'Profession', MedicalNotes: 'Notes médicales', Allergies: 'Allergies', Notes: 'Notes',
-  ParentsSituation: 'Situation des parents',
-  // Parent (guardian) fields
-  Parent: 'Parent', RelationshipType: 'Relation', IsPrimaryContact: 'Contact principal',
-  IsEmergencyContact: "Contact d'urgence", IsDeceased: 'Décédé(e)', Phone: 'Téléphone',
-  // Member contact fields (add/update/delete phone/email/address, primary contact email)
-  Type: 'Type', Address: 'Adresse', PrimaryContactEmail: 'Courriel de contact principal',
-  // Parcours / groupes / réunions / rapports / trombinoscope / messages
-  From: 'De', To: 'Vers', PathType: 'Type de parcours', ScopeType: 'Portée',
-  Recipients: 'Destinataires', Absences: 'Absences', Date: 'Date', Sender: 'Expéditeur',
-  Subject: 'Objet', Published: 'Publié', MemberCount: 'Nombre de membres',
-  Format: 'Format', ReportType: 'Type de rapport',
-  // Resolved-name keys emitted by the handlers (member/unit/role names instead of GUIDs)
-  ProposedUnit: 'Unité proposée', ProposedRole: 'Fonction proposée',
-  FinalUnit: 'Unité finale', FinalRole: 'Fonction finale',
-  NewUnit: 'Nouvelle unité', NewRole: 'Nouvelle fonction', DecidedUnit: 'Unité décidée',
-  Child: 'Enfant', Children: 'Enfants', Members: 'Membres', Target: 'Membre lié',
-  Keeper: 'Conservé', Merged: 'Fusionné(s)', KeptReference: 'Référence conservée',
-  Father: 'Père', Mother: 'Mère',
-  Status: 'Statut', Count: 'Nombre', IsLeaving: 'Quitte le groupe',
-  Document: 'Document', ReviewNotes: 'Note de vérification', FileName: 'Fichier',
-  added: 'Pages ajoutées', pages: 'Pages',
-  KeepOld: "Conserver l'ancienne fonction", IsSuperAdmin: 'Super-administrateur',
-  AccountsDeleted: 'Comptes supprimés',
-  // Send-report keys (Envoyer les accès / Relance documents / Message aux chefs)
-  sent: 'Envoyés', noEmail: 'Sans email', noAccount: 'Sans compte', noAccess: 'Sans accès',
-  skipped: 'Ignorés', compliant: 'Dossiers complets', template: 'Modèle', unit: 'Unité',
-}
-const fieldLabel = (k: string) => FIELD_LABELS[k] ?? k
-
-// A raw User-Agent lists every legacy compatibility token (Mozilla/AppleWebKit/KHTML/Gecko/Chrome/Safari…),
-// which reads like "all browsers at once". Parse it to a readable "Browser N · OS" (order matters — the most
-// specific browser token wins). The full UA stays available as a tooltip.
-function parseUserAgent(ua: string | null | undefined): string {
-  if (!ua) return '—'
-  let os = ''
-  const aMatch = ua.match(/Android\s([\d.]+)/)
-  if (/Windows NT/.test(ua)) os = 'Windows'
-  else if (aMatch) os = `Android ${aMatch[1]}`
-  else if (/Android/.test(ua)) os = 'Android'
-  else if (/(iPhone|iPad|iPod|iOS)/.test(ua)) os = 'iOS'
-  else if (/Mac OS X/.test(ua)) os = 'macOS'
-  else if (/CrOS/.test(ua)) os = 'ChromeOS'
-  else if (/Linux/.test(ua)) os = 'Linux'
-
-  let br = 'Navigateur inconnu'
-  let m: RegExpMatchArray | null
-  if ((m = ua.match(/Edg(?:e|A|iOS)?\/([\d]+)/))) br = `Edge ${m[1]}`
-  else if ((m = ua.match(/(?:OPR|Opera)\/([\d]+)/))) br = `Opera ${m[1]}`
-  else if ((m = ua.match(/SamsungBrowser\/([\d]+)/))) br = `Samsung Internet ${m[1]}`
-  else if ((m = ua.match(/(?:Firefox|FxiOS)\/([\d]+)/))) br = `Firefox ${m[1]}`
-  else if ((m = ua.match(/(?:CriOS|Chrome)\/([\d]+)/))) br = `Chrome ${m[1]}`
-  else if (/Safari/.test(ua) && (m = ua.match(/Version\/([\d]+)/))) br = `Safari ${m[1]}`
-  return [br, os].filter(Boolean).join(' · ')
-}
-
-// Renders a stored value readably: booleans → Oui/Non, null/empty → —.
-function formatVal(v: unknown): string {
-  if (v === null || v === undefined || v === '') return '—'
-  if (typeof v === 'boolean') return v ? 'Oui' : 'Non'
-  return String(v)
-}
-
-// Best-effort human label for a log row, sniffed from the first recognizable field
-// in the JSON snapshot (Member → Name → Email → full name → …). Empty if none found.
-function entitySummary(log: AuditLogDto): string {
-  // Try to extract a meaningful label from newValues or oldValues
-  const json = log.newValues || log.oldValues
-  if (!json) return ''
-  try {
-    const obj = JSON.parse(json)
-    // Common field patterns — prefer a readable member/child name for the row summary.
-    if (obj.Member) return obj.Member       // assignments / passages (readable member name)
-    if (obj.Child) return obj.Child         // demandes (child name)
-    if (obj.Keeper) return obj.Keeper       // merges (kept member)
-    if (obj.Members) return obj.Members     // sibling groups (list of names)
-    if (obj.Name) return obj.Name
-    if (obj.Email) return obj.Email
-    if (obj.Title) return obj.Title
-    if (obj.FirstName && obj.LastName) return `${obj.FirstName} ${obj.LastName}`
-    if (obj.ReceiptNumber) return obj.ReceiptNumber
-    if (obj.Code) return obj.Code
-    if (obj.Reason) return obj.Reason
-  } catch { /* ignore */ }
-  return ''
-}
-
-function parseObj(json: string | null): Record<string, unknown> | null {
-  if (!json) return null
-  try {
-    const o = JSON.parse(json)
-    return typeof o === 'object' && o !== null ? (o as Record<string, unknown>) : null
-  } catch { return null }
-}
-
-// Combined before→after view. When both snapshots exist it shows one row per field with the old and new value
-// side by side, HIGHLIGHTING the ones that actually changed (so a reorder/recolor is obvious instead of looking
-// like a no-op). When only one side exists (Create / Delete) it shows a single value column.
-function DiffViewer({ oldJson, newJson }: { oldJson: string | null; newJson: string | null }) {
-  const oldObj = parseObj(oldJson)
-  const newObj = parseObj(newJson)
-
-  // Fall back to raw text if neither parsed into an object (e.g. a scalar or malformed snapshot).
-  if (!oldObj && !newObj) {
-    const raw = newJson ?? oldJson
-    if (!raw) return <span className="text-muted-foreground">—</span>
-    return <pre className="rounded-md bg-muted/30 p-3 text-xs overflow-auto whitespace-pre-wrap">{raw}</pre>
-  }
-
-  const keys = Array.from(new Set([...Object.keys(oldObj ?? {}), ...Object.keys(newObj ?? {})]))
-  const both = oldObj && newObj
-
-  return (
-    <div className="rounded-md border text-sm overflow-hidden">
-      <div className={`grid ${both ? 'grid-cols-[6rem_1fr_1fr] sm:grid-cols-[10rem_1fr_1fr]' : 'grid-cols-[6rem_1fr] sm:grid-cols-[10rem_1fr]'} bg-muted/50 font-medium text-muted-foreground text-xs uppercase`}>
-        <div className="px-3 py-1.5">Champ</div>
-        {both ? <><div className="px-3 py-1.5">Avant</div><div className="px-3 py-1.5">Après</div></> : <div className="px-3 py-1.5">Valeur</div>}
-      </div>
-      <div className="divide-y">
-        {keys.map((k) => {
-          const ov = oldObj?.[k]
-          const nv = newObj?.[k]
-          const changed = both && formatVal(ov) !== formatVal(nv)
-          return (
-            <div key={k} className={`grid ${both ? 'grid-cols-[6rem_1fr_1fr] sm:grid-cols-[10rem_1fr_1fr]' : 'grid-cols-[6rem_1fr] sm:grid-cols-[10rem_1fr]'} ${changed ? 'bg-amber-50 dark:bg-amber-950/40' : ''}`}>
-              <div className="px-3 py-1.5 font-medium text-muted-foreground">{fieldLabel(k)}</div>
-              {both ? (
-                <>
-                  <div className={`px-3 py-1.5 break-all ${changed ? 'text-muted-foreground line-through' : ''}`}>{formatVal(ov)}</div>
-                  <div className={`px-3 py-1.5 break-all ${changed ? 'font-medium text-amber-800 dark:text-amber-300' : ''}`}>{formatVal(nv)}</div>
-                </>
-              ) : (
-                <div className="px-3 py-1.5 break-all">{formatVal(oldObj ? ov : nv)}</div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
+import { ACTION_LABELS, ENTITY_LABELS, actionMeta, entityLabel, parseUserAgent, entitySummary } from '@/lib/audit-format'
+import { DiffViewer } from '@/components/admin/audit-diff'
 
 export default function AuditLogsPage() {
   const [page, setPage] = useState(1)
   const [entityType, setEntityType] = useState<string>('')
   const [action, setAction] = useState<string>('')
+  const [userId, setUserId] = useState<string>('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [search, setSearch] = useState('')
@@ -324,44 +36,57 @@ export default function AuditLogsPage() {
 
   const isSuperAdmin = useAuthStore((s) => s.user?.isSuperAdmin ?? false)
   const clearLogs = useClearAuditLogs()
+  const exportLogs = useExportAuditLogs()
+
+  // The filters currently applied (shared by the list, the export and — for the range — the search).
+  const activeFilters: AuditFilters = {
+    entityType: entityType || undefined,
+    action: action || undefined,
+    userId: userId || undefined,
+    from: from || undefined,
+    to: to || undefined,
+    search: debouncedSearch.trim() || undefined,
+  }
+
   const handleClear = () => {
     clearLogs.mutate(undefined, {
-      onSuccess: (r) => { toast.success(`Journal vidé (${r.deleted} entrée${r.deleted > 1 ? 's' : ''})`); setConfirmClear(false); setPage(1) },
+      onSuccess: (r) => { toast.success(`Journal vidé (${r.deleted} entrée${r.deleted > 1 ? 's' : ''}) — sauvegarde CSV téléchargée`); setConfirmClear(false); setPage(1) },
+      onError: (e) => toast.error(parseApiError(e)),
+    })
+  }
+
+  const handleExport = () => {
+    exportLogs.mutate(activeFilters, {
+      onSuccess: () => toast.success('Export CSV téléchargé'),
       onError: (e) => toast.error(parseApiError(e)),
     })
   }
 
   const { data: filters } = useAuditFilterOptions()
-  const { data, isLoading } = useAuditLogs({
-    entityType: entityType || undefined,
-    action: action || undefined,
-    from: from || undefined,
-    to: to || undefined,
-    search: debouncedSearch.trim() || undefined,
-    page,
-    pageSize: 30,
-  })
+  const { data, isLoading } = useAuditLogs({ ...activeFilters, page, pageSize: 30 })
 
   const clearFilters = () => {
-    setEntityType('')
-    setAction('')
-    setFrom('')
-    setTo('')
-    setSearch('')
-    setPage(1)
+    setEntityType(''); setAction(''); setUserId(''); setFrom(''); setTo(''); setSearch(''); setPage(1)
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Journal d'audit</h1>
-        {isSuperAdmin && (
-          <Button variant="outline" size="sm" className="text-destructive hover:text-destructive"
-            disabled={!data || data.totalCount === 0 || clearLogs.isPending}
-            onClick={() => setConfirmClear(true)}>
-            <Trash2 className="mr-1.5 h-4 w-4" /> Vider le journal
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm"
+            disabled={!data || data.totalCount === 0 || exportLogs.isPending}
+            onClick={handleExport}>
+            <Download className="mr-1.5 h-4 w-4" /> Exporter (CSV)
           </Button>
-        )}
+          {isSuperAdmin && (
+            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive"
+              disabled={!data || data.totalCount === 0 || clearLogs.isPending}
+              onClick={() => setConfirmClear(true)}>
+              <Trash2 className="mr-1.5 h-4 w-4" /> Vider le journal
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Free-text search — matches user, IP, action, entity and the before/after snapshots (accent-insensitive),
@@ -405,6 +130,16 @@ export default function AuditLogsPage() {
           </Select>
         </div>
         <div className="space-y-1">
+          <label className="text-sm text-muted-foreground">Utilisateur</label>
+          <Select value={userId} onValueChange={(v) => { setUserId(v === '_all' ? '' : v); setPage(1) }}>
+            <SelectTrigger><SelectValue placeholder="Tous" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_all">Tous</SelectItem>
+              {filters?.users.map(u => <SelectItem key={u.id} value={u.id}>{u.email}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
           <label className="text-sm text-muted-foreground">Du</label>
           <Input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1) }} />
         </div>
@@ -412,7 +147,7 @@ export default function AuditLogsPage() {
           <label className="text-sm text-muted-foreground">Au</label>
           <Input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1) }} />
         </div>
-        {(entityType || action || from || to || search) && (
+        {(entityType || action || userId || from || to || search) && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>Effacer</Button>
         )}
       </div>
@@ -437,7 +172,7 @@ export default function AuditLogsPage() {
               </TableHeader>
               <TableBody>
                 {data.items.map(log => {
-                  const actionInfo = ACTION_LABELS[log.action]
+                  const info = actionMeta(log.action)
                   return (
                     <TableRow key={log.id} className="cursor-pointer hover:bg-muted/50 even:bg-muted/30" onClick={() => setDetail(log)}>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
@@ -445,13 +180,11 @@ export default function AuditLogsPage() {
                       </TableCell>
                       <TableCell className="text-sm">{log.userEmail ?? '—'}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className={actionInfo?.color ?? ''}>
-                          {actionInfo?.label ?? log.action}
-                        </Badge>
+                        <Badge variant="secondary" className={info.color}>{info.label}</Badge>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <span className="text-sm">{ENTITY_LABELS[log.entityType] ?? log.entityType}</span>
+                          <span className="text-sm">{entityLabel(log.entityType)}</span>
                           {(() => {
                             const summary = entitySummary(log)
                             return summary ? <span className="ml-1.5 text-xs text-muted-foreground">— {summary}</span> : null
@@ -497,8 +230,8 @@ export default function AuditLogsPage() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div><span className="text-muted-foreground">Date :</span> {new Date(detail.timestamp).toLocaleString('fr-FR')}</div>
                 <div><span className="text-muted-foreground">Utilisateur :</span> {detail.userEmail ?? '—'}</div>
-                <div><span className="text-muted-foreground">Action :</span> {ACTION_LABELS[detail.action]?.label ?? detail.action}</div>
-                <div><span className="text-muted-foreground">Entité :</span> {ENTITY_LABELS[detail.entityType] ?? detail.entityType}{(() => { const s = entitySummary(detail); return s ? ` — ${s}` : '' })()}</div>
+                <div><span className="text-muted-foreground">Action :</span> {actionMeta(detail.action).label}</div>
+                <div><span className="text-muted-foreground">Entité :</span> {entityLabel(detail.entityType)}{(() => { const s = entitySummary(detail); return s ? ` — ${s}` : '' })()}</div>
                 <div><span className="text-muted-foreground">ID Entité :</span> <span className="font-mono text-xs">{detail.entityId ?? '—'}</span></div>
                 <div><span className="text-muted-foreground">IP :</span> {detail.ipAddress ?? '—'}</div>
                 {/* Browser / device string — helpful to troubleshoot a login (which device the attempt came from). */}
@@ -522,8 +255,8 @@ export default function AuditLogsPage() {
         open={confirmClear}
         onOpenChange={setConfirmClear}
         title="Vider le journal d'audit ?"
-        description="Toutes les entrées d'audit seront définitivement supprimées. Cette action est irréversible."
-        confirmLabel="Vider"
+        description="Une sauvegarde CSV des entrées supprimées sera d'abord téléchargée, puis toutes les entrées d'audit seront définitivement supprimées. Cette action est irréversible."
+        confirmLabel="Exporter et vider"
         variant="destructive"
         loading={clearLogs.isPending}
         onConfirm={handleClear}

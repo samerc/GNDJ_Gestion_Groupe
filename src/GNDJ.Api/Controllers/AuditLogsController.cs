@@ -43,14 +43,33 @@ public class AuditLogsController : BaseApiController
         return Ok(result);
     }
 
-    /// <summary>Clears the audit trail. SUPER-ADMIN only (enforced in the handler). Optional ?before= keeps newer entries.</summary>
-    /// <response code="200">Number of rows deleted.</response>
+    /// <summary>The audit trail related to one member (subject or actor) — powers the fiche "Journal" tab. Requires audit.view.</summary>
+    [HttpGet("member/{memberId:guid}")]
+    [HasPermission(Permissions.AuditView)]
+    public async Task<IActionResult> GetForMember(Guid memberId, [FromQuery] int page = 1, [FromQuery] int pageSize = 30)
+        => Ok(await Mediator.Send(new GetMemberAuditLogsQuery(memberId, page, pageSize)));
+
+    /// <summary>Exports the (filtered) audit trail as a CSV file. Requires audit.view.</summary>
+    [HttpGet("export")]
+    [HasPermission(Permissions.AuditView)]
+    public async Task<IActionResult> Export(
+        [FromQuery] string? entityType, [FromQuery] string? action, [FromQuery] Guid? userId,
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? search)
+    {
+        var file = await Mediator.Send(new ExportAuditLogsQuery(entityType, action, userId, from, to, search));
+        return File(file.Data, "text/csv", file.FileName);
+    }
+
+    /// <summary>Clears the audit trail and RETURNS a CSV backup of the deleted rows. SUPER-ADMIN only (enforced in
+    /// the handler). Optional ?before= keeps newer entries. The deleted count is in the X-Deleted-Count header.</summary>
+    /// <response code="200">A CSV file of the deleted rows (X-Deleted-Count header = number deleted).</response>
     /// <response code="403">Not a super-admin.</response>
     [HttpDelete]
     [HasPermission(Permissions.AuditView)]
     public async Task<IActionResult> Clear([FromQuery] DateTime? before)
     {
-        var deleted = await Mediator.Send(new PurgeAuditLogsCommand(before));
-        return Ok(new { deleted });
+        var result = await Mediator.Send(new PurgeAuditLogsCommand(before));
+        Response.Headers["X-Deleted-Count"] = result.Deleted.ToString();
+        return File(result.Csv, "text/csv", result.FileName);
     }
 }

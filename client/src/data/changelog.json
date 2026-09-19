@@ -5,6 +5,14 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Fiche membre — onglet « Journal » (visible pour le chef de groupe / l'administrateur) : affiche l'historique d'audit lié à ce membre — les actions le concernant directement (modification de la fiche, coordonnées, réinitialisation du mot de passe, délégation d'accès…) et les actions qu'il a effectuées lui-même (connexions, modifications de sa fiche, propositions). Cliquez une ligne pour voir le détail avant/après."
+      },
+      {
+        "date": "2026-09-19",
+        "text": "Journal d'audit — améliorations : export CSV de la vue filtrée (bouton « Exporter »), filtre par utilisateur, et — lors du « Vider le journal » (réservé au super-administrateur) — une sauvegarde CSV des entrées supprimées est automatiquement téléchargée avant l'effacement, et une entrée « Suppression définitive » est conservée dans le journal. Le détail affiche mieux les valeurs imbriquées (listes/objets)."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Correction — page Passages qui ne s'affichait pas (erreur serveur) pour une unité comptant un membre né un 29 février : le calcul de l'âge construisait une date « 29 février » sur une année non bissextile, ce qui faisait échouer toute la requête. L'âge est désormais calculé sans construire cette date. Même correction appliquée au calcul d'âge des statistiques de demandes."
       },
       {

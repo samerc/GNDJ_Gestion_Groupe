@@ -40,6 +40,7 @@ import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
+import { MemberAuditLog } from '@/components/members/member-audit-log'
 // Data hooks reused (React Query dedupes by key with the tab components) to show item counts on the tabs.
 import { generateMemberCard } from '@/services/report-service'
 import { ExportDialog } from '@/components/shared/export-dialog'
@@ -146,6 +147,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   // Member-card generation is a group-wide toggle (Paramètres → Rapports). Off => hide the download action.
   const cardsEnabled = useSettingValue('reports.cards_enabled') !== 'false'
   const canManageSiblings = useAuthStore((s) => s.hasPermission(PERMISSIONS.MAITRISE_MANAGE)) // CG/super-admin: link/unlink fratries
+  const canViewAudit = useAuthStore((s) => s.hasPermission(PERMISSIONS.AUDIT_VIEW)) // CG/super-admin: the member "Journal" tab
   // "Voir comme" (impersonation): super-admin OR Chef de Groupe (maitrise.manage). Hidden for yourself and for a
   // super-admin target (member.isSuperAdmin is only ever populated true for a super-admin viewer; the server
   // refuses a super-admin target regardless).
@@ -433,6 +435,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
           <TabsTrigger value="dossier">Documents &amp; cotisations<TabCount n={dossierCount} /></TabsTrigger>
           <TabsTrigger value="progression">Progression<TabCount n={progressionCount} /></TabsTrigger>
           <TabsTrigger value="medical">Santé &amp; suivi</TabsTrigger>
+          {canViewAudit && <TabsTrigger value="journal">Journal</TabsTrigger>}
         </TabsList>
 
         <div className="flex-1 overflow-auto p-4">
@@ -670,6 +673,13 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
               <MemberCustomFields memberId={memberId} />
             </div>
           </TabsContent>
+
+          {/* Journal — this member's audit trail (CG/admin only). */}
+          {canViewAudit && (
+            <TabsContent value="journal" className="mt-0">
+              <MemberAuditLog memberId={memberId} />
+            </TabsContent>
+          )}
         </div>
       </Tabs>
 

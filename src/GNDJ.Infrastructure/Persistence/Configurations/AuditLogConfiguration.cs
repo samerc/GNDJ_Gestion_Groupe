@@ -24,6 +24,8 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
 
         // Composite index serves the "history for this entity" lookup.
         builder.HasIndex(e => new { e.EntityType, e.EntityId });
+        // entity_id alone (any type) serves the member "Journal" tab (subject = memberId), OR'd with user_id.
+        builder.HasIndex(e => e.EntityId);
         builder.HasIndex(e => e.UserId);
         // Descending: log viewer reads newest-first.
         builder.HasIndex(e => e.Timestamp).IsDescending();

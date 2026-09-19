@@ -5451,6 +5451,33 @@ applies on prod startup; build 0/0, tsc+eslint+vite clean).
   tombstoned pairs via union-find over the surviving pairs (`SplitByRejections`) — a fully-rejected pair
   disappears, a partly-rejected trio keeps the rest. `SiblingUtil.Pair` reused (internal, same assembly).
 
+### Audit log — member Journal tab + export + purge-backup + user filter (2026-09-19, DEV until deploy)
+Improvements to the (already mature) audit trail. Migration `AddAuditLogEntityIdIndex` applies on prod startup.
+- **Member fiche "Journal" tab** (gated `audit.view` = CG/super-admin): `GetMemberAuditLogsQuery` +
+  `GET /audit-logs/member/{id}` returns rows where **`EntityId == memberId` (subject) OR `UserId == the member's
+  login` (actor)** — direct member actions (profile/contact edits, reset-password, delegation, super-admin,
+  restore…) + the member's own actions (logins, self-edits, proposals). Added an `entity_id` index so the OR uses
+  **BitmapOr** over `ix_audit_logs_entity_id` + `ix_audit_logs_user_id` (verified via EXPLAIN). NOTE: actions on a
+  member's OWNED entities (a document/assignment/cotisation row) log the CHILD entity's id, so they're NOT in the
+  tab — full coverage would need a dedicated `member_id` column on `audit_logs` (documented future enhancement).
+  New `MemberAuditLog` component + tab in `members/index.tsx`.
+- **Export** — `GET /audit-logs/export` (audit.view) streams the current filtered view as a CSV ("Exporter" button).
+- **Purge now backs up first** — `DELETE /audit-logs` (super-admin) serializes the deleted rows to a CSV
+  (auto-downloaded, `X-Deleted-Count` header) BEFORE `ExecuteDelete`, and writes a surviving **"Purge"** audit row
+  (Count + Before) so the wipe itself is recorded. `AuditCsv.BuildAsync` (UTF-8 BOM, RFC-4180) shared by both.
+- **User filter** — `GetAuditFilterOptionsQuery` now also returns the distinct actor users; the viewer has a
+  Utilisateur dropdown (the backend `userId` filter was already there, just unexposed).
+- **Shared rendering** — extracted the label maps / UA parser / value formatter / row summary to `lib/audit-format.ts`
+  and `DiffViewer` to `components/admin/audit-diff.tsx` (react-refresh wants component files to export only
+  components), reused by the admin page + the member tab. `formatVal` now renders nested arrays/objects (was
+  "[object Object]"). Verified live: endpoints auth-gate (401), member journal returns rows, builds 0/0 + tsc/eslint/vite clean.
+- **DEFERRED (proposed, needs a decision / separate batch):** (1) a **trigram GIN index** on the jsonb snapshots
+  for the free-text search — an expression index on `jsonb_pretty(...)` is finicky; do it when volume warrants
+  (search is admin-only + low-frequency; ~9k rows today). (2) a **retention policy** for `audit_logs` — audit is
+  compliance data, so auto-deletion is a governance call (keep-forever vs trim); the purge-with-backup already
+  covers the manual path. (3) **sensitive-READ auditing** (who VIEWED a minor's medical/documents) — a big new
+  logging surface (volume + perf + privacy), deserves its own conversation.
+
 ### Passage page 500 — 29-Feb DOB crash (2026-09-19, DEV until deploy)
 Prod report (a CU opening `/api/v1/passages/unit/{id}`): **`22008: date field value out of range: 2026-02-29`**.
 Root cause: the passage age projection (`PassageHandlers.cs`, 2 queries) computed age with
