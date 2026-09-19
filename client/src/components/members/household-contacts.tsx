@@ -211,8 +211,8 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                 {!selfService && <CopyButton value={formatPhoneDisplay(r.cc, r.number)} label="Copier le numéro" />}
                 {!selfService && <WhatsappLink countryCode={r.cc} number={r.number} />}
                 {editable && <>
-                  <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setPhoneEdit({ id: r.id, owner: r.owner, countryCode: r.cc, number: r.number, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
-                  <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setDel({ kind: 'phone', owner: r.owner, id: r.id, label: formatPhoneDisplay(r.cc, r.number) })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
+                  <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" onClick={() => setPhoneEdit({ id: r.id, owner: r.owner, countryCode: r.cc, number: r.number, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
+                  <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" onClick={() => setDel({ kind: 'phone', owner: r.owner, id: r.id, label: formatPhoneDisplay(r.cc, r.number) })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
                 </>}
               </div>
             ))}</div>
@@ -238,8 +238,8 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                   {r.urgence && <Badge variant="destructive" className="h-5 shrink-0 text-[10px]">Urgence</Badge>}
                   {!selfService && <CopyButton value={r.address} label="Copier le courriel" />}
                   {editable && <>
-                    <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setEmailEdit({ id: r.id, owner: r.owner, origAddress: r.address, address: r.address, isPrimary: false, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
-                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setDel({ kind: 'email', owner: r.owner, id: r.id, label: r.address })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
+                    <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" onClick={() => setEmailEdit({ id: r.id, owner: r.owner, origAddress: r.address, address: r.address, isPrimary: false, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
+                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" onClick={() => setDel({ kind: 'email', owner: r.owner, id: r.id, label: r.address })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
                   </>}
                 </div>
               )
@@ -263,8 +263,8 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                 </div>
                 {a.isPrimary && <Badge variant="outline" className="h-5 shrink-0 text-[10px]">Principal</Badge>}
                 {editable && <>
-                  <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setAddrEdit({ id: a.id, type: a.type, country: a.country, city: a.city, details: a.details ?? '', isPrimary: a.isPrimary })}><Pencil className="h-3 w-3" /></Button></Tip>
-                  <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setDel({ kind: 'address', owner: 'self', id: a.id, label: `${a.city}, ${a.country}` })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
+                  <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" onClick={() => setAddrEdit({ id: a.id, type: a.type, country: a.country, city: a.city, details: a.details ?? '', isPrimary: a.isPrimary })}><Pencil className="h-3 w-3" /></Button></Tip>
+                  <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" onClick={() => setDel({ kind: 'address', owner: 'self', id: a.id, label: `${a.city}, ${a.country}` })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
                 </>}
               </div>
             ))}</div>

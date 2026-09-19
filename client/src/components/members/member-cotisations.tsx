@@ -292,16 +292,16 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
                     {c.notes && <p className="mt-1 text-xs text-muted-foreground">{c.notes}</p>}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    <Tip content="Télécharger le reçu"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadReceipt(c)}>
+                    <Tip content="Télécharger le reçu"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => handleDownloadReceipt(c)}>
                       <Download className="h-3.5 w-3.5" />
                     </Button></Tip>
                     {hasPermission(PERMISSIONS.COTISATIONS_EDIT) && (
-                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}>
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => openEdit(c)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button></Tip>
                     )}
                     {hasPermission(PERMISSIONS.COTISATIONS_DELETE) && (
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(c)}>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setDeleting(c)}>
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button></Tip>
                     )}

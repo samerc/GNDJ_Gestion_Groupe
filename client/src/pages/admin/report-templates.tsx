@@ -427,9 +427,9 @@ export default function ReportTemplatesPage() {
                         <li key={key} className="flex items-center gap-2 px-2 py-1.5 text-sm">
                           <span className="w-5 text-center text-xs text-muted-foreground">{i + 1}</span>
                           <span className="flex-1 truncate">{labelOf.get(key) ?? key}</span>
-                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6" disabled={i === 0} onClick={() => moveColumn(i, -1)}><ArrowUp className="h-3.5 w-3.5" /></Button>
-                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6" disabled={i === columns.length - 1} onClick={() => moveColumn(i, 1)}><ArrowDown className="h-3.5 w-3.5" /></Button>
-                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeColumn(key)}><X className="h-3.5 w-3.5 text-destructive" /></Button>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" disabled={i === 0} onClick={() => moveColumn(i, -1)}><ArrowUp className="h-3.5 w-3.5" /></Button>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" disabled={i === columns.length - 1} onClick={() => moveColumn(i, 1)}><ArrowDown className="h-3.5 w-3.5" /></Button>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeColumn(key)}><X className="h-3.5 w-3.5 text-destructive" /></Button>
                         </li>
                       ))}
                     </ol>

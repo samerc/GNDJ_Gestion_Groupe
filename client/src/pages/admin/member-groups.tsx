@@ -663,8 +663,8 @@ function RuleRow({ rule, roles, profiles, units, unitTypes, onChange, onRemove, 
     <div className="flex items-start gap-1.5 rounded-md border p-2">
       {/* Reorder handles (cosmetic ordering for readability) */}
       <div className="flex flex-col">
-        <Button type="button" variant="ghost" size="icon" className="h-4 w-6 text-muted-foreground disabled:opacity-30" onClick={onMoveUp} disabled={!canMoveUp} aria-label="Monter"><ChevronUp className="h-4 w-4" /></Button>
-        <Button type="button" variant="ghost" size="icon" className="h-4 w-6 text-muted-foreground disabled:opacity-30" onClick={onMoveDown} disabled={!canMoveDown} aria-label="Descendre"><ChevronDown className="h-4 w-4" /></Button>
+        <Button type="button" variant="ghost" size="icon" className="h-6 w-8 text-muted-foreground disabled:opacity-30" onClick={onMoveUp} disabled={!canMoveUp} aria-label="Monter"><ChevronUp className="h-4 w-4" /></Button>
+        <Button type="button" variant="ghost" size="icon" className="h-6 w-8 text-muted-foreground disabled:opacity-30" onClick={onMoveDown} disabled={!canMoveDown} aria-label="Descendre"><ChevronDown className="h-4 w-4" /></Button>
       </div>
       <div className="flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-2">

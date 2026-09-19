@@ -394,24 +394,24 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                 {/* Actions — full-width below the content on mobile (stacked), inline on the right on ≥sm. */}
                 <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                   {doc && (
-                    <Tip content="Télécharger le document"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)}>
+                    <Tip content="Télécharger le document"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => handleDownload(doc)}>
                       <Download className="h-4 w-4" />
                     </Button></Tip>
                   )}
                   {doc && doc.status !== 'Approved' && hasPermission(PERMISSIONS.DOCUMENTS_APPROVE) && (
-                    <Tip content="Accepter"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleQuickReview(doc.id, 'Approved')}>
+                    <Tip content="Accepter"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => handleQuickReview(doc.id, 'Approved')}>
                       <CheckCircle className="h-4 w-4 text-green-600" />
                     </Button></Tip>
                   )}
                   {/* Show for any status so an already-refused doc can be reopened to add/edit the reason;
                       pre-fill the existing note so editing keeps it. */}
                   {doc && hasPermission(PERMISSIONS.DOCUMENTS_APPROVE) && (
-                    <Tip content={doc.status === 'Rejected' ? 'Modifier le motif du refus' : 'Refuser'}><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setReviewOpen(doc); setReviewNotes(doc.reviewNotes ?? '') }}>
+                    <Tip content={doc.status === 'Rejected' ? 'Modifier le motif du refus' : 'Refuser'}><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => { setReviewOpen(doc); setReviewNotes(doc.reviewNotes ?? '') }}>
                       <XCircle className="h-4 w-4 text-red-500" />
                     </Button></Tip>
                   )}
                   {doc && hasPermission(PERMISSIONS.DOCUMENTS_DELETE) && (
-                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleting(doc)}>
+                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => setDeleting(doc)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button></Tip>
                   )}
@@ -443,7 +443,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       {/* Mobile: opens the camera to photograph the document (capture="environment"). On desktop
                           it just opens an image picker — harmless. Requires-expiry types go via the date dialog. */}
                       <Tip content="Prendre une photo">
-                        <Button variant="outline" size="icon" className="h-8 w-8 border-primary/40 text-primary hover:bg-primary/5"
+                        <Button variant="outline" size="icon" className="h-9 w-9 border-primary/40 text-primary hover:bg-primary/5 sm:h-8 sm:w-8"
                           onClick={() => {
                             if (dt.requiresExpiry) { setUploadingDocTypeId(dt.id); setExpiryDate('') }
                             else { setUploadingDocTypeId(dt.id); setTimeout(() => cameraInputRef.current?.click(), 50) }
@@ -604,7 +604,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                     <span className="min-w-0 flex-1 truncate">
                       <span className="mr-1 text-muted-foreground">Page {p.order}</span>{p.fileName}
                     </span>
-                    <Tip content="Télécharger"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDoc && handleDownloadPage(openDoc, p)}>
+                    <Tip content="Télécharger"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => openDoc && handleDownloadPage(openDoc, p)}>
                       <Download className="h-4 w-4" />
                     </Button></Tip>
                     {p.isPrimary ? (
@@ -612,13 +612,13 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                         <span className="px-1 text-[10px] text-muted-foreground">page principale</span>
                         {/* Delete page 1 only when another page can take its place (else delete the whole document). */}
                         {hasPermission(PERMISSIONS.DOCUMENTS_DELETE) && (openDoc?.pages.length ?? 0) > 1 && (
-                          <Tip content="Supprimer la page"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" disabled={deletePrimaryPageMutation.isPending} onClick={() => openDoc && handleDeletePrimaryPage(openDoc.id)}>
+                          <Tip content="Supprimer la page"><Button variant="ghost" size="icon" className="h-9 w-9 text-destructive sm:h-8 sm:w-8" disabled={deletePrimaryPageMutation.isPending} onClick={() => openDoc && handleDeletePrimaryPage(openDoc.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button></Tip>
                         )}
                       </>
                     ) : hasPermission(PERMISSIONS.DOCUMENTS_DELETE) && (
-                      <Tip content="Supprimer la page"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" disabled={deletePageMutation.isPending} onClick={() => p.pageId && handleDeletePage(p.pageId)}>
+                      <Tip content="Supprimer la page"><Button variant="ghost" size="icon" className="h-9 w-9 text-destructive sm:h-8 sm:w-8" disabled={deletePageMutation.isPending} onClick={() => p.pageId && handleDeletePage(p.pageId)}>
                         <Trash2 className="h-4 w-4" />
                       </Button></Tip>
                     )}

@@ -71,14 +71,19 @@ function CheckDot({ task, canManage, onToggle }: { task: RentreeTask; canManage:
     )
   }
   const canTick = (task.isMine || canManage) && !task.isBlocked
+  // The visual check stays a compact 20px dot, but the tappable button is padded to ~36px (with -m-2 so it keeps
+  // the same layout footprint) — ticking a task is the page's main action and must be comfortable on a phone.
   return (
     <button type="button" disabled={!canTick} onClick={() => onToggle(task)}
       title={task.isBlocked ? 'Bloquée par une tâche préalable' : done ? 'Rouvrir' : 'Marquer terminée'}
-      className={cn('mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
+      className={cn('group -m-2 mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+        task.isBlocked ? 'cursor-not-allowed' : canTick ? 'cursor-pointer' : '')}>
+      <span className={cn('flex h-5 w-5 items-center justify-center rounded-full border',
         done ? 'border-emerald-500 bg-emerald-500 text-white'
-          : task.isBlocked ? 'border-muted-foreground/30 cursor-not-allowed'
-          : 'border-muted-foreground/40 hover:border-primary cursor-pointer')}>
-      {done ? <Check className="h-3 w-3" /> : task.isBlocked ? <Lock className="h-2.5 w-2.5 text-muted-foreground" /> : null}
+          : task.isBlocked ? 'border-muted-foreground/30'
+          : 'border-muted-foreground/40 group-hover:border-primary')}>
+        {done ? <Check className="h-3 w-3" /> : task.isBlocked ? <Lock className="h-2.5 w-2.5 text-muted-foreground" /> : null}
+      </span>
     </button>
   )
 }

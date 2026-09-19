@@ -356,8 +356,8 @@ export default function UnitDetailPage() {
                       >
                         {!team.isMaitrise && (
                           <div className="flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
-                            <Tip content="Monter"><button className="text-muted-foreground hover:text-foreground p-0.5" onClick={() => handleMoveTeam(team.id, -1)}><ChevronUp className="h-3.5 w-3.5" /></button></Tip>
-                            <Tip content="Descendre"><button className="text-muted-foreground hover:text-foreground p-0.5" onClick={() => handleMoveTeam(team.id, 1)}><ChevronDown className="h-3.5 w-3.5" /></button></Tip>
+                            <Tip content="Monter"><button className="text-muted-foreground hover:text-foreground p-1.5" onClick={() => handleMoveTeam(team.id, -1)}><ChevronUp className="h-3.5 w-3.5" /></button></Tip>
+                            <Tip content="Descendre"><button className="text-muted-foreground hover:text-foreground p-1.5" onClick={() => handleMoveTeam(team.id, 1)}><ChevronDown className="h-3.5 w-3.5" /></button></Tip>
                           </div>
                         )}
                         <div className="flex items-center gap-2">
@@ -380,10 +380,10 @@ export default function UnitDetailPage() {
                         </div>
                         <div className="flex gap-1 items-center">
                           {expandedTeam === team.id ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                          <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(team) }}>
+                          <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={(e) => { e.stopPropagation(); openEdit(team) }}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button></Tip>
-                          <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setDeleting(team) }}>
+                          <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={(e) => { e.stopPropagation(); setDeleting(team) }}>
                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button></Tip>
                         </div>

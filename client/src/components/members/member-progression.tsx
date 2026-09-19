@@ -232,10 +232,10 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
                   </div>
                   {canManage && (
                     <div className="flex shrink-0 gap-1">
-                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(p)}>
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => openEdit(p)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button></Tip>
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(p)}>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setDeleting(p)}>
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button></Tip>
                     </div>

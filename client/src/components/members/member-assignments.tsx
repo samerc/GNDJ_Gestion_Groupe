@@ -299,10 +299,10 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
                         {!readOnly && (
                           // Visible by default on touch (no hover); mouse users get the hover-reveal.
                           <div className="flex gap-1 shrink-0 opacity-100 transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100">
-                            <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(a)}>
+                            <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => openEdit(a)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button></Tip>
-                            <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(a)}>
+                            <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setDeleting(a)}>
                               <Trash2 className="h-3.5 w-3.5 text-destructive" />
                             </Button></Tip>
                           </div>

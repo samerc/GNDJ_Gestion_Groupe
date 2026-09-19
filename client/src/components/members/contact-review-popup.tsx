@@ -239,8 +239,8 @@ function ContactReviewDialog({ memberId, onSkip }: { memberId: string; onSkip: (
                           <div className="text-xs text-muted-foreground">{r.ownerLabel}</div>
                         </div>
                         {selected && <Star className="h-3.5 w-3.5 shrink-0 fill-primary text-primary" />}
-                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Modifier" onClick={(e) => { e.preventDefault(); setEditEmail({ id: r.id, owner: r.owner, origAddress: r.address, address: r.address, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) }) }}><Pencil className="h-3.5 w-3.5" /></Button>
-                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Supprimer" onClick={(e) => { e.preventDefault(); removeEmail(r.owner, r.id, r.address) }}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" aria-label="Modifier" onClick={(e) => { e.preventDefault(); setEditEmail({ id: r.id, owner: r.owner, origAddress: r.address, address: r.address, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) }) }}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" aria-label="Supprimer" onClick={(e) => { e.preventDefault(); removeEmail(r.owner, r.id, r.address) }}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                       </label>
                     )
                   })}
@@ -271,8 +271,8 @@ function ContactReviewDialog({ memberId, onSkip }: { memberId: string; onSkip: (
                           <div className="text-xs text-muted-foreground">{r.ownerLabel}</div>
                         </div>
                         {selected && <Star className="h-3.5 w-3.5 shrink-0 fill-primary text-primary" />}
-                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Modifier" onClick={(e) => { e.preventDefault(); setEditPhone({ id: r.id, owner: r.owner, countryCode: r.cc, number: r.number, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) }) }}><Pencil className="h-3.5 w-3.5" /></Button>
-                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Supprimer" onClick={(e) => { e.preventDefault(); removePhone(r.owner, r.id) }}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" aria-label="Modifier" onClick={(e) => { e.preventDefault(); setEditPhone({ id: r.id, owner: r.owner, countryCode: r.cc, number: r.number, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) }) }}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" aria-label="Supprimer" onClick={(e) => { e.preventDefault(); removePhone(r.owner, r.id) }}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                       </label>
                     )
                   })}

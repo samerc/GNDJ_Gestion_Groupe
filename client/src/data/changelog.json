@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Mobile — boutons plus faciles à toucher : les petits boutons d'action (Modifier / Supprimer / Télécharger sur les coordonnées, cotisations, documents, progression et postes d'un membre ; monter/descendre des équipes d'une unité, des colonnes d'un rapport et des règles d'un groupe ; coche « terminé » de la Rentrée) sont agrandis sur écran tactile tout en restant compacts sur ordinateur — moins de fautes de frappe, notamment à côté d'un bouton Supprimer."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Mobile — boutons d'action visibles au toucher : plusieurs boutons (Modifier / Supprimer sur l'historique des postes et sur les badges, suppression d'une notification, actions sur les coordonnées des parents) n'apparaissaient qu'au survol de la souris et étaient donc introuvables sur téléphone/tablette. Ils sont maintenant toujours visibles sur écran tactile (le survol reste discret sur ordinateur). Sur la grille des documents d'unité, une case sans document affiche désormais une icône d'envoi visible au toucher pour indiquer qu'on peut téléverser en tapant dessus."
       },
       {
