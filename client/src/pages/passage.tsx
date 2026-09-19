@@ -563,7 +563,7 @@ export default function PassagePage() {
           <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 py-3">
             <span className="text-sm font-medium">{selected.size} membre(s) selectionne(s)</span>
             <div className="flex flex-wrap gap-2 sm:ml-auto">
-              <Button size="sm" variant="outline" onClick={() => openBulk('same')}>
+              <Button size="sm" variant="outline" className="border-green-300 dark:border-green-800 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-950/30 hover:text-green-800 dark:hover:text-green-300" onClick={() => openBulk('same')}>
                 <Check className="mr-1 h-4 w-4" />Pas de changement
               </Button>
               <Button size="sm" onClick={() => openBulk('move')}>

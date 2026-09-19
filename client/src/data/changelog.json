@@ -4,6 +4,10 @@
     "date": "2026-09-10",
     "changes": [
       {
+        "date": "2026-09-20",
+        "text": "Mode sombre — passage : le bouton « Pas de changement » de la barre de sélection multiple (page Passage) s'affichait en noir sur fond sombre ; il reprend désormais le même style vert que l'action individuelle, cohérent et bien visible."
+      },
+      {
         "date": "2026-09-19",
         "text": "Mode sombre — corrections : les boutons (« Nouvelle équipe » et tous les boutons principaux/destructifs) ont désormais un effet de survol bien visible en mode sombre (l'ancien effet était quasi imperceptible sur fond sombre). Audit du mode sombre sur toute l'application : quelques textes colorés (chiffres/statuts en vert, orange, ambre, rouge) qui apparaissaient trop peu contrastés sur fond sombre ont été éclaircis (projection des passages, vérification des documents, camp, envoi des accès, relances, fratries, sessions…)."
       },
