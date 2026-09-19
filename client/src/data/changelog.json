@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Mobile — Envoyer les accès & Relance documents : sur téléphone, les tableaux de membres (qui défilaient horizontalement) deviennent des listes de fiches — identifiant / email / statut d'accès et le bouton d'envoi restent visibles sans défilement latéral. Tableaux conservés sur ordinateur."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Mobile — tableau de bord des cotisations : sur téléphone, la liste « à relancer » d'une unité (impayés + partiels) devient des fiches — membre, statut, parent, email/téléphone/WhatsApp cliquables, et les boutons Paiement / Ne paiera pas / Compléter — au lieu d'un tableau qui défilait horizontalement en masquant les actions. La saisie d'un paiement en plusieurs lignes ne déborde plus (montant sur une ligne, devise/méthode en dessous). L'année scoute est maintenant choisie dans une liste (fini les fautes de frappe qui vidaient l'écran)."
       },
       {

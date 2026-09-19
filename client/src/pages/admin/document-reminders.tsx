@@ -145,7 +145,7 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
           ) : !members || members.length === 0 ? (
             <EmptyState icon={FileWarning} title="Aucun dossier incomplet" description="Cette unité n'a plus de dossier incomplet." />
           ) : (
-            <div className="overflow-x-auto rounded-lg border">
+            <div className="hidden overflow-x-auto rounded-lg border md:block">
               <table className="w-full min-w-[720px] text-sm">
                 <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
                   <tr>
@@ -187,6 +187,37 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {/* Mobile cards — the 5-column table scrolled off-screen on a phone. */}
+          {!loadingMembers && members && members.length > 0 && (
+            <div className="divide-y rounded-lg border md:hidden">
+              {members.map(c => (
+                <div key={c.memberId} className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{c.memberName}</div>
+                      <div className="text-xs text-muted-foreground">{c.teamName ?? '—'}</div>
+                    </div>
+                    <Button size="sm" variant="outline" className="shrink-0" disabled={!c.hasEmail || send.isPending} onClick={() => sendMember(c.memberId)}>
+                      <Send className="mr-1.5 h-3.5 w-3.5" />Relancer
+                    </Button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {c.gaps.map((g, i) => {
+                      const r = REASON[g.reason] ?? { label: g.reason, cls: 'bg-muted text-foreground' }
+                      return (
+                        <span key={i} className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${r.cls}`}>
+                          {g.docTypeCode || g.docTypeName} · {r.label}
+                        </span>
+                      )
+                    })}
+                  </div>
+                  <div className="mt-1.5 text-xs text-muted-foreground">
+                    {c.contactEmail ?? <span className="inline-flex items-center gap-1 text-amber-600"><AlertTriangle className="h-3.5 w-3.5" />aucun email</span>}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </>

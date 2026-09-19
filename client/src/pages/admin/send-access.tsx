@@ -157,7 +157,7 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
         <EmptyState icon={Key} title="Aucun membre actif" description={isAll ? "Aucun membre actif hors maîtrise." : "Cette unité n'a pas de membre actif."} />
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="hidden overflow-x-auto rounded-lg border md:block">
             <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
                 <tr>
@@ -202,6 +202,36 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile card list — the 6-column table scrolled off-screen on a phone. */}
+          <div className="divide-y rounded-lg border md:hidden">
+            {candidates.map(c => {
+              const canSend = eligible(c)
+              return (
+                <div key={c.memberId} className="flex items-start gap-3 p-3">
+                  <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-primary" disabled={!canSend}
+                    checked={selected.has(c.memberId)} onChange={() => toggle(c.memberId)} aria-label={`Sélectionner ${c.memberName}`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{c.memberName}</div>
+                    <div className="truncate text-xs text-muted-foreground">{c.username ?? '—'}</div>
+                    <div className="truncate text-xs text-muted-foreground">{c.contactEmail ?? <span className="text-amber-600">aucun email</span>}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+                      {!c.hasAccount ? (
+                        <span className="inline-flex items-center gap-1 text-amber-600"><AlertTriangle className="h-3.5 w-3.5" />Pas de compte</span>
+                      ) : !c.hasEmail ? (
+                        <span className="inline-flex items-center gap-1 text-amber-600"><AlertTriangle className="h-3.5 w-3.5" />Pas d'email</span>
+                      ) : c.lastLoginAt ? (
+                        <span className="inline-flex items-center gap-1 text-green-600"><CheckCircle2 className="h-3.5 w-3.5" />Déjà connecté</span>
+                      ) : (
+                        <span className="text-muted-foreground">Prêt</span>
+                      )}
+                      <span className="text-muted-foreground">{c.lastLoginAt ? `Dernière connexion : ${formatDateLong(c.lastLoginAt)}` : 'Jamais connecté'}</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
