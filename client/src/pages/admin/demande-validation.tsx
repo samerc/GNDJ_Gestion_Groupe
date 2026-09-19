@@ -564,8 +564,10 @@ export default function DemandeValidationPage() {
             <LegendItem color="bg-blue-500" label="À étudier" />
             <LegendItem color="bg-green-500" label="Acceptée" />
             <LegendItem color="bg-red-500" label="Refusée" />
-            <span className="ml-auto hidden sm:inline">Cliquez sur une ligne pour le dossier complet</span>
+            <span className="ml-auto">Appuyez sur une ligne pour le dossier complet</span>
           </div>
+          {/* Desktop: dense sortable table. Phones get a card list below (md:hidden). */}
+          <div className="hidden md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -653,6 +655,60 @@ export default function DemandeValidationPage() {
               })}
             </TableBody>
           </Table>
+          </div>
+
+          {/* Mobile cards — the dense table is unusable on a phone. Tap the card to open the full detail
+              drawer (with large footer actions); the quick accept/refuse/reset/delete are also here at a
+              comfortable size, and the bulk checkbox stays available. */}
+          <div className="divide-y md:hidden">
+            {rows.map((d) => {
+              const locked = !!d.createdMemberId
+              const si = statusInfo(d)
+              const isSibling = (accountCounts[d.accountId] ?? 0) > 1
+              const miss = missingInfo(d)
+              const decidedUnit = d.decidedUnitId ? occByUnit[d.decidedUnitId] : undefined
+              const sib = siblingProche(d)
+              return (
+                <div key={d.id} className={`border-l-4 ${si.border} ${isSibling ? 'bg-amber-50/40 dark:bg-amber-950/30' : ''}`}>
+                  <div className="flex items-start gap-3 p-3">
+                    <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 rounded border-input accent-primary disabled:opacity-40" checked={selected.has(d.id)} disabled={locked} onChange={() => toggleOne(d.id)} aria-label="Sélectionner" />
+                    <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setDetailId(d.id)}>
+                      <div className="flex items-center gap-1.5 font-medium">
+                        <span className="truncate">{d.lastName} {d.firstName}</span>
+                        {miss.length > 0 && <span title={`Dossier incomplet : ${miss.join(', ')}`}><AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" /></span>}
+                      </div>
+                      {d.serialNumber && <div className="font-mono text-xs text-muted-foreground">{d.serialNumber}</div>}
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                        <span>{d.age != null ? `${d.age} ans` : 'âge ?'}</span>
+                        <span>· {genderShort(d.gender) || '—'}</span>
+                        {d.classe && <span>· {d.classe}</span>}
+                        {d.school && <span>· {schoolCode(d.school)}</span>}
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <Badge variant="outline" className={`border-transparent text-xs ${statusBadgeClass(d)}`}>{si.label}</Badge>
+                        {d.status === 'Approved' && (
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">{decidedUnit?.unitCode ?? d.decidedUnitName ?? '—'}{decidedUnit && unitFull(decidedUnit) && <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}</span>
+                        )}
+                        {d.status === 'Declined' && d.decisionNotes && <span className="max-w-[12rem] truncate text-xs text-red-700 dark:text-red-300">{d.decisionNotes}</span>}
+                        {sib && <Badge variant="outline" className="border-amber-400 bg-amber-50 px-1.5 text-[10px] text-amber-700 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-300">Frère/sœur</Badge>}
+                        {d.scoutRelations.length > 0 && <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground"><Tent className="h-3.5 w-3.5" />{d.scoutRelations.length}</span>}
+                      </div>
+                    </button>
+                  </div>
+                  {!locked && (
+                    <div className="flex flex-wrap gap-1.5 border-t px-3 py-2">
+                      <Button size="sm" variant={d.status === 'Approved' ? 'default' : 'outline'} className="flex-1" onClick={() => openApprove(d)}><Check className="mr-1 h-4 w-4" />Accepter</Button>
+                      <Button size="sm" variant={d.status === 'Declined' ? 'destructive' : 'outline'} className="flex-1" onClick={() => openDecline(d)}><X className="mr-1 h-4 w-4" />Refuser</Button>
+                      {(d.status === 'Approved' || d.status === 'Declined') && (
+                        <Tip content="Remettre à étudier"><Button size="sm" variant="outline" className="h-9 w-9 p-0" disabled={busy} onClick={() => resetTarget(d)}><RotateCcw className="h-4 w-4" /></Button></Tip>
+                      )}
+                      <Tip content="Supprimer"><Button size="sm" variant="outline" className="h-9 w-9 p-0 text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(d)}><Trash2 className="h-4 w-4" /></Button></Tip>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </Card>
       )}
 

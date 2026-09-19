@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Mobile — traitement des demandes d'inscription : sur téléphone, le grand tableau de tri (qui obligeait à faire défiler horizontalement, masquant le statut et les actions) est remplacé par une liste de fiches — nom, âge/genre/classe, statut, unité/motif, frère-sœur — avec des boutons Accepter / Refuser bien lisibles ; appuyer sur la fiche ouvre le dossier complet. Sur ordinateur, le tableau habituel est conservé."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Mobile — boutons plus faciles à toucher : les petits boutons d'action (Modifier / Supprimer / Télécharger sur les coordonnées, cotisations, documents, progression et postes d'un membre ; monter/descendre des équipes d'une unité, des colonnes d'un rapport et des règles d'un groupe ; coche « terminé » de la Rentrée) sont agrandis sur écran tactile tout en restant compacts sur ordinateur — moins de fautes de frappe, notamment à côté d'un bouton Supprimer."
       },
       {
