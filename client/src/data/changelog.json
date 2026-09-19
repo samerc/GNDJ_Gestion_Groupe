@@ -5,7 +5,7 @@
     "changes": [
       {
         "date": "2026-09-20",
-        "text": "Mode sombre — passage : le bouton « Pas de changement » de la barre de sélection multiple (page Passage) s'affichait en noir sur fond sombre ; il reprend désormais le même style vert que l'action individuelle, cohérent et bien visible."
+        "text": "Passage — le bouton « Pas de changement » de la barre de sélection multiple est désormais un bouton plein vert, cohérent avec les boutons pleins « Déplacer vers… » (bleu) et « Supprimer la proposition » (rouge) à côté ; il ne s'affiche plus en noir sur fond sombre."
       },
       {
         "date": "2026-09-19",
