@@ -5,6 +5,7 @@ import { API_BASE_URL } from '@/lib/constants'
 import { queryClient } from '@/lib/query-client'
 import { getAccessToken, getRefreshToken, setTokens, clearTokens, setRemember, getRemember } from '@/lib/token-storage'
 import { savePooledAccount, getPooledAccount, removePooledAccount, clearPool } from '@/lib/account-pool'
+import { rememberDeviceAccount } from '@/lib/device-accounts'
 import type { AuthResponse, LoginRequest, MeResponse, RegisterRequest, UnitAccess } from '@/types/auth'
 import type { SettingDto } from '@/services/settings-service'
 
@@ -165,6 +166,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // switching away (and back) works and the switcher can label it.
       const rt = getRefreshToken('member')
       if (rt) savePooledAccount({ memberId: data.me.memberId, name: `${data.me.firstName} ${data.me.lastName}`, username: data.me.email, refreshToken: rt })
+      // Record the account IDENTITY in the persistent device list (survives logout) so it appears on the
+      // « Choisir un compte » screen next time — see lib/device-accounts.
+      rememberDeviceAccount({ memberId: data.me.memberId, name: `${data.me.firstName} ${data.me.lastName}`, username: data.me.email })
       // Prime the query cache so the header/sidebar/dashboard hooks read from cache instead of each firing
       // their own XHR on first paint. Keys must match the consuming hooks exactly. staleTime on those hooks
       // then prevents an immediate refetch; explicit invalidation on write keeps them correct afterward.

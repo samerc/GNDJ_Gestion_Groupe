@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Page de connexion (membres) repensée façon Google : mise en page en deux colonnes sur ordinateur (identité du groupe à gauche, connexion à droite ; empilée verticalement sur mobile), et surtout un écran « Choisir un compte » qui liste les comptes déjà utilisés sur cet appareil — un parent clique sur son compte au lieu de retaper prénom.nom@scouts.gndj. La connexion est alors instantanée si la session est encore valide, sinon avec le mot de passe ou un code par email. Chaque compte peut être retiré (× / « Retirer »), et « Utiliser un autre compte » ouvre le formulaire. Les comptes restent listés après une déconnexion (uniquement si « Rester connecté » était activé) ; sur un appareil partagé (« Rester connecté » décoché) la liste s'efface à la fermeture du navigateur. L'écran a aussi été désencombré (aides à la connexion regroupées, notices allégées)."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Connexion par code (sans mot de passe) : nouvelle option « Se connecter avec un code » sur l'écran de connexion des membres, à côté du mot de passe (qui reste disponible). Le parent saisit son identifiant habituel (prénom.nom@scouts.gndj) ; un code à 6 chiffres est envoyé à l'adresse email principale du dossier (l'écran indique où, ex. « nou***@gm***.com ») ; il le saisit et se connecte — même accès qu'avec le mot de passe. Le code est valable 15 minutes, à usage unique. Un compte sans adresse email enregistrée continue d'utiliser le mot de passe."
       },
       {

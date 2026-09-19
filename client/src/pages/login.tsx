@@ -1,23 +1,33 @@
+import { useState } from 'react'
 import { Navigate, Link } from 'react-router'
 import { Compass, UserPlus, ArrowLeft } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePublicSiteConfig } from '@/services/public-service'
 import { LoginForm } from '@/components/auth/login-form'
+import { AccountChooser } from '@/components/auth/account-chooser'
 import { SupportNote } from '@/components/support-note'
 import { LoginAnnouncement } from '@/components/login-announcement'
+import { getDeviceAccounts } from '@/lib/device-accounts'
 
-// "Espace membres" — login screen for existing members/chefs (JWT auth).
-// Anonymous-only: an already-authenticated user is bounced to /dashboard.
-// When enrollment is open it also offers a link into the public inscription portal.
+// "Espace membres" — login screen for existing members/chefs (JWT auth). Anonymous-only: an
+// already-authenticated user is bounced to /dashboard.
+//
+// Google-style two-pane layout: a constant branding pane on the left (stacks on top on mobile) and an
+// interactive pane on the right that shows either the « Choisir un compte » list (when this device has saved
+// accounts) or the sign-in form. Responsive — `md:flex-row` splits into two columns on desktop, one on mobile.
 export default function LoginPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { data: config } = usePublicSiteConfig()
-  // inscriptionsOpen mirrors the demande.enabled setting — gates the "Demande d'inscription" CTA below.
   const inscriptionsOpen = config?.inscriptionsOpen ?? false
 
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />
-  }
+  // Saved accounts on this device (survives logout). If any, open on the chooser; else straight to the form.
+  const [hasAccounts] = useState(() => getDeviceAccounts().length > 0)
+  const [view, setView] = useState<'chooser' | 'form'>(hasAccounts ? 'chooser' : 'form')
+  const [prefill, setPrefill] = useState('') // username carried from a chosen account with no live session
+
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />
+
+  const title = view === 'chooser' ? 'Choisir un compte' : 'Se connecter'
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-4">
@@ -26,26 +36,45 @@ export default function LoginPage() {
       <div className="pointer-events-none absolute -top-32 -right-24 h-96 w-96 rounded-full bg-accent/15 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -left-24 h-96 w-96 rounded-full bg-primary/15 blur-3xl" />
 
-      <div className="relative z-10 w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-white shadow-elevated ring-1 ring-white/10">
-            <Compass className="h-7 w-7" strokeWidth={2.2} />
-          </div>
-          <span className="mb-1 rounded-full bg-primary/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
-            Membres
-          </span>
-          <h1 className="text-3xl font-bold tracking-tight">Espace membres</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Réservé aux membres déjà inscrits</p>
-        </div>
-        {/* Admin-scheduled announcement banners (login.member_messages) — the active ones, stacked above the form. */}
+      <div className="relative z-10 w-full max-w-md md:max-w-3xl">
+        {/* Admin-scheduled announcement banners (login.member_messages), full width above the card. */}
         {config?.loginMessages?.map((m, i) => <LoginAnnouncement key={i} message={m} tone="primary" />)}
-        <LoginForm />
-        {/* Cross-link for parents who want to enroll a child (only while enrollment is open). Accent-tinted
-            to echo the distinct teal theme of the "Demande d'inscription" space. */}
+
+        {/* Two-pane card. */}
+        <div className="overflow-hidden rounded-2xl border bg-card shadow-elevated md:flex">
+          {/* LEFT — branding (constant). Stacks on top on mobile. */}
+          <div className="flex flex-col items-center border-b bg-muted/30 p-6 text-center md:w-2/5 md:items-start md:border-b-0 md:border-r md:p-8 md:text-left">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-white shadow-elevated ring-1 ring-white/10">
+              <Compass className="h-6 w-6" strokeWidth={2.2} />
+            </div>
+            <span className="mb-2 rounded-full bg-primary/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">Membres</span>
+            <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">pour accéder à votre espace membres GNDJ</p>
+          </div>
+
+          {/* RIGHT — interactive: chooser or form. */}
+          <div className="flex-1 p-6 md:p-8">
+            {view === 'chooser' ? (
+              <AccountChooser
+                onUseAnother={() => { setPrefill(''); setView('form') }}
+                onNeedAuth={(username) => { setPrefill(username); setView('form') }}
+              />
+            ) : (
+              <LoginForm
+                initialUsername={prefill}
+                onBack={hasAccounts ? () => setView('chooser') : undefined}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Secondary items stay in a compact centered column under the (wide) card. */}
+        <div className="mx-auto max-w-md">
+        {/* Cross-link for parents who want to enroll a child (only while enrollment is open). */}
         {inscriptionsOpen && (
           <Link
             to="/inscription"
-            className="mt-6 flex items-center gap-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm transition-colors hover:bg-accent/15"
+            className="mt-5 flex items-center gap-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm transition-colors hover:bg-accent/15"
           >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
               <UserPlus className="h-4 w-4" />
@@ -56,15 +85,18 @@ export default function LoginPage() {
             </span>
           </Link>
         )}
+
         {/* Help line for members/parents who can't log in (configurable via demande.support_email). */}
         <SupportNote email={config?.supportEmail} />
-        {/* Back to the public group site (this page is outside the public shell, so there's no header nav). */}
-        <Link to="/" className="mt-6 flex items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Retour au site
-        </Link>
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} Groupe Notre Dame - Jamhour — Tous droits réservés
-        </p>
+
+        {/* Footer — back to the public site + copyright, on one compact line. */}
+        <div className="mt-5 flex flex-col items-center gap-1 text-center text-xs text-muted-foreground">
+          <Link to="/" className="flex items-center gap-1.5 transition-colors hover:text-foreground">
+            <ArrowLeft className="h-3.5 w-3.5" /> Retour au site
+          </Link>
+          <p>© {new Date().getFullYear()} Groupe Notre Dame - Jamhour — Tous droits réservés</p>
+        </div>
+        </div>
       </div>
     </div>
   )
