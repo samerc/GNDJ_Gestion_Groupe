@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Mobile — validation des passages : sur téléphone, le tableau (qui défilait horizontalement) devient une liste de fiches par membre — unité actuelle → proposée (ou « Quitte le groupe »), équipe/fonction, notes du chef d'unité (affichées en entier), décision — avec des boutons Accepter / Rejeter / Modifier lisibles. Sur ordinateur, les notes du chef d'unité tronquées s'affichent désormais en entier au survol. Tableau conservé sur ordinateur."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Mobile — traitement des demandes d'inscription : sur téléphone, le grand tableau de tri (qui obligeait à faire défiler horizontalement, masquant le statut et les actions) est remplacé par une liste de fiches — nom, âge/genre/classe, statut, unité/motif, frère-sœur — avec des boutons Accepter / Refuser bien lisibles ; appuyer sur la fiche ouvre le dossier complet. Sur ordinateur, le tableau habituel est conservé."
       },
       {

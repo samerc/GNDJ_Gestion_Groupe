@@ -451,7 +451,9 @@ export default function PassageValidationPage() {
           }
         />
       ) : (
-        <div className="rounded-lg border overflow-x-auto">
+        <>
+        {/* Desktop: dense table. Phones get a card list below (md:hidden). */}
+        <div className="hidden rounded-lg border overflow-x-auto md:block">
           <table className="w-full text-sm min-w-[800px]">
             <thead>
               <tr className="border-b bg-muted/40">
@@ -503,7 +505,7 @@ export default function PassageValidationPage() {
                   </td>
                   <td className="px-3 py-2 text-xs">{p.proposedTeamName ?? '-'}</td>
                   <td className="px-3 py-2 text-xs">{p.proposedRoleName}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground max-w-[120px] truncate">{p.cuNotes ?? ''}</td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground max-w-[120px] truncate" title={p.cuNotes ?? ''}>{p.cuNotes ?? ''}</td>
                   <td className="px-3 py-2 text-xs">
                     {p.finalUnitName ? (
                       <div>
@@ -557,6 +559,50 @@ export default function PassageValidationPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile cards — the 10-column table forces horizontal scrolling on a phone, hiding the
+            decision + actions. One card per member with the move, notes and large action buttons. */}
+        <div className="divide-y rounded-lg border md:hidden">
+          {visiblePassages.map((p) => (
+            <div key={p.id} className="p-3">
+              <div className="flex items-start gap-3">
+                <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-primary" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} aria-label="Sélectionner" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{p.memberName}</div>
+                      {p.cardNumber && <div className="text-xs text-muted-foreground">{p.cardNumber}</div>}
+                    </div>
+                    <div className="shrink-0">{statusBadge(p.status)}</div>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm">
+                    {p.isLeaving ? (
+                      <Badge className="bg-orange-600">Quitte le groupe</Badge>
+                    ) : (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="text-muted-foreground">{p.currentUnitCode}</span>
+                        <ArrowRight className="h-3 w-3" />
+                        <span className="font-medium">{p.proposedUnitCode}</span>
+                      </span>
+                    )}
+                    {p.proposedTeamName && <span className="text-xs text-muted-foreground">· {p.proposedTeamName}</span>}
+                    {p.proposedRoleName && <span className="text-xs text-muted-foreground">· {p.proposedRoleName}</span>}
+                  </div>
+                  {p.cuNotes && <p className="mt-1 text-xs text-muted-foreground">Notes CU : {p.cuNotes}</p>}
+                  {p.finalUnitName && (
+                    <p className="mt-1 text-xs">Décision : <span className="font-medium">{p.finalUnitCode}</span>{p.finalTeamName ? ` / ${p.finalTeamName}` : ''}{p.cgNotes ? ` — ${p.cgNotes}` : ''}</p>
+                  )}
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5 border-t pt-2">
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => quickApprove(p)} disabled={pendingId === p.id}><Check className="mr-1 h-4 w-4 text-green-600" />Accepter</Button>
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => quickReject(p)} disabled={pendingId === p.id}><X className="mr-1 h-4 w-4 text-destructive" />Rejeter</Button>
+                <Button size="sm" variant="outline" onClick={() => openEditDialog(p)}><Pencil className="mr-1 h-4 w-4" />Modifier</Button>
+              </div>
+            </div>
+          ))}
+        </div>
+        </>
       )}
 
       {/* Finalize section */}
