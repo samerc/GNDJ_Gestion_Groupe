@@ -21,6 +21,12 @@ public class User : BaseEntity
     public string? PasswordResetToken { get; set; }
     public DateTime? PasswordResetTokenExpiry { get; set; }
 
+    // Passwordless login ("Se connecter avec un code"): a short-lived 6-digit email code, stored HASHED
+    // (SHA-256, like the refresh token) with a ~15-min expiry, single-use. Kept SEPARATE from the
+    // password-reset token so an in-flight reset/activation link and a login-code request never collide.
+    public string? LoginCode { get; set; }
+    public DateTime? LoginCodeExpiry { get; set; }
+
     // When true, the user is forced to set a new password before using the app (login returns the flag; the
     // frontend routes to a mandatory change-password screen). Set on any admin/temp-password path (leader reset,
     // member auto-creation); cleared once the user sets their own password (activation link, reset, or change).

@@ -1029,6 +1029,18 @@ public static class SeedData
                 IsActive = true
             });
 
+        // Passwordless login ("Se connecter avec un code"): a 6-digit single-use code emailed to the member's
+        // main contact address so a parent can sign in without the password.
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "login_code"))
+            toAdd.Add(new EmailTemplate
+            {
+                Name = "Code de connexion", Code = "login_code", Module = "auth",
+                Subject = "Votre code de connexion — GNDJ Scout",
+                BodyHtml = "<h2>Bonjour,</h2><p>Voici votre code pour vous connecter à l'espace GNDJ de <strong>{{memberName}}</strong> :</p><p style=\"font-size:28px;font-weight:bold;letter-spacing:3px;\">{{code}}</p><p>Ce code expire dans 15 minutes et ne peut être utilisé qu'une seule fois. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email — votre compte reste protégé.</p><p>— L'équipe GNDJ</p>",
+                Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"code\",\"label\":\"Code de connexion\"}]",
+                IsActive = true
+            });
+
         // Launch access rollout: a member's login username + a one-click link to set their own password.
         if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "account_activation"))
             toAdd.Add(new EmailTemplate

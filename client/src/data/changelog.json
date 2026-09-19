@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Connexion par code (sans mot de passe) : nouvelle option « Se connecter avec un code » sur l'écran de connexion des membres, à côté du mot de passe (qui reste disponible). Le parent saisit son identifiant habituel (prénom.nom@scouts.gndj) ; un code à 6 chiffres est envoyé à l'adresse email principale du dossier (l'écran indique où, ex. « nou***@gm***.com ») ; il le saisit et se connecte — même accès qu'avec le mot de passe. Le code est valable 15 minutes, à usage unique. Un compte sans adresse email enregistrée continue d'utiliser le mot de passe."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Fratries — unifier les adresses « à vérifier » : nouvel outil (page Fratries) qui réapplique les règles d'adresse aux fratries déjà déclarées mais signalées « à vérifier — adresse ». Utile si la déclaration automatique a été lancée sur une version antérieure de l'application : il unifie automatiquement les familles que les règles actuelles savent résoudre (un seul membre actif → son adresse, orthographes quasi identiques, ou familles inactives) et retire leur drapeau ; celles dont les adresses diffèrent vraiment restent « à vérifier » à traiter à la main. Simulez d'abord, puis appliquez. Réversible."
       },
       {

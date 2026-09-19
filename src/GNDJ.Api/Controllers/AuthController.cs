@@ -3,6 +3,7 @@ using GNDJ.Application.Auth.Commands.ChangePassword;
 using GNDJ.Application.Auth.Commands.ForgotUsername;
 using GNDJ.Application.Auth.Commands.Impersonate;
 using GNDJ.Application.Auth.Commands.Login;
+using GNDJ.Application.Auth.Commands.LoginCode;
 using GNDJ.Application.Auth.Commands.Logout;
 using GNDJ.Application.Auth.Commands.RefreshToken;
 using GNDJ.Application.Auth.Commands.Register;
@@ -51,6 +52,31 @@ public class AuthController : BaseApiController
     {
         var result = await Mediator.Send(command);
         if (!result.IsSuccess) return Unauthorized(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>Passwordless login (step 1): email a 6-digit login code to the account's main contact address. Input is the USERNAME; the code goes to the resolved contact email.</summary>
+    /// <response code="200">Reports whether the account was found, whether it has an email, and a masked hint of where the code was sent.</response>
+    [HttpPost("request-login-code")]
+    [AllowAnonymous]
+    [EnableRateLimiting("forms")]
+    public async Task<IActionResult> RequestLoginCode([FromBody] RequestLoginCodeCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>Passwordless login (step 2): verify the 6-digit code and receive a JWT access token + refresh token (same session as a password login).</summary>
+    /// <response code="200">Authenticated; returns the token pair, expiry and permissions.</response>
+    /// <response code="400">Code invalid or expired.</response>
+    [HttpPost("verify-login-code")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> VerifyLoginCode([FromBody] VerifyLoginCodeCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }
 

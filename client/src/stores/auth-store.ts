@@ -26,6 +26,8 @@ interface AuthState {
   // rememberMe (default true): true → tokens persist in localStorage for ~30 days; false → sessionStorage
   // (cleared on browser close) for a shared device. Also sent to the server to pick the refresh-token window.
   login: (data: LoginRequest, rememberMe?: boolean) => Promise<void>
+  // Passwordless login: verify the emailed 6-digit code → same session as a password login.
+  loginWithCode: (username: string, code: string, rememberMe?: boolean) => Promise<void>
   register: (data: RegisterRequest) => Promise<void>
   applyTokens: (accessToken: string, refreshToken: string) => void
   logout: () => Promise<void>
@@ -56,6 +58,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     setTokens('member', response.accessToken, response.refreshToken)
     // Drop any cached data from a previous session so one account never sees another's data (defense-in-depth
     // alongside the logout clear — covers a direct account switch without an intervening logout).
+    queryClient.clear()
+    set({ isAuthenticated: true })
+    await get().loadUser()
+  },
+
+  // Passwordless login: exchange the emailed code for a real session (identical to the password path).
+  loginWithCode: async (username: string, code: string, rememberMe = true) => {
+    setRemember('member', rememberMe)
+    const { data: response } = await apiClient.post<AuthResponse>('/auth/verify-login-code', { username, code, rememberMe })
+    setTokens('member', response.accessToken, response.refreshToken)
     queryClient.clear()
     set({ isAuthenticated: true })
     await get().loadUser()
