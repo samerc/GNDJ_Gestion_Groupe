@@ -1,15 +1,14 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { Users, X, Search, Sparkles, ChevronRight, Phone, Mail, MapPin, UserRound, GitMerge, Copy, MapPinned, Flag, Check } from 'lucide-react'
+import { Users, X, Search, Sparkles, ChevronRight, Phone, Mail, MapPin, UserRound, GitMerge, Copy, Flag, Check } from 'lucide-react'
 import {
   useSiblingSuggestions, useSiblingGroups,
   useRejectSiblingSuggestion, useUnlinkSibling,
-  useDuplicateSuggestions, useMergeMembers, DUPLICATE_MATCH_KEYS,
-  useAutoDeclareSiblings, useReunifyFratrieAddresses,
+  useDuplicateSuggestions, useMergeMembers, useRejectDuplicateMembers, DUPLICATE_MATCH_KEYS,
   useSiblingReports, useResolveSiblingReport,
-  type SiblingSuggestion, type SiblingGroup as SiblingGroupType,
+  type SiblingSuggestion,
   type DuplicateGroup, type DuplicateMember, type MemberMergeFields,
-  type AutoDeclareResult, type ReunifyAddressesResult, type SiblingReport,
+  type SiblingReport,
 } from '@/services/sibling-service'
 import { SiblingReconcileSheet } from '@/components/members/sibling-reconcile-sheet'
 import { Card, CardContent } from '@/components/ui/card'
@@ -105,10 +104,6 @@ function SuggestionsTab() {
 
   return (
     <>
-      {/* TEMPORARY one-time backfill tools (remove after the initial run). */}
-      <AutoDeclareBanner />
-      <ReunifyAddressesBanner />
-
       {isLoading ? (
         <LoadingSpinner variant="table" />
       ) : empty ? (
@@ -148,168 +143,6 @@ function SuggestionsTab() {
         loading={reject.isPending}
       />
     </>
-  )
-}
-
-// ── TEMPORARY one-time backfill: auto-declare the obvious fratries (members sharing the exact same parent record) ──
-// Simulate first (previews the counts + a sample, writes nothing) → then Apply. Remove this component after the
-// initial prod run; new families are declared automatically going forward.
-function AutoDeclareBanner() {
-  const auto = useAutoDeclareSiblings()
-  const [result, setResult] = useState<AutoDeclareResult | null>(null)
-  const [confirm, setConfirm] = useState(false)
-
-  const run = async (simulate: boolean) => {
-    try {
-      const r = await auto.mutateAsync(simulate)
-      setResult(r)
-      if (!simulate) { setConfirm(false); toast.success(`${r.familiesTotal} fratrie(s) déclarée(s) — ${r.membersTotal} membres.`) }
-    } catch (e) { toast.error(parseApiError(e)); setConfirm(false) }
-  }
-
-  const sim = result?.simulated ? result : null // a preview is showing (not yet applied)
-
-  return (
-    <Card className="mb-4 border-primary/30 bg-primary/5">
-      <CardContent className="space-y-3 p-4">
-        <div className="flex items-start gap-3">
-          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-          <div className="min-w-0">
-            <div className="font-semibold">Déclaration automatique des fratries évidentes</div>
-            <p className="text-sm text-muted-foreground">
-              Regroupe les membres qui partagent le <strong>même parent</strong> (fiche parent identique = fratrie certaine).
-              Simulez d'abord pour voir le résultat, puis appliquez. Les familles dont les adresses diffèrent sont signalées
-              « à vérifier » (vous choisissez ensuite l'adresse dans la fenêtre habituelle). Opération unique.
-            </p>
-          </div>
-        </div>
-
-        {sim && (
-          <div className="rounded-md border bg-background p-3 text-sm">
-            <div className="mb-2 font-medium">
-              Aperçu : {sim.familiesTotal} fratrie(s) · {sim.membersTotal} membre(s)
-              {sim.familiesTotal === 0 && ' — rien à déclarer (tout est déjà à jour).'}
-            </div>
-            {sim.familiesTotal > 0 && (
-              <>
-                <div className="mb-3 flex flex-wrap gap-2 text-xs">
-                  <Badge variant="secondary">{sim.newGroups} nouveau(x) groupe(s)</Badge>
-                  {sim.extendedGroups > 0 && <Badge variant="secondary">{sim.extendedGroups} étendu(s)</Badge>}
-                  <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">{sim.addressAgree} adresse(s) unifiée(s)</Badge>
-                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">{sim.addressReview} adresse(s) à vérifier</Badge>
-                  {sim.separatedSkipped > 0 && <Badge variant="outline">{sim.separatedSkipped} séparé(s) — adresse non modifiée</Badge>}
-                </div>
-                <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
-                  {sim.preview.map((f, i) => (
-                    <div key={i} className="flex items-start justify-between gap-2 border-b pb-1.5 text-xs last:border-0">
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{f.members.map((m) => `${m.firstName} ${m.lastName}`).join(', ')}</div>
-                        <div className="truncate text-muted-foreground">Parents : {f.sharedParents.join(', ')}</div>
-                      </div>
-                      {f.addressStatus === 'review' && <Badge className="shrink-0 bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">adresse à vérifier</Badge>}
-                      {f.addressStatus === 'agree' && <Badge className="shrink-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">adresse ✓</Badge>}
-                      {f.addressStatus === 'separated' && <Badge variant="outline" className="shrink-0">séparés</Badge>}
-                    </div>
-                  ))}
-                  {sim.familiesTotal > sim.preview.length && (
-                    <div className="pt-1 text-center text-muted-foreground">… et {sim.familiesTotal - sim.preview.length} autre(s) famille(s).</div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => run(true)} disabled={auto.isPending}>Simuler</Button>
-          {sim && sim.familiesTotal > 0 && (
-            <Button onClick={() => setConfirm(true)} disabled={auto.isPending}>Appliquer ({sim.familiesTotal} fratries)</Button>
-          )}
-        </div>
-      </CardContent>
-
-      <ConfirmDialog
-        open={confirm}
-        onOpenChange={(o) => !o && setConfirm(false)}
-        title="Déclarer ces fratries ?"
-        description={`${sim?.familiesTotal ?? 0} fratrie(s) (${sim?.membersTotal ?? 0} membres) seront déclarées. Les adresses des familles « à vérifier » ne sont PAS modifiées — vous les traiterez ensuite dans les fratries confirmées. Vous pourrez délier une fratrie manuellement si besoin.`}
-        confirmLabel="Appliquer"
-        onConfirm={() => run(false)}
-        loading={auto.isPending}
-      />
-    </Card>
-  )
-}
-
-// ── TEMPORARY one-time follow-up: re-apply the address rules to the fratries flagged « à vérifier — adresse » ──
-// For families declared on an earlier run whose build had fewer address rules. Simulate previews how many the current
-// rules can now resolve (single active member / near-identical spellings / all unit-less), then Apply unifies them
-// onto the household address and clears the flag. Genuinely-different families stay flagged. Reversible.
-function ReunifyAddressesBanner() {
-  const reunify = useReunifyFratrieAddresses()
-  const [result, setResult] = useState<ReunifyAddressesResult | null>(null)
-  const [confirm, setConfirm] = useState(false)
-
-  const run = async (simulate: boolean) => {
-    try {
-      const r = await reunify.mutateAsync(simulate)
-      setResult(r)
-      if (!simulate) { setConfirm(false); toast.success(`${r.resolved} adresse(s) de fratrie unifiée(s).`) }
-    } catch (e) { toast.error(parseApiError(e)); setConfirm(false) }
-  }
-
-  const sim = result?.simulated ? result : null // a preview is showing (not yet applied)
-
-  return (
-    <Card className="mb-4 border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40">
-      <CardContent className="space-y-3 p-4">
-        <div className="flex items-start gap-3">
-          <MapPinned className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
-          <div className="min-w-0">
-            <div className="font-semibold">Unifier les adresses des fratries « à vérifier »</div>
-            <p className="text-sm text-muted-foreground">
-              Réapplique les règles d'adresse aux fratries déjà déclarées mais signalées « à vérifier — adresse ».
-              Unifie automatiquement celles que les règles actuelles savent résoudre (un seul membre actif → son adresse,
-              orthographes quasi identiques, ou tous inactifs) et retire le drapeau. Les familles dont les adresses
-              diffèrent vraiment restent « à vérifier » (à traiter à la main). Réversible. Simulez d'abord.
-            </p>
-          </div>
-        </div>
-
-        {sim && (
-          <div className="rounded-md border bg-background p-3 text-sm">
-            <div className="mb-2 font-medium">
-              Aperçu : {sim.groupsFlagged} fratrie(s) « à vérifier »
-              {sim.groupsFlagged === 0 && ' — aucune à traiter.'}
-            </div>
-            {sim.groupsFlagged > 0 && (
-              <div className="flex flex-wrap gap-2 text-xs">
-                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">{sim.resolved} unifiée(s) automatiquement</Badge>
-                <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">{sim.stillReview} restent à vérifier</Badge>
-                {sim.separated > 0 && <Badge variant="outline">{sim.separated} séparé(s) — non modifiée</Badge>}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => run(true)} disabled={reunify.isPending}>Simuler</Button>
-          {sim && sim.resolved > 0 && (
-            <Button onClick={() => setConfirm(true)} disabled={reunify.isPending}>Unifier ({sim.resolved})</Button>
-          )}
-        </div>
-      </CardContent>
-
-      <ConfirmDialog
-        open={confirm}
-        onOpenChange={(o) => !o && setConfirm(false)}
-        title="Unifier ces adresses ?"
-        description={`${sim?.resolved ?? 0} fratrie(s) verront leur adresse de foyer unifiée sur l'adresse la plus complète et leur drapeau « à vérifier » retiré. Les ${sim?.stillReview ?? 0} famille(s) dont les adresses diffèrent vraiment restent à traiter à la main. Réversible.`}
-        confirmLabel="Unifier"
-        onConfirm={() => run(false)}
-        loading={reunify.isPending}
-      />
-    </Card>
   )
 }
 
@@ -377,10 +210,6 @@ function ConfirmedTab() {
   const { data: groups, isLoading } = useSiblingGroups(debounced)
   const unlink = useUnlinkSibling()
   const [unlinkTarget, setUnlinkTarget] = useState<{ id: string; name: string } | null>(null)
-  // Only show the families the auto-declare backfill flagged "adresse à vérifier" (the worklist).
-  const [reviewOnly, setReviewOnly] = useState(false)
-  // The group whose address the CG is verifying → reuse the reconcile drawer (picking an address clears the flag).
-  const [reviewing, setReviewing] = useState<SiblingGroupType | null>(null)
 
   const doUnlink = async () => {
     if (!unlinkTarget) return
@@ -388,31 +217,23 @@ function ConfirmedTab() {
     catch (e) { toast.error(parseApiError(e)) }
   }
 
-  const reviewCount = (groups ?? []).filter((g) => g.addressNeedsReview).length
-  const shown = reviewOnly ? (groups ?? []).filter((g) => g.addressNeedsReview) : (groups ?? [])
+  const shown = groups ?? []
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <div className="relative max-w-sm flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Rechercher un membre…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
-        </div>
-        {/* Address-review worklist toggle — the families the backfill couldn't unify by address. */}
-        <Button variant={reviewOnly ? 'default' : 'outline'} size="sm" onClick={() => setReviewOnly((v) => !v)}
-          className={reviewOnly ? '' : 'text-amber-700 dark:text-amber-300'}>
-          <MapPinned className="mr-1.5 h-4 w-4" />À vérifier — adresse{reviewCount > 0 ? ` (${reviewCount})` : ''}
-        </Button>
+      <div className="relative mb-3 max-w-sm">
+        <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Rechercher un membre…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
       </div>
 
       {isLoading ? <LoadingSpinner variant="table" />
         : shown.length === 0
-          ? <EmptyState icon={Users} title={reviewOnly ? 'Aucune adresse à vérifier' : 'Aucune fratrie confirmée'}
-              description={reviewOnly ? 'Toutes les fratries ont une adresse harmonisée.' : 'Confirmez des suggestions ou liez des membres manuellement depuis leur fiche.'} />
+          ? <EmptyState icon={Users} title="Aucune fratrie confirmée"
+              description="Confirmez des suggestions ou liez des membres manuellement depuis leur fiche." />
           : (
             <div className="space-y-3">
               {shown.map((g) => (
-                <Card key={g.groupId} className={g.addressNeedsReview ? 'border-amber-300 dark:border-amber-800' : undefined}>
+                <Card key={g.groupId}>
                   <CardContent className="flex flex-wrap items-center gap-2 p-4">
                     {g.members.map((m) => (
                       <span key={m.memberId} className="flex items-center gap-1 rounded-full border bg-muted/40 py-1 pl-3 pr-1 text-sm">
@@ -426,14 +247,8 @@ function ConfirmedTab() {
                         </Button>
                       </span>
                     ))}
-                    {g.addressNeedsReview && (
-                      <Button size="sm" variant="outline" className="ml-auto border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-300"
-                        onClick={() => setReviewing(g)}>
-                        <MapPinned className="mr-1.5 h-4 w-4" />Vérifier l'adresse
-                      </Button>
-                    )}
                     <Link to={`/members/${g.members[0]?.memberId}`} target="_blank" rel="noopener noreferrer"
-                      className={`${g.addressNeedsReview ? '' : 'ml-auto '}text-muted-foreground hover:text-foreground`} title="Ouvrir">
+                      className="ml-auto text-muted-foreground hover:text-foreground" title="Ouvrir">
                       <ChevronRight className="h-4 w-4" />
                     </Link>
                   </CardContent>
@@ -441,17 +256,6 @@ function ConfirmedTab() {
               ))}
             </div>
           )}
-
-      {/* Reconcile drawer to pick the family's canonical address — approving (with an address) clears the flag. */}
-      {reviewing && (
-        <SiblingReconcileSheet
-          key={reviewing.groupId}
-          memberIds={reviewing.members.map((m) => m.memberId)}
-          title="Vérifier l'adresse de la fratrie"
-          confirmLabel="Harmoniser l'adresse"
-          onClose={() => setReviewing(null)}
-        />
-      )}
 
       <ConfirmDialog
         open={!!unlinkTarget}
@@ -548,8 +352,20 @@ function DuplicatesTab() {
   const { data: groups, isLoading } = useDuplicateSuggestions(keys)
   const [merging, setMerging] = useState<DuplicateGroup | null>(null)
   const [search, setSearch] = useState('')
+  // "Ce ne sont pas des doublons" — tombstones the group's pairs so it's not re-flagged.
+  const notDup = useRejectDuplicateMembers()
+  const [rejecting, setRejecting] = useState<DuplicateGroup | null>(null)
 
   const toggleKey = (k: string) => setKeys((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]))
+
+  const doReject = async () => {
+    if (!rejecting) return
+    try {
+      await notDup.mutateAsync(rejecting.members.map((m) => m.memberId))
+      toast.success('Marqués comme non-doublons')
+      setRejecting(null)
+    } catch (e) { toast.error(parseApiError(e)) }
+  }
 
   // Config bar: pick which fields must match. Kept above the results so it's clear what drives the list.
   const configBar = (
@@ -601,9 +417,12 @@ function DuplicatesTab() {
         {filtered.map((g, i) => (
           <Card key={i} className="overflow-hidden">
             <CardContent className="p-4">
-              <div className="mb-2.5 flex items-center justify-between gap-2">
+              <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Copy className="h-3.5 w-3.5" />{g.evidence}</span>
-                <Button size="sm" onClick={() => setMerging(g)}><GitMerge className="mr-1 h-4 w-4" />Fusionner</Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setRejecting(g)}><X className="mr-1 h-4 w-4" />Ce ne sont pas des doublons</Button>
+                  <Button size="sm" onClick={() => setMerging(g)}><GitMerge className="mr-1 h-4 w-4" />Fusionner</Button>
+                </div>
               </div>
               {/* Richer per-member info so the CG can decide if these really are the same person (same-name people
                   aren't always duplicates). DOB/matricule/n° carte/école/unité/statut/nb d'affectations. */}
@@ -643,6 +462,16 @@ function DuplicatesTab() {
       )}
 
       {merging && <MergeDialog group={merging} onClose={() => setMerging(null)} />}
+
+      <ConfirmDialog
+        open={!!rejecting}
+        onOpenChange={(o) => !o && setRejecting(null)}
+        title="Ce ne sont pas des doublons ?"
+        description="Ces membres ne seront plus signalés comme doublons (ce sont des personnes différentes). Vous pourrez toujours les fusionner manuellement plus tard si besoin."
+        confirmLabel="Confirmer"
+        onConfirm={doReject}
+        loading={notDup.isPending}
+      />
     </>
   )
 }

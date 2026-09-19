@@ -30,10 +30,7 @@ export interface SiblingSuggestionsResult {
 export interface SiblingGroup {
   groupId: string
   members: SiblingCandidateMember[]
-  // Flags a family the auto-declare backfill couldn't unify by address (different spellings / two homes) — the CG
-  // opens the reconcile wizard to pick the canonical address, which clears the flag. notes = CG-only auto note.
-  addressNeedsReview: boolean
-  notes: string | null
+  notes: string | null // CG-only auto-detected note (if any)
 }
 
 export interface MemberSibling {
@@ -210,59 +207,6 @@ export function useUnlinkSibling() {
   })
 }
 
-// ── One-time auto-declare backfill (temporary tool) ──
-// A family the backfill would declare, for the simulate preview.
-export interface AutoDeclareFamily {
-  members: SiblingCandidateMember[]
-  sharedParents: string[]
-  groupAction: string // "new" | "extended"
-  addressStatus: string // "agree" | "review" | "separated" | "none"
-}
-
-export interface AutoDeclareResult {
-  simulated: boolean
-  familiesTotal: number
-  membersTotal: number
-  newGroups: number
-  extendedGroups: number
-  addressAgree: number
-  addressReview: number
-  separatedSkipped: number
-  preview: AutoDeclareFamily[]
-}
-
-// POST /siblings/auto-declare?simulate=… → auto-declare the obvious fratries (shared parent record). Simulate = preview only.
-export function useAutoDeclareSiblings() {
-  const invalidate = useSiblingInvalidate()
-  return useMutation({
-    mutationFn: (simulate: boolean) =>
-      apiClient.post<AutoDeclareResult>('/siblings/auto-declare', null, { params: { simulate } }).then((r) => r.data),
-    onSuccess: (data) => {
-      if (!data.simulated) invalidate() // only refresh the lists after a real apply
-    },
-  })
-}
-
-// ── One-time follow-up: re-apply the address rules to the "à vérifier — adresse" fratries (temporary tool) ──
-export interface ReunifyAddressesResult {
-  simulated: boolean
-  groupsFlagged: number // flagged groups examined
-  resolved: number // now auto-unified (flag cleared)
-  stillReview: number // still genuinely different (flag kept)
-  separated: number // separated/divorced (left untouched)
-}
-
-export function useReunifyFratrieAddresses() {
-  const invalidate = useSiblingInvalidate()
-  return useMutation({
-    mutationFn: (simulate: boolean) =>
-      apiClient.post<ReunifyAddressesResult>('/siblings/reunify-addresses', null, { params: { simulate } }).then((r) => r.data),
-    onSuccess: (data) => {
-      if (!data.simulated) invalidate() // only refresh the lists after a real apply
-    },
-  })
-}
-
 // ── Duplicate members ("Doublons" tab) ──
 export interface DuplicateMember {
   memberId: string
@@ -345,5 +289,14 @@ export function useMergeMembers() {
     mutationFn: (data: { keeperId: string; loserIds: string[]; fields: MemberMergeFields }) =>
       apiClient.post<{ merged: number }>('/siblings/merge-members', data).then((r) => r.data),
     onSuccess: invalidate,
+  })
+}
+
+// POST /siblings/not-duplicates → tombstone the pairs so this group isn't re-flagged as a duplicate.
+export function useRejectDuplicateMembers() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (memberIds: string[]) => apiClient.post('/siblings/not-duplicates', { memberIds }).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['siblings', 'duplicates'] }),
   })
 }

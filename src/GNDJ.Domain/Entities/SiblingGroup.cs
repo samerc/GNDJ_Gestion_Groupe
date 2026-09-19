@@ -11,11 +11,6 @@ public class SiblingGroup : BaseEntity
 {
     public string? Notes { get; set; }
 
-    // Set by the auto-declare backfill when the family's members have DIFFERENT addresses (a spelling variant like
-    // "Kahale"/"Kahaleh", or a genuine two-home/separated situation) — the backfill won't guess which is canonical,
-    // so it flags the group here for the CG to open the reconcile wizard and pick. Cleared once reconciled.
-    public bool AddressNeedsReview { get; set; }
-
     public ICollection<Member> Members { get; set; } = [];
 }
 
@@ -23,6 +18,15 @@ public class SiblingGroup : BaseEntity
 // re-proposes that pair. Stored with the ids normalized (MemberAId < MemberBId) + a unique index. A CG
 // "reject" on a suggested family writes one tombstone per pair; manually linking a pair removes any tombstone.
 public class SiblingRejection : BaseEntity
+{
+    public Guid MemberAId { get; set; }
+    public Guid MemberBId { get; set; }
+}
+
+// Tombstone: two members were reviewed by a group manager and confirmed NOT to be duplicates of each other (the
+// "Doublons" tab's "Ce ne sont pas des doublons"), so duplicate detection never re-flags that pair. Stored with
+// the ids normalized (MemberAId < MemberBId) + a unique index. Mirrors SiblingRejection (the "not siblings" tombstone).
+public class MemberDuplicateRejection : BaseEntity
 {
     public Guid MemberAId { get; set; }
     public Guid MemberBId { get; set; }

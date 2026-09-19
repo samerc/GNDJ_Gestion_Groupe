@@ -54,16 +54,13 @@ public class ApproveSiblingGroupCommandHandler(IApplicationDbContext context, IA
         await using var tx = await context.BeginTransactionAsync(ct);
         try
         {
-            var group = await ResolveGroupAsync(members, ct);
+            await ResolveGroupAsync(members, ct);
 
             var touchedDupGuardians = new HashSet<Guid>();
             if (request.FatherGuardianId is Guid fId) await ReconcileParentAsync(members, fId, "Père", request.KeepPhoneIds, request.KeepEmailIds, touchedDupGuardians, ct);
             if (request.MotherGuardianId is Guid mId) await ReconcileParentAsync(members, mId, "Mère", request.KeepPhoneIds, request.KeepEmailIds, touchedDupGuardians, ct);
             if (request.AddressIds is { Count: > 0 } addressIds)
-            {
                 await ReconcileAddressesAsync(members, addressIds, ct);
-                group.AddressNeedsReview = false; // the CG picked the canonical address → clears the worklist flag
-            }
 
             // They're confirmed siblings now → drop any "not siblings" tombstones among them.
             var idSet = members.Select(m => m.Id).ToList();

@@ -1,6 +1,8 @@
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Siblings; // SiblingUtil.Pair (normalized member pair) — reused for the "not duplicates" tombstone
+using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
@@ -96,16 +98,24 @@ public class GetDuplicateMemberSuggestionsQueryHandler(IApplicationDbContext con
             _ => null,
         };
 
+        // Pairs a group manager marked "not duplicates" — used to split them back out of the detected groups below.
+        var rejected = (await context.MemberDuplicateRejections.Select(r => new { r.MemberAId, r.MemberBId }).ToListAsync(ct))
+            .Select(r => SiblingUtil.Pair(r.MemberAId, r.MemberBId)).ToHashSet();
+
         // Group by the tuple of the selected keys' values; a member is skipped if ANY selected key is empty.
         var groups = members
             .Select(m => (m, vals: keys.Select(k => KeyValue(m, k)).ToList()))
             .Where(x => x.vals.All(v => !string.IsNullOrWhiteSpace(v)))
             .GroupBy(x => string.Join("", x.vals), x => x.m)
             .Where(g => g.Count() >= 2 && g.Count() <= MaxGroupSize)
-            .Select(g =>
+            // Within each same-key clique, drop the pairs the CG rejected ("not duplicates"); a member left with no
+            // remaining duplicate splits off — a fully-rejected pair disappears, a partly-rejected trio keeps the rest.
+            .SelectMany(g => SplitByRejections(g.ToList(), rejected))
+            .Where(sub => sub.Count >= 2)
+            .Select(sub =>
             {
                 // Keeper suggestion order: active first, then most assignments, then oldest record — but the CG chooses.
-                var ordered = g.OrderByDescending(m => m.IsActiveMember)
+                var ordered = sub.OrderByDescending(m => m.IsActiveMember)
                     .ThenByDescending(m => m.AssignmentCount)
                     .ThenBy(m => m.CreatedAt)
                     .ToList();
@@ -120,6 +130,33 @@ public class GetDuplicateMemberSuggestionsQueryHandler(IApplicationDbContext con
     }
 
     private static string? Norm(string? s) => string.IsNullOrWhiteSpace(s) ? null : TextNormalization.NormalizeKey(s);
+
+    // Split a same-key clique into connected sub-groups after removing the "not duplicates" pairs. A clique with no
+    // rejected pair returns unchanged (one group); otherwise union-find over the remaining (non-rejected) pairs, so a
+    // rejected pair cleanly separates its members (a lone member then drops out via the >=2 filter upstream).
+    private static IEnumerable<List<DuplicateMemberDto>> SplitByRejections(List<DuplicateMemberDto> clique, HashSet<(Guid, Guid)> rejected)
+    {
+        if (rejected.Count == 0) { yield return clique; yield break; }
+        var ids = clique.Select(m => m.MemberId).ToList();
+
+        // Fast path: no rejected pair among these members → the clique stands as one group.
+        bool anyRejected = false;
+        for (int i = 0; i < ids.Count && !anyRejected; i++)
+            for (int j = i + 1; j < ids.Count; j++)
+                if (rejected.Contains(SiblingUtil.Pair(ids[i], ids[j]))) { anyRejected = true; break; }
+        if (!anyRejected) { yield return clique; yield break; }
+
+        // Union-find over the NON-rejected pairs; members with no surviving pair end up as singletons (filtered out).
+        var parent = ids.ToDictionary(id => id, id => id);
+        Guid Find(Guid x) { while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
+        void Union(Guid a, Guid b) { var ra = Find(a); var rb = Find(b); if (ra != rb) parent[ra] = rb; }
+        for (int i = 0; i < ids.Count; i++)
+            for (int j = i + 1; j < ids.Count; j++)
+                if (!rejected.Contains(SiblingUtil.Pair(ids[i], ids[j]))) Union(ids[i], ids[j]);
+
+        foreach (var comp in clique.GroupBy(m => Find(m.MemberId)))
+            yield return comp.ToList();
+    }
 }
 
 // Merge the losers into the keeper with the chosen field values. Group manager only. Delegates the data moves +
@@ -201,5 +238,39 @@ public class MergeMembersCommandHandler(IApplicationDbContext context, ICurrentU
                 Merged = await AuditNames.MembersAsync(context, losers, ct),
             }, cancellationToken: ct);
         return Result<int>.Success(losers.Count);
+    }
+}
+
+// ── "Ce ne sont pas des doublons": tombstone each pair so duplicate detection never re-flags this group ──
+// Mirrors RejectSiblingSuggestionCommand (the "not siblings" tombstone) but for the Doublons tab. Group manager only.
+public record RejectDuplicateMembersCommand(IReadOnlyList<Guid> MemberIds) : IRequest<Result<bool>>;
+
+public class RejectDuplicateMembersCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<RejectDuplicateMembersCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(RejectDuplicateMembersCommand request, CancellationToken ct)
+    {
+        if (!MemberAccess.IsGroupManager(currentUser))
+            return Result<bool>.Failure("Accès non autorisé.");
+
+        var ids = request.MemberIds.Distinct().ToList();
+        if (ids.Count < 2) return Result<bool>.Failure("Sélectionnez au moins deux membres.");
+
+        // Ids stored normalized (A < B), one tombstone per pair; skip any that already exist.
+        var existing = (await context.MemberDuplicateRejections.Select(r => new { r.MemberAId, r.MemberBId }).ToListAsync(ct))
+            .Select(x => SiblingUtil.Pair(x.MemberAId, x.MemberBId)).ToHashSet();
+
+        for (int i = 0; i < ids.Count; i++)
+            for (int j = i + 1; j < ids.Count; j++)
+            {
+                var (a, b) = SiblingUtil.Pair(ids[i], ids[j]);
+                if (existing.Add((a, b)))
+                    context.MemberDuplicateRejections.Add(new MemberDuplicateRejection { MemberAId = a, MemberBId = b });
+            }
+
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("RejectDuplicateMembers", "MemberDuplicateRejection", null,
+            newValues: new { Members = await AuditNames.MembersAsync(context, ids, ct) }, cancellationToken: ct);
+        return Result<bool>.Success(true);
     }
 }

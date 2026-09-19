@@ -58,33 +58,6 @@ public class SiblingsController : BaseApiController
         return NoContent();
     }
 
-    /// <summary>
-    /// One-time backfill: auto-declare the obvious fratries (members sharing the EXACT SAME parent record).
-    /// `simulate=true` (default) previews WITHOUT writing; `simulate=false` applies. Requires maitrise.manage.
-    /// </summary>
-    [HttpPost("auto-declare")]
-    [HasPermission(Permissions.MaitriseManage)]
-    public async Task<IActionResult> AutoDeclare([FromQuery] bool simulate = true)
-    {
-        var result = await Mediator.Send(new AutoDeclareSiblingsCommand(simulate));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
-
-    /// <summary>
-    /// One-time follow-up: re-apply the address rules to the fratries flagged "à vérifier — adresse" (for families
-    /// declared on an earlier build with fewer address rules). Unifies the ones the current rules can resolve + clears
-    /// their flag; genuinely-different ones stay flagged. `simulate=true` (default) previews. Requires maitrise.manage.
-    /// </summary>
-    [HttpPost("reunify-addresses")]
-    [HasPermission(Permissions.MaitriseManage)]
-    public async Task<IActionResult> ReunifyAddresses([FromQuery] bool simulate = true)
-    {
-        var result = await Mediator.Send(new ReunifyFratrieAddressesCommand(simulate));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
-
     /// <summary>Manually link two members as siblings (merging groups if needed). Requires maitrise.manage.</summary>
     [HttpPost("link")]
     [HasPermission(Permissions.MaitriseManage)]
@@ -167,5 +140,15 @@ public class SiblingsController : BaseApiController
         var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(new { merged = result.Value });
+    }
+
+    /// <summary>Mark a set of members as NOT duplicates (tombstone the pairs so they're not re-flagged). Requires maitrise.manage.</summary>
+    [HttpPost("not-duplicates")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> NotDuplicates([FromBody] MemberIdsRequest req)
+    {
+        var result = await Mediator.Send(new RejectDuplicateMembersCommand(req.MemberIds));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
     }
 }

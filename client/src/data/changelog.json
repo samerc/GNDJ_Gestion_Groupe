@@ -5,6 +5,14 @@
     "changes": [
       {
         "date": "2026-09-19",
+        "text": "Fratries — nettoyage : les outils temporaires de reprise de données (déclaration automatique des fratries, unification des adresses « à vérifier ») ont été retirés de la page Fratries maintenant qu'ils ont servi. La page conserve les suggestions, les fratries confirmées, les signalements et les doublons."
+      },
+      {
+        "date": "2026-09-19",
+        "text": "Fratries — doublons : nouveau bouton « Ce ne sont pas des doublons » sur chaque groupe de l'onglet Doublons. Il marque les membres comme des personnes différentes afin qu'ils ne soient plus signalés comme doublons (on peut toujours les fusionner manuellement plus tard)."
+      },
+      {
+        "date": "2026-09-19",
         "text": "Progression — étapes et badges « globaux » : on peut désormais créer des étapes et des badges qui ne dépendent d'aucune branche. Dans « Progression scoute », un onglet « Global (tous les types) » permet de les gérer à part. Lorsqu'on ajoute une progression à un membre, le sélecteur d'unité propose une entrée séparée « Général (hors unité) » qui affiche uniquement ces éléments globaux — ils ne se mélangent donc plus à la liste de chaque unité. Une unité n'affiche que ses propres étapes/badges."
       },
       {

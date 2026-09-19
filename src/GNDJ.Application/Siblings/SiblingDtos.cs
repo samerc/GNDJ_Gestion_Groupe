@@ -16,11 +16,8 @@ public record SiblingSuggestionDto(IReadOnlyList<SiblingCandidateMemberDto> Memb
 // (Items, capped for the UI). Total lets the page show the real number remaining, not the capped list length.
 public record SiblingSuggestionsResultDto(int Total, IReadOnlyList<SiblingSuggestionDto> Items);
 
-// A confirmed fratrie (for the "Fratries confirmées" tab). AddressNeedsReview flags families the auto-declare
-// backfill couldn't unify by address (different spellings / two homes) — the CG opens the reconcile wizard to
-// pick the canonical address, which clears the flag. Notes carries the CG-only auto-detected note (if any).
-public record SiblingGroupDto(Guid GroupId, IReadOnlyList<SiblingCandidateMemberDto> Members,
-    bool AddressNeedsReview, string? Notes);
+// A confirmed fratrie (for the "Fratries confirmées" tab). Notes carries the CG-only auto-detected note (if any).
+public record SiblingGroupDto(Guid GroupId, IReadOnlyList<SiblingCandidateMemberDto> Members, string? Notes);
 
 // Sibling shown on a member's fiche (confirmed group members other than the member).
 public record MemberSiblingDto(Guid MemberId, string FirstName, string LastName, string? PhotoPath,

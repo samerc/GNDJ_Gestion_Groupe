@@ -30,6 +30,18 @@ public class SiblingRejectionConfiguration : IEntityTypeConfiguration<SiblingRej
     }
 }
 
+// "Not duplicates" tombstone for the Doublons tab (mirrors the sibling rejection).
+public class MemberDuplicateRejectionConfiguration : IEntityTypeConfiguration<MemberDuplicateRejection>
+{
+    public void Configure(EntityTypeBuilder<MemberDuplicateRejection> builder)
+    {
+        builder.ToTable("member_duplicate_rejections");
+        builder.HasKey(e => e.Id);
+        // Ids stored normalized (A < B); one tombstone per pair.
+        builder.HasIndex(e => new { e.MemberAId, e.MemberBId }).IsUnique();
+    }
+}
+
 // Member-filed fratrie error reports (CG worklist). Filter by status + newest first.
 public class SiblingReportConfiguration : IEntityTypeConfiguration<SiblingReport>
 {

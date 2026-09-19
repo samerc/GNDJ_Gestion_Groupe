@@ -5432,6 +5432,25 @@ A batch of adjustments; all on main, DEV until deploy. Two migrations generated 
 - NOTE: dev admin password is NOT `Admin123!` (dev synced from prod) → backend verified via build + psql schema
   checks (both migrations applied, columns nullable YES), not live JWT calls.
 
+### Fratries — remove data-cleanup tools + "not duplicates" (2026-09-19, DEV until deploy)
+Two adjustments on the Fratries page (all on main; migration `DropSiblingAddressReviewAddDuplicateRejection`
+applies on prod startup; build 0/0, tsc+eslint+vite clean).
+- **Removed the one-time data-cleanup ("backfill") tools** now that they've served: the two Suggestions-tab banners
+  **Déclaration automatique des fratries** (`AutoDeclareSiblingsCommand`) + **Unifier les adresses « à vérifier »**
+  (`ReunifyFratrieAddressesCommand`) — both command files deleted, their controller endpoints (`/siblings/
+  auto-declare`, `/siblings/reunify-addresses`) removed, frontend hooks/types dropped — AND the **"À vérifier —
+  adresse" worklist** on the Confirmed tab, including the `SiblingGroup.AddressNeedsReview` column (dropped by the
+  migration; removed from the entity, DTO `SiblingGroupDto`, `GetSiblingGroupsQuery`, and the
+  `ApproveSiblingGroup` handler which used to clear it). The core feature stays: suggestions, confirm/reconcile
+  (`SiblingReconcileSheet`), link/unlink, Signalements, Doublons.
+- **Doublons — "Ce ne sont pas des doublons" button** (per group, next to Fusionner): tombstones the group's
+  member pairs so detection never re-flags them (mirrors the sibling "reject"). New entity
+  **`MemberDuplicateRejection`** (normalized pair A<B, unique index; table `member_duplicate_rejections`) + DbSet +
+  config; `RejectDuplicateMembersCommand` + `POST /siblings/not-duplicates` (maitrise.manage / `IsGroupManager`,
+  audited `RejectDuplicateMembers`). `GetDuplicateMemberSuggestionsQuery` now splits each same-key clique by the
+  tombstoned pairs via union-find over the surviving pairs (`SplitByRejections`) — a fully-rejected pair
+  disappears, a partly-rejected trio keeps the rest. `SiblingUtil.Pair` reused (internal, same assembly).
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a

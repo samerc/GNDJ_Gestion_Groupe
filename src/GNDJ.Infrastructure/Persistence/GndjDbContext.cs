@@ -74,6 +74,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<MemberGroupRule> MemberGroupRules => Set<MemberGroupRule>();
     public DbSet<SiblingGroup> SiblingGroups => Set<SiblingGroup>();
     public DbSet<SiblingRejection> SiblingRejections => Set<SiblingRejection>();
+    public DbSet<MemberDuplicateRejection> MemberDuplicateRejections => Set<MemberDuplicateRejection>();
     public DbSet<SiblingReport> SiblingReports => Set<SiblingReport>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
