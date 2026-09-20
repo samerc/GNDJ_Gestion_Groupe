@@ -4,7 +4,7 @@ import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Download, X, Smartphone } from 'lucide-react'
-import { promptInstall, isStandalone, bannerDismissed, dismissBanner, type InstallGuide } from '@/lib/pwa'
+import { promptInstall, bannerDismissed, dismissBanner, type InstallGuide } from '@/lib/pwa'
 import { useInstallGuide } from '@/hooks/use-install-guide'
 import { usePwaEnabled } from '@/hooks/use-pwa-audience'
 
@@ -46,7 +46,7 @@ export function PwaInstallMenuItem() {
   const guide = useInstallGuide()
   const pwaEnabled = usePwaEnabled()
   const [dialogOpen, setDialogOpen] = useState(false)
-  if (!pwaEnabled || isStandalone() || !guide.supported) return null
+  if (!pwaEnabled || guide.installed || !guide.supported) return null
   return (
     <>
       <DropdownMenuItem onSelect={guide.canPrompt ? () => { void promptInstall() } : (e) => { e.preventDefault(); setDialogOpen(true) }}>
@@ -70,7 +70,7 @@ export function PwaInstallBanner() {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   // The dashboard shows its own prominent install CARD; don't double up with the floating banner there.
-  if (pathname === '/dashboard' || !pwaEnabled || isStandalone() || !guide.supported || dismissed) return null
+  if (pathname === '/dashboard' || !pwaEnabled || guide.installed || !guide.supported || dismissed) return null
 
   const close = () => { dismissBanner(); setDismissed(true) }
   const install = async () => { await promptInstall(); close() } // hide after any prompt interaction
@@ -116,7 +116,7 @@ export function PwaInstallCard() {
   const [dismissed, setDismissed] = useState(bannerDismissed())
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  if (!pwaEnabled || isStandalone() || !guide.supported || dismissed) return null
+  if (!pwaEnabled || guide.installed || !guide.supported || dismissed) return null
 
   const close = () => { dismissBanner(); setDismissed(true) }
   const install = async () => { await promptInstall(); close() } // hide after any prompt interaction

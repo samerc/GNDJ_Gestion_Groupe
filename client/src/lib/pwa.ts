@@ -20,6 +20,33 @@ export function isStandalone(): boolean {
   } catch { return false }
 }
 
+// Best-effort "is the app already installed on THIS device?" signal detected from a plain browser tab.
+// `isStandalone()` only tells us when the app was OPENED from its installed icon; a normal tab can't see that.
+// `navigator.getInstalledRelatedApps()` (Chromium on Android + desktop only — nothing on iOS/Safari/Firefox)
+// fills that gap: because the manifest lists the PWA itself under related_applications (platform "webapp"),
+// a positive result means this very app is installed. Set once by the async check below, then OR'd into
+// `isInstalled()` so the install banner/menu/card hide themselves in a browser tab when the app is present.
+let relatedAppInstalled = false
+
+// True when we know the app is installed on this device — running standalone OR detected via related apps.
+// (There is no reliable negative: false just means "not detected", never "definitely not installed".)
+export function isInstalled(): boolean { return isStandalone() || relatedAppInstalled }
+
+// Ask the browser whether the PWA is already installed (Chromium-only; a no-op elsewhere). On a hit, remember
+// it, re-render the install UI, and flag the member (they clearly installed it, even though this is a browser tab).
+async function checkInstalledRelatedApps(): Promise<void> {
+  try {
+    const nav = navigator as unknown as { getInstalledRelatedApps?: () => Promise<Array<{ platform?: string }>> }
+    if (typeof nav.getInstalledRelatedApps !== 'function') return
+    const apps = await nav.getInstalledRelatedApps()
+    if (apps.some((a) => a.platform === 'webapp')) {
+      relatedAppInstalled = true
+      notify()                 // hide the install banner/menu/card (via useInstallGuide re-render)
+      void reportPwaInstall()  // best-effort: record the install even though we're in a browser tab
+    }
+  } catch { /* unsupported / rejected — ignore, it's only an extra signal */ }
+}
+
 export function isIos(): boolean {
   return /iphone|ipad|ipod/i.test(navigator.userAgent)
     // iPadOS 13+ reports as Mac; detect the touch-capable "Mac" as an iPad.
@@ -34,6 +61,9 @@ export function onInstallChange(cb: () => void): () => void { listeners.add(cb);
 // Chrome/Edge uses the address-bar icon). `canPrompt` = a native prompt is available now (show an Installer
 // button); `supported` = installation is possible on this browser at all (drives whether we even offer it).
 export interface InstallGuide {
+  // Best-effort "already installed on this device" (standalone launch OR getInstalledRelatedApps hit); the
+  // install UI hides itself when true. Never a reliable negative — false only means "not detected".
+  installed: boolean
   supported: boolean
   canPrompt: boolean
   platform: 'ios' | 'android' | 'desktop' | 'unsupported'
@@ -42,6 +72,10 @@ export interface InstallGuide {
 }
 
 export function getInstallGuide(): InstallGuide {
+  return { installed: isInstalled(), ...buildInstallGuide() }
+}
+
+function buildInstallGuide(): Omit<InstallGuide, 'installed'> {
   const ua = navigator.userAgent
   const prompt = canInstall()
 
@@ -133,7 +167,7 @@ export async function promptInstall(): Promise<boolean> {
 // resolves the caller's own member server-side; the server sets the flag only the first time (idempotent).
 let reported = false
 export async function reportPwaInstall(): Promise<void> {
-  if (reported || !isStandalone()) return
+  if (reported || !isInstalled()) return
   reported = true
   try { await apiClient.post('/my-profile/app-installed') }
   catch { reported = false } // e.g. not authenticated yet — allow a later retry
@@ -148,10 +182,15 @@ export function initPwa(): void {
   })
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null
+    relatedAppInstalled = true // an install just happened; treat as installed even from this tab
     notify()
     // Fires at install time on Android/desktop — flag the member if they're signed in.
     void reportPwaInstall()
   })
+
+  // Extra best-effort signal: ask Chromium (Android/desktop) whether the PWA is already installed on this
+  // device, so the install prompts hide themselves even when the user is viewing in a plain browser tab.
+  void checkInstalledRelatedApps()
 
   // Register the service worker (needed for installability AND Web Push). It does NO caching (pure network
   // passthrough), so it's safe in dev too and doesn't interfere with Vite HMR — and push can be tested in dev.

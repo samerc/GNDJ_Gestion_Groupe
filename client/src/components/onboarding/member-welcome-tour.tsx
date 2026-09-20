@@ -8,7 +8,6 @@ import { useMarkOnboardingSeen, useSwitchAccounts } from '@/services/my-profile-
 import { useIsRegularMember } from '@/lib/use-is-manager'
 import { useOnboardingTour } from '@/stores/onboarding-store'
 import { useContactReviewStore } from '@/stores/contact-review-store'
-import { isStandalone } from '@/lib/pwa'
 import { useInstallGuide } from '@/hooks/use-install-guide'
 import { usePwaEnabled } from '@/hooks/use-pwa-audience'
 import { PwaInstallGuide } from '@/components/shared/pwa-install'
@@ -85,7 +84,7 @@ export function MemberWelcomeTour() {
   // while the PWA is enabled for this user (pilot: maîtrise only, so regular members don't see it yet).
   const installGuide = useInstallGuide()
   const pwaEnabled = usePwaEnabled()
-  const showInstall = pwaEnabled && installGuide.supported && !isStandalone()
+  const showInstall = pwaEnabled && installGuide.supported && !installGuide.installed
   const steps = useMemo(() => {
     const base = siblings && siblings.length > 0 ? [...STEPS, SIBLING_STEP] : [...STEPS]
     return showInstall ? [...base, INSTALL_STEP] : base

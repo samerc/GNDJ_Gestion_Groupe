@@ -5618,6 +5618,17 @@ across devices. Icons generated with PIL (navy gradient + white compass, no SVG 
   `appInstalled=true` → the flagged member; detail returns the date; dev restored (flag + hashes). The browser bits
   (`beforeinstallprompt`/`appinstalled`/standalone detection + the install button) need a real device to see —
   backend + build verified. Migration applies on prod startup. See [[project-pwa-install]].
+- **"Already installed" detection from a browser tab (2026-09-20, frontend-only, DEV until deploy):** a plain tab
+  can't see `isStandalone()` (that only fires when opened FROM the installed icon), so the install UI used to keep
+  offering install to someone who already had the app. Added `navigator.getInstalledRelatedApps()` as an EXTRA
+  best-effort signal — manifest now lists the PWA itself under `related_applications` (`{platform:"webapp", url:
+  "https://gndj.org/manifest.webmanifest"}`) + `prefer_related_applications:false`, and `lib/pwa.ts`
+  `checkInstalledRelatedApps()` (run in `initPwa`) sets `relatedAppInstalled` on a `webapp` hit → `notify()`
+  re-renders the install UI + flags the member via `reportPwaInstall()`. New `isInstalled()` = `isStandalone() ||
+  relatedAppInstalled`; `InstallGuide` gained `installed` (via a `buildInstallGuide()` wrapper) and the banner/card/
+  menu/tour now hide on `guide.installed` instead of `isStandalone()`. **Chromium-only** (Android + desktop
+  Chrome/Edge); a NO-OP on iOS/Safari/Firefox and on non-matching origins (dev localhost, new.gndj.org) — never a
+  reliable negative, only an extra positive. `appinstalled` also sets `relatedAppInstalled` now. tsc+eslint+vite clean.
 
 ### Push notifications (Web Push) — targeted + auto, durable outbox (2026-09-20, DEV until deploy)
 The *point* of the PWA: notify members on their devices even when the app is closed. Built on the durable-outbox
