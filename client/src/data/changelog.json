@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-20",
+        "text": "Données — la « Situation des parents » (Unis / Séparés / Divorcés) a été renseignée pour ~2000 membres à partir de l'export WEBDEV, uniquement lorsqu'elle était vide (les valeurs déjà saisies sur le nouveau système ou corrigées par les parents ne sont jamais écrasées)."
+      },
+      {
+        "date": "2026-09-20",
         "text": "Email — l'email de test SMTP indique désormais le serveur d'envoi (nom + hôte + port + expéditeur) dans l'objet et le corps, pour distinguer facilement les messages quand on teste plusieurs serveurs."
       },
       {
