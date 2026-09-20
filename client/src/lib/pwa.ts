@@ -86,7 +86,11 @@ export function getInstallGuide(): InstallGuide {
     steps: ["Cliquez sur « Installer » ci-dessous.", "Confirmez dans la fenêtre du navigateur."] }
   if (/Edg\//.test(ua) || /Chrome\//.test(ua)) return { supported: true, canPrompt: false, platform: 'desktop',
     intro: "Installez GNDJ sur votre ordinateur :",
-    steps: ["Cliquez sur l'icône d'installation dans la barre d'adresse (à droite de l'adresse).", "Ou ouvrez le menu (⋮) puis « Installer GNDJ… »."] }
+    steps: [
+      "Cliquez sur l'icône d'installation dans la barre d'adresse (à droite de l'adresse).",
+      "Ou ouvrez le menu (⋮, en haut à droite) puis « Installer GNDJ… ».",
+      "Si vous ne voyez aucune de ces options, ouvrez le site directement dans Google Chrome ou Microsoft Edge — l'installation n'est pas disponible dans tous les navigateurs.",
+    ] }
   // Firefox / Safari desktop etc. — no reliable PWA install; don't offer it.
   return { supported: false, canPrompt: false, platform: 'unsupported', intro: '', steps: [] }
 }
