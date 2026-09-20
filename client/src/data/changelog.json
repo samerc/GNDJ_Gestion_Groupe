@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-20",
+        "text": "Fratries — cliquer sur un membre ouvre désormais directement sa fiche sur l'onglet « Contact & famille » (dans le même onglet du navigateur), et un bouton « Retour — Fratries » en haut de la fiche ramène à la page Fratries, sur le même onglet (Suggestions / Confirmées / Signalements / Doublons)."
+      },
+      {
+        "date": "2026-09-20",
         "text": "Installer l'application — détection « déjà installée » : quand on ouvre le site dans un navigateur alors que l'application est déjà installée sur l'appareil, l'invitation à installer (bannière, encart, menu, tutoriel) se masque automatiquement. Cela fonctionne sur Chrome/Edge (Android et ordinateur) ; sur iPhone/Safari/Firefox, aucun navigateur ne permet cette détection depuis un onglet — l'invitation reste visible tant que l'application n'est pas ouverte depuis son icône. Une installation ainsi détectée est aussi enregistrée pour la maîtrise."
       },
       {

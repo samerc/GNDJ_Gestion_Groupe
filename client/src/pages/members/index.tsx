@@ -8,7 +8,7 @@
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { saveBlob } from '@/lib/download'
 import { useState, useRef, useCallback, useMemo, useEffect, type ReactNode, type ComponentType } from 'react'
-import { useParams } from 'react-router'
+import { useParams, useSearchParams, useLocation, useNavigate } from 'react-router'
 import { useImpersonationStore } from '@/stores/impersonation-store'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
@@ -118,7 +118,7 @@ function TabCount({ n }: { n: number }) {
 }
 
 // ─── Member detail panel ─────────────────
-function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDeleted: () => void }) {
+function MemberDetailPanel({ memberId, onDeleted, initialTab }: { memberId: string; onDeleted: () => void; initialTab?: string }) {
   const { data: member, isLoading } = useMember(memberId)
   // Record this member as recently-viewed (localStorage) for quick jump-back in the Ctrl-K palette.
   useEffect(() => {
@@ -176,7 +176,8 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   const [editing, setEditing] = useState(false)
   // Controlled tabs: the edit form only lives on Informations + Médical, so the "Modifier"/Save controls are
   // shown ONLY on those tabs (else a CU on Documents/Progression sees Save with no form and persists stale data).
-  const [activeTab, setActiveTab] = useState('info')
+  // initialTab lets a deep link (e.g. from the Fratries page) open straight on a given tab (validated below).
+  const [activeTab, setActiveTab] = useState(() => tabDefs.some(t => t.value === initialTab) ? initialTab! : 'info')
   const isFormTab = activeTab === 'info' || activeTab === 'medical'
   const [form, setForm] = useState<MemberFormData>({ firstName: '', lastName: '' })
   // "Situation" toggle: 'student' shows Classe/Section, 'working' shows Domaine/Profession. The hidden side is
@@ -870,6 +871,14 @@ function SortHeader({ label, field, current, dir, onSort }: { label: string; fie
 // ─── Main page ───────────────────────────
 export default function MembersPage() {
   const { id: routeMemberId } = useParams<{ id: string }>()
+  const [detailParams] = useSearchParams()
+  const navigate = useNavigate()
+  const location = useLocation()
+  // A deep link (e.g. the Fratries page) can request a specific tab (?tab=famille) and pass a `from` in the
+  // navigation state so the fiche shows a "Retour" button back to where the user came from.
+  const initialTab = detailParams.get('tab') ?? undefined
+  const backTo = (location.state as { from?: string; fromLabel?: string } | null)?.from
+  const backLabel = (location.state as { fromLabel?: string } | null)?.fromLabel
   const canCreate = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_CREATE)) // CG / super-admin only
   const pinnedNationalities = useSettingArray('pinned_nationalities')
   const schools = useSettingArray('member.schools')
@@ -1248,6 +1257,17 @@ export default function MembersPage() {
         <div className={cn('flex flex-1 min-w-0 flex-col overflow-hidden bg-background', !selectedMemberId && 'max-md:hidden')}>
           {selectedMemberId ? (
             <>
+              {/* When we arrived from another page (e.g. the Fratries page passes a `from`), a "Retour" button
+                  takes the user back there (all screen sizes). */}
+              {backTo && (
+                <button
+                  type="button"
+                  onClick={() => navigate(backTo)}
+                  className="flex shrink-0 items-center gap-1 border-b px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  <ArrowLeft className="h-4 w-4" /> {backLabel ? `Retour — ${backLabel}` : 'Retour'}
+                </button>
+              )}
               {/* Mobile-only: back to the list */}
               <button
                 type="button"
@@ -1257,7 +1277,7 @@ export default function MembersPage() {
                 <ArrowLeft className="h-4 w-4" /> Retour à la liste
               </button>
               <div className="min-h-0 flex-1 overflow-hidden">
-                <MemberDetailPanel key={selectedMemberId} memberId={selectedMemberId} onDeleted={() => setSelectedMemberId(null)} />
+                <MemberDetailPanel key={selectedMemberId} memberId={selectedMemberId} onDeleted={() => setSelectedMemberId(null)} initialTab={selectedMemberId === routeMemberId ? initialTab : undefined} />
               </div>
             </>
           ) : (

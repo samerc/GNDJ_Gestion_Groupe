@@ -11,6 +11,14 @@ import {
   type SiblingReport,
 } from '@/services/sibling-service'
 import { SiblingReconcileSheet } from '@/components/members/sibling-reconcile-sheet'
+
+// Clicking a member on the Fratries page opens their fiche directly on the Contact & famille tab (what a CG
+// needs when reconciling siblings), in the SAME tab, and carries a `from` so the fiche shows a "Retour" button
+// back to this page on the SAME sibling tab. (Was: open in a new tab — the back button is friendlier here.)
+const memberLink = (id: string | undefined, fromTab: string) => ({
+  to: `/members/${id}?tab=famille`,
+  state: { from: `/admin/siblings?tab=${fromTab}`, fromLabel: 'Fratries' },
+})
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -237,8 +245,7 @@ function ConfirmedTab() {
                   <CardContent className="flex flex-wrap items-center gap-2 p-4">
                     {g.members.map((m) => (
                       <span key={m.memberId} className="flex items-center gap-1 rounded-full border bg-muted/40 py-1 pl-3 pr-1 text-sm">
-                        {/* Open in a new tab so the reconciliation list stays put (no losing your place / back-button). */}
-                        <Link to={`/members/${m.memberId}`} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">{m.firstName} {m.lastName}</Link>
+                        <Link {...memberLink(m.memberId, 'confirmed')} className="font-medium hover:underline">{m.firstName} {m.lastName}</Link>
                         <span className="text-xs text-muted-foreground">· {m.unitName ?? 'Sans unité'}</span>
                         <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-destructive"
                           onClick={() => setUnlinkTarget({ id: m.memberId, name: `${m.firstName} ${m.lastName}` })}
@@ -247,7 +254,7 @@ function ConfirmedTab() {
                         </Button>
                       </span>
                     ))}
-                    <Link to={`/members/${g.members[0]?.memberId}`} target="_blank" rel="noopener noreferrer"
+                    <Link {...memberLink(g.members[0]?.memberId, 'confirmed')}
                       className="ml-auto text-muted-foreground hover:text-foreground" title="Ouvrir">
                       <ChevronRight className="h-4 w-4" />
                     </Link>
@@ -323,7 +330,7 @@ function ReportsTab() {
                     <Flag className={`mt-0.5 h-4 w-4 shrink-0 ${r.status === 'Resolved' ? 'text-muted-foreground' : 'text-amber-500'}`} />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                        <Link to={`/members/${r.reporterMemberId}`} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">{r.reporterName || 'Membre'}</Link>
+                        <Link {...memberLink(r.reporterMemberId, 'reports')} className="font-medium hover:underline">{r.reporterName || 'Membre'}</Link>
                         <span className="text-xs text-muted-foreground">· {r.reporterUnit ?? 'Sans unité'}</span>
                         <Badge variant="secondary" className="text-[11px]">{REPORT_KIND_LABELS[r.kind] ?? r.kind}</Badge>
                         {r.status === 'Resolved' && <Badge className="bg-emerald-600 text-[11px]">Résolu</Badge>}
@@ -445,7 +452,7 @@ function DuplicatesTab() {
                     <div key={m.memberId} className="rounded-md border bg-muted/20 p-2.5">
                       <div className="flex items-center gap-1.5">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">{(m.firstName[0] ?? '').toUpperCase()}</span>
-                        <Link to={`/members/${m.memberId}`} target="_blank" rel="noopener noreferrer" className="truncate font-medium hover:underline">{m.firstName} {m.lastName}</Link>
+                        <Link {...memberLink(m.memberId, 'duplicates')} className="truncate font-medium hover:underline">{m.firstName} {m.lastName}</Link>
                       </div>
                       <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
                         {bits.map((b, k) => <span key={k}>{b}</span>)}
