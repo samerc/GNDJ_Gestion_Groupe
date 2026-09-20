@@ -84,12 +84,20 @@ export function getInstallGuide(): InstallGuide {
   if (prompt) return { supported: true, canPrompt: true, platform: 'desktop',
     intro: "Installez GNDJ sur votre ordinateur :",
     steps: ["Cliquez sur « Installer » ci-dessous.", "Confirmez dans la fenêtre du navigateur."] }
-  if (/Edg\//.test(ua) || /Chrome\//.test(ua)) return { supported: true, canPrompt: false, platform: 'desktop',
-    intro: "Installez GNDJ sur votre ordinateur :",
+  // Edge nests install under the "…" menu → Applications, NOT a top-level "Installer GNDJ" item (that's Chrome).
+  if (/Edg\//.test(ua)) return { supported: true, canPrompt: false, platform: 'desktop',
+    intro: "Installez GNDJ sur votre ordinateur (Microsoft Edge) :",
     steps: [
-      "Cliquez sur l'icône d'installation dans la barre d'adresse (à droite de l'adresse).",
-      "Ou ouvrez le menu (⋮, en haut à droite) puis « Installer GNDJ… ».",
-      "Si vous ne voyez aucune de ces options, ouvrez le site directement dans Google Chrome ou Microsoft Edge — l'installation n'est pas disponible dans tous les navigateurs.",
+      "Cliquez sur l'icône d'installation à droite de la barre d'adresse, si elle apparaît.",
+      "Sinon, ouvrez le menu « … » (en haut à droite) → « Applications » → « Installer ce site en tant qu'application ».",
+      "Confirmez avec « Installer ».",
+    ] }
+  if (/Chrome\//.test(ua)) return { supported: true, canPrompt: false, platform: 'desktop',
+    intro: "Installez GNDJ sur votre ordinateur (Google Chrome) :",
+    steps: [
+      "Cliquez sur l'icône d'installation à droite de la barre d'adresse, si elle apparaît.",
+      "Sinon, ouvrez le menu « ⋮ » (en haut à droite) puis « Installer GNDJ… » (parfois sous « Caster, enregistrer et partager »).",
+      "Confirmez avec « Installer ».",
     ] }
   // Firefox / Safari desktop etc. — no reliable PWA install; don't offer it.
   return { supported: false, canPrompt: false, platform: 'unsupported', intro: '', steps: [] }
