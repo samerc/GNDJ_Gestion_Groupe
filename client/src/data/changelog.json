@@ -5,7 +5,7 @@
     "changes": [
       {
         "date": "2026-09-20",
-        "text": "Installer l'application — un encart bien visible « Installez l'application GNDJ » apparaît maintenant en haut du tableau de bord (en plus de la bannière flottante déjà présente sur les autres pages ; les deux ne s'affichent pas en même temps sur le tableau de bord). Il propose le bouton d'installation (ou les instructions selon l'appareil) et un « Plus tard » ; le fermer met en pause les invitations d'installation pendant ~2 semaines. Toujours réservé à la maîtrise pour le pilote."
+        "text": "Installer l'application — un encart bien visible « Installez l'application GNDJ » apparaît maintenant en haut du tableau de bord (en plus de la bannière flottante déjà présente sur les autres pages ; les deux ne s'affichent pas en même temps sur le tableau de bord). Il propose le bouton d'installation (ou les instructions selon l'appareil) et un « Plus tard » ; le fermer met en pause les invitations d'installation pendant ~2 semaines. Toujours réservé à la maîtrise pour le pilote. Des aperçus (captures) ont été ajoutés au manifeste pour que Chrome/Edge proposent l'installation en un clic (icône dans la barre d'adresse) et affichent une belle fenêtre d'installation ; les instructions manuelles sont adaptées au navigateur (Edge : menu … → Applications ; Chrome : « Installer GNDJ… » ; iPhone : Partager → Sur l'écran d'accueil)."
       },
       {
         "date": "2026-09-20",
