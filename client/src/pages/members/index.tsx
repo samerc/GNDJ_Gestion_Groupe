@@ -49,7 +49,7 @@ import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PARENTS_SITUAT
 import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts, useMemberAbsencesByYear, type MemberAbsenceYear } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck, Star, Upload, Eye, Lock, Unlock } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck, Star, Upload, Eye, Lock, Unlock, Smartphone } from 'lucide-react'
 import { pushRecentMember, isFavoriteMember, toggleFavoriteMember } from '@/lib/recent-members'
 import { DelegationDialog } from './delegation-dialog'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
@@ -368,6 +368,16 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                 ? <span className="text-emerald-600 dark:text-emerald-400">Coordonnées vérifiées le {new Date(member.contactReviewedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                 : <span className="text-amber-600 dark:text-amber-400">Coordonnées à vérifier</span>}
             </p>
+            {/* PWA install (best-effort): "installée" = detected running the app standalone; otherwise "non
+                détectée" (no reliable not-installed signal). Only meaningful for members with a login account. */}
+            {member.username && (
+              <p className="mt-0.5 text-xs flex items-center gap-1">
+                <Smartphone className="h-3 w-3 text-muted-foreground" />
+                {member.appInstalledAt
+                  ? <span className="text-emerald-600 dark:text-emerald-400">App installée (détectée le {new Date(member.appInstalledAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })})</span>
+                  : <span className="text-muted-foreground">App non détectée</span>}
+              </p>
+            )}
             {/* Access delegation badge — visible to the CG so they know this member holds hidden extra access. */}
             {member.hasDelegatedAccess && (
               <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
@@ -891,6 +901,8 @@ export default function MembersPage() {
   })
   useEffect(() => { localStorage.setItem('members.pageSize', String(pageSize)) }, [pageSize])
   const [letter, setLetter] = useState('')
+  // PWA install filter: all / installed (app détectée) / not (non détectée). Lets the CG pull "who installed".
+  const [appFilter, setAppFilter] = useState<'all' | 'installed' | 'not'>('all')
   const [sortBy, setSortBy] = useState('lastname')
   const [sortDir, setSortDir] = useState('asc')
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(routeMemberId ?? null)
@@ -964,6 +976,7 @@ export default function MembersPage() {
     all: showAll || undefined,
     sortBy, sortDir,
     page, pageSize, letter: letter || undefined,
+    appInstalled: appFilter === 'installed' ? true : appFilter === 'not' ? false : undefined,
   })
 
   // The selected member's detail (cached — the detail panel fetches the same ['members', id] key, so no extra
@@ -1071,6 +1084,16 @@ export default function MembersPage() {
             <SelectTrigger className="h-8 w-[6.5rem] text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
               {[25, 50, 100, 200].map(n => <SelectItem key={n} value={String(n)}>{n} / page</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {/* PWA install filter — "app détectée" = ran the installed app at least once; "non détectée" is
+              best-effort (no reliable "not installed" signal). Count via the range indicator on the right. */}
+          <Select value={appFilter} onValueChange={(v) => { setAppFilter(v as typeof appFilter); setPage(1) }}>
+            <SelectTrigger className="h-8 w-40 text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">App : tous</SelectItem>
+              <SelectItem value="installed">App installée</SelectItem>
+              <SelectItem value="not">App non détectée</SelectItem>
             </SelectContent>
           </Select>
           {data && data.totalCount > 0 && (

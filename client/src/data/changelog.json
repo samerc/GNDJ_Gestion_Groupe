@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-20",
+        "text": "Application installable (PWA) — GNDJ peut maintenant être ajoutée à l'écran d'accueil du téléphone (ou installée sur ordinateur) comme une vraie application. Une entrée « Installer l'application » apparaît dans le menu du compte (avec les instructions « Sur l'écran d'accueil » sur iPhone). La maîtrise peut voir, par membre et via un filtre « App installée / non détectée » sur la liste des membres, qui a ouvert l'application installée (détection au mieux : impossible de savoir de façon fiable qui ne l'a pas installée, ni sur plusieurs appareils)."
+      },
+      {
+        "date": "2026-09-20",
         "text": "Journal d'audit — la recherche plein texte est désormais quasi instantanée (index de trigrammes), même sur les instantanés JSON avant/après ; auparavant elle parcourait toutes les lignes. La recherche par adresse email de l'auteur passe désormais par le filtre « Utilisateur » dédié."
       },
       {

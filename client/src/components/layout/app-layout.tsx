@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { Toaster } from 'sonner'
 import { Sidebar, MobileSidebar } from './sidebar'
@@ -16,6 +16,7 @@ import { ContactReviewPopup } from '@/components/members/contact-review-popup'
 import { CurrencySymbolsSync } from '@/components/shared/currency-symbols-sync'
 import { ImpersonationBanner } from './impersonation-banner'
 import { useImpersonationStore } from '@/stores/impersonation-store'
+import { reportPwaInstall } from '@/lib/pwa'
 
 // ROLE: authenticated app shell — sidebar + header around the routed <Outlet>.
 // Used as the layout route wrapping every signed-in page. Mounts the global
@@ -36,6 +37,12 @@ export function AppLayout() {
     mainRef.current?.scrollTo({ top: 0, left: 0 })
     window.scrollTo({ top: 0, left: 0 })
   }, [pathname])
+
+  // PWA install tracking: if the app is running as an installed PWA (standalone), flag this member once so the
+  // CG can see who installed it. Runs here because the shell is authenticated; the call self-guards (only when
+  // standalone, once per load). A one-shot side-effect (no state) — impersonation would flag the wrong member,
+  // so skip it while viewing as someone else (read the store directly to avoid ordering/stale-closure issues).
+  useEffect(() => { if (!useImpersonationStore.getState().active) void reportPwaInstall() }, [])
 
   // Maintenance kill-switch: when the whole site or the "membres" module is off, everyone but the super-admin
   // (who needs access to turn it back off) sees the maintenance page. The super-admin sees a warning banner.

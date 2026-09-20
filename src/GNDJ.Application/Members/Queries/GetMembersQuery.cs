@@ -12,7 +12,9 @@ namespace GNDJ.Application.Members.Queries;
 public record GetMembersQuery(
     string? Search, Guid? UnitId, Guid? TeamId, bool? NoUnit, bool? Alumni,
     string? SortBy, string? SortDir,
-    int Page = 1, int PageSize = 50, bool? Maitrise = null, string? Letter = null, bool All = false
+    int Page = 1, int PageSize = 50, bool? Maitrise = null, string? Letter = null, bool All = false,
+    // PWA install filter: true = only members detected running the installed app; false = only "non détectée".
+    bool? AppInstalled = null
 ) : IRequest<PaginatedList<MemberListDto>>;
 
 public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, PaginatedList<MemberListDto>>
@@ -150,6 +152,11 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
             var letter = request.Letter.Trim().ToLower();
             query = query.Where(m => Common.DbFns.Unaccent(m.LastName.ToLower()).StartsWith(letter));
         }
+
+        // PWA install filter: installed = the app was detected running standalone at least once; "non détectée"
+        // = never detected (which also includes members who just use the browser — no reliable "not installed").
+        if (request.AppInstalled == true) query = query.Where(m => m.AppInstalledAt != null);
+        else if (request.AppInstalled == false) query = query.Where(m => m.AppInstalledAt == null);
 
         // Sort
         var desc = string.Equals(request.SortDir, "desc", StringComparison.OrdinalIgnoreCase);
@@ -376,7 +383,9 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
                 // When the member confirmed their coordonnées via the contact-review popup (null = not yet reviewed).
                 m.ContactReviewedAt,
                 // Login state of the linked account: null = no account; else its IsActive flag.
-                _context.Users.Where(u => u.MemberId == m.Id && !u.IsDeleted).Select(u => (bool?)u.IsActive).FirstOrDefault()
+                _context.Users.Where(u => u.MemberId == m.Id && !u.IsDeleted).Select(u => (bool?)u.IsActive).FirstOrDefault(),
+                // When the member was first detected running the app as an installed PWA (null = non détectée).
+                m.AppInstalledAt
             ))
             .FirstOrDefaultAsync(cancellationToken);
     }

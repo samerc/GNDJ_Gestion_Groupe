@@ -61,6 +61,7 @@ export interface MemberDetailDto {
   lastLoginAt: string | null // last sign-in of the linked account (null = never logged in / no account)
   contactReviewedAt: string | null // when the member confirmed their coordonnées via the popup (null = not yet)
   loginActive: boolean | null // login state: null = no account; true = active; false = disabled
+  appInstalledAt: string | null // first detected running the installed PWA (null = installation non détectée)
 }
 
 // Tab badge counts returned with the member detail (famille / unités / documents / cotisations / progression).
@@ -104,7 +105,7 @@ export interface MemberFormData {
 
 // Paginated member list. alumni=true switches to former-members (identity only); default is active.
 // maitrise=true restricts to leadership (maîtrise) role holders across the caller's units.
-export function useMembers(params: { search?: string; unitId?: string; teamId?: string; noUnit?: boolean; alumni?: boolean; all?: boolean; maitrise?: boolean; sortBy?: string; sortDir?: string; page?: number; pageSize?: number; letter?: string }) {
+export function useMembers(params: { search?: string; unitId?: string; teamId?: string; noUnit?: boolean; alumni?: boolean; all?: boolean; maitrise?: boolean; sortBy?: string; sortDir?: string; page?: number; pageSize?: number; letter?: string; appInstalled?: boolean }) {
   return useQuery({
     queryKey: ['members', params],
     queryFn: () => apiClient.get<PaginatedResult<MemberListDto>>('/members', { params }).then(r => r.data),

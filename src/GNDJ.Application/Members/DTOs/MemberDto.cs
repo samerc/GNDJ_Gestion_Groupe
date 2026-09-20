@@ -73,7 +73,10 @@ public record MemberDetailDto(
     DateTime? ContactReviewedAt,
     // Login state of the linked account: null = no account; true = active (can sign in); false = disabled.
     // Drives the panel "Désactiver / Réactiver la connexion" action.
-    bool? LoginActive
+    bool? LoginActive,
+    // When the member was first detected running the app as an installed PWA (null = installation non détectée).
+    // Best-effort — see Member.AppInstalledAt. Shown as a badge in the panel header.
+    DateTime? AppInstalledAt
 );
 
 // Counts shown as tab badges on the member detail panel — folded into the detail query so opening a member

@@ -9,6 +9,10 @@ import App from './App'
 import { ErrorBoundary } from '@/components/shared/error-boundary'
 import { reportClientError, isBenignError } from '@/lib/error-report'
 import { queryClient } from '@/lib/query-client'
+import { initPwa } from '@/lib/pwa'
+
+// PWA: capture the install prompt, listen for install, register the service worker (installability).
+initPwa()
 
 // Safety net for errors OUTSIDE React's render tree (async callbacks, event handlers, unhandled promise
 // rejections) — the ErrorBoundary only catches render crashes. Benign/handled cases are filtered out so the

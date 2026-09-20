@@ -1,0 +1,18 @@
+{
+  "name": "GNDJ Scout — Groupe Notre-Dame de Jamhour",
+  "short_name": "GNDJ Scout",
+  "description": "Espace membres du Groupe scout Notre-Dame de Jamhour.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#16243f",
+  "theme_color": "#1c2b4a",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

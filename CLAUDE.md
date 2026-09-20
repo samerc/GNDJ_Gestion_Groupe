@@ -5587,6 +5587,32 @@ mirroring how `ErrorAlerts:Smtp` is already handled.
   `UPDATE smtp_servers SET password='';` (the admin UI can't blank it — update keeps the stored value when the field is
   empty). After that the secret is only in the gitignored server file, not the DB or backups. Build 0/0, 102 tests pass.
 
+### PWA — installable app + "installée (détectée)" tracking (2026-09-20, DEV until deploy)
+Made the app an installable PWA + a best-effort per-member install flag. Chosen because browsers give NO reliable
+installed/not-installed registry: we can only detect a STANDALONE launch (works iOS + Android) or the
+`appinstalled` event (Android/desktop) — there's no "who didn't install" signal, and installs aren't visible
+across devices. Icons generated with PIL (navy gradient + white compass, no SVG rasterizer available).
+- **Installable:** `public/manifest.webmanifest` (name/icons 192+512+maskable/standalone/theme #1c2b4a) +
+  `public/sw.js` (minimal network-passthrough service worker — required for installability, NO caching, this is a
+  live app) + `public/icons/*` + `public/apple-touch-icon.png` + `index.html` (manifest/apple-touch/apple-mobile
+  meta + `viewport-fit=cover`). CSP already allows it (`default-src 'self'` covers manifest/worker; all
+  same-origin). `lib/pwa.ts` (`initPwa` in main.tsx) captures `beforeinstallprompt`, registers the SW (PROD only),
+  and reports on `appinstalled` + standalone launch.
+- **Install button:** `components/shared/pwa-install.tsx` — an "Installer l'application" item in the account menu
+  (`user-menu.tsx`); fires the native prompt on Android/desktop, opens "Sur l'écran d'accueil" instructions on iOS
+  (no prompt API there). Self-hides when already standalone or unsupported.
+- **Tracking:** `Member.AppInstalledAt` (migration `AddMemberAppInstalled`). `POST /my-profile/app-installed`
+  (`MarkAppInstalledCommand`, auth-only, own member resolved server-side, idempotent — sets once) called by
+  `AppLayout` on a standalone launch (skipped while impersonating) + on `appinstalled`. Surfaced to the CG:
+  `MemberDetailDto.AppInstalledAt` → a panel badge ("App installée (détectée le …)" / "App non détectée", only for
+  account holders), and a members-list **filter** `?appInstalled=true|false` (GetMembersQuery + the "App : tous /
+  installée / non détectée" dropdown) so the CG pulls the two lists + counts. NO list column (keeps the dense list
+  clean; the range indicator gives the count).
+- **Verified live** (temp passwords, restored): member POST → 204 + flag set; 2nd POST idempotent; filter
+  `appInstalled=true` → the flagged member; detail returns the date; dev restored (flag + hashes). The browser bits
+  (`beforeinstallprompt`/`appinstalled`/standalone detection + the install button) need a real device to see —
+  backend + build verified. Migration applies on prod startup. See [[project-pwa-install]].
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30)
 - [x] **Cotisation dashboard "payé" drill-down — DONE (2026-09-20, DEV until deploy, frontend-only).** The
       `/admin/cotisations` per-unit rows already reveal an "Ont payé" list (name → fiche, date, montants, receipt

@@ -1,5 +1,6 @@
 using GNDJ.Application.CustomFields;
 using GNDJ.Application.Guardians;
+using GNDJ.Application.Members.Commands.MyAppInstalled;
 using GNDJ.Application.Members.Commands.MyContacts;
 using GNDJ.Application.Members.Commands.MyOnboarding;
 using GNDJ.Application.Members.Commands.UpdateMyProfile;
@@ -61,6 +62,11 @@ public class MyProfileController : BaseApiController
     /// <summary>Marks the caller's first-login welcome tour as seen (so the carousel doesn't show again).</summary>
     [HttpPost("onboarding-seen")]
     public async Task<IActionResult> OnboardingSeen() => Wrap(await Mediator.Send(new MarkOnboardingSeenCommand()));
+
+    /// <summary>Records that the caller runs the app as an installed PWA (first standalone launch / appinstalled).
+    /// Stamps Member.AppInstalledAt once (idempotent) so the CG can see who installed the app. Best-effort.</summary>
+    [HttpPost("app-installed")]
+    public async Task<IActionResult> AppInstalled() => Wrap(await Mediator.Send(new MarkAppInstalledCommand()));
 
     /// <summary>Returns the caller's saved group-dashboard layout (JSON string, or null = default layout).</summary>
     [HttpGet("dashboard-layout")]

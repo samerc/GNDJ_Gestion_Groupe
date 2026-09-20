@@ -57,9 +57,9 @@ public class MembersController : BaseApiController
         [FromQuery] string? search, [FromQuery] Guid? unitId, [FromQuery] Guid? teamId,
         [FromQuery] bool? noUnit, [FromQuery] bool? alumni, [FromQuery] string? sortBy, [FromQuery] string? sortDir,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] bool? maitrise = null, [FromQuery] string? letter = null,
-        [FromQuery] bool all = false)
+        [FromQuery] bool all = false, [FromQuery] bool? appInstalled = null)
     {
-        var result = await Mediator.Send(new GetMembersQuery(search, unitId, teamId, noUnit, alumni, sortBy, sortDir, page, pageSize, maitrise, letter, all));
+        var result = await Mediator.Send(new GetMembersQuery(search, unitId, teamId, noUnit, alumni, sortBy, sortDir, page, pageSize, maitrise, letter, all, appInstalled));
         return Ok(result);
     }
 

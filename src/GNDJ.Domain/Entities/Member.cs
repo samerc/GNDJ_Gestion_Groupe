@@ -68,6 +68,11 @@ public class Member : BaseEntity
     // ["document","info"]). Muted types are excluded from the bell list + unread count. Null/empty = all on.
     public string? NotificationMutesJson { get; set; }
 
+    // PWA install (best-effort): set the FIRST time the member is detected running the app as an installed PWA
+    // (standalone launch, iOS + Android) or when the browser fires `appinstalled`. Null = installation not
+    // detected (which includes members who simply use the browser — there is no reliable "not installed" signal).
+    public DateTime? AppInstalledAt { get; set; }
+
     // Confirmed fratrie: members sharing a SiblingGroupId are brothers/sisters (set by the CG on the Fratries
     // page). Null = not (yet) grouped. See SiblingGroup.
     public Guid? SiblingGroupId { get; set; }

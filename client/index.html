@@ -3,8 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#1c2b4a" />
+    <!-- PWA: installable "app" on phone/desktop home screens (see lib/pwa.ts). -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="GNDJ Scout" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="description" content="Groupe scout Notre-Dame de Jamhour — au service de la jeunesse du Liban depuis 1935. Découvrez nos unités, nos actualités et rejoignez-nous." />
     <title>Groupe Notre-Dame de Jamhour</title>
     <!-- Static Open Graph / Twitter floor for social shares. Per-route pages refine title/description at
