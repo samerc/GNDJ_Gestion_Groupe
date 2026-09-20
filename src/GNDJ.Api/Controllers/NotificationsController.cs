@@ -1,4 +1,6 @@
+using GNDJ.Api.Authorization;
 using GNDJ.Application.Notifications;
+using GNDJ.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -67,5 +69,15 @@ public class NotificationsController : BaseApiController
     {
         var result = await Mediator.Send(new DeleteNotificationCommand(id));
         return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+    }
+
+    /// <summary>Send a targeted notification (in-app + Web Push) to chosen members / a unit / a member group.
+    /// Group-manager only (super-admin / Chef de Groupe / ACG). Returns the recipient count.</summary>
+    [HttpPost("send")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> Send([FromBody] SendPushNotificationCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return result.IsSuccess ? Ok(new { count = result.Value }) : BadRequest(new { error = result.Error });
     }
 }

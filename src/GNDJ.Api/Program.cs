@@ -92,6 +92,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<GNDJ.Api.Services.OutboxSenderBackgroundService>();
+builder.Services.AddHostedService<GNDJ.Api.Services.PushSenderBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.MemberPurgeBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.DocumentCampaignBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.RentreeReminderBackgroundService>();

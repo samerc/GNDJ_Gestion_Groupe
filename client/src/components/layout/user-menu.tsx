@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { LogOut, KeyRound, IdCard, MonitorSmartphone, FileText, Image as ImageIcon, Sparkles, Globe, Sun, Moon, Monitor, Users } from 'lucide-react'
 import { PwaInstallMenuItem } from '@/components/shared/pwa-install'
+import { PushToggleMenuItem } from '@/components/shared/push-toggle'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useThemeStore, type Theme } from '@/stores/theme-store'
@@ -244,6 +245,8 @@ export function UserMenu() {
           )}
           {/* "Installer l'application" (PWA) — self-hides when already installed or unsupported. */}
           <PwaInstallMenuItem />
+          {/* "Activer les notifications" (Web Push) — self-hides when the browser can't do push. */}
+          <PushToggleMenuItem />
           <DropdownMenuItem onClick={() => { setPasswordError(''); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); setChangePasswordOpen(true) }}>
             <KeyRound className="mr-2 h-4 w-4" />
             Modifier le mot de passe

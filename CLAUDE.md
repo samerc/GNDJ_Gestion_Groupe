@@ -5619,6 +5619,40 @@ across devices. Icons generated with PIL (navy gradient + white compass, no SVG 
   (`beforeinstallprompt`/`appinstalled`/standalone detection + the install button) need a real device to see —
   backend + build verified. Migration applies on prod startup. See [[project-pwa-install]].
 
+### Push notifications (Web Push) — targeted + auto, durable outbox (2026-09-20, DEV until deploy)
+The *point* of the PWA: notify members on their devices even when the app is closed. Built on the durable-outbox
+pattern (like email). **PILOT: gated to the maîtrise** (`usePwaEnabled` = `!useIsRegularMember`) — flip that hook
+to roll out to everyone. Migration `AddPushNotifications` applies on prod startup.
+- **Platform reality:** works on Android/desktop (Chrome/Edge/Firefox), and on **iOS 16.4+ ONLY for the installed
+  PWA** opened from the home screen (Safari tabs can't receive push) — which is *why* the install work matters.
+  Requires HTTPS + the user granting Notification permission. Needs **VAPID keys** (dev keys in `appsettings.json`
+  `WebPush:*`; PROD MUST override with its own pair in `appsettings.Production.json` — `npx web-push
+  generate-vapid-keys`; never change once members subscribe).
+- **Infra (mirrors the email outbox):** `PushSubscription` (one row per device, unique Endpoint, upsert-by-endpoint
+  so a shared browser re-owns) + `PushOutbox` (Pending→Sent/Failed, backoff retry) entities + configs + DbSets.
+  `IPushQueue`/`PushOutboxQueue` (singleton, durable enqueue + signal), `IPushSignal`/`PushSignal`,
+  `IWebPushSender`/`WebPushSender` (WebPush NuGet + VAPID; 404/410 → prune the dead subscription),
+  `PushSenderBackgroundService` (leases due rows, fans out to the member's subs, records outcome). Registered in
+  DI + Program.cs. **`WebPush 1.0.12` pulls a vulnerable `Newtonsoft.Json 10.0.3` (GHSA-5crp-9r3c-p9vr) → pinned
+  13.0.4 directly in Infrastructure to override it.**
+- **Auto-push:** `NotificationService` now injects `IPushQueue` and enqueues a push per member AFTER writing each
+  in-app notification row (all paths: NotifyMember(s)/GroupManagers/MemberLeaders). So every existing notification
+  (doc decision, change-request, demande, on-hold…) also pushes. Best-effort (never masks the in-app row).
+- **Targeted send (CG):** `SendPushNotificationCommand` (`POST /notifications/send`, maitrise.manage +
+  IsGroupManager) → recipients = UNION of explicit memberIds ∪ a unit's active members ∪ a member-group roster →
+  `NotifyMembers` (writes rows + pushes). Page `/admin/send-notification` "Envoyer une notification" (audience
+  toggle unité/groupe/membres + title/body/link), sidebar "Envoyer une notification" (Unités & maîtrise,
+  maitrise.manage).
+- **Client:** SW `push` + `notificationclick` handlers (public/sw.js; SW now registered in dev too — no caching);
+  `lib/push.ts` (subscribe/unsubscribe via `pushManager` + `POST /my-profile/push/subscribe|unsubscribe`, VAPID key
+  from `GET /my-profile/push/vapid-key`); `PushToggleMenuItem` ("Activer/Désactiver les notifications") in the
+  account menu. `SubscribePushCommand`/`UnsubscribePushCommand` (auth-only, own member, upsert by endpoint).
+- **Verified live** (temp passwords, restored): vapid-key returns the key+enabled; subscribe→204+row; targeted
+  send→count 1 + in-app notification row + push_outbox row that the sender picked up and attempted (failed only
+  because the endpoint was FAKE — a real browser subscription delivers). Build 0/0 + tsc/eslint/vite clean.
+- **PENDING = real-device test** (only a real browser/phone can complete the subscribe→deliver loop). PROD: set
+  `WebPush:*` VAPID keys in appsettings.Production.json before go-live. See [[project-pwa-install]].
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30)
 - [x] **Cotisation dashboard "payé" drill-down — DONE (2026-09-20, DEV until deploy, frontend-only).** The
       `/admin/cotisations` per-unit rows already reveal an "Ont payé" list (name → fiche, date, montants, receipt

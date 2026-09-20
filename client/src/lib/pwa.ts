@@ -141,9 +141,9 @@ export function initPwa(): void {
     void reportPwaInstall()
   })
 
-  // The service worker is only needed for installability (network passthrough, no caching). Register it in
-  // production builds only — in dev (Vite :5173) a SW just complicates hot-reload with no benefit.
-  if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  // Register the service worker (needed for installability AND Web Push). It does NO caching (pure network
+  // passthrough), so it's safe in dev too and doesn't interfere with Vite HMR — and push can be tested in dev.
+  if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js').catch(() => { /* SW is best-effort; ignore failures */ })
     })

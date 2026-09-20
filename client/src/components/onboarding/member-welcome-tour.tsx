@@ -10,6 +10,7 @@ import { useOnboardingTour } from '@/stores/onboarding-store'
 import { useContactReviewStore } from '@/stores/contact-review-store'
 import { isStandalone } from '@/lib/pwa'
 import { useInstallGuide } from '@/hooks/use-install-guide'
+import { usePwaEnabled } from '@/hooks/use-pwa-audience'
 import { PwaInstallGuide } from '@/components/shared/pwa-install'
 
 // First-login welcome tour for REGULAR MEMBERS (youth / parents) — a short, mobile-friendly carousel that
@@ -80,9 +81,11 @@ export function MemberWelcomeTour() {
 
   // Add the account-switch step only for a member who actually has confirmed siblings (else it's noise).
   const { data: siblings } = useSwitchAccounts(isRegularMember && !!user?.memberId)
-  // Add the install step only when the app isn't already installed AND this browser can install it.
+  // Add the install step only when the app isn't already installed AND this browser can install it — and only
+  // while the PWA is enabled for this user (pilot: maîtrise only, so regular members don't see it yet).
   const installGuide = useInstallGuide()
-  const showInstall = installGuide.supported && !isStandalone()
+  const pwaEnabled = usePwaEnabled()
+  const showInstall = pwaEnabled && installGuide.supported && !isStandalone()
   const steps = useMemo(() => {
     const base = siblings && siblings.length > 0 ? [...STEPS, SIBLING_STEP] : [...STEPS]
     return showInstall ? [...base, INSTALL_STEP] : base

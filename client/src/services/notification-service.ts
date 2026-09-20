@@ -75,6 +75,23 @@ export function useClearReadNotifications() {
   })
 }
 
+// POST /notifications/send — CG targeted send (in-app + Web Push) to members / a unit / a member group.
+// Returns the recipient count.
+export interface SendNotificationInput {
+  memberIds?: string[]
+  unitId?: string
+  memberGroupId?: string
+  title: string
+  body?: string
+  url?: string
+}
+export function useSendPushNotification() {
+  return useMutation({
+    mutationFn: (input: SendNotificationInput) =>
+      apiClient.post<{ count: number }>('/notifications/send', input).then(r => r.data),
+  })
+}
+
 // Preferences — the categories the user has MUTED (hidden from the bell + unread count).
 export function useNotificationPreferences(enabled: boolean) {
   return useQuery({

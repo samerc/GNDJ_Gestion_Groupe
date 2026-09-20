@@ -65,6 +65,7 @@ const SiblingsPage = lazy(() => import('@/pages/admin/siblings'))
 const ZeroDayAssignmentsPage = lazy(() => import('@/pages/admin/zero-day-assignments'))
 const MemberGroupsPage = lazy(() => import('@/pages/admin/member-groups'))
 const CommunicationsAccesPage = lazy(() => import('@/pages/admin/communications-acces'))
+const SendNotificationPage = lazy(() => import('@/pages/admin/send-notification'))
 const MissingLoginsPage = lazy(() => import('@/pages/admin/missing-logins'))
 const ManagedListsPage = lazy(() => import('@/pages/admin/managed-lists'))
 const CampPage = lazy(() => import('@/pages/camp'))
@@ -212,6 +213,7 @@ export default function App() {
             <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
               <Route path="/maitrises" element={<MaitrisesPage />} />
               <Route path="/admin/siblings" element={<SiblingsPage />} />
+              <Route path="/admin/send-notification" element={<SendNotificationPage />} />
               <Route path="/admin/zero-day-assignments" element={<ZeroDayAssignmentsPage />} />
               <Route path="/admin/member-groups" element={<MemberGroupsPage />} />
               <Route path="/admin/lists" element={<ManagedListsPage />} />

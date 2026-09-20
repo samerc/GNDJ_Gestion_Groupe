@@ -72,7 +72,15 @@ public static class DependencyInjection
         // Best-effort admin alerting on server/client errors (singleton: owns its own scope, never throws).
         services.AddSingleton<IErrorNotifier, ErrorNotifier>();
 
-        // Best-effort in-app notifications (singleton: owns its own scope, never throws).
+        // Web Push notifications + durable push outbox (mirrors the email outbox). Enqueuing persists a
+        // push_outbox row; the PushSenderBackgroundService (API host) fans it out to the member's devices via
+        // WebPushSender (VAPID). Singletons — stateless / own their own scope.
+        services.AddSingleton<IPushSignal, PushSignal>();
+        services.AddSingleton<IPushQueue, PushOutboxQueue>();
+        services.AddSingleton<IWebPushSender, WebPushSender>();
+
+        // Best-effort in-app notifications (singleton: owns its own scope, never throws). Also enqueues a Web
+        // Push per notification via IPushQueue.
         services.AddSingleton<INotificationService, NotificationService>();
 
         // Read-only access to Serilog's application_logs table for the super-admin error journal.

@@ -25,6 +25,10 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
     <PackageReference Include="QuestPDF" Version="2026.8.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
+    <PackageReference Include="WebPush" Version="1.0.12" />
+    <!-- WebPush 1.0.12 pulls in Newtonsoft.Json 10.0.3 (GHSA-5crp-9r3c-p9vr, high-severity DoS). Pin the
+         patched 13.0.4 directly (also satisfies EF Tools' >=13.0.4) so the vulnerable transitive is overridden. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 
   <PropertyGroup>

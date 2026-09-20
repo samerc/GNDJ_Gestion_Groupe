@@ -3,6 +3,7 @@ using GNDJ.Application.Guardians;
 using GNDJ.Application.Members.Commands.MyAppInstalled;
 using GNDJ.Application.Members.Commands.MyContacts;
 using GNDJ.Application.Members.Commands.MyOnboarding;
+using GNDJ.Application.Members.Commands.Push;
 using GNDJ.Application.Members.Commands.UpdateMyProfile;
 using GNDJ.Application.Members.Queries.MySwitchAccounts;
 using GNDJ.Application.Reports;
@@ -67,6 +68,20 @@ public class MyProfileController : BaseApiController
     /// Stamps Member.AppInstalledAt once (idempotent) so the CG can see who installed the app. Best-effort.</summary>
     [HttpPost("app-installed")]
     public async Task<IActionResult> AppInstalled() => Wrap(await Mediator.Send(new MarkAppInstalledCommand()));
+
+    /// <summary>The VAPID public key the client needs to subscribe to Web Push, + whether push is configured
+    /// on the server. Auth-only (the public key isn't secret, but this is only used by signed-in members).</summary>
+    [HttpGet("push/vapid-key")]
+    public IActionResult PushVapidKey([FromServices] GNDJ.Infrastructure.Services.IWebPushSender push)
+        => Ok(new { publicKey = push.PublicKey, enabled = push.IsConfigured });
+
+    /// <summary>Registers this device's Web Push subscription for the caller (enables notifications).</summary>
+    [HttpPost("push/subscribe")]
+    public async Task<IActionResult> PushSubscribe([FromBody] SubscribePushCommand command) => Wrap(await Mediator.Send(command));
+
+    /// <summary>Removes this device's Web Push subscription for the caller (disables notifications here).</summary>
+    [HttpPost("push/unsubscribe")]
+    public async Task<IActionResult> PushUnsubscribe([FromBody] UnsubscribePushCommand command) => Wrap(await Mediator.Send(command));
 
     /// <summary>Returns the caller's saved group-dashboard layout (JSON string, or null = default layout).</summary>
     [HttpGet("dashboard-layout")]

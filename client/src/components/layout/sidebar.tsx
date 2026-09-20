@@ -47,6 +47,7 @@ import {
   MessageSquare,
   UserPlus,
   CalendarClock,
+  BellRing,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
@@ -159,6 +160,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/siblings', label: 'Fratries', icon: Users, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/zero-day-assignments', label: 'Affectations à dater', icon: CalendarClock, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/communications-acces', label: 'Communications & accès', icon: Megaphone, permission: PERMISSIONS.MEMBERS_RESET_PASSWORD },
+      { path: '/admin/send-notification', label: 'Envoyer une notification', icon: BellRing, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/missing-logins', label: 'Comptes manquants', icon: UserPlus, permission: PERMISSIONS.MEMBERS_RESET_PASSWORD },
     ],
   },

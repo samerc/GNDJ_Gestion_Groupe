@@ -15,11 +15,13 @@ namespace GNDJ.Infrastructure.Services;
 public class NotificationService : INotificationService
 {
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IPushQueue _push;
     private readonly ILogger<NotificationService> _logger;
 
-    public NotificationService(IServiceScopeFactory scopeFactory, ILogger<NotificationService> logger)
+    public NotificationService(IServiceScopeFactory scopeFactory, IPushQueue push, ILogger<NotificationService> logger)
     {
         _scopeFactory = scopeFactory;
+        _push = push;
         _logger = logger;
     }
 
@@ -36,8 +38,17 @@ public class NotificationService : INotificationService
             var ctx = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
             Insert(ctx, ids, type, title, body, link);
             await ctx.SaveChangesAsync(ct);
+            await PushAsync(ids, type, title, body, link, ct); // fan out to devices (best-effort, after commit)
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Failed to write member notifications ({Type})", type); }
+    }
+
+    // Enqueue a Web Push for each notified member (durable outbox; never throws — a push failure must not mask
+    // the in-app notification which is already saved).
+    private async Task PushAsync(IEnumerable<Guid> ids, string type, string title, string? body, string? link, CancellationToken ct)
+    {
+        try { await _push.EnqueueManyAsync(ids.Select(id => new PushJob(id, type, title, body, link)), ct); }
+        catch (Exception ex) { _logger.LogWarning(ex, "Failed to enqueue push notifications ({Type})", type); }
     }
 
     public async Task NotifyGroupManagersAsync(string type, string title, string? body = null, string? link = null, Guid? excludeMemberId = null, CancellationToken ct = default)
@@ -52,6 +63,7 @@ public class NotificationService : INotificationService
             if (ids.Count == 0) return;
             Insert(ctx, ids, type, title, body, link);
             await ctx.SaveChangesAsync(ct);
+            await PushAsync(ids, type, title, body, link, ct);
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Failed to write group-manager notifications ({Type})", type); }
     }
@@ -78,6 +90,7 @@ public class NotificationService : INotificationService
             if (ids.Count == 0) return;
             Insert(ctx, ids, type, title, body, link);
             await ctx.SaveChangesAsync(ct);
+            await PushAsync(ids, type, title, body, link, ct);
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Failed to write leader notifications ({Type})", type); }
     }

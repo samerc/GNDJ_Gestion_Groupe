@@ -75,6 +75,8 @@ public interface IApplicationDbContext
     DbSet<SiblingReport> SiblingReports { get; }
     DbSet<Notification> Notifications { get; }
     DbSet<ContactMessage> ContactMessages { get; }
+    DbSet<PushSubscription> PushSubscriptions { get; }
+    DbSet<PushOutbox> PushOutbox { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

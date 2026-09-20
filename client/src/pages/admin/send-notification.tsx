@@ -1,0 +1,153 @@
+// CG tool: send a TARGETED notification (in-app bell + Web Push to devices) to a unit, a member group, or a
+// hand-picked set of members. Group-manager only. Recipients see it in their notification bell and — if they
+// enabled notifications on their device — as a push (even when the app is closed; on iPhone only when the app
+// is installed). Perm maitrise.manage.
+import { useState } from 'react'
+import { useUnits } from '@/services/unit-service'
+import { useMemberGroups } from '@/services/member-group-service'
+import { useSendPushNotification } from '@/services/notification-service'
+import { MemberPickerDialog } from '@/components/shared/member-picker-dialog'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { parseApiError } from '@/lib/error-utils'
+import { toast } from 'sonner'
+import { Bell, Plus, X, Send } from 'lucide-react'
+
+type Audience = 'unit' | 'group' | 'members'
+
+export default function SendNotificationPage() {
+  const [audience, setAudience] = useState<Audience>('unit')
+  const [unitId, setUnitId] = useState('')
+  const [groupId, setGroupId] = useState('')
+  const [members, setMembers] = useState<{ id: string; name: string }[]>([])
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [title, setTitle] = useState('')
+  const [body, setBody] = useState('')
+  const [url, setUrl] = useState('')
+
+  const { data: units } = useUnits({ isActive: true, pageSize: 100 })
+  const { data: groups } = useMemberGroups()
+  const send = useSendPushNotification()
+
+  const addMember = (m: { id: string; name: string }) => {
+    setMembers((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]))
+    setPickerOpen(false)
+  }
+
+  const audienceReady =
+    (audience === 'unit' && !!unitId) ||
+    (audience === 'group' && !!groupId) ||
+    (audience === 'members' && members.length > 0)
+
+  const submit = async () => {
+    if (!title.trim()) { toast.error('Le titre est requis.'); return }
+    if (!audienceReady) { toast.error('Choisissez les destinataires.'); return }
+    try {
+      const res = await send.mutateAsync({
+        title: title.trim(),
+        body: body.trim() || undefined,
+        url: url.trim() || undefined,
+        unitId: audience === 'unit' ? unitId : undefined,
+        memberGroupId: audience === 'group' ? groupId : undefined,
+        memberIds: audience === 'members' ? members.map((m) => m.id) : undefined,
+      })
+      toast.success(`Notification envoyée à ${res.count} destinataire(s)`)
+      setTitle(''); setBody(''); setUrl('')
+    } catch (e) {
+      toast.error(parseApiError(e))
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Bell className="h-6 w-6" />Envoyer une notification</h1>
+        <p className="mt-1 text-sm text-muted-foreground max-w-prose">
+          Envoie une notification aux membres choisis. Elle apparaît dans leur cloche de notifications et, s'ils ont
+          activé les notifications sur leur appareil, sous forme de notification poussée (même application fermée ;
+          sur iPhone uniquement si l'application est installée).
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Destinataires</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="inline-flex rounded-md border p-0.5 text-sm">
+            {([['unit', 'Une unité'], ['group', 'Un groupe'], ['members', 'Membres choisis']] as const).map(([v, label]) => (
+              <button key={v} type="button" onClick={() => setAudience(v)}
+                className={`rounded px-3 py-1 font-medium transition-colors ${audience === v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {audience === 'unit' && (
+            <Select value={unitId} onValueChange={setUnitId}>
+              <SelectTrigger><SelectValue placeholder="Choisir une unité" /></SelectTrigger>
+              <SelectContent>
+                {units?.items.map((u) => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+
+          {audience === 'group' && (
+            <Select value={groupId} onValueChange={setGroupId}>
+              <SelectTrigger><SelectValue placeholder="Choisir un groupe" /></SelectTrigger>
+              <SelectContent>
+                {groups?.map((g) => <SelectItem key={g.id} value={g.id}>{g.name} ({g.memberCount})</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+
+          {audience === 'members' && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-1.5">
+                {members.map((m) => (
+                  <span key={m.id} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-sm">
+                    {m.name}
+                    <button type="button" onClick={() => setMembers((p) => p.filter((x) => x.id !== m.id))} className="text-muted-foreground hover:text-foreground">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+                {members.length === 0 && <span className="text-sm text-muted-foreground">Aucun membre choisi.</span>}
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
+                <Plus className="mr-1 h-4 w-4" />Ajouter un membre
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Message</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Titre</label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={300} placeholder="Ex. : Réunion annulée demain" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Message <span className="font-normal text-muted-foreground">(optionnel)</span></label>
+            <textarea className="flex min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={body} onChange={(e) => setBody(e.target.value)} maxLength={2000} placeholder="Détails de la notification…" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Lien <span className="font-normal text-muted-foreground">(optionnel — page ouverte au clic)</span></label>
+            <Input value={url} onChange={(e) => setUrl(e.target.value)} maxLength={500} placeholder="/my-documents" />
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={submit} disabled={send.isPending || !title.trim() || !audienceReady}>
+              <Send className="mr-1.5 h-4 w-4" />{send.isPending ? 'Envoi…' : 'Envoyer'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <MemberPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} onPick={addMember}
+        title="Ajouter un destinataire" description="Recherchez un membre à notifier." />
+    </div>
+  )
+}
