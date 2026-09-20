@@ -44,4 +44,7 @@ public class SiblingReport : BaseEntity
     public string Status { get; set; } = "Pending";
     public Guid? ResolvedByUserId { get; set; }
     public DateTime? ResolvedAt { get; set; }
+    // The CG's reply to the member (optional) — set when a manager answers the report; also sent to the
+    // member as an in-app notification. Kept so the reply stays visible on the Signalements card afterwards.
+    public string? ReplyMessage { get; set; }
 }

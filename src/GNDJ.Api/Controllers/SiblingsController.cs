@@ -118,6 +118,18 @@ public class SiblingsController : BaseApiController
         return NoContent();
     }
 
+    public record ReplyReportRequest(string Message);
+
+    /// <summary>Reply to a fratrie report: notify the member (bell/push) + mark it resolved. Requires maitrise.manage.</summary>
+    [HttpPost("reports/{id:guid}/reply")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> ReplyReport(Guid id, [FromBody] ReplyReportRequest req)
+    {
+        var result = await Mediator.Send(new ReplySiblingReportCommand(id, req.Message));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     // ── Duplicate members ("Doublons" tab): same name + same DOB = likely the same person entered twice ──
 
     /// <summary>Suggested duplicate members. Match keys are configurable via `keys` (lastName,firstName,dob,gender,nationality,school; default = name+DOB). Requires maitrise.manage.</summary>

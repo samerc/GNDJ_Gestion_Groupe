@@ -121,6 +121,7 @@ export interface SiblingReport {
   status: string // "Pending" | "Resolved"
   createdAt: string
   resolvedAt: string | null
+  replyMessage: string | null // the CG's reply to the member (if answered)
 }
 
 // POST /siblings/report → a member reports a fratrie problem (auth-only, own member server-side).
@@ -144,6 +145,16 @@ export function useResolveSiblingReport() {
   return useMutation({
     mutationFn: ({ id, resolve = true }: { id: string; resolve?: boolean }) =>
       apiClient.post(`/siblings/reports/${id}/resolve`, null, { params: { resolve } }).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['siblings', 'reports'] }),
+  })
+}
+
+// POST /siblings/reports/{id}/reply → answer the member (bell/push) + mark the report resolved.
+export function useReplySiblingReport() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, message }: { id: string; message: string }) =>
+      apiClient.post(`/siblings/reports/${id}/reply`, { message }).then((r) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['siblings', 'reports'] }),
   })
 }

@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-21",
+        "text": "Fratries — signalements : on peut désormais RÉPONDRE à un membre qui a signalé une erreur de fratrie (bouton « Répondre »). La réponse lui arrive dans ses notifications (cloche, et sur son téléphone s'il a activé les notifications) et le signalement est marqué résolu. La réponse envoyée reste visible sur la carte du signalement."
+      },
+      {
+        "date": "2026-09-21",
         "text": "Installer l'application — dans les instructions d'installation, les boutons/menus du navigateur à cliquer sont désormais affichés en anglais ET en français (ex. « Apps (Applications) » → « Install this site as an app (Installer ce site en tant qu'application) »), car le navigateur du parent peut être en anglais."
       },
       {

@@ -5444,6 +5444,13 @@ applies on prod startup; build 0/0, tsc+eslint+vite clean).
   migration; removed from the entity, DTO `SiblingGroupDto`, `GetSiblingGroupsQuery`, and the
   `ApproveSiblingGroup` handler which used to clear it). The core feature stays: suggestions, confirm/reconcile
   (`SiblingReconcileSheet`), link/unlink, Signalements, Doublons.
+- **Signalements — reply to the member (2026-09-21, DEV until deploy):** a manager can now ANSWER a fratrie report
+  (before, the Signalements tab only had Résolu/Rouvrir — the member got no response). `SiblingReport.ReplyMessage`
+  (migration `AddSiblingReportReply`) + `ReplySiblingReportCommand` + `POST /siblings/reports/{id}/reply`
+  (maitrise.manage): sets the reply, marks the report Resolved, and `INotificationService.NotifyMemberAsync`s the
+  reporter (bell + push if enabled, link `/my-profile`). Frontend: a "Répondre" button on each Signalements card →
+  a dialog (textarea, prefilled with any existing reply); the sent reply is shown on the card
+  ("Votre réponse : …"). `useReplySiblingReport`; `SiblingReportDto`/type gained `ReplyMessage`.
 - **Doublons — "Ce ne sont pas des doublons" button** (per group, next to Fusionner): tombstones the group's
   member pairs so detection never re-flags them (mirrors the sibling "reject"). New entity
   **`MemberDuplicateRejection`** (normalized pair A<B, unique index; table `member_duplicate_rejections`) + DbSet +

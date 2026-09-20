@@ -16,7 +16,7 @@ namespace GNDJ.Application.Siblings;
 // Members flag; the CG resolves. The reporter is always the authenticated member (server-side) → no IDOR.
 
 public record SiblingReportDto(Guid Id, Guid ReporterMemberId, string ReporterName, string? ReporterUnit,
-    string Kind, string? Note, string Status, DateTime CreatedAt, DateTime? ResolvedAt);
+    string Kind, string? Note, string Status, DateTime CreatedAt, DateTime? ResolvedAt, string? ReplyMessage);
 
 // The kinds a member can pick. Keep in sync with the frontend labels in member-siblings.tsx.
 public static class SiblingReportKinds
@@ -91,7 +91,7 @@ public class GetSiblingReportsQueryHandler(IApplicationDbContext context)
                 (context.Members.Where(m => m.Id == r.ReporterMemberId).Select(m => m.FirstName + " " + m.LastName).FirstOrDefault() ?? "").Trim(),
                 context.Members.Where(m => m.Id == r.ReporterMemberId)
                     .Select(m => m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault()).FirstOrDefault(),
-                r.Kind, r.Note, r.Status, r.CreatedAt, r.ResolvedAt))
+                r.Kind, r.Note, r.Status, r.CreatedAt, r.ResolvedAt, r.ReplyMessage))
             .ToListAsync(ct);
     }
 }
@@ -120,6 +120,44 @@ public class ResolveSiblingReportCommandHandler(IApplicationDbContext context, I
             report.ResolvedAt = null;
         }
         await context.SaveChangesAsync(ct);
+        return Result<bool>.Success(true);
+    }
+}
+
+// ── Reply (CG answers the member) ──────────────────────────────────────────────────
+// A manager answers a fratrie report: the message lands in the member's notification bell (and as a push
+// notification if they enabled it), and the report is marked resolved. Gated by maitrise.manage at the controller.
+public record ReplySiblingReportCommand(Guid Id, string Message) : IRequest<Result<bool>>;
+
+public class ReplySiblingReportCommandValidator : AbstractValidator<ReplySiblingReportCommand>
+{
+    public ReplySiblingReportCommandValidator()
+    {
+        RuleFor(x => x.Message).NotEmpty().WithMessage("Le message est requis.").MaximumLength(2000).NoHtml();
+    }
+}
+
+public class ReplySiblingReportCommandHandler(
+    IApplicationDbContext context, ICurrentUserService currentUser, INotificationService notifications)
+    : IRequestHandler<ReplySiblingReportCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(ReplySiblingReportCommand request, CancellationToken ct)
+    {
+        var report = await context.SiblingReports.FirstOrDefaultAsync(r => r.Id == request.Id, ct);
+        if (report is null) return Result<bool>.Failure("Signalement introuvable.");
+
+        var message = request.Message.Trim();
+        report.ReplyMessage = message;
+        report.Status = "Resolved";           // answering closes the report
+        report.ResolvedByUserId = currentUser.UserId;
+        report.ResolvedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync(ct);
+
+        // Notify the member who reported it (bell + push if enabled). Best-effort, after the commit; the member
+        // sees it on their own fiche (Contact & famille section) via /my-profile.
+        await notifications.NotifyMemberAsync(report.ReporterMemberId, NotificationTypes.Info,
+            "Réponse à votre signalement de fratrie", message, "/my-profile", ct);
+
         return Result<bool>.Success(true);
     }
 }

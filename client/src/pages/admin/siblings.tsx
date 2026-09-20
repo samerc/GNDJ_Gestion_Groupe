@@ -5,7 +5,7 @@ import {
   useSiblingSuggestions, useSiblingGroups,
   useRejectSiblingSuggestion, useUnlinkSibling,
   useDuplicateSuggestions, useMergeMembers, useRejectDuplicateMembers, DUPLICATE_MATCH_KEYS,
-  useSiblingReports, useResolveSiblingReport,
+  useSiblingReports, useResolveSiblingReport, useReplySiblingReport,
   type SiblingSuggestion,
   type DuplicateGroup, type DuplicateMember, type MemberMergeFields,
   type SiblingReport,
@@ -301,10 +301,23 @@ function ReportsTab() {
   const [includeResolved, setIncludeResolved] = useState(false)
   const { data: reports, isLoading } = useSiblingReports(includeResolved)
   const resolve = useResolveSiblingReport()
+  const reply = useReplySiblingReport()
+  // "Répondre" dialog: send the reporter a message (bell/push) — this also marks the report resolved.
+  const [replyTarget, setReplyTarget] = useState<SiblingReport | null>(null)
+  const [replyText, setReplyText] = useState('')
 
   const doResolve = async (r: SiblingReport, on: boolean) => {
     try { await resolve.mutateAsync({ id: r.id, resolve: on }); toast.success(on ? 'Signalement résolu' : 'Signalement rouvert') }
     catch (e) { toast.error(parseApiError(e)) }
+  }
+
+  const doReply = async () => {
+    if (!replyTarget || !replyText.trim()) return
+    try {
+      await reply.mutateAsync({ id: replyTarget.id, message: replyText.trim() })
+      toast.success('Réponse envoyée au membre')
+      setReplyTarget(null); setReplyText('')
+    } catch (e) { toast.error(parseApiError(e)) }
   }
 
   return (
@@ -336,16 +349,52 @@ function ReportsTab() {
                         {r.status === 'Resolved' && <Badge className="bg-emerald-600 text-[11px]">Résolu</Badge>}
                       </div>
                       {r.note && <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{r.note}</p>}
+                      {r.replyMessage && (
+                        <p className="mt-1.5 whitespace-pre-line rounded-md border-l-2 border-primary/40 bg-muted/40 px-2 py-1 text-sm">
+                          <span className="font-medium text-primary">Votre réponse : </span>{r.replyMessage}
+                        </p>
+                      )}
                       <p className="mt-1 text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                     </div>
-                    {r.status === 'Resolved'
-                      ? <Button size="sm" variant="ghost" onClick={() => doResolve(r, false)} disabled={resolve.isPending}>Rouvrir</Button>
-                      : <Button size="sm" variant="outline" onClick={() => doResolve(r, true)} disabled={resolve.isPending}><Check className="mr-1 h-4 w-4" />Résolu</Button>}
+                    <div className="flex shrink-0 flex-col gap-1.5">
+                      <Button size="sm" variant="outline" onClick={() => { setReplyTarget(r); setReplyText(r.replyMessage ?? '') }}>
+                        <Mail className="mr-1 h-4 w-4" />Répondre
+                      </Button>
+                      {r.status === 'Resolved'
+                        ? <Button size="sm" variant="ghost" onClick={() => doResolve(r, false)} disabled={resolve.isPending}>Rouvrir</Button>
+                        : <Button size="sm" variant="ghost" onClick={() => doResolve(r, true)} disabled={resolve.isPending}><Check className="mr-1 h-4 w-4" />Résolu</Button>}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           )}
+
+      <Dialog open={!!replyTarget} onOpenChange={(o) => { if (!o) { setReplyTarget(null); setReplyText('') } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Répondre au signalement</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Votre message sera envoyé à {replyTarget?.reporterName || 'ce membre'} (notification dans l'application, et sur son téléphone s'il a activé les notifications). Le signalement sera marqué résolu.
+          </p>
+          {replyTarget?.note && (
+            <p className="whitespace-pre-line rounded-md bg-muted/40 p-2 text-sm text-muted-foreground">« {replyTarget.note} »</p>
+          )}
+          <textarea
+            className="min-h-24 w-full rounded-md border bg-background p-2 text-sm"
+            placeholder="Votre réponse au membre…"
+            value={replyText}
+            onChange={(e) => setReplyText(e.target.value)}
+            maxLength={2000}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setReplyTarget(null); setReplyText('') }}>Annuler</Button>
+            <Button onClick={doReply} disabled={reply.isPending || !replyText.trim()}>
+              <Mail className="mr-1 h-4 w-4" />Envoyer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
