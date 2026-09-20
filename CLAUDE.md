@@ -5530,6 +5530,19 @@ exported, emailed to admin + CG, and cleared**. Made it AUTOMATIC on year rollov
   a `--no-build` run trips EF's runtime `PendingModelChangesWarning` (not real drift). Also updated the global
   `dotnet-ef` tool to match the runtime (10.0.12).
 
+### Data-cleanup batch — orphan logins, zero-day page, disable-login, parents-situation (2026-09-20, DEV until deploy)
+Worked the deferred "Data cleanup" pending items with the user.
+- **Orphan logins disabled** — data patch `022_disable_orphan_logins.sql`: disable the login of members with an
+  active account but NO assignment who NEVER signed in (excludes super-admins). Dev: 51 disabled (backup
+  `_bak_orphan_logins_20260920`); reversible via the panel toggle. The only logged-in orphans left are the 2
+  super-admins (Admin Système + the human super-admin) — correct.
+- **"Affectations à dater" page** (`/admin/zero-day-assignments`, sidebar Unités & maîtrise, maitrise.manage) — a
+  CG review worklist for **zero-day** assignments (`start_date == end_date`, 1-day WEBDEV migration markers with an
+  unknown real duration; ~199 on dev). `GetZeroDayAssignmentsQuery` + `GET /assignments/zero-day` (IsGroupManager).
+  Per row (member→fiche, unit/role, date, actif/ancien badge): **Dater** (dialog → UpdateAssignment with real
+  start+end, end>start → drops off the list) or **Supprimer** (single + bulk). Reuses the existing update/delete
+  endpoints. Member fiches untouched.
+
 ### Disable/enable member login + parents-situation backfill (2026-09-20, DEV until deploy)
 Two data-cleanup items from the pending list.
 - **Disable/enable a member's login without deleting the member.** New `SetMemberLoginActiveCommand` +

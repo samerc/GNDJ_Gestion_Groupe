@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-20",
+        "text": "Nouvelle page « Affectations à dater » (menu Unités & maîtrise, chef de groupe) : liste les affectations d'un seul jour (date de début = date de fin, marqueurs issus de la migration où la durée réelle est inconnue). Pour chacune, on peut corriger les dates ou la supprimer (suppression individuelle ou en lot). Les fiches des membres ne sont pas touchées."
+      },
+      {
+        "date": "2026-09-20",
         "text": "Nettoyage — les comptes « orphelins » (connexion active mais aucune affectation et jamais utilisés) ont été désactivés (51 comptes) ; ils restent réactivables à tout moment depuis la fiche membre. Les super-administrateurs sont préservés."
       },
       {

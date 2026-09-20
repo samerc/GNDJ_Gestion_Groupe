@@ -62,6 +62,7 @@ const AttendancePage = lazy(() => import('@/pages/attendance/index'))
 const RentreeTemplatePage = lazy(() => import('@/pages/admin/rentree-template'))
 const MaitrisesPage = lazy(() => import('@/pages/maitrises'))
 const SiblingsPage = lazy(() => import('@/pages/admin/siblings'))
+const ZeroDayAssignmentsPage = lazy(() => import('@/pages/admin/zero-day-assignments'))
 const MemberGroupsPage = lazy(() => import('@/pages/admin/member-groups'))
 const CommunicationsAccesPage = lazy(() => import('@/pages/admin/communications-acces'))
 const MissingLoginsPage = lazy(() => import('@/pages/admin/missing-logins'))
@@ -211,6 +212,7 @@ export default function App() {
             <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
               <Route path="/maitrises" element={<MaitrisesPage />} />
               <Route path="/admin/siblings" element={<SiblingsPage />} />
+              <Route path="/admin/zero-day-assignments" element={<ZeroDayAssignmentsPage />} />
               <Route path="/admin/member-groups" element={<MemberGroupsPage />} />
               <Route path="/admin/lists" element={<ManagedListsPage />} />
             </Route>

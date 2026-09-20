@@ -36,6 +36,15 @@ public class AssignmentsController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>
+    /// Lists "zero-day" assignments (start_date == end_date, 1-day migration markers) for the CG cleanup page,
+    /// so each can be deleted or given real dates. Group manager only (maitrise.manage / super-admin).
+    /// </summary>
+    [HttpGet("zero-day")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> GetZeroDay()
+        => Ok(await Mediator.Send(new GetZeroDayAssignmentsQuery()));
+
     /// <summary>Creates an assignment. Requires assignments.create.</summary>
     [ProducesResponseType(201)]
     [HttpPost]

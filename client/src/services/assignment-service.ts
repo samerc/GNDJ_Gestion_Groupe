@@ -47,6 +47,32 @@ export function useAssignments(params: { memberId?: string; unitId?: string; tea
   })
 }
 
+// "Zero-day" assignment = start_date == end_date (a 1-day migration marker with an unknown real duration). The
+// CG cleanup page lists these to delete the spurious ones or give them real dates. Keyed ['assignments','zeroDay'].
+export interface ZeroDayAssignment {
+  id: string
+  memberId: string
+  memberName: string
+  cardNumber: string | null
+  unitId: string
+  unitCode: string
+  unitName: string
+  teamId: string | null
+  teamName: string | null
+  roleId: string
+  roleName: string
+  date: string
+  memberHasActiveAssignment: boolean
+}
+
+export function useZeroDayAssignments(enabled = true) {
+  return useQuery({
+    queryKey: ['assignments', 'zeroDay'],
+    queryFn: () => apiClient.get<ZeroDayAssignment[]>('/assignments/zero-day').then(r => r.data),
+    enabled,
+  })
+}
+
 // Functional roles for the assignment "Fonction" picker (GET /functional-roles); optional unitTypeId. Keyed ['functionalRoles', unitTypeId ?? 'all'].
 export function useFunctionalRoles(unitTypeId?: string) {
   return useQuery({
