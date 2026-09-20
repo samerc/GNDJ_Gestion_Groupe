@@ -3,32 +3,78 @@
 // is the single record page: it edits the core fields inline and hosts the functions/stages/badges tabs.
 // This screen is just the searchable list + delete.
 import { parseApiError } from '@/lib/error-utils'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { cn } from '@/lib/utils'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useUnitTypes, useDeleteUnitType, type UnitTypeDto } from '@/services/unit-type-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { Plus, Trash2, Search, FolderTree, X } from 'lucide-react'
+import { Plus, Trash2, Search, FolderTree, X, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
+
+// Sortable columns for the Types d'unité list.
+type SortKey = 'name' | 'code' | 'years' | 'units'
+const SORT_LABELS: Record<SortKey, string> = { name: 'Nom', code: 'Code', years: "Nombre d'années", units: 'Unités' }
+
+// Clickable sort header (module scope so it's a stable component — the React-Compiler eslint rule forbids
+// defining components inside render). Shows an up/down arrow on the active column.
+function SortHead({ label, k, sortBy, sortDir, onSort, className }: {
+  label: string; k: SortKey; sortBy: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void; className?: string
+}) {
+  const active = sortBy === k
+  return (
+    <TableHead className={cn('cursor-pointer select-none whitespace-nowrap', className)} onClick={() => onSort(k)}>
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {active ? (sortDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />)
+          : <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />}
+      </span>
+    </TableHead>
+  )
+}
 
 export default function UnitTypesPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
-  const [page, setPage] = useState(1)
   const [deleting, setDeleting] = useState<UnitTypeDto | null>(null)
+  const [sortBy, setSortBy] = useState<SortKey>('name')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
-  const { data, isLoading } = useUnitTypes({ search: debouncedSearch || undefined, page })
+  // Unit types are a small fixed set (~10), so fetch them all on one page and sort client-side.
+  const { data, isLoading } = useUnitTypes({ search: debouncedSearch || undefined, pageSize: 100 })
   const deleteMutation = useDeleteUnitType()
 
   // Latch so the search box survives a 0-result filter (see associations.tsx).
   const showSearch = !!search || !!(data && data.totalCount > 0)
+
+  const toggleSort = (k: SortKey) => {
+    if (sortBy === k) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortBy(k); setSortDir('asc') }
+  }
+
+  const sorted = useMemo(() => {
+    const items = data?.items ? [...data.items] : []
+    const dir = sortDir === 'asc' ? 1 : -1
+    items.sort((a, b) => {
+      switch (sortBy) {
+        case 'code': return dir * a.code.localeCompare(b.code, 'fr')
+        case 'years': return dir * ((a.numberOfYears ?? 0) - (b.numberOfYears ?? 0))
+        case 'units': return dir * (a.unitCount - b.unitCount)
+        default: return dir * a.name.localeCompare(b.name, 'fr')
+      }
+    })
+    return items
+  }, [data, sortBy, sortDir])
+
+  const yearsLabel = (n: number | null) => (n ? `${n} an${n > 1 ? 's' : ''}` : '—')
 
   const openCreate = () => navigate('/admin/unit-types/new')
 
@@ -55,23 +101,42 @@ export default function UnitTypesPage() {
         </Button>
       </div>
 
-      {showSearch && (
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            className="pl-9 pr-9"
-          />
-          {search && (
-            <button type="button" onClick={() => { setSearch(''); setPage(1) }} aria-label="Effacer la recherche"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-              <X className="h-4 w-4" />
-            </button>
-          )}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        {showSearch && (
+          <div className="relative w-full sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 pr-9"
+            />
+            {search && (
+              <button type="button" onClick={() => setSearch('')} aria-label="Effacer la recherche"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        )}
+        {/* Mobile: sort picker (the cards have no clickable headers). Desktop sorts via the table headers. */}
+        <div className="flex items-center gap-2 md:hidden">
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
+            <SelectTrigger className="h-9 flex-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(Object.keys(SORT_LABELS) as SortKey[]).map(k => (
+                <SelectItem key={k} value={k}>Trier par {SORT_LABELS[k].toLowerCase()}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Tip content={sortDir === 'asc' ? 'Ordre croissant' : 'Ordre décroissant'}>
+            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0"
+              onClick={() => setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))} aria-label="Inverser l'ordre">
+              {sortDir === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+            </Button>
+          </Tip>
         </div>
-      )}
+      </div>
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -84,20 +149,21 @@ export default function UnitTypesPage() {
         />
       ) : (
         <>
-          <div className="rounded-lg border">
+          {/* Desktop: sortable table (hidden on mobile). */}
+          <div className="hidden rounded-lg border md:block">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Nombre d'années</TableHead>
+                  <SortHead label="Nom" k="name" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortHead label="Code" k="code" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
+                  <SortHead label="Nombre d'années" k="years" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} />
                   <TableHead>Description</TableHead>
-                  <TableHead className="text-center">Unités</TableHead>
+                  <SortHead label="Unités" k="units" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} className="text-center" />
                   <TableHead className="w-24" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.items.map((item) => (
+                {sorted.map((item) => (
                   // Whole row opens the detail page; the action cell stops propagation so its buttons don't navigate
                   <TableRow key={item.id} className="cursor-pointer" onClick={() => navigate(`/admin/unit-types/${item.id}`)}>
                     <TableCell className="font-medium">
@@ -107,7 +173,7 @@ export default function UnitTypesPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{item.code}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.numberOfYears ? `${item.numberOfYears} an${item.numberOfYears > 1 ? 's' : ''}` : '—'}</TableCell>
+                    <TableCell className="text-muted-foreground">{yearsLabel(item.numberOfYears)}</TableCell>
                     <TableCell className="text-muted-foreground max-w-xs truncate">{item.description ?? '—'}</TableCell>
                     <TableCell className="text-center">{item.unitCount}</TableCell>
                     <TableCell>
@@ -123,24 +189,34 @@ export default function UnitTypesPage() {
             </Table>
           </div>
 
-          {data.totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                {data.totalCount} résultat{data.totalCount > 1 ? 's' : ''}
-              </p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={!data.hasPreviousPage} onClick={() => setPage(p => p - 1)}>
-                  Précédent
-                </Button>
-                <span className="flex items-center text-sm text-muted-foreground">
-                  Page {data.page} / {data.totalPages}
-                </span>
-                <Button variant="outline" size="sm" disabled={!data.hasNextPage} onClick={() => setPage(p => p + 1)}>
-                  Suivant
-                </Button>
+          {/* Mobile: card list (the table's columns don't fit a phone). Tap a card to open the type. */}
+          <div className="space-y-2 md:hidden">
+            {sorted.map((item) => (
+              <div key={item.id} onClick={() => navigate(`/admin/unit-types/${item.id}`)}
+                className="cursor-pointer rounded-lg border p-3 active:bg-muted/60">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 font-medium">
+                      {item.color && <span className="h-3 w-3 shrink-0 rounded-full border" style={{ backgroundColor: item.color }} />}
+                      <span className="truncate">{item.name}</span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                      <span>{item.code}</span>
+                      <span aria-hidden>·</span>
+                      <span>{yearsLabel(item.numberOfYears)}</span>
+                      <span aria-hidden>·</span>
+                      <span>{item.unitCount} unité{item.unitCount > 1 ? 's' : ''}</span>
+                    </div>
+                    {item.description && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>}
+                  </div>
+                  <Button variant="ghost" size="icon" className="-mr-1 shrink-0"
+                    onClick={(e) => { e.stopPropagation(); setDeleting(item) }} aria-label="Supprimer">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
         </>
       )}
 
