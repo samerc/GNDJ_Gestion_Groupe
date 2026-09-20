@@ -201,19 +201,22 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
           </div>
           {phoneRows.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
             <div className="space-y-1.5">{phoneRows.map(r => (
-              <div key={`${r.owner}:${r.id}`} className="flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-sm">
-                <div className="min-w-0 flex-1">
+              <div key={`${r.owner}:${r.id}`} className="flex flex-wrap items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-sm">
+                <div className="min-w-0 flex-1 max-sm:basis-full">
                   <span className="font-medium">{formatPhoneDisplay(r.cc, r.number)}</span>
                   <span className="ml-2 text-xs text-muted-foreground">{r.ownerLabel}</span>
                 </div>
-                {r.isPrimary && <Badge variant="outline" className="h-5 shrink-0 text-[10px]">Principal</Badge>}
-                {r.urgence && <Badge variant="destructive" className="h-5 shrink-0 text-[10px]">Urgence</Badge>}
-                {!selfService && <CopyButton value={formatPhoneDisplay(r.cc, r.number)} label="Copier le numéro" />}
-                {!selfService && <WhatsappLink countryCode={r.cc} number={r.number} />}
-                {editable && <>
-                  <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" onClick={() => setPhoneEdit({ id: r.id, owner: r.owner, countryCode: r.cc, number: r.number, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
-                  <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" onClick={() => setDel({ kind: 'phone', owner: r.owner, id: r.id, label: formatPhoneDisplay(r.cc, r.number) })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
-                </>}
+                {/* Badges + actions grouped so they wrap to their own right-aligned line on mobile (was crowding the number). */}
+                <div className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:justify-end">
+                  {r.isPrimary && <Badge variant="outline" className="h-5 text-[10px]">Principal</Badge>}
+                  {r.urgence && <Badge variant="destructive" className="h-5 text-[10px]">Urgence</Badge>}
+                  {!selfService && <CopyButton value={formatPhoneDisplay(r.cc, r.number)} label="Copier le numéro" />}
+                  {!selfService && <WhatsappLink countryCode={r.cc} number={r.number} />}
+                  {editable && <>
+                    <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setPhoneEdit({ id: r.id, owner: r.owner, countryCode: r.cc, number: r.number, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
+                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setDel({ kind: 'phone', owner: r.owner, id: r.id, label: formatPhoneDisplay(r.cc, r.number) })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
+                  </>}
+                </div>
               </div>
             ))}</div>
           )}
@@ -229,18 +232,21 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
             <div className="space-y-1.5">{emailRows.map(r => {
               const isPrimary = !!member.primaryContactEmail && member.primaryContactEmail.toLowerCase() === r.address.toLowerCase()
               return (
-                <div key={`${r.owner}:${r.id}`} className="flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-sm">
-                  <div className="min-w-0 flex-1">
+                <div key={`${r.owner}:${r.id}`} className="flex flex-wrap items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-sm">
+                  <div className="min-w-0 flex-1 max-sm:basis-full">
                     <span className="break-all font-medium">{r.address}</span>
                     <span className="ml-2 text-xs text-muted-foreground">{r.ownerLabel}</span>
                   </div>
-                  {isPrimary && <Badge className="h-5 shrink-0 gap-0.5 text-[10px]"><Star className="h-2.5 w-2.5 fill-current" />Principal</Badge>}
-                  {r.urgence && <Badge variant="destructive" className="h-5 shrink-0 text-[10px]">Urgence</Badge>}
-                  {!selfService && <CopyButton value={r.address} label="Copier le courriel" />}
-                  {editable && <>
-                    <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" onClick={() => setEmailEdit({ id: r.id, owner: r.owner, origAddress: r.address, address: r.address, isPrimary: false, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
-                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" onClick={() => setDel({ kind: 'email', owner: r.owner, id: r.id, label: r.address })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
-                  </>}
+                  {/* Badges + actions grouped so they wrap to their own line on mobile. */}
+                  <div className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:justify-end">
+                    {isPrimary && <Badge className="h-5 gap-0.5 text-[10px]"><Star className="h-2.5 w-2.5 fill-current" />Principal</Badge>}
+                    {r.urgence && <Badge variant="destructive" className="h-5 text-[10px]">Urgence</Badge>}
+                    {!selfService && <CopyButton value={r.address} label="Copier le courriel" />}
+                    {editable && <>
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setEmailEdit({ id: r.id, owner: r.owner, origAddress: r.address, address: r.address, isPrimary: false, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setDel({ kind: 'email', owner: r.owner, id: r.id, label: r.address })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
+                    </>}
+                  </div>
                 </div>
               )
             })}</div>
@@ -255,17 +261,19 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
           </div>
           {member.addresses.length === 0 ? <p className="text-sm text-muted-foreground">Aucune</p> : (
             <div className="space-y-1.5">{member.addresses.map(a => (
-              <div key={a.id} className="flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-sm">
-                <div className="min-w-0 flex-1">
+              <div key={a.id} className="flex flex-wrap items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-sm">
+                <div className="min-w-0 flex-1 max-sm:basis-full">
                   <span className="font-medium">{a.city}, {a.country}</span>
                   <span className="ml-2 text-xs text-muted-foreground">{a.type}</span>
                   {a.details && <p className="text-xs text-muted-foreground">{a.details}</p>}
                 </div>
-                {a.isPrimary && <Badge variant="outline" className="h-5 shrink-0 text-[10px]">Principal</Badge>}
-                {editable && <>
-                  <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" onClick={() => setAddrEdit({ id: a.id, type: a.type, country: a.country, city: a.city, details: a.details ?? '', isPrimary: a.isPrimary })}><Pencil className="h-3 w-3" /></Button></Tip>
-                  <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" onClick={() => setDel({ kind: 'address', owner: 'self', id: a.id, label: `${a.city}, ${a.country}` })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
-                </>}
+                <div className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:justify-end">
+                  {a.isPrimary && <Badge variant="outline" className="h-5 text-[10px]">Principal</Badge>}
+                  {editable && <>
+                    <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setAddrEdit({ id: a.id, type: a.type, country: a.country, city: a.city, details: a.details ?? '', isPrimary: a.isPrimary })}><Pencil className="h-3 w-3" /></Button></Tip>
+                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setDel({ kind: 'address', owner: 'self', id: a.id, label: `${a.city}, ${a.country}` })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
+                  </>}
+                </div>
               </div>
             ))}</div>
           )}

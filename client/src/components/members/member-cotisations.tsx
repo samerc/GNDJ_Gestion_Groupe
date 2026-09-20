@@ -242,12 +242,14 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
               </div>
             ) : hideMaitriseExpected ? null : (
               <div className="mb-3 rounded-md border bg-muted/30 px-3 py-2">
-                <div className="flex items-center justify-between gap-2">
+                {/* Stack on mobile (text full-width, then a full-width button) so the label isn't squeezed to
+                    several lines next to the button; inline + right-aligned on ≥sm. */}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <span className="flex items-center gap-2 text-sm">
-                    <Ban className={`h-4 w-4 ${isExempt ? 'text-foreground' : 'text-muted-foreground'}`} />
+                    <Ban className={`h-4 w-4 shrink-0 ${isExempt ? 'text-foreground' : 'text-muted-foreground'}`} />
                     {isExempt ? <span className="font-medium text-foreground">Ne paiera pas pour {year}</span> : <span className="text-muted-foreground">Cotisation attendue pour {year}</span>}
                   </span>
-                  <Button variant="outline" size="sm" disabled={exemptMutation.isPending} onClick={isExempt ? clearExempt : openExemptDialog}>
+                  <Button variant="outline" size="sm" className="w-full shrink-0 sm:w-auto" disabled={exemptMutation.isPending} onClick={isExempt ? clearExempt : openExemptDialog}>
                     {isExempt ? "Retirer l'exemption" : 'Marquer « ne paiera pas »'}
                   </Button>
                 </div>
@@ -327,7 +329,8 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
       ) : (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            {/* flex-wrap so "Nouvelle cotisation" drops below the title on a phone instead of overflowing the card. */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2"><Receipt className="h-4 w-4" />Cotisations</CardTitle>
               {createButton}
             </div>

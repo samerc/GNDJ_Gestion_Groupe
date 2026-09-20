@@ -49,7 +49,7 @@ import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PARENTS_SITUAT
 import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts, useMemberAbsencesByYear, type MemberAbsenceYear } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck, Star, Upload, Eye, Lock, Unlock, Smartphone } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, SlidersHorizontal, ShieldCheck, Star, Upload, Eye, Lock, Unlock, Smartphone } from 'lucide-react'
 import { pushRecentMember, isFavoriteMember, toggleFavoriteMember } from '@/lib/recent-members'
 import { DelegationDialog } from './delegation-dialog'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
@@ -95,14 +95,6 @@ function Section({ icon: Icon, title, children }: { icon: ComponentType<{ classN
       </h4>
       {children}
     </div>
-  )
-}
-
-function Chip({ icon: Icon, children }: { icon?: ComponentType<{ className?: string }>; children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs font-medium shadow-2xs">
-      {Icon && <Icon className="h-3.5 w-3.5 text-primary/70" />}{children}
-    </span>
   )
 }
 
@@ -162,6 +154,16 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   const unitesCount = counts?.unites ?? 0
   const dossierCount = (counts?.documents ?? 0) + (counts?.cotisations ?? 0)
   const progressionCount = counts?.progression ?? 0
+  // Tab definitions — shared by the desktop tab bar and the mobile dropdown so their labels/counts can't drift.
+  const tabDefs: { value: string; label: string; count?: number }[] = [
+    { value: 'info', label: 'Informations' },
+    { value: 'famille', label: 'Contact & famille' },
+    { value: 'unites', label: 'Unités / Fonctions', count: unitesCount },
+    { value: 'dossier', label: 'Documents & cotisations', count: dossierCount },
+    { value: 'progression', label: 'Progression', count: progressionCount },
+    { value: 'medical', label: 'Santé & suivi' },
+    ...(canViewAudit ? [{ value: 'journal', label: 'Journal' }] : []),
+  ]
 
   const pinnedNationalities = useSettingArray('pinned_nationalities')
   const schools = useSettingArray('member.schools')
@@ -330,63 +332,63 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header — always visible: identity, login username + reset, card PDF, edit toggle */}
-      <div className="shrink-0 border-b px-4 py-3">
+      {/* Header — always visible: identity, login username + reset, card PDF, edit toggle.
+          @container so the layout responds to the DETAIL PANE width (master/detail split), not the viewport. */}
+      <div className="@container shrink-0 border-b px-4 py-3">
         <div className="flex flex-wrap items-start gap-3">
           <MemberPhoto memberId={memberId} name={`${member.firstName} ${member.lastName}`} photoPath={member.photoPath} size={48} editable />
           <div className="flex-1 min-w-0">
             <h2 className="font-bold">{member.firstName} {member.lastName}</h2>
             {/* Header focuses on the login account (card N°/genre/DOB live in the Informations tab). Line 2 =
                 identifiant; line 3 = last sign-in, or "Jamais connecté" for an account that never logged in. */}
+            {/* Single-line identifiant: the username TRUNCATES (full value on hover + a copy button) rather than
+                breaking character-by-character when the detail pane is narrow. */}
             <p className="flex items-center gap-1 text-xs text-muted-foreground">
               {member.username
-                ? <>Identifiant : <span className="font-medium text-foreground">{member.username}</span><CopyButton value={member.username} label="Copier l'identifiant" className="ml-0.5" />
+                ? <>
+                    <span className="shrink-0">Identifiant :</span>
+                    <span className="min-w-0 truncate font-medium text-foreground" title={member.username}>{member.username}</span>
+                    <CopyButton value={member.username} label="Copier l'identifiant" className="shrink-0" />
                     {canEdit && (
                       <Tip content="Modifier l'identifiant de connexion">
-                        <Button variant="ghost" size="icon" className="ml-0.5 h-6 w-6" aria-label="Modifier l'identifiant"
+                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label="Modifier l'identifiant"
                           onClick={() => setUsernameEdit(member.username ?? '')}>
                           <Pencil className="h-3 w-3" />
                         </Button>
                       </Tip>
-                    )}</>
+                    )}
+                  </>
                 : <span className="italic">Aucun compte utilisateur</span>}
             </p>
-            {member.username && (
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {member.lastLoginAt
-                  ? <>Dernière connexion : {new Date(member.lastLoginAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</>
-                  : <span className="font-medium text-amber-600 dark:text-amber-400">Jamais connecté</span>}
-              </p>
-            )}
-            {member.username && member.loginActive === false && (
-              <p className="mt-0.5 text-xs font-medium text-destructive flex items-center gap-1"><Lock className="h-3 w-3" />Connexion désactivée</p>
-            )}
-            {/* Contact-review state: has the member confirmed/fixed their coordonnées via the one-time popup? Lets
-                a CU/CG see who ignored it (e.g. to relance) right under the last-login line. */}
-            <p className="mt-0.5 text-xs">
+            {/* Status metadata — ONE wrapped row of compact chips (used to be a growing stack of full-width
+                lines as features piled on: last login, contact-review state, app-install detection, delegation).
+                Exact dates for the state chips are on hover (title) to keep the row short. */}
+            <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs">
+              {member.username && (
+                member.lastLoginAt
+                  ? <span className="text-muted-foreground">Connexion : {new Date(member.lastLoginAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                  : <span className="font-medium text-amber-600 dark:text-amber-400">Jamais connecté</span>
+              )}
+              {member.username && member.loginActive === false && (
+                <span className="inline-flex items-center gap-1 font-medium text-destructive"><Lock className="h-3 w-3" />Connexion désactivée</span>
+              )}
+              {/* Contact-review state: did the member confirm/fix their coordonnées via the one-time popup? */}
               {member.contactReviewedAt
-                ? <span className="text-emerald-600 dark:text-emerald-400">Coordonnées vérifiées le {new Date(member.contactReviewedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                : <span className="text-amber-600 dark:text-amber-400">Coordonnées à vérifier</span>}
-            </p>
-            {/* PWA install (best-effort): "installée" = detected running the app standalone; otherwise "non
-                détectée" (no reliable not-installed signal). Only meaningful for members with a login account. */}
-            {member.username && (
-              <p className="mt-0.5 text-xs flex items-center gap-1">
-                <Smartphone className="h-3 w-3 text-muted-foreground" />
-                {member.appInstalledAt
-                  ? <span className="text-emerald-600 dark:text-emerald-400">App installée (détectée le {new Date(member.appInstalledAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })})</span>
-                  : <span className="text-muted-foreground">App non détectée</span>}
-              </p>
-            )}
-            {/* Access delegation badge — visible to the CG so they know this member holds hidden extra access. */}
-            {member.hasDelegatedAccess && (
-              <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                <ShieldCheck className="h-3 w-3" />
-                {member.delegatedGroupAccess ? 'Accès délégué : Chef de Groupe' : 'Accès délégué'}
-              </p>
-            )}
+                ? <span title={`Vérifiées le ${new Date(member.contactReviewedAt).toLocaleDateString('fr-FR')}`} className="text-emerald-600 dark:text-emerald-400">Coordonnées vérifiées</span>
+                : <span className="font-medium text-amber-600 dark:text-amber-400">Coordonnées à vérifier</span>}
+              {/* PWA install (best-effort): "installée" = detected running standalone; else "non détectée". */}
+              {member.username && (
+                member.appInstalledAt
+                  ? <span title={`Détectée le ${new Date(member.appInstalledAt).toLocaleDateString('fr-FR')}`} className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><Smartphone className="h-3 w-3" />App installée</span>
+                  : <span className="inline-flex items-center gap-1 text-muted-foreground"><Smartphone className="h-3 w-3" />App non détectée</span>
+              )}
+              {/* Access delegation — visible to the CG so they know this member holds hidden extra access. */}
+              {member.hasDelegatedAccess && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary"><ShieldCheck className="h-3 w-3" />{member.delegatedGroupAccess ? 'Accès délégué : CG' : 'Accès délégué'}</span>
+              )}
+            </div>
           </div>
-          <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+          <div className="flex w-full flex-wrap items-center gap-2 @lg:w-auto @lg:shrink-0 @lg:justify-end">
             {/* Favorite toggle (per-device) — surfaces this member in the Ctrl-K palette's "Favoris". */}
             {!editing && (
               <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'} title={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
@@ -460,36 +462,31 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <TabsList className="mx-4 mt-3 shrink-0 justify-start overflow-x-auto flex-nowrap">
-          <TabsTrigger value="info">Informations</TabsTrigger>
-          <TabsTrigger value="famille">Contact &amp; famille</TabsTrigger>
-          <TabsTrigger value="unites">Unités / Fonctions<TabCount n={unitesCount} /></TabsTrigger>
-          <TabsTrigger value="dossier">Documents &amp; cotisations<TabCount n={dossierCount} /></TabsTrigger>
-          <TabsTrigger value="progression">Progression<TabCount n={progressionCount} /></TabsTrigger>
-          <TabsTrigger value="medical">Santé &amp; suivi</TabsTrigger>
-          {canViewAudit && <TabsTrigger value="journal">Journal</TabsTrigger>}
+        {/* Mobile: a dropdown (7 tabs scroll awkwardly on a phone — the active one can sit off-screen).
+            Desktop: the horizontal tab bar. Both drive the controlled `activeTab`. */}
+        <div className="mx-4 mt-3 shrink-0 md:hidden">
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {tabDefs.map(t => <SelectItem key={t.value} value={t.value}>{t.label}{t.count ? ` (${t.count})` : ''}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <TabsList className="mx-4 mt-3 hidden shrink-0 justify-start overflow-x-auto flex-nowrap md:flex">
+          {tabDefs.map(t => <TabsTrigger key={t.value} value={t.value}>{t.label}<TabCount n={t.count ?? 0} /></TabsTrigger>)}
         </TabsList>
 
         <div className="flex-1 overflow-auto p-4">
           <TabsContent value="info" className="mt-0 space-y-6">
             {error && editing && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
-            {/* Hero: portrait + quick facts (summary; reflects saved values) */}
-            <div className="flex flex-col gap-4 rounded-xl border bg-gradient-to-br from-muted/50 to-transparent p-4 sm:flex-row sm:items-center">
-              <MemberPhoto memberId={memberId} name={`${member.firstName} ${member.lastName}`} photoPath={member.photoPath} size={132} height={176} rounded="rounded-xl" editable className="shadow-sm ring-1 ring-border" />
-              <div className="flex-1 space-y-3">
-                <div>
-                  <h3 className="text-xl font-bold leading-tight">{member.firstName} {member.lastName}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {member.cardNumber && <span>Matricule {member.cardNumber}</span>}
-                    {member.externalCardNumber && <span> · Carte {member.externalCardNumber}</span>}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {age != null && <Chip icon={Cake}>{age} ans</Chip>}
-                  {member.gender && <Chip icon={User}>{member.gender}</Chip>}
-                  {member.nationality && <Chip icon={Flag}>{member.nationality}</Chip>}
-                  {member.bloodType && <Chip icon={Droplet}>{member.bloodType}</Chip>}
+            {/* Identité — the member photo lives here now (the standalone hero that duplicated the name,
+                matricule and identity chips was removed; age shows next to the DOB below, sexe/nationalité are
+                fields, groupe sanguin is on the Santé tab). */}
+            <Section icon={User} title="Identité">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+                <div className="flex shrink-0 flex-col items-center gap-2 sm:items-start">
+                  <MemberPhoto memberId={memberId} name={`${member.firstName} ${member.lastName}`} photoPath={member.photoPath} size={120} height={156} rounded="rounded-xl" editable className="shadow-sm ring-1 ring-border" />
                   {member.absencesThisYear > 0 && (
                     <Tip content="Absences aux réunions cette année scoute">
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
@@ -498,10 +495,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                     </Tip>
                   )}
                 </div>
-              </div>
-            </div>
-
-            <Section icon={User} title="Identité">
+                <div className="min-w-0 flex-1">
               {editing ? (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   <div className="space-y-1.5"><RequiredLabel required>Prénom</RequiredLabel><Input value={form.firstName} onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))} /></div>
@@ -544,6 +538,8 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                   <Field label="Situation des parents" value={member.parentsSituation} />
                 </div>
               )}
+                </div>
+              </div>
             </Section>
 
             <Section icon={GraduationCap} title="Scolarité">
@@ -903,6 +899,9 @@ export default function MembersPage() {
   const [letter, setLetter] = useState('')
   // PWA install filter: all / installed (app détectée) / not (non détectée). Lets the CG pull "who installed".
   const [appFilter, setAppFilter] = useState<'all' | 'installed' | 'not'>('all')
+  // Mobile: the secondary filters (page size, app filter, A–Z index) collapse behind a "Filtres" toggle so the
+  // list header stays short on a phone. On desktop (md+) they're always shown inline.
+  const [showMoreFilters, setShowMoreFilters] = useState(false)
   const [sortBy, setSortBy] = useState('lastname')
   const [sortDir, setSortDir] = useState('asc')
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(routeMemberId ?? null)
@@ -1025,11 +1024,12 @@ export default function MembersPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
-      {/* Top bar */}
-      <div className="shrink-0 space-y-3 pb-3">
+      {/* Top bar — all list chrome (title, actions, filters, A–Z). Hidden on mobile while a member's fiche is
+          open so the detail panel gets the full screen (the fiche has its own "Retour à la liste" back button). */}
+      <div className={cn('shrink-0 space-y-3 pb-3', selectedMemberId && 'max-md:hidden')}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-xl font-bold">Membres</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Span wrapper so the tooltip still fires when the button is disabled (Radix skips disabled triggers). */}
             <Tip content={isSpecialFilter ? 'Sélectionnez une unité pour exporter' : "Exporter l'unité en Excel ou CSV"}>
               <span className="inline-flex">
@@ -1044,7 +1044,8 @@ export default function MembersPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[10rem] max-w-sm">
+          {/* Search — full width on mobile, flexible beside the filters on ≥sm */}
+          <div className="relative w-full sm:flex-1 sm:min-w-[10rem] sm:max-w-sm">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Rechercher par nom, prénom ou carte..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-8 pr-8 h-8 text-sm" />
             {search && (
@@ -1055,8 +1056,9 @@ export default function MembersPage() {
               </Tip>
             )}
           </div>
+          {/* Unit filter — full width on mobile so it doesn't crowd the search */}
           <Select value={unitFilter} onValueChange={(v) => { setUnitFilter(v); setPage(1) }}>
-            <SelectTrigger className="w-52 h-8 text-sm"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-52 h-8 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes les unités</SelectItem>
               <SelectItem value="maitrises">Maîtrises</SelectItem>
@@ -1079,23 +1081,38 @@ export default function MembersPage() {
               </button>
             ))}
           </div>
-          {/* Names per page */}
-          <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
-            <SelectTrigger className="h-8 w-[6.5rem] text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {[25, 50, 100, 200].map(n => <SelectItem key={n} value={String(n)}>{n} / page</SelectItem>)}
-            </SelectContent>
-          </Select>
-          {/* PWA install filter — "app détectée" = ran the installed app at least once; "non détectée" is
-              best-effort (no reliable "not installed" signal). Count via the range indicator on the right. */}
-          <Select value={appFilter} onValueChange={(v) => { setAppFilter(v as typeof appFilter); setPage(1) }}>
-            <SelectTrigger className="h-8 w-40 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">App : tous</SelectItem>
-              <SelectItem value="installed">App installée</SelectItem>
-              <SelectItem value="not">App non détectée</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Mobile-only: reveal the secondary filters (page size, app filter, A–Z) to keep the header short.
+              A dot signals that one of them is active while collapsed. */}
+          <button
+            type="button"
+            onClick={() => setShowMoreFilters(v => !v)}
+            className="md:hidden inline-flex h-8 shrink-0 items-center gap-1 rounded-md border px-2.5 text-xs font-medium text-muted-foreground"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />Filtres
+            {(appFilter !== 'all' || letter) && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+            <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showMoreFilters && 'rotate-180')} />
+          </button>
+          {/* Page size + app filter — inline on desktop (display:contents makes this wrapper transparent), a
+              collapsible full-width row on mobile. */}
+          <div className={cn('md:contents', showMoreFilters ? 'max-md:flex max-md:w-full max-md:flex-wrap max-md:items-center max-md:gap-2' : 'max-md:hidden')}>
+            {/* Names per page */}
+            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
+              <SelectTrigger className="h-8 w-[6.5rem] max-md:flex-1 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[25, 50, 100, 200].map(n => <SelectItem key={n} value={String(n)}>{n} / page</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {/* PWA install filter — "app détectée" = ran the installed app at least once; "non détectée" is
+                best-effort (no reliable "not installed" signal). Count via the range indicator. */}
+            <Select value={appFilter} onValueChange={(v) => { setAppFilter(v as typeof appFilter); setPage(1) }}>
+              <SelectTrigger className="h-8 w-40 max-md:flex-1 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">App : tous</SelectItem>
+                <SelectItem value="installed">App installée</SelectItem>
+                <SelectItem value="not">App non détectée</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           {data && data.totalCount > 0 && (
             <span className="flex items-center text-xs text-muted-foreground">
               {(data.page - 1) * pageSize + 1}–{Math.min(data.page * pageSize, data.totalCount)} sur {data.totalCount}
@@ -1103,8 +1120,9 @@ export default function MembersPage() {
           )}
         </div>
 
-        {/* Family-name A–Z index — jump to a starting letter (accent-insensitive). "Tous" clears it. */}
-        <div className="flex flex-wrap gap-0.5">
+        {/* Family-name A–Z index — jump to a starting letter (accent-insensitive). "Tous" clears it.
+            Always visible on desktop; on mobile it's part of the collapsible "Filtres" section. */}
+        <div className={cn('flex flex-wrap gap-0.5', !showMoreFilters && 'max-md:hidden')}>
           <button
             type="button"
             onClick={() => { setLetter(''); setPage(1) }}

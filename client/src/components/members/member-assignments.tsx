@@ -210,7 +210,8 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
       {/* Active */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          {/* flex-wrap so the "Ajouter" / "Proposer une fonction" button drops below the title on a phone. */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               Postes actuels
@@ -224,42 +225,52 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
             <p className="text-sm text-muted-foreground">Aucun poste actuel.</p>
           ) : (
             <div className="space-y-3">
-              {activeAssignments.map(a => (
-                <div key={a.id} className="flex items-start gap-3 rounded-lg border-2 border-primary/20 bg-primary/5 p-4">
-                  <div className="mt-0.5 h-3 w-3 rounded-full bg-primary shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold">{a.unitName}</span>
-                      {a.teamName && <span className="text-muted-foreground">/ {a.teamName}</span>}
-                      <Badge variant="default" className="text-xs">{a.functionalRoleName}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Depuis {formatDate(a.startDate)} — {durationLabel(a.startDate, null)}
-                    </p>
-                    {a.notes && <p className="text-sm text-muted-foreground mt-1 italic">{a.notes}</p>}
+              {activeAssignments.map(a => {
+                // Action buttons rendered as one element, placed inline-right on desktop and on their own
+                // full-width row below on mobile — so the 3–4 icons don't squeeze the unit name to several lines.
+                const actions = !readOnly ? (
+                  <div className="flex gap-1 shrink-0">
+                    <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => openEdit(a)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button></Tip>
+                    {/* Correct a WRONG placement: repoint to the right unit in place (no history for the wrong unit). CG only. */}
+                    {canCorrect && (
+                      <Tip content="Corriger l'unité (mauvaise affectation)"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => openCorrect(a)}>
+                        <ArrowRightLeft className="h-4 w-4 text-blue-600" />
+                      </Button></Tip>
+                    )}
+                    {/* One-click "end today": closes the post with endDate = today (moves it to history). */}
+                    <Tip content="Terminer aujourd'hui"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" disabled={endMutation.isPending} onClick={async () => { try { await endMutation.mutateAsync({ id: a.id, endDate: new Date().toISOString().split('T')[0] }); toast.success('Affectation terminée') } catch (err) { toast.error(parseApiError(err)) } }}>
+                      <StopCircle className="h-4 w-4 text-orange-500" />
+                    </Button></Tip>
+                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => setDeleting(a)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button></Tip>
                   </div>
-                  {!readOnly && (
-                    <div className="flex gap-1 shrink-0">
-                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(a)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button></Tip>
-                      {/* Correct a WRONG placement: repoint to the right unit in place (no history for the wrong unit). CG only. */}
-                      {canCorrect && (
-                        <Tip content="Corriger l'unité (mauvaise affectation)"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openCorrect(a)}>
-                          <ArrowRightLeft className="h-4 w-4 text-blue-600" />
-                        </Button></Tip>
-                      )}
-                      {/* One-click "end today": closes the post with endDate = today (moves it to history). */}
-                      <Tip content="Terminer aujourd'hui"><Button variant="ghost" size="icon" className="h-8 w-8" disabled={endMutation.isPending} onClick={async () => { try { await endMutation.mutateAsync({ id: a.id, endDate: new Date().toISOString().split('T')[0] }); toast.success('Affectation terminée') } catch (err) { toast.error(parseApiError(err)) } }}>
-                        <StopCircle className="h-4 w-4 text-orange-500" />
-                      </Button></Tip>
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleting(a)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button></Tip>
+                ) : null
+                return (
+                  <div key={a.id} className="rounded-lg border-2 border-primary/20 bg-primary/5 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 h-3 w-3 rounded-full bg-primary shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold">{a.unitName}</span>
+                          {a.teamName && <span className="text-muted-foreground">/ {a.teamName}</span>}
+                          <Badge variant="default" className="text-xs">{a.functionalRoleName}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Depuis {formatDate(a.startDate)} — {durationLabel(a.startDate, null)}
+                        </p>
+                        {a.notes && <p className="text-sm text-muted-foreground mt-1 italic">{a.notes}</p>}
+                      </div>
+                      {/* Desktop: actions inline to the right */}
+                      {actions && <div className="hidden sm:block">{actions}</div>}
                     </div>
-                  )}
-                </div>
-              ))}
+                    {/* Mobile: actions on their own row below so the unit name gets full width */}
+                    {actions && <div className="mt-3 flex justify-end border-t border-primary/10 pt-2 sm:hidden">{actions}</div>}
+                  </div>
+                )
+              })}
             </div>
           )}
         </CardContent>
