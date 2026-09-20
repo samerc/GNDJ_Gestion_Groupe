@@ -14,5 +14,10 @@ public class AuditLog
     public string? UserAgent { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
+    // DB-generated (STORED) search haystack: accent/lower-folded concatenation of ip/action/entity + the
+    // before/after JSON snapshots, backed by a GIN trigram index so the free-text audit search is index-assisted
+    // (~100× faster than scanning every row). Maintained entirely by Postgres — never written by the app.
+    public string? SearchText { get; private set; }
+
     public User? User { get; set; }
 }

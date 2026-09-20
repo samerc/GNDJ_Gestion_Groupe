@@ -23,9 +23,11 @@ public record AuditLogDto(
 // ── Shared filter application (used by the list, export and — partly — purge) ──
 internal static class AuditFilters
 {
-    // Apply the entity/action/user/date/search filters. The search matches user email, IP, action, entity type
-    // AND the JSON before/after snapshots (which hold the resolved names via AuditNames) — accent/case-insensitive
-    // (DbFns.Unaccent kept INSIDE the expression so it runs in SQL; JsonbToText renders jsonb → text for the LIKE).
+    // Apply the entity/action/user/date/search filters. The free-text search matches IP, action, entity type AND
+    // the JSON before/after snapshots (which hold the resolved names via AuditNames) — accent/case-insensitive,
+    // served by the GIN trigram index on the generated `search_text` column (~100× faster than scanning every
+    // row). The actor's email is NOT in the haystack (it lives on the joined users table) — filter by actor via
+    // the Utilisateur dropdown instead.
     public static IQueryable<AuditLog> Apply(IQueryable<AuditLog> query,
         string? entityType, string? action, Guid? userId, DateTime? from, DateTime? to, string? search)
     {
@@ -49,14 +51,9 @@ internal static class AuditFilters
         }
         if (!string.IsNullOrWhiteSpace(search))
         {
+            // search_text is already f_unaccent(lower(...)); match the term the same way so the GIN trgm index applies.
             var s = search.Trim().ToLower();
-            query = query.Where(a =>
-                (a.User != null && DbFns.Unaccent(a.User.Email.ToLower()).Contains(DbFns.Unaccent(s))) ||
-                (a.IpAddress != null && a.IpAddress.ToLower().Contains(s)) ||
-                DbFns.Unaccent(a.Action.ToLower()).Contains(DbFns.Unaccent(s)) ||
-                DbFns.Unaccent(a.EntityType.ToLower()).Contains(DbFns.Unaccent(s)) ||
-                (a.OldValues != null && DbFns.Unaccent(DbFns.JsonbToText(a.OldValues).ToLower()).Contains(DbFns.Unaccent(s))) ||
-                (a.NewValues != null && DbFns.Unaccent(DbFns.JsonbToText(a.NewValues).ToLower()).Contains(DbFns.Unaccent(s))));
+            query = query.Where(a => a.SearchText != null && a.SearchText.Contains(DbFns.Unaccent(s)));
         }
         return query;
     }

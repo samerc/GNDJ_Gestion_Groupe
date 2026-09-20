@@ -5472,9 +5472,19 @@ Improvements to the (already mature) audit trail. Migration `AddAuditLogEntityId
   and `DiffViewer` to `components/admin/audit-diff.tsx` (react-refresh wants component files to export only
   components), reused by the admin page + the member tab. `formatVal` now renders nested arrays/objects (was
   "[object Object]"). Verified live: endpoints auth-gate (401), member journal returns rows, builds 0/0 + tsc/eslint/vite clean.
-- **DEFERRED (proposed, needs a decision / separate batch):** (1) a **trigram GIN index** on the jsonb snapshots
-  for the free-text search — an expression index on `jsonb_pretty(...)` is finicky; do it when volume warrants
-  (search is admin-only + low-frequency; ~9k rows today). (2) a **retention policy** for `audit_logs` — audit is
+- [x] **Trigram GIN index for audit search — DONE (2026-09-20, DEV until deploy).** Was: seq scan + `jsonb_pretty`
+  on old+new values per row = ~170ms over 9k rows. Fixed with a single generated STORED column
+  **`AuditLog.SearchText`** = `f_unaccent(lower(coalesce(ip_address,'') || ' ' || action || ' ' || entity_type ||
+  ' ' || coalesce(old_values::text,'') || ' ' || coalesce(new_values::text,'')))` (all IMMUTABLE: f_unaccent
+  wrapper + jsonb_out + concat) + a **GIN `gin_trgm_ops`** index on it (migration `AddAuditLogSearchText`; the
+  index via raw SQL — fluent API can't express gin_trgm_ops). `AuditFilters.Apply` search is now ONE branch
+  `a.SearchText.Contains(DbFns.Unaccent(s))` → `search_text LIKE '%'||f_unaccent(@s)||'%'` = **Bitmap Index Scan**,
+  **1.6ms (~100×)**. Chose one generated column over 6 per-branch indexes (an OR forces a full scan unless every
+  branch is indexed) — one GIN index, and GIN fastupdate batches the write cost on this append-heavy table. Live:
+  meute→120 (unchanged), 2eme→77 (accent-insensitive). TRADE-OFF: the free-text search no longer matches the
+  actor's **email** (it's on the joined users table, not in the per-row haystack) — the **Utilisateur** filter
+  dropdown covers actor filtering. `DbFns.JsonbToText` (jsonb_pretty) is now unused but left mapped (harmless).
+- **DEFERRED (proposed, needs a decision / separate batch):** (2) a **retention policy** for `audit_logs` — audit is
   compliance data, so auto-deletion is a governance call (keep-forever vs trim); the purge-with-backup already
   covers the manual path. (3) **sensitive-READ auditing** (who VIEWED a minor's medical/documents) — a big new
   logging surface (volume + perf + privacy), deserves its own conversation.

@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-20",
+        "text": "Journal d'audit — la recherche plein texte est désormais quasi instantanée (index de trigrammes), même sur les instantanés JSON avant/après ; auparavant elle parcourait toutes les lignes. La recherche par adresse email de l'auteur passe désormais par le filtre « Utilisateur » dédié."
+      },
+      {
+        "date": "2026-09-20",
         "text": "Cotisations (tableau de bord) — les vignettes « Payé » et « Impayés » sont désormais cliquables : elles déploient le détail de toutes les unités et amènent au tableau « Par unité » (la liste « Ont payé » avec les montants et le reçu à télécharger, ainsi que la liste « à relancer »). Ajout d'un bouton « Développer tout / Réduire tout » sur le tableau « Par unité »."
       },
       {

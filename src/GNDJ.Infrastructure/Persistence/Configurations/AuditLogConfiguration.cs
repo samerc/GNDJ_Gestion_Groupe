@@ -19,6 +19,15 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.Property(e => e.IpAddress).HasMaxLength(45); // fits IPv6 / IPv4-mapped
         builder.Property(e => e.UserAgent).HasMaxLength(500);
 
+        // Generated STORED search haystack (see AuditLog.SearchText). f_unaccent is our IMMUTABLE wrapper (from
+        // the member-search migration); jsonb::text (jsonb_out) is IMMUTABLE too, so the expression is indexable.
+        // The GIN trigram index on this column is created in the migration (fluent API can't express gin_trgm_ops).
+        builder.Property(e => e.SearchText)
+            .HasColumnName("search_text")
+            .HasComputedColumnSql(
+                "f_unaccent(lower(coalesce(ip_address,'') || ' ' || action || ' ' || entity_type || ' ' || coalesce(old_values::text,'') || ' ' || coalesce(new_values::text,'')))",
+                stored: true);
+
         // SetNull on user delete so the audit trail itself is never lost.
         builder.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.SetNull);
 
