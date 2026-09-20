@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLocation } from 'react-router'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -64,10 +65,12 @@ export function PwaInstallMenuItem() {
 export function PwaInstallBanner() {
   const guide = useInstallGuide()
   const pwaEnabled = usePwaEnabled()
+  const { pathname } = useLocation()
   const [dismissed, setDismissed] = useState(bannerDismissed())
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  if (!pwaEnabled || isStandalone() || !guide.supported || dismissed) return null
+  // The dashboard shows its own prominent install CARD; don't double up with the floating banner there.
+  if (pathname === '/dashboard' || !pwaEnabled || isStandalone() || !guide.supported || dismissed) return null
 
   const close = () => { dismissBanner(); setDismissed(true) }
   const install = async () => { await promptInstall(); close() } // hide after any prompt interaction
@@ -96,6 +99,52 @@ export function PwaInstallBanner() {
           <button type="button" onClick={close} aria-label="Fermer" className="shrink-0 text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
+        </div>
+      </div>
+      <PwaInstallDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+    </>
+  )
+}
+
+// Prominent, dismissible install card shown at the TOP of the dashboard (a stronger "call to install" than the
+// floating banner, which is suppressed on /dashboard to avoid a double prompt). Shares the same dismiss state as
+// the banner, so dismissing either one quiets install prompts everywhere for ~2 weeks. Same gates: maîtrise
+// pilot (usePwaEnabled), not already installed, supported browser.
+export function PwaInstallCard() {
+  const guide = useInstallGuide()
+  const pwaEnabled = usePwaEnabled()
+  const [dismissed, setDismissed] = useState(bannerDismissed())
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  if (!pwaEnabled || isStandalone() || !guide.supported || dismissed) return null
+
+  const close = () => { dismissBanner(); setDismissed(true) }
+  const install = async () => { await promptInstall(); close() } // hide after any prompt interaction
+
+  return (
+    <>
+      <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-primary/10 to-primary/5 p-4 sm:p-5">
+        <button type="button" onClick={close} aria-label="Fermer" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground">
+          <X className="h-4 w-4" />
+        </button>
+        <div className="flex items-start gap-4 pr-6">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-sm">
+            <Smartphone className="h-6 w-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-semibold sm:text-base">Installez l'application GNDJ</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+              Ajoutez GNDJ à votre écran d'accueil pour un accès rapide et les notifications, comme une vraie application.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {guide.canPrompt ? (
+                <Button size="sm" onClick={install}><Download className="mr-1.5 h-4 w-4" />Installer</Button>
+              ) : (
+                <Button size="sm" onClick={() => setDialogOpen(true)}><Download className="mr-1.5 h-4 w-4" />Voir comment installer</Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={close}>Plus tard</Button>
+            </div>
+          </div>
         </div>
       </div>
       <PwaInstallDialog open={dialogOpen} onOpenChange={setDialogOpen} />

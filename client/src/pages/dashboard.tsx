@@ -1,5 +1,6 @@
-import { useMemo, useState, lazy, Suspense } from 'react'
+import { useMemo, useState, lazy, Suspense, type ReactNode } from 'react'
 import { Navigate, Link } from 'react-router'
+import { PwaInstallCard } from '@/components/shared/pwa-install'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import type { UnitAccess } from '@/types/auth'
@@ -547,9 +548,14 @@ export default function DashboardPage() {
   const myLeaderUnits = dedupeByUnit(user.unitAccess.filter(u => u.isLeader && !u.isGroupLevel))
   const isUnitLeader = hasPermission(PERMISSIONS.MEMBERS_EDIT)
 
-  // Both a group leader AND a unit leader → toggle between the group overview and their own unit(s).
+  // Regular members (neither a group nor a unit leader) go straight to profile.
+  if (!isGroupLevel && !isUnitLeader) return <Navigate to="/my-profile" replace />
+
+  // Pick the dashboard variant, then render the (maîtrise-pilot) install card above it.
+  let content: ReactNode
   if (isGroupLevel && myLeaderUnits.length > 0) {
-    return (
+    // Both a group leader AND a unit leader → toggle between the group overview and their own unit(s).
+    content = (
       <div className="space-y-4">
         <div className="inline-flex rounded-lg border bg-muted/40 p-0.5 text-sm">
           <button onClick={() => setView('groupe')} className={`rounded-md px-3 py-1.5 font-medium transition-colors ${view === 'groupe' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Groupe</button>
@@ -558,14 +564,18 @@ export default function DashboardPage() {
         {view === 'groupe' ? <AdminDashboard /> : <UnitRoster units={myLeaderUnits} selectedUnit={selectedUnit} setSelectedUnit={setSelectedUnit} />}
       </div>
     )
+  } else if (isGroupLevel) {
+    // Group leader only (CG/ACG/super-admin without a unit role) → group overview.
+    content = <AdminDashboard />
+  } else {
+    // Unit leader only (e.g. a CU who is a youth elsewhere) → the unit(s) they lead (fallback: all their units).
+    content = <UnitRoster units={myLeaderUnits.length > 0 ? myLeaderUnits : dedupeByUnit(user.unitAccess)} selectedUnit={selectedUnit} setSelectedUnit={setSelectedUnit} />
   }
 
-  // Group leader only (CG/ACG/super-admin without a unit role) → group overview.
-  if (isGroupLevel) return <AdminDashboard />
-
-  // Regular members go straight to profile.
-  if (!isUnitLeader) return <Navigate to="/my-profile" replace />
-
-  // Unit leader only (e.g. a CU who is a youth elsewhere) → the unit(s) they lead (fallback: all their units).
-  return <UnitRoster units={myLeaderUnits.length > 0 ? myLeaderUnits : dedupeByUnit(user.unitAccess)} selectedUnit={selectedUnit} setSelectedUnit={setSelectedUnit} />
+  return (
+    <div className="space-y-4">
+      <PwaInstallCard />
+      {content}
+    </div>
+  )
 }
