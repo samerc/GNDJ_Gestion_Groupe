@@ -123,10 +123,20 @@ public class GetAuditFilterOptionsQueryHandler(IApplicationDbContext context) : 
         var entityTypes = await context.AuditLogs.Select(a => a.EntityType).Distinct().OrderBy(x => x).ToListAsync(ct);
         var actions = await context.AuditLogs.Select(a => a.Action).Distinct().OrderBy(x => x).ToListAsync(ct);
         // The distinct users who appear as an actor in the trail (so "all actions by X" is one click).
-        var users = await context.AuditLogs
-            .Where(a => a.User != null)
-            .Select(a => new AuditUserOptionDto(a.UserId!.Value, a.User!.Email))
-            .Distinct().OrderBy(u => u.Email).ToListAsync(ct);
+        // Two simple queries: EF Core can't translate Distinct()+OrderBy() over a DTO built through the optional
+        // User navigation (it becomes a LeftJoin, and OrderBy after Distinct over a constructed DTO fails). So
+        // get the distinct actor ids first (scalar Distinct — translatable), then load those users. The global
+        // soft-delete filter on Users already excludes deleted accounts.
+        var actorIds = await context.AuditLogs
+            .Where(a => a.UserId != null)
+            .Select(a => a.UserId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+        var users = await context.Users
+            .Where(u => actorIds.Contains(u.Id))
+            .OrderBy(u => u.Email)
+            .Select(u => new AuditUserOptionDto(u.Id, u.Email))
+            .ToListAsync(ct);
         return new AuditFilterOptionsDto(entityTypes, actions, users);
     }
 }
