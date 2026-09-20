@@ -5530,6 +5530,20 @@ exported, emailed to admin + CG, and cleared**. Made it AUTOMATIC on year rollov
   a `--no-build` run trips EF's runtime `PendingModelChangesWarning` (not real drift). Also updated the global
   `dotnet-ef` tool to match the runtime (10.0.12).
 
+### Disable/enable member login + parents-situation backfill (2026-09-20, DEV until deploy)
+Two data-cleanup items from the pending list.
+- **Disable/enable a member's login without deleting the member.** New `SetMemberLoginActiveCommand` +
+  `PUT /members/{id}/login-active {active}` (perm members.reset_password; `MemberAccess.CanAccessMemberAsync` gate =
+  super-admin / group manager [covers orphans] / active-unit-leader). Disabling sets `User.IsActive=false` + clears
+  the refresh token (session dies ≤15 min); the member record + all data stay intact + restorable by re-enabling.
+  Audited `DisableLogin`/`EnableLogin`. `MemberDetailDto.LoginActive` (bool? — null=no account) drives a member-panel
+  **Actions ▾ → "Désactiver / Réactiver la connexion"** item (confirm dialog) + a red "Connexion désactivée" header
+  banner. Distinct from DeleteMember (which soft-deletes the whole member). Use case: lock out orphan accounts /
+  leavers while keeping their history.
+- **parents-situation backfill** — data patch `021_parents_situation_backfill.sql` (see [[project-batch-2026-09-01]]):
+  fills `members.parents_situation` (Unis/Séparés/Divorcés) from the WEBDEV export by name+DOB, ONLY where empty
+  (never overwrites parent/chef corrections). Dev: 2045 filled; prod on next deploy.
+
 ### SMTP passwords externalized to config (2026-09-20, DEV until deploy)
 Closed the `project_smtp_credentials` item. SMTP provider passwords were stored **plaintext** in `smtp_servers.password`
 — never exposed via the API (`SmtpServerDto` omits it, update keeps the stored value when blank), BUT the nightly

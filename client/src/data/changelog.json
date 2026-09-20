@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-20",
+        "text": "Membres — un chef d'unité / chef de groupe peut désormais désactiver (ou réactiver) la connexion d'un membre sans supprimer sa fiche (menu Actions ▾ sur la fiche membre). Un compte désactivé ne peut plus se connecter (sessions actives déconnectées) mais la fiche et toutes les données restent intactes ; l'action est réversible. Un bandeau « Connexion désactivée » apparaît dans l'en-tête de la fiche."
+      },
+      {
+        "date": "2026-09-20",
         "text": "Données — la « Situation des parents » (Unis / Séparés / Divorcés) a été renseignée pour ~2000 membres à partir de l'export WEBDEV, uniquement lorsqu'elle était vide (les valeurs déjà saisies sur le nouveau système ou corrigées par les parents ne sont jamais écrasées)."
       },
       {

@@ -60,6 +60,7 @@ export interface MemberDetailDto {
   isSuperAdmin: boolean // the linked account is a super-admin — populated only for a super-admin viewer (else false)
   lastLoginAt: string | null // last sign-in of the linked account (null = never logged in / no account)
   contactReviewedAt: string | null // when the member confirmed their coordonnées via the popup (null = not yet)
+  loginActive: boolean | null // login state: null = no account; true = active; false = disabled
 }
 
 // Tab badge counts returned with the member detail (famille / unités / documents / cotisations / progression).
@@ -378,6 +379,20 @@ export function useResetMemberPassword() {
   return useMutation({
     mutationFn: (id: string) =>
       apiClient.post<{ username: string; temporaryPassword: string; sentToEmail: string | null }>(`/members/${id}/reset-password`).then(r => r.data),
+  })
+}
+
+// Enable/disable a member's login (without deleting the member). Refreshes the member detail so the panel
+// header + Actions menu reflect the new state.
+export function useSetMemberLoginActive() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
+      apiClient.put(`/members/${id}/login-active`, { active }).then(r => r.data),
+    onSuccess: (_d, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['members', id] })
+      queryClient.invalidateQueries({ queryKey: ['members'] })
+    },
   })
 }
 

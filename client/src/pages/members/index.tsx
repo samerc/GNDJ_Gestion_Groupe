@@ -13,7 +13,7 @@ import { useImpersonationStore } from '@/stores/impersonation-store'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { useMembers, useMember, useMemberUnitOptions, useCreateMember, useUpdateMember, useDeleteMember, useRestoreMember, useResetMemberPassword,
+import { useMembers, useMember, useMemberUnitOptions, useCreateMember, useUpdateMember, useDeleteMember, useRestoreMember, useResetMemberPassword, useSetMemberLoginActive,
   useSendAccess, useUpdateMemberUsername, type MemberFormData } from '@/services/member-service'
 import { MemberPhoto } from '@/components/shared/member-photo'
 import { useUnits } from '@/services/unit-service'
@@ -49,7 +49,7 @@ import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PARENTS_SITUAT
 import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts, useMemberAbsencesByYear, type MemberAbsenceYear } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck, Star, Upload, Eye } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Cake, Flag, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, ShieldCheck, Star, Upload, Eye, Lock, Unlock } from 'lucide-react'
 import { pushRecentMember, isFavoriteMember, toggleFavoriteMember } from '@/lib/recent-members'
 import { DelegationDialog } from './delegation-dialog'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
@@ -138,6 +138,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   const deleteMember = useDeleteMember()
   const restoreMember = useRestoreMember()
   const resetPassword = useResetMemberPassword()
+  const setLoginActive = useSetMemberLoginActive()
   const updateUsername = useUpdateMemberUsername(memberId)
   const sendAccess = useSendAccess()
   const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
@@ -184,6 +185,7 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
   // Reset password (one-time credentials).
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [resetCreds, setResetCreds] = useState<{ username: string; password: string; sentToEmail: string | null } | null>(null)
+  const [loginToggleOpen, setLoginToggleOpen] = useState(false)
   // Username-edit dialog: null = closed, otherwise the value being typed (seeded from the current identifier).
   const [usernameEdit, setUsernameEdit] = useState<string | null>(null)
 
@@ -283,6 +285,16 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
     finally { setResetConfirmOpen(false) }
   }
 
+  // Enable/disable the member's login (reversible; the member record is untouched).
+  const handleToggleLogin = async () => {
+    const active = !(member?.loginActive ?? true) // if currently active → disable
+    try {
+      await setLoginActive.mutateAsync({ id: memberId, active })
+      toast.success(active ? 'Connexion réactivée' : 'Connexion désactivée')
+    } catch (err) { toast.error(parseApiError(err)) }
+    finally { setLoginToggleOpen(false) }
+  }
+
   // Save the edited login username (identifier). Closes the dialog on success.
   const saveUsername = async () => {
     const next = usernameEdit?.trim()
@@ -346,6 +358,9 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                   : <span className="font-medium text-amber-600 dark:text-amber-400">Jamais connecté</span>}
               </p>
             )}
+            {member.username && member.loginActive === false && (
+              <p className="mt-0.5 text-xs font-medium text-destructive flex items-center gap-1"><Lock className="h-3 w-3" />Connexion désactivée</p>
+            )}
             {/* Contact-review state: has the member confirmed/fixed their coordonnées via the one-time popup? Lets
                 a CU/CG see who ignored it (e.g. to relance) right under the last-login line. */}
             <p className="mt-0.5 text-xs">
@@ -385,6 +400,13 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
                   {canResetPassword && member.username && (
                     <DropdownMenuItem onClick={() => setResetConfirmOpen(true)}>
                       <KeyRound className="mr-2 h-4 w-4" />Réinitialiser le mot de passe
+                    </DropdownMenuItem>
+                  )}
+                  {canResetPassword && member.username && member.loginActive !== null && (
+                    <DropdownMenuItem onClick={() => setLoginToggleOpen(true)}>
+                      {member.loginActive
+                        ? <><Lock className="mr-2 h-4 w-4" />Désactiver la connexion</>
+                        : <><Unlock className="mr-2 h-4 w-4" />Réactiver la connexion</>}
                     </DropdownMenuItem>
                   )}
                   {cardsEnabled && (
@@ -749,6 +771,12 @@ function MemberDetailPanel({ memberId, onDeleted }: { memberId: string; onDelete
       <ConfirmDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen} title="Réinitialiser le mot de passe"
         description={`Un nouveau mot de passe temporaire sera généré pour ${member.firstName} ${member.lastName}. Les sessions actives seront déconnectées. Continuer ?`}
         confirmLabel="Réinitialiser" loading={resetPassword.isPending} onConfirm={handleResetPassword} />
+      <ConfirmDialog open={loginToggleOpen} onOpenChange={setLoginToggleOpen}
+        title={member.loginActive ? 'Désactiver la connexion' : 'Réactiver la connexion'}
+        description={member.loginActive
+          ? `${member.firstName} ${member.lastName} ne pourra plus se connecter (la fiche et les données sont conservées). Les sessions actives seront déconnectées. Cette action est réversible.`
+          : `${member.firstName} ${member.lastName} pourra à nouveau se connecter avec son identifiant habituel.`}
+        confirmLabel={member.loginActive ? 'Désactiver' : 'Réactiver'} loading={setLoginActive.isPending} onConfirm={handleToggleLogin} />
       <Dialog open={!!resetCreds} onOpenChange={() => setResetCreds(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Mot de passe réinitialisé</DialogTitle></DialogHeader>

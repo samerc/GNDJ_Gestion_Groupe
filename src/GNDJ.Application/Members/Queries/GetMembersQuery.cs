@@ -374,7 +374,9 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
                 // Last sign-in of the linked account (correlated subquery); null if it never logged in / no account.
                 _context.Users.Where(u => u.MemberId == m.Id && !u.IsDeleted).Select(u => u.LastLoginAt).FirstOrDefault(),
                 // When the member confirmed their coordonnées via the contact-review popup (null = not yet reviewed).
-                m.ContactReviewedAt
+                m.ContactReviewedAt,
+                // Login state of the linked account: null = no account; else its IsActive flag.
+                _context.Users.Where(u => u.MemberId == m.Id && !u.IsDeleted).Select(u => (bool?)u.IsActive).FirstOrDefault()
             ))
             .FirstOrDefaultAsync(cancellationToken);
     }

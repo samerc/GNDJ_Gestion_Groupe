@@ -70,7 +70,10 @@ public record MemberDetailDto(
     DateTime? LastLoginAt,
     // When the member confirmed their household contacts via the one-time contact-review popup (null = not yet).
     // Lets a CU/CG see, right under the last-login line, who has vs. hasn't reviewed/fixed their coordonnées.
-    DateTime? ContactReviewedAt
+    DateTime? ContactReviewedAt,
+    // Login state of the linked account: null = no account; true = active (can sign in); false = disabled.
+    // Drives the panel "Désactiver / Réactiver la connexion" action.
+    bool? LoginActive
 );
 
 // Counts shown as tab badges on the member detail panel — folded into the detail query so opening a member

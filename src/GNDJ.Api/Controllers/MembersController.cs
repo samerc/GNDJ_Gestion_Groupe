@@ -9,6 +9,7 @@ using GNDJ.Application.Members.Commands.DeleteEmail;
 using GNDJ.Application.Members.Commands.DeleteMember;
 using GNDJ.Application.Members.Commands.DeletePhone;
 using GNDJ.Application.Members.Commands.ResetMemberPassword;
+using GNDJ.Application.Members.Commands.SetMemberLoginActive;
 using GNDJ.Application.Members.Commands.SetPrimaryContactEmail;
 using GNDJ.Application.Members.Commands.UpdateUsername;
 using GNDJ.Application.Members.Commands.UpdateAddress;
@@ -212,6 +213,29 @@ public class MembersController : BaseApiController
         }
         return Ok(result.Value);
     }
+
+    /// <summary>
+    /// Enable/disable a member's login without deleting the member. Disabling clears the session so the account
+    /// can no longer sign in, while the member record + data stay intact (e.g. lock out an orphan account or a
+    /// leaver). Requires members.reset_password; handler requires super-admin / group manager / active-unit-leader.
+    /// </summary>
+    /// <response code="404">The member has no user account.</response>
+    [HttpPut("{id:guid}/login-active")]
+    [HasPermission(Permissions.MembersResetPassword)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> SetLoginActive(Guid id, [FromBody] SetLoginActiveBody body)
+    {
+        var result = await Mediator.Send(new SetMemberLoginActiveCommand(id, body.Active));
+        if (!result.IsSuccess)
+        {
+            if (result.Error!.Contains("pas de compte"))
+                return NotFound(new { error = result.Error });
+            return BadRequest(new { error = result.Error });
+        }
+        return Ok(new { success = true });
+    }
+
+    public record SetLoginActiveBody(bool Active);
 
     /// <summary>
     /// Lists a unit's active members with their login/email/last-login status, so the CG can choose who to send
