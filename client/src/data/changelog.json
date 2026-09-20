@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-21",
+        "text": "Affectations à dater — cliquer sur le nom d'un membre ouvre désormais directement sa fiche sur l'onglet « Unités / Fonctions » (même onglet du navigateur), avec un bouton « Retour — Affectations à dater » pour revenir à la liste."
+      },
+      {
+        "date": "2026-09-21",
         "text": "Types d'unité — la liste est plus pratique sur téléphone (chaque type s'affiche en carte au lieu d'un grand tableau qui déborde) et devient triable : sur ordinateur en cliquant sur les en-têtes (Nom, Code, Nombre d'années, Unités), sur téléphone via un sélecteur « Trier par… » et un bouton pour inverser l'ordre."
       },
       {

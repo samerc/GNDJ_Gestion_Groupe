@@ -119,7 +119,9 @@ export default function ZeroDayAssignmentsPage() {
                   <tr key={a.id} className={`border-b hover:bg-muted/20 ${i % 2 === 1 ? 'bg-muted/10' : ''}`}>
                     <td className="px-3 py-2"><input type="checkbox" checked={selected.has(a.id)} onChange={() => toggle(a.id)} /></td>
                     <td className="px-3 py-2">
-                      <Link to={`/members/${a.memberId}`} className="font-medium text-primary hover:underline">{a.memberName}</Link>
+                      <Link to={`/members/${a.memberId}?tab=unites`}
+                        state={{ from: '/admin/zero-day-assignments', fromLabel: 'Affectations à dater' }}
+                        className="font-medium text-primary hover:underline">{a.memberName}</Link>
                       {a.cardNumber && <div className="text-xs text-muted-foreground">{a.cardNumber}</div>}
                     </td>
                     <td className="px-3 py-2">{a.unitCode}<span className="text-xs text-muted-foreground"> · {a.unitName}</span></td>
