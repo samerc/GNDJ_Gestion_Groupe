@@ -86,32 +86,32 @@ function buildInstallGuide(): Omit<InstallGuide, 'installed'> {
       ? { supported: true, canPrompt: false, platform: 'ios',
           intro: "Sur iPhone ou iPad, ajoutez GNDJ à votre écran d'accueil depuis Safari :",
           steps: [
-            "Touchez le bouton Partager (le carré avec une flèche vers le haut, en bas de l'écran).",
-            "Faites défiler puis choisissez « Sur l'écran d'accueil ».",
-            "Touchez « Ajouter » en haut à droite.",
+            "Touchez le bouton « Share (Partager) » (le carré avec une flèche vers le haut, en bas de l'écran).",
+            "Faites défiler puis choisissez « Add to Home Screen (Sur l'écran d'accueil) ».",
+            "Touchez « Add (Ajouter) » en haut à droite.",
           ] }
       : { supported: true, canPrompt: false, platform: 'ios',
           intro: "Sur iPhone ou iPad, l'installation se fait depuis Safari :",
           steps: [
             "Ouvrez ce site dans Safari (l'installation n'est pas possible depuis ce navigateur).",
-            "Touchez Partager, puis « Sur l'écran d'accueil ».",
-            "Touchez « Ajouter ».",
+            "Touchez « Share (Partager) », puis « Add to Home Screen (Sur l'écran d'accueil) ».",
+            "Touchez « Add (Ajouter) ».",
           ] }
   }
 
   if (/Android/.test(ua)) {
     if (prompt) return { supported: true, canPrompt: true, platform: 'android',
       intro: "Installez GNDJ comme une application :",
-      steps: ["Touchez « Installer » ci-dessous.", "Confirmez « Installer » (ou « Ajouter »)."] }
+      steps: ["Touchez « Installer » ci-dessous.", "Confirmez « Install (Installer) » (ou « Add (Ajouter) »)."] }
     if (/SamsungBrowser/.test(ua)) return { supported: true, canPrompt: false, platform: 'android',
       intro: "Ajoutez GNDJ à votre écran d'accueil :",
-      steps: ["Ouvrez le menu du navigateur.", "Choisissez « Ajouter la page à », puis « Écran d'accueil »."] }
+      steps: ["Ouvrez le menu du navigateur.", "Choisissez « Add page to (Ajouter la page à) », puis « Home screen (Écran d'accueil) »."] }
     if (/Firefox/.test(ua)) return { supported: true, canPrompt: false, platform: 'android',
       intro: "Installez GNDJ :",
-      steps: ["Ouvrez le menu (⋮).", "Choisissez « Installer » ou « Ajouter à l'écran d'accueil »."] }
+      steps: ["Ouvrez le menu (⋮).", "Choisissez « Install (Installer) » ou « Add to Home screen (Ajouter à l'écran d'accueil) »."] }
     return { supported: true, canPrompt: false, platform: 'android',
       intro: "Ajoutez GNDJ à votre écran d'accueil :",
-      steps: ["Ouvrez le menu du navigateur (⋮, en haut à droite).", "Choisissez « Installer l'application » ou « Ajouter à l'écran d'accueil »."] }
+      steps: ["Ouvrez le menu du navigateur (⋮, en haut à droite).", "Choisissez « Install app (Installer l'application) » ou « Add to Home screen (Ajouter à l'écran d'accueil) »."] }
   }
 
   // Desktop
@@ -123,15 +123,15 @@ function buildInstallGuide(): Omit<InstallGuide, 'installed'> {
     intro: "Installez GNDJ sur votre ordinateur (Microsoft Edge) :",
     steps: [
       "Cliquez sur l'icône d'installation à droite de la barre d'adresse, si elle apparaît.",
-      "Sinon, ouvrez le menu « … » (en haut à droite) → « Applications » → « Installer ce site en tant qu'application ».",
-      "Confirmez avec « Installer ».",
+      "Sinon, ouvrez le menu « … » (en haut à droite) → « Apps (Applications) » → « Install this site as an app (Installer ce site en tant qu'application) ».",
+      "Confirmez avec « Install (Installer) ».",
     ] }
   if (/Chrome\//.test(ua)) return { supported: true, canPrompt: false, platform: 'desktop',
     intro: "Installez GNDJ sur votre ordinateur (Google Chrome) :",
     steps: [
       "Cliquez sur l'icône d'installation à droite de la barre d'adresse, si elle apparaît.",
-      "Sinon, ouvrez le menu « ⋮ » (en haut à droite) puis « Installer GNDJ… » (parfois sous « Caster, enregistrer et partager »).",
-      "Confirmez avec « Installer ».",
+      "Sinon, ouvrez le menu « ⋮ » (en haut à droite) puis « Install GNDJ… (Installer GNDJ…) » (parfois sous « Cast, save, and share (Caster, enregistrer et partager) »).",
+      "Confirmez avec « Install (Installer) ».",
     ] }
   // Firefox / Safari desktop etc. — no reliable PWA install; don't offer it.
   return { supported: false, canPrompt: false, platform: 'unsupported', intro: '', steps: [] }

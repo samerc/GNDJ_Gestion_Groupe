@@ -4,6 +4,10 @@
     "date": "2026-09-10",
     "changes": [
       {
+        "date": "2026-09-21",
+        "text": "Installer l'application — dans les instructions d'installation, les boutons/menus du navigateur à cliquer sont désormais affichés en anglais ET en français (ex. « Apps (Applications) » → « Install this site as an app (Installer ce site en tant qu'application) »), car le navigateur du parent peut être en anglais."
+      },
+      {
         "date": "2026-09-20",
         "text": "Fratries — cliquer sur un membre ouvre désormais directement sa fiche sur l'onglet « Contact & famille » (dans le même onglet du navigateur), et un bouton « Retour — Fratries » en haut de la fiche ramène à la page Fratries, sur le même onglet (Suggestions / Confirmées / Signalements / Doublons)."
       },
