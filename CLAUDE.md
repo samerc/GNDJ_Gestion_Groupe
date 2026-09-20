@@ -827,8 +827,9 @@ Interactive fix of the flag-lists + a member-number model change. Live-DB edits 
       loser's login, soft-deleted the loser. Then **deduped** the now-redundant contacts (94 phones / 17 emails /
       23 addresses collapsed, keeping primary/oldest). 0 same-name+DOB duplicates among active members remain.
       Backups: `_bak_merge_*`, `_bak_dedupe_*`.
-- [ ] Migration tool: replicate the card-number split on re-import (populate external from source, always
-      generate internal) — currently only the live DB is split.
+- [x] Migration tool: replicate the card-number split on re-import — DONE (commit 835a803, 2026-06-29;
+      `tools/Migration/Program.cs` populates `external_card_number` from the source id + always generates an
+      internal M-/F- matricule). Verified 2026-09-20.
 
 ### Data cleanup pass 3 — guardians / addresses / professions (2026-06-25)
 Live-DB pass on the parent/contact data (untouched by passes 1–2). Backups `_bak_clean2_*`, `_bak_prof`, `_bak_gmerge_*`.
