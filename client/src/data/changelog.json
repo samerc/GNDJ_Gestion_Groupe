@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-20",
+        "text": "Email — l'email de test SMTP indique désormais le serveur d'envoi (nom + hôte + port + expéditeur) dans l'objet et le corps, pour distinguer facilement les messages quand on teste plusieurs serveurs."
+      },
+      {
+        "date": "2026-09-20",
         "text": "Sécurité — les mots de passe des serveurs SMTP peuvent désormais être stockés dans la configuration du serveur (fichier protégé) plutôt que dans la base de données, afin qu'ils n'apparaissent plus dans les sauvegardes hors-serveur. Aucun changement visible : l'envoi et le test des emails continuent de fonctionner à l'identique."
       },
       {

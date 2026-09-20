@@ -170,12 +170,22 @@ public class TestSmtpCommandHandler(IApplicationDbContext context, IConfiguratio
                 EnableSsl = server.UseSsl
             };
 
+            // Include the SMTP server identity in the subject + body so that, when several servers are tested,
+            // each received message clearly shows WHICH server it was sent through (the From address may be the
+            // same @gndj.org on all of them).
             var message = new MailMessage(
                 new MailAddress(server.FromEmail, server.FromName),
                 new MailAddress(request.TestEmail))
             {
-                Subject = "Test GNDJ - Configuration SMTP",
-                Body = "Ce message confirme que la configuration SMTP fonctionne correctement.",
+                Subject = $"Test GNDJ — Serveur SMTP « {server.Name} »",
+                Body =
+                    "Ce message de test confirme que la configuration SMTP fonctionne correctement.\n\n" +
+                    "Envoyé via le serveur :\n" +
+                    $"  • Nom : {server.Name}\n" +
+                    $"  • Hôte : {server.Host}:{server.Port}\n" +
+                    $"  • Utilisateur : {server.Username}\n" +
+                    $"  • Expéditeur : {server.FromName} <{server.FromEmail}>\n" +
+                    $"  • SSL : {(server.UseSsl ? "oui" : "non")}",
                 IsBodyHtml = false
             };
 
