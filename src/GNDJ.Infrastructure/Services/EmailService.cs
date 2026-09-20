@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Mail;
 using System.Text.Json;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -174,8 +175,11 @@ public class EmailService : IEmailService
             catch { attachments = []; }
         }
 
+        // Prefer the password from config (Smtp:Passwords:<Name|Host>) over the DB value so the secret can live
+        // in appsettings.Production.json instead of the DB (which is backed up off-server). Falls back to the DB.
+        var smtpPassword = SmtpPassword.Resolve(_config, smtp.Name, smtp.Host, smtp.Password);
         var resolved = new ResolvedTemplate(template.Subject, template.BodyHtml,
-            smtp.Host, smtp.Port, smtp.Username, smtp.Password, smtp.UseSsl, smtp.FromEmail, smtp.FromName,
+            smtp.Host, smtp.Port, smtp.Username, smtpPassword, smtp.UseSsl, smtp.FromEmail, smtp.FromName,
             smtp.Id, smtp.MaxPerHour, attachments);
         _cache.Set($"emailtpl:{templateCode}", resolved, TemplateTtl);
         return resolved;

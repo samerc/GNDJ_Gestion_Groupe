@@ -5529,6 +5529,26 @@ exported, emailed to admin + CG, and cleared**. Made it AUTOMATIC on year rollov
   a `--no-build` run trips EF's runtime `PendingModelChangesWarning` (not real drift). Also updated the global
   `dotnet-ef` tool to match the runtime (10.0.12).
 
+### SMTP passwords externalized to config (2026-09-20, DEV until deploy)
+Closed the `project_smtp_credentials` item. SMTP provider passwords were stored **plaintext** in `smtp_servers.password`
+— never exposed via the API (`SmtpServerDto` omits it, update keeps the stored value when blank), BUT the nightly
+`pg_dump` carries it, and those dumps rclone off-server → the provider creds sat in cloud backups. Now the app prefers
+the password from **config** so it can live in `appsettings.Production.json` (gitignored, server-only, never dumped),
+mirroring how `ErrorAlerts:Smtp` is already handled.
+- **`Application/Common/SmtpPassword.Resolve(config, name, host, dbPassword)`** — looks up `Smtp:Passwords:<key>` where
+  the key matches the SMTP server's **Name OR Host** (case- + whitespace-insensitive); a matching non-empty config value
+  WINS, else falls back to the DB value (backward compatible — nothing breaks until config is set, existing rows keep
+  working). Used by BOTH the real send (`EmailService.ResolveTemplateAsync`) and the admin **Test** button
+  (`TestSmtpCommandHandler`, now injects `IConfiguration`).
+- Config shape (documented in base `appsettings.json`, empty `Passwords:{}` = safe no-op → DB fallback):
+  `"Smtp": { "Passwords": { "SMTP2GO": "…", "SendPulse": "…", "Mailgun": "…" } }`.
+- Added `Microsoft.Extensions.Configuration.Abstractions` (10.0.0) to `GNDJ.Application.csproj` (it only had it
+  transitively-absent; `IConfiguration` didn't resolve there).
+- **PROD rollout (manual, after deploy):** add the three passwords to `appsettings.Production.json` under
+  `Smtp:Passwords` (keyed by each server's Name/Host), recycle the pool, verify a Test send, THEN purge the DB column:
+  `UPDATE smtp_servers SET password='';` (the admin UI can't blank it — update keeps the stored value when the field is
+  empty). After that the secret is only in the gitignored server file, not the DB or backups. Build 0/0, 102 tests pass.
+
 ### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a
@@ -5537,16 +5557,17 @@ exported, emailed to admin + CG, and cleared**. Made it AUTOMATIC on year rollov
       *Quitte le groupe*, pop a dialog to capture/confirm the member's PERSONAL email + phone (approve / edit /
       dismiss, editable later) so the group can re-contact them next year. Currently a manual checklist task
       (*Collecter les coordonnées des membres qui quittent au passage*); this would make it a real in-app step.
-- [ ] **Go-live for real users (discuss + build):** SMTP server choice + per-template binding; clear
-      `email.override_recipient` only when ready; **`require_email_verification` stays ON** (manual-verify safety
-      net now BUILT); run `deploy/golive/force-password-reset.sql` when activating accounts; login identity stays
-      synthetic `@scouts.gndj`. Forced first-login password + configurable policy now BUILT. Deploy this session's
-      dev-only work to prod (code + dump). Activation-link sender ("Envoyer les accès") BUILT — run it unit by unit
-      (Maîtrise first) after email delivery works, to TEST the pipeline before members.
+- [x] **Go-live for real users — DONE (confirmed 2026-09-20).** Prod: `email.override_recipient` CLEARED; SMTP2GO +
+      SendPulse + Mailgun all active + working; enrollment live since Sept 1; forced first-login password +
+      configurable policy + manual email-verify all BUILT; synthetic `@scouts.gndj` logins kept. Activation-link
+      sender ("Envoyer les accès") available for the ongoing unit-by-unit rollout. See [[project-email-golive]].
 - [ ] Public site #3: knowledge / ressources section (lightweight CMS pages vs structured downloadable library).
 - [ ] Optional: disable logins for the 86 login-having orphans; correct the 50 zero-day marker dates in-app.
-- [ ] Deployment hardening (optional): secrets → env vars, httpOnly cookies. (HSTS done; prod CORS moot — SPA is
-      same-origin; secrets already gitignored server-side.)
+- [x] Deployment hardening — RESOLVED/decided (2026-09-20). SMTP passwords can now live in `appsettings` config
+      instead of the DB (externalize path built; prod purge `UPDATE smtp_servers SET password=''` pending — see
+      [[SMTP Credentials Storage]]). Secrets→env-vars + httpOnly-cookies decided **won't-do**: secrets are already
+      gitignored server-side (env vars = marginal gain), and httpOnly cookies would rearchitect the whole
+      JS-token auth model (remember-me / sibling-switch / impersonation) for low benefit given CSP + React escaping.
 - [ ] Perf (optional later): async Serilog file sink (Serilog.Sinks.Async); DbContextCheck on /health; batch the
       demande-send in-loop unit/role/email lookups (now indexed, so low priority)
 - [ ] **TypeScript 6 → 7** (deferred 2026-07-19): the codebase is ALREADY TS-7-clean — trialled live, `tsc` +

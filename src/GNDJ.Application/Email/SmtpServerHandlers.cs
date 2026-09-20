@@ -7,6 +7,7 @@ using GNDJ.Application.Common.Models;
 using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace GNDJ.Application.Email;
 
@@ -150,7 +151,7 @@ public class TestSmtpCommandValidator : AbstractValidator<TestSmtpCommand>
     }
 }
 
-public class TestSmtpCommandHandler(IApplicationDbContext context) : IRequestHandler<TestSmtpCommand, Result<bool>>
+public class TestSmtpCommandHandler(IApplicationDbContext context, IConfiguration config) : IRequestHandler<TestSmtpCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(TestSmtpCommand request, CancellationToken ct)
     {
@@ -158,11 +159,14 @@ public class TestSmtpCommandHandler(IApplicationDbContext context) : IRequestHan
         if (server is null)
             return Result<bool>.Failure("Serveur SMTP introuvable.");
 
+        // Same resolution as the real send: prefer the config password (Smtp:Passwords:<Name|Host>) so a
+        // server whose secret lives only in appsettings can still be tested from the admin UI.
+        var password = SmtpPassword.Resolve(config, server.Name, server.Host, server.Password);
         try
         {
             using var client = new SmtpClient(server.Host, server.Port)
             {
-                Credentials = new NetworkCredential(server.Username, server.Password),
+                Credentials = new NetworkCredential(server.Username, password),
                 EnableSsl = server.UseSsl
             };
 
