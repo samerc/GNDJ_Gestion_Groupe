@@ -5590,7 +5590,10 @@ mirroring how `ErrorAlerts:Smtp` is already handled.
       configurable policy + manual email-verify all BUILT; synthetic `@scouts.gndj` logins kept. Activation-link
       sender ("Envoyer les accès") available for the ongoing unit-by-unit rollout. See [[project-email-golive]].
 - [ ] Public site #3: knowledge / ressources section (lightweight CMS pages vs structured downloadable library).
-- [ ] Optional: disable logins for the 86 login-having orphans; correct the 50 zero-day marker dates in-app.
+- [x] Orphan logins + zero-day markers — DONE 2026-09-20. Orphan logins (never-logged-in, no assignment) disabled
+      via patch 022 (51 on dev; super-admins preserved) + a reusable disable/enable-login panel toggle. Zero-day
+      assignments now have a CG review page (`/admin/zero-day-assignments`): date or delete each. See the
+      "Data-cleanup batch" section above.
 - [x] Deployment hardening — RESOLVED/decided (2026-09-20). SMTP passwords can now live in `appsettings` config
       instead of the DB (externalize path built; prod purge `UPDATE smtp_servers SET password=''` pending — see
       [[SMTP Credentials Storage]]). Secrets→env-vars + httpOnly-cookies decided **won't-do**: secrets are already
