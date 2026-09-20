@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-20",
+        "text": "Cotisations (tableau de bord) — les vignettes « Payé » et « Impayés » sont désormais cliquables : elles déploient le détail de toutes les unités et amènent au tableau « Par unité » (la liste « Ont payé » avec les montants et le reçu à télécharger, ainsi que la liste « à relancer »). Ajout d'un bouton « Développer tout / Réduire tout » sur le tableau « Par unité »."
+      },
+      {
+        "date": "2026-09-20",
         "text": "Passage — quand un chef d'unité indique qu'un membre « Quitte le groupe », une fenêtre propose de confirmer/saisir ses coordonnées personnelles (courriel + téléphone) afin de pouvoir le recontacter l'an prochain. Ces coordonnées sont enregistrées sur sa fiche (ancien membre) et l'adresse devient son courriel de contact principal. Les champs sont facultatifs. En lot : « Quitte le groupe » parcourt les membres sélectionnés un par un (avec « Passer » pour ignorer l'un d'eux)."
       },
       {

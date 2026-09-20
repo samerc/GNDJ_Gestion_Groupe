@@ -5577,10 +5577,14 @@ mirroring how `ErrorAlerts:Smtp` is already handled.
   `UPDATE smtp_servers SET password='';` (the admin UI can't blank it — update keeps the stored value when the field is
   empty). After that the secret is only in the gitignored server file, not the DB or backups. Build 0/0, 102 tests pass.
 
-### Super-admin grant UI + security-profile merge + relift (2026-08-30) The `/admin/cotisations`
-      dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
-      reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a
-      `cotisation_payments` row for a unit) or the new "Documents par unité" matrix (green cotisation cell).
+### Super-admin grant UI + security-profile merge + relift (2026-08-30)
+- [x] **Cotisation dashboard "payé" drill-down — DONE (2026-09-20, DEV until deploy, frontend-only).** The
+      `/admin/cotisations` per-unit rows already reveal an "Ont payé" list (name → fiche, date, montants, receipt
+      download) + Exemptés + à-relancer on click (`cotisation-dashboard.tsx`). Added the missing group-level
+      affordance: the **green "Payé"** and **orange "Impayés"** summary cards are now clickable (`revealAllUnits`
+      → `expandAll` + scroll the "Par unité" card into view via a `parUniteRef`), plus a **"Développer tout /
+      Réduire tout"** button on the "Par unité" header. `expandableUnits` = units with any paid/exempt/unpaid
+      member. tsc + eslint + vite clean.
 - [x] **Capture leavers' contacts at passage — DONE (2026-09-20, DEV until deploy).** When a CU clicks *Quitte le
       groupe* on the passage page (`passage.tsx`), a **LeaverContactDialog** opens first: it fetches the member's
       detail, prefills the personal email (primaryContactEmail → primary/first own email) + phone (primary/first own

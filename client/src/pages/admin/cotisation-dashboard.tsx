@@ -7,7 +7,7 @@
 // full price per currency (Paramètres → Cotisations → Montants pleins); the "à relancer" list = impayés +
 // partiels (a partial row shows % paid + reste). Exempt ("ne paiera pas") members are excluded from impayés.
 // Multi-currency (USD/EUR/LBP) — per-currency totals PLUS a converted "≈ X" equivalent in the reference currency.
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { saveBlob } from '@/lib/download'
 import { useNavigate } from 'react-router'
 import {
@@ -68,13 +68,15 @@ export default function CotisationDashboardPage() {
   const createCotisation = useCreateCotisation('')
   const setExempt = useSetCotisationExempt()
 
-  // Which unit rows are expanded to reveal their "à relancer" (unpaid) follow-up list.
+  // Which unit rows are expanded to reveal their paid / exempt / à-relancer lists.
   const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set())
   const toggleUnit = (name: string) => setExpandedUnits(prev => {
     const next = new Set(prev)
     if (next.has(name)) next.delete(name); else next.add(name)
     return next
   })
+  // "Par unité" card, so the clickable summary cards can scroll it into view (esp. on a phone).
+  const parUniteRef = useRef<HTMLDivElement>(null)
 
   // ── Record-payment dialog state. Supports MULTIPLE payment lines (amount + currency + method) under one
   //    date — same shape the backend/member-file editor uses — so the CG can log a split payment here. ──
@@ -213,6 +215,27 @@ export default function CotisationDashboardPage() {
     return groups
   }, [exempt])
 
+  // Units that have anyone paid / exempt / unpaid (i.e. an expandable row). Used for "développer tout" and to
+  // let the summary cards reveal every payer/impayé across all units in one click.
+  const expandableUnits = useMemo(() => {
+    const names = new Set<string>()
+    for (const u of summary?.byUnit ?? []) {
+      if ((paidByUnit.get(u.unitName)?.length ?? 0) > 0
+        || (exemptByUnit.get(u.unitName)?.length ?? 0) > 0
+        || (unpaidByUnit.get(u.unitName)?.length ?? 0) > 0) names.add(u.unitName)
+    }
+    return names
+  }, [summary, paidByUnit, exemptByUnit, unpaidByUnit])
+
+  const allExpanded = expandableUnits.size > 0 && [...expandableUnits].every(n => expandedUnits.has(n))
+  const collapseAll = () => setExpandedUnits(new Set())
+  const expandAll = () => setExpandedUnits(new Set(expandableUnits))
+  // Clicking a summary card reveals every unit's detail lists and scrolls the "Par unité" table into view.
+  const revealAllUnits = () => {
+    expandAll()
+    setTimeout(() => parUniteRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
+
   // Grand totals for the association-dues table (association rows + the maîtrise line), in the selected mode.
   const duesGrand = useMemo(() => {
     if (!dues) return { members: 0, total: 0 }
@@ -280,7 +303,12 @@ export default function CotisationDashboardPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            {/* Clickable → reveals every unit's "Ont payé" list (name + amount + receipt) and scrolls to the table. */}
+            <Card
+              className={expandableUnits.size > 0 ? 'cursor-pointer transition-colors hover:bg-muted/30' : ''}
+              onClick={expandableUnits.size > 0 ? revealAllUnits : undefined}
+              title={expandableUnits.size > 0 ? 'Voir les membres qui ont payé' : undefined}
+            >
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
                   <CheckCircle className="h-8 w-8 text-green-600" />
@@ -290,17 +318,24 @@ export default function CotisationDashboardPage() {
                       {summary.fullPricingConfigured ? 'Payé en entier' : 'Ont payé'} ({paidPercentage}%)
                       {summary.membersPartial > 0 && <span className="ml-1 text-amber-600 dark:text-amber-400">· {summary.membersPartial} partiel(s)</span>}
                     </p>
+                    {expandableUnits.size > 0 && <p className="mt-0.5 text-xs text-primary">Voir le détail →</p>}
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            {/* Clickable → reveals every unit's "à relancer" (impayés + partiels) list. */}
+            <Card
+              className={expandableUnits.size > 0 ? 'cursor-pointer transition-colors hover:bg-muted/30' : ''}
+              onClick={expandableUnits.size > 0 ? revealAllUnits : undefined}
+              title={expandableUnits.size > 0 ? 'Voir les membres à relancer' : undefined}
+            >
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
                   <AlertTriangle className="h-8 w-8 text-orange-500" />
                   <div>
                     <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{summary.membersWithoutPayment}</div>
                     <p className="text-sm text-muted-foreground">Impayés{summary.membersExempt > 0 && <span className="ml-1 text-muted-foreground">· {summary.membersExempt} exempté(s)</span>}</p>
+                    {expandableUnits.size > 0 && <p className="mt-0.5 text-xs text-primary">Voir le détail →</p>}
                   </div>
                 </div>
               </CardContent>
@@ -349,21 +384,28 @@ export default function CotisationDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Par unité — stats breakdown; click a unit with impayés to reveal its "à relancer" list inline */}
-          <Card className="print-area">
+          {/* Par unité — stats breakdown; click a unit to reveal its Ont payé / Exemptés / à-relancer lists inline */}
+          <Card className="print-area" ref={parUniteRef}>
             <CardHeader>
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <CardTitle>Par unité</CardTitle>
+                <div className="flex items-center gap-2 no-print">
+                  {expandableUnits.size > 0 && (
+                    <Button variant="outline" size="sm" onClick={allExpanded ? collapseAll : expandAll}>
+                      {allExpanded ? 'Réduire tout' : 'Développer tout'}
+                    </Button>
+                  )}
                 {unpaid && unpaid.length > 0 && (
-                  <div className="flex items-center gap-2 no-print">
+                  <>
                     <Button variant="outline" size="sm" onClick={exportCsv}>
                       <Download className="mr-1.5 h-4 w-4" /> Exporter (CSV)
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => window.print()}>
                       <Printer className="mr-1.5 h-4 w-4" /> Imprimer
                     </Button>
-                  </div>
+                  </>
                 )}
+                </div>
               </div>
             </CardHeader>
             <CardContent>
