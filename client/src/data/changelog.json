@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-20",
+        "text": "Nettoyage — les comptes « orphelins » (connexion active mais aucune affectation et jamais utilisés) ont été désactivés (51 comptes) ; ils restent réactivables à tout moment depuis la fiche membre. Les super-administrateurs sont préservés."
+      },
+      {
+        "date": "2026-09-20",
         "text": "Membres — un chef d'unité / chef de groupe peut désormais désactiver (ou réactiver) la connexion d'un membre sans supprimer sa fiche (menu Actions ▾ sur la fiche membre). Un compte désactivé ne peut plus se connecter (sessions actives déconnectées) mais la fiche et toutes les données restent intactes ; l'action est réversible. Un bandeau « Connexion désactivée » apparaît dans l'en-tête de la fiche."
       },
       {
