@@ -24,6 +24,7 @@ import { useLeaderUnits } from '@/hooks/use-leader-units'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { LeaverContactDialog } from '@/components/passage/leaver-contact-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut, Search, ArrowUpDown, Pencil } from 'lucide-react'
@@ -101,6 +102,10 @@ export default function PassagePage() {
   const [bulkMode, setBulkMode] = useState<'same' | 'move'>('same')
   const [editingMember, setEditingMember] = useState<MemberRow | null>(null)
   const [deletingPassage, setDeletingPassage] = useState<PassageDto | null>(null)
+  // Members being marked "Quitte le groupe" — a queue the CU steps through one leaver-contact dialog at a time
+  // (single "Quitte le groupe" = a queue of one; bulk = all selected members). leaveIndex is the current one.
+  const [leaveQueue, setLeaveQueue] = useState<MemberRow[]>([])
+  const [leaveIndex, setLeaveIndex] = useState(0)
 
   // Rows the CU has re-opened to change a proposal that's not yet finalized (see renderProposition).
   const [editingRows, setEditingRows] = useState<Set<string>>(new Set())
@@ -386,17 +391,43 @@ export default function PassagePage() {
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
-  // One-click "Quitte le groupe": flags the member as leaving; always needs CG review (becomes alumni on finalize).
-  const handleLeaving = async (row: MemberRow) => {
-    try {
-      await proposeMutation.mutateAsync({
-        memberId: row.memberId, scoutYear: passageScoutYear,
-        proposedUnitId: row.currentUnitId, proposedTeamId: row.currentTeamId,
-        proposedRoleId: row.currentRoleId, cuNotes: null, isLeaving: true,
-      })
-      toast.success('Départ enregistré (en attente de validation)')
-      stopEditRow(row.memberId)
-    } catch (err) { toast.error(parseApiError(err)) }
+  // "Quitte le groupe": open the leaver-contact dialog first (confirm/capture personal email + phone so the
+  // group can re-contact them next year), then record the departure. Single member = a queue of one.
+  const handleLeaving = (row: MemberRow) => { setLeaveQueue([row]); setLeaveIndex(0) }
+
+  // Bulk "Quitte le groupe": step through the selected members' contact dialogs one at a time.
+  const openBulkLeave = () => {
+    const rows = memberRows.filter(m => selected.has(m.memberId))
+    if (rows.length === 0) return
+    setLeaveQueue(rows)
+    setLeaveIndex(0)
+  }
+
+  const currentLeaver = leaveQueue[leaveIndex] ?? null
+
+  // Advance to the next leaver, or close the wizard when done (clearing the selection for a bulk run).
+  const advanceLeave = () => {
+    if (leaveIndex + 1 < leaveQueue.length) {
+      setLeaveIndex(i => i + 1)
+    } else {
+      if (leaveQueue.length > 1) setSelected(new Set())
+      setLeaveQueue([])
+      setLeaveIndex(0)
+    }
+  }
+
+  // Called by the LeaverContactDialog once the contact is saved: records the leaving passage line (always needs
+  // CG review; the member becomes alumni on finalize), then advances. Throws on error so the dialog stays open.
+  const submitLeaving = async (notes: string) => {
+    if (!currentLeaver) return
+    await proposeMutation.mutateAsync({
+      memberId: currentLeaver.memberId, scoutYear: passageScoutYear,
+      proposedUnitId: currentLeaver.currentUnitId, proposedTeamId: currentLeaver.currentTeamId,
+      proposedRoleId: currentLeaver.currentRoleId, cuNotes: notes || null, isLeaving: true,
+    })
+    toast.success('Départ enregistré (en attente de validation)')
+    stopEditRow(currentLeaver.memberId)
+    advanceLeave()
   }
 
   // A member's line can still be changed by the CU until the CG FINALIZES the passage. Approved (incl.
@@ -564,6 +595,9 @@ export default function PassagePage() {
               </Button>
               <Button size="sm" onClick={() => openBulk('move')}>
                 <ArrowRight className="mr-1 h-4 w-4" />Deplacer vers...
+              </Button>
+              <Button size="sm" className="bg-orange-600 text-white hover:bg-orange-700" onClick={openBulkLeave}>
+                <LogOut className="mr-1 h-4 w-4" />Quitte le groupe
               </Button>
               <Button size="sm" variant="destructive" onClick={handleBulkDelete}>
                 <Trash2 className="mr-1 h-4 w-4" />Supprimer la proposition
@@ -798,6 +832,18 @@ export default function PassagePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Leaver contact dialog — confirm/capture personal email + phone before recording a departure. When
+          several members are marked leaving at once, the CU steps through one dialog per member. */}
+      <LeaverContactDialog
+        open={!!currentLeaver}
+        onOpenChange={o => { if (!o) { setLeaveQueue([]); setLeaveIndex(0) } }}
+        memberId={currentLeaver?.memberId ?? null}
+        memberName={currentLeaver?.memberName ?? ''}
+        onConfirm={submitLeaving}
+        progress={leaveQueue.length > 1 ? { current: leaveIndex + 1, total: leaveQueue.length } : undefined}
+        onSkip={leaveQueue.length > 1 ? advanceLeave : undefined}
+      />
 
       {/* Delete Confirm */}
       <ConfirmDialog

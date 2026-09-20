@@ -9,6 +9,7 @@ using GNDJ.Application.Members.Commands.DeleteEmail;
 using GNDJ.Application.Members.Commands.DeleteMember;
 using GNDJ.Application.Members.Commands.DeletePhone;
 using GNDJ.Application.Members.Commands.ResetMemberPassword;
+using GNDJ.Application.Members.Commands.SaveLeaverContact;
 using GNDJ.Application.Members.Commands.SetMemberLoginActive;
 using GNDJ.Application.Members.Commands.SetPrimaryContactEmail;
 using GNDJ.Application.Members.Commands.UpdateUsername;
@@ -326,6 +327,22 @@ public class MembersController : BaseApiController
     }
 
     public record SetPrimaryEmailRequest(string? Email);
+
+    /// <summary>
+    /// Captures/confirms a leaving member's personal email + phone (used at passage "Quitte le groupe") so the
+    /// group can re-contact them next year as an alumnus. Adds the email/phone to the member's own contacts if
+    /// missing and sets the email as the primary contact. Requires members.edit; unit-scoped in the handler.
+    /// </summary>
+    [HttpPut("{id:guid}/leaver-contact")]
+    [HasPermission(Permissions.MembersEdit)]
+    public async Task<IActionResult> SaveLeaverContact(Guid id, [FromBody] SaveLeaverContactRequest body)
+    {
+        var result = await Mediator.Send(new SaveLeaverContactCommand(id, body?.Email, body?.PhoneCountryCode, body?.Phone));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    public record SaveLeaverContactRequest(string? Email, string? PhoneCountryCode, string? Phone);
 
     /// <summary>Changes the member's login username (the identifier they sign in with). Requires members.edit; affects login only.</summary>
     [HttpPut("{id:guid}/username")]

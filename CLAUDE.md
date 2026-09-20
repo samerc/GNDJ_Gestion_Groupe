@@ -5581,10 +5581,21 @@ mirroring how `ErrorAlerts:Smtp` is already handled.
       dashboard is an unpaid worklist — the green "payé" count isn't drillable. Offered to make it clickable to
       reveal paying members + receipts (mirror the unpaid expand). Not built. For now: the SQL (members with a
       `cotisation_payments` row for a unit) or the new "Documents par unité" matrix (green cotisation cell).
-- [ ] **Feature idea (from the rentrée review): capture leavers' contacts at passage.** When a CU marks a member
-      *Quitte le groupe*, pop a dialog to capture/confirm the member's PERSONAL email + phone (approve / edit /
-      dismiss, editable later) so the group can re-contact them next year. Currently a manual checklist task
-      (*Collecter les coordonnées des membres qui quittent au passage*); this would make it a real in-app step.
+- [x] **Capture leavers' contacts at passage — DONE (2026-09-20, DEV until deploy).** When a CU clicks *Quitte le
+      groupe* on the passage page (`passage.tsx`), a **LeaverContactDialog** opens first: it fetches the member's
+      detail, prefills the personal email (primaryContactEmail → primary/first own email) + phone (primary/first own
+      phone), and lets the CU confirm/edit them (both optional) + an optional note. On confirm →
+      `PUT /members/{id}/leaver-contact` (`SaveLeaverContactCommand`, members.edit, `MemberAccess.CanAccessMemberAsync`)
+      adds the email/phone to the member's OWN contacts if missing (email deduped case-insensitive, phone deduped on
+      digits) + sets `PrimaryContactEmail` = the email (so it lives on the alumni fiche + drives future mail); then
+      the leaving passage line is recorded (isLeaving, note → cuNotes) as before. **Bulk** "Quitte le groupe" (new
+      orange button in the bulk bar) steps through the selected members one dialog at a time (progress "X/N",
+      **Passer** to skip one without recording, **Annuler tout** to stop; completion clears the selection). Backend
+      command reuses the RealEmail/NoHtml validators + audits `Update`/Member with LeaverEmail/LeaverPhone. Files:
+      `SaveLeaverContact/SaveLeaverContactCommand.cs`, `MembersController` `PUT {id}/leaver-contact`,
+      `useSaveLeaverContact` (member-service), `components/passage/leaver-contact-dialog.tsx`. dotnet 0/0 + tsc +
+      eslint + vite clean. (The manual rentrée task *Collecter les coordonnées des membres qui quittent au passage*
+      is now a real in-app step.)
 - [x] **Go-live for real users — DONE (confirmed 2026-09-20).** Prod: `email.override_recipient` CLEARED; SMTP2GO +
       SendPulse + Mailgun all active + working; enrollment live since Sept 1; forced first-login password +
       configurable policy + manual email-verify all BUILT; synthetic `@scouts.gndj` logins kept. Activation-link

@@ -396,6 +396,17 @@ export function useSetMemberLoginActive() {
   })
 }
 
+// Capture/confirm a leaving member's personal email + phone (passage "Quitte le groupe"), so the group can
+// re-contact them next year. Adds them to the member's own contacts if missing + sets the primary contact email.
+export function useSaveLeaverContact() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, email, phoneCountryCode, phone }: { id: string; email?: string | null; phoneCountryCode?: string | null; phone?: string | null }) =>
+      apiClient.put(`/members/${id}/leaver-contact`, { email, phoneCountryCode, phone }).then(r => r.data),
+    onSuccess: (_d, { id }) => queryClient.invalidateQueries({ queryKey: ['members', id] }),
+  })
+}
+
 // ── Access delegation ("accès délégué") ──
 // Grant a specific member extra access (the full Chef de Groupe toolset, or granular areas like Camp BP) with
 // no visible role. CG (roles.manage_group) / super-admin only. Takes effect on the member's next login/refresh.

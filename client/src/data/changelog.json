@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-20",
+        "text": "Passage — quand un chef d'unité indique qu'un membre « Quitte le groupe », une fenêtre propose de confirmer/saisir ses coordonnées personnelles (courriel + téléphone) afin de pouvoir le recontacter l'an prochain. Ces coordonnées sont enregistrées sur sa fiche (ancien membre) et l'adresse devient son courriel de contact principal. Les champs sont facultatifs. En lot : « Quitte le groupe » parcourt les membres sélectionnés un par un (avec « Passer » pour ignorer l'un d'eux)."
+      },
+      {
+        "date": "2026-09-20",
         "text": "Nouvelle page « Affectations à dater » (menu Unités & maîtrise, chef de groupe) : liste les affectations d'un seul jour (date de début = date de fin, marqueurs issus de la migration où la durée réelle est inconnue). Pour chacune, on peut corriger les dates ou la supprimer (suppression individuelle ou en lot). Les fiches des membres ne sont pas touchées."
       },
       {
