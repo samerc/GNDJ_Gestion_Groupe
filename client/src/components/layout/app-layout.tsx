@@ -17,6 +17,7 @@ import { CurrencySymbolsSync } from '@/components/shared/currency-symbols-sync'
 import { ImpersonationBanner } from './impersonation-banner'
 import { useImpersonationStore } from '@/stores/impersonation-store'
 import { reportPwaInstall } from '@/lib/pwa'
+import { PwaInstallBanner } from '@/components/shared/pwa-install'
 
 // ROLE: authenticated app shell — sidebar + header around the routed <Outlet>.
 // Used as the layout route wrapping every signed-in page. Mounts the global
@@ -97,6 +98,9 @@ export function AppLayout() {
         {/* Always mounted (except while impersonating) so "Revoir le tutoriel" works on demand; the component
             itself suppresses the AUTO first-login showing while the contact-review popup is still pending. */}
         {!impersonating && <MemberWelcomeTour />}
+        {/* Dismissible "install the app" banner (self-gates: hidden when already installed / unsupported / recently
+            dismissed). Device-specific instructions come from getInstallGuide(). */}
+        {!impersonating && <PwaInstallBanner />}
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header />
           {inMaintenance && !impersonating && (

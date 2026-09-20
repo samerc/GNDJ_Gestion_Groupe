@@ -5598,9 +5598,15 @@ across devices. Icons generated with PIL (navy gradient + white compass, no SVG 
   meta + `viewport-fit=cover`). CSP already allows it (`default-src 'self'` covers manifest/worker; all
   same-origin). `lib/pwa.ts` (`initPwa` in main.tsx) captures `beforeinstallprompt`, registers the SW (PROD only),
   and reports on `appinstalled` + standalone launch.
-- **Install button:** `components/shared/pwa-install.tsx` — an "Installer l'application" item in the account menu
-  (`user-menu.tsx`); fires the native prompt on Android/desktop, opens "Sur l'écran d'accueil" instructions on iOS
-  (no prompt API there). Self-hides when already standalone or unsupported.
+- **Discovery (3 paths, all device/browser-aware via `getInstallGuide()` in lib/pwa.ts + `useInstallGuide` hook):**
+  (1) a dismissible **`PwaInstallBanner`** (bottom, mounted in AppLayout) shown to non-installed users — native
+  "Installer" button on Android/desktop, "Voir comment" → instructions dialog on iOS; dismissal remembered per
+  device (`bannerDismissed`/`dismissBanner`, re-shows after 14 days). (2) an **install slide** in the member
+  welcome tour (`member-welcome-tour.tsx`, INSTALL_STEP, only when supported + not standalone). (3) the
+  **`PwaInstallMenuItem`** in the account menu. `getInstallGuide()` returns tailored steps per platform: iOS Safari
+  (Partager → Sur l'écran d'accueil), iOS non-Safari (open in Safari first), Android Chrome/Samsung/Firefox,
+  desktop Chrome/Edge (address-bar icon) — else `supported:false` (Firefox/Safari desktop) → nothing offered.
+  Shared `PwaInstallGuide` component renders the steps + a native button when `canPrompt`.
 - **Tracking:** `Member.AppInstalledAt` (migration `AddMemberAppInstalled`). `POST /my-profile/app-installed`
   (`MarkAppInstalledCommand`, auth-only, own member resolved server-side, idempotent — sets once) called by
   `AppLayout` on a standalone launch (skipped while impersonating) + on `appinstalled`. Surfaced to the CG:

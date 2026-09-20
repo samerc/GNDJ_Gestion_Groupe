@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router'
-import { Hand, FileText, UserRound, SunMoon, Users, ArrowRight, ChevronLeft } from 'lucide-react'
+import { Hand, FileText, UserRound, SunMoon, Users, ArrowRight, ChevronLeft, Smartphone } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
@@ -8,6 +8,9 @@ import { useMarkOnboardingSeen, useSwitchAccounts } from '@/services/my-profile-
 import { useIsRegularMember } from '@/lib/use-is-manager'
 import { useOnboardingTour } from '@/stores/onboarding-store'
 import { useContactReviewStore } from '@/stores/contact-review-store'
+import { isStandalone } from '@/lib/pwa'
+import { useInstallGuide } from '@/hooks/use-install-guide'
+import { PwaInstallGuide } from '@/components/shared/pwa-install'
 
 // First-login welcome tour for REGULAR MEMBERS (youth / parents) — a short, mobile-friendly carousel that
 // orients them instead of a DOM-spotlight tour (which breaks when the member nav is behind the hamburger).
@@ -20,6 +23,7 @@ interface Step {
   title: string
   body: string
   cta?: { label: string; to: string }
+  install?: boolean // renders the device-specific install guide instead of the plain body
 }
 
 const STEPS: Step[] = [
@@ -54,6 +58,16 @@ const SIBLING_STEP: Step = {
   body: "Vous avez plusieurs enfants au groupe ? Depuis votre menu (en haut à droite), « Changer de compte » vous permet de basculer vers le compte d’un frère ou d’une sœur. La première fois, le mot de passe de ce compte est demandé ; ensuite, sur cet appareil, le changement est instantané.",
 }
 
+// Shown only when the app isn't already installed AND the browser supports it — the body is replaced by the
+// device-specific install steps (getInstallGuide), so an iPhone user sees the Safari steps, Android/desktop a
+// button, etc.
+const INSTALL_STEP: Step = {
+  icon: Smartphone,
+  title: "Installez l'application",
+  body: "Ajoutez GNDJ à votre écran d'accueil pour y accéder en un geste, comme une vraie application.",
+  install: true,
+}
+
 export function MemberWelcomeTour() {
   const user = useAuthStore((s) => s.user)
   const markSeen = useMarkOnboardingSeen()
@@ -66,10 +80,13 @@ export function MemberWelcomeTour() {
 
   // Add the account-switch step only for a member who actually has confirmed siblings (else it's noise).
   const { data: siblings } = useSwitchAccounts(isRegularMember && !!user?.memberId)
-  const steps = useMemo(
-    () => (siblings && siblings.length > 0 ? [...STEPS, SIBLING_STEP] : STEPS),
-    [siblings],
-  )
+  // Add the install step only when the app isn't already installed AND this browser can install it.
+  const installGuide = useInstallGuide()
+  const showInstall = installGuide.supported && !isStandalone()
+  const steps = useMemo(() => {
+    const base = siblings && siblings.length > 0 ? [...STEPS, SIBLING_STEP] : [...STEPS]
+    return showInstall ? [...base, INSTALL_STEP] : base
+  }, [siblings, showInstall])
 
   // Shows automatically to a regular member who hasn't seen it, OR whenever they hit "Revoir le tutoriel"
   // (replay overrides the once-per-member flag). Chefs/admins are excluded (isRegularMember is false, and the
@@ -111,6 +128,13 @@ export function MemberWelcomeTour() {
           </div>
           <h2 className="text-xl font-semibold tracking-tight">{current.title}</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{current.body}</p>
+
+          {/* Install slide: device-specific steps + a native button when available (getInstallGuide). */}
+          {current.install && (
+            <div className="mt-4 w-full rounded-lg border bg-muted/30 p-3">
+              <PwaInstallGuide guide={installGuide} onDone={() => finish()} />
+            </div>
+          )}
 
           {current.cta && (
             <Button className="mt-4" onClick={() => finish(current.cta!.to)}>
