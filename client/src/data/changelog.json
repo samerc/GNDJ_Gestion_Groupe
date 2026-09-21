@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-21",
+        "text": "Validation des passages — dans le tableau « Projection de l'année prochaine », la colonne Unité n'affiche plus que le code (ex. « C1 » au lieu de « C1 — Compagnie 1 ») pour une meilleure lisibilité ; le nom complet reste visible en passant la souris dessus."
+      },
+      {
+        "date": "2026-09-21",
         "text": "Journal d'audit — la fenêtre « Détail de l'audit » est plus lisible sur téléphone : chaque information (Date, Utilisateur, Action, Entité, ID, IP, Navigateur) affiche son libellé au-dessus de sa valeur au lieu d'être tassée, l'identifiant long revient à la ligne proprement, et la fenêtre défile si elle est trop grande."
       },
       {

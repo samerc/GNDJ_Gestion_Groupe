@@ -137,7 +137,8 @@ export function PassageProjection({ scoutYear }: { scoutYear: string }) {
                             <td className="px-3 py-2 font-medium">
                               <span className="inline-flex items-center gap-1.5">
                                 <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${isOpen ? 'rotate-90' : ''}`} />
-                                {r.u.unitCode} — {r.u.unitName}
+                                {/* Code only (e.g. "C1") — the full name made the Unité column noisy; the code is enough to identify the unit. */}
+                                <span title={r.u.unitName}>{r.u.unitCode}</span>
                               </span>
                             </td>
                             <td className="px-3 py-2 text-center text-muted-foreground">{r.currentCount}</td>
