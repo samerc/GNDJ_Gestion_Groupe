@@ -81,19 +81,26 @@ public static class DocumentCampaign
         var d4 = ParseDate(Get(DocumentCampaignKeys.CorrectionDeadline));
         var d5 = ParseDate(Get(DocumentCampaignKeys.FinalDeadline));
 
-        // Misconfigured (off or dates not strictly ordered) → no gating.
+        // Misconfigured (off, a date missing, or dates out of order) → no gating. Order is NON-decreasing
+        // (<=), not strict: two equal adjacent dates just make the phase between them zero-length (e.g.
+        // deposit_deadline == correction_start = no verification gap → upload stays continuously open). Only a
+        // genuinely backwards date (a later date before an earlier one) counts as misconfigured.
         var ordered = d1 is { } && d2 is { } && d3 is { } && d4 is { } && d5 is { }
-            && d1 < d2 && d2 < d3 && d3 < d4 && d4 < d5;
+            && d1 <= d2 && d2 <= d3 && d3 <= d4 && d4 <= d5;
         if (!enabled || !ordered)
             return new DocumentCampaignStatus(enabled, DocumentCampaignPhases.Inactive, true,
                 d1, d2, d3, d4, d5, null, null, scoutYear);
 
         var today = LebanonClock.Today;
         string phase; bool open; DateOnly? reopensOn = null, closesOn = null;
+        // Deadlines are INCLUSIVE: the deadline day itself is still part of the period (matches the everyday
+        // meaning of "date limite de dépôt : 20 sept" = you can upload through the 20th; verification starts the
+        // 21st). So the upload-closing boundaries (deposit_deadline d2, correction_deadline d4) use <= , while the
+        // start boundaries (deposit_start d1, correction_start d3) open ON the start day via the cascade.
         if (today < d1!.Value) { phase = DocumentCampaignPhases.Before; open = false; reopensOn = d1; }
-        else if (today < d2!.Value) { phase = DocumentCampaignPhases.Deposit; open = true; closesOn = d2; }
+        else if (today <= d2!.Value) { phase = DocumentCampaignPhases.Deposit; open = true; closesOn = d2; }
         else if (today < d3!.Value) { phase = DocumentCampaignPhases.Verification1; open = false; reopensOn = d3; }
-        else if (today < d4!.Value) { phase = DocumentCampaignPhases.Correction; open = true; closesOn = d4; }
+        else if (today <= d4!.Value) { phase = DocumentCampaignPhases.Correction; open = true; closesOn = d4; }
         else if (today < d5!.Value) { phase = DocumentCampaignPhases.Verification2; open = false; }
         else { phase = DocumentCampaignPhases.Done; open = false; }
 

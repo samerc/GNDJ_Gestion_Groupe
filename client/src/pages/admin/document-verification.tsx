@@ -180,7 +180,10 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
           </div>
           <p className="text-xs text-muted-foreground">
             Le dépôt est <strong>ouvert</strong> pendant le Dépôt (1→2) et la Correction (3→4), <strong>fermé</strong> pendant les vérifications.
-            Les dates doivent se suivre dans l'ordre. La mise à jour du calendrier prend effet immédiatement.
+            Les <strong>dates limites sont incluses</strong> (les membres peuvent déposer jusqu'au jour indiqué). Les dates doivent se suivre
+            dans l'ordre — deux dates identiques suppriment la phase intermédiaire (ex. dates 2 et 3 égales = pas de pause de vérification, dépôt
+            continu). <strong>N'oubliez pas d'activer « Campagne active »</strong> : sans ça, le calendrier n'a aucun effet et les membres peuvent
+            déposer à tout moment. La mise à jour prend effet immédiatement.
           </p>
           <div className="flex justify-end">
             <Button onClick={save} disabled={update.isPending}><Save className="mr-1.5 h-4 w-4" />{update.isPending ? 'Enregistrement…' : 'Enregistrer le calendrier'}</Button>

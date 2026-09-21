@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-21",
+        "text": "Suivi des documents (campagne) — les dates limites sont désormais INCLUSES : un membre peut déposer jusqu'au jour indiqué (avant, le dépôt se fermait dès le matin de la date limite). De plus, deux dates identiques sont acceptées (ex. « date limite de dépôt » = « ouverture de la correction » → dépôt continu, sans pause de vérification) ; auparavant des dates égales désactivaient silencieusement la campagne. Rappel affiché : la campagne n'a d'effet que si « Campagne active » est activé."
+      },
+      {
+        "date": "2026-09-21",
         "text": "Validation des passages — dans le tableau « Projection de l'année prochaine », la colonne Unité n'affiche plus que le code (ex. « C1 » au lieu de « C1 — Compagnie 1 ») pour une meilleure lisibilité ; le nom complet reste visible en passant la souris dessus."
       },
       {
