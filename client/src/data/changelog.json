@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-21",
+        "text": "Journal d'audit — la fenêtre « Détail de l'audit » est plus lisible sur téléphone : chaque information (Date, Utilisateur, Action, Entité, ID, IP, Navigateur) affiche son libellé au-dessus de sa valeur au lieu d'être tassée, l'identifiant long revient à la ligne proprement, et la fenêtre défile si elle est trop grande."
+      },
+      {
+        "date": "2026-09-21",
         "text": "Affectations à dater — cliquer sur le nom d'un membre ouvre désormais directement sa fiche sur l'onglet « Unités / Fonctions » (même onglet du navigateur), avec un bouton « Retour — Affectations à dater » pour revenir à la liste."
       },
       {

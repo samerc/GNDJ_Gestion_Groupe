@@ -2,7 +2,7 @@
 // Paged, filterable by entity/action/user/date range + free-text search; row click opens a detail dialog
 // that renders the old/new JSON snapshots as a friendly before→after table. Exportable to CSV; super-admin
 // can clear the trail (which downloads a CSV backup of the deleted rows first).
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useAuditLogs, useAuditFilterOptions, useClearAuditLogs, useExportAuditLogs, type AuditLogDto, type AuditFilters } from '@/services/audit-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
@@ -21,6 +21,18 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { Tip } from '@/components/ui/tooltip'
 import { ACTION_LABELS, ENTITY_LABELS, actionMeta, entityLabel, parseUserAgent, entitySummary } from '@/lib/audit-format'
 import { DiffViewer } from '@/components/admin/audit-diff'
+
+// One label-above-value cell for the audit detail dialog. Stacking the label on its own line (instead of an
+// inline "Label : value") keeps each field readable on a narrow phone — the value never crams against a
+// wrapping label, and long values (GUID / user-agent) get their own full line.
+function Field({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
+  return (
+    <div className={className}>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="break-words">{children}</div>
+    </div>
+  )
+}
 
 export default function AuditLogsPage() {
   const [page, setPage] = useState(1)
@@ -221,21 +233,21 @@ export default function AuditLogsPage() {
 
       {/* Detail Dialog */}
       <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Détail de l'audit</DialogTitle>
           </DialogHeader>
           {detail && (
             <div className="space-y-4 text-sm">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div><span className="text-muted-foreground">Date :</span> {new Date(detail.timestamp).toLocaleString('fr-FR')}</div>
-                <div><span className="text-muted-foreground">Utilisateur :</span> {detail.userEmail ?? '—'}</div>
-                <div><span className="text-muted-foreground">Action :</span> {actionMeta(detail.action).label}</div>
-                <div><span className="text-muted-foreground">Entité :</span> {entityLabel(detail.entityType)}{(() => { const s = entitySummary(detail); return s ? ` — ${s}` : '' })()}</div>
-                <div><span className="text-muted-foreground">ID Entité :</span> <span className="font-mono text-xs">{detail.entityId ?? '—'}</span></div>
-                <div><span className="text-muted-foreground">IP :</span> {detail.ipAddress ?? '—'}</div>
+              <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+                <Field label="Date">{new Date(detail.timestamp).toLocaleString('fr-FR')}</Field>
+                <Field label="Utilisateur">{detail.userEmail ?? '—'}</Field>
+                <Field label="Action">{actionMeta(detail.action).label}</Field>
+                <Field label="Entité">{entityLabel(detail.entityType)}{(() => { const s = entitySummary(detail); return s ? ` — ${s}` : '' })()}</Field>
+                <Field label="ID Entité"><span className="font-mono text-xs break-all">{detail.entityId ?? '—'}</span></Field>
+                <Field label="IP">{detail.ipAddress ?? '—'}</Field>
                 {/* Browser / device string — helpful to troubleshoot a login (which device the attempt came from). */}
-                <div className="col-span-2 break-words"><span className="text-muted-foreground">Navigateur :</span> <span title={detail.userAgent ?? undefined}>{parseUserAgent(detail.userAgent)}</span></div>
+                <Field label="Navigateur" className="sm:col-span-2"><span title={detail.userAgent ?? undefined}>{parseUserAgent(detail.userAgent)}</span></Field>
               </div>
 
               {(detail.oldValues || detail.newValues) && (
