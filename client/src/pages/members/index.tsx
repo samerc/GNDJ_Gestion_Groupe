@@ -49,9 +49,10 @@ import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PARENTS_SITUAT
 import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts, useMemberAbsencesByYear, type MemberAbsenceYear } from '@/services/meeting-service'
 import { cn, computeAge } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, SlidersHorizontal, ShieldCheck, Star, Upload, Eye, Lock, Unlock, Smartphone } from 'lucide-react'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Copy, X, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Droplet, Pencil, KeyRound, Save, Trash2, CheckCircle2, AlertTriangle, Send, CalendarCheck, ChevronDown, SlidersHorizontal, ShieldCheck, ListChecks, Star, Upload, Eye, Lock, Unlock, Smartphone } from 'lucide-react'
 import { pushRecentMember, isFavoriteMember, toggleFavoriteMember } from '@/lib/recent-members'
 import { DelegationDialog } from './delegation-dialog'
+import { AccessViewerDialog } from './access-viewer-dialog'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 
@@ -158,6 +159,7 @@ function MemberDetailPanel({ memberId, onDeleted, initialTab }: { memberId: stri
   const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
   const canDelete = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_DELETE))
   const canDelegate = useAuthStore((s) => s.hasPermission(PERMISSIONS.ROLES_MANAGE_GROUP)) // CG/super-admin: accès délégué
+  const canViewAccess = useAuthStore((s) => s.hasPermission(PERMISSIONS.MAITRISE_MANAGE)) // any group manager: voir les accès effectifs
   // Member-card generation is a group-wide toggle (Paramètres → Rapports). Off => hide the download action.
   const cardsEnabled = useSettingValue('reports.cards_enabled') !== 'false'
   const canManageSiblings = useAuthStore((s) => s.hasPermission(PERMISSIONS.MAITRISE_MANAGE)) // CG/super-admin: link/unlink fratries
@@ -215,6 +217,7 @@ function MemberDetailPanel({ memberId, onDeleted, initialTab }: { memberId: stri
 
   // Access delegation ("accès délégué") — CG grants this member extra hidden access (full CG or per-area).
   const [delegationOpen, setDelegationOpen] = useState(false)
+  const [accessOpen, setAccessOpen] = useState(false) // "Voir les accès" effective-access viewer
 
   // Delete member (soft-delete → Corbeille, restorable until the purge job runs).
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -446,6 +449,11 @@ function MemberDetailPanel({ memberId, onDeleted, initialTab }: { memberId: stri
                   {cardsEnabled && (
                     <DropdownMenuItem onClick={downloadCard}>
                       <CreditCard className="mr-2 h-4 w-4" />Télécharger la carte de membre
+                    </DropdownMenuItem>
+                  )}
+                  {canViewAccess && (
+                    <DropdownMenuItem onClick={() => setAccessOpen(true)}>
+                      <ListChecks className="mr-2 h-4 w-4" />Voir les accès
                     </DropdownMenuItem>
                   )}
                   {canDelegate && (
@@ -763,6 +771,12 @@ function MemberDetailPanel({ memberId, onDeleted, initialTab }: { memberId: stri
       {canDelegate && (
         <DelegationDialog memberId={memberId} memberName={`${member.firstName} ${member.lastName}`}
           open={delegationOpen} onOpenChange={setDelegationOpen} />
+      )}
+
+      {/* Voir les accès effectifs (tout gestionnaire de groupe) */}
+      {canViewAccess && (
+        <AccessViewerDialog memberId={memberId} memberName={`${member.firstName} ${member.lastName}`}
+          open={accessOpen} onOpenChange={setAccessOpen} />
       )}
 
       {/* Delete member (soft-delete → Corbeille) */}

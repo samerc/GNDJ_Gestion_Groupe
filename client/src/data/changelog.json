@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-22",
+        "text": "Accès & permissions — nouvelle fenêtre « Voir les accès » (fiche d'un membre → Actions → Voir les accès) réservée aux gestionnaires de groupe. Elle montre, en un coup d'œil, tout ce que la personne peut faire ET d'où vient chaque accès : depuis quelle fonction, depuis un « accès délégué », ou parce qu'elle est super-administrateur. Les permissions sont regroupées par domaine (Membres, Documents, Cotisations, Passages, Demandes…), avec la portée en tête (« agit sur : telles unités » ou « toutes les unités »). Première étape d'une refonte visant à gérer toutes les permissions au même endroit et de la même façon."
+      },
+      {
+        "date": "2026-09-22",
         "text": "Organiser mon unité — pendant le passage, le « plan de l'unité » (glisser-déposer) devient un outil de PROPOSITION en parallèle du tableau des passages classique (on bascule de l'un à l'autre par un bouton). Chaque membre affiche un badge (À proposer / Pas de changement / → unité de destination / Quitte), un bandeau rappelle que rien n'est appliqué avant la validation du chef de groupe, et un bouton crée en un clic toutes les lignes « Pas de changement » manquantes. Le bouton de déplacement d'un membre ouvre une fenêtre unique avec les trois choix : Pas de changement, Proposer un changement (même branche → équipe/fonction, ou unité supérieure selon le parcours scout, avec « Garder la fonction actuelle »), ou Quitte le groupe (avec la saisie des coordonnées du partant). Hors période de passage, le plan reste l'outil de rangement en direct (inchangé)."
       },
       {

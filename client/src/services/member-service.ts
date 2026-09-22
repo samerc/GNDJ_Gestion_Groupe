@@ -449,6 +449,27 @@ export function useSetMemberDelegation(memberId: string) {
   })
 }
 
+// ── Effective access ("Voir les accès") — the resolved permissions with provenance (which fonction /
+// delegation / super-admin grants each), grouped by domain. Read-only; mirrors the login token resolution. ──
+export interface AccessSource { kind: string; label: string; detail: string | null; isGroupLevel: boolean }
+export interface AccessPerm { key: string; label: string; sources: number[] } // sources = indexes into `sources` below
+export interface AccessDomain { key: string; label: string; permissions: AccessPerm[] }
+export interface MemberEffectiveAccess {
+  isSuperAdmin: boolean
+  allUnits: boolean
+  unitLabels: string[]
+  sources: AccessSource[]
+  domains: AccessDomain[]
+  maitriseManageBypass: boolean // holds maitrise.manage → master access to every member file (until decoupled)
+}
+export function useMemberEffectiveAccess(memberId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['members', memberId, 'effective-access'],
+    queryFn: () => apiClient.get<MemberEffectiveAccess>(`/members/${memberId}/effective-access`).then(r => r.data),
+    enabled: enabled && !!memberId,
+  })
+}
+
 // Set (or clear with null) the member's primary contact email — the recipient for member-facing mail.
 export function useSetPrimaryContactEmail(memberId: string) {
   const qc = useQueryClient()

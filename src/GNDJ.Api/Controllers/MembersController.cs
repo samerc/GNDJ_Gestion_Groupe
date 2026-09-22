@@ -399,6 +399,20 @@ public class MembersController : BaseApiController
 
     public record SetDelegationRequest(bool FullCg, Dictionary<string, string>? AreaLevels);
 
+    /// <summary>
+    /// Effective access of a member ("Voir les accès") — the resolved permissions WITH provenance (which
+    /// fonction / delegation / super-admin grants each), grouped by domain. Read-only. Requires maitrise.manage
+    /// (any group manager). Mirrors the union the login token is built from, so it reflects reality.
+    /// </summary>
+    [HttpGet("{id:guid}/effective-access")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> GetEffectiveAccess(Guid id)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Members.GetMemberEffectiveAccessQuery(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     // --- Super-admin (grant / revoke) — the flag is not a permission, so ONLY an existing super-admin (enforced
     // in the handler) can list or change it. Takes effect on the target's next login/refresh. ---
 
