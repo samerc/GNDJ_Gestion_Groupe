@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { DemandeCrossReports } from '@/components/admin/demande-cross-reports'
 import {
   Inbox, Clock, CheckCircle2, XCircle, Send, FileEdit, Users2, AlertTriangle,
   Link2, UsersRound, BarChart3,
@@ -157,6 +158,9 @@ export default function DemandeStatsPage() {
               </CardContent>
             </Card>
           </section>
+
+          {/* Cross-tab reports (Sexe×Branche, Branche×Statut, + flexible pivot) — the headline analytics */}
+          <DemandeCrossReports rows={stats.rows} branches={stats.branches} schoolCode={schoolCode} />
 
           {/* Capacity */}
           <section className="space-y-3">

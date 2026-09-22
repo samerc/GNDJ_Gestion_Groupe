@@ -48,6 +48,26 @@ public record UnitOccupancyDto(
 
 public record CountItem(string Label, int Count);
 
+// One lightweight dimension-row per submitted demande — the raw material for the CG's cross-tab / pivot reports.
+// Every field is already resolved to a display bucket (labels, not ids) so the frontend can pivot ANY two
+// dimensions live, build the curated grids, and export CSV without another round-trip. The set is small
+// (a few hundred demandes per season), so shipping it whole is cheap.
+public record DemandeStatRow(
+    string Gender,          // "Masculin" | "Féminin" | "Non renseigné"
+    string AgeGroup,        // age bucket label (see AgeGroupOrder)
+    int? Age,
+    string TargetBranch,    // branche visée — derived from âge+sexe (covers every demande, incl. en attente)
+    string? DecidedBranch,  // branche décidée — the accepted unit's type (null until accepted)
+    string Status,          // "Acceptée" | "Refusée" | "En attente"
+    string Classe,
+    string School,          // raw school name (the frontend shortens it via useSchoolCode)
+    string City,
+    string Nationality,
+    string ParentsSituation,
+    bool PreviousDemande,   // parent ticked "a déjà déposé une demande"
+    bool HasRelation,       // account has ≥1 proche scout
+    bool IsSibling);        // account has >1 demande this season
+
 public record DemandeStatisticsDto(
     string ScoutYear,
     // status pipeline (over submitted+ demandes — drafts excluded except the Drafts count)
@@ -56,7 +76,9 @@ public record DemandeStatisticsDto(
     IReadOnlyList<CountItem> ByGender, IReadOnlyList<CountItem> ByAgeGroup,
     IReadOnlyList<CountItem> ByClasse, IReadOnlyList<CountItem> BySchool,
     // families & data quality
-    int SiblingGroups, int SiblingDemandes, int WithScoutRelations, int IncompleteDossiers);
+    int SiblingGroups, int SiblingDemandes, int WithScoutRelations, int IncompleteDossiers,
+    // cross-tab / pivot material: the parcours-ordered branche labels (stable column order) + a row per demande
+    IReadOnlyList<string> Branches, IReadOnlyList<DemandeStatRow> Rows);
 
 static class DemandeAdminHelpers
 {
@@ -97,6 +119,33 @@ static class DemandeAdminHelpers
 
     static string NormalizeKey(string s) => TextNormalization.NormalizeKey(s);
     static bool HasDiacritics(string s) => s != TextNormalization.RemoveDiacritics(s);
+
+    // The parcours order (branch code → rank) used to order branche columns consistently across the pivots.
+    static readonly string[] BranchOrder = { "MEU", "RON", "TRO", "COM", "CLAN", "NOY", "JEM", "FEU", "CAR", "GRP" };
+    public static int BranchRank(string code)
+    {
+        var i = Array.IndexOf(BranchOrder, code);
+        return i < 0 ? 99 : i;
+    }
+
+    // A candidate branche a demande could be aimed at: a unit type with a real age range (a branche with no age
+    // range — e.g. the Groupe/maîtrise — is never a new-member target, mirroring the enrollment suggester).
+    public record BranchType(string Name, string Code, string? Gender, int? AgeMin, int? AgeMax);
+
+    // Resolve a demande's "branche visée" from âge + sexe against the youth unit types (gender match + age in range).
+    // The parcours is gender-segregated, so this is normally exactly one branche; overlaps happen only at a single
+    // boundary age (e.g. 11 = Meute & Troupe) — tie-break to the most advanced eligible branche (highest AgeMin),
+    // matching the reality that a boundary child moves up. Unknown age or no match → "Non déterminée".
+    public static string ResolveTargetBranch(int? age, string? gender, IReadOnlyList<BranchType> types)
+    {
+        if (age is null) return "Non déterminée";
+        var g = NormalizeKey(gender ?? "");
+        var cands = types.Where(t =>
+            (string.IsNullOrWhiteSpace(t.Gender) || NormalizeKey(t.Gender) == "mixte" || NormalizeKey(t.Gender) == g)
+            && (t.AgeMin == null || age >= t.AgeMin) && (t.AgeMax == null || age <= t.AgeMax)).ToList();
+        if (cands.Count == 0) return "Non déterminée";
+        return cands.OrderByDescending(t => t.AgeMin ?? 0).ThenBy(t => t.AgeMax ?? int.MaxValue).ThenBy(t => t.Name).First().Name;
+    }
 }
 
 // ============================================================
@@ -290,7 +339,8 @@ public class GetDemandeStatisticsQueryHandler(IApplicationDbContext context, ICu
         // All submitted+ demandes for the year (the reviewable set).
         var demandes = await context.Demandes
             .Where(d => d.ScoutYear == request.ScoutYear && d.Status != DemandeStatus.Draft)
-            .Select(d => new { d.Id, d.ApplicantAccountId, d.Gender, d.DateOfBirth, d.Classe, d.School, d.Status, d.ResponseSentAt })
+            .Select(d => new { d.Id, d.ApplicantAccountId, d.Gender, d.DateOfBirth, d.Classe, d.School, d.Status, d.ResponseSentAt,
+                d.Nationality, d.DecidedUnitId, d.HasPreviousDemande })
             .ToListAsync(ct);
 
         var total = demandes.Count;
@@ -332,10 +382,56 @@ public class GetDemandeStatisticsQueryHandler(IApplicationDbContext context, ICu
             return !gs.Any(g => !string.IsNullOrWhiteSpace(g.PhoneNumber));
         });
 
+        // ── Cross-tab / pivot material: one resolved dimension-row per demande ──
+        // Youth branche types (a real age range) for the "branche visée" derivation, parcours-ordered for columns.
+        var branchTypes = (await context.UnitTypes
+                .Where(t => t.AgeMin != null || t.AgeMax != null)
+                .Select(t => new { t.Name, t.Code, t.Gender, t.AgeMin, t.AgeMax })
+                .ToListAsync(ct))
+            .OrderBy(t => DemandeAdminHelpers.BranchRank(t.Code)).ThenBy(t => t.Name)
+            .ToList();
+        var branchList = branchTypes.Select(t => new DemandeAdminHelpers.BranchType(t.Name, t.Code, t.Gender, t.AgeMin, t.AgeMax)).ToList();
+        var branchNames = branchTypes.Select(t => t.Name).Distinct().ToList(); // stable column order (parcours)
+
+        // Decided unit → its branche (type name), for "branche décidée".
+        var decidedUnitIds = demandes.Where(d => d.DecidedUnitId.HasValue).Select(d => d.DecidedUnitId!.Value).Distinct().ToList();
+        var branchByUnit = decidedUnitIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await context.Units.Where(u => decidedUnitIds.Contains(u.Id))
+                .Select(u => new { u.Id, TypeName = u.UnitType.Name }).ToDictionaryAsync(u => u.Id, u => u.TypeName, ct);
+
+        // Account-level dimensions (ville, situation des parents).
+        var accountDims = (await context.ApplicantAccounts.Where(a => accountIds.Contains(a.Id))
+                .Select(a => new { a.Id, a.AddressCity, a.ParentsSituation }).ToListAsync(ct))
+            .ToDictionary(a => a.Id, a => (a.AddressCity, a.ParentsSituation));
+
+        var siblingAccountIds = byAccount.Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
+
+        var rows = demandes.Select(d =>
+        {
+            var age = DemandeAdminHelpers.AgeAt(d.DateOfBirth, today);
+            var dims = accountDims.GetValueOrDefault(d.ApplicantAccountId);
+            return new DemandeStatRow(
+                string.IsNullOrWhiteSpace(d.Gender) ? "Non renseigné" : d.Gender.Trim(),
+                DemandeAdminHelpers.AgeGroup(age), age,
+                DemandeAdminHelpers.ResolveTargetBranch(age, d.Gender, branchList),
+                d.DecidedUnitId.HasValue ? branchByUnit.GetValueOrDefault(d.DecidedUnitId.Value) : null,
+                d.Status == DemandeStatus.Approved ? "Acceptée" : d.Status == DemandeStatus.Declined ? "Refusée" : "En attente",
+                string.IsNullOrWhiteSpace(d.Classe) ? "Non renseignée" : d.Classe.Trim(),
+                string.IsNullOrWhiteSpace(d.School) ? "Non renseignée" : d.School.Trim(),
+                string.IsNullOrWhiteSpace(dims.AddressCity) ? "Non renseignée" : dims.AddressCity.Trim(),
+                string.IsNullOrWhiteSpace(d.Nationality) ? "Non renseignée" : d.Nationality.Trim(),
+                string.IsNullOrWhiteSpace(dims.ParentsSituation) ? "Non renseignée" : dims.ParentsSituation.Trim(),
+                d.HasPreviousDemande,
+                relationSet.Contains(d.ApplicantAccountId),
+                siblingAccountIds.Contains(d.ApplicantAccountId));
+        }).ToList();
+
         return Result<DemandeStatisticsDto>.Success(new DemandeStatisticsDto(
             request.ScoutYear, total, pending, approved, declined, sent, approved + declined, drafts,
             byGender, ageCounts, byClasse, bySchool,
-            siblingGroups, siblingDemandes, withScoutRelations, incomplete));
+            siblingGroups, siblingDemandes, withScoutRelations, incomplete,
+            branchNames, rows));
     }
 }
 

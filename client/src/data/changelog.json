@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-22",
+        "text": "Statistiques des demandes — nouveaux rapports croisés. En plus des répartitions par genre / âge / classe / école, une section « Rapports croisés » affiche deux tableaux prêts à l'emploi (Sexe × Branche visée, et Branche visée × Statut : combien de garçons/filles visent une Meute, une Troupe…, et combien sont acceptés/refusés/en attente par branche) plus un « tableau croisé personnalisé » où l'on choisit librement la dimension en lignes et en colonnes parmi Sexe, Tranche d'âge, Branche visée, Branche décidée, Statut, Classe, École, Ville, Nationalité, Situation des parents, A déjà déposé, Proche scout, En fratrie. Affichage en effectifs ou en pourcentages, cellules teintées selon le volume, et export CSV (Excel) de chaque tableau. La « branche visée » est déduite de l'âge et du sexe, donc elle couvre toutes les demandes (même celles encore en attente)."
+      },
+      {
+        "date": "2026-09-22",
         "text": "Fratries → Doublons — nouveau bloc « Fusionner deux membres » : on recherche et on choisit DEUX membres quelconques (même s'ils ne sont pas détectés automatiquement comme doublons), puis on ouvre la fenêtre de fusion habituelle (choix du membre à conserver + valeur à garder pour chaque champ qui diffère). Les téléphones, emails et adresses des deux fiches sont conservés (seuls les doublons exacts sont retirés) — donc on peut garder les deux emails ou les deux numéros."
       },
       {

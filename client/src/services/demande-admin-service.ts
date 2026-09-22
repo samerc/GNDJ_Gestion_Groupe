@@ -76,6 +76,25 @@ export interface DemandeFilters {
 
 export interface CountItem { label: string; count: number }
 
+// One resolved dimension-row per demande — the raw material for the cross-tab / pivot reports (see DemandeStatRow
+// on the backend). Every field is already a display bucket, so the page can pivot ANY two dimensions client-side.
+export interface DemandeStatRow {
+  gender: string
+  ageGroup: string
+  age: number | null
+  targetBranch: string   // branche visée (derived from âge+sexe)
+  decidedBranch: string | null
+  status: string         // "Acceptée" | "Refusée" | "En attente"
+  classe: string
+  school: string
+  city: string
+  nationality: string
+  parentsSituation: string
+  previousDemande: boolean
+  hasRelation: boolean
+  isSibling: boolean
+}
+
 export interface DemandeStatistics {
   scoutYear: string
   total: number
@@ -93,6 +112,8 @@ export interface DemandeStatistics {
   siblingDemandes: number
   withScoutRelations: number
   incompleteDossiers: number
+  branches: string[]          // parcours-ordered branche labels (stable column order for the pivots)
+  rows: DemandeStatRow[]       // one row per demande — the cross-tab material
 }
 
 // GET /demandes?scoutYear&...filters → full review rows for the CG triage table; requires scoutYear (else disabled).
