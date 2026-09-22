@@ -27,7 +27,8 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LeaverContactDialog } from '@/components/passage/leaver-contact-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut, Search, ArrowUpDown, Pencil } from 'lucide-react'
+import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut, Search, ArrowUpDown, Pencil, LayoutGrid } from 'lucide-react'
+import { useNavigate } from 'react-router'
 import { cn, computeAge } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -76,6 +77,7 @@ function rowState(row: MemberRow): string {
 // elsewhere. Renders as a card list on mobile, a full table on desktop.
 export default function PassagePage() {
   const { user } = useAuthStore()
+  const navigate = useNavigate()
   const passageScoutYear = useSettingValue('passage.scout_year') ?? '2026-2027'
   // Units this leader runs (CU/ACU). A CU leading >1 unit gets a picker below; before, the page was hardcoded
   // to unitAccess[0] so a multi-unit CU could only ever act on their first unit.
@@ -581,7 +583,12 @@ export default function PassagePage() {
             <p className="text-sm text-muted-foreground mt-1">{unitName}</p>
           )}
         </div>
-        <Badge className="bg-green-600 text-sm">Passage ouvert</Badge>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate('/organiser')} title="Basculer vers le plan de l'unité (glisser-déposer)">
+            <LayoutGrid className="mr-1 h-4 w-4" />Plan de l'unité
+          </Button>
+          <Badge className="bg-green-600 text-sm">Passage ouvert</Badge>
+        </div>
       </div>
 
       {/* Bulk actions bar */}

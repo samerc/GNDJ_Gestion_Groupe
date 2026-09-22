@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-22",
+        "text": "Organiser mon unité — pendant le passage, le « plan de l'unité » (glisser-déposer) devient un outil de PROPOSITION en parallèle du tableau des passages classique (on bascule de l'un à l'autre par un bouton). Chaque membre affiche un badge (À proposer / Pas de changement / → unité de destination / Quitte), un bandeau rappelle que rien n'est appliqué avant la validation du chef de groupe, et un bouton crée en un clic toutes les lignes « Pas de changement » manquantes. Le bouton de déplacement d'un membre ouvre une fenêtre unique avec les trois choix : Pas de changement, Proposer un changement (même branche → équipe/fonction, ou unité supérieure selon le parcours scout, avec « Garder la fonction actuelle »), ou Quitte le groupe (avec la saisie des coordonnées du partant). Hors période de passage, le plan reste l'outil de rangement en direct (inchangé)."
+      },
+      {
+        "date": "2026-09-22",
         "text": "Validation des demandes (sur téléphone) — page plus lisible : la barre de recherche reste toujours visible et tous les autres filtres se replient derrière un bouton « Filtres » (ils prenaient beaucoup de place). Chaque demande est désormais une carte bien distincte (bord arrondi, ombre, séparation nette) avec ses boutons Accepter / Refuser attachés en bas de la carte — ils ne semblent plus « détachés » de la demande. Les boutons sont colorés (Accepter en vert, Refuser en rouge). Enfin, le statut « À étudier » passe du bleu au jaune (partout : liste, cartes, badges)."
       },
       {
