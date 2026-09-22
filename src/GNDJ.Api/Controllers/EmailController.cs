@@ -45,6 +45,17 @@ public class EmailController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Marks this SMTP server as the default (used by templates set to "Par défaut"). Clears the flag
+    /// on the others. Requires associations.manage.</summary>
+    [HttpPost("smtp-servers/{id:guid}/default")]
+    [HasPermission(Permissions.AssociationsManage)]
+    public async Task<IActionResult> SetDefaultSmtpServer(Guid id)
+    {
+        var result = await Mediator.Send(new SetDefaultSmtpServerCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>Deletes an SMTP server configuration. Requires associations.manage.</summary>
     [HttpDelete("smtp-servers/{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]

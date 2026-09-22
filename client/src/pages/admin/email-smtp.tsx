@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { parseApiError } from '@/lib/error-utils'
 import {
   useSmtpServers, useCreateSmtpServer, useUpdateSmtpServer, useDeleteSmtpServer, useTestSmtp,
-  type SmtpServerDto,
+  useSetDefaultSmtpServer, type SmtpServerDto,
 } from '@/services/email-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,7 +21,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Tip } from '@/components/ui/tooltip'
-import { Plus, Trash2, Pencil, Server, Send } from 'lucide-react'
+import { Plus, Trash2, Pencil, Server, Send, Star } from 'lucide-react'
 import { toast } from 'sonner'
 
 // -- SMTP form --
@@ -52,6 +52,17 @@ function SmtpTab() {
   const updateMutation = useUpdateSmtpServer()
   const deleteMutation = useDeleteSmtpServer()
   const testMutation = useTestSmtp()
+  const setDefaultMutation = useSetDefaultSmtpServer()
+
+  // Mark a server as the default (used by templates set to "Par défaut"). Only active servers can be default.
+  const doSetDefault = async (s: SmtpServerDto) => {
+    try {
+      await setDefaultMutation.mutateAsync(s.id)
+      toast.success(`« ${s.name} » est maintenant le serveur par défaut`)
+    } catch (err) {
+      toast.error(parseApiError(err))
+    }
+  }
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<SmtpServerDto | null>(null)
@@ -182,9 +193,21 @@ function SmtpTab() {
                   <TableCell>{s.port}</TableCell>
                   <TableCell>{s.fromEmail}</TableCell>
                   <TableCell>{s.maxPerHour != null ? `${s.maxPerHour}/h` : <span className="text-muted-foreground">Illimité</span>}</TableCell>
-                  <TableCell>{s.isActive ? <Badge className="bg-green-600">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap items-center gap-1">
+                      {s.isActive ? <Badge className="bg-green-600">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}
+                      {s.isDefault && <Badge className="bg-primary">Par défaut</Badge>}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
+                      {/* Pick the default provider (used by "Par défaut" templates). Filled star = current default;
+                          empty star on an active server = click to make it the default. Inactive → no star. */}
+                      {s.isDefault ? (
+                        <Tip content="Serveur par défaut"><span className="inline-flex h-9 w-9 items-center justify-center"><Star className="h-4 w-4 fill-amber-400 text-amber-500" /></span></Tip>
+                      ) : s.isActive ? (
+                        <Tip content="Définir par défaut"><Button variant="ghost" size="icon" onClick={() => doSetDefault(s)} disabled={setDefaultMutation.isPending}><Star className="h-4 w-4 text-muted-foreground" /></Button></Tip>
+                      ) : null}
                       <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button></Tip>
                       <Tip content="Envoyer un test"><Button variant="ghost" size="icon" onClick={() => openTest(s.id)}><Send className="h-4 w-4" /></Button></Tip>
                       <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(s)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>

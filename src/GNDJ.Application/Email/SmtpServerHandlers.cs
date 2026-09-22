@@ -13,7 +13,7 @@ namespace GNDJ.Application.Email;
 
 // CRUD + connectivity test for the SMTP servers that templates send through.
 // DTOs — Password is never returned. MaxPerHour = optional send-rate cap (null = unlimited).
-public record SmtpServerDto(Guid Id, string Name, string Host, int Port, string Username, string FromEmail, string FromName, bool UseSsl, bool IsActive, int? MaxPerHour, DateTime CreatedAt);
+public record SmtpServerDto(Guid Id, string Name, string Host, int Port, string Username, string FromEmail, string FromName, bool UseSsl, bool IsActive, bool IsDefault, int? MaxPerHour, DateTime CreatedAt);
 
 // GetAll
 public record GetSmtpServersQuery() : IRequest<List<SmtpServerDto>>;
@@ -24,8 +24,34 @@ public class GetSmtpServersQueryHandler(IApplicationDbContext context) : IReques
     {
         return await context.SmtpServers
             .OrderBy(s => s.Name)
-            .Select(s => new SmtpServerDto(s.Id, s.Name, s.Host, s.Port, s.Username, s.FromEmail, s.FromName, s.UseSsl, s.IsActive, s.MaxPerHour, s.CreatedAt))
+            .Select(s => new SmtpServerDto(s.Id, s.Name, s.Host, s.Port, s.Username, s.FromEmail, s.FromName, s.UseSsl, s.IsActive, s.IsDefault, s.MaxPerHour, s.CreatedAt))
             .ToListAsync(ct);
+    }
+}
+
+// Set the explicit default server (the one "Par défaut" templates send through). Clears the flag on every
+// other server so at most one is default. Only an ACTIVE server may be the default (the send only ever uses
+// active servers). associations.manage-gated at the controller.
+public record SetDefaultSmtpServerCommand(Guid Id) : IRequest<Result<bool>>;
+
+public class SetDefaultSmtpServerCommandHandler(IApplicationDbContext context, IAuditService auditService) : IRequestHandler<SetDefaultSmtpServerCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(SetDefaultSmtpServerCommand request, CancellationToken ct)
+    {
+        var target = await context.SmtpServers.FindAsync([request.Id], ct);
+        if (target is null)
+            return Result<bool>.Failure("Serveur SMTP introuvable.");
+        if (!target.IsActive)
+            return Result<bool>.Failure("Seul un serveur actif peut être défini par défaut. Activez-le d'abord.");
+
+        // Only a handful of servers — load them all and flip the flag so exactly the target is default.
+        var all = await context.SmtpServers.ToListAsync(ct);
+        foreach (var s in all)
+            s.IsDefault = s.Id == request.Id;
+
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("SetDefault", "SmtpServer", target.Id, newValues: new { target.Name }, cancellationToken: ct);
+        return Result<bool>.Success(true);
     }
 }
 
@@ -112,6 +138,9 @@ public class UpdateSmtpServerCommandHandler(IApplicationDbContext context, IAudi
         entity.FromName = request.FromName;
         entity.UseSsl = request.UseSsl;
         entity.IsActive = request.IsActive;
+        // An inactive server can't be the default (the send only uses active servers) — clear the flag so the
+        // fallback (oldest active) applies and the UI doesn't show "Par défaut" on a disabled server.
+        if (!request.IsActive) entity.IsDefault = false;
         entity.MaxPerHour = request.MaxPerHour;
 
         await context.SaveChangesAsync(ct);

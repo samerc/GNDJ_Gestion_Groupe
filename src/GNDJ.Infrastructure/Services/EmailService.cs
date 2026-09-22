@@ -154,15 +154,16 @@ public class EmailService : IEmailService
         if (template is null)
             throw new InvalidOperationException($"Email template '{templateCode}' not found or inactive.");
 
-        // Get SMTP server: the template's own, else the OLDEST active one. Ordering makes the fallback
-        // deterministic (previously "first active" with no order → arbitrary if several are active). Bind a
-        // server to each template, or keep exactly one active, to be sure which one is used.
+        // Get SMTP server: the template's own, else the explicit DEFAULT server (IsDefault), else the OLDEST
+        // active one. The default flag (set on the SMTP servers page) makes "Par défaut" templates predictable;
+        // the CreatedAt tie-break keeps a deterministic fallback when no default is marked (backward-compatible).
         var smtp = template.SmtpServer;
         if (smtp is null || !smtp.IsActive)
         {
             smtp = await _context.SmtpServers
                 .Where(s => s.IsActive && !s.IsDeleted)
-                .OrderBy(s => s.CreatedAt)
+                .OrderByDescending(s => s.IsDefault)
+                .ThenBy(s => s.CreatedAt)
                 .FirstOrDefaultAsync(ct);
         }
         if (smtp is null)

@@ -3,7 +3,7 @@
 // send time; MODULE_VARIABLES drives both the reference chip list and the editor's variable-insertion dropdown.
 // Split out of the old combined Email / SMTP page so the (heavy) rich-text editor only loads on this tab.
 // `embedded` = rendered as a tab inside Paramètres (hides the standalone back-link + h1).
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { parseApiError } from '@/lib/error-utils'
 import {
   useSmtpServers,
@@ -113,6 +113,13 @@ export default function EmailTemplatesPage({ embedded = false }: { embedded?: bo
 function TemplatesTab() {
   const { data: templates, isLoading } = useEmailTemplates()
   const { data: servers } = useSmtpServers()
+  // The server a "Par défaut" template actually resolves to: the one marked default, else the oldest active
+  // (matches the backend fallback in EmailService). Shown in the dropdown so "Par défaut" isn't a mystery.
+  const defaultServer = useMemo(() => {
+    const list = servers ?? []
+    return list.find(s => s.isDefault)
+      ?? [...list].filter(s => s.isActive).sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0]
+  }, [servers])
   const createMutation = useCreateEmailTemplate()
   const updateMutation = useUpdateEmailTemplate()
   const deleteMutation = useDeleteEmailTemplate()
@@ -272,10 +279,10 @@ function TemplatesTab() {
               <div className="space-y-2">
                 <RequiredLabel>Serveur SMTP</RequiredLabel>
                 <Select value={form.smtpServerId} onValueChange={(v) => setForm(f => ({ ...f, smtpServerId: v === '__none__' ? '' : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Par defaut" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={defaultServer ? `Par défaut (${defaultServer.name})` : 'Par défaut'} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Par defaut</SelectItem>
-                    {servers?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    <SelectItem value="__none__">{defaultServer ? `Par défaut (${defaultServer.name})` : 'Par défaut'}</SelectItem>
+                    {servers?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}{s.isDefault ? ' — par défaut' : ''}{!s.isActive ? ' (inactif)' : ''}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

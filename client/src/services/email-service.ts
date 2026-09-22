@@ -8,7 +8,9 @@ import apiClient from '@/lib/api-client'
 export interface SmtpServerDto {
   id: string; name: string; host: string; port: number; username: string
   fromEmail: string; fromName: string; useSsl: boolean; isActive: boolean
+  isDefault: boolean          // the server used by templates set to "Par défaut" (at most one)
   maxPerHour: number | null   // optional send-rate cap (emails/hour); null = unlimited
+  createdAt: string           // used to resolve the fallback default (oldest active) when none is marked
 }
 
 // GET /email/smtp-servers → list of configured SMTP servers.
@@ -38,6 +40,16 @@ export function useUpdateSmtpServer() {
 export function useDeleteSmtpServer() {
   const qc = useQueryClient()
   return useMutation({ mutationFn: (id: string) => apiClient.delete(`/email/smtp-servers/${id}`), onSuccess: () => qc.invalidateQueries({ queryKey: ['smtp-servers'] }) })
+}
+
+// POST /email/smtp-servers/{id}/default → mark this server as the default (used by "Par défaut" templates);
+// clears the flag on the others. Invalidates the list so badges update.
+export function useSetDefaultSmtpServer() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.post(`/email/smtp-servers/${id}/default`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['smtp-servers'] }),
+  })
 }
 
 // POST /email/smtp-servers/{id}/test → send a test email; no cache touched.

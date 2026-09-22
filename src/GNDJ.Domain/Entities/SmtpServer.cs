@@ -16,6 +16,11 @@ public class SmtpServer : BaseEntity
     public bool UseSsl { get; set; } = true;
     public bool IsActive { get; set; } = true;
 
+    // Explicit default: the server a template set to "Par défaut" (no bound server) sends through. At most one
+    // server should have this set (SetDefaultSmtpServerCommand clears the others). If none is marked, the send
+    // falls back to the oldest active server (backward-compatible). Only an active server is used as the default.
+    public bool IsDefault { get; set; }
+
     // Optional per-provider send-rate cap (emails/hour). NULL = unlimited (the default, no throttling).
     // Set it to respect a provider's free-tier ceiling (e.g. SendPulse free = 50/hr → set ~45 for margin):
     // the outbox sender then spaces this server's sends at least 3600/MaxPerHour seconds apart so a large
