@@ -295,6 +295,18 @@ export function useDuplicateSuggestions(keys: string[] = []) {
   })
 }
 
+// GET /siblings/members-for-merge?ids=a,b → the merge details for two arbitrary members (manual "merge any two"
+// flow). Enabled only when exactly-two distinct ids are supplied.
+export function useMembersForMerge(ids: string[]) {
+  const distinct = [...new Set(ids.filter(Boolean))]
+  const enabled = distinct.length === 2
+  return useQuery({
+    queryKey: ['siblings', 'members-for-merge', distinct.join(',')],
+    queryFn: () => apiClient.get<DuplicateMember[]>('/siblings/members-for-merge', { params: { ids: distinct.join(',') } }).then((r) => r.data),
+    enabled,
+  })
+}
+
 // POST /siblings/merge-members → merge losers into the keeper with the chosen field values.
 export function useMergeMembers() {
   const invalidate = useSiblingInvalidate()

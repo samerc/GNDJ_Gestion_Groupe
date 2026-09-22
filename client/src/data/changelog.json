@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-22",
+        "text": "Fratries → Doublons — nouveau bloc « Fusionner deux membres » : on recherche et on choisit DEUX membres quelconques (même s'ils ne sont pas détectés automatiquement comme doublons), puis on ouvre la fenêtre de fusion habituelle (choix du membre à conserver + valeur à garder pour chaque champ qui diffère). Les téléphones, emails et adresses des deux fiches sont conservés (seuls les doublons exacts sont retirés) — donc on peut garder les deux emails ou les deux numéros."
+      },
+      {
+        "date": "2026-09-22",
         "text": "Fiche membre (sur téléphone) — le menu déroulant qui sert à changer d'onglet (Informations, Contact & famille, Unités…) est plus visible, avec un libellé « Section de la fiche » et un cadre plus marqué, comme sur les Paramètres."
       },
       {

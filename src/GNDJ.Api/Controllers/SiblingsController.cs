@@ -144,6 +144,18 @@ public class SiblingsController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>Fetch the merge details for specific members (manual "merge any two members" flow). `ids` = comma-separated member GUIDs. Requires maitrise.manage.</summary>
+    [HttpGet("members-for-merge")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> MembersForMerge([FromQuery] string ids)
+    {
+        var idList = (ids ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty).Where(g => g != Guid.Empty).ToList();
+        var result = await Mediator.Send(new GetMembersForMergeQuery(idList));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     /// <summary>Merges duplicate members into a keeper (moves their data, applies chosen fields, soft-deletes the losers). Requires maitrise.manage.</summary>
     [HttpPost("merge-members")]
     [HasPermission(Permissions.MaitriseManage)]

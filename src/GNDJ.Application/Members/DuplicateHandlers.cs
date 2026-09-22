@@ -28,6 +28,52 @@ public record DuplicateMemberDto(
 // A set of members that look like the same person.
 public record DuplicateGroupDto(IReadOnlyList<DuplicateMemberDto> Members, string Evidence);
 
+// Shared projection for the merge DTO — used by the auto-suggestions AND the manual "merge any two" lookup, so
+// both show the EXACT same fields (and stay in sync). Takes the context as a parameter (for the correlated User
+// subqueries) so the expression captures a local, not a field.
+public static class DuplicateMemberProjection
+{
+    public static IQueryable<DuplicateMemberDto> Project(IApplicationDbContext context, IQueryable<Domain.Entities.Member> source) =>
+        source.Select(m => new DuplicateMemberDto(
+            m.Id, m.FirstName, m.LastName, m.DateOfBirth, m.Gender,
+            m.CardNumber, m.ExternalCardNumber, m.BloodType, m.Nationality, m.School,
+            m.Classe, m.Section, m.ProfessionDomain, m.Profession, m.MedicalNotes,
+            m.Allergies, m.Notes, m.PrimaryContactEmail, m.PhotoPath,
+            context.Users.Where(u => u.MemberId == m.Id && !u.IsDeleted).Select(u => u.Email).FirstOrDefault(),
+            m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(),
+            m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Code).FirstOrDefault(),
+            context.Users.Any(u => u.MemberId == m.Id && !u.IsDeleted),
+            m.Assignments.Any(a => a.EndDate == null),
+            m.Assignments.Count(a => !a.IsDeleted),
+            m.CreatedAt));
+}
+
+// Fetch the merge DTO for specific members — powers the MANUAL "merge any two members" flow (the CG searches +
+// picks two arbitrary members, not from an auto-detected group). Group manager only. Returns the members ordered
+// as requested (so the first picked defaults to the keeper on the client).
+public record GetMembersForMergeQuery(IReadOnlyList<Guid> MemberIds) : IRequest<Result<IReadOnlyList<DuplicateMemberDto>>>;
+
+public class GetMembersForMergeQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetMembersForMergeQuery, Result<IReadOnlyList<DuplicateMemberDto>>>
+{
+    public async ValueTask<Result<IReadOnlyList<DuplicateMemberDto>>> Handle(GetMembersForMergeQuery request, CancellationToken ct)
+    {
+        if (!MemberAccess.IsGroupManager(currentUser))
+            return Result<IReadOnlyList<DuplicateMemberDto>>.Failure("Accès non autorisé.");
+
+        var ids = request.MemberIds.Where(id => id != Guid.Empty).Distinct().ToList();
+        if (ids.Count < 2) return Result<IReadOnlyList<DuplicateMemberDto>>.Failure("Sélectionnez deux membres différents à fusionner.");
+        if (ids.Count > 20) return Result<IReadOnlyList<DuplicateMemberDto>>.Failure("Trop de membres sélectionnés (max 20).");
+
+        var members = await DuplicateMemberProjection.Project(context, context.Members.Where(m => !m.IsDeleted && ids.Contains(m.Id))).ToListAsync(ct);
+        if (members.Count < 2) return Result<IReadOnlyList<DuplicateMemberDto>>.Failure("Un ou plusieurs membres sont introuvables.");
+
+        // Preserve the requested order so the first-picked member is the default keeper on the client.
+        var ordered = ids.Select(id => members.First(m => m.MemberId == id)).ToList();
+        return Result<IReadOnlyList<DuplicateMemberDto>>.Success(ordered);
+    }
+}
+
 // Which fields the duplicate detection matches on (configurable by the CG). A member is grouped with another
 // only when they share ALL of the selected keys (each of which must be non-empty on both). The available keys +
 // their labels are the single source of truth for the backend and the frontend checkboxes.
@@ -70,22 +116,8 @@ public class GetDuplicateMemberSuggestionsQueryHandler(IApplicationDbContext con
             .Where(k => DuplicateMatchKeys.Labels.ContainsKey(k)).Distinct().ToList();
         if (keys.Count == 0) keys = DuplicateMatchKeys.Default.ToList();
 
-        // All non-deleted members, projected with the fields the dialog needs.
-        var members = await context.Members
-            .Where(m => !m.IsDeleted)
-            .Select(m => new DuplicateMemberDto(
-                m.Id, m.FirstName, m.LastName, m.DateOfBirth, m.Gender,
-                m.CardNumber, m.ExternalCardNumber, m.BloodType, m.Nationality, m.School,
-                m.Classe, m.Section, m.ProfessionDomain, m.Profession, m.MedicalNotes,
-                m.Allergies, m.Notes, m.PrimaryContactEmail, m.PhotoPath,
-                context.Users.Where(u => u.MemberId == m.Id && !u.IsDeleted).Select(u => u.Email).FirstOrDefault(),
-                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(),
-                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Code).FirstOrDefault(),
-                context.Users.Any(u => u.MemberId == m.Id && !u.IsDeleted),
-                m.Assignments.Any(a => a.EndDate == null),
-                m.Assignments.Count(a => !a.IsDeleted),
-                m.CreatedAt))
-            .ToListAsync(ct);
+        // All non-deleted members, projected with the fields the dialog needs (shared projection).
+        var members = await DuplicateMemberProjection.Project(context, context.Members.Where(m => !m.IsDeleted)).ToListAsync(ct);
 
         // The normalized value of one match key for a member; null/empty means the member can't be grouped on it.
         static string? KeyValue(DuplicateMemberDto m, string key) => key switch

@@ -4,13 +4,14 @@ import { Users, X, Search, Sparkles, ChevronRight, Phone, Mail, MapPin, UserRoun
 import {
   useSiblingSuggestions, useSiblingGroups,
   useRejectSiblingSuggestion, useUnlinkSibling,
-  useDuplicateSuggestions, useMergeMembers, useRejectDuplicateMembers, DUPLICATE_MATCH_KEYS,
+  useDuplicateSuggestions, useMergeMembers, useRejectDuplicateMembers, useMembersForMerge, DUPLICATE_MATCH_KEYS,
   useSiblingReports, useResolveSiblingReport, useReplySiblingReport,
   type SiblingSuggestion,
   type DuplicateGroup, type DuplicateMember, type MemberMergeFields,
   type SiblingReport,
 } from '@/services/sibling-service'
 import { SiblingReconcileSheet } from '@/components/members/sibling-reconcile-sheet'
+import { MemberPickerDialog } from '@/components/shared/member-picker-dialog'
 
 // Clicking a member on the Fratries page opens their fiche directly on the Contact & famille tab (what a CG
 // needs when reconciling siblings), in the SAME tab, and carries a `from` so the fiche shows a "Retour" button
@@ -412,6 +413,16 @@ function DuplicatesTab() {
   const notDup = useRejectDuplicateMembers()
   const [rejecting, setRejecting] = useState<DuplicateGroup | null>(null)
 
+  // Manual "merge any two members": pick two arbitrary members (not from the auto-detected list) and feed the
+  // same MergeDialog. mergeData is fetched only when two distinct members are chosen.
+  const [mmA, setMmA] = useState<{ id: string; name: string } | null>(null)
+  const [mmB, setMmB] = useState<{ id: string; name: string } | null>(null)
+  const [pickerFor, setPickerFor] = useState<'a' | 'b' | null>(null)
+  const sameMember = !!(mmA && mmB && mmA.id === mmB.id)
+  const { data: mergeData } = useMembersForMerge([mmA?.id ?? '', mmB?.id ?? ''])
+  const canManualMerge = !!(mmA && mmB && !sameMember && mergeData && mergeData.length === 2)
+  const openManualMerge = () => { if (mergeData && mergeData.length === 2) setMerging({ members: mergeData, evidence: 'Fusion manuelle' }) }
+
   const toggleKey = (k: string) => setKeys((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]))
 
   const doReject = async () => {
@@ -439,9 +450,46 @@ function DuplicatesTab() {
     </div>
   )
 
-  if (isLoading) return <>{configBar}<LoadingSpinner variant="table" /></>
+  // Manual merge panel + the shared MergeDialog + member picker. Rendered in every branch (loading / empty /
+  // results) so you can merge any two members even when nothing is auto-detected.
+  const manualSection = (
+    <>
+      <Card className="mb-4 border-primary/30">
+        <CardContent className="space-y-3 p-4">
+          <div>
+            <p className="text-sm font-semibold">Fusionner deux membres</p>
+            <p className="text-xs text-muted-foreground">
+              Sélectionnez deux membres à fusionner, même s'ils ne sont pas détectés automatiquement ci-dessous. Vous
+              choisirez ensuite le membre à conserver et, pour chaque champ qui diffère, la valeur à garder. Les téléphones,
+              emails et adresses des deux fiches sont conservés (les doublons exacts sont supprimés).
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {([['Membre 1', mmA, () => setPickerFor('a'), () => setMmA(null)], ['Membre 2', mmB, () => setPickerFor('b'), () => setMmB(null)]] as const).map(([label, val, pick, clear]) => (
+              <div key={label} className="flex items-center gap-2 rounded-md border p-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+                  {val ? <p className="truncate text-sm font-medium">{val.name}</p> : <p className="text-sm text-muted-foreground">Aucun membre choisi</p>}
+                </div>
+                {val && <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={clear} aria-label="Retirer"><X className="h-4 w-4" /></Button>}
+                <Button size="sm" variant="outline" className="shrink-0" onClick={pick}>{val ? 'Changer' : 'Choisir'}</Button>
+              </div>
+            ))}
+          </div>
+          {sameMember && <p className="text-xs text-amber-600 dark:text-amber-400">Choisissez deux membres différents.</p>}
+          <Button size="sm" disabled={!canManualMerge} onClick={openManualMerge}><GitMerge className="mr-1 h-4 w-4" />Fusionner ces deux membres</Button>
+        </CardContent>
+      </Card>
+      <MemberPickerDialog open={pickerFor !== null} onOpenChange={(o) => !o && setPickerFor(null)}
+        title="Choisir un membre à fusionner" description="Recherchez le membre par nom."
+        onPick={(m) => { if (pickerFor === 'a') setMmA(m); else if (pickerFor === 'b') setMmB(m); setPickerFor(null) }} />
+      {merging && <MergeDialog group={merging} onClose={() => setMerging(null)} />}
+    </>
+  )
+
+  if (isLoading) return <>{manualSection}{configBar}<LoadingSpinner variant="table" /></>
   if (!groups || groups.length === 0)
-    return <>{configBar}<EmptyState icon={Copy} title="Aucun doublon" description="Aucun membre partageant tous les critères sélectionnés n'a été détecté." /></>
+    return <>{manualSection}{configBar}<EmptyState icon={Copy} title="Aucun doublon" description="Aucun membre partageant tous les critères sélectionnés n'a été détecté." /></>
 
   // Client-side filter by any member's name in the group.
   const term = searchKey(search.trim())
@@ -458,6 +506,7 @@ function DuplicatesTab() {
 
   return (
     <>
+      {manualSection}
       {configBar}
       {searchBar}
       {filtered.length === 0 ? (
@@ -516,8 +565,6 @@ function DuplicatesTab() {
       </div>
       </>
       )}
-
-      {merging && <MergeDialog group={merging} onClose={() => setMerging(null)} />}
 
       <ConfirmDialog
         open={!!rejecting}
