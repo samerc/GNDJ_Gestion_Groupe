@@ -4,10 +4,12 @@
 // quota — quotas are edited on the review page, not here), candidate demographics, and family/data-quality
 // counts. The byGender/byClasse/bySchool buckets are grouped accent- & case-insensitively server-side so
 // legacy spellings ("Féminin"/"Feminin") collapse into one row; school labels are shortened via useSchoolCode.
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useDemandeStatistics, useUnitOccupancy, type CountItem, type UnitOccupancy } from '@/services/demande-admin-service'
 import { useSettingValue, useSchoolCode } from '@/services/settings-service'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
@@ -94,6 +96,11 @@ export default function DemandeStatsPage() {
   const schoolCode = useSchoolCode()
   const { data: stats, isLoading } = useDemandeStatistics(scoutYear)
   const { data: occupancy } = useUnitOccupancy(scoutYear)
+  // Remember the last-opened tab across visits (per device).
+  const [tab, setTab] = useState<string>(() => {
+    try { return localStorage.getItem('demandeStats.tab') || 'overview' } catch { return 'overview' }
+  })
+  const changeTab = (v: string) => { setTab(v); try { localStorage.setItem('demandeStats.tab', v) } catch { /* private mode */ } }
 
   if (isLoading) return <LoadingSpinner variant="page" />
   if (!stats) return null
@@ -118,7 +125,15 @@ export default function DemandeStatsPage() {
       {stats.total === 0 ? (
         <EmptyState icon={Inbox} title="Aucune demande soumise" description={`Aucune demande pour l'année ${scoutYear} pour l'instant.`} />
       ) : (
-        <>
+        <Tabs value={tab} onValueChange={changeTab} className="space-y-5">
+          <TabsList className="flex-wrap">
+            <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
+            <TabsTrigger value="profile">Profil des candidats</TabsTrigger>
+            <TabsTrigger value="capacity">Capacité</TabsTrigger>
+          </TabsList>
+
+          {/* ── Vue d'ensemble : suivi du pipeline + familles/qualité (l'état de la campagne) ── */}
+          <TabsContent value="overview" className="space-y-6">
           {/* Pipeline */}
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Suivi des demandes</h2>
@@ -159,10 +174,40 @@ export default function DemandeStatsPage() {
             </Card>
           </section>
 
+          {/* Families & data quality */}
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Familles &amp; qualité des dossiers</h2>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <Stat icon={UsersRound} label="Fratries (familles)" value={stats.siblingGroups} tone="bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300" />
+              <Stat icon={UsersRound} label="Demandes en fratrie" value={stats.siblingDemandes} tone="bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300" />
+              <Stat icon={Link2} label="Avec proches scouts" value={stats.withScoutRelations} tone="bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300" />
+              <Stat icon={AlertTriangle} label="Dossiers incomplets" value={stats.incompleteDossiers} tone={stats.incompleteDossiers > 0 ? 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300' : 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300'} />
+            </div>
+            {stats.incompleteDossiers > 0 && (
+              <p className="text-xs text-muted-foreground">Dossier incomplet = date de naissance, parent/tuteur ou téléphone parent manquant.</p>
+            )}
+          </section>
+          </TabsContent>
+
+          {/* ── Profil des candidats : répartitions simples + rapports croisés (qui dépose ?) ── */}
+          <TabsContent value="profile" className="space-y-6">
+          {/* Demographics */}
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Répartitions</h2>
+            <div className="grid gap-3 md:grid-cols-2">
+              <Card><CardHeader className="py-3"><CardTitle className="text-base">Par genre</CardTitle></CardHeader><CardContent><BarList items={stats.byGender} /></CardContent></Card>
+              <Card><CardHeader className="py-3"><CardTitle className="text-base">Par tranche d'âge</CardTitle></CardHeader><CardContent><BarList items={stats.byAgeGroup} /></CardContent></Card>
+              <Card><CardHeader className="py-3"><CardTitle className="text-base">Par classe</CardTitle></CardHeader><CardContent><BarList items={stats.byClasse} /></CardContent></Card>
+              <Card><CardHeader className="py-3"><CardTitle className="text-base">Par école</CardTitle></CardHeader><CardContent><BarList items={stats.bySchool} labelOf={(l) => l === 'Non renseignée' ? l : schoolCode(l)} /></CardContent></Card>
+            </div>
+          </section>
+
           {/* Cross-tab reports (Sexe×Branche, Branche×Statut, + flexible pivot) — the headline analytics */}
           <DemandeCrossReports rows={stats.rows} branches={stats.branches} schoolCode={schoolCode} />
+          </TabsContent>
 
-          {/* Capacity */}
+          {/* ── Capacité des unités (opérationnel) ── */}
+          <TabsContent value="capacity" className="space-y-6">
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Capacité des unités</h2>
             <Card>
@@ -184,32 +229,8 @@ export default function DemandeStatsPage() {
               </CardContent>
             </Card>
           </section>
-
-          {/* Demographics */}
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Profil des candidats</h2>
-            <div className="grid gap-3 md:grid-cols-2">
-              <Card><CardHeader className="py-3"><CardTitle className="text-base">Par genre</CardTitle></CardHeader><CardContent><BarList items={stats.byGender} /></CardContent></Card>
-              <Card><CardHeader className="py-3"><CardTitle className="text-base">Par tranche d'âge</CardTitle></CardHeader><CardContent><BarList items={stats.byAgeGroup} /></CardContent></Card>
-              <Card><CardHeader className="py-3"><CardTitle className="text-base">Par classe</CardTitle></CardHeader><CardContent><BarList items={stats.byClasse} /></CardContent></Card>
-              <Card><CardHeader className="py-3"><CardTitle className="text-base">Par école</CardTitle></CardHeader><CardContent><BarList items={stats.bySchool} labelOf={(l) => l === 'Non renseignée' ? l : schoolCode(l)} /></CardContent></Card>
-            </div>
-          </section>
-
-          {/* Families & data quality */}
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Familles &amp; qualité des dossiers</h2>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <Stat icon={UsersRound} label="Fratries (familles)" value={stats.siblingGroups} tone="bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300" />
-              <Stat icon={UsersRound} label="Demandes en fratrie" value={stats.siblingDemandes} tone="bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300" />
-              <Stat icon={Link2} label="Avec proches scouts" value={stats.withScoutRelations} tone="bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300" />
-              <Stat icon={AlertTriangle} label="Dossiers incomplets" value={stats.incompleteDossiers} tone={stats.incompleteDossiers > 0 ? 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300' : 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300'} />
-            </div>
-            {stats.incompleteDossiers > 0 && (
-              <p className="text-xs text-muted-foreground">Dossier incomplet = date de naissance, parent/tuteur ou téléphone parent manquant.</p>
-            )}
-          </section>
-        </>
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   )
