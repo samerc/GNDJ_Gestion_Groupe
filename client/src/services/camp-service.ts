@@ -25,7 +25,7 @@ export interface CampGradeRowDto {
   force: number | null; annee: number | null; note: number | null
   isLeaderCandidate: boolean; role: string; notes: string | null
 }
-export interface CampFamilleMemberDto { participantId: string; memberId: string; firstName: string; lastName: string; gender: string | null; branche: string | null; unitName: string | null; note: number | null; role: string }
+export interface CampFamilleMemberDto { participantId: string; memberId: string; firstName: string; lastName: string; gender: string | null; branche: string | null; unitName: string | null; unitCode: string | null; note: number | null; role: string }
 export interface CampFamilleDto {
   id: string; number: number; name: string | null
   pereMemberId: string | null; pereName: string | null; mereMemberId: string | null; mereName: string | null
@@ -35,7 +35,7 @@ export interface CampFamilleDto {
 export interface PereMereCandidateDto { memberId: string; firstName: string; lastName: string; branche: string | null; gender: string | null; flagged: boolean; participantId: string | null }
 export interface EtapisteDto { memberId: string; firstName: string; lastName: string; unitName: string | null }
 export interface CampGameDto { id: string; name: string; description: string | null; etapistes: EtapisteDto[] }
-export interface EtapisteCandidateDto { memberId: string; firstName: string; lastName: string; unitName: string | null; roleName: string | null }
+export interface EtapisteCandidateDto { memberId: string; firstName: string; lastName: string; unitName: string | null; unitCode: string | null; roleName: string | null }
 
 // ── Camps ──
 // GET /camps → list of camp editions. `enabled` lets callers without camp permission (e.g. the sidebar

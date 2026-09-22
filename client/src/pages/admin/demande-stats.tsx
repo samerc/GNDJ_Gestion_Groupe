@@ -74,7 +74,7 @@ function OccRow({ u }: { u: UnitOccupancy }) {
   const remaining = u.quota != null ? u.quota - u.accepted : null
   return (
     <tr className="border-b hover:bg-muted/20">
-      <td className="px-3 py-2"><span className="font-medium">{u.unitCode}</span> <span className="text-muted-foreground">{u.unitName}</span></td>
+      <td className="px-3 py-2"><span className="font-medium">{u.unitCode}</span></td>
       <td className="px-3 py-2 text-center">{u.currentActive}</td>
       <td className="px-3 py-2 text-center font-medium">{u.projected}</td>
       <td className="px-3 py-2 text-center">{u.quota ?? <span className="text-muted-foreground">—</span>}</td>

@@ -124,7 +124,7 @@ export default function ZeroDayAssignmentsPage() {
                         className="font-medium text-primary hover:underline">{a.memberName}</Link>
                       {a.cardNumber && <div className="text-xs text-muted-foreground">{a.cardNumber}</div>}
                     </td>
-                    <td className="px-3 py-2">{a.unitCode}<span className="text-xs text-muted-foreground"> · {a.unitName}</span></td>
+                    <td className="px-3 py-2">{a.unitCode}</td>
                     <td className="px-3 py-2">{a.roleName}</td>
                     <td className="px-3 py-2">{a.teamName ?? '-'}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{fmt(a.date)}</td>

@@ -420,7 +420,7 @@ public record CotisationSummaryDto(
 );
 
 public record CurrencyTotalDto(string Currency, decimal Total, int Count);
-public record UnitCotisationSummaryDto(string UnitName, int TotalMembers, int PaidMembers, int PartialMembers, int ExemptMembers, List<CurrencyTotalDto> Totals, decimal EquivalentTotal);
+public record UnitCotisationSummaryDto(string UnitName, string UnitCode, int TotalMembers, int PaidMembers, int PartialMembers, int ExemptMembers, List<CurrencyTotalDto> Totals, decimal EquivalentTotal);
 
 public class GetCotisationSummaryQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetCotisationSummaryQuery, CotisationSummaryDto>
 {
@@ -436,7 +436,7 @@ public class GetCotisationSummaryQueryHandler(IApplicationDbContext context, ICu
             query = query.Where(a => authorized.Contains(a.UnitId));
         }
         var activeAssignments = await query
-            .Select(a => new { a.MemberId, UnitName = a.Unit.Name })
+            .Select(a => new { a.MemberId, UnitName = a.Unit.Name, UnitCode = a.Unit.Code })
             .Distinct()
             .ToListAsync(ct);
 
@@ -482,7 +482,7 @@ public class GetCotisationSummaryQueryHandler(IApplicationDbContext context, ICu
         var equivalentTotal = CotisationCalc.EquivalentInReference(payments.Select(p => (p.Amount, p.Currency)), cfg);
 
         var unitGroups = activeAssignments
-            .GroupBy(a => a.UnitName)
+            .GroupBy(a => new { a.UnitName, a.UnitCode })
             .Select(g =>
             {
                 var unitMemberIds = g.Select(a => a.MemberId).Distinct().ToList();
@@ -495,7 +495,7 @@ public class GetCotisationSummaryQueryHandler(IApplicationDbContext context, ICu
                     .Select(cg => new CurrencyTotalDto(cg.Key, cg.Sum(p => p.Amount), cg.Count()))
                     .ToList();
                 var unitEquivalent = CotisationCalc.EquivalentInReference(unitPayments.Select(p => (p.Amount, p.Currency)), cfg);
-                return new UnitCotisationSummaryDto(g.Key, unitMemberIds.Count, unitPaid, unitPartial, unitExempt, unitTotals, unitEquivalent);
+                return new UnitCotisationSummaryDto(g.Key.UnitName, g.Key.UnitCode, unitMemberIds.Count, unitPaid, unitPartial, unitExempt, unitTotals, unitEquivalent);
             })
             .OrderBy(u => u.UnitName)
             .ToList();

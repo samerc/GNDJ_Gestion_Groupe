@@ -51,7 +51,7 @@ export function useMemberGroups() {
 // (only fetched when the "Voir les membres" dialog opens).
 export interface MemberGroupMemberDto {
   memberId: string; firstName: string; lastName: string
-  unitId: string; unitName: string | null; teamName: string | null; roleName: string
+  unitId: string; unitName: string | null; unitCode: string | null; teamName: string | null; roleName: string
   email: string | null; phone: string | null  // reachable contact (member then parent) — for mailing / export
 }
 export function useMemberGroupMembers(id: string | undefined) {

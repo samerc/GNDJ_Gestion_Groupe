@@ -13,7 +13,7 @@ namespace GNDJ.Application.Documents;
 
 public record CampaignSendReport(int Sent, int NoEmail);
 public record CampaignHoldReport(int Held, int Emailed, int NoEmail);
-public record UnitPending(Guid UnitId, string UnitName, int PendingCount, int IncompleteCount);
+public record UnitPending(Guid UnitId, string UnitName, string UnitCode, int PendingCount, int IncompleteCount);
 
 public static class DocumentCampaignActions
 {
@@ -25,13 +25,13 @@ public static class DocumentCampaignActions
     private static readonly SemaphoreSlim _stepGate = new(1, 1);
 
     // Active (member → unit) rows across the group (a member may appear once per active unit).
-    private static async Task<List<(Guid MemberId, string FirstName, string LastName, Guid UnitId, string UnitName)>>
+    private static async Task<List<(Guid MemberId, string FirstName, string LastName, Guid UnitId, string UnitName, string UnitCode)>>
         ActiveMembersAsync(IApplicationDbContext ctx, CancellationToken ct) =>
         (await ctx.MemberAssignments
             .Where(a => a.EndDate == null && !a.IsDeleted)
-            .Select(a => new { a.MemberId, a.Member.FirstName, a.Member.LastName, a.UnitId, UnitName = a.Unit.Name })
+            .Select(a => new { a.MemberId, a.Member.FirstName, a.Member.LastName, a.UnitId, UnitName = a.Unit.Name, UnitCode = a.Unit.Code })
             .ToListAsync(ct))
-        .Select(a => (a.MemberId, a.FirstName, a.LastName, a.UnitId, a.UnitName)).ToList();
+        .Select(a => (a.MemberId, a.FirstName, a.LastName, a.UnitId, a.UnitName, a.UnitCode)).ToList();
 
     private static async Task<List<(Guid Id, string Name, string Code)>> ActiveTypesAsync(IApplicationDbContext ctx, CancellationToken ct) =>
         (await ctx.DocumentTypes.Where(dt => dt.IsActive).OrderBy(dt => dt.DisplayOrder).ThenBy(dt => dt.Name)
@@ -90,8 +90,8 @@ public static class DocumentCampaignActions
         var incompleteIds = (await LoadIncompleteAsync(ctx, ct)).Select(m => m.MemberId).ToHashSet();
 
         return actives
-            .GroupBy(a => new { a.UnitId, a.UnitName })
-            .Select(g => new UnitPending(g.Key.UnitId, g.Key.UnitName,
+            .GroupBy(a => new { a.UnitId, a.UnitName, a.UnitCode })
+            .Select(g => new UnitPending(g.Key.UnitId, g.Key.UnitName, g.Key.UnitCode,
                 g.Select(x => x.MemberId).Distinct().Count(id => pendingMemberIds.Contains(id)),
                 g.Select(x => x.MemberId).Distinct().Count(id => incompleteIds.Contains(id))))
             .Where(u => u.PendingCount > 0 || u.IncompleteCount > 0)

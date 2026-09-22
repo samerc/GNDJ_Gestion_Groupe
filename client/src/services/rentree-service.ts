@@ -15,6 +15,7 @@ export interface RentreeTask {
   assigneeRole: string | null
   unitId: string | null
   unitName: string | null
+  unitCode: string | null
   assigneeMemberIds: string[]
   assigneeNames: string[]
   deadlineLabel: string | null

@@ -108,7 +108,7 @@ export default function MissingLoginsPage({ embedded = false }: { embedded?: boo
                 {missing.map(m => (
                   <tr key={m.memberId} className="border-t hover:bg-muted/30">
                     <td className="p-2 font-medium">{m.memberName}</td>
-                    <td className="p-2 text-muted-foreground">{m.unitName ?? '—'}</td>
+                    <td className="p-2 text-muted-foreground">{m.unitCode ?? '—'}</td>
                     <td className="p-2">
                       {m.hasEmail
                         ? <span className="inline-flex items-center gap-1 text-muted-foreground"><Mail className="h-3.5 w-3.5" />{m.contactEmail}</span>

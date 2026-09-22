@@ -443,7 +443,7 @@ export default function CotisationDashboardPage() {
                                 {canExpand
                                   ? <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-90' : ''}`} />
                                   : <span className="inline-block w-4" />}
-                                {u.unitName}
+                                {u.unitCode}
                               </span>
                             </td>
                             <td className="px-3 py-2 text-center">{u.totalMembers}</td>

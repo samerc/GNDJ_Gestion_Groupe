@@ -89,7 +89,7 @@ public class GetMemberGroupsQueryHandler(IApplicationDbContext context, ICurrent
 // ── Members of a group (resolved live) ──
 // Email/Phone are the reachable contact = the member's OWN (primary first) else a guardian's ("membre puis parent"),
 // so the list doubles as a mailing/contact export. Only exposed to a group manager (this is leader data).
-public record MemberGroupMemberDto(Guid MemberId, string FirstName, string LastName, Guid UnitId, string? UnitName,
+public record MemberGroupMemberDto(Guid MemberId, string FirstName, string LastName, Guid UnitId, string? UnitName, string? UnitCode,
     string? TeamName, string RoleName, string? Email, string? Phone);
 public record GetMemberGroupMembersQuery(Guid Id) : IRequest<Result<IReadOnlyList<MemberGroupMemberDto>>>;
 
@@ -113,6 +113,7 @@ public class GetMemberGroupMembersQueryHandler(IApplicationDbContext context, IC
                 a.Member.PrimaryContactEmail,
                 a.UnitId,
                 UnitName = a.Unit.Name,
+                UnitCode = a.Unit.Code,
                 TeamName = a.Team != null ? a.Team.Name : null,
                 RoleName = a.FunctionalRole.Name,
             })
@@ -127,7 +128,7 @@ public class GetMemberGroupMembersQueryHandler(IApplicationDbContext context, IC
         var phones = await MemberContactPhones.LoadAsync(context, memberIds, ct);
 
         var members = distinct
-            .Select(r => new MemberGroupMemberDto(r.MemberId, r.FirstName, r.LastName, r.UnitId, r.UnitName, r.TeamName, r.RoleName,
+            .Select(r => new MemberGroupMemberDto(r.MemberId, r.FirstName, r.LastName, r.UnitId, r.UnitName, r.UnitCode, r.TeamName, r.RoleName,
                 emails.Resolve(r.MemberId, r.PrimaryContactEmail), phones.Resolve(r.MemberId)))
             .ToList();
         return Result<IReadOnlyList<MemberGroupMemberDto>>.Success(members);

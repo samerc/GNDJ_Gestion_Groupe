@@ -195,7 +195,7 @@ function SuggestionRow({ suggestion, onReview, onReject }: { suggestion: Sibling
                     {(m.firstName[0] ?? '').toUpperCase()}
                   </span>
                   <span className="font-medium">{m.firstName} {m.lastName}</span>
-                  <span className="text-xs text-muted-foreground">{m.unitName ?? 'Sans unité'}{age != null ? ` · ${age} ans` : ''}</span>
+                  <span className="text-xs text-muted-foreground">{m.unitCode ?? 'Sans unité'}{age != null ? ` · ${age} ans` : ''}</span>
                   {m.siblingGroupId && <span className="text-xs text-emerald-600 dark:text-emerald-400">(déjà en fratrie)</span>}
                 </span>
               )
@@ -246,7 +246,7 @@ function ConfirmedTab() {
                     {g.members.map((m) => (
                       <span key={m.memberId} className="flex items-center gap-1 rounded-full border bg-muted/40 py-1 pl-3 pr-1 text-sm">
                         <Link {...memberLink(m.memberId, 'confirmed')} className="font-medium hover:underline">{m.firstName} {m.lastName}</Link>
-                        <span className="text-xs text-muted-foreground">· {m.unitName ?? 'Sans unité'}</span>
+                        <span className="text-xs text-muted-foreground">· {m.unitCode ?? 'Sans unité'}</span>
                         <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-destructive"
                           onClick={() => setUnlinkTarget({ id: m.memberId, name: `${m.firstName} ${m.lastName}` })}
                           title="Retirer de la fratrie" aria-label="Retirer de la fratrie">
@@ -492,7 +492,7 @@ function DuplicatesTab() {
                     m.externalCardNumber ? `N° ${m.externalCardNumber}` : null,
                     m.school,
                     m.classe,
-                    m.unitName ?? 'Sans unité',
+                    m.unitCode ?? 'Sans unité',
                     m.isActiveMember ? 'actif' : 'ancien',
                     m.hasAccount ? 'compte' : null,
                     `${m.assignmentCount} affect.`,
@@ -622,7 +622,7 @@ function MergeDialog({ group, onClose }: { group: DuplicateGroup; onClose: () =>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium">{m.firstName} {m.lastName}</span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        {m.unitName ?? 'Sans unité'}{age != null ? ` · ${age} ans` : ''}{m.isActiveMember ? ' · actif' : ' · ancien'}
+                        {m.unitCode ?? 'Sans unité'}{age != null ? ` · ${age} ans` : ''}{m.isActiveMember ? ' · actif' : ' · ancien'}
                         {m.hasAccount ? ' · compte' : ''}{m.cardNumber ? ` · ${m.cardNumber}` : ''}
                       </span>
                     </span>

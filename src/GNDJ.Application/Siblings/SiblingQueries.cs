@@ -34,7 +34,8 @@ public class GetSiblingSuggestionsQueryHandler(IApplicationDbContext context)
         var members = await context.Members
             .Where(m => !m.IsDeleted)
             .Select(m => new SiblingCandidateMemberDto(m.Id, m.FirstName, m.LastName, m.DateOfBirth, m.PhotoPath,
-                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(), m.SiblingGroupId))
+                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(),
+                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Code).FirstOrDefault(), m.SiblingGroupId))
             .ToListAsync(ct);
         var memberById = members.ToDictionary(m => m.MemberId);
 
@@ -234,7 +235,8 @@ public class GetSiblingGroupsQueryHandler(IApplicationDbContext context)
         var rows = await context.Members
             .Where(m => m.SiblingGroupId != null && !m.IsDeleted)
             .Select(m => new SiblingCandidateMemberDto(m.Id, m.FirstName, m.LastName, m.DateOfBirth, m.PhotoPath,
-                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(), m.SiblingGroupId))
+                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(),
+                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Code).FirstOrDefault(), m.SiblingGroupId))
             .ToListAsync(ct);
 
         // The per-group CG-only auto-detected note (if any).

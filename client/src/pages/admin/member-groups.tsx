@@ -256,12 +256,12 @@ function MembersDialog({ group, onClose }: { group: MemberGroupDto; onClose: () 
 
   // Buckets by unit (stable order by name) — used for the per-unit tabs.
   const unitBuckets = useMemo(() => {
-    const map = new Map<string, { unitId: string; unitName: string; members: MemberGroupMemberDto[] }>()
+    const map = new Map<string, { unitId: string; unitName: string; unitCode: string; members: MemberGroupMemberDto[] }>()
     for (const m of members ?? []) {
-      if (!map.has(m.unitId)) map.set(m.unitId, { unitId: m.unitId, unitName: m.unitName ?? 'Sans unité', members: [] })
+      if (!map.has(m.unitId)) map.set(m.unitId, { unitId: m.unitId, unitName: m.unitName ?? 'Sans unité', unitCode: m.unitCode ?? 'Sans unité', members: [] })
       map.get(m.unitId)!.members.push(m)
     }
-    return [...map.values()].sort((a, b) => a.unitName.localeCompare(b.unitName, 'fr'))
+    return [...map.values()].sort((a, b) => a.unitCode.localeCompare(b.unitCode, 'fr'))
   }, [members])
 
   const tabbed = group.perUnit && unitBuckets.length > 1
@@ -284,7 +284,7 @@ function MembersDialog({ group, onClose }: { group: MemberGroupDto; onClose: () 
         ) : tabbed ? (
           <Tabs defaultValue={unitBuckets[0].unitId} className="flex min-h-0 flex-1 flex-col">
             <TabsList className="shrink-0 justify-start overflow-x-auto flex-nowrap">
-              {unitBuckets.map(b => <TabsTrigger key={b.unitId} value={b.unitId}>{b.unitName} ({b.members.length})</TabsTrigger>)}
+              {unitBuckets.map(b => <TabsTrigger key={b.unitId} value={b.unitId}>{b.unitCode} ({b.members.length})</TabsTrigger>)}
             </TabsList>
             {unitBuckets.map(b => (
               <TabsContent key={b.unitId} value={b.unitId} className="mt-2 flex min-h-0 flex-1 flex-col">
@@ -330,9 +330,10 @@ function MemberPane({ group, members, unitId, unitName, grouped }: {
   }
 
   // Section the list by unit only for a combined group with several units; a per-unit tab is a flat list.
+  // Keyed + shown by unit CODE (unique per unit) so the section header reads "C1", not the full name.
   const byUnit = new Map<string, MemberGroupMemberDto[]>()
   for (const m of filtered) {
-    const u = m.unitName ?? 'Sans unité'
+    const u = m.unitCode ?? 'Sans unité'
     if (!byUnit.has(u)) byUnit.set(u, [])
     byUnit.get(u)!.push(m)
   }

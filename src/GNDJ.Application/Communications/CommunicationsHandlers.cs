@@ -17,7 +17,7 @@ namespace GNDJ.Application.Communications;
 public record LeaderRecipientDto(
     Guid MemberId,
     string FullName,
-    string Units,          // the leader's active maîtrise unit(s), comma-joined
+    string Units,          // the leader's active maîtrise unit code(s), comma-joined
     string? ContactEmail,  // best real address (PrimaryContactEmail -> own -> guardian); null = nothing on file
     bool HasAccount,       // has a login
     bool HasLoggedIn);     // has ever logged in (drives the "nouveau chef" = never-logged-in segment)
@@ -45,7 +45,7 @@ public class GetLeaderRecipientsQueryHandler(IApplicationDbContext context, ICur
                 a.Member.FirstName,
                 a.Member.LastName,
                 a.Member.PrimaryContactEmail,
-                UnitName = a.Unit.Name,
+                UnitCode = a.Unit.Code,
             })
             .ToListAsync(ct);
 
@@ -66,7 +66,7 @@ public class GetLeaderRecipientsQueryHandler(IApplicationDbContext context, ICur
             .Select(g =>
             {
                 var first = g.First();
-                var units = string.Join(", ", g.Select(x => x.UnitName).Distinct().OrderBy(x => x));
+                var units = string.Join(", ", g.Select(x => x.UnitCode).Distinct().OrderBy(x => x));
                 var hasAccount = users.TryGetValue(first.MemberId, out var lastLogin);
                 return new LeaderRecipientDto(
                     first.MemberId,

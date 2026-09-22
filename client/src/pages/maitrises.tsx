@@ -89,7 +89,6 @@ export default function MaitrisesPage() {
               {u.isGroupUnit
                 ? <Badge className="gap-1" style={u.unitTypeColor ? { backgroundColor: u.unitTypeColor } : undefined}><Crown className="h-3 w-3" />Maîtrise de Groupe</Badge>
                 : <Badge variant="outline" style={u.unitTypeColor ? { borderColor: u.unitTypeColor, color: u.unitTypeColor, backgroundColor: `${u.unitTypeColor}14` } : undefined}>{u.unitCode}</Badge>}
-              <span className="font-medium">{u.unitName}</span>
               <span className="ml-auto text-xs text-muted-foreground">{grouped.length} membre{grouped.length > 1 ? 's' : ''}</span>
             </button>
             {isOpen && (

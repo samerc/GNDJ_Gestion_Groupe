@@ -11,6 +11,7 @@ export interface SiblingCandidateMember {
   dateOfBirth: string | null
   photoPath: string | null
   unitName: string | null
+  unitCode: string | null
   siblingGroupId: string | null
 }
 
@@ -241,6 +242,7 @@ export interface DuplicateMember {
   photoPath: string | null
   username: string | null
   unitName: string | null
+  unitCode: string | null
   hasAccount: boolean
   isActiveMember: boolean
   assignmentCount: number

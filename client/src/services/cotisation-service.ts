@@ -100,6 +100,7 @@ export interface PaidCotisationDto {
 
 export interface UnitCotisationSummaryDto {
   unitName: string
+  unitCode: string
   totalMembers: number
   paidMembers: number
   partialMembers: number

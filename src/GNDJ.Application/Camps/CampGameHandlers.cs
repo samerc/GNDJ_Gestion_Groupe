@@ -14,7 +14,7 @@ namespace GNDJ.Application.Camps;
 
 public record CampGameDto(Guid Id, string Name, string? Description, IReadOnlyList<EtapisteDto> Etapistes);
 public record EtapisteDto(Guid MemberId, string FirstName, string LastName, string? UnitName);
-public record EtapisteCandidateDto(Guid MemberId, string FirstName, string LastName, string? UnitName, string? RoleName);
+public record EtapisteCandidateDto(Guid MemberId, string FirstName, string LastName, string? UnitName, string? UnitCode, string? RoleName);
 
 // ─── Games ───────────────────────────────────────────────────────────────────
 public record GetCampGamesQuery(Guid CampId) : IRequest<Result<IReadOnlyList<CampGameDto>>>;
@@ -121,7 +121,7 @@ public class GetEtapisteCandidatesQueryHandler(IApplicationDbContext context) : 
 
         var cand = await context.MemberAssignments
             .Where(a => !a.IsDeleted && a.EndDate == null && (a.FunctionalRole.IsMaitrise || !poolBranches.Contains(a.Unit.UnitTypeId)))
-            .Select(a => new EtapisteCandidateDto(a.MemberId, a.Member.FirstName, a.Member.LastName, a.Unit.Name,
+            .Select(a => new EtapisteCandidateDto(a.MemberId, a.Member.FirstName, a.Member.LastName, a.Unit.Name, a.Unit.Code,
                 a.FunctionalRole.IsMaitrise ? a.FunctionalRole.Name : a.Unit.UnitType.Name))
             .ToListAsync(ct);
         var result = cand.GroupBy(c => c.MemberId).Select(g => g.First())

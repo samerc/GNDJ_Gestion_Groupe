@@ -14,7 +14,7 @@ namespace GNDJ.Application.Members;
 // same set-password ACTIVATION link as "Envoyer les accès"; if not, we return a TEMP PASSWORD for the CG to relay
 // by hand (WhatsApp/paper). Gated members.reset_password (a CU can do their own unit; a CG the whole group).
 
-public record MissingLoginDto(Guid MemberId, string MemberName, string? UnitName, bool HasEmail, string? ContactEmail);
+public record MissingLoginDto(Guid MemberId, string MemberName, string? UnitName, string? UnitCode, bool HasEmail, string? ContactEmail);
 
 // List active members WITHOUT a login. UnitId → that unit (unit-leader or group). Null → ALL active members
 // across the group missing a login (INCLUDING maîtrise — accountless leaders matter), group-manager only.
@@ -54,7 +54,8 @@ public class GetMissingLoginsQueryHandler(IApplicationDbContext context, ICurren
             .Select(m => new
             {
                 m.Id, m.FirstName, m.LastName, m.PrimaryContactEmail,
-                UnitName = m.Assignments.Where(a => a.EndDate == null && !a.IsDeleted).Select(a => a.Unit.Name).FirstOrDefault()
+                UnitName = m.Assignments.Where(a => a.EndDate == null && !a.IsDeleted).Select(a => a.Unit.Name).FirstOrDefault(),
+                UnitCode = m.Assignments.Where(a => a.EndDate == null && !a.IsDeleted).Select(a => a.Unit.Code).FirstOrDefault()
             }).ToListAsync(ct);
 
         var resolver = await ContactEmailResolver.LoadAsync(context, members.Select(m => m.Id).ToList(), ct);
@@ -63,7 +64,7 @@ public class GetMissingLoginsQueryHandler(IApplicationDbContext context, ICurren
             .Select(m =>
             {
                 var email = resolver.Resolve(m.Id, m.PrimaryContactEmail);
-                return new MissingLoginDto(m.Id, $"{m.FirstName} {m.LastName}".Trim(), m.UnitName, !string.IsNullOrWhiteSpace(email), email);
+                return new MissingLoginDto(m.Id, $"{m.FirstName} {m.LastName}".Trim(), m.UnitName, m.UnitCode, !string.IsNullOrWhiteSpace(email), email);
             }).ToList();
         return Result<IReadOnlyList<MissingLoginDto>>.Success(list);
     }

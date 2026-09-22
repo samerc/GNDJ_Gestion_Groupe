@@ -312,6 +312,7 @@ export interface MissingLogin {
   memberId: string
   memberName: string
   unitName: string | null
+  unitCode: string | null
   hasEmail: boolean
   contactEmail: string | null
 }

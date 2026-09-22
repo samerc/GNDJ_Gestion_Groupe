@@ -23,7 +23,7 @@ public record DuplicateMemberDto(
     string? CardNumber, string? ExternalCardNumber, string? BloodType, string? Nationality, string? School,
     string? Classe, string? Section, string? ProfessionDomain, string? Profession, string? MedicalNotes,
     string? Allergies, string? Notes, string? PrimaryContactEmail, string? PhotoPath, string? Username,
-    string? UnitName, bool HasAccount, bool IsActiveMember, int AssignmentCount, DateTime CreatedAt);
+    string? UnitName, string? UnitCode, bool HasAccount, bool IsActiveMember, int AssignmentCount, DateTime CreatedAt);
 
 // A set of members that look like the same person.
 public record DuplicateGroupDto(IReadOnlyList<DuplicateMemberDto> Members, string Evidence);
@@ -80,6 +80,7 @@ public class GetDuplicateMemberSuggestionsQueryHandler(IApplicationDbContext con
                 m.Allergies, m.Notes, m.PrimaryContactEmail, m.PhotoPath,
                 context.Users.Where(u => u.MemberId == m.Id && !u.IsDeleted).Select(u => u.Email).FirstOrDefault(),
                 m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(),
+                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Code).FirstOrDefault(),
                 context.Users.Any(u => u.MemberId == m.Id && !u.IsDeleted),
                 m.Assignments.Any(a => a.EndDate == null),
                 m.Assignments.Count(a => !a.IsDeleted),

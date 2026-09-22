@@ -13,7 +13,7 @@ namespace GNDJ.Application.Camps;
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 public record CampFamilleMemberDto(Guid ParticipantId, Guid MemberId, string FirstName, string LastName,
-    string? Gender, string? Branche, string? UnitName, double? Note, string Role);
+    string? Gender, string? Branche, string? UnitName, string? UnitCode, double? Note, string Role);
 
 public record CampFamilleDto(Guid Id, int Number, string? Name,
     Guid? PereMemberId, string? PereName, Guid? MereMemberId, string? MereName,
@@ -105,7 +105,8 @@ public class GetCampFamillesQueryHandler(IApplicationDbContext context) : IReque
         var memberRows = await context.CampParticipants
             .Where(p => p.CampId == request.CampId && !p.IsDeleted && p.Role == CampRole.Membre && p.FamilleId != null)
             .Select(p => new { FamId = p.FamilleId!.Value, M = new CampFamilleMemberDto(p.Id, p.MemberId, p.Member.FirstName, p.Member.LastName, p.Gender, p.Branche,
-                p.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(), p.Note, p.Role) })
+                p.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(),
+                p.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Code).FirstOrDefault(), p.Note, p.Role) })
             .ToListAsync(ct);
         var map = memberRows.GroupBy(x => x.FamId).ToDictionary(g => g.Key, g => g.Select(x => x.M).ToList());
 

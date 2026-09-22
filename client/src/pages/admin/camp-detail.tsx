@@ -297,7 +297,7 @@ function MemberCard({ m, familleId }: { m: CampFamilleDto['members'][number]; fa
         m.gender === 'Féminin' ? 'border-l-2 border-l-pink-300 dark:border-l-pink-800' : 'border-l-2 border-l-blue-300 dark:border-l-blue-800')}>
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium">{name} <span className="text-muted-foreground">{m.gender === 'Féminin' ? '♀' : '♂'}</span></div>
-        <div className="truncate text-xs text-muted-foreground">{m.branche} · {m.unitName ?? '—'}</div>
+        <div className="truncate text-xs text-muted-foreground">{m.branche} · {m.unitCode ?? '—'}</div>
       </div>
       <span className="shrink-0 font-semibold tabular-nums">{m.note ?? '—'}</span>
     </div>
@@ -416,7 +416,7 @@ function EtapisteDialog({ campId, game, onClose }: { campId: string; game: CampG
             <label key={c.memberId} className="flex items-center gap-2 rounded border px-2 py-1.5 text-sm">
               <input type="checkbox" checked={selected.has(c.memberId)} onChange={() => toggle(c.memberId)} />
               <span className="flex-1">{c.firstName} {c.lastName}</span>
-              <span className="text-xs text-muted-foreground">{c.unitName}</span>
+              <span className="text-xs text-muted-foreground">{c.unitCode}</span>
             </label>
           ))}
           {filtered.length === 0 && <p className="py-4 text-center text-xs text-muted-foreground">Aucun chef trouvé.</p>}

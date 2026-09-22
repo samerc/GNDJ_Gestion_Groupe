@@ -6,7 +6,7 @@ namespace GNDJ.Application.Siblings;
 
 // A member as shown in a suggested family / a confirmed group (lean).
 public record SiblingCandidateMemberDto(Guid MemberId, string FirstName, string LastName, DateOnly? DateOfBirth,
-    string? PhotoPath, string? UnitName, Guid? SiblingGroupId);
+    string? PhotoPath, string? UnitName, string? UnitCode, Guid? SiblingGroupId);
 
 // A suggested family: the members the matching engine clustered together + WHY (evidence) + a confidence tag.
 public record SiblingSuggestionDto(IReadOnlyList<SiblingCandidateMemberDto> Members,

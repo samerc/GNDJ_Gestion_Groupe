@@ -25,7 +25,7 @@ public record RentreeTemplateDto(
 //   IsMine      — the caller is an assignee. IsOverdue — not done + past the effective due date.
 public record RentreeTaskDto(
     Guid Id, Guid? TemplateId, string ScoutYear, string Title, string? Description, string Phase, int DisplayOrder,
-    string AssigneeType, string? AssigneeRole, Guid? UnitId, string? UnitName,
+    string AssigneeType, string? AssigneeRole, Guid? UnitId, string? UnitName, string? UnitCode,
     IReadOnlyList<Guid> AssigneeMemberIds, IReadOnlyList<string> AssigneeNames,
     string? DeadlineLabel, DateOnly? DueDate, string? DeadlineAnchor,
     string Status, string? CompletedByName, DateTime? CompletedAt,
@@ -77,8 +77,10 @@ public class GetRentreeTasksQueryHandler(IApplicationDbContext context, ICurrent
             .ToListAsync(ct);
 
         var unitIds = tasks.Where(t => t.UnitId.HasValue).Select(t => t.UnitId!.Value).Distinct().ToList();
-        var unitNames = await context.Units.Where(u => unitIds.Contains(u.Id))
-            .Select(u => new { u.Id, u.Name }).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+        var unitRows = await context.Units.Where(u => unitIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.Name, u.Code }).ToListAsync(ct);
+        var unitNames = unitRows.ToDictionary(x => x.Id, x => x.Name);
+        var unitCodes = unitRows.ToDictionary(x => x.Id, x => x.Code);
 
         // Resolve every task's assignees LIVE from current active assignments (role tasks → the unit's maîtrise /
         // the profile's holders; "members" tasks → their stored ids). This is what makes a newly-placed maîtrise —
@@ -113,7 +115,9 @@ public class GetRentreeTasksQueryHandler(IApplicationDbContext context, ICurrent
             var assigneeIds = assignees.ToList();
             return new RentreeTaskDto(
                 t.Id, t.TemplateId, t.ScoutYear, t.Title, t.Description, t.Phase, t.DisplayOrder,
-                t.AssigneeType, t.AssigneeRole, t.UnitId, t.UnitId.HasValue ? unitNames.GetValueOrDefault(t.UnitId.Value) : null,
+                t.AssigneeType, t.AssigneeRole, t.UnitId,
+                t.UnitId.HasValue ? unitNames.GetValueOrDefault(t.UnitId.Value) : null,
+                t.UnitId.HasValue ? unitCodes.GetValueOrDefault(t.UnitId.Value) : null,
                 assigneeIds, assigneeIds.Select(id => memberNames.GetValueOrDefault(id, "?")).ToList(),
                 t.DeadlineLabel, due, t.DeadlineAnchor, t.Status, t.CompletedByName, t.CompletedAt,
                 t.DependsOnTaskIds, blockedBy.Count > 0, blockedBy.Select(d => titleById.GetValueOrDefault(d, "?")).ToList(),
@@ -175,7 +179,7 @@ public class GetMyOverdueRentreeTasksQueryHandler(IApplicationDbContext context,
 
         return overdue.Select(t => new RentreeTaskDto(
             t.Id, t.TemplateId, t.ScoutYear, t.Title, t.Description, t.Phase, t.DisplayOrder, t.AssigneeType, t.AssigneeRole,
-            t.UnitId, null, t.AssigneeMemberIds, [], t.DeadlineLabel, dueByTask.GetValueOrDefault(t.Id), t.DeadlineAnchor,
+            t.UnitId, null, null, t.AssigneeMemberIds, [], t.DeadlineLabel, dueByTask.GetValueOrDefault(t.Id), t.DeadlineAnchor,
             t.Status, null, null, t.DependsOnTaskIds, false, [], true, true, t.ActionKey,
             t.ProgressKey, null, null, null, false, false)).ToList();
     }

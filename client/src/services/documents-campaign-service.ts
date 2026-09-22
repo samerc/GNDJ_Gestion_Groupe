@@ -21,6 +21,7 @@ export interface DocumentCampaignStatus {
 export interface UnitPending {
   unitId: string
   unitName: string
+  unitCode: string // short unit code, e.g. "C1"
   pendingCount: number // documents awaiting the CU's review
   incompleteCount: number // members with a missing/rejected/expired doc
 }

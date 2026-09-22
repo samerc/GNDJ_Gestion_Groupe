@@ -1367,7 +1367,7 @@ function OccRow({ u, scoutYear }: { u: UnitOccupancy; scoutYear: string }) {
   }
   return (
     <tr className="border-b hover:bg-muted/20">
-      <td className="px-3 py-2"><span className="font-medium">{u.unitCode}</span> <span className="text-muted-foreground">{u.unitName}</span></td>
+      <td className="px-3 py-2"><span className="font-medium">{u.unitCode}</span></td>
       <td className="px-3 py-2 text-center">{u.currentActive}</td>
       <td className="px-3 py-2 text-center font-medium">{u.projected}</td>
       <td className="px-3 py-2 text-center">

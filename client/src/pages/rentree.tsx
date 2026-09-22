@@ -151,7 +151,7 @@ function TaskRow({ task, canManage, compact, running, onToggle, onEdit, onDelete
 }) {
   const done = task.isDone
   const assignee = compact
-    ? (task.unitName ?? '') + (task.assigneeNames.length ? ` — ${task.assigneeNames.join(', ')}` : '')
+    ? (task.unitCode ?? '') + (task.assigneeNames.length ? ` — ${task.assigneeNames.join(', ')}` : '')
     : task.assigneeNames.length > 0 ? task.assigneeNames.join(', ') : roleLabel(task.assigneeRole)
 
   return (

@@ -210,7 +210,7 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
                 <tbody>
                   {data.units.map((u, i) => (
                     <tr key={u.unitId} className={`border-b ${i % 2 ? 'bg-muted/10' : ''}`}>
-                      <td className="px-3 py-2 font-medium">{u.unitName}</td>
+                      <td className="px-3 py-2 font-medium">{u.unitCode}</td>
                       <td className="px-3 py-2 text-center">
                         {u.pendingCount > 0 ? <span className="font-semibold text-amber-600 dark:text-amber-400">{u.pendingCount}</span> : <span className="text-emerald-600 dark:text-emerald-400">✓</span>}
                       </td>
