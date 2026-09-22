@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-22",
+        "text": "Paramètres (sur téléphone) — le menu déroulant qui sert à choisir la section des paramètres est désormais bien plus visible : libellé « Section des paramètres », cadre plus grand avec bordure accentuée et flèche, pour qu'on le repère tout de suite."
+      },
+      {
+        "date": "2026-09-22",
         "text": "Lisibilité — les tableaux qui listent des unités affichent désormais uniquement le CODE de l'unité (ex. « C1 ») au lieu du nom complet ou de « C1 — Compagnie 1 » : Affectations à dater, Demandes (tableau d'occupation) + Statistiques demandes, Maîtrises, Cotisations (Par unité), Vérification des documents, Comptes manquants, Camp (cartes des participants), Rentrée (tâches par unité), Groupes de membres (onglets/sections par unité), Fratries et Doublons, projection des passages. Les menus déroulants de sélection d'unité, les en-têtes de page et le site public gardent le nom complet."
       },
       {

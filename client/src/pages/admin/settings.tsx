@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { NATIONALITY_OPTIONS, PHONE_COUNTRY_CODES, COUNTRY_OPTIONS } from '@/lib/options'
-import { Save, X, Settings2, Search, Plus, Trash2, Star } from 'lucide-react'
+import { Save, X, Settings2, Search, Plus, Trash2, Star, ChevronDown } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { ManagedListEditor } from '@/components/shared/managed-list-editor'
@@ -733,19 +733,27 @@ export default function SettingsPage() {
       ) : (
         // Left grouped vertical nav (Réglages / Configuration) + content pane — scales past a wrapping tab row.
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
-          {/* Mobile: a single dropdown to pick the section (the vertical nav is hidden below lg). */}
+          {/* Mobile: a single dropdown to pick the section (the vertical nav is hidden below lg). Styled
+              prominently — a labelled, full-width picker with a strong border + chevron so it reads as the
+              page selector, not an easily-missed field. */}
           <div className="lg:hidden">
-            <select value={tab} onChange={(e) => setTab(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <optgroup label="Réglages">
-                {categories.map(c => <option key={c} value={c}>{CATEGORY_LABELS[c] ?? c}</option>)}
-              </optgroup>
-              {configTabs.length > 0 && (
-                <optgroup label="Configuration">
-                  {configTabs.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+            <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Settings2 className="h-3.5 w-3.5" />Section des paramètres
+            </label>
+            <div className="relative">
+              <select value={tab} onChange={(e) => setTab(e.target.value)}
+                className="w-full appearance-none rounded-lg border-2 border-primary/30 bg-card px-4 py-3 pr-11 text-base font-semibold shadow-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring">
+                <optgroup label="Réglages">
+                  {categories.map(c => <option key={c} value={c}>{CATEGORY_LABELS[c] ?? c}</option>)}
                 </optgroup>
-              )}
-            </select>
+                {configTabs.length > 0 && (
+                  <optgroup label="Configuration">
+                    {configTabs.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                  </optgroup>
+                )}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-primary" />
+            </div>
           </div>
 
           {/* Desktop: grouped vertical nav. */}
