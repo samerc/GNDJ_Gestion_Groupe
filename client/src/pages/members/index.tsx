@@ -72,6 +72,27 @@ const YOUTH_BRANCH_CODES = ['MEU', 'RON', 'COM', 'TRO']
 // Family-name A–Z quick index for the members list.
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
+// Vertical A–Z rail attached to the right edge of the member list (desktop) — the familiar contacts index.
+// Spreads over the full list height; "•" clears the filter (and clicking the active letter toggles it off),
+// so the alphabet no longer needs a full horizontal row in the header. Hidden on mobile (a horizontal A–Z
+// lives in the collapsible "Filtres" section there).
+function AlphaRail({ letter, onPick }: { letter: string; onPick: (l: string) => void }) {
+  // Each item flexes to fill the rail height (flex-1), so the 27 letters always fit without overlap or clipping,
+  // whatever the viewport height.
+  const cls = (active: boolean) =>
+    cn('flex flex-1 min-h-[12px] w-4 items-center justify-center rounded text-[10px] font-medium leading-none transition-colors',
+      active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')
+  return (
+    <div className="hidden md:flex w-5 shrink-0 select-none flex-col items-center border-l bg-muted/20 py-1">
+      <button type="button" title="Tous les noms" onClick={() => onPick('')} className={cls(letter === '')}>•</button>
+      {ALPHABET.map((l) => (
+        <button key={l} type="button" title={`Noms commençant par ${l}`}
+          onClick={() => onPick(letter === l ? '' : l)} className={cls(letter === l)}>{l}</button>
+      ))}
+    </div>
+  )
+}
+
 // One ready-to-send message with both credentials (for pasting into WhatsApp / a chat to the member).
 function credentialsMessage(username: string, password: string): string {
   return `Identifiant : ${username}\nMot de passe temporaire : ${password}\nÀ changer à la première connexion.`
@@ -1091,20 +1112,28 @@ export default function MembersPage() {
               </button>
             ))}
           </div>
-          {/* Mobile-only: reveal the secondary filters (page size, app filter, A–Z) to keep the header short.
-              A dot signals that one of them is active while collapsed. */}
+          {/* Secondary filters (names-per-page + PWA app filter) live in a collapsible row to keep the header
+              slim, on every screen size. A dot marks an active secondary filter. */}
           <button
             type="button"
             onClick={() => setShowMoreFilters(v => !v)}
-            className="md:hidden inline-flex h-8 shrink-0 items-center gap-1 rounded-md border px-2.5 text-xs font-medium text-muted-foreground"
+            className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border px-2.5 text-xs font-medium text-muted-foreground hover:bg-muted"
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />Filtres
             {(appFilter !== 'all' || letter) && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
             <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showMoreFilters && 'rotate-180')} />
           </button>
-          {/* Page size + app filter — inline on desktop (display:contents makes this wrapper transparent), a
-              collapsible full-width row on mobile. */}
-          <div className={cn('md:contents', showMoreFilters ? 'max-md:flex max-md:w-full max-md:flex-wrap max-md:items-center max-md:gap-2' : 'max-md:hidden')}>
+          {data && data.totalCount > 0 && (
+            <span className="ml-auto flex items-center text-xs text-muted-foreground">
+              {(data.page - 1) * pageSize + 1}–{Math.min(data.page * pageSize, data.totalCount)} sur {data.totalCount}
+            </span>
+          )}
+        </div>
+
+        {/* Collapsible secondary filters: names-per-page + app filter, plus (mobile only) the horizontal A–Z
+            index. On desktop the A–Z lives in the vertical rail beside the list instead. */}
+        {showMoreFilters && (
+          <div className="flex flex-wrap items-center gap-2">
             {/* Names per page */}
             <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
               <SelectTrigger className="h-8 w-[6.5rem] max-md:flex-1 text-sm"><SelectValue /></SelectTrigger>
@@ -1122,37 +1151,17 @@ export default function MembersPage() {
                 <SelectItem value="not">App non détectée</SelectItem>
               </SelectContent>
             </Select>
+            {/* Mobile A–Z index (desktop uses the vertical rail on the list). */}
+            <div className="flex w-full flex-wrap gap-0.5 md:hidden">
+              <button type="button" onClick={() => { setLetter(''); setPage(1) }}
+                className={cn('h-6 rounded px-1.5 text-[11px] font-medium transition-colors', letter === '' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}>Tous</button>
+              {ALPHABET.map(l => (
+                <button key={l} type="button" onClick={() => { setLetter(l); setPage(1) }}
+                  className={cn('h-6 min-w-[1.5rem] rounded px-1 text-[11px] font-medium transition-colors', letter === l ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}>{l}</button>
+              ))}
+            </div>
           </div>
-          {data && data.totalCount > 0 && (
-            <span className="flex items-center text-xs text-muted-foreground">
-              {(data.page - 1) * pageSize + 1}–{Math.min(data.page * pageSize, data.totalCount)} sur {data.totalCount}
-            </span>
-          )}
-        </div>
-
-        {/* Family-name A–Z index — jump to a starting letter (accent-insensitive). "Tous" clears it.
-            Always visible on desktop; on mobile it's part of the collapsible "Filtres" section. */}
-        <div className={cn('flex flex-wrap gap-0.5', !showMoreFilters && 'max-md:hidden')}>
-          <button
-            type="button"
-            onClick={() => { setLetter(''); setPage(1) }}
-            className={cn('h-6 rounded px-1.5 text-[11px] font-medium transition-colors',
-              letter === '' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
-          >
-            Tous
-          </button>
-          {ALPHABET.map(l => (
-            <button
-              key={l}
-              type="button"
-              onClick={() => { setLetter(l); setPage(1) }}
-              className={cn('h-6 min-w-[1.5rem] rounded px-1 text-[11px] font-medium transition-colors',
-                letter === l ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
+        )}
       </div>
 
       {/* 2-column layout — desktop: side-by-side split; mobile: master/detail (list OR detail, one at a time) */}
@@ -1161,11 +1170,13 @@ export default function MembersPage() {
             max-md:!w-full overrides the inline pixel width below md; hidden on mobile once a member is picked. */}
         <div
           className={cn(
-            'flex flex-col flex-1 md:flex-none md:shrink-0 overflow-hidden border-b md:border-b-0 max-md:!w-full',
+            'flex flex-1 md:flex-none md:shrink-0 overflow-hidden border-b md:border-b-0 max-md:!w-full',
             selectedMemberId && 'max-md:hidden'
           )}
           style={{ width: leftWidth }}
         >
+         {/* header + scrollable list (the A–Z rail is a sibling to the right of this column) */}
+         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           {/* Sortable header */}
           <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/40 text-muted-foreground shrink-0">
             <div className="w-8" />
@@ -1247,6 +1258,9 @@ export default function MembersPage() {
               </>
             )}
           </div>
+         </div>
+         {/* Vertical A–Z rail (desktop): click a letter to jump; "•" or the active letter clears it. */}
+         <AlphaRail letter={letter} onPick={(l) => { setLetter(l); setPage(1) }} />
         </div>
 
         {/* Drag handle: desktop only */}

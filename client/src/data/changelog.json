@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-22",
+        "text": "Membres — l'en-tête de la liste est allégé : l'index A–Z (qui occupait une ligne entière) devient une barre verticale discrète le long de la liste (clic sur une lettre pour aller aux noms qui commencent par elle, « • » ou re-clic pour tout afficher), et les filtres secondaires peu utilisés (nombre par page, filtre « App ») sont regroupés derrière le bouton « Filtres ». La barre principale ne garde que la recherche, l'unité, le sélecteur Actifs/Anciens/Tous et le compteur."
+      },
+      {
+        "date": "2026-09-22",
         "text": "Statistiques des demandes — page réorganisée en trois onglets pour plus de clarté : « Vue d'ensemble » (suivi des demandes + familles/qualité des dossiers), « Profil des candidats » (répartitions par genre/âge/classe/école + les rapports croisés) et « Capacité » (le tableau de capacité des unités). L'onglet ouvert est mémorisé d'une visite à l'autre. Les répartitions (genre / âge / classe / école) sont désormais affichées de façon beaucoup plus compacte (une ligne par valeur) et ne s'étirent plus inutilement en hauteur."
       },
       {
