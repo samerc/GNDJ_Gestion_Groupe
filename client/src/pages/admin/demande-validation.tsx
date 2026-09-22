@@ -36,7 +36,9 @@ import {
   Inbox, Check, X, Send, Users2, ChevronDown, ChevronRight, ChevronLeft, CheckCircle2, XCircle, Clock,
   AlertTriangle, User, Phone, Mail, MapPin, HeartPulse, GraduationCap, MessageSquare, Tent, ArrowUpDown,
   Search, Sparkles, Trash2, Link2, Lock, LockOpen, Save, Download, Upload, MailWarning, Pencil, RotateCcw,
+  SlidersHorizontal,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 function eligible(u: UnitOccupancy, d: DemandeReview): boolean {
@@ -87,14 +89,14 @@ function genderShort(g: string | null): string {
 function statusInfo(d: DemandeReview): { border: string; label: string } {
   if (d.status === 'Approved') return { border: 'border-l-green-500', label: d.responseSentAt ? 'Acceptée (envoyée)' : 'Acceptée' }
   if (d.status === 'Declined') return { border: 'border-l-red-500', label: d.responseSentAt ? 'Refusée (envoyée)' : 'Refusée' }
-  return { border: 'border-l-blue-500', label: 'À étudier' }
+  return { border: 'border-l-amber-500', label: 'À étudier' }
 }
 
 // Badge colour for the "Statut" column.
 function statusBadgeClass(d: DemandeReview): string {
   if (d.status === 'Approved') return 'bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300'
   if (d.status === 'Declined') return 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300'
-  return 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300'
+  return 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
 }
 // Sort order for the "Statut" column: to-study first, then accepted, then declined.
 function statusRank(d: DemandeReview): number {
@@ -155,6 +157,7 @@ export default function DemandeValidationPage() {
   const [fSibling, setFSibling] = useState(false)    // brother/sister among proches OR ≥2 demandes on the account
   const [fPrevious, setFPrevious] = useState(false)  // a previous demande was declared
   const [showOccupancy, setShowOccupancy] = useState(false)
+  const [showFilters, setShowFilters] = useState(false) // mobile: collapse the filter body (keep search visible)
   const [sortKey, setSortKey] = useState<SortKey>('lastName')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
@@ -558,15 +561,31 @@ export default function DemandeValidationPage() {
 
       {/* Filters */}
       <Card><CardContent className="space-y-3 py-4">
-        <div className="flex flex-wrap items-end gap-3">
-        <div className="w-full space-y-1 sm:w-auto">
-          <label className="text-xs font-medium">Recherche</label>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="w-full pl-8 pr-7 sm:w-56" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nom, email, téléphone, parent…" />
-            {search && <Tip content="Effacer"><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setSearch('')}><X className="h-3.5 w-3.5" /></button></Tip>}
+        {/* Search stays visible on every screen; a "Filtres" toggle reveals the rest on mobile (they take a lot
+            of vertical space on a phone). On ≥sm everything is shown inline as before. */}
+        <div className="flex items-end gap-2">
+          <div className="min-w-0 flex-1 space-y-1 sm:flex-none">
+            <label className="text-xs font-medium">Recherche</label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input className="w-full pl-8 pr-7 sm:w-56" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nom, email, téléphone, parent…" />
+              {search && <Tip content="Effacer"><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setSearch('')}><X className="h-3.5 w-3.5" /></button></Tip>}
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowFilters((v) => !v)}
+            className="inline-flex h-10 shrink-0 items-center gap-1 rounded-md border px-3 text-sm font-medium text-muted-foreground hover:bg-muted sm:hidden"
+          >
+            <SlidersHorizontal className="h-4 w-4" />Filtres
+            {(status !== 'all' || gender !== 'all' || classe || ageMin || ageMax || activeExtraFilters > 0) && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+            <ChevronDown className={cn('h-4 w-4 transition-transform', showFilters && 'rotate-180')} />
+          </button>
         </div>
+
+        {/* The rest of the filters — collapsed on mobile unless toggled, always shown on ≥sm. */}
+        <div className={cn('space-y-3', !showFilters && 'max-sm:hidden')}>
+        <div className="flex flex-wrap items-end gap-3">
         <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">Statut</label>
           <Select value={status} onValueChange={setStatus}><SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -645,6 +664,7 @@ export default function DemandeValidationPage() {
           {activeExtraFilters > 0 && (
             <Button variant="ghost" size="sm" onClick={resetExtraFilters}><X className="mr-1 h-3.5 w-3.5" />Réinitialiser ({activeExtraFilters})</Button>
           )}
+        </div>
         </div>
       </CardContent></Card>
 
@@ -779,7 +799,7 @@ export default function DemandeValidationPage() {
           {/* Mobile cards — the dense table is unusable on a phone. Tap the card to open the full detail
               drawer (with large footer actions); the quick accept/refuse/reset/delete are also here at a
               comfortable size, and the bulk checkbox stays available. */}
-          <div className="divide-y md:hidden">
+          <div className="space-y-2.5 p-3 md:hidden">
             {rows.map((d) => {
               const locked = !!d.createdMemberId
               const si = statusInfo(d)
@@ -788,7 +808,7 @@ export default function DemandeValidationPage() {
               const decidedUnit = d.decidedUnitId ? occByUnit[d.decidedUnitId] : undefined
               const sib = siblingProche(d)
               return (
-                <div key={d.id} className={`border-l-4 ${si.border} ${isSibling ? 'bg-amber-50/40 dark:bg-amber-950/30' : ''}`}>
+                <div key={d.id} className={cn('overflow-hidden rounded-lg border border-l-4 shadow-sm', si.border, isSibling ? 'bg-amber-50/60 dark:bg-amber-950/30' : 'bg-card')}>
                   <div className="flex items-start gap-3 p-3">
                     <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 rounded border-input accent-primary disabled:opacity-40" checked={selected.has(d.id)} disabled={locked} onChange={() => toggleOne(d.id)} aria-label="Sélectionner" />
                     <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setDetailId(d.id)}>
@@ -815,9 +835,15 @@ export default function DemandeValidationPage() {
                     </button>
                   </div>
                   {!locked && (
-                    <div className="flex flex-wrap gap-1.5 border-t px-3 py-2">
-                      <Button size="sm" variant={d.status === 'Approved' ? 'default' : 'outline'} className="flex-1" onClick={() => openApprove(d)}><Check className="mr-1 h-4 w-4" />Accepter</Button>
-                      <Button size="sm" variant={d.status === 'Declined' ? 'destructive' : 'outline'} className="flex-1" onClick={() => openDecline(d)}><X className="mr-1 h-4 w-4" />Refuser</Button>
+                    <div className="flex flex-wrap gap-1.5 border-t bg-muted/30 px-3 py-2">
+                      <Button size="sm" variant="outline"
+                        className={cn('flex-1', d.status === 'Approved'
+                          ? 'border-transparent bg-green-600 text-white hover:bg-green-700'
+                          : 'border-green-500 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-950/40')}
+                        onClick={() => openApprove(d)}><Check className="mr-1 h-4 w-4" />Accepter</Button>
+                      <Button size="sm" variant={d.status === 'Declined' ? 'destructive' : 'outline'}
+                        className={cn('flex-1', d.status !== 'Declined' && 'border-red-400 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40')}
+                        onClick={() => openDecline(d)}><X className="mr-1 h-4 w-4" />Refuser</Button>
                       {(d.status === 'Approved' || d.status === 'Declined') && (
                         <Tip content="Remettre à étudier"><Button size="sm" variant="outline" className="h-9 w-9 p-0" disabled={busy} onClick={() => resetTarget(d)}><RotateCcw className="h-4 w-4" /></Button></Tip>
                       )}

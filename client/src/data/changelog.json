@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-22",
+        "text": "Validation des demandes (sur téléphone) — page plus lisible : la barre de recherche reste toujours visible et tous les autres filtres se replient derrière un bouton « Filtres » (ils prenaient beaucoup de place). Chaque demande est désormais une carte bien distincte (bord arrondi, ombre, séparation nette) avec ses boutons Accepter / Refuser attachés en bas de la carte — ils ne semblent plus « détachés » de la demande. Les boutons sont colorés (Accepter en vert, Refuser en rouge). Enfin, le statut « À étudier » passe du bleu au jaune (partout : liste, cartes, badges)."
+      },
+      {
+        "date": "2026-09-22",
         "text": "Membres — l'en-tête de la liste est allégé : l'index A–Z (qui occupait une ligne entière) devient une barre verticale discrète le long de la liste (clic sur une lettre pour aller aux noms qui commencent par elle, « • » ou re-clic pour tout afficher), et les filtres secondaires peu utilisés (nombre par page, filtre « App ») sont regroupés derrière le bouton « Filtres ». La barre principale ne garde que la recherche, l'unité, le sélecteur Actifs/Anciens/Tous et le compteur."
       },
       {
