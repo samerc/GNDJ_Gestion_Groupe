@@ -41,8 +41,8 @@ function Stat({ icon: Icon, label, value, tone }: { icon: React.ElementType; lab
 // display label (e.g. multiple école spellings → one code "CNDJ"), rows are AGGREGATED by the display label so
 // the same entry never appears twice — counts summed, re-sorted by count desc. Without labelOf, items are shown
 // as-is (the server already grouped them accent/case-insensitively).
-function BarList({ items, labelOf }: { items: CountItem[]; labelOf?: (label: string) => string }) {
-  const rows = labelOf
+function BarList({ items, labelOf, max = 8 }: { items: CountItem[]; labelOf?: (label: string) => string; max?: number }) {
+  let rows = labelOf
     ? Array.from(
         items.reduce((m, it) => {
           const key = labelOf(it.label)
@@ -53,18 +53,23 @@ function BarList({ items, labelOf }: { items: CountItem[]; labelOf?: (label: str
       ).sort((a, b) => b.count - a.count)
     : items.map((i) => ({ label: i.label, count: i.count }))
   if (!rows.length) return <p className="text-sm text-muted-foreground">Aucune donnée.</p>
-  const max = Math.max(...rows.map((i) => i.count), 1)
+  // Bound very long lists (école/ville can have many values): keep the top `max`, roll the rest into "Autres".
+  if (rows.length > max) {
+    const head = rows.slice(0, max)
+    const rest = rows.slice(max).reduce((s, r) => s + r.count, 0)
+    rows = [...head, { label: `Autres (${rows.length - max})`, count: rest }]
+  }
+  const peak = Math.max(...rows.map((i) => i.count), 1)
+  // One compact line per value: label · inline bar · count — roughly half the height of the stacked layout.
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {rows.map((it) => (
-        <div key={it.label} className="space-y-1">
-          <div className="flex items-center justify-between text-sm">
-            <span className="truncate pr-2">{it.label}</span>
-            <span className="tabular-nums font-medium text-muted-foreground">{it.count}</span>
+        <div key={it.label} className="flex items-center gap-2 text-sm">
+          <span className="w-24 shrink-0 truncate sm:w-28" title={it.label}>{it.label}</span>
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-primary" style={{ width: `${(it.count / peak) * 100}%` }} />
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(it.count / max) * 100}%` }} />
-          </div>
+          <span className="w-9 shrink-0 text-right tabular-nums font-medium text-muted-foreground">{it.count}</span>
         </div>
       ))}
     </div>
@@ -194,11 +199,11 @@ export default function DemandeStatsPage() {
           {/* Demographics */}
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Répartitions</h2>
-            <div className="grid gap-3 md:grid-cols-2">
-              <Card><CardHeader className="py-3"><CardTitle className="text-base">Par genre</CardTitle></CardHeader><CardContent><BarList items={stats.byGender} /></CardContent></Card>
-              <Card><CardHeader className="py-3"><CardTitle className="text-base">Par tranche d'âge</CardTitle></CardHeader><CardContent><BarList items={stats.byAgeGroup} /></CardContent></Card>
-              <Card><CardHeader className="py-3"><CardTitle className="text-base">Par classe</CardTitle></CardHeader><CardContent><BarList items={stats.byClasse} /></CardContent></Card>
-              <Card><CardHeader className="py-3"><CardTitle className="text-base">Par école</CardTitle></CardHeader><CardContent><BarList items={stats.bySchool} labelOf={(l) => l === 'Non renseignée' ? l : schoolCode(l)} /></CardContent></Card>
+            <div className="grid items-start gap-3 md:grid-cols-2">
+              <Card><CardHeader className="py-3"><CardTitle className="text-sm">Par genre</CardTitle></CardHeader><CardContent className="pt-0 pb-4"><BarList items={stats.byGender} /></CardContent></Card>
+              <Card><CardHeader className="py-3"><CardTitle className="text-sm">Par tranche d'âge</CardTitle></CardHeader><CardContent className="pt-0 pb-4"><BarList items={stats.byAgeGroup} /></CardContent></Card>
+              <Card><CardHeader className="py-3"><CardTitle className="text-sm">Par classe</CardTitle></CardHeader><CardContent className="pt-0 pb-4"><BarList items={stats.byClasse} /></CardContent></Card>
+              <Card><CardHeader className="py-3"><CardTitle className="text-sm">Par école</CardTitle></CardHeader><CardContent className="pt-0 pb-4"><BarList items={stats.bySchool} labelOf={(l) => l === 'Non renseignée' ? l : schoolCode(l)} /></CardContent></Card>
             </div>
           </section>
 
