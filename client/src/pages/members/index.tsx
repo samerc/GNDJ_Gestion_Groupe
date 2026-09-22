@@ -466,8 +466,9 @@ function MemberDetailPanel({ memberId, onDeleted, initialTab }: { memberId: stri
         {/* Mobile: a dropdown (7 tabs scroll awkwardly on a phone — the active one can sit off-screen).
             Desktop: the horizontal tab bar. Both drive the controlled `activeTab`. */}
         <div className="mx-4 mt-3 shrink-0 md:hidden">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Section de la fiche</label>
           <Select value={activeTab} onValueChange={setActiveTab}>
-            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-11 w-full border-2 border-primary/30 text-base font-semibold shadow-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
               {tabDefs.map(t => <SelectItem key={t.value} value={t.value}>{t.label}{t.count ? ` (${t.count})` : ''}</SelectItem>)}
             </SelectContent>

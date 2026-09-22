@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-22",
+        "text": "Fiche membre (sur téléphone) — le menu déroulant qui sert à changer d'onglet (Informations, Contact & famille, Unités…) est plus visible, avec un libellé « Section de la fiche » et un cadre plus marqué, comme sur les Paramètres."
+      },
+      {
+        "date": "2026-09-22",
         "text": "Paramètres (sur téléphone) — le menu déroulant qui sert à choisir la section des paramètres est désormais bien plus visible : libellé « Section des paramètres », cadre plus grand avec bordure accentuée et flèche, pour qu'on le repère tout de suite."
       },
       {
