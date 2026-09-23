@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { EmptyState } from '@/components/shared/empty-state'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { Tip } from '@/components/ui/tooltip'
 import { formatDateLong } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
@@ -34,11 +36,12 @@ export default function DeletedMembersPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="flex items-center gap-2 text-xl font-bold"><Trash2 className="h-5 w-5 text-primary" />Corbeille</h1>
-        <p className="text-sm text-muted-foreground">Membres supprimés. Vous pouvez les restaurer jusqu'à leur suppression définitive automatique. Passé ce délai, le membre, son compte et toutes ses données sont effacés définitivement.</p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Corbeille"
+        icon={Trash2}
+        description="Membres supprimés. Vous pouvez les restaurer jusqu'à leur suppression définitive automatique. Passé ce délai, le membre, son compte et toutes ses données sont effacés définitivement."
+      />
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -103,6 +106,6 @@ export default function DeletedMembersPage() {
         loading={restore.isPending || purge.isPending}
         onConfirm={runAction}
       />
-    </div>
+    </Page>
   )
 }

@@ -30,6 +30,8 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { Receipt, Users, AlertTriangle, CheckCircle, Mail, Phone, Ban, Printer, Download, ChevronRight, Trash2, Plus, Building2 } from 'lucide-react'
 import { WhatsappTextLink } from '@/components/shared/whatsapp-link'
 import { toast } from 'sonner'
@@ -276,17 +278,18 @@ export default function CotisationDashboardPage() {
     : 0
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold">Tableau de bord — Cotisations</h1>
-        <div className="flex items-center gap-2">
+    <Page>
+      <PageHeader
+        title="Tableau de bord — Cotisations"
+        icon={Receipt}
+        actions={<div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Année scoute :</span>
           <Select value={scoutYear} onValueChange={setScoutYear}>
             <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
             <SelectContent>{yearOptions.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
-      </div>
+        </div>}
+      />
 
       {summary && (
         <>
@@ -448,11 +451,11 @@ export default function CotisationDashboardPage() {
                             </td>
                             <td className="px-3 py-2 text-center">{u.totalMembers}</td>
                             <td className="px-3 py-2 text-center">
-                              <Badge className="bg-green-600">{u.paidMembers}</Badge>
+                              <Badge variant="success">{u.paidMembers}</Badge>
                             </td>
                             <td className="px-3 py-2 text-center">
                               {u.partialMembers > 0
-                                ? <Badge className="bg-amber-500 hover:bg-amber-500">{u.partialMembers}</Badge>
+                                ? <Badge variant="warning">{u.partialMembers}</Badge>
                                 : <Badge variant="outline">0</Badge>}
                             </td>
                             <td className="px-3 py-2 text-center">
@@ -522,7 +525,7 @@ export default function CotisationDashboardPage() {
                                                     {m.totals.length > 1 && m.equivalentReference > 0 && (
                                                       <span className="text-xs text-muted-foreground">≈ {formatMoney(m.equivalentReference, m.referenceCurrency)}</span>
                                                     )}
-                                                    {m.status === 'Partial' && <Badge className="bg-amber-500 hover:bg-amber-500">Partiel {m.percentPaid}%</Badge>}
+                                                    {m.status === 'Partial' && <Badge variant="warning">Partiel {m.percentPaid}%</Badge>}
                                                     {/* Overpayment: fully paid AND over 100% → show the excess in the reference currency. */}
                                                     {m.status === 'Paid' && m.percentPaid > 100 && (() => {
                                                       const refFull = fullAmountFor(fullAmountsRaw, m.referenceCurrency)
@@ -624,7 +627,7 @@ export default function CotisationDashboardPage() {
                                           <td className="px-3 py-2">
                                             {m.status === 'Partial' ? (
                                               <div className="flex flex-col gap-0.5">
-                                                <Badge className="w-fit bg-amber-500 hover:bg-amber-500">Partiel {m.percentPaid}%</Badge>
+                                                <Badge variant="warning" className="w-fit">Partiel {m.percentPaid}%</Badge>
                                                 <span className="text-xs text-muted-foreground">
                                                   Déjà : {m.paidTotals.map(t => formatMoney(t.total, t.currency)).join(' + ')}
                                                   {m.remainingReference > 0 && ` · reste ≈ ${formatMoney(m.remainingReference, m.referenceCurrency)}`}
@@ -687,7 +690,7 @@ export default function CotisationDashboardPage() {
                                       <div className="mt-1">
                                         {m.status === 'Partial' ? (
                                           <div className="flex flex-col gap-0.5">
-                                            <Badge className="w-fit bg-amber-500 hover:bg-amber-500">Partiel {m.percentPaid}%</Badge>
+                                            <Badge variant="warning" className="w-fit">Partiel {m.percentPaid}%</Badge>
                                             <span className="text-xs text-muted-foreground">
                                               Déjà : {m.paidTotals.map(t => formatMoney(t.total, t.currency)).join(' + ')}
                                               {m.remainingReference > 0 && ` · reste ≈ ${formatMoney(m.remainingReference, m.referenceCurrency)}`}
@@ -916,6 +919,6 @@ export default function CotisationDashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Page>
   )
 }

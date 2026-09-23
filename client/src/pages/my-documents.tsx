@@ -2,8 +2,10 @@ import { useAuthStore } from '@/stores/auth-store'
 import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { FileText, Receipt } from 'lucide-react'
+import { FileText, Receipt, FolderOpen } from 'lucide-react'
 
 // "Mes documents" — a regular member's own dossier: the document checklist (upload/download own
 // files) plus their cotisations (view/download receipts). The two Ma fiche tabs (Documents +
@@ -14,14 +16,11 @@ export default function MyDocumentsPage() {
   const memberId = user?.memberId ?? ''
 
   // No memberId yet (user not hydrated / account without a linked member) → wait rather than render empty.
-  if (!memberId) return <LoadingSpinner />
+  if (!memberId) return <LoadingSpinner variant="page" />
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Mon dossier</h1>
-        <p className="text-sm text-muted-foreground">Vos documents et cotisations</p>
-      </div>
+    <Page size="narrow">
+      <PageHeader title="Mon dossier" icon={FolderOpen} description="Vos documents et cotisations" />
 
       <Card>
         <CardHeader>
@@ -50,6 +49,6 @@ export default function MyDocumentsPage() {
           <MemberCotisations memberId={memberId} bare selfView />
         </CardContent>
       </Card>
-    </div>
+    </Page>
   )
 }

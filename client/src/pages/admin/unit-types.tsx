@@ -9,13 +9,15 @@ import { cn } from '@/lib/utils'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useUnitTypes, useDeleteUnitType, type UnitTypeDto } from '@/services/unit-type-service'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { Plus, Trash2, Search, FolderTree, X, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
+import { SearchInput } from '@/components/shared/search-input'
+import { Plus, Trash2, FolderTree, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
@@ -92,32 +94,21 @@ export default function UnitTypesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Types d'unité</h1>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouveau type
-        </Button>
-      </div>
+    <Page>
+      <PageHeader
+        title="Types d'unité"
+        icon={FolderTree}
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Nouveau type
+          </Button>
+        }
+      />
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         {showSearch && (
-          <div className="relative w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-9"
-            />
-            {search && (
-              <button type="button" onClick={() => setSearch('')} aria-label="Effacer la recherche"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          <SearchInput value={search} onChange={setSearch} placeholder="Rechercher..." className="w-full sm:max-w-sm" />
         )}
         {/* Mobile: sort picker (the cards have no clickable headers). Desktop sorts via the table headers. */}
         <div className="flex items-center gap-2 md:hidden">
@@ -230,6 +221,6 @@ export default function UnitTypesPage() {
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
       />
-    </div>
+    </Page>
   )
 }

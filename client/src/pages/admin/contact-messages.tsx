@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Mail, MailOpen, Search, X, Reply, Trash2, Send, CornerUpLeft, MessageSquare, UserCheck } from 'lucide-react'
+import { Mail, MailOpen, Reply, Trash2, Send, CornerUpLeft, MessageSquare, UserCheck } from 'lucide-react'
 import { useDebounce } from '@/hooks/use-debounce'
 import {
   useContactMessages,
@@ -18,6 +18,9 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { EmailDeliveryWarning } from '@/components/shared/email-delivery-warning'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 
@@ -47,33 +50,23 @@ export default function ContactMessagesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Messages de contact</h1>
-        <p className="text-sm text-muted-foreground">
-          Les messages envoyés depuis le formulaire de contact du site public. Ouvrez un message pour le lire et y répondre.
-        </p>
-      </div>
+    <Page className="mx-auto max-w-4xl">
+      <PageHeader
+        title="Messages de contact"
+        icon={MessageSquare}
+        description="Les messages envoyés depuis le formulaire de contact du site public. Ouvrez un message pour le lire et y répondre."
+      />
 
       <EmailDeliveryWarning />
 
       {/* Toolbar: search + unread filter + count */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            placeholder="Rechercher (nom, email, sujet, message)…"
-            className="pl-9 pr-9"
-          />
-          {search && (
-            <button type="button" onClick={() => { setSearch(''); setPage(1) }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground" aria-label="Effacer">
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        <SearchInput
+          className="min-w-0 flex-1"
+          value={search}
+          onChange={(v) => { setSearch(v); setPage(1) }}
+          placeholder="Rechercher (nom, email, sujet, message)…"
+        />
         <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground select-none">
           <input type="checkbox" checked={unreadOnly} onChange={(e) => { setUnreadOnly(e.target.checked); setPage(1) }}
             className="h-4 w-4 rounded border-input accent-primary" />
@@ -175,7 +168,7 @@ export default function ContactMessagesPage() {
           onError: (e) => toast.error(parseApiError(e)),
         })}
       />
-    </div>
+    </Page>
   )
 }
 

@@ -16,6 +16,9 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { NATIONALITY_OPTIONS, PHONE_COUNTRY_CODES, COUNTRY_OPTIONS } from '@/lib/options'
 import { Save, X, Settings2, Search, Plus, Trash2, Star, ChevronDown } from 'lucide-react'
@@ -691,20 +694,12 @@ export default function SettingsPage() {
   const ActiveConfigComponent = activeConfig?.Component
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Settings2 className="h-6 w-6 text-muted-foreground" />
-          <h1 className="text-2xl font-bold">Paramètres</h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-full max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Rechercher un paramètre..." value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9 pr-8" />
-            {query && <Tip content="Effacer la recherche"><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setQuery('')}><X className="h-3.5 w-3.5" /></button></Tip>}
-          </div>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Paramètres"
+        icon={Settings2}
+        actions={<SearchInput value={query} onChange={setQuery} placeholder="Rechercher un paramètre..." className="w-full max-w-xs" />}
+      />
 
       {/* Launchpad to the config apps that remain their own pages (Email/SMTP, report templates, access). */}
       {configLinks.length > 0 && (
@@ -826,6 +821,6 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-    </div>
+    </Page>
   )
 }

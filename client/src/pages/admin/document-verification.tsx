@@ -15,6 +15,8 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { CalendarClock, Mail, Ban, RotateCcw, CheckCircle2, Clock, Save, Users } from 'lucide-react'
 
 // CG "Vérification des documents" — the group-wide campaign console. Set the schedule (dates), watch the phase +
@@ -109,15 +111,13 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
   }
 
   return (
-    <div className="space-y-6">
+    <Page>
       {!embedded && (
-        <div>
-          <h1 className="text-2xl font-bold">Vérification des documents</h1>
-          <p className="text-sm text-muted-foreground">
-            Campagne annuelle : le dépôt ouvre/ferme automatiquement selon les dates ; les emails d'erreur et la mise en attente
-            partent automatiquement quand la vérification est terminée, sinon vous êtes alerté et lancez l'étape ci-dessous.
-          </p>
-        </div>
+        <PageHeader
+          title="Vérification des documents"
+          icon={CalendarClock}
+          description="Campagne annuelle : le dépôt ouvre/ferme automatiquement selon les dates ; les emails d'erreur et la mise en attente partent automatiquement quand la vérification est terminée, sinon vous êtes alerté et lancez l'étape ci-dessous."
+        />
       )}
 
       {/* Current phase + progress */}
@@ -126,14 +126,14 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">{status.enabled ? phaseLabel : 'Campagne inactive'}</span>
-            {status.enabled && status.uploadOpen && <span className="flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" />Dépôt ouvert</span>}
-            {status.enabled && !status.uploadOpen && status.phase !== 'Inactive' && <span className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400"><Clock className="h-4 w-4" />Dépôt fermé</span>}
+            {status.enabled && status.uploadOpen && <span className="flex items-center gap-1 text-sm text-success"><CheckCircle2 className="h-4 w-4" />Dépôt ouvert</span>}
+            {status.enabled && !status.uploadOpen && status.phase !== 'Inactive' && <span className="flex items-center gap-1 text-sm text-warning"><Clock className="h-4 w-4" />Dépôt fermé</span>}
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="À vérifier (en attente)" value={data.pendingReviewCount} tone={data.pendingReviewCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'} />
-            <Stat label="Dossiers incomplets" value={data.incompleteCount} tone={data.incompleteCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'} />
-            <Stat label="Membres en attente" value={data.onHoldCount} tone={data.onHoldCount > 0 ? 'text-red-600 dark:text-red-400' : ''} />
-            <Stat label="Vérification" value={data.verificationDone ? 'Terminée' : 'En cours'} tone={data.verificationDone ? 'text-emerald-600 dark:text-emerald-400 text-lg' : 'text-amber-600 dark:text-amber-400 text-lg'} />
+            <Stat label="À vérifier (en attente)" value={data.pendingReviewCount} tone={data.pendingReviewCount > 0 ? 'text-warning' : 'text-success'} />
+            <Stat label="Dossiers incomplets" value={data.incompleteCount} tone={data.incompleteCount > 0 ? 'text-destructive' : 'text-success'} />
+            <Stat label="Membres en attente" value={data.onHoldCount} tone={data.onHoldCount > 0 ? 'text-destructive' : ''} />
+            <Stat label="Vérification" value={data.verificationDone ? 'Terminée' : 'En cours'} tone={data.verificationDone ? 'text-success text-lg' : 'text-warning text-lg'} />
           </div>
 
           {/* Manual steps */}
@@ -146,7 +146,7 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
             </Button>
           </div>
           {!data.verificationDone && (
-            <p className="text-xs text-amber-600 dark:text-amber-400">
+            <p className="text-xs text-warning">
               La vérification n'est pas terminée ({data.pendingReviewCount} document(s) encore en attente de revue). L'étape automatique attend que toutes les unités aient terminé ; vous pouvez néanmoins lancer une étape manuellement.
             </p>
           )}
@@ -256,6 +256,6 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
         title="Mettre les dossiers incomplets en attente" variant="destructive"
         description={`Chaque membre dont le dossier est encore incomplet (${data.incompleteCount} membre(s)) sera mis « en attente » : le dépôt de documents lui sera désactivé et un email l'informera de contacter la maîtrise de groupe. Vous pourrez les réactiver individuellement. Continuer ?`}
         confirmLabel="Mettre en attente" loading={applyHold.isPending} onConfirm={doApplyHold} />
-    </div>
+    </Page>
   )
 }

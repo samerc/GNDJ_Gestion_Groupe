@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { Users, X, Search, Sparkles, ChevronRight, Phone, Mail, MapPin, UserRound, GitMerge, Copy, Flag, Check } from 'lucide-react'
+import { Users, X, Sparkles, ChevronRight, Phone, Mail, MapPin, UserRound, GitMerge, Copy, Flag, Check } from 'lucide-react'
 import {
   useSiblingSuggestions, useSiblingGroups,
   useRejectSiblingSuggestion, useUnlinkSibling,
@@ -23,12 +23,14 @@ const memberLink = (id: string | undefined, fromTab: string) => ({
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
 import { parseApiError } from '@/lib/error-utils'
 import { computeAge } from '@/lib/utils'
 import { useDebounce } from '@/hooks/use-debounce'
@@ -47,11 +49,12 @@ export default function SiblingsPage() {
   const setTab = (v: string) => setSearchParams(prev => { prev.set('tab', v); return prev }, { replace: true })
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><Users className="h-6 w-6 text-primary" />Fratries</h1>
-        <p className="text-sm text-muted-foreground">Identifier et confirmer les frères et sœurs. Approuver une fratrie regroupe les membres et harmonise les informations de la famille (parents, adresse, contacts).</p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Fratries"
+        icon={Users}
+        description="Identifier et confirmer les frères et sœurs. Approuver une fratrie regroupe les membres et harmonise les informations de la famille (parents, adresse, contacts)."
+      />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
@@ -64,7 +67,7 @@ export default function SiblingsPage() {
         <TabsContent value="reports" className="mt-4"><ReportsTab /></TabsContent>
         <TabsContent value="duplicates" className="mt-4"><DuplicatesTab /></TabsContent>
       </Tabs>
-    </div>
+    </Page>
   )
 }
 
@@ -119,10 +122,7 @@ function SuggestionsTab() {
         <EmptyState icon={Sparkles} title="Aucune suggestion" description="Aucune fratrie probable à examiner pour le moment." />
       ) : (
         <>
-          <div className="relative mb-3 max-w-sm">
-            <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Rechercher un nom, une unité…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
-          </div>
+          <SearchInput className="mb-3 max-w-sm" placeholder="Rechercher un nom, une unité…" value={search} onChange={setSearch} />
           <p className="mb-3 text-sm text-muted-foreground">
             {term
               ? `${filtered.length} résultat(s) sur ${total} famille(s) probable(s) à examiner.`
@@ -165,8 +165,7 @@ function SuggestionRow({ suggestion, onReview, onReject }: { suggestion: Sibling
       <CardContent className="flex items-start gap-3 p-4">
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <Badge variant={suggestion.confidence === 'Élevée' ? 'default' : 'secondary'}
-              className={suggestion.confidence === 'Élevée' ? 'bg-emerald-600' : 'bg-amber-500 text-white'}>
+            <Badge variant={suggestion.confidence === 'Élevée' ? 'success' : 'warning'}>
               Confiance {suggestion.confidence.toLowerCase()}
             </Badge>
             <span className="text-xs text-muted-foreground">{suggestion.members.length} enfants probables</span>
@@ -230,10 +229,7 @@ function ConfirmedTab() {
 
   return (
     <>
-      <div className="relative mb-3 max-w-sm">
-        <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Rechercher un membre…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
-      </div>
+      <SearchInput className="mb-3 max-w-sm" placeholder="Rechercher un membre…" value={search} onChange={setSearch} />
 
       {isLoading ? <LoadingSpinner variant="table" />
         : shown.length === 0
@@ -347,7 +343,7 @@ function ReportsTab() {
                         <Link {...memberLink(r.reporterMemberId, 'reports')} className="font-medium hover:underline">{r.reporterName || 'Membre'}</Link>
                         <span className="text-xs text-muted-foreground">· {r.reporterUnit ?? 'Sans unité'}</span>
                         <Badge variant="secondary" className="text-[11px]">{REPORT_KIND_LABELS[r.kind] ?? r.kind}</Badge>
-                        {r.status === 'Resolved' && <Badge className="bg-emerald-600 text-[11px]">Résolu</Badge>}
+                        {r.status === 'Resolved' && <Badge variant="success" className="text-[11px]">Résolu</Badge>}
                       </div>
                       {r.note && <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{r.note}</p>}
                       {r.replyMessage && (
@@ -498,10 +494,7 @@ function DuplicatesTab() {
     : groups
 
   const searchBar = (
-    <div className="relative mb-3 max-w-sm">
-      <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-      <Input placeholder="Rechercher un nom…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
-    </div>
+    <SearchInput className="mb-3 max-w-sm" placeholder="Rechercher un nom…" value={search} onChange={setSearch} />
   )
 
   return (

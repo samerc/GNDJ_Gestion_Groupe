@@ -10,14 +10,16 @@ import { useUnits, useDeleteUnit, type UnitDto } from '@/services/unit-service'
 import { useAssociations } from '@/services/association-service'
 import { useUnitTypes } from '@/services/unit-type-service'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { Plus, Trash2, Search, Building2, Eye, X } from 'lucide-react'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
+import { Plus, Trash2, Building2, Eye } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
@@ -51,21 +53,20 @@ export default function UnitsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Unités</h1>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouvelle unité
-        </Button>
-      </div>
+    <Page>
+      <PageHeader
+        title="Unités"
+        icon={Building2}
+        actions={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouvelle unité</Button>}
+      />
 
       <div className="flex flex-wrap gap-2">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Rechercher..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-9 pr-8" />
-          {search && <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => { setSearch(''); setPage(1) }}><X className="h-3.5 w-3.5" /></button>}
-        </div>
+        <SearchInput
+          value={search}
+          onChange={(v) => { setSearch(v); setPage(1) }}
+          placeholder="Rechercher..."
+          className="flex-1 min-w-[200px] max-w-sm"
+        />
         <Select value={assocFilter || '_all'} onValueChange={(v) => { setAssocFilter(v === '_all' ? '' : v); setPage(1) }}>
           <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Association" /></SelectTrigger>
           <SelectContent>
@@ -89,7 +90,7 @@ export default function UnitsPage() {
           icon={Building2}
           title="Aucune unité"
           description={search ? 'Aucun résultat pour cette recherche.' : 'Créez votre première unité.'}
-          action={!search && <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Créer</Button>}
+          action={!search && <Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Créer</Button>}
         />
       ) : (
         <>
@@ -117,7 +118,7 @@ export default function UnitsPage() {
                     <TableCell className="text-center">{item.teamCount}</TableCell>
                     <TableCell className="text-center">{item.memberCount}</TableCell>
                     <TableCell>
-                      <Badge variant={item.isActive ? 'default' : 'secondary'}>
+                      <Badge variant={item.isActive ? 'success' : 'secondary'}>
                         {item.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                     </TableCell>
@@ -160,6 +161,6 @@ export default function UnitsPage() {
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
       />
-    </div>
+    </Page>
   )
 }

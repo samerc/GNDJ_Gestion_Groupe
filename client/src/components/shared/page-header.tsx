@@ -5,14 +5,17 @@ interface PageHeaderProps {
   title: React.ReactNode
   description?: React.ReactNode
   icon?: LucideIcon
+  /** Optional custom leading visual (e.g. a member photo) shown INSTEAD of the icon tile. */
+  avatar?: React.ReactNode
   actions?: React.ReactNode
   className?: string
 }
 
-// Standard page title block: a tinted accent icon tile, a consistent h1 (size/weight/tracking), an optional
-// subtitle, a right-aligned actions cluster, and a hairline divider that visually separates the header from
-// the page body. Use on every top-level page so the header treatment never drifts page to page.
-export function PageHeader({ title, description, icon: Icon, actions, className }: PageHeaderProps) {
+// Standard page title block: a tinted accent icon tile (or a custom `avatar`), a consistent h1
+// (size/weight/tracking), an optional subtitle, a right-aligned actions cluster, and a hairline divider that
+// visually separates the header from the page body. Use on every top-level page so the header treatment
+// never drifts page to page.
+export function PageHeader({ title, description, icon: Icon, avatar, actions, className }: PageHeaderProps) {
   return (
     <div
       className={cn(
@@ -21,11 +24,13 @@ export function PageHeader({ title, description, icon: Icon, actions, className 
       )}
     >
       <div className="flex min-w-0 items-center gap-3">
-        {Icon && (
+        {avatar ? (
+          <span className="shrink-0">{avatar}</span>
+        ) : Icon ? (
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/15">
             <Icon className="h-5 w-5" />
           </span>
-        )}
+        ) : null}
         <div className="min-w-0 space-y-0.5">
           <h1 className="truncate text-2xl font-semibold tracking-tight">{title}</h1>
           {description && <p className="text-sm text-muted-foreground">{description}</p>}

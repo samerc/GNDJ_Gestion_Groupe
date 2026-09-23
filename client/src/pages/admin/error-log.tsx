@@ -5,20 +5,23 @@ import { toast } from 'sonner'
 import { useErrorLogs, useClearErrorLogs, type ErrorLogEntry } from '@/services/log-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
-import { ChevronDown, ChevronRight, Search, X, AlertTriangle, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, AlertTriangle, Trash2 } from 'lucide-react'
 
-function levelColor(level: string): string {
+// Map a log level to a status Badge variant (danger / warning / secondary).
+function levelVariant(level: string): 'danger' | 'warning' | 'secondary' {
   const l = level.toLowerCase()
-  if (l === 'error' || l === 'fatal') return 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300'
-  if (l === 'warning') return 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300'
-  return 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+  if (l === 'error' || l === 'fatal') return 'danger'
+  if (l === 'warning') return 'warning'
+  return 'secondary'
 }
 
 function LogRow({ entry, idx }: { entry: ErrorLogEntry; idx: number }) {
@@ -30,7 +33,7 @@ function LogRow({ entry, idx }: { entry: ErrorLogEntry; idx: number }) {
         <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
           {new Date(entry.timestamp).toLocaleString('fr-FR')}
         </td>
-        <td className="px-3 py-2"><Badge className={levelColor(entry.level)}>{entry.level}</Badge></td>
+        <td className="px-3 py-2"><Badge variant={levelVariant(entry.level)}>{entry.level}</Badge></td>
         <td className="px-3 py-2">
           <div className="flex items-start gap-1.5">
             {hasDetail ? (
@@ -74,14 +77,12 @@ export default function ErrorLogPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Journal des erreurs</h1>
-        <p className="text-sm text-muted-foreground">
-          Journaux applicatifs récents (niveau Avertissement et plus). La <strong>référence</strong> affichée aux
-          utilisateurs et envoyée par email s'y retrouve.
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Journal des erreurs"
+        icon={AlertTriangle}
+        description={<>Journaux applicatifs récents (niveau Avertissement et plus). La <strong>référence</strong> affichée aux utilisateurs et envoyée par email s'y retrouve.</>}
+      />
 
       <Card>
         <CardHeader>
@@ -100,17 +101,8 @@ export default function ErrorLogPage() {
                 <SelectItem value="Information">Information</SelectItem>
               </SelectContent>
             </Select>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input className="w-full sm:w-56 pl-8 pr-8" placeholder="Rechercher (message, réf.)" value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
-              {search && (
-                <button onClick={() => { setSearch(''); setPage(1) }} className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground" aria-label="Effacer">
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700"
+            <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Rechercher (message, réf.)" className="w-full sm:w-56" />
+            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive/80"
               disabled={!data || data.total === 0 || clearLogs.isPending} onClick={() => setConfirmClear(true)}>
               <Trash2 className="mr-1.5 h-4 w-4" /> Vider le journal
             </Button>
@@ -159,6 +151,6 @@ export default function ErrorLogPage() {
         loading={clearLogs.isPending}
         onConfirm={handleClear}
       />
-    </div>
+    </Page>
   )
 }

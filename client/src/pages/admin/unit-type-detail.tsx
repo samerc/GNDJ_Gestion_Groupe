@@ -16,6 +16,7 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Page } from '@/components/shared/page'
 import { Tip } from '@/components/ui/tooltip'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { useCreateUnitType, useUpdateUnitType, type UnitTypeFormData } from '@/services/unit-type-service'
@@ -102,12 +103,12 @@ export default function UnitTypeDetailPage() {
   if (!isNew && !unitType) return <div className="py-12 text-center text-muted-foreground">Type d'unité introuvable.</div>
 
   return (
-    <div className="space-y-6">
+    <Page>
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 border-b border-border/60 pb-4">
         <Tip content="Retour"><Button variant="ghost" size="icon" onClick={() => navigate('/admin/unit-types')}><ArrowLeft className="h-5 w-5" /></Button></Tip>
         <div className="min-w-0">
-          <h1 className="truncate text-2xl font-bold">
+          <h1 className="truncate text-2xl font-semibold tracking-tight">
             {isNew ? "Nouveau type d'unité" : unitType!.name}
           </h1>
           {!isNew && !editing && (
@@ -244,7 +245,7 @@ export default function UnitTypeDetailPage() {
           </TabsContent>
         </Tabs>
       )}
-    </div>
+    </Page>
   )
 }
 

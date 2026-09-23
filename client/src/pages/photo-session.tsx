@@ -5,6 +5,7 @@ import { useMembers, useUploadPhoto, type MemberListDto } from '@/services/membe
 import { MemberPhoto } from '@/components/shared/member-photo'
 import { CameraCapture } from '@/components/shared/camera-capture'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmptyState } from '@/components/shared/empty-state'
 import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -95,13 +96,11 @@ export default function PhotoSessionPage() {
 
   if (!unitId) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
-        <Users className="h-12 w-12 opacity-30" />
-        <p className="text-sm">Aucune unite assignee.</p>
-        <Button variant="outline" size="sm" onClick={() => navigate('/')}>
-          Retour
-        </Button>
-      </div>
+      <EmptyState
+        icon={Users}
+        title="Aucune unite assignee."
+        action={<Button variant="outline" size="sm" onClick={() => navigate('/')}>Retour</Button>}
+      />
     )
   }
 
@@ -133,7 +132,7 @@ export default function PhotoSessionPage() {
         <div className="flex items-center gap-3">
           <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-green-500 rounded-full transition-all"
+              className="h-full bg-success rounded-full transition-all"
               style={{ width: totalMembers > 0 ? `${(withPhotos / totalMembers) * 100}%` : '0%' }}
             />
           </div>
@@ -168,8 +167,8 @@ export default function PhotoSessionPage() {
                     refreshKey={photoRefreshKeys[m.id] ?? 0}
                   />
                   {(m.photoPath || capturedPhotos.has(m.id)) && (
-                    <div className="absolute -bottom-0.5 -right-0.5 bg-green-500 rounded-full p-0.5">
-                      <Check className="h-2.5 w-2.5 text-white" />
+                    <div className="absolute -bottom-0.5 -right-0.5 bg-success rounded-full p-0.5">
+                      <Check className="h-2.5 w-2.5 text-success-foreground" />
                     </div>
                   )}
                 </div>

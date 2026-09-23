@@ -20,6 +20,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -158,14 +160,10 @@ export default function AdminPagesPage() {
   const isSaving = createMutation.isPending || updateMutation.isPending
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Pages</h1>
-          <p className="text-sm text-muted-foreground">Pages de contenu du site public. Glissez-déposez pour réordonner.</p>
-        </div>
-        <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Nouvelle page</Button>
-      </div>
+    <Page>
+      <PageHeader title="Pages" icon={FileText}
+        description="Pages de contenu du site public. Glissez-déposez pour réordonner."
+        actions={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouvelle page</Button>} />
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -241,6 +239,6 @@ export default function AdminPagesPage() {
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
       />
-    </div>
+    </Page>
   )
 }

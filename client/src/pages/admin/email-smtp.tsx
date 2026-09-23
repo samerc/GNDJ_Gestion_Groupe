@@ -16,6 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { BackToSettings } from '@/components/shared/back-to-settings'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
@@ -34,15 +36,15 @@ const defaultSmtpForm: SmtpForm = { name: '', host: '', port: 587, username: '',
 
 export default function EmailSmtpPage({ embedded = false }: { embedded?: boolean }) {
   return (
-    <div className="space-y-6">
+    <Page>
       {!embedded && (
         <>
           <BackToSettings />
-          <h1 className="text-2xl font-bold">Serveurs SMTP</h1>
+          <PageHeader title="Serveurs SMTP" icon={Server} />
         </>
       )}
       <SmtpTab />
-    </div>
+    </Page>
   )
 }
 
@@ -165,11 +167,11 @@ function SmtpTab() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Nouveau serveur</Button>
+        <Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouveau serveur</Button>
       </div>
 
       {!servers || servers.length === 0 ? (
-        <EmptyState icon={Server} title="Aucun serveur SMTP" description="Configurez votre premier serveur SMTP." action={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Creer</Button>} />
+        <EmptyState icon={Server} title="Aucun serveur SMTP" description="Configurez votre premier serveur SMTP." action={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Créer</Button>} />
       ) : (
         <div className="rounded-lg border">
           {/* min-w so the 7 columns scroll horizontally on a phone instead of squishing into unreadable stacks. */}
@@ -195,8 +197,8 @@ function SmtpTab() {
                   <TableCell>{s.maxPerHour != null ? `${s.maxPerHour}/h` : <span className="text-muted-foreground">Illimité</span>}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap items-center gap-1">
-                      {s.isActive ? <Badge className="bg-green-600">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}
-                      {s.isDefault && <Badge className="bg-primary">Par défaut</Badge>}
+                      {s.isActive ? <Badge variant="success">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}
+                      {s.isDefault && <Badge>Par défaut</Badge>}
                     </div>
                   </TableCell>
                   <TableCell>

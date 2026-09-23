@@ -27,6 +27,8 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { BackToSettings } from '@/components/shared/back-to-settings'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { Plus, Pencil, Trash2, FileText, FileSpreadsheet, ArrowUp, ArrowDown, X, Download, Users, Building2, Layers, Globe } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
@@ -249,15 +251,14 @@ export default function ReportTemplatesPage() {
   if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
-    <div className="space-y-6">
+    <Page>
       {isManager && <BackToSettings />}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Rapports personnalisés</h1>
-          <p className="text-sm text-muted-foreground">Construisez des listes et exports sur mesure, ciblés sur une unité, plusieurs unités, une branche ou tout le groupe.</p>
-        </div>
-        <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Nouveau rapport</Button>
-      </div>
+      <PageHeader
+        title="Rapports personnalisés"
+        icon={FileText}
+        description="Construisez des listes et exports sur mesure, ciblés sur une unité, plusieurs unités, une branche ou tout le groupe."
+        actions={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouveau rapport</Button>}
+      />
 
       {!templates || templates.length === 0 ? (
         <EmptyState icon={FileText} title="Aucun rapport" description="Créez votre premier modèle de rapport." />
@@ -502,6 +503,6 @@ export default function ReportTemplatesPage() {
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
       />
-    </div>
+    </Page>
   )
 }

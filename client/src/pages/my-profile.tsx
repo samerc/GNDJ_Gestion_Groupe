@@ -1,7 +1,6 @@
 import { useAuthStore } from '@/stores/auth-store'
 import { useMember, type MemberFormData } from '@/services/member-service'
 import { useUpdateMyProfile } from '@/services/my-profile-service'
-import { MemberPhoto } from '@/components/shared/member-photo'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -11,7 +10,10 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { SearchableSelect } from '@/components/shared/searchable-select'
+import { MemberPhoto } from '@/components/shared/member-photo'
 import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberSiblings } from '@/components/members/member-siblings'
@@ -25,7 +27,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PARENTS_SITUATION_OPTIONS } from '@/lib/options'
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes'
 import { PERMISSIONS } from '@/lib/constants'
-import { Save } from 'lucide-react'
+import { Save, User } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function MyProfilePage() {
@@ -95,36 +97,28 @@ export default function MyProfilePage() {
   if (isLoading || !member) return <LoadingSpinner variant="profile" />
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-4">
-          <MemberPhoto
-            memberId={memberId}
-            name={`${member.firstName} ${member.lastName}`}
-            photoPath={member.photoPath}
-            size={56}
-          />
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold">Ma fiche</h1>
-            {/* Synthetic login (prenom.nom@scouts.gndj) can be long — truncate so it never overflows on mobile. */}
-            <p className="truncate text-sm text-muted-foreground">{user?.email}</p>
-          </div>
-        </div>
-        {/* The Modifier button edits the Profil + Médical fields, so only show it on those tabs.
-            Other tabs (Contact & famille, Documents…) have their own inline add/edit actions. */}
-        {(activeTab === 'profile' || activeTab === 'medical') && (
+    <Page size="narrow">
+      {/* Header: title + the synthetic login (truncated — prenom.nom@scouts.gndj can be long).
+          The Modifier button edits the Profil + Médical fields, so it only shows on those tabs;
+          other tabs (Contact & famille, Documents…) have their own inline add/edit actions. */}
+      <PageHeader
+        title="Ma fiche"
+        icon={User}
+        avatar={member ? <MemberPhoto memberId={memberId} name={`${member.firstName} ${member.lastName}`} photoPath={member.photoPath} size={48} editable rounded="rounded-xl" /> : undefined}
+        description={<span className="block truncate">{user?.email}</span>}
+        actions={(activeTab === 'profile' || activeTab === 'medical') && (
           !editing ? (
             <Button onClick={startEdit}>Modifier</Button>
           ) : (
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setEditing(false)}>Annuler</Button>
               <Button onClick={handleSave} disabled={updateMutation.isPending}>
-                <Save className="mr-2 h-4 w-4" />{updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                <Save className="mr-1.5 h-4 w-4" />{updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
               </Button>
             </div>
           )
         )}
-      </div>
+      />
 
       {/* Members mostly log in to upload documents — surface their dossier + completion right on Ma fiche. */}
       <DocumentsCta memberId={memberId} />
@@ -302,7 +296,7 @@ export default function MyProfilePage() {
           <MemberCustomFields memberId={memberId} selfService />
         </TabsContent>
       </Tabs>
-    </div>
+    </Page>
   )
 }
 

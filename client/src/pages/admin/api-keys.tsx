@@ -13,6 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
+import { Callout } from '@/components/shared/callout'
 import { Badge } from '@/components/ui/badge'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
@@ -128,14 +131,17 @@ export default function ApiKeysPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Clés API</h1>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouvelle clé
-        </Button>
-      </div>
+    <Page>
+      <PageHeader
+        title="Clés API"
+        icon={Key}
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Nouvelle clé
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -178,7 +184,7 @@ export default function ApiKeysPage() {
                   <TableCell className="text-muted-foreground">{item.memberName ?? '\u2014'}</TableCell>
                   <TableCell>
                     {item.isActive
-                      ? <Badge className="bg-green-600">Active</Badge>
+                      ? <Badge variant="success">Active</Badge>
                       : <Badge variant="secondary">Inactive</Badge>
                     }
                   </TableCell>
@@ -189,7 +195,7 @@ export default function ApiKeysPage() {
                       <Tip content={item.isActive ? 'Désactiver' : 'Activer'}>
                         <Button variant="ghost" size="icon" onClick={() => handleToggle(item.id)}>
                           {item.isActive
-                            ? <ToggleRight className="h-4 w-4 text-green-600" />
+                            ? <ToggleRight className="h-4 w-4 text-success" />
                             : <ToggleLeft className="h-4 w-4 text-muted-foreground" />
                           }
                         </Button>
@@ -271,9 +277,9 @@ export default function ApiKeysPage() {
             <DialogTitle>Clé API créée</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-sm text-amber-800 dark:text-amber-300">
+            <Callout tone="warning">
               Cette clé ne sera plus visible après fermeture de cette fenêtre. Copiez-la maintenant.
-            </div>
+            </Callout>
             <div className="flex items-center gap-2">
               <code className="flex-1 rounded-md bg-muted p-3 text-sm font-mono break-all select-all">{createdKey}</code>
               <Tip content="Copier la clé">
@@ -304,6 +310,6 @@ export default function ApiKeysPage() {
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
       />
-    </div>
+    </Page>
   )
 }

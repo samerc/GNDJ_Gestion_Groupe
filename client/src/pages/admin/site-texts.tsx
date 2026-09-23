@@ -9,7 +9,9 @@ import { uploadContentImage } from '@/services/content-image-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { Plus, Trash2, ImagePlus, Loader2 } from 'lucide-react'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
+import { Plus, Trash2, ImagePlus, Loader2, Globe } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
@@ -44,7 +46,9 @@ const emptyContent: SiteContent = {
   contact: { intro: '', address: '' },
 }
 
-export default function AdminSiteTextsPage() {
+// `embedded` = rendered as a tab inside Paramètres (« Accueil & pied de page »); the settings left-nav already
+// labels the section, so the standalone PageHeader is suppressed — just the Save action row is kept.
+export default function AdminSiteTextsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { data, isLoading } = useSiteContent()
   const [form, setForm] = useState<SiteContent | null>(null)
   const updateMutation = useUpdateSiteContent()
@@ -58,7 +62,7 @@ export default function AdminSiteTextsPage() {
 
   // Only spin while the initial fetch is in flight. Once it resolves (data OR error/empty),
   // fall back to empty defaults so the form always renders (fresh DB / error path).
-  if (isLoading && !form) return <LoadingSpinner />
+  if (isLoading && !form) return <LoadingSpinner variant="form" />
   const effectiveForm = form ?? emptyContent
 
   const home = effectiveForm.home
@@ -78,15 +82,17 @@ export default function AdminSiteTextsPage() {
     catch (err) { toast.error(parseApiError(err)) }
   }
 
+  const saveButton = <Button onClick={handleSave} disabled={updateMutation.isPending}>{updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button>
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Textes du site</h1>
-          <p className="text-sm text-muted-foreground">Contenu des sections fixes du site public (accueil, pied de page, contact).</p>
-        </div>
-        <Button onClick={handleSave} disabled={updateMutation.isPending}>{updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button>
-      </div>
+    <Page>
+      {embedded ? (
+        <div className="flex justify-end">{saveButton}</div>
+      ) : (
+        <PageHeader title="Textes du site" icon={Globe}
+          description="Contenu des sections fixes du site public (accueil, pied de page, contact)."
+          actions={saveButton} />
+      )}
 
       <Section title="Accueil — bannière">
         <Field label="Badge" value={home.heroBadge} onChange={(v) => setHome({ heroBadge: v })} />
@@ -170,9 +176,7 @@ export default function AdminSiteTextsPage() {
         <Field label="Adresse" value={effectiveForm.contact.address} onChange={(v) => setForm({ ...effectiveForm, contact: { ...effectiveForm.contact, address: v } })} textarea max={400} />
       </Section>
 
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={updateMutation.isPending}>{updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button>
-      </div>
-    </div>
+      <div className="flex justify-end">{saveButton}</div>
+    </Page>
   )
 }

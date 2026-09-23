@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { Save, CreditCard, User, Hash, Building2, Users, Shield, Calendar, Droplet, Phone, ListPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
@@ -87,12 +89,9 @@ export default function CardDesignerPage({ embedded = false }: { embedded?: bool
   if (isLoading) return <LoadingSpinner variant="form" />
 
   return (
-    <div className="space-y-6">
+    <Page>
       {!embedded && <BackLink to="/admin/settings" label="Retour aux paramètres" />}
-      <div className="flex items-center gap-3">
-        <CreditCard className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">Carte membre</h1>
-      </div>
+      {!embedded && <PageHeader title="Carte membre" icon={CreditCard} />}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left: Configuration */}
@@ -193,6 +192,6 @@ export default function CardDesignerPage({ embedded = false }: { embedded?: bool
           </CardContent>
         </Card>
       </div>
-    </div>
+    </Page>
   )
 }

@@ -12,6 +12,8 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { EmptyState } from '@/components/shared/empty-state'
 import { DateInput } from '@/components/shared/date-input'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { CalendarClock, Trash2, Pencil, CheckCircle2 } from 'lucide-react'
@@ -74,16 +76,17 @@ export default function ZeroDayAssignmentsPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><CalendarClock className="h-6 w-6" />Affectations à dater</h1>
-        <p className="text-muted-foreground mt-1 text-sm max-w-3xl">
+    <Page>
+      <PageHeader
+        title="Affectations à dater"
+        icon={CalendarClock}
+        description={<>
           Ces affectations ont une date de début égale à la date de fin (marqueurs d'un seul jour issus de la
           migration) : le membre est bien passé par cette unité/fonction, mais la durée réelle est inconnue. Pour
           chacune, vous pouvez <strong>corriger les dates</strong> (si vous les connaissez) ou la
           <strong> supprimer</strong> si elle est erronée ou en double. Les fiches des membres ne sont pas touchées.
-        </p>
-      </div>
+        </>}
+      />
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -130,7 +133,7 @@ export default function ZeroDayAssignmentsPage() {
                     <td className="px-3 py-2 whitespace-nowrap">{fmt(a.date)}</td>
                     <td className="px-3 py-2">
                       {a.memberHasActiveAssignment
-                        ? <Badge className="bg-emerald-600">Membre actif</Badge>
+                        ? <Badge variant="success">Membre actif</Badge>
                         : <Badge variant="secondary">Ancien</Badge>}
                     </td>
                     <td className="px-3 py-2">
@@ -186,6 +189,6 @@ export default function ZeroDayAssignmentsPage() {
       <ConfirmDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen} title="Supprimer les affectations sélectionnées"
         description={`Supprimer ${selected.size} affectation(s) d'un seul jour ? Cette action retire ces lignes d'historique.`}
         confirmLabel="Supprimer" onConfirm={doBulkDelete} />
-    </div>
+    </Page>
   )
 }

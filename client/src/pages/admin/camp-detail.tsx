@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Page } from '@/components/shared/page'
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer } from 'lucide-react'
@@ -32,17 +33,15 @@ export default function CampDetailPage() {
   const { id = '' } = useParams<{ id: string }>()
   const { data: camp, isLoading } = useCamp(id)
 
-  if (isLoading) return <div className="flex h-64 items-center justify-center"><LoadingSpinner /></div>
+  if (isLoading) return <LoadingSpinner variant="detail" />
   if (!camp) return <p className="p-8 text-center text-sm text-muted-foreground">Camp introuvable.</p>
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <Link to="/admin/camps" className="mb-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3 w-3" />Tous les camps</Link>
-          <h1 className="flex items-center gap-2 text-xl font-bold"><Tent className="h-5 w-5 text-primary" />{camp.name}</h1>
-          <p className="text-sm text-muted-foreground">{camp.scoutYear} · {camp.participantCount} membres · {camp.gradedCount} notés · {camp.assignedCount} affectés</p>
-        </div>
+    <Page>
+      <div className="border-b border-border/60 pb-4">
+        <Link to="/admin/camps" className="mb-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3 w-3" />Tous les camps</Link>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight"><Tent className="h-6 w-6 text-primary" />{camp.name}</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">{camp.scoutYear} · {camp.participantCount} membres · {camp.gradedCount} notés · {camp.assignedCount} affectés</p>
       </div>
 
       <Tabs defaultValue="familles">
@@ -55,7 +54,7 @@ export default function CampDetailPage() {
         <TabsContent value="jeux" className="mt-4"><GamesTab campId={id} /></TabsContent>
         <TabsContent value="parametres" className="mt-4"><SettingsTab campId={id} /></TabsContent>
       </Tabs>
-    </div>
+    </Page>
   )
 }
 

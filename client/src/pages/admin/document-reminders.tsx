@@ -17,6 +17,9 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmailDeliveryWarning } from '@/components/shared/email-delivery-warning'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
+import { Callout } from '@/components/shared/callout'
 import { Tip } from '@/components/ui/tooltip'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
@@ -68,27 +71,22 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
   }
 
   return (
-    <div className="space-y-4">
+    <Page>
       {!embedded && (
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold"><FileWarning className="h-5 w-5 text-primary" />Relance documents</h1>
-          <p className="text-sm text-muted-foreground">
-            Choisissez une unité, puis relancez-la en un clic (documents manquants ou à corriger) ou relancez un
-            membre en particulier. À utiliser après la période de dépôt et de vérification.
-          </p>
-        </div>
+        <PageHeader
+          title="Relance documents"
+          icon={FileWarning}
+          description="Choisissez une unité, puis relancez-la en un clic (documents manquants ou à corriger) ou relancez un membre en particulier. À utiliser après la période de dépôt et de vérification."
+        />
       )}
       <EmailDeliveryWarning />
 
-      <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground sm:flex-row sm:items-start">
-        <Info className="h-4 w-4 shrink-0 text-primary sm:mt-0.5" />
-        <span>
-          Seules les unités avec au moins un dossier incomplet apparaissent. Un document <em>en attente de
-          vérification</em> n'est pas considéré comme manquant. Les documents sont indiqués par leur <em>code</em>
-          {' '}(survolez pour le nom complet). L'application indique seulement que l'email a été <em>envoyé</em> — les
-          détails de livraison sont dans le tableau de bord de votre fournisseur SMTP.
-        </span>
-      </div>
+      <Callout tone="info" icon={Info}>
+        Seules les unités avec au moins un dossier incomplet apparaissent. Un document <em>en attente de
+        vérification</em> n'est pas considéré comme manquant. Les documents sont indiqués par leur <em>code</em>
+        {' '}(survolez pour le nom complet). L'application indique seulement que l'email a été <em>envoyé</em> — les
+        détails de livraison sont dans le tableau de bord de votre fournisseur SMTP.
+      </Callout>
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -114,7 +112,7 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
                 <span className="text-sm text-muted-foreground">
                   {selectedUnit.incompleteCount} incomplet{selectedUnit.incompleteCount > 1 ? 's' : ''}
                   {selectedUnit.withEmailCount < selectedUnit.incompleteCount && (
-                    <span className="text-amber-600 dark:text-amber-400"> · {selectedUnit.incompleteCount - selectedUnit.withEmailCount} sans email</span>
+                    <span className="text-warning"> · {selectedUnit.incompleteCount - selectedUnit.withEmailCount} sans email</span>
                   )}
                 </span>
                 <Button
@@ -227,9 +225,9 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
         <Card>
           <CardContent className="space-y-1 pt-4 text-sm">
             <p className="font-medium">Dernier envoi</p>
-            <p className="text-green-600 dark:text-green-400">{result.sent} relance(s) envoyée(s)</p>
+            <p className="text-success">{result.sent} relance(s) envoyée(s)</p>
             {result.compliant > 0 && <p className="text-muted-foreground">{result.compliant} ignoré(s) (dossier déjà complet)</p>}
-            {result.noEmail > 0 && <p className="text-amber-600 dark:text-amber-400">{result.noEmail} sans email de contact</p>}
+            {result.noEmail > 0 && <p className="text-warning">{result.noEmail} sans email de contact</p>}
           </CardContent>
         </Card>
       )}
@@ -245,6 +243,6 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
         loading={send.isPending}
         onConfirm={() => confirmUnit && sendUnit(confirmUnit)}
       />
-    </div>
+    </Page>
   )
 }

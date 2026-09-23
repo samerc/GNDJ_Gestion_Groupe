@@ -11,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { BirthdaysCard } from '@/components/shared/birthdays-card'
+import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { useUpcomingBirthdays } from '@/services/member-service'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -27,7 +30,7 @@ import {
   Users, UserCheck, FileX, Receipt, UserMinus, Calendar,
   Inbox, ClipboardCheck, ArrowRightLeft, FileClock, PauseCircle, UserPlus,
   TrendingUp, TrendingDown, Minus, ChevronRight, CheckCircle2, ListChecks,
-  GripVertical, Eye, EyeOff, SlidersHorizontal, RotateCcw, Check,
+  GripVertical, Eye, EyeOff, SlidersHorizontal, RotateCcw, Check, LayoutDashboard,
 } from 'lucide-react'
 
 // ─── Horizontal bar chart ──────────────────
@@ -459,29 +462,34 @@ function AdminDashboard() {
   const hasBirthdays = !!birthdays && birthdays.length > 0
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Accueil</h1>
-          <p className="text-sm text-muted-foreground">Vue d'ensemble du groupe</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {anyYearScoped && (
-            <Select value={scoutYear} onValueChange={setScoutYear}>
-              <SelectTrigger className="w-full sm:w-56 gap-2"><Calendar className="h-4 w-4 shrink-0 text-muted-foreground" /><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {years.map((y) => <SelectItem key={y} value={y}>{y}{y === currentScoutYear ? ' — année en cours' : ''}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          )}
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditing(true)}><SlidersHorizontal className="h-4 w-4" />Personnaliser</Button>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Accueil"
+        icon={LayoutDashboard}
+        description="Vue d'ensemble du groupe"
+        actions={
+          <>
+            {anyYearScoped && (
+              <Select value={scoutYear} onValueChange={setScoutYear}>
+                <SelectTrigger className="w-full sm:w-56 gap-2"><Calendar className="h-4 w-4 shrink-0 text-muted-foreground" /><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {years.map((y) => <SelectItem key={y} value={y}>{y}{y === currentScoutYear ? ' — année en cours' : ''}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditing(true)}><SlidersHorizontal className="h-4 w-4" />Personnaliser</Button>
+          </>
+        }
+      />
 
       {visible.length === 0 ? (
-        <Card><CardContent className="flex flex-col items-center gap-3 py-12 text-center text-muted-foreground">
-          <p className="text-sm">Aucune carte affichée sur votre tableau de bord.</p>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditing(true)}><SlidersHorizontal className="h-4 w-4" />Personnaliser</Button>
+        <Card><CardContent className="py-4">
+          <EmptyState
+            icon={LayoutDashboard}
+            title="Aucune carte affichée"
+            description="Personnalisez votre tableau de bord pour afficher des cartes."
+            action={<Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditing(true)}><SlidersHorizontal className="h-4 w-4" />Personnaliser</Button>}
+          />
         </CardContent></Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-start">
@@ -496,7 +504,7 @@ function AdminDashboard() {
           })}
         </div>
       )}
-    </div>
+    </Page>
   )
 }
 

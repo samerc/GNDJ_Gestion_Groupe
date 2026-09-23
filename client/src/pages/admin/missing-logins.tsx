@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { EmptyState } from '@/components/shared/empty-state'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { EmailDeliveryWarning } from '@/components/shared/email-delivery-warning'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoginCredsDialog, type LoginCred } from '@/components/admin/login-creds-dialog'
@@ -56,15 +58,13 @@ export default function MissingLoginsPage({ embedded = false }: { embedded?: boo
   const scopeName = isAll ? 'Tous les membres actifs' : (units?.items.find(u => u.id === unitId)?.name ?? '')
 
   return (
-    <div className="space-y-4">
+    <Page>
       {!embedded && (
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold"><UserPlus className="h-5 w-5 text-primary" />Comptes manquants</h1>
-          <p className="text-sm text-muted-foreground">
-            Créez un identifiant de connexion pour les membres qui n'en ont pas encore. Ceux qui ont un email reçoivent
-            un lien d'activation ; pour les autres, un mot de passe temporaire est affiché à l'écran (à communiquer à la main).
-          </p>
-        </div>
+        <PageHeader
+          title="Comptes manquants"
+          icon={UserPlus}
+          description="Créez un identifiant de connexion pour les membres qui n'en ont pas encore. Ceux qui ont un email reçoivent un lien d'activation ; pour les autres, un mot de passe temporaire est affiché à l'écran (à communiquer à la main)."
+        />
       )}
       <EmailDeliveryWarning />
 
@@ -112,7 +112,7 @@ export default function MissingLoginsPage({ embedded = false }: { embedded?: boo
                     <td className="p-2">
                       {m.hasEmail
                         ? <span className="inline-flex items-center gap-1 text-muted-foreground"><Mail className="h-3.5 w-3.5" />{m.contactEmail}</span>
-                        : <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3.5 w-3.5" />aucun (mot de passe à l'écran)</span>}
+                        : <span className="inline-flex items-center gap-1 text-warning"><AlertTriangle className="h-3.5 w-3.5" />aucun (mot de passe à l'écran)</span>}
                     </td>
                     <td className="p-2 text-right">
                       <Button size="sm" variant="outline" onClick={() => createFor(m)} disabled={busyId === m.memberId || createAll.isPending}>
@@ -146,6 +146,6 @@ export default function MissingLoginsPage({ embedded = false }: { embedded?: boo
           creds={creds.list}
         />
       )}
-    </div>
+    </Page>
   )
 }

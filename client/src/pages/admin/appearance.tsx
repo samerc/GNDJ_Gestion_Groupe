@@ -5,6 +5,8 @@ import { ROLE_LABELS, DEFAULT_ROLE_COLORS, type RoleKey } from '@/lib/use-is-man
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { parseApiError } from '@/lib/error-utils'
 import { Palette, Save, RotateCcw } from 'lucide-react'
 
@@ -30,7 +32,8 @@ const PRESETS = [
   '#334155', '#1e293b', '#0f172a', '#292524', '#3f3f46',
 ]
 
-export default function AppearancePage() {
+// `embedded` = rendered inside the Paramètres → Apparence tab (suppresses the page's own big heading).
+export default function AppearancePage({ embedded = false }: { embedded?: boolean } = {}) {
   const { data, isLoading, dataUpdatedAt } = useSetting('ui.role_colors')
   const update = useUpdateSetting()
 
@@ -58,20 +61,22 @@ export default function AppearancePage() {
   const isHex = (v: string) => /^#[0-9a-fA-F]{6}$/.test(v)
   const allValid = ROLE_ORDER.every((r) => isHex(colors[r]))
 
+  const actions = (
+    <>
+      <Button variant="outline" onClick={() => setColors(DEFAULT_ROLE_COLORS)} disabled={update.isPending}>
+        <RotateCcw className="mr-1.5 h-4 w-4" />Réinitialiser
+      </Button>
+      <Button onClick={save} disabled={update.isPending || !allValid}><Save className="mr-1.5 h-4 w-4" />Enregistrer</Button>
+    </>
+  )
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><Palette className="h-6 w-6" />Apparence</h1>
-          <p className="text-sm text-muted-foreground">Couleur du bandeau (en-tête / menu) selon le rôle de l'utilisateur connecté.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setColors(DEFAULT_ROLE_COLORS)} disabled={update.isPending}>
-            <RotateCcw className="mr-1 h-4 w-4" />Réinitialiser
-          </Button>
-          <Button onClick={save} disabled={update.isPending || !allValid}><Save className="mr-1 h-4 w-4" />Enregistrer</Button>
-        </div>
-      </div>
+    <Page>
+      {embedded ? (
+        <div className="flex flex-wrap justify-end gap-2">{actions}</div>
+      ) : (
+        <PageHeader title="Apparence" icon={Palette} description="Couleur du bandeau (en-tête / menu) selon le rôle de l'utilisateur connecté." actions={actions} />
+      )}
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -122,6 +127,6 @@ export default function AppearancePage() {
           </p>
         </div>
       )}
-    </div>
+    </Page>
   )
 }

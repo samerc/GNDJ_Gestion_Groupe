@@ -11,6 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
+import { EmptyState } from '@/components/shared/empty-state'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { Bell, Plus, X, Send, History, Users, RotateCcw } from 'lucide-react'
@@ -84,27 +88,25 @@ export default function SendNotificationPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Bell className="h-6 w-6" />Envoyer une notification</h1>
-        <p className="mt-1 text-sm text-muted-foreground max-w-prose">
-          Envoie une notification aux membres choisis. Elle apparaît dans leur cloche de notifications et, s'ils ont
-          activé les notifications sur leur appareil, sous forme de notification poussée (même application fermée ;
-          sur iPhone uniquement si l'application est installée).
-        </p>
-      </div>
+    <Page className="mx-auto max-w-2xl">
+      <PageHeader
+        title="Envoyer une notification"
+        icon={Bell}
+        description="Envoie une notification aux membres choisis. Elle apparaît dans leur cloche de notifications et, s'ils ont activé les notifications sur leur appareil, sous forme de notification poussée (même application fermée ; sur iPhone uniquement si l'application est installée)."
+      />
 
       <Card>
         <CardHeader><CardTitle className="text-base">Destinataires</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <div className="inline-flex rounded-md border p-0.5 text-sm">
-            {([['unit', 'Une unité'], ['group', 'Un groupe'], ['members', 'Membres choisis']] as const).map(([v, label]) => (
-              <button key={v} type="button" onClick={() => setAudience(v)}
-                className={`rounded px-3 py-1 font-medium transition-colors ${audience === v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-                {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedToggle
+            value={audience}
+            onChange={setAudience}
+            options={[
+              { value: 'unit', label: 'Une unité' },
+              { value: 'group', label: 'Un groupe' },
+              { value: 'members', label: 'Membres choisis' },
+            ]}
+          />
 
           {audience === 'unit' && (
             <Select value={unitId} onValueChange={setUnitId}>
@@ -138,7 +140,7 @@ export default function SendNotificationPage() {
                 {members.length === 0 && <span className="text-sm text-muted-foreground">Aucun membre choisi.</span>}
               </div>
               <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
-                <Plus className="mr-1 h-4 w-4" />Ajouter un membre
+                <Plus className="mr-1.5 h-4 w-4" />Ajouter un membre
               </Button>
             </div>
           )}
@@ -178,7 +180,7 @@ export default function SendNotificationPage() {
           {historyLoading ? (
             <p className="text-sm text-muted-foreground">Chargement…</p>
           ) : !history || history.items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune notification envoyée pour l'instant.</p>
+            <EmptyState icon={History} title="Aucun envoi" description="Aucune notification envoyée pour l'instant." />
           ) : (
             <div className="space-y-3">
               {history.items.map((b) => (
@@ -215,6 +217,6 @@ export default function SendNotificationPage() {
 
       <MemberPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} onPick={addMember}
         title="Ajouter un destinataire" description="Recherchez un membre à notifier." />
-    </div>
+    </Page>
   )
 }

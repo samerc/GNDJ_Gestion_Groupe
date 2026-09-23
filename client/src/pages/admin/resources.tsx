@@ -20,6 +20,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { Tip } from '@/components/ui/tooltip'
 import { Plus, Pencil, Trash2, Library, ImagePlus, Paperclip, X, FileText } from 'lucide-react'
 import { toast } from 'sonner'
@@ -101,11 +103,9 @@ export default function AdminResourcesPage() {
   const isSaving = createMutation.isPending || updateMutation.isPending
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">Ressources</h1>
-        <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Nouvelle ressource</Button>
-      </div>
+    <Page>
+      <PageHeader title="Ressources" icon={Library}
+        actions={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouvelle ressource</Button>} />
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -232,6 +232,6 @@ export default function AdminResourcesPage() {
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
       />
-    </div>
+    </Page>
   )
 }

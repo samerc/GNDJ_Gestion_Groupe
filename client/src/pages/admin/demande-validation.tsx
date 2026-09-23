@@ -38,6 +38,8 @@ import {
   Search, Sparkles, Trash2, Link2, Lock, LockOpen, Save, Download, Upload, MailWarning, Pencil, RotateCcw,
   SlidersHorizontal,
 } from 'lucide-react'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { cn } from '@/lib/utils'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -449,44 +451,43 @@ export default function DemandeValidationPage() {
   const busy = decideMutation.isPending || bulkMutation.isPending || deleteMutation.isPending
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Demandes d'inscription — {scoutYear}</h1>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>{all.length} demande(s) · {pendingSend} décision(s) en attente d'envoi</span>
+    <Page>
+      <PageHeader
+        title={`Demandes d'inscription — ${scoutYear}`}
+        icon={Inbox}
+        description={`${all.length} demande(s) · ${pendingSend} décision(s) en attente d'envoi`}
+        actions={
+          <>
             {campaign?.enabled && (
-              <Badge variant="outline" className={campaign.submissionsOpen ? 'border-green-300 dark:border-green-800 text-green-700 dark:text-green-300' : 'border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300'}>
-                {campaign.submissionsOpen ? 'Soumissions ouvertes' : 'Phase de revue (soumissions fermées)'}
+              <Badge variant={campaign.submissionsOpen ? 'success' : 'info'}>
+                {campaign.submissionsOpen ? 'Soumissions ouvertes' : 'Phase de revue'}
               </Badge>
             )}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Toggle the submission window: close it to start the review phase, reopen to let parents edit again. */}
-          {campaign?.enabled && (
-            <Button size="lg" variant="outline" disabled={submissionsMutation.isPending}
-              onClick={() => setSubmissionsConfirm(!campaign.submissionsOpen)}>
-              {campaign.submissionsOpen
-                ? <><Lock className="mr-2 h-4 w-4" />Clôturer les soumissions</>
-                : <><LockOpen className="mr-2 h-4 w-4" />Rouvrir les soumissions</>}
-            </Button>
-          )}
-          {/* Explain the disabled state when it's only the status filter blocking the send. */}
-          <Tip content={!canSend && status !== 'all' && pendingSend > 0 && undecided === 0 ? 'Affichez « Toutes » les demandes pour envoyer.' : ''}>
-            <span>
-              <Button size="lg" disabled={!canSend || sendMutation.isPending} onClick={() => setSendOpen(true)}>
-                <Send className="mr-2 h-4 w-4" />Envoyer les réponses{pendingSend > 0 ? ` (${pendingSend})` : ''}
+            {/* Toggle the submission window: close it to start the review phase, reopen to let parents edit again. */}
+            {campaign?.enabled && (
+              <Button variant="outline" disabled={submissionsMutation.isPending}
+                onClick={() => setSubmissionsConfirm(!campaign.submissionsOpen)}>
+                {campaign.submissionsOpen
+                  ? <><Lock className="mr-1.5 h-4 w-4" />Clôturer les soumissions</>
+                  : <><LockOpen className="mr-1.5 h-4 w-4" />Rouvrir les soumissions</>}
               </Button>
-            </span>
-          </Tip>
-          {canClose && (
-            <Button size="lg" variant="destructive" disabled={closeMutation.isPending} onClick={() => setCloseOpen(true)}>
-              Clôturer la campagne
-            </Button>
-          )}
-        </div>
-      </div>
+            )}
+            {/* Explain the disabled state when it's only the status filter blocking the send. */}
+            <Tip content={!canSend && status !== 'all' && pendingSend > 0 && undecided === 0 ? 'Affichez « Toutes » les demandes pour envoyer.' : ''}>
+              <span>
+                <Button disabled={!canSend || sendMutation.isPending} onClick={() => setSendOpen(true)}>
+                  <Send className="mr-1.5 h-4 w-4" />Envoyer les réponses{pendingSend > 0 ? ` (${pendingSend})` : ''}
+                </Button>
+              </span>
+            </Tip>
+            {canClose && (
+              <Button variant="destructive" disabled={closeMutation.isPending} onClick={() => setCloseOpen(true)}>
+                Clôturer la campagne
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* Account filter banner — arrived from "Comptes d'inscription". Shows only this account's demande(s). */}
       {accountFilter && (
@@ -991,7 +992,7 @@ export default function DemandeValidationPage() {
           <DialogFooter><Button onClick={() => setImportResult(null)}>Fermer</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Page>
   )
 }
 

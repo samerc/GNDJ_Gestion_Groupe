@@ -5,6 +5,8 @@
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ManagedListEditor } from '@/components/shared/managed-list-editor'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { List } from 'lucide-react'
 
 const LISTS = [
@@ -17,11 +19,12 @@ const LISTS = [
 export default function ManagedListsPage() {
   const [tab, setTab] = useState(LISTS[0].key)
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="flex items-center gap-2 text-xl font-bold"><List className="h-5 w-5 text-primary" />Listes</h1>
-        <p className="text-sm text-muted-foreground">Écoles, classes, villes et domaines de profession proposés dans les formulaires. Renommer une valeur met aussi à jour les fiches existantes ; retirer une valeur utilisée l'archive (conservée sur les fiches).</p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Listes"
+        icon={List}
+        description="Écoles, classes, villes et domaines de profession proposés dans les formulaires. Renommer une valeur met aussi à jour les fiches existantes ; retirer une valeur utilisée l'archive (conservée sur les fiches)."
+      />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           {LISTS.map((l) => <TabsTrigger key={l.key} value={l.key}>{l.label}</TabsTrigger>)}
@@ -32,6 +35,6 @@ export default function ManagedListsPage() {
           </TabsContent>
         ))}
       </Tabs>
-    </div>
+    </Page>
   )
 }

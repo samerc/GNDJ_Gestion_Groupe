@@ -27,7 +27,10 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LeaverContactDialog } from '@/components/passage/leaver-contact-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut, Search, ArrowUpDown, Pencil, LayoutGrid } from 'lucide-react'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
+import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut, ArrowUpDown, Pencil, LayoutGrid } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { cn, computeAge } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -191,16 +194,18 @@ export default function PassagePage() {
   // Gate: the CU can only act while the CG has opened the passage process for this year.
   if (!passageStatus?.isOpen) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Passage annuel</h1>
+      <Page>
+        <PageHeader title="Passage annuel" icon={ArrowRightLeft} />
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center gap-3">
-            <ArrowRightLeft className="h-12 w-12 text-muted-foreground/40" />
-            <p className="text-lg font-medium text-muted-foreground">Le processus de passage n'est pas encore ouvert</p>
-            <p className="text-sm text-muted-foreground">Contactez la Maîtrise de Groupe pour démarrer le passage.</p>
+          <CardContent className="py-4">
+            <EmptyState
+              icon={ArrowRightLeft}
+              title="Le processus de passage n'est pas encore ouvert"
+              description="Contactez la Maîtrise de Groupe pour démarrer le passage."
+            />
           </CardContent>
         </Card>
-      </div>
+      </Page>
     )
   }
 
@@ -568,28 +573,28 @@ export default function PassagePage() {
   )
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Passage annuel — {passageScoutYear}</h1>
-          {leaderUnits.length > 1 ? (
-            <Select value={unitId} onValueChange={setSelectedUnit}>
-              <SelectTrigger className="mt-1 h-8 w-64"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {leaderUnits.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          ) : (
-            <p className="text-sm text-muted-foreground mt-1">{unitName}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate('/organiser')} title="Basculer vers le plan de l'unité (glisser-déposer)">
-            <LayoutGrid className="mr-1 h-4 w-4" />Plan de l'unité
-          </Button>
-          <Badge className="bg-green-600 text-sm">Passage ouvert</Badge>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title={`Passage annuel — ${passageScoutYear}`}
+        icon={ArrowRightLeft}
+        description={leaderUnits.length > 1 ? undefined : unitName}
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => navigate('/organiser')} title="Basculer vers le plan de l'unité (glisser-déposer)">
+              <LayoutGrid className="mr-1.5 h-4 w-4" />Plan de l'unité
+            </Button>
+            <Badge variant="success">Passage ouvert</Badge>
+          </>
+        }
+      />
+      {leaderUnits.length > 1 && (
+        <Select value={unitId} onValueChange={setSelectedUnit}>
+          <SelectTrigger className="h-9 w-64"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {leaderUnits.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      )}
 
       {/* Bulk actions bar */}
       {selected.size > 0 && (
@@ -620,10 +625,7 @@ export default function PassagePage() {
         <>
         {/* Search box + status filter (apply to both the desktop table and the mobile cards) */}
         <div className="flex flex-col gap-2 sm:flex-row">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Rechercher un membre..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8" />
-          </div>
+          <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre..." className="flex-1" />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-60"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -863,6 +865,6 @@ export default function PassagePage() {
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
       />
-    </div>
+    </Page>
   )
 }

@@ -23,8 +23,10 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { useMembers } from '@/services/member-service'
-import { ArrowLeft, Plus, Pencil, Trash2, UsersRound, ChevronDown, ChevronUp, ChevronRight, Info as InfoIcon } from 'lucide-react'
+import { ArrowLeft, Plus, Pencil, Trash2, UsersRound, ChevronDown, ChevronUp, ChevronRight, Info as InfoIcon, Building2 } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
@@ -197,21 +199,19 @@ export default function UnitDetailPage() {
   if (!isNew && !unit) return <div className="py-12 text-center text-muted-foreground">Unité introuvable.</div>
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-4">
-          <Tip content="Retour"><Button variant="ghost" size="icon" onClick={() => navigate('/units')}><ArrowLeft className="h-5 w-5" /></Button></Tip>
-          <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold">{isNew ? 'Nouvelle unité' : unit!.name}</h1>
-            {!isNew && !unitEditing && (
-              <p className="text-sm text-muted-foreground">{unit!.associationName ?? 'Inter-associations'} — {unit!.unitTypeName} — Code : {unit!.code}</p>
-            )}
-          </div>
-        </div>
-        {!isNew && !unitEditing && (
-          <Badge variant={unit!.isActive ? 'default' : 'secondary'}>{unit!.isActive ? 'Active' : 'Inactive'}</Badge>
-        )}
+    <Page>
+      {/* Header — back button + standard page header (title, meta, status badge). */}
+      <div className="flex items-center gap-3">
+        <Tip content="Retour"><Button variant="ghost" size="icon" onClick={() => navigate('/units')}><ArrowLeft className="h-5 w-5" /></Button></Tip>
+        <PageHeader
+          className="flex-1 border-b-0 pb-0"
+          icon={Building2}
+          title={isNew ? 'Nouvelle unité' : unit!.name}
+          description={!isNew && !unitEditing ? `${unit!.associationName ?? 'Inter-associations'} — ${unit!.unitTypeName} — Code : ${unit!.code}` : undefined}
+          actions={!isNew && !unitEditing
+            ? <Badge variant={unit!.isActive ? 'success' : 'secondary'}>{unit!.isActive ? 'Active' : 'Inactive'}</Badge>
+            : undefined}
+        />
       </div>
 
       {/* Informations — collapsible; read-only card with "Modifier", or the inline edit form.
@@ -463,7 +463,7 @@ export default function UnitDetailPage() {
         loading={deleteTeam.isPending}
         onConfirm={handleDelete}
       />
-    </div>
+    </Page>
   )
 }
 

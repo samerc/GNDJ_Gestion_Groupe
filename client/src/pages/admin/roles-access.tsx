@@ -9,11 +9,14 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
+import { ShieldCheck } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import SecurityProfilesPage from './security-profiles'
 import { MemberDelegationsSection } from './member-delegations'
 import { SuperAdminsSection } from './super-admins'
 import { BackToSettings } from '@/components/shared/back-to-settings'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 
 export default function RolesAccessPage() {
   const { hasPermission } = useAuthStore()
@@ -28,14 +31,13 @@ export default function RolesAccessPage() {
   const [tab, setTab] = useState(tabs[0]?.value ?? 'profiles')
 
   return (
-    <div className="space-y-4">
+    <Page>
       <BackToSettings />
-      <div>
-        <h1 className="text-2xl font-bold">Accès &amp; permissions</h1>
-        <p className="text-sm text-muted-foreground">
-          Profils de permissions (rôles d'unité et de groupe) et accès délégués à une personne — au même endroit.
-        </p>
-      </div>
+      <PageHeader
+        title="Accès & permissions"
+        icon={ShieldCheck}
+        description="Profils de permissions (rôles d'unité et de groupe) et accès délégués à une personne — au même endroit."
+      />
 
       {/* Super-admin management (super-admin only) — the flag is not a role/profile, so it lives above the tabs. */}
       {isSuperAdmin && <SuperAdminsSection />}
@@ -52,6 +54,6 @@ export default function RolesAccessPage() {
         // A single available tab → render it directly (no tab bar). Only "Profils" can be the lone tab.
         <SecurityProfilesPage embedded />
       )}
-    </div>
+    </Page>
   )
 }

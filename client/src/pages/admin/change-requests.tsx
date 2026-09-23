@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { CheckCircle2, XCircle, Star, ArrowRightLeft, ClipboardList } from 'lucide-react'
 
@@ -32,14 +34,12 @@ export default function ChangeRequestsPage() {
   if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <ClipboardList className="h-6 w-6 text-muted-foreground" />
-        <div>
-          <h1 className="text-2xl font-bold">Modifications à valider</h1>
-          <p className="text-sm text-muted-foreground">Progression et fonctions proposées par les membres, en attente de votre validation.</p>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Modifications à valider"
+        icon={ClipboardList}
+        description="Progression et fonctions proposées par les membres, en attente de votre validation."
+      />
 
       {!requests || requests.length === 0 ? (
         <EmptyState icon={ClipboardList} title="Aucune demande en attente" description="Les demandes de vos membres apparaîtront ici." />
@@ -66,10 +66,10 @@ export default function ChangeRequestsPage() {
                 {/* Full-width buttons on mobile (each grows), compact on sm+. */}
                 <div className="flex shrink-0 items-center gap-2">
                   <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => { setRejecting(r); setReason('') }} disabled={reviewMutation.isPending}>
-                    <XCircle className="mr-1 h-4 w-4 text-red-500" />Refuser
+                    <XCircle className="mr-1.5 h-4 w-4 text-destructive" />Refuser
                   </Button>
                   <Button size="sm" className="flex-1 sm:flex-none" onClick={() => approve(r)} disabled={reviewMutation.isPending}>
-                    <CheckCircle2 className="mr-1 h-4 w-4" />Accepter
+                    <CheckCircle2 className="mr-1.5 h-4 w-4" />Accepter
                   </Button>
                 </div>
               </CardContent>
@@ -96,6 +96,6 @@ export default function ChangeRequestsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Page>
   )
 }

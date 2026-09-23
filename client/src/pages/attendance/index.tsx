@@ -19,7 +19,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { EmptyState } from '@/components/shared/empty-state'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { CalendarCheck, Plus, Pencil, Trash2, CheckCircle2, Clock, ClipboardList, Users, Search, X } from 'lucide-react'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
+import { CalendarCheck, Plus, Pencil, Trash2, CheckCircle2, Clock, ClipboardList, Users } from 'lucide-react'
 
 // Réunions / Absences — the CU (and chef d'équipe) attendance screen. Pick a unit → list its réunions
 // (réunions / sorties / camps), create new ones (unit-wide or for a team), approve pending chef-d'équipe
@@ -53,7 +56,7 @@ function MeetingCard({ meeting, onOpen, onEdit, onApprove, onDelete, busy }: {
             <Badge variant="secondary" className="text-xs">{MEETING_TYPE_LABELS[meeting.type] ?? meeting.type}</Badge>
             <span className="font-medium">{meeting.title || MEETING_TYPE_LABELS[meeting.type] || 'Réunion'}</span>
             {meeting.status === 'Pending' && (
-              <Badge className="gap-1 border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"><Clock className="h-3 w-3" />En attente</Badge>
+              <Badge variant="warning" className="gap-1"><Clock className="h-3 w-3" />En attente</Badge>
             )}
             {meeting.groupName ? (
               <Badge variant="outline" className="gap-1 text-xs"><Users className="h-3 w-3" />{meeting.groupName}</Badge>
@@ -66,7 +69,7 @@ function MeetingCard({ meeting, onOpen, onEdit, onApprove, onDelete, busy }: {
           <p className="mt-1 text-sm text-muted-foreground">
             {frDate(meeting.date)}{meeting.endDate && meeting.endDate !== meeting.date ? ` → ${frDate(meeting.endDate)}` : ''}
             {' · '}
-            <span className="text-emerald-600 dark:text-emerald-400">{present} présent{present > 1 ? 's' : ''}</span>
+            <span className="text-success">{present} présent{present > 1 ? 's' : ''}</span>
             {' · '}
             <span className={meeting.absentCount > 0 ? 'text-destructive' : ''}>{meeting.absentCount} absent{meeting.absentCount > 1 ? 's' : ''}</span>
             {` / ${meeting.rosterCount}`}
@@ -156,17 +159,7 @@ function AttendanceDialog({ meetingId, onClose }: { meetingId: string; onClose: 
               {frDate(data.date)} · {data.groupName ?? data.teamName ?? "Toute l'unité"} · <span className="font-medium">{absentCount}</span> absent{absentCount > 1 ? 's' : ''} sur {data.roster.length}. Cochez uniquement les membres absents.
             </p>
             {data.roster.length > 6 && (
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher un membre…"
-                  className="h-9 pl-8 pr-8" />
-                {query && (
-                  <button type="button" onClick={() => setQuery('')} aria-label="Effacer la recherche"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
+              <SearchInput value={query} onChange={setQuery} placeholder="Rechercher un membre…" />
             )}
             <div className="max-h-[55vh] divide-y overflow-y-auto rounded-md border">
               {filteredRoster.length === 0 && (
@@ -399,23 +392,22 @@ export default function AttendancePage() {
 
   if (unitOptions.length === 0 && groups.length === 0) {
     return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Réunions &amp; absences</h1>
+      <Page>
+        <PageHeader title="Réunions & absences" icon={CalendarCheck} />
         <EmptyState icon={CalendarCheck} title="Aucune unité"
           description="Vous ne gérez aucune unité et ne dirigez aucune équipe. Les réunions sont créées par le chef d'unité." />
-      </div>
+      </Page>
     )
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Réunions &amp; absences</h1>
-          <p className="text-sm text-muted-foreground">Réunions, sorties et camps — suivez les présences.</p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)} disabled={!sel}><Plus className="mr-1 h-4 w-4" />Nouvelle réunion</Button>
-      </div>
+    <Page>
+      <PageHeader
+        title="Réunions & absences"
+        icon={CalendarCheck}
+        description="Réunions, sorties et camps — suivez les présences."
+        actions={<Button onClick={() => setCreateOpen(true)} disabled={!sel}><Plus className="mr-1.5 h-4 w-4" />Nouvelle réunion</Button>}
+      />
 
       {/* Scope (unit or member group) + scout-year pickers. The year lets a leader view/log two years in parallel. */}
       <div className="flex flex-wrap items-center gap-2">
@@ -478,6 +470,6 @@ export default function AttendancePage() {
       <ConfirmDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}
         title="Supprimer la réunion" description="Cette réunion et ses présences seront supprimées. Continuer ?"
         confirmLabel="Supprimer" variant="destructive" loading={del.isPending} onConfirm={handleDelete} />
-    </div>
+    </Page>
   )
 }

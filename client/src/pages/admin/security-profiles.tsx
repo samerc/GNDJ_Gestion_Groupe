@@ -18,6 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { PermissionGroups, AreaLevels } from '@/components/admin/permission-editor'
 import { Shield, ChevronRight, Save, Plus, Trash2, GitMerge } from 'lucide-react'
 import { toast } from 'sonner'
@@ -34,18 +36,21 @@ export default function SecurityProfilesPage({ embedded = false }: { embedded?: 
 
   if (isLoading) return <LoadingSpinner variant="table" />
 
+  const newProfileButton = canManage && (
+    <Button onClick={() => setCreateOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Nouveau profil</Button>
+  )
+
   return (
-    <div className="space-y-6">
+    <Page>
       {embedded ? (
-        canManage && <div className="flex justify-end"><Button onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Nouveau profil</Button></div>
+        newProfileButton && <div className="flex justify-end">{newProfileButton}</div>
       ) : (
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Profils de sécurité</h1>
-            {!canManage && <p className="text-sm text-muted-foreground">Consultez les membres de chaque profil.</p>}
-          </div>
-          {canManage && <Button onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Nouveau profil</Button>}
-        </div>
+        <PageHeader
+          title="Profils de sécurité"
+          icon={Shield}
+          description={!canManage ? 'Consultez les membres de chaque profil.' : undefined}
+          actions={newProfileButton}
+        />
       )}
 
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
@@ -88,7 +93,7 @@ export default function SecurityProfilesPage({ embedded = false }: { embedded?: 
       </div>
 
       {canManage && <CreateProfileDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={(id) => setSelectedId(id)} />}
-    </div>
+    </Page>
   )
 }
 
@@ -230,7 +235,7 @@ function PermissionEditor({ profileId, canManage, canGroupEdit, onDeleted }: { p
           </div>
           {canEditAny && activeTab === 'perms' && (
             <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
-              {saved && <span className="text-sm text-green-600 dark:text-green-400">Enregistré</span>}
+              {saved && <span className="text-sm font-medium text-success">Enregistré</span>}
               {dirty && (
                 <>
                   <Button variant="outline" size="sm" onClick={handleReset}>Annuler</Button>

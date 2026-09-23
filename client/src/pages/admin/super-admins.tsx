@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmptyState } from '@/components/shared/empty-state'
 import { parseApiError } from '@/lib/error-utils'
 import { Crown, UserPlus, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -71,7 +72,7 @@ export function SuperAdminsSection() {
               ))}
             </div>
           ) : (
-            <p className="py-6 text-center text-sm text-muted-foreground">Aucun super-administrateur.</p>
+            <EmptyState icon={Crown} title="Aucun super-administrateur" />
           )
         )}
       </CardContent>

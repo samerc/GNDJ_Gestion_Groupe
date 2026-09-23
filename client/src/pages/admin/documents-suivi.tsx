@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { FileWarning } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import DocumentVerificationPage from './document-verification'
 import DocumentRemindersPage from './document-reminders'
 
@@ -15,15 +17,12 @@ export default function DocumentsSuiviPage() {
   const [params] = useSearchParams()
   const [tab, setTab] = useState(params.get('tab') === 'relances' ? 'relances' : 'campagne')
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-          <FileWarning className="h-6 w-6 text-primary" />Suivi des documents
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Campagne de vérification (dates + mise en attente automatiques) et relances manuelles des dossiers incomplets.
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Suivi des documents"
+        icon={FileWarning}
+        description="Campagne de vérification (dates + mise en attente automatiques) et relances manuelles des dossiers incomplets."
+      />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="campagne">Campagne</TabsTrigger>
@@ -32,6 +31,6 @@ export default function DocumentsSuiviPage() {
         <TabsContent value="campagne" className="mt-4"><DocumentVerificationPage embedded /></TabsContent>
         <TabsContent value="relances" className="mt-4"><DocumentRemindersPage embedded /></TabsContent>
       </Tabs>
-    </div>
+    </Page>
   )
 }

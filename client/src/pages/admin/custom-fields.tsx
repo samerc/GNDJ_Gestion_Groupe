@@ -23,6 +23,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Pencil, Trash2, ListPlus, GripVertical, Users, Eye } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
@@ -183,16 +185,23 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
   const isSaving = createMutation.isPending || updateMutation.isPending
   const canReorder = items.length > 1
 
+  const newFieldButton = (
+    <Button onClick={openCreate}>
+      <Plus className="mr-1.5 h-4 w-4" />
+      Nouveau champ
+    </Button>
+  )
+
   return (
-    <div className="space-y-6">
-      {!embedded && <BackLink to="/admin/settings" label="Retour aux paramètres" />}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Champs personnalisés</h1>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouveau champ
-        </Button>
-      </div>
+    <Page>
+      {embedded ? (
+        <div className="flex justify-end">{newFieldButton}</div>
+      ) : (
+        <>
+          <BackLink to="/admin/settings" label="Retour aux paramètres" />
+          <PageHeader title="Champs personnalisés" icon={ListPlus} actions={newFieldButton} />
+        </>
+      )}
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -377,7 +386,7 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
         loading={deleteMutation.isPending}
         onConfirm={(deleting?.valueCount ?? 0) > 0 ? () => { const d = deleting; setDeleting(null); if (d) openEdit(d) } : handleDelete}
       />
-    </div>
+    </Page>
   )
 }
 
@@ -401,9 +410,9 @@ function SortableFieldRow({ item, canReorder, onEdit, onDelete }: { item: Custom
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-1">
           <Badge variant="outline">{FIELD_TYPE_LABELS[item.fieldType] ?? item.fieldType}</Badge>
-          {item.isActive ? <Badge className="bg-green-600">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}
+          {item.isActive ? <Badge variant="success">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}
           <Badge variant="outline" className="gap-1 text-muted-foreground">Rempli : {EDITABLE_BY_LABELS[item.editableBy] ?? item.editableBy}</Badge>
-          {item.showOnCard && <Badge className="bg-blue-600">Carte</Badge>}
+          {item.showOnCard && <Badge variant="info">Carte</Badge>}
           {targeted && (
             <Tip content="Ce champ n'apparaît que pour certains membres (rôle / branche / unité).">
               <span className="inline-flex"><Badge variant="outline" className="gap-1"><Users className="h-3 w-3" />{ROLE_LABELS[item.appliesToRole]}{item.appliesToScope !== 'all' ? ' · ciblé' : ''}</Badge></span>

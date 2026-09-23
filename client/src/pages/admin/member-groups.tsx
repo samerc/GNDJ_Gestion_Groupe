@@ -26,6 +26,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
 import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 import { Plus, Users, Pencil, Trash2, ShieldCheck, X, Search, Check, Minus, Globe, Layers, Building2, Mail, Copy, FileDown, ChevronUp, ChevronDown } from 'lucide-react'
@@ -72,29 +75,23 @@ export default function MemberGroupsPage() {
   if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+    <Page>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
             Groupes
             {all.length > 0 && <span className="text-base font-normal text-muted-foreground">({all.length})</span>}
-          </h1>
-          <p className="text-sm text-muted-foreground max-w-2xl">
-            Ensembles de membres définis par des règles (Grande Maîtrise, Chefs d'unité, Haute Patrouille…), recalculés
-            automatiquement. Réutilisables comme portée de réunion et comme filtre dans la liste d'une unité.
-          </p>
-        </div>
-        <Button onClick={() => setCreating(true)}><Plus className="mr-1 h-4 w-4" />Nouveau groupe</Button>
-      </div>
+          </span>
+        }
+        icon={Users}
+        description="Ensembles de membres définis par des règles (Grande Maîtrise, Chefs d'unité, Haute Patrouille…), recalculés automatiquement. Réutilisables comme portée de réunion et comme filtre dans la liste d'une unité."
+        actions={<Button onClick={() => setCreating(true)}><Plus className="mr-1.5 h-4 w-4" />Nouveau groupe</Button>}
+      />
 
       {/* Toolbar: search (name / branch / unit) + scope filter — keeps dozens of groups findable. */}
       {all.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          <div className="relative min-w-56 flex-1 sm:max-w-sm">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher (nom, branche, unité)…" className="pl-8" />
-            {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>}
-          </div>
+          <SearchInput value={search} onChange={setSearch} placeholder="Rechercher (nom, branche, unité)…" className="min-w-56 flex-1 sm:max-w-sm" />
           <Select value={scope} onValueChange={setScope}>
             <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -137,7 +134,7 @@ export default function MemberGroupsPage() {
       <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)}
         title="Supprimer le groupe" description={`Supprimer « ${deleting?.name} » ? Cette action est définitive.`}
         confirmLabel="Supprimer" variant="destructive" loading={del.isPending} onConfirm={remove} />
-    </div>
+    </Page>
   )
 }
 

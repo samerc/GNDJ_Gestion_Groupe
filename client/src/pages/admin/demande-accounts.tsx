@@ -9,7 +9,6 @@ import { useNavigate } from 'react-router'
 import { useDemandeAccounts, useVerifyAccountEmail, useResetAccountPassword, useDeleteAccount } from '@/services/demande-admin-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { parseApiError } from '@/lib/error-utils'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -17,9 +16,12 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
 import { Tip } from '@/components/ui/tooltip'
 import { DemandeInvitesPanel } from '@/components/admin/demande-invites-panel'
-import { CheckCircle2, MailWarning, Search, ShieldCheck, X, FileText, FileX, KeyRound, Copy, Trash2, ArrowUp, ArrowDown, ArrowUpDown, MailCheck } from 'lucide-react'
+import { CheckCircle2, MailWarning, ShieldCheck, FileText, FileX, KeyRound, Copy, Trash2, ArrowUp, ArrowDown, ArrowUpDown, MailCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DemandeAccount } from '@/services/demande-admin-service'
 
@@ -38,11 +40,11 @@ function SortHeader({ label, field, current, dir, onSort, className }: { label: 
 // Email-verified badge — shared by the desktop table + the mobile cards.
 function StatusBadge({ verified }: { verified: boolean }) {
   return verified ? (
-    <Badge variant="outline" className="shrink-0 border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
+    <Badge variant="success" className="shrink-0">
       <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Vérifié
     </Badge>
   ) : (
-    <Badge variant="outline" className="shrink-0 border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">
+    <Badge variant="warning" className="shrink-0">
       <MailWarning className="mr-1 h-3.5 w-3.5" /> Non vérifié
     </Badge>
   )
@@ -56,7 +58,7 @@ function DemandesSummary({ submitted, total, className }: { submitted: number; t
   return (
     <span className={`text-sm ${className ?? ''}`}>
       {submitted > 0
-        ? <span className="font-medium text-emerald-700 dark:text-emerald-300">{submitted} soumise{submitted > 1 ? 's' : ''}</span>
+        ? <span className="font-medium text-success">{submitted} soumise{submitted > 1 ? 's' : ''}</span>
         : <span className="text-muted-foreground">0 soumise</span>}
       {drafts > 0 && <span className="text-muted-foreground"> · {drafts} brouillon{drafts > 1 ? 's' : ''}</span>}
     </span>
@@ -75,16 +77,16 @@ function AccountActions({ a, clickable, onView, onReset, onVerify, onDelete, cla
     <div className={`flex gap-1.5 ${className ?? ''}`}>
       {clickable && (
         <Tip content="Voir les demandes (enfants) de ce compte">
-          <Button size="sm" onClick={() => onView(a)}><FileText className="mr-1 h-4 w-4" />Voir les demandes</Button>
+          <Button size="sm" onClick={() => onView(a)}><FileText className="mr-1.5 h-4 w-4" />Voir les demandes</Button>
         </Tip>
       )}
       {!a.emailVerified && (
         <Tip content="Marquer l'email comme vérifié (si le lien de vérification n'est jamais arrivé)">
-          <Button size="sm" variant="outline" onClick={() => onVerify(a)}><MailCheck className="mr-1 h-4 w-4" />Vérifier l'email</Button>
+          <Button size="sm" variant="outline" onClick={() => onVerify(a)}><MailCheck className="mr-1.5 h-4 w-4" />Vérifier l'email</Button>
         </Tip>
       )}
       <Tip content="Réinitialiser le mot de passe du portail (affiché une fois, à communiquer au parent)">
-        <Button size="sm" variant="outline" onClick={() => onReset(a)}><KeyRound className="mr-1 h-4 w-4" />Mot de passe</Button>
+        <Button size="sm" variant="outline" onClick={() => onReset(a)}><KeyRound className="mr-1.5 h-4 w-4" />Mot de passe</Button>
       </Tip>
       <Tip content="Supprimer ce compte et toutes ses demandes">
         <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => onDelete(a)} aria-label="Supprimer le compte">
@@ -182,44 +184,28 @@ export default function DemandeAccountsPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Comptes d'inscription</h1>
-        <p className="text-sm text-muted-foreground">
-          Comptes des parents. Chaque compte peut déposer une demande par enfant (« soumise » = prête à traiter,
-          « brouillon » = pas encore soumise). Utilisez « Voir les demandes » pour les ouvrir. Un parent dont l'email
-          de vérification n'est jamais arrivé peut être vérifié manuellement, et son mot de passe réinitialisé.
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Comptes d'inscription"
+        icon={ShieldCheck}
+        description="Comptes des parents. Chaque compte peut déposer une demande par enfant (« soumise » = prête à traiter, « brouillon » = pas encore soumise). Utilisez « Voir les demandes » pour les ouvrir. Un parent dont l'email de vérification n'est jamais arrivé peut être vérifié manuellement, et son mot de passe réinitialisé."
+      />
 
       {/* Late-access invites: let one family enroll after the deadline without reopening for everyone. */}
       <DemandeInvitesPanel />
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher par email ou nom…"
-            className="pl-8 pr-8"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch('')}
-              className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
-              aria-label="Effacer la recherche"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher par email ou nom…"
+          className="flex-1 min-w-[200px]"
+        />
         <Button
           variant={unverifiedOnly ? 'default' : 'outline'}
           onClick={() => setUnverifiedOnly((v) => !v)}
         >
-          <MailWarning className="mr-2 h-4 w-4" />
+          <MailWarning className="mr-1.5 h-4 w-4" />
           Non vérifiés uniquement
         </Button>
         {/* The "Relancer les non-soumis" audience — accounts that registered but never submitted a demande. */}
@@ -227,7 +213,7 @@ export default function DemandeAccountsPage() {
           variant={notSubmittedOnly ? 'default' : 'outline'}
           onClick={() => setNotSubmittedOnly((v) => !v)}
         >
-          <FileX className="mr-2 h-4 w-4" />
+          <FileX className="mr-1.5 h-4 w-4" />
           Non soumis uniquement
         </Button>
       </div>
@@ -345,6 +331,6 @@ export default function DemandeAccountsPage() {
           <DialogFooter><Button onClick={() => setCreds(null)}>Fermer</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Page>
   )
 }

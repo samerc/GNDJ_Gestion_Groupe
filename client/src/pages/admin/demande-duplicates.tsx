@@ -13,6 +13,8 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
 import { Users, GitMerge, Check } from 'lucide-react'
@@ -79,14 +81,12 @@ export default function DemandeDuplicatesPage() {
   const [merging, setMerging] = useState<DuplicateDemandeGroup | null>(null)
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Doublons de demandes</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Fusionnez les demandes présentées plusieurs fois pour le même enfant. Les champs identiques sont fusionnés
-          automatiquement ; vous décidez de ceux qui diffèrent (y compris les parents et les proches).
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Doublons de demandes"
+        icon={Users}
+        description="Fusionnez les demandes présentées plusieurs fois pour le même enfant. Les champs identiques sont fusionnés automatiquement ; vous décidez de ceux qui diffèrent (y compris les parents et les proches)."
+      />
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -109,7 +109,7 @@ export default function DemandeDuplicatesPage() {
                     {g.demandes.map(d => `${d.serialNumber ?? '—'} · ${d.accountEmail}`).join('   |   ')}
                   </div>
                 </div>
-                <Button onClick={() => setMerging(g)}><GitMerge className="mr-2 h-4 w-4" />Fusionner</Button>
+                <Button onClick={() => setMerging(g)}><GitMerge className="mr-1.5 h-4 w-4" />Fusionner</Button>
               </CardContent>
             </Card>
           ))}
@@ -117,7 +117,7 @@ export default function DemandeDuplicatesPage() {
       )}
 
       {merging && <MergeDialog group={merging} onClose={() => setMerging(null)} />}
-    </div>
+    </Page>
   )
 }
 

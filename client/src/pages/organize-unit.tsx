@@ -20,12 +20,14 @@ import { LeaverContactDialog } from '@/components/passage/leaver-contact-dialog'
 import { MemberPhoto } from '@/components/shared/member-photo'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { GripVertical, ArrowRightLeft, Users, Crown, Search, X, ChevronDown, ChevronRight, Check, LogOut, ClipboardList, Table2 } from 'lucide-react'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
+import { GripVertical, ArrowRightLeft, Users, Crown, ChevronDown, ChevronRight, Check, LogOut, ClipboardList, Table2, LayoutGrid } from 'lucide-react'
 
 // One allowed passage move target for a member (parcours scout): kind 'same' = same branch (équipe/fonction
 // change), 'up' = a progression target unit (unité supérieure). Matches the passage page's destinations endpoint.
@@ -192,32 +194,31 @@ export default function OrganizeUnitPage() {
   if (!user) return <LoadingSpinner />
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Organiser mon unité</h1>
-          <p className="text-sm text-muted-foreground">
-            {proposalMode
-              ? <>Passage ouvert : vos changements sont des <b>propositions</b> (rien n'est appliqué avant la validation du chef de groupe).</>
-              : <>Déplacez un membre avec le bouton <ArrowRightLeft className="inline h-3.5 w-3.5" />, en cochant plusieurs, ou en glissant un nom au centre. Enregistré immédiatement.</>}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {proposalMode && (
-            <Button variant="outline" size="sm" onClick={() => navigate('/passage')} title="Basculer vers le tableau des passages">
-              <Table2 className="mr-1 h-4 w-4" />Vue tableau
-            </Button>
-          )}
-          {unitOptions.length > 1 && (
-            <Select value={unitId} onValueChange={setSelectedUnit}>
-              <SelectTrigger className="w-56"><SelectValue placeholder="Choisir une unité" /></SelectTrigger>
-              <SelectContent>
-                {unitOptions.map((u) => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Organiser mon unité"
+        icon={LayoutGrid}
+        description={proposalMode
+          ? <>Passage ouvert : vos changements sont des <b>propositions</b> (rien n'est appliqué avant la validation du chef de groupe).</>
+          : <>Déplacez un membre avec le bouton <ArrowRightLeft className="inline h-3.5 w-3.5" />, en cochant plusieurs, ou en glissant un nom au centre. Enregistré immédiatement.</>}
+        actions={
+          <>
+            {proposalMode && (
+              <Button variant="outline" size="sm" onClick={() => navigate('/passage')} title="Basculer vers le tableau des passages">
+                <Table2 className="mr-1.5 h-4 w-4" />Vue tableau
+              </Button>
+            )}
+            {unitOptions.length > 1 && (
+              <Select value={unitId} onValueChange={setSelectedUnit}>
+                <SelectTrigger className="w-56"><SelectValue placeholder="Choisir une unité" /></SelectTrigger>
+                <SelectContent>
+                  {unitOptions.map((u) => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+          </>
+        }
+      />
 
       {!unitId ? (
         <EmptyState icon={Users} title="Aucune unité" description="Vous ne dirigez aucune unité à organiser." />
@@ -229,14 +230,14 @@ export default function OrganizeUnitPage() {
           {proposalMode && (() => {
             const missing = (org.members ?? []).filter((m) => !passageByMember.has(m.memberId)).length
             return (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm dark:border-amber-800 dark:bg-amber-950/30">
-                <ClipboardList className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                <span className="text-amber-800 dark:text-amber-200">
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warning-border bg-warning-subtle px-3 py-2 text-sm">
+                <ClipboardList className="h-4 w-4 shrink-0 text-warning" />
+                <span className="text-foreground">
                   Mode passage — <b>{(org.members?.length ?? 0) - missing}/{org.members?.length ?? 0}</b> ligne(s) créée(s).
                 </span>
                 {missing > 0 && (
-                  <Button size="sm" variant="outline" className="ml-auto border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/40" disabled={generating} onClick={generateMissing}>
-                    <Check className="mr-1 h-4 w-4" />Générer les {missing} ligne(s) manquante(s) « Pas de changement »
+                  <Button size="sm" variant="outline" className="ml-auto border-warning-border text-warning hover:bg-warning-subtle" disabled={generating} onClick={generateMissing}>
+                    <Check className="mr-1.5 h-4 w-4" />Générer les {missing} ligne(s) manquante(s) « Pas de changement »
                   </Button>
                 )}
               </div>
@@ -245,15 +246,7 @@ export default function OrganizeUnitPage() {
 
           {/* Toolbar: search + fold/unfold all */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-0 flex-1">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Rechercher un membre…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 pr-8" />
-              {search && (
-                <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Effacer">
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
+            <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre…" className="min-w-0 flex-1" />
             <Button variant="outline" size="sm" onClick={() => setCollapsed(collapsed.size > 0 ? new Set() : new Set(teams.map((t) => t.id ?? 'none')))}>
               {collapsed.size > 0 ? 'Tout déplier' : 'Tout replier'}
             </Button>
@@ -378,7 +371,7 @@ export default function OrganizeUnitPage() {
         progress={leaveQueue.length > 1 ? { current: leaveIndex + 1, total: leaveQueue.length } : undefined}
         onSkip={leaveQueue.length > 1 ? advanceLeaver : undefined}
       />
-    </div>
+    </Page>
   )
 }
 

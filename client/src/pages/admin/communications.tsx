@@ -19,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { EmailDeliveryWarning } from '@/components/shared/email-delivery-warning'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { RichContent } from '@/components/public/rich-content'
@@ -112,15 +114,10 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
     : 'toutes les maîtrises'
 
   return (
-    <div className="space-y-4">
+    <Page>
       {!embedded && (
-        <div>
-          <h1 className="text-2xl font-bold">Envoyer un message aux chefs</h1>
-          <p className="text-sm text-muted-foreground">
-            Choisissez un modèle et les destinataires, prévisualisez, puis envoyez. Par exemple l'email d'accueil de
-            rentrée. Les chefs sans email de contact sont ignorés.
-          </p>
-        </div>
+        <PageHeader title="Envoyer un message aux chefs" icon={Send}
+          description="Choisissez un modèle et les destinataires, prévisualisez, puis envoyez. Par exemple l'email d'accueil de rentrée. Les chefs sans email de contact sont ignorés." />
       )}
       <EmailDeliveryWarning />
 
@@ -284,6 +281,6 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
         loading={send.isPending}
         onConfirm={doSend}
       />
-    </div>
+    </Page>
   )
 }

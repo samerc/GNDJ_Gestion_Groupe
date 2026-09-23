@@ -17,6 +17,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { Callout } from '@/components/shared/callout'
 import { cn } from '@/lib/utils'
 import { Plus, Pencil, Trash2, Award, Star, GripVertical } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
@@ -33,7 +36,8 @@ const progRank = (code?: string) => PROG_RANK[(code ?? '').toUpperCase()] ?? 99
 // Sentinel for the "Global" pill (stages/badges with no unit type — available to every branch).
 const GLOBAL = '__global__'
 
-export default function ProgressionPage() {
+// `embedded` = rendered inside a Paramètres tab (suppresses the page's own big heading).
+export default function ProgressionPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { data: unitTypesData } = useUnitTypesQuery({ pageSize: 100 })
   const unitTypes = (unitTypesData?.items ?? [])
     .map(ut => ({ id: ut.id, name: ut.name, code: ut.code }))
@@ -45,11 +49,8 @@ export default function ProgressionPage() {
   if (!selected && unitTypes.length) setSelected(unitTypes[0].id)
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Progression scoute</h1>
-        <p className="text-sm text-muted-foreground">Étapes et badges, par type d'unité.</p>
-      </div>
+    <Page>
+      {!embedded && <PageHeader title="Progression scoute" icon={Award} description="Étapes et badges, par type d'unité." />}
 
       {/* Unit-type pills + a "Global" pill for cross-branch items (no unit type). */}
       <div className="flex flex-wrap gap-2">
@@ -82,9 +83,9 @@ export default function ProgressionPage() {
       ) : (
         <>
           {selected === GLOBAL && (
-            <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+            <Callout tone="info">
               Ces étapes et badges <strong>ne sont liés à aucun type d'unité</strong> : ils apparaissent pour n'importe quel membre, quelle que soit son unité.
-            </p>
+            </Callout>
           )}
           <Tabs defaultValue="stages">
             <TabsList>
@@ -96,7 +97,7 @@ export default function ProgressionPage() {
           </Tabs>
         </>
       )}
-    </div>
+    </Page>
   )
 }
 

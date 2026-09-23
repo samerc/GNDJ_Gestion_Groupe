@@ -15,6 +15,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/shared/empty-state'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmailDeliveryWarning } from '@/components/shared/email-delivery-warning'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
+import { Callout } from '@/components/shared/callout'
 import { LoginCredsDialog, type LoginCred } from '@/components/admin/login-creds-dialog'
 import { formatDateLong } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
@@ -91,28 +94,23 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
     : isAll ? 'Envoyer à tous (hors maîtrise)' : `Envoyer à toute l'unité`
 
   return (
-    <div className="space-y-4">
+    <Page>
       {!embedded && (
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold"><Key className="h-5 w-5 text-primary" />Envoyer les accès</h1>
-          <p className="text-sm text-muted-foreground">
-            Envoyez à chaque membre son identifiant et un lien pour choisir son mot de passe. Procédez unité par unité,
-            en commençant par la Maîtrise.
-          </p>
-        </div>
+        <PageHeader
+          title="Envoyer les accès"
+          icon={Key}
+          description="Envoyez à chaque membre son identifiant et un lien pour choisir son mot de passe. Procédez unité par unité, en commençant par la Maîtrise."
+        />
       )}
       <EmailDeliveryWarning />
 
-      <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground sm:flex-row sm:items-start">
-        <Info className="h-4 w-4 shrink-0 text-primary sm:mt-0.5" />
-        <span>
-          {withLink
-            ? <>Le lien d'activation est valable 30 jours. </>
-            : <>Cet email ne contient <strong>pas</strong> de lien : le membre se connecte avec son compte existant (il utilisera « Mot de passe oublié ? » si besoin). </>}
-          L'application indique seulement que l'email a été <em>envoyé</em> —
-          les détails de livraison (reçu, spam, rebond) sont dans le tableau de bord de votre fournisseur SMTP.
-        </span>
-      </div>
+      <Callout tone="info" icon={Info}>
+        {withLink
+          ? <>Le lien d'activation est valable 30 jours. </>
+          : <>Cet email ne contient <strong>pas</strong> de lien : le membre se connecte avec son compte existant (il utilisera « Mot de passe oublié ? » si besoin). </>}
+        L'application indique seulement que l'email a été <em>envoyé</em> —
+        les détails de livraison (reçu, spam, rebond) sont dans le tableau de bord de votre fournisseur SMTP.
+      </Callout>
 
       {/* Email template picker: with the set-password link (activation) vs the link-free re-inscription letter. */}
       <div className="space-y-1">
@@ -269,13 +267,13 @@ export default function SendAccessPage({ embedded = false }: { embedded?: boolea
         <Card>
           <CardContent className="space-y-1 pt-4 text-sm">
             <p className="font-medium">Dernier envoi</p>
-            <p className="text-green-600 dark:text-green-400">{result.sent} accès envoyé(s)</p>
+            <p className="text-success">{result.sent} accès envoyé(s)</p>
             {result.skipped > 0 && <p className="text-muted-foreground">{result.skipped} ignoré(s) (déjà connectés)</p>}
-            {result.noEmail > 0 && <p className="text-amber-600 dark:text-amber-400">{result.noEmail} sans email de contact</p>}
-            {result.noAccount > 0 && <p className="text-amber-600 dark:text-amber-400">{result.noAccount} sans compte utilisateur</p>}
+            {result.noEmail > 0 && <p className="text-warning">{result.noEmail} sans email de contact</p>}
+            {result.noAccount > 0 && <p className="text-warning">{result.noAccount} sans compte utilisateur</p>}
           </CardContent>
         </Card>
       )}
-    </div>
+    </Page>
   )
 }

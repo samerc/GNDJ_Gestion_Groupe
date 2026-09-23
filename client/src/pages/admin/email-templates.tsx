@@ -18,12 +18,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { BackToSettings } from '@/components/shared/back-to-settings'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Tip } from '@/components/ui/tooltip'
-import { Plus, Trash2, Pencil, FileText, Paperclip, Upload, X } from 'lucide-react'
+import { Plus, Trash2, Pencil, FileText, Paperclip, Upload, X, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import { uploadContentFile } from '@/services/content-image-service'
 
@@ -98,15 +100,15 @@ const defaultTemplateForm: TemplateForm = { name: '', code: '', module: 'auth', 
 
 export default function EmailTemplatesPage({ embedded = false }: { embedded?: boolean }) {
   return (
-    <div className="space-y-6">
+    <Page>
       {!embedded && (
         <>
           <BackToSettings />
-          <h1 className="text-2xl font-bold">Modèles d'email</h1>
+          <PageHeader title="Modèles d'email" icon={Mail} />
         </>
       )}
       <TemplatesTab />
-    </div>
+    </Page>
   )
 }
 
@@ -210,11 +212,11 @@ function TemplatesTab() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Nouveau modele</Button>
+        <Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouveau modele</Button>
       </div>
 
       {!templates || templates.length === 0 ? (
-        <EmptyState icon={FileText} title="Aucun modèle d'email" description="Créez votre premier modèle d'email." action={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Créer</Button>} />
+        <EmptyState icon={FileText} title="Aucun modèle d'email" description="Créez votre premier modèle d'email." action={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Créer</Button>} />
       ) : (
         <div className="rounded-lg border">
           {/* min-w so the columns scroll horizontally on a phone instead of squishing into unreadable stacks. */}
@@ -236,7 +238,7 @@ function TemplatesTab() {
                   <TableCell><code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{tpl.code}</code></TableCell>
                   <TableCell>{MODULE_OPTIONS.find(m => m.value === tpl.module)?.label ?? tpl.module}</TableCell>
                   <TableCell className="text-muted-foreground">{tpl.smtpServerName ?? 'Par defaut'}</TableCell>
-                  <TableCell>{tpl.isActive ? <Badge className="bg-green-600">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}</TableCell>
+                  <TableCell>{tpl.isActive ? <Badge variant="success">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(tpl)}><Pencil className="h-4 w-4" /></Button></Tip>

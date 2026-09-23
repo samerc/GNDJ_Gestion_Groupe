@@ -4,8 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
 import { parseApiError } from '@/lib/error-utils'
-import { Tent, Save, Search, ArrowUp, ArrowDown } from 'lucide-react'
+import { Tent, Save, ArrowUp, ArrowDown, Users } from 'lucide-react'
 import { toast } from 'sonner'
 
 type Row = { attending: boolean; force: number | null; annee: number | null; isLeaderCandidate: boolean; notes: string }
@@ -109,35 +113,31 @@ export default function CampPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grading, rows, search, sort, camp])
 
-  if (loadingCamps) return <div className="flex h-64 items-center justify-center"><LoadingSpinner /></div>
+  if (loadingCamps) return <LoadingSpinner variant="page" />
   if (!active) return (
-    <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-      <Tent className="mx-auto mb-2 h-8 w-8 opacity-50" />Aucun camp n'est ouvert pour le moment.
-    </div>
+    <Page>
+      <EmptyState icon={Tent} title="Aucun camp n'est ouvert pour le moment." />
+    </Page>
   )
 
   const comingCount = (grading ?? []).filter(g => rows[g.memberId]?.attending ?? g.isAttending).length
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold"><Tent className="h-5 w-5 text-primary" />{active.name}</h1>
-          <p className="text-sm text-muted-foreground">Notez vos membres pour le camp — cochez « Ne vient pas » pour les absents, puis renseignez force, année et candidats Père/Mère.</p>
-        </div>
-        <Button onClick={save} disabled={!dirty || saveGrades.isPending}><Save className="mr-1 h-4 w-4" />{saveGrades.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
-      </div>
+    <Page>
+      <PageHeader
+        title={active.name}
+        icon={Tent}
+        description="Notez vos membres pour le camp — cochez « Ne vient pas » pour les absents, puis renseignez force, année et candidats Père/Mère."
+        actions={<Button onClick={save} disabled={!dirty || saveGrades.isPending}><Save className="mr-1.5 h-4 w-4" />{saveGrades.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>}
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="relative max-w-xs flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Rechercher un membre…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-        </div>
+        <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre…" className="max-w-xs flex-1" />
         <p className="text-sm text-muted-foreground">{comingCount} participant(s) · {(grading ?? []).length} membre(s)</p>
       </div>
 
-      {isLoading ? <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div> :
-       (grading ?? []).length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Aucun membre dans votre unité.</p> :
+      {isLoading ? <LoadingSpinner variant="table" /> :
+       (grading ?? []).length === 0 ? <EmptyState icon={Users} title="Aucun membre dans votre unité." /> :
        (
         <>
         {/* Desktop: dense grading table. Phones get a per-member card grid below (md:hidden). */}
@@ -233,6 +233,6 @@ export default function CampPage() {
         </div>
         </>
       )}
-    </div>
+    </Page>
   )
 }

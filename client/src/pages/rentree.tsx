@@ -18,6 +18,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Tip } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -440,50 +444,52 @@ export default function RentreePage() {
   const togglePhase = (p: string) => setCollapsedPhases(s => { const n = new Set(s); if (n.has(p)) n.delete(p); else n.add(p); return n })
   const toggleRollup = (k: string) => setExpandedRollups(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n })
 
-  if (yearsLoading) return <div className="flex h-64 items-center justify-center"><LoadingSpinner /></div>
+  if (yearsLoading) return <LoadingSpinner variant="page" />
   const noYears = !years || years.length === 0
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold"><ListChecks className="h-5 w-5 text-primary" />Rentrée scoute</h1>
-          <p className="text-sm text-muted-foreground">Les tâches du démarrage de l'année — chacun voit ce qu'il a à faire.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {!noYears && (
-            <Select value={year} onValueChange={setYear}>
-              <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
-              <SelectContent>{years!.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
-            </Select>
-          )}
-          {canManage && !mineOnly && units.length > 0 && (
-            <Select value={unitFilter} onValueChange={setUnitFilter}>
-              <SelectTrigger className="h-9 w-48 text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes les unités</SelectItem>
-                {units.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          )}
-          {/* Only managers (CG / super-admin) can switch to the whole-group view; everyone else only ever
-              sees their own tasks (also enforced server-side). */}
-          {canManage && (
-            <div className="flex h-9 items-center rounded-md border p-0.5 text-xs">
-              <button type="button" className={cn('h-full rounded px-2.5 font-medium', !mineOnly ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')} onClick={() => setMineOnly(false)}>Toutes</button>
-              <button type="button" className={cn('h-full rounded px-2.5 font-medium', mineOnly ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')} onClick={() => setMineOnly(true)}>Mes tâches</button>
-            </div>
-          )}
-          {canManage && (
-            <>
-              {!noYears && <Tip content="Ré-attribue les tâches de rôle aux responsables actuels (ex. un CU confirmé après la génération)."><Button variant="outline" size="sm" onClick={doRefreshAssignees} disabled={refreshAssignees.isPending}><RefreshCw className={cn('mr-1 h-4 w-4', refreshAssignees.isPending && 'animate-spin')} />Responsables</Button></Tip>}
-              {!noYears && <Button variant="outline" size="sm" onClick={openAdd}><Plus className="mr-1 h-4 w-4" />Ajouter une tâche</Button>}
-              <Tip content="Modifier les tâches type recopiées chaque année"><Button variant="outline" size="sm" asChild><Link to="/admin/rentree-template"><Settings2 className="mr-1 h-4 w-4" />Modèle de rentrée</Link></Button></Tip>
-              <Button size="sm" onClick={() => setGenOpen(true)}><Sparkles className="mr-1 h-4 w-4" />Générer</Button>
-            </>
-          )}
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Rentrée scoute"
+        icon={ListChecks}
+        description="Les tâches du démarrage de l'année — chacun voit ce qu'il a à faire."
+        actions={
+          <>
+            {!noYears && (
+              <Select value={year} onValueChange={setYear}>
+                <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
+                <SelectContent>{years!.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
+              </Select>
+            )}
+            {canManage && !mineOnly && units.length > 0 && (
+              <Select value={unitFilter} onValueChange={setUnitFilter}>
+                <SelectTrigger className="h-9 w-48 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes les unités</SelectItem>
+                  {units.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            {/* Only managers (CG / super-admin) can switch to the whole-group view; everyone else only ever
+                sees their own tasks (also enforced server-side). */}
+            {canManage && (
+              <SegmentedToggle
+                value={mineOnly ? 'mine' : 'all'}
+                onChange={v => setMineOnly(v === 'mine')}
+                options={[{ value: 'all', label: 'Toutes' }, { value: 'mine', label: 'Mes tâches' }]}
+              />
+            )}
+            {canManage && (
+              <>
+                {!noYears && <Tip content="Ré-attribue les tâches de rôle aux responsables actuels (ex. un CU confirmé après la génération)."><Button variant="outline" size="sm" onClick={doRefreshAssignees} disabled={refreshAssignees.isPending}><RefreshCw className={cn('mr-1.5 h-4 w-4', refreshAssignees.isPending && 'animate-spin')} />Responsables</Button></Tip>}
+                {!noYears && <Button variant="outline" size="sm" onClick={openAdd}><Plus className="mr-1.5 h-4 w-4" />Ajouter une tâche</Button>}
+                <Tip content="Modifier les tâches type recopiées chaque année"><Button variant="outline" size="sm" asChild><Link to="/admin/rentree-template"><Settings2 className="mr-1.5 h-4 w-4" />Modèle de rentrée</Link></Button></Tip>
+                <Button size="sm" onClick={() => setGenOpen(true)}><Sparkles className="mr-1.5 h-4 w-4" />Générer</Button>
+              </>
+            )}
+          </>
+        }
+      />
 
       {noYears ? (
         <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
@@ -500,8 +506,8 @@ export default function RentreePage() {
             <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} /></div>
           </div>
 
-          {isLoading ? <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div> :
-           total === 0 ? <p className="py-10 text-center text-sm text-muted-foreground">{mineOnly ? "Vous n'avez aucune tâche assignée." : 'Aucune tâche.'}</p> :
+          {isLoading ? <LoadingSpinner variant="table" /> :
+           total === 0 ? <EmptyState icon={ListChecks} title={mineOnly ? "Vous n'avez aucune tâche assignée." : 'Aucune tâche.'} /> :
            phases.map(({ phase, rows, done, total }) => {
             const collapsed = collapsedPhases.has(phase)
             return (
@@ -688,6 +694,6 @@ export default function RentreePage() {
       <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)} title="Supprimer la tâche"
         description={`Supprimer « ${deleting?.title} »${deleting?.unitName ? ` (${deleting.unitName})` : ''} de la liste ${year} ?`} confirmLabel="Supprimer" variant="destructive"
         onConfirm={async () => { if (deleting) { try { await deleteTask.mutateAsync(deleting.id); toast.success('Supprimée'); setDeleting(null) } catch (err) { toast.error(parseApiError(err)) } } }} />
-    </div>
+    </Page>
   )
 }

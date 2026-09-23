@@ -11,6 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { parseApiError } from '@/lib/error-utils'
 import { UserMinus, ArrowRightLeft, Crown, ChevronRight } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
@@ -63,14 +66,15 @@ export default function MaitrisesPage() {
   if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Maîtrises</h1>
-        <p className="text-sm text-muted-foreground">Les responsables de chaque unité, classés par rang (du plus ancien au plus récent).</p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Maîtrises"
+        icon={Crown}
+        description="Les responsables de chaque unité, classés par rang (du plus ancien au plus récent)."
+      />
 
       {(!units || units.length === 0) && (
-        <Card><CardContent className="py-16 text-center text-muted-foreground">Aucune maîtrise à afficher.</CardContent></Card>
+        <EmptyState icon={Crown} title="Aucune maîtrise à afficher." />
       )}
 
       <div className="space-y-4">
@@ -135,7 +139,7 @@ export default function MaitrisesPage() {
       />
 
       {transferTarget && <TransferDialog member={transferTarget} onClose={() => setTransferTarget(null)} />}
-    </div>
+    </Page>
   )
 }
 

@@ -19,8 +19,11 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { Tip } from '@/components/ui/tooltip'
-import { Plus, Trash2, Pencil, ArrowRight, Users, Shield } from 'lucide-react'
+import { Plus, Trash2, Pencil, ArrowRight, Users, Shield, Route } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface UnitTypeDto { id: string; name: string; code: string; ageMin: number | null; ageMax: number | null }
@@ -221,22 +224,18 @@ export default function ProgressionPathPage() {
   if (!unitTypes) return <LoadingSpinner variant="page" />
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold">Parcours de progression</h1>
-        <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Ajouter un lien</Button>
-      </div>
+    <Page>
+      <PageHeader
+        title="Parcours de progression"
+        icon={Route}
+        actions={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Ajouter un lien</Button>}
+      />
 
       {/* Visual diagram */}
       {isLoading ? <LoadingSpinner variant="page" /> : (
         <>
           {pathRows.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <p className="text-lg font-medium mb-2">Aucun parcours défini</p>
-                <p className="text-sm">Ajoutez des liens entre les types d'unité pour créer le diagramme de progression.</p>
-              </CardContent>
-            </Card>
+            <EmptyState icon={Route} title="Aucun parcours défini" description="Ajoutez des liens entre les types d'unité pour créer le diagramme de progression." />
           ) : (
             <Card>
               <CardHeader>
@@ -408,6 +407,6 @@ export default function ProgressionPathPage() {
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
       />
-    </div>
+    </Page>
   )
 }

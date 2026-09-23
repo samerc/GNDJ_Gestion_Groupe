@@ -33,6 +33,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { Callout } from '@/components/shared/callout'
 import { Tip } from '@/components/ui/tooltip'
 import {
   ArrowRightLeft,
@@ -304,9 +307,9 @@ export default function PassageValidationPage() {
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case 'Approved': return <Badge className="bg-green-600">Accepté</Badge>
+      case 'Approved': return <Badge variant="success">Accepté</Badge>
       case 'Rejected': return <Badge variant="destructive">Rejeté</Badge>
-      case 'Finalized': return <Badge className="bg-blue-600">Finalisé</Badge>
+      case 'Finalized': return <Badge variant="info">Finalisé</Badge>
       default: return <Badge variant="secondary">En attente</Badge>
     }
   }
@@ -314,11 +317,11 @@ export default function PassageValidationPage() {
   if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold">Validation des passages — {scoutYear}</h1>
-        <div className="flex flex-wrap items-center gap-3">
+    <Page>
+      <PageHeader
+        title={`Validation des passages — ${scoutYear}`}
+        icon={ArrowRightLeft}
+        actions={<>
           <Select value={scoutYear} onValueChange={setScoutYear}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -327,7 +330,7 @@ export default function PassageValidationPage() {
               ))}
             </SelectContent>
           </Select>
-          <Badge variant={passageStatus?.isOpen ? 'default' : 'secondary'} className={passageStatus?.isOpen ? 'bg-green-600' : ''}>
+          <Badge variant={passageStatus?.isOpen ? 'success' : 'secondary'}>
             {passageStatus?.isOpen ? 'Ouvert' : 'Fermé'}
           </Badge>
           <Button
@@ -336,13 +339,13 @@ export default function PassageValidationPage() {
             disabled={toggleMutation.isPending}
           >
             {passageStatus?.isOpen ? (
-              <><ToggleRight className="mr-1 h-4 w-4" />Fermer le passage</>
+              <><ToggleRight className="mr-1.5 h-4 w-4" />Fermer le passage</>
             ) : (
-              <><ToggleLeft className="mr-1 h-4 w-4" />Ouvrir le passage</>
+              <><ToggleLeft className="mr-1.5 h-4 w-4" />Ouvrir le passage</>
             )}
           </Button>
-        </div>
-      </div>
+        </>}
+      />
 
       {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -507,7 +510,7 @@ export default function PassageValidationPage() {
                   </td>
                   <td className="px-3 py-2">
                     {p.isLeaving ? (
-                      <Badge className="bg-orange-600">Quitte le groupe</Badge>
+                      <Badge variant="warning">Quitte le groupe</Badge>
                     ) : (
                       <div className="flex items-center gap-1">
                         <span className="text-muted-foreground">{p.currentUnitCode}</span>
@@ -590,7 +593,7 @@ export default function PassageValidationPage() {
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm">
                     {p.isLeaving ? (
-                      <Badge className="bg-orange-600">Quitte le groupe</Badge>
+                      <Badge variant="warning">Quitte le groupe</Badge>
                     ) : (
                       <span className="inline-flex items-center gap-1">
                         <span className="text-muted-foreground">{p.currentUnitCode}</span>
@@ -621,15 +624,15 @@ export default function PassageValidationPage() {
       {/* Finalize section */}
       <div className="flex flex-col items-end gap-2 pt-4">
         {missingInScope > 0 && (
-          <div className="w-full rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-300">
+          <Callout tone="warning" className="w-full">
             Finalisation bloquée : {missingInScope} membre(s) actif(s) {unitFilter === '_all' ? '(toutes unités)' : 'de cette unité'} n'ont pas encore de ligne de passage
             (proposition ou « Pas de changement »). Voir la carte « Sans passage » en haut.
-          </div>
+          </Callout>
         )}
         {missingInScope === 0 && pendingCount > 0 && unitFilter === '_all' && (
-          <div className="w-full rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 p-3 text-sm text-amber-700 dark:text-amber-300">
+          <Callout tone="warning" className="w-full">
             {pendingCount} proposition(s) en attente de revue. La finalisation ne traitera que les passages acceptés.
-          </div>
+          </Callout>
         )}
         {approvedCount > 0 && (
           <Button
@@ -780,6 +783,6 @@ export default function PassageValidationPage() {
         loading={finalizeMutation.isPending}
         onConfirm={handleFinalize}
       />
-    </div>
+    </Page>
   )
 }

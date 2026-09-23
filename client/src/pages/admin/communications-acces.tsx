@@ -4,6 +4,8 @@ import { Send } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import CommunicationsPage from './communications'
 import SendAccessPage from './send-access'
 
@@ -29,11 +31,9 @@ export default function CommunicationsAccesPage() {
   const [tab, setTab] = useState(initial ?? 'chefs')
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><Send className="h-6 w-6 text-primary" />Communications &amp; accès</h1>
-        <p className="text-sm text-muted-foreground">Envoyer un message aux chefs, ou envoyer aux membres leur identifiant et leur lien de connexion.</p>
-      </div>
+    <Page>
+      <PageHeader title="Communications & accès" icon={Send}
+        description="Envoyer un message aux chefs, ou envoyer aux membres leur identifiant et leur lien de connexion." />
       {tabs.length > 1 ? (
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
@@ -46,6 +46,6 @@ export default function CommunicationsAccesPage() {
         // A single available tab → render it directly (no tab bar).
         tabs[0]?.value === 'acces' ? <SendAccessPage embedded /> : <CommunicationsPage embedded />
       )}
-    </div>
+    </Page>
   )
 }

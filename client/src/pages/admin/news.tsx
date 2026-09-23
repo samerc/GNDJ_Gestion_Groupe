@@ -22,6 +22,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
 import { Tip } from '@/components/ui/tooltip'
 import { Plus, Pencil, Trash2, Newspaper, ImagePlus, Paperclip, X, FileText } from 'lucide-react'
 import { toast } from 'sonner'
@@ -110,11 +112,9 @@ export default function AdminNewsPage() {
   const isSaving = createMutation.isPending || updateMutation.isPending
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Actualités</h1>
-        <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Nouvel article</Button>
-      </div>
+    <Page>
+      <PageHeader title="Actualités" icon={Newspaper}
+        actions={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouvel article</Button>} />
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -262,6 +262,6 @@ export default function AdminNewsPage() {
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
       />
-    </div>
+    </Page>
   )
 }

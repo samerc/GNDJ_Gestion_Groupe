@@ -19,6 +19,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { cn } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ArrowLeft, X, Users, Zap, CalendarClock, Activity, Link2 } from 'lucide-react'
@@ -101,23 +104,19 @@ export default function RentreeTemplatePage() {
 
   const selectedAction = getRentreeAction(form?.actionKey) // for the dynamic "what this action does" hint
 
-  if (isLoading) return <div className="flex h-64 items-center justify-center"><LoadingSpinner /></div>
+  if (isLoading) return <LoadingSpinner variant="page" />
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-bold">Modèle de rentrée</h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Le <b>modèle</b> = les tâches type recopiées dans la liste de chaque année (bouton « Générer »).
-            Modifiez-le ici ; la liste d'une année se remplit et se coche dans <Link to="/rentree" className="font-medium text-primary hover:underline">Rentrée scoute</Link>.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" asChild><Link to="/rentree"><ArrowLeft className="mr-1 h-4 w-4" />Liste de rentrée</Link></Button>
-          <Button size="sm" onClick={openNew}><Plus className="mr-1 h-4 w-4" />Ajouter une tâche</Button>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Modèle de rentrée"
+        icon={CalendarClock}
+        description={<span className="block max-w-2xl">Le <b>modèle</b> = les tâches type recopiées dans la liste de chaque année (bouton « Générer »). Modifiez-le ici ; la liste d'une année se remplit et se coche dans <Link to="/rentree" className="font-medium text-primary hover:underline">Rentrée scoute</Link>.</span>}
+        actions={<>
+          <Button variant="outline" size="sm" asChild><Link to="/rentree"><ArrowLeft className="mr-1.5 h-4 w-4" />Liste de rentrée</Link></Button>
+          <Button size="sm" onClick={openNew}><Plus className="mr-1.5 h-4 w-4" />Ajouter une tâche</Button>
+        </>}
+      />
 
       {/* Ordered task list, grouped under a header per phase (phases are contiguous in the order). The up/down
           arrows still reorder across the whole list; a task moved past a phase boundary changes phase group. */}
@@ -150,7 +149,7 @@ export default function RentreeTemplatePage() {
             </div>
           )
         })}
-        {(templates ?? []).length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">Aucune tâche dans le modèle.</p>}
+        {(templates ?? []).length === 0 && <EmptyState icon={CalendarClock} title="Aucune tâche dans le modèle" description="Ajoutez une tâche pour construire la liste de rentrée." />}
       </div>
 
       {/* Add/Edit dialog */}
@@ -292,6 +291,6 @@ export default function RentreeTemplatePage() {
       <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)} title="Supprimer la tâche du modèle"
         description={`Supprimer « ${deleting?.title} » ? (n'affecte pas les listes déjà générées)`} confirmLabel="Supprimer" variant="destructive"
         onConfirm={async () => { if (deleting) { try { await del.mutateAsync(deleting.id); toast.success('Supprimée'); setDeleting(null) } catch (err) { toast.error(parseApiError(err)) } } }} />
-    </div>
+    </Page>
   )
 }

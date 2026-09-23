@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { DemandeCrossReports } from '@/components/admin/demande-cross-reports'
 import {
   Inbox, Clock, CheckCircle2, XCircle, Send, FileEdit, Users2, AlertTriangle,
@@ -116,16 +118,17 @@ export default function DemandeStatsPage() {
   const occList = (occupancy ?? []).slice().sort((a, b) => a.unitCode.localeCompare(b.unitCode))
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><BarChart3 className="h-6 w-6 text-primary" />Statistiques des demandes</h1>
-          <p className="text-sm text-muted-foreground">Année {scoutYear}</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => navigate('/admin/demandes')}>
-          <Inbox className="mr-2 h-4 w-4" />Revoir les demandes
-        </Button>
-      </div>
+    <Page>
+      <PageHeader
+        title="Statistiques des demandes"
+        icon={BarChart3}
+        description={`Année ${scoutYear}`}
+        actions={
+          <Button variant="outline" size="sm" onClick={() => navigate('/admin/demandes')}>
+            <Inbox className="mr-1.5 h-4 w-4" />Revoir les demandes
+          </Button>
+        }
+      />
 
       {stats.total === 0 ? (
         <EmptyState icon={Inbox} title="Aucune demande soumise" description={`Aucune demande pour l'année ${scoutYear} pour l'instant.`} />
@@ -237,6 +240,6 @@ export default function DemandeStatsPage() {
           </TabsContent>
         </Tabs>
       )}
-    </div>
+    </Page>
   )
 }

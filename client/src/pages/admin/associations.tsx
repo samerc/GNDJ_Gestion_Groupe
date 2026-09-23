@@ -14,7 +14,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { Plus, Pencil, Trash2, Search, Landmark, X } from 'lucide-react'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
+import { SearchInput } from '@/components/shared/search-input'
+import { Plus, Pencil, Trash2, Landmark } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { BackLink } from '@/components/shared/back-link'
@@ -86,33 +89,22 @@ export default function AssociationsPage() {
   const showSearch = !!search || !!(data && data.totalCount > 0)
 
   return (
-    <div className="space-y-6">
+    <Page>
       <BackLink to="/admin/settings" label="Retour aux paramètres" />
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Associations</h1>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouvelle association
-        </Button>
-      </div>
+      <PageHeader
+        title="Associations"
+        icon={Landmark}
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Nouvelle association
+          </Button>
+        }
+      />
 
       {/* Search — only show when items exist */}
       {showSearch && (
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            className="pl-9 pr-9"
-          />
-          {search && (
-            <button type="button" onClick={() => { setSearch(''); setPage(1) }} aria-label="Effacer la recherche"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Rechercher..." className="max-w-sm" />
       )}
 
       {/* Table */}
@@ -228,6 +220,6 @@ export default function AssociationsPage() {
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
       />
-    </div>
+    </Page>
   )
 }

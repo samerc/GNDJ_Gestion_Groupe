@@ -10,22 +10,24 @@ import {
 } from '@/services/email-outbox-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
+import { SearchInput } from '@/components/shared/search-input'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Tip } from '@/components/ui/tooltip'
 import {
-  Mail, Search, X, RotateCw, Trash2, ChevronDown, ChevronRight, Clock, AlertTriangle, CheckCircle2,
+  Mail, RotateCw, Trash2, ChevronDown, ChevronRight, Clock, AlertTriangle, CheckCircle2,
 } from 'lucide-react'
 
 function statusBadge(status: string) {
-  if (status === 'Sent') return <Badge className="bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300">Envoyé</Badge>
-  if (status === 'Failed') return <Badge className="bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300">Échec</Badge>
-  return <Badge className="bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300">En attente</Badge>
+  if (status === 'Sent') return <Badge variant="success">Envoyé</Badge>
+  if (status === 'Failed') return <Badge variant="danger">Échec</Badge>
+  return <Badge variant="warning">En attente</Badge>
 }
 
 function OutboxRow({ entry, idx, onRetry, onDelete, busy }: {
@@ -140,15 +142,9 @@ export default function EmailOutboxPage() {
   const s = data?.summary
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Emails — file d'attente / échecs</h1>
-        <p className="text-sm text-muted-foreground">
-          File d'envoi durable des emails. Un email « envoyé » depuis l'application est d'abord <strong>mis en
-          file d'attente</strong> ; s'il échoue (SMTP mal configuré, adresse invalide…) il apparaît ici en
-          <strong> Échec</strong>. Vous pouvez inspecter l'erreur et le <strong>remettre en file d'attente</strong>.
-        </p>
-      </div>
+    <Page>
+      <PageHeader title="Emails — file d'attente / échecs" icon={Mail}
+        description={<>File d'envoi durable des emails. Un email « envoyé » depuis l'application est d'abord <strong>mis en file d'attente</strong> ; s'il échoue (SMTP mal configuré, adresse invalide…) il apparaît ici en <strong>Échec</strong>. Vous pouvez inspecter l'erreur et le <strong>remettre en file d'attente</strong>.</>} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard icon={Clock} label="En attente" value={s?.pending ?? 0} tone="bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400" />
@@ -172,16 +168,8 @@ export default function EmailOutboxPage() {
                 <SelectItem value="sent">Envoyés</SelectItem>
               </SelectContent>
             </Select>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input className="w-full sm:w-56 pl-8 pr-8" placeholder="Destinataire ou modèle" value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
-              {search && (
-                <button onClick={() => { setSearch(''); setPage(1) }} className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground" aria-label="Effacer">
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
+            <SearchInput className="w-full sm:w-56" placeholder="Destinataire ou modèle" value={search}
+              onChange={(v) => { setSearch(v); setPage(1) }} />
             <Button variant="outline" size="sm" disabled={!s || s.failed === 0 || retryFailed.isPending} onClick={() => setConfirmRetryAll(true)}>
               <RotateCw className="mr-1.5 h-4 w-4" /> Réessayer les échecs
             </Button>
@@ -241,6 +229,6 @@ export default function EmailOutboxPage() {
         description={`Supprime définitivement les ${s?.sent ?? 0} email(s) déjà envoyé(s) de la file (nettoyage). Les emails en attente et en échec sont conservés.`}
         confirmLabel="Vider" variant="destructive" loading={purge.isPending} onConfirm={handlePurge}
       />
-    </div>
+    </Page>
   )
 }

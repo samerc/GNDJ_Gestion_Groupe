@@ -6,6 +6,8 @@ import { APP_VERSION, BUILD_COMMIT, BUILD_DATE, CHANGELOG, type ChangelogChange 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { Tag, GitCommit, Calendar, History } from 'lucide-react'
 
 function formatDate(iso: string): string {
@@ -26,16 +28,17 @@ function changeParts(c: ChangelogChange, fallbackDate: string): { date: string; 
   return typeof c === 'string' ? { date: fallbackDate, text: c } : { date: c.date || fallbackDate, text: c.text }
 }
 
-export default function ChangelogPage() {
+// `embedded` = rendered inside a Paramètres tab (suppresses the page's own big heading).
+export default function ChangelogPage({ embedded = false }: { embedded?: boolean } = {}) {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Journal des versions</h1>
-        <p className="text-sm text-muted-foreground">
-          Historique des versions de l'application. Généré automatiquement à partir des changements à chaque
-          déploiement.
-        </p>
-      </div>
+    <Page>
+      {!embedded && (
+        <PageHeader
+          title="Journal des versions"
+          icon={History}
+          description="Historique des versions de l'application. Généré automatiquement à partir des changements à chaque déploiement."
+        />
+      )}
 
       {/* Live build identity */}
       <Card>
@@ -62,7 +65,7 @@ export default function ChangelogPage() {
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Tag className="h-4 w-4 text-muted-foreground" />v{entry.version}
-                    {entry.version === APP_VERSION && <Badge className="bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300">Actuelle</Badge>}
+                    {entry.version === APP_VERSION && <Badge variant="success">Actuelle</Badge>}
                   </CardTitle>
                   <span className="text-xs text-muted-foreground">{formatDate(entry.date)}</span>
                 </div>
@@ -88,6 +91,6 @@ export default function ChangelogPage() {
           ))}
         </div>
       )}
-    </div>
+    </Page>
   )
 }

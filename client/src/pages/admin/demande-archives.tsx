@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useDemandeArchives } from '@/services/demande-admin-service'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { Archive, Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
+import { Archive, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const PAGE_SIZE = 50
 
@@ -22,28 +24,26 @@ export default function DemandeArchivesPage() {
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1
 
   const statusBadge = (a: { status: string }) => {
-    if (a.status === 'Approved') return <Badge className="bg-green-600">Acceptée</Badge>
+    if (a.status === 'Approved') return <Badge variant="success">Acceptée</Badge>
     if (a.status === 'Declined') return <Badge variant="destructive">Refusée</Badge>
     return <Badge variant="secondary">{a.status}</Badge>
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><Archive className="h-6 w-6" />Archives des demandes</h1>
-        <p className="text-sm text-muted-foreground">Historique des demandes des campagnes précédentes (pour vérifier une inscription antérieure).</p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Archives des demandes"
+        icon={Archive}
+        description="Historique des demandes des campagnes précédentes (pour vérifier une inscription antérieure)."
+      />
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-56">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-8 pr-8" placeholder="Rechercher par nom d'enfant…" value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
-          {search && (
-            <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              onClick={() => { setSearch(''); setPage(1) }}><X className="h-4 w-4" /></button>
-          )}
-        </div>
+        <SearchInput
+          className="flex-1 min-w-56"
+          placeholder="Rechercher par nom d'enfant…"
+          value={search}
+          onChange={(v) => { setSearch(v); setPage(1) }}
+        />
         <Select value={year || '__all__'} onValueChange={(v) => { setYear(v === '__all__' ? '' : v); setPage(1) }}>
           <SelectTrigger className="w-full sm:w-56"><SelectValue placeholder="Toutes les années" /></SelectTrigger>
           <SelectContent>
@@ -107,6 +107,6 @@ export default function DemandeArchivesPage() {
           </div>
         </>
       )}
-    </div>
+    </Page>
   )
 }

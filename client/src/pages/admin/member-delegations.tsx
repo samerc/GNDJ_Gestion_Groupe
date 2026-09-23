@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmptyState } from '@/components/shared/empty-state'
 import { parseApiError } from '@/lib/error-utils'
 import { UserPlus, ShieldCheck, Pencil, X, Users } from 'lucide-react'
 import { toast } from 'sonner'
@@ -47,7 +48,7 @@ export function MemberDelegationsSection() {
               ))}
             </div>
           ) : (
-            <p className="py-6 text-center text-sm text-muted-foreground">Aucun accès délégué pour le moment.</p>
+            <EmptyState icon={ShieldCheck} title="Aucun accès délégué" description="Aucun accès délégué pour le moment." />
           )
         )}
       </CardContent>

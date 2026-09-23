@@ -8,6 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
+import { Callout } from '@/components/shared/callout'
 import { Tip } from '@/components/ui/tooltip'
 import { parseApiError } from '@/lib/error-utils'
 import { Ban, Plus, Trash2, Star, Save, Info, Pencil, X } from 'lucide-react'
@@ -73,30 +76,28 @@ export default function RejectionReasonsPage({ embedded = false }: { embedded?: 
     setConfirmDelete(null)
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          {embedded ? (
-            <h2 className="flex items-center gap-2 text-lg font-semibold"><Ban className="h-5 w-5" />Motifs de refus</h2>
-          ) : (
-            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><Ban className="h-6 w-6" />Motifs de refus</h1>
-          )}
-          <p className="text-sm text-muted-foreground">Motifs réutilisables pour refuser une demande (email + fichier Excel).</p>
-        </div>
-        {draftIndex === null && (
-          <Button onClick={startAdd} disabled={isLoading}><Plus className="mr-1 h-4 w-4" />Ajouter un motif</Button>
-        )}
-      </div>
+  const addButton = draftIndex === null ? (
+    <Button onClick={startAdd} disabled={isLoading}><Plus className="mr-1.5 h-4 w-4" />Ajouter un motif</Button>
+  ) : null
 
-      <div className="flex items-start gap-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
-        <Info className="mt-0.5 h-4 w-4 shrink-0" />
-        <div>
-          Le <strong>code</strong> est ce que la Maîtrise saisit dans la colonne <strong>Décision</strong> du fichier Excel
-          (ou choisit dans la revue web) pour refuser. Le <strong>texte</strong> est inclus dans l'email de refus.
-          Dans Excel, saisir <strong>« -- »</strong> applique le motif <strong>par défaut</strong> (★).
-        </div>
-      </div>
+  return (
+    <Page>
+      {embedded ? (
+        addButton && <div className="flex justify-end">{addButton}</div>
+      ) : (
+        <PageHeader
+          title="Motifs de refus"
+          icon={Ban}
+          description="Motifs réutilisables pour refuser une demande (email + fichier Excel)."
+          actions={addButton}
+        />
+      )}
+
+      <Callout tone="muted" icon={Info}>
+        Le <strong>code</strong> est ce que la Maîtrise saisit dans la colonne <strong>Décision</strong> du fichier Excel
+        (ou choisit dans la revue web) pour refuser. Le <strong>texte</strong> est inclus dans l'email de refus.
+        Dans Excel, saisir <strong>« -- »</strong> applique le motif <strong>par défaut</strong> (★).
+      </Callout>
 
       {/* Edit form (master-detail): the selected/new reason moves into these text fields. */}
       {draftIndex !== null && (
@@ -189,6 +190,6 @@ export default function RejectionReasonsPage({ embedded = false }: { embedded?: 
         loading={update.isPending}
         onConfirm={() => { if (confirmDelete !== null) removeRow(confirmDelete) }}
       />
-    </div>
+    </Page>
   )
 }

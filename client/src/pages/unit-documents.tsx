@@ -26,8 +26,11 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { ScrollToTop } from '@/components/shared/scroll-to-top'
-import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban, ChevronLeft, ChevronRight, Upload, ExternalLink, ChevronDown } from 'lucide-react'
+import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban, ChevronLeft, ChevronRight, Upload, ExternalLink, ChevronDown, FolderCheck, Users } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 // ─── Cell rendering helpers ────────────────────────────────
@@ -422,59 +425,60 @@ export default function UnitDocumentsPage() {
   const isPdf = currentMime === 'application/pdf'
 
   return (
-    <div className="space-y-4">
+    <Page>
       {/* Document-verification campaign phase + deadlines (only when a campaign is active). */}
       <CampaignPhaseBanner />
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Documents & Cotisations</h1>
-          <p className="text-sm text-muted-foreground">Année scoute {currentScoutYear}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Manager → full unit picker (all active units); CU → only when they lead >1 unit. */}
-          {(isManager || pickerUnits.length > 1) && (
-            <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-              <SelectTrigger className="w-56"><SelectValue placeholder="Choisir une unité…" /></SelectTrigger>
-              <SelectContent>
-                {pickerUnits.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          )}
-          {unitId && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" disabled={downloading}>
-                  <FileArchive className="mr-1 h-4 w-4" />{downloading ? 'Téléchargement…' : 'Télécharger (ZIP)'}
-                  <ChevronDown className="ml-1 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
-                <DropdownMenuItem onClick={() => handleDownloadZip()}>
-                  <FileArchive className="mr-2 h-4 w-4" />Tous les documents
-                </DropdownMenuItem>
-                {matrix && matrix.docTypes.length > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Par type de document</DropdownMenuLabel>
-                    {matrix.docTypes.map(dt => (
-                      <DropdownMenuItem key={dt.id} onClick={() => handleDownloadZip(dt.id, dt.name)}>
-                        <Download className="mr-2 h-4 w-4" />{dt.name}
-                      </DropdownMenuItem>
-                    ))}
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Documents & cotisations"
+        icon={FolderCheck}
+        description={`Année scoute ${currentScoutYear}`}
+        actions={
+          <>
+            {/* Manager → full unit picker (all active units); CU → only when they lead >1 unit. */}
+            {(isManager || pickerUnits.length > 1) && (
+              <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+                <SelectTrigger className="w-56"><SelectValue placeholder="Choisir une unité…" /></SelectTrigger>
+                <SelectContent>
+                  {pickerUnits.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            {unitId && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={downloading}>
+                    <FileArchive className="mr-1.5 h-4 w-4" />{downloading ? 'Téléchargement…' : 'Télécharger (ZIP)'}
+                    <ChevronDown className="ml-1 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+                  <DropdownMenuItem onClick={() => handleDownloadZip()}>
+                    <FileArchive className="mr-2 h-4 w-4" />Tous les documents
+                  </DropdownMenuItem>
+                  {matrix && matrix.docTypes.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Par type de document</DropdownMenuLabel>
+                      {matrix.docTypes.map(dt => (
+                        <DropdownMenuItem key={dt.id} onClick={() => handleDownloadZip(dt.id, dt.name)}>
+                          <Download className="mr-2 h-4 w-4" />{dt.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </>
+        }
+      />
 
       {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
       {!unitId ? (
-        <p className="text-muted-foreground py-12 text-center">Sélectionnez une unité pour afficher ses documents.</p>
+        <EmptyState icon={FolderCheck} title="Sélectionnez une unité" description="Sélectionnez une unité pour afficher ses documents." />
       ) : isLoading ? <LoadingSpinner variant="table" /> : !matrix || matrix.members.length === 0 ? (
-        <p className="text-muted-foreground py-12 text-center">Aucun membre actif dans cette unité.</p>
+        <EmptyState icon={Users} title="Aucun membre" description="Aucun membre actif dans cette unité." />
       ) : (
         <>
           {/* Legend */}
@@ -877,6 +881,6 @@ export default function UnitDocumentsPage() {
 
       {/* Floating "back to top" — the matrix can be very long (many members). */}
       <ScrollToTop />
-    </div>
+    </Page>
   )
 }

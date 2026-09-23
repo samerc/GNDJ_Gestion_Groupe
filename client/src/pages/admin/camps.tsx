@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 import { Tent, Plus, ChevronRight } from 'lucide-react'
@@ -32,19 +34,18 @@ export default function CampsAdminPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><Tent className="h-5 w-5 text-primary" />Camp BP</h1>
-          <p className="text-sm text-muted-foreground">Diviser le groupe en familles équilibrées.</p>
-        </div>
-        <Button onClick={() => setOpen(true)}><Plus className="mr-1 h-4 w-4" />Nouveau camp</Button>
-      </div>
+    <Page>
+      <PageHeader
+        title="Camp BP"
+        icon={Tent}
+        description="Diviser le groupe en familles équilibrées."
+        actions={<Button onClick={() => setOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Nouveau camp</Button>}
+      />
 
       {isLoading ? <LoadingSpinner variant="table" /> :
        (camps ?? []).length === 0 ? (
          <EmptyState icon={Tent} title="Aucun camp" description="Créez-en un pour commencer."
-           action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Nouveau camp</Button>} />
+           action={<Button onClick={() => setOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Nouveau camp</Button>} />
        ) :
        <div className="space-y-2">{camps!.map(c => <CampCard key={c.id} camp={c} />)}</div>}
 
@@ -64,7 +65,7 @@ export default function CampsAdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Page>
   )
 }
 
