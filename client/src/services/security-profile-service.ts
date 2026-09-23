@@ -8,6 +8,7 @@ export interface SecurityProfileDto {
   name: string
   code: string
   isSystem: boolean
+  isGroupLevel: boolean // group-level (all-units) profile — the meaningful "acts as" targets for a delegation
 }
 
 export interface SecurityProfileDetailDto {

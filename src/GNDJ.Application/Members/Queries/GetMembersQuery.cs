@@ -365,8 +365,9 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
                 // Absences on APPROVED réunions within the current scout year (Réunions feature).
                 _context.MeetingAbsences.Count(a => !a.IsDeleted && a.MemberId == m.Id
                     && a.Meeting.Status == "Approved" && a.Meeting.Date >= syStart && a.Meeting.Date < syEnd),
-                // Access delegation flags (drive the panel badge; managed via the delegation dialog).
-                m.DelegatedPermissionsJson != null && m.DelegatedPermissionsJson != "",
+                // Access delegation flags (drive the panel badge; managed via the delegation dialog). Now also
+                // true when a profile is attached (the "acts as X" case) — DelegatedGroupAccess is the legacy flag.
+                (m.DelegatedPermissionsJson != null && m.DelegatedPermissionsJson != "") || m.DelegatedProfileId != null,
                 m.DelegatedGroupAccess,
                 // ShowProfession: hide the "En activité / Profession" option for a youth (non-maîtrise) whose active
                 // branch is Meute/Ronde/Compagnie/Troupe (school-age → Classe/Section only). Shown for maîtrise/chefs,

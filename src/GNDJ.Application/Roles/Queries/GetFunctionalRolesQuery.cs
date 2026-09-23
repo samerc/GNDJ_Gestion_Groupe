@@ -66,7 +66,7 @@ public class GetFunctionalRoleMembersQueryHandler(IApplicationDbContext context)
 }
 
 // Security profiles list (for dropdowns)
-public record SecurityProfileDto(Guid Id, string Name, string Code, bool IsSystem);
+public record SecurityProfileDto(Guid Id, string Name, string Code, bool IsSystem, bool IsGroupLevel);
 
 public record GetSecurityProfilesQuery : IRequest<IReadOnlyList<SecurityProfileDto>>;
 
@@ -80,7 +80,7 @@ public class GetSecurityProfilesQueryHandler : IRequestHandler<GetSecurityProfil
     {
         return await _context.SecurityProfiles
             .OrderBy(sp => sp.Name)
-            .Select(sp => new SecurityProfileDto(sp.Id, sp.Name, sp.Code, sp.IsSystem))
+            .Select(sp => new SecurityProfileDto(sp.Id, sp.Name, sp.Code, sp.IsSystem, sp.IsGroupLevel))
             .ToListAsync(cancellationToken);
     }
 }

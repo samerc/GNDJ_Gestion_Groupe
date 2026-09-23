@@ -35,14 +35,32 @@ public static class AuthAccess
         // delegated incoming CG (or a granular "Camp BP only" grant) takes effect on the next token issue.
         var delegation = await context.Members
             .Where(m => m.Id == memberId)
-            .Select(m => new { m.DelegatedPermissionsJson, m.DelegatedGroupAccess })
+            .Select(m => new { m.DelegatedPermissionsJson, m.DelegatedGroupAccess, m.DelegatedProfileId })
             .FirstOrDefaultAsync(ct);
-        if (!string.IsNullOrWhiteSpace(delegation?.DelegatedPermissionsJson))
+        if (delegation is not null)
         {
-            var extra = JsonSerializer.Deserialize<List<string>>(delegation.DelegatedPermissionsJson) ?? [];
-            permissions = permissions.Union(extra).Distinct().ToList();
-            // A full-CG delegation grants group-wide access (all units) so the stand-in can act everywhere.
+            // (a) Ad-hoc per-domaine grant stored as a JSON permission array.
+            if (!string.IsNullOrWhiteSpace(delegation.DelegatedPermissionsJson))
+            {
+                var extra = JsonSerializer.Deserialize<List<string>>(delegation.DelegatedPermissionsJson) ?? [];
+                permissions = permissions.Union(extra).Distinct().ToList();
+            }
+            // (b) LEGACY full-CG snapshot flag → group-wide access. New grants use the profile ref below.
             if (delegation.DelegatedGroupAccess) groupLevel = true;
+            // (c) Attached profile, resolved LIVE (stays in sync): its permissions are unioned in, and a
+            // group-level profile grants all units — this is how "acts as Chef de Groupe" works.
+            if (delegation.DelegatedProfileId is Guid profileId)
+            {
+                var prof = await context.SecurityProfiles
+                    .Where(p => p.Id == profileId)
+                    .Select(p => new { p.IsGroupLevel, Perms = p.Permissions.Select(x => x.Permission).ToList() })
+                    .FirstOrDefaultAsync(ct);
+                if (prof is not null)
+                {
+                    permissions = permissions.Union(prof.Perms).Distinct().ToList();
+                    if (prof.IsGroupLevel) groupLevel = true;
+                }
+            }
         }
 
         // A group-level profile (Chef de Groupe) — or a full-CG delegation — sees ALL units, like a super-admin.

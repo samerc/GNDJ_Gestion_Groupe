@@ -85,10 +85,15 @@ public class Member : BaseEntity
     // one ACG "Camp BP" only). The perms are merged into the JWT at the next login/refresh (see AuthAccess).
     // DelegatedPermissionsJson = a JSON array of permission strings (null/empty = no delegation).
     public string? DelegatedPermissionsJson { get; set; }
-    // When true, the delegation also grants group-wide access (all units) — set by the full-CG preset so the
-    // stand-in can act across the whole group. Granular area grants leave this false (the person keeps their own
-    // unit scope + the delegated area perms).
+    // When true, the delegation also grants group-wide access (all units) — LEGACY full-CG snapshot flag, kept for
+    // back-compat; new delegations express "acts as X" by referencing a profile instead (DelegatedProfileId).
     public bool DelegatedGroupAccess { get; set; }
+    // Optional: a security profile whose permissions are granted to this member LIVE (resolved at login/refresh in
+    // AuthAccess — stays in sync if the profile changes). This is how "acts as Chef de Groupe" works: attach the
+    // "Chef de Groupe" profile. If the profile is group-level, the delegation also grants all units. A loose
+    // reference (no FK/cascade); a dangling id simply yields no extra perms. Ad-hoc per-domaine grants still live
+    // in DelegatedPermissionsJson, and a delegation may carry both (a profile + extra areas).
+    public Guid? DelegatedProfileId { get; set; }
 
     public User? User { get; set; }
     public ICollection<MemberPhone> Phones { get; set; } = [];

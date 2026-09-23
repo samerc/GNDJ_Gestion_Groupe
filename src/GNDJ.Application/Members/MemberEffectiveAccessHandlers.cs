@@ -94,20 +94,37 @@ public class GetMemberEffectiveAccessQueryHandler(IApplicationDbContext context,
             }
 
             // Access delegation ("accès délégué") — extra perms the CG granted this member directly, merged into
-            // the token in AuthAccess. Surfaced here as its own source so the CG sees exactly what was delegated.
+            // the token in AuthAccess. Surfaced here as ONE source combining the attached profile (live) + any
+            // ad-hoc areas + the legacy full-CG flag, so the CG sees exactly what was delegated and from where.
             var delegation = await context.Members
                 .Where(m => m.Id == request.MemberId)
-                .Select(m => new { m.DelegatedPermissionsJson, m.DelegatedGroupAccess })
+                .Select(m => new { m.DelegatedPermissionsJson, m.DelegatedGroupAccess, m.DelegatedProfileId })
                 .FirstOrDefaultAsync(ct);
-            if (!string.IsNullOrWhiteSpace(delegation?.DelegatedPermissionsJson))
+            if (delegation is not null)
             {
-                var extra = (JsonSerializer.Deserialize<List<string>>(delegation.DelegatedPermissionsJson) ?? []).ToHashSet();
-                if (extra.Count > 0)
+                var dperms = new HashSet<string>();
+                string? detail = delegation.DelegatedGroupAccess ? "Chef de Groupe entrant" : null;
+                var dgroup = delegation.DelegatedGroupAccess;
+                if (delegation.DelegatedProfileId is Guid pid)
                 {
-                    sources.Add(new AccessSourceDto("delegation", "Accès délégué",
-                        delegation.DelegatedGroupAccess ? "Chef de Groupe entrant" : null, delegation.DelegatedGroupAccess));
-                    sourcePerms.Add(extra);
-                    if (delegation.DelegatedGroupAccess) allUnits = true; // a full-CG delegation reaches all units
+                    var prof = await context.SecurityProfiles
+                        .Where(p => p.Id == pid)
+                        .Select(p => new { p.Name, p.IsGroupLevel, Perms = p.Permissions.Select(x => x.Permission).ToList() })
+                        .FirstOrDefaultAsync(ct);
+                    if (prof is not null)
+                    {
+                        dperms.UnionWith(prof.Perms);
+                        detail = $"profil « {prof.Name} »";
+                        if (prof.IsGroupLevel) dgroup = true;
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(delegation.DelegatedPermissionsJson))
+                    dperms.UnionWith(JsonSerializer.Deserialize<List<string>>(delegation.DelegatedPermissionsJson) ?? []);
+                if (dperms.Count > 0)
+                {
+                    sources.Add(new AccessSourceDto("delegation", "Accès délégué", detail, dgroup));
+                    sourcePerms.Add(dperms);
+                    if (dgroup) allUnits = true;
                 }
             }
         }

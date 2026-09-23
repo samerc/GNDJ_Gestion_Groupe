@@ -410,15 +410,16 @@ export function useSaveLeaverContact() {
 }
 
 // ── Access delegation ("accès délégué") ──
-// Grant a specific member extra access (the full Chef de Groupe toolset, or granular areas like Camp BP) with
-// no visible role. CG (roles.manage_group) / super-admin only. Takes effect on the member's next login/refresh.
+// Grant a specific member extra access with no visible role: attach a PROFILE (e.g. "Chef de Groupe" → acts as
+// CG, resolved live) and/or a granular per-area grant (e.g. Camp BP). CG (roles.manage_group) / super-admin only.
+// Takes effect on the member's next login/refresh.
 export interface DelegationArea { key: string; label: string; level: string } // level: aucun | lecture | complet
-export interface MemberDelegation { hasDelegation: boolean; fullCg: boolean; areas: DelegationArea[] }
-// Overview row for the Accès maîtrise page: one member holding a delegation. areas = "Label (niveau)" strings
-// (empty for a full-CG grant — fullCg conveys it). unitCode = their current unit (null if none).
-export interface MemberDelegationSummary { memberId: string; name: string; unitCode: string | null; fullCg: boolean; areas: string[] }
+export interface MemberDelegation { hasDelegation: boolean; profileId: string | null; profileName: string | null; areas: DelegationArea[] }
+// Overview row for the Membres tab: one member holding a delegation. profileName = the attached profile (null if
+// none); areas = "Label (niveau)" strings. unitCode = their current unit (null if none).
+export interface MemberDelegationSummary { memberId: string; name: string; unitCode: string | null; profileName: string | null; areas: string[] }
 
-// GET the member's current delegation (per-area levels + full-CG flag), for the dialog.
+// GET the member's current delegation (attached profile + per-area levels), for the dialog.
 export function useMemberDelegation(memberId: string, enabled: boolean) {
   return useQuery({
     queryKey: ['members', memberId, 'delegation'],
@@ -427,7 +428,7 @@ export function useMemberDelegation(memberId: string, enabled: boolean) {
   })
 }
 
-// GET all members who currently hold a delegation (tracking overview on the Accès maîtrise page).
+// GET all members who currently hold a delegation (tracking overview on the Membres tab).
 export function useMemberDelegations() {
   return useQuery({
     queryKey: ['members', 'delegations'],
@@ -435,11 +436,11 @@ export function useMemberDelegations() {
   })
 }
 
-// PUT the delegation: fullCg = full Chef de Groupe hand-off, else areaLevels = granular per-area (empty clears).
+// PUT the delegation: profileId = attach a profile (or null), areaLevels = granular per-area. Empty both = clear.
 export function useSetMemberDelegation(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { fullCg: boolean; areaLevels?: Record<string, string> }) =>
+    mutationFn: (body: { profileId?: string | null; areaLevels?: Record<string, string> }) =>
       apiClient.put(`/members/${memberId}/delegation`, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['members', memberId] })

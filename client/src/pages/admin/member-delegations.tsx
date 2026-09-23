@@ -70,7 +70,7 @@ function DelegationRow({ row, onEdit }: { row: MemberDelegationSummary; onEdit: 
 
   const remove = async () => {
     try {
-      await setMutation.mutateAsync({ fullCg: false, areaLevels: {} }) // empty clears the delegation
+      await setMutation.mutateAsync({ profileId: null, areaLevels: {} }) // empty clears the delegation
       toast.success(`Accès délégué retiré pour ${row.name}`)
     } catch (e) { toast.error(parseApiError(e)) }
   }
@@ -83,9 +83,9 @@ function DelegationRow({ row, onEdit }: { row: MemberDelegationSummary; onEdit: 
           {row.unitCode && <span className="ml-1.5 text-xs font-normal text-muted-foreground">· {row.unitCode}</span>}
         </p>
         <div className="mt-1 flex flex-wrap gap-1">
-          {row.fullCg
-            ? <Badge className="gap-1"><ShieldCheck className="h-3 w-3" />Chef de Groupe (accès complet)</Badge>
-            : row.areas.map(a => <Badge key={a} variant="secondary">{a}</Badge>)}
+          {row.profileName && <Badge className="gap-1"><ShieldCheck className="h-3 w-3" />Profil : {row.profileName}</Badge>}
+          {row.areas.map(a => <Badge key={a} variant="secondary">{a}</Badge>)}
+          {!row.profileName && row.areas.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
         </div>
       </div>
       <div className="flex shrink-0 gap-1">

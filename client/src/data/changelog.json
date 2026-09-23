@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-23",
+        "text": "Accès délégué — au lieu d'un simple bouton « Chef de Groupe entrant », on peut désormais accorder à une personne « Agir comme (profil) » en lui attribuant un profil existant (par ex. « Chef de Groupe »). L'accès reste synchronisé : si le profil change, l'accès délégué suit automatiquement. On peut toujours y ajouter un accès par domaine (Aucun / Lecture / Complet). Utile pour un chef de groupe entrant qui doit déjà travailler avant que son rôle soit officialisé."
+      },
+      {
+        "date": "2026-09-23",
         "text": "Accès & permissions — la page « Profils & accès » devient « Accès & permissions » et regroupe tout au même endroit, avec trois onglets qui parlent le même langage : « Profils » (les profils de permissions réutilisables), « Fonctions » (le niveau d'accès par domaine de chaque fonction de la maîtrise de groupe) et « Membres » (les accès délégués accordés à une personne précise, sans rôle visible). L'éditeur de permissions d'un profil est désormais unifié et couvre TOUTES les permissions attribuables (dont certaines qui manquaient avant, comme « maîtrise », « camp », « rentrée », la délégation d'accès), et l'accès par domaine (Aucun / Lecture / Complet) utilise partout le même sélecteur."
       },
       {
