@@ -73,7 +73,10 @@ public class OutboxSenderBackgroundService : BackgroundService
         // mid-send doesn't strand them (they become due again after the lease) and re-entrancy can't double-grab.
         var due = await context.OutboxEmails
             .Where(e => e.Status == OutboxEmailStatus.Pending && e.NextAttemptAt <= now)
-            .OrderBy(e => e.CreatedAt)
+            // Order by NextAttemptAt: the (status, next_attempt_at) index already returns rows in this order,
+            // so Postgres skips a sort (OrderBy(CreatedAt) forced a full-set sort of the whole Pending backlog
+            // every sweep — costly during a mass activation blast). For fresh rows NextAttemptAt ≈ CreatedAt.
+            .OrderBy(e => e.NextAttemptAt)
             .Take(BatchSize)
             .ToListAsync(ct);
 

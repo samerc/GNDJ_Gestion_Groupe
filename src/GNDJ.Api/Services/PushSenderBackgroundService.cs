@@ -58,7 +58,9 @@ public class PushSenderBackgroundService : BackgroundService
         var now = DateTime.UtcNow;
         var due = await context.PushOutbox
             .Where(p => p.Status == PushOutboxStatus.Pending && p.NextAttemptAt <= now)
-            .OrderBy(p => p.CreatedAt)
+            // Order by NextAttemptAt so the (status, next_attempt_at) index yields rows already sorted (no
+            // full-set sort each sweep). For fresh rows NextAttemptAt ≈ CreatedAt, so ordering is equivalent.
+            .OrderBy(p => p.NextAttemptAt)
             .Take(BatchSize)
             .ToListAsync(ct);
         if (due.Count == 0) return 0;

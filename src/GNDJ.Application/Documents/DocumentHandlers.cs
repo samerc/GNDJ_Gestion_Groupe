@@ -504,10 +504,12 @@ public class GetUnitDocumentsMatrixQueryHandler(IApplicationDbContext context, I
             .Select(d => new { d.Id, d.MemberId, d.DocumentTypeId, d.FileName, d.MimeType, d.Status, d.ReviewNotes, d.ExpiryDate, d.CreatedAt })
             .ToListAsync(ct);
 
-        // Cotisations for this scout year
+        // Cotisations for this scout year. Read-only (projected to cells below), so skip change-tracking —
+        // this matrix loads ~80 cotisations + their payment rows per unit on a CU hot screen during enrollment.
         var allCotisations = await context.MemberCotisations
             .Where(c => memberIds.Contains(c.MemberId) && c.ScoutYear == request.ScoutYear)
             .Include(c => c.Payments.Where(p => !p.IsDeleted))
+            .AsNoTracking()
             .ToListAsync(ct);
 
         var today = LebanonClock.Today;

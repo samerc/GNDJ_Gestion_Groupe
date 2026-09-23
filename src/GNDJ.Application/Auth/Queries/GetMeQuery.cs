@@ -26,36 +26,46 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
         if (_currentUser.UserId is null)
             return Result<MeResponse>.Failure("Non authentifié.");
 
+        // Read-only: this handler never mutates user/member, so skip change-tracking (this is the hottest
+        // authenticated call — invoked by /auth/bootstrap on every first paint and token refresh).
         var user = await _context.Users
             .Include(u => u.Member)
+            .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == _currentUser.UserId, cancellationToken);
 
         if (user is null)
             return Result<MeResponse>.Failure("Utilisateur introuvable.");
 
-        // Active assignments only → the unit/role labels the UI shows; permissions come from the JWT
-        // (ICurrentUserService) rather than being re-derived here.
-        var unitAccess = await _context.MemberAssignments
+        // Active assignments only → the unit/role labels the UI shows PLUS the two leadership signals
+        // (leadsTeam / isMaitrise), all in ONE query. Previously leadsTeam and isMaitrise were two extra
+        // AnyAsync round-trips over this exact same set; folding them into the projection and computing them
+        // in memory removes 2 sequential DB round-trips from every bootstrap/refresh. Permissions come from
+        // the JWT (ICurrentUserService), not re-derived here.
+        var activeAssignments = await _context.MemberAssignments
             .Where(a => a.MemberId == user.MemberId && a.EndDate == null)
-            .Select(a => new UnitAccessDto(a.UnitId, a.Unit.Name, a.FunctionalRole.Name,
+            .Select(a => new
+            {
+                a.UnitId,
+                UnitName = a.Unit.Name,
+                RoleName = a.FunctionalRole.Name,
                 // Leadership role = its security profile grants members.edit (chef d'unité / ACU / CG …).
-                a.FunctionalRole.SecurityProfile.Permissions.Any(p => p.Permission == GNDJ.Domain.Enums.Permissions.MembersEdit),
+                IsLeader = a.FunctionalRole.SecurityProfile.Permissions.Any(p => p.Permission == GNDJ.Domain.Enums.Permissions.MembersEdit),
                 // Group-level role (CG/ACG) — grants all-units access; distinguishes the Maîtrise de Groupe
                 // assignment from a real CU/ACU unit-leadership role.
-                a.FunctionalRole.SecurityProfile.IsGroupLevel))
+                a.FunctionalRole.SecurityProfile.IsGroupLevel,
+                // Chef d'équipe (active assignment on a team with an IsTeamLeader role) → drives the "Réunions" nav.
+                LeadsTeam = a.TeamId != null && a.FunctionalRole.IsTeamLeader,
+                // Maîtrise (leadership) role → drives whether their cotisation is the maîtrise one.
+                a.FunctionalRole.IsMaitrise,
+            })
             .ToListAsync(cancellationToken);
 
-        // Does this member lead a team (active assignment on a team with an IsTeamLeader role)? Drives the
-        // "Réunions" nav for a chef d'équipe who has no admin permission otherwise.
-        var leadsTeam = await _context.MemberAssignments.AnyAsync(a =>
-            a.MemberId == user.MemberId && a.EndDate == null && a.TeamId != null && a.FunctionalRole.IsTeamLeader,
-            cancellationToken);
+        var unitAccess = activeAssignments
+            .Select(a => new UnitAccessDto(a.UnitId, a.UnitName, a.RoleName, a.IsLeader, a.IsGroupLevel))
+            .ToList();
 
-        // Does this member hold a maîtrise (leadership) role? Drives whether their cotisation is the maîtrise one
-        // (hidden from Ma fiche when "la maîtrise ne paie pas" is toggled off).
-        var isMaitrise = await _context.MemberAssignments.AnyAsync(a =>
-            a.MemberId == user.MemberId && a.EndDate == null && a.FunctionalRole.IsMaitrise,
-            cancellationToken);
+        var leadsTeam = activeAssignments.Any(a => a.LeadsTeam);
+        var isMaitrise = activeAssignments.Any(a => a.IsMaitrise);
 
         // Leader first-login contact check: a real leader (holds a leadership OR group-level role — NOT a
         // super-admin by flag) who hasn't confirmed their personal email + phone is prompted once to verify them.

@@ -1,6 +1,6 @@
 // Members resource: list/detail CRUD, contact sub-resources (phones/emails/addresses), photo upload,
 // and password reset. All calls are unit-scoped server-side; queries key on ['members', ...].
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { PaginatedResult } from '@/types/api'
 
@@ -109,6 +109,10 @@ export function useMembers(params: { search?: string; unitId?: string; teamId?: 
   return useQuery({
     queryKey: ['members', params],
     queryFn: () => apiClient.get<PaginatedResult<MemberListDto>>('/members', { params }).then(r => r.data),
+    // Busiest list in the app: keep the previous page visible while the next page/letter/filter loads (no
+    // spinner flash on pagination) and hold results briefly so returning to /members doesn't re-hit the network.
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
   })
 }
 
