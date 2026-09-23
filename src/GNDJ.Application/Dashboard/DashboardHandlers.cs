@@ -131,6 +131,9 @@ public class GetUnitDashboardQueryHandler : IRequestHandler<GetUnitDashboardQuer
             .OrderBy(g => g.Name)
             .ToListAsync(cancellationToken);
 
+        // One roster query per applicable group. NOTE: batching these into a single tagged UNION does NOT
+        // translate under Npgsql ("set operation after client projection"), and ShowInUnitList groups are few
+        // (usually 0–3), so the per-group round-trip is negligible; the loop already no-ops when there are none.
         var rosterGroups = new List<UnitRosterGroupDto>(applicableGroups.Count);
         foreach (var g in applicableGroups)
         {

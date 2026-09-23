@@ -65,8 +65,11 @@ public partial class AbuseDetectionMiddleware
 
             if (!string.IsNullOrEmpty(body))
             {
-                // (3) Honeypot
-                if (HasFilledHoneypot(body))
+                // (3) Honeypot — only parse the JSON when the field name is actually present in the body.
+                // A full JsonDocument.Parse of every JSON write (on top of MVC's own model-binding parse) is
+                // wasted work for the vast majority of requests that have no "website" field; the cheap substring
+                // pre-check skips the second parse unless the honeypot could be there.
+                if (body.Contains("\"website\"", StringComparison.OrdinalIgnoreCase) && HasFilledHoneypot(body))
                 {
                     await RejectAsync(context, "honeypot", "Requête rejetée.");
                     return;

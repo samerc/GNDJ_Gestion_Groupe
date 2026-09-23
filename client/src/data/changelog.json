@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-23",
+        "text": "Performance (serveur) — la détection anti-abus évite une analyse JSON superflue à chaque envoi de formulaire, et la compression dynamique d'IIS est désactivée (l'application compresse déjà elle-même). Améliorations internes, invisibles à l'usage."
+      },
+      {
+        "date": "2026-09-23",
         "text": "Performance — l'application se charge plus vite : la bibliothèque de l'éditeur de texte (~125 Ko compressés) n'était chargée sur CHAQUE page qu'à cause d'un défaut de regroupement du code ; elle est désormais réservée aux pages qui l'utilisent réellement (actualités, pages, événements, e-mails). Résultat : environ 130 Ko de moins à télécharger à l'ouverture de n'importe quelle page, surtout sensible sur mobile. La liste des membres ne « clignote » plus au changement de page/filtre. Côté serveur, l'appel d'authentification le plus fréquent fait 2 requêtes de base de données en moins, la matrice des documents et l'envoi des e-mails/notifications sont allégés."
       },
       {
