@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-23",
+        "text": "Notifications — la page « Envoyer une notification » conserve désormais un historique des envois manuels : pour chaque notification envoyée par un chef de groupe ou un administrateur, on voit le titre, le message, la date et l'heure, qui l'a envoyée, à qui (unité / groupe / membres choisis) et le nombre de destinataires. Visible uniquement par les responsables de groupe."
+      },
+      {
+        "date": "2026-09-23",
         "text": "Accès & permissions — l'éditeur de permissions est allégé : deux permissions qui n'avaient aucun effet sont retirées de la liste (« Modifier un document » et « Suppression définitive »). Elles ne changeaient rien à ce qu'un profil pouvait réellement faire ; « Téléverser un document » est conservée (elle commande bien l'affichage du bouton d'envoi pour un responsable)."
       },
       {

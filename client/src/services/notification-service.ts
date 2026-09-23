@@ -86,9 +86,32 @@ export interface SendNotificationInput {
   url?: string
 }
 export function useSendPushNotification() {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: SendNotificationInput) =>
       apiClient.post<{ count: number }>('/notifications/send', input).then(r => r.data),
+    // Refresh the broadcast history so a just-sent notification appears immediately.
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications', 'broadcasts'] }) },
+  })
+}
+
+// GET /notifications/broadcasts — history of the manual sends above (manager-only). Newest first, paged.
+export interface NotificationBroadcast {
+  id: string
+  sentByName: string
+  sentAt: string
+  title: string
+  body?: string | null
+  url?: string | null
+  audienceLabel: string
+  recipientCount: number
+}
+export function useNotificationBroadcasts(page: number) {
+  return useQuery({
+    queryKey: ['notifications', 'broadcasts', page],
+    queryFn: () =>
+      apiClient.get<{ items: NotificationBroadcast[]; hasMore: boolean }>(
+        `/notifications/broadcasts?page=${page}&pageSize=20`).then(r => r.data),
   })
 }
 

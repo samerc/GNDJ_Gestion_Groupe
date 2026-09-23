@@ -74,6 +74,7 @@ public interface IApplicationDbContext
     DbSet<MemberDuplicateRejection> MemberDuplicateRejections { get; }
     DbSet<SiblingReport> SiblingReports { get; }
     DbSet<Notification> Notifications { get; }
+    DbSet<NotificationBroadcast> NotificationBroadcasts { get; }
     DbSet<ContactMessage> ContactMessages { get; }
     DbSet<PushSubscription> PushSubscriptions { get; }
     DbSet<PushOutbox> PushOutbox { get; }

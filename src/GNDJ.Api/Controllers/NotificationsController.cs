@@ -80,4 +80,14 @@ public class NotificationsController : BaseApiController
         var result = await Mediator.Send(command);
         return result.IsSuccess ? Ok(new { count = result.Value }) : BadRequest(new { error = result.Error });
     }
+
+    /// <summary>History of manual broadcasts (the "Envoyer une notification" sends): who sent what, to whom,
+    /// when, and to how many. Group-manager only.</summary>
+    [HttpGet("broadcasts")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> Broadcasts([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        var result = await Mediator.Send(new GetNotificationBroadcastsQuery(page, pageSize));
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+    }
 }

@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import { useUnits } from '@/services/unit-service'
 import { useMemberGroups } from '@/services/member-group-service'
-import { useSendPushNotification } from '@/services/notification-service'
+import { useSendPushNotification, useNotificationBroadcasts } from '@/services/notification-service'
 import { MemberPickerDialog } from '@/components/shared/member-picker-dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,9 +13,16 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
-import { Bell, Plus, X, Send } from 'lucide-react'
+import { Bell, Plus, X, Send, History, Users } from 'lucide-react'
 
 type Audience = 'unit' | 'group' | 'members'
+
+// Full date + time in French, e.g. "23 sept. 2026 à 14:35".
+function formatSentAt(iso: string) {
+  return new Date(iso).toLocaleString('fr-FR', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
 
 export default function SendNotificationPage() {
   const [audience, setAudience] = useState<Audience>('unit')
@@ -27,9 +34,12 @@ export default function SendNotificationPage() {
   const [body, setBody] = useState('')
   const [url, setUrl] = useState('')
 
+  const [historyPage, setHistoryPage] = useState(1)
+
   const { data: units } = useUnits({ isActive: true, pageSize: 100 })
   const { data: groups } = useMemberGroups()
   const send = useSendPushNotification()
+  const { data: history, isLoading: historyLoading } = useNotificationBroadcasts(historyPage)
 
   const addMember = (m: { id: string; name: string }) => {
     setMembers((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]))
@@ -143,6 +153,45 @@ export default function SendNotificationPage() {
               <Send className="mr-1.5 h-4 w-4" />{send.isPending ? 'Envoi…' : 'Envoyer'}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* History of manual sends — who sent what, to whom, when, and to how many. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><History className="h-4 w-4" />Historique des envois</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {historyLoading ? (
+            <p className="text-sm text-muted-foreground">Chargement…</p>
+          ) : !history || history.items.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucune notification envoyée pour l'instant.</p>
+          ) : (
+            <div className="space-y-3">
+              {history.items.map((b) => (
+                <div key={b.id} className="rounded-lg border p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium">{b.title}</p>
+                    <span className="shrink-0 text-xs text-muted-foreground">{formatSentAt(b.sentAt)}</span>
+                  </div>
+                  {b.body && <p className="mt-1 text-sm text-muted-foreground whitespace-pre-line">{b.body}</p>}
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{b.recipientCount} destinataire(s)</span>
+                    <span>{b.audienceLabel}</span>
+                    <span>Par {b.sentByName}</span>
+                    {b.url && <span className="font-mono">{b.url}</span>}
+                  </div>
+                </div>
+              ))}
+              {(historyPage > 1 || history.hasMore) && (
+                <div className="flex items-center justify-between pt-1">
+                  <Button variant="outline" size="sm" disabled={historyPage <= 1} onClick={() => setHistoryPage((p) => p - 1)}>Précédent</Button>
+                  <span className="text-xs text-muted-foreground">Page {historyPage}</span>
+                  <Button variant="outline" size="sm" disabled={!history.hasMore} onClick={() => setHistoryPage((p) => p + 1)}>Suivant</Button>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -77,6 +77,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<MemberDuplicateRejection> MemberDuplicateRejections => Set<MemberDuplicateRejection>();
     public DbSet<SiblingReport> SiblingReports => Set<SiblingReport>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<NotificationBroadcast> NotificationBroadcasts => Set<NotificationBroadcast>();
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
     public DbSet<PushOutbox> PushOutbox => Set<PushOutbox>();
