@@ -453,7 +453,7 @@ export function useSetMemberDelegation(memberId: string) {
 // delegation / super-admin grants each), grouped by domain. Read-only; mirrors the login token resolution. ──
 export interface AccessSource { kind: string; label: string; detail: string | null; isGroupLevel: boolean }
 export interface AccessPerm { key: string; label: string; sources: number[] } // sources = indexes into `sources` below
-export interface AccessDomain { key: string; label: string; permissions: AccessPerm[] }
+export interface AccessDomain { key: string; label: string; level: string; permissions: AccessPerm[] } // level: voir | gerer | complet
 export interface MemberEffectiveAccess {
   isSuperAdmin: boolean
   allUnits: boolean

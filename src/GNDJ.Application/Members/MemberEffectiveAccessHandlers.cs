@@ -18,7 +18,9 @@ namespace GNDJ.Application.Members;
 public record AccessSourceDto(string Kind, string Label, string? Detail, bool IsGroupLevel);
 // A granted permission + the indexes (into Sources) of everything that grants it.
 public record AccessPermDto(string Key, string Label, IReadOnlyList<int> Sources);
-public record AccessDomainDto(string Key, string Label, IReadOnlyList<AccessPermDto> Permissions);
+// Level = a one-word summary of the domaine for the left list: "voir" (view only), "gerer" (some actions),
+// "complet" (every action of the domaine). The exact actions are in Permissions (shown in the detail pane).
+public record AccessDomainDto(string Key, string Label, string Level, IReadOnlyList<AccessPermDto> Permissions);
 public record MemberEffectiveAccessDto(
     bool IsSuperAdmin,
     bool AllUnits,
@@ -126,7 +128,14 @@ public class GetMemberEffectiveAccessQueryHandler(IApplicationDbContext context,
                     if (sourcePerms[i].Contains(info.Key)) contributors.Add(i);
                 perms.Add(new AccessPermDto(info.Key, info.Label, contributors));
             }
-            if (perms.Count > 0) domains.Add(new AccessDomainDto(dom.Key, dom.Label, perms));
+            if (perms.Count == 0) continue;
+            // Summarise the domaine: Complet if every catalog action is held, else Gérer if any non-view
+            // action is held, else Voir (only ".view" permissions). Exact actions live in the detail pane.
+            var total = PermissionCatalog.All.Count(p => p.DomainKey == dom.Key);
+            var level = perms.Count >= total ? "complet"
+                : perms.Any(p => !p.Key.EndsWith(".view")) ? "gerer"
+                : "voir";
+            domains.Add(new AccessDomainDto(dom.Key, dom.Label, level, perms));
         }
 
         return Result<MemberEffectiveAccessDto>.Success(new MemberEffectiveAccessDto(
