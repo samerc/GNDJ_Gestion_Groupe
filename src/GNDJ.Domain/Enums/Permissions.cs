@@ -26,11 +26,6 @@ public static class Permissions
     public const string AssignmentsEdit = "assignments.edit";
     public const string AssignmentsDelete = "assignments.delete";
 
-    public const string RelationshipsView = "relationships.view";
-    public const string RelationshipsCreate = "relationships.create";
-    public const string RelationshipsEdit = "relationships.edit";
-    public const string RelationshipsDelete = "relationships.delete";
-
     public const string RolesView = "roles.view";
     public const string RolesManage = "roles.manage";
     public const string RolesManageGroup = "roles.manage_group"; // CG: tune group-staff (ACG…) access per area
@@ -83,7 +78,6 @@ public static class Permissions
         UnitsView, UnitsCreate, UnitsEdit, UnitsDelete,
         TeamsView, TeamsCreate, TeamsEdit, TeamsDelete,
         AssignmentsView, AssignmentsCreate, AssignmentsEdit, AssignmentsDelete,
-        RelationshipsView, RelationshipsCreate, RelationshipsEdit, RelationshipsDelete,
         RolesView, RolesManage, RolesManageGroup,
         AssociationsView, AssociationsManage,
         UnitTypesView, UnitTypesManage,

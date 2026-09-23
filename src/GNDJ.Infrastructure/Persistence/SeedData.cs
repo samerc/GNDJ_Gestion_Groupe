@@ -87,7 +87,6 @@ public static class SeedData
             Permissions.UnitsView,
             Permissions.TeamsView, Permissions.TeamsCreate, Permissions.TeamsEdit, Permissions.TeamsDelete,
             Permissions.AssignmentsView, Permissions.AssignmentsCreate, Permissions.AssignmentsEdit, Permissions.AssignmentsDelete,
-            Permissions.RelationshipsView, Permissions.RelationshipsCreate, Permissions.RelationshipsEdit, Permissions.RelationshipsDelete,
             Permissions.RolesView,
             Permissions.DocumentsView, Permissions.DocumentsCreate, Permissions.DocumentsDelete, Permissions.DocumentsApprove,
             Permissions.CotisationsView, Permissions.CotisationsCreate, Permissions.CotisationsEdit, Permissions.CotisationsDelete,
@@ -100,7 +99,6 @@ public static class SeedData
             Permissions.MembersView,
             Permissions.TeamsView,
             Permissions.AssignmentsView,
-            Permissions.RelationshipsView,
             Permissions.DocumentsView,
             Permissions.CotisationsView
         ]);
