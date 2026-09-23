@@ -22,18 +22,17 @@ public static class SeedData
 
     // ".view" permissions that must NOT be granted to the read-only (youth/member) profile even though they
     // end in ".view": they gate leader/CG-only AGGREGATE views over the whole group. The read-only profile is
-    // "all .view" for convenience, but these expose data a member must never see — audit trail (audit.view),
-    // the entire enrollment queue incl. children's medical/PII (demande.view), the authorization model +
-    // who holds each profile (roles.view), and the group passage plan (passage.view). A youth's own data is
-    // served by /my-profile & /auth/me (no .view perm needed), so removing these breaks nothing for them.
-    public static readonly string[] ReadOnlyExcludedViews =
-    [
-        Permissions.AuditView, Permissions.DemandeView, Permissions.RolesView, Permissions.PassageView,
-    ];
+    // Slice 5: the read-only (youth/member) profile now holds ZERO permissions. A member's own data is served
+    // by /my-profile, /auth/me and the member-scoped endpoints, which authorize via own-record bypass (no
+    // permission required) — the ".view" perms it used to carry were vestigial for a youth's own fiche and were
+    // the load-bearing reason a unit-only access check could leak co-members' data. With the profile empty,
+    // "members.view" (and every other ".view") is held only by leaders, so it becomes a true leader signal.
+    public static string[] ReadOnlyPermissions() => [];
 
-    // The permission set for the read-only profile: every ".view" EXCEPT the sensitive aggregate ones above.
-    public static string[] ReadOnlyPermissions() =>
-        Permissions.All.Where(p => p.EndsWith(".view") && !ReadOnlyExcludedViews.Contains(p)).ToArray();
+    // Every ".view" permission — the read-only profile is emptied to this on startup for existing DBs (it used
+    // to hold all of them). Revoking the whole set is idempotent and future-proof against any stray grant.
+    public static string[] AllViewPermissions() =>
+        Permissions.All.Where(p => p.EndsWith(".view")).ToArray();
 
     // Curated starter list of Lebanese towns (Beirut + Mount Lebanon focus, where the group's families
     // live, plus major cities). CG/super-admin curate it afterwards via the "Villes" admin page.
@@ -229,11 +228,12 @@ public static class SeedData
             // Also no UnitsEdit — a CU manages TEAMS (teams.*) but must not edit the unit's own record
             // (nom/code/association/type/statut/site public). That stays super-admin / assoc-admin.
             ["chef-unite"] = [Permissions.MembersCreate, Permissions.UnitsEdit],
-            // The read-only (youth/member) profile previously got ALL ".view" perms, which included the
-            // sensitive aggregate ones (audit/demande/roles/passage) — a member could read the audit trail,
-            // the whole enrollment queue (children's medical/PII), the authz model, and the passage plan.
-            // Revoke them from existing DBs so the [HasPermission] attributes now deny a youth automatically.
-            ["read-only"] = ReadOnlyExcludedViews,
+            // Slice 5: the read-only (youth/member) profile is emptied — a member's own data is served by
+            // own-record-bypass endpoints, so youth need NO permissions. Revoke EVERY ".view" it used to hold
+            // (it previously carried all of them) so existing DBs converge to zero perms on startup. This makes
+            // "members.view" a true leader-only signal, closing the class of co-member leaks a ".view"-holding
+            // youth enabled.
+            ["read-only"] = AllViewPermissions(),
         };
         foreach (var (code, revoke) in profileRevocations)
         {

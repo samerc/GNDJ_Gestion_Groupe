@@ -72,14 +72,15 @@ internal static class TestDb
     }
 }
 
-// Minimal fakes for the two Application services the area-access handler depends on.
+// Minimal fake caller. The positional ctor covers the perm-only cases; MemberId / AuthorizedUnitIds are set via
+// object initializer where a test needs to model own-record access or unit scoping.
 internal sealed class FakeCurrentUser(bool isSuperAdmin, params string[] permissions) : ICurrentUserService
 {
-    public Guid? UserId => Guid.Empty;
-    public Guid? MemberId => Guid.Empty;
+    public Guid? UserId { get; set; } = Guid.Empty;
+    public Guid? MemberId { get; set; }
     public bool IsSuperAdmin { get; } = isSuperAdmin;
     public IReadOnlyList<string> Permissions { get; } = permissions;
-    public IReadOnlyList<Guid> AuthorizedUnitIds { get; } = [];
+    public IReadOnlyList<Guid> AuthorizedUnitIds { get; set; } = [];
 }
 
 internal sealed class NoopAudit : IAuditService

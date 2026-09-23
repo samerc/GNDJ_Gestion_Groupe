@@ -26,8 +26,10 @@ public class AssignmentsController : BaseApiController
     /// <param name="isActive">When set, filters to active (true) or ended (false) assignments.</param>
     /// <param name="page">1-based page number.</param>
     /// <param name="pageSize">Page size.</param>
+    // Auth-only: the handler scopes results — a non-leader sees only their OWN assignments (Postes tab on Ma
+    // fiche), a members.edit leader sees their authorized units. So an empty read-only youth loads their own
+    // assignments (slice 5) while never seeing co-members' rows; assignments.view is no longer required.
     [HttpGet]
-    [HasPermission(Permissions.AssignmentsView)]
     public async Task<IActionResult> GetAll(
         [FromQuery] Guid? memberId, [FromQuery] Guid? unitId, [FromQuery] Guid? teamId,
         [FromQuery] bool? isActive, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)

@@ -14,9 +14,10 @@ namespace GNDJ.Api.Controllers;
 [Authorize]
 public class GuardiansController : BaseApiController
 {
-    /// <summary>Lists the guardians linked to a member. Requires members.view; handler enforces unit-scope/IDOR (own profile or authorized units).</summary>
+    /// <summary>Lists the guardians linked to a member. Auth-only: the handler (MemberAccess) enforces access —
+    /// a member sees their OWN family with no permission, else a members.edit leader of the member's unit. This
+    /// lets an empty read-only youth load their Famille tab (slice 5) without leaking anyone else's.</summary>
     [HttpGet("members/{memberId:guid}/guardians")]
-    [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> GetMemberGuardians(Guid memberId)
     {
         var result = await Mediator.Send(new GetMemberGuardiansQuery(memberId));

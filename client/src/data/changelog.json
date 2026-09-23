@@ -5,7 +5,11 @@
     "changes": [
       {
         "date": "2026-09-23",
-        "text": "Accès & permissions — le domaine « Famille » est retiré des accès délégués et de l'édition par domaine : il n'avait aucun effet (l'accès à la famille d'un membre suit en réalité l'accès « Membres »). De plus, dans la fenêtre d'accès délégué, si la personne n'a pas de rôle de responsable, les réglages par domaine sont masqués (ils n'auraient aucun effet) : on ne propose que l'attribution d'un profil (« Agir comme »)."
+        "text": "Accès & permissions — le niveau « Membres » d'un profil dit désormais la vérité : l'accès aux fiches des membres est gouverné par ce domaine (et non plus par le statut « maîtrise »). Un profil dont le niveau « Membres » est « Aucun » ne peut plus ouvrir les fiches, même s'il conserve d'autres droits de maîtrise. Aucun changement pour les profils actuels (le chef de groupe et ses assistants gardent leur accès), mais les futurs réglages par domaine sont enfin cohérents."
+      },
+      {
+        "date": "2026-09-23",
+        "text": "Membres — le profil « Lecture seule » (jeunes/membres) ne porte plus aucune permission : chaque membre accède à SES propres données (fiche, famille, postes, documents, cotisations, progression, trombinoscope) sans avoir besoin d'aucun droit. Cela ferme définitivement le risque qu'un jeune puisse voir les données d'autres membres de son unité, tout en gardant sa fiche entièrement fonctionnelle."
       },
       {
         "date": "2026-09-23",

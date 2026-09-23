@@ -75,9 +75,9 @@ public class CustomFieldsController : BaseApiController
         return NoContent();
     }
 
-    /// <summary>Lists a member's custom field values. Requires members.view.</summary>
+    /// <summary>Lists a member's custom field values. Auth-only: the handler (MemberAccess) enforces access —
+    /// own record with no permission, else a members.edit leader of the member's unit.</summary>
     [HttpGet("member/{memberId:guid}")]
-    [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> GetMemberValues(Guid memberId)
     {
         var result = await Mediator.Send(new GetMemberCustomFieldValuesQuery(memberId));
@@ -85,10 +85,9 @@ public class CustomFieldsController : BaseApiController
     }
 
     /// <summary>Lists the custom fields that APPLY to a member (targeting) and that the caller may VIEW, with the
-    /// member's values merged. Drives the member "Infos complémentaires" tab + Ma fiche. Requires members.view;
-    /// the handler enforces per-member access + field visibility.</summary>
+    /// member's values merged. Drives the member "Infos complémentaires" tab + Ma fiche. Auth-only: the handler
+    /// enforces per-member access (own record, else a members.edit leader) + field visibility.</summary>
     [HttpGet("member/{memberId:guid}/applicable")]
-    [HasPermission(Permissions.MembersView)]
     public async Task<IActionResult> GetMemberApplicable(Guid memberId)
     {
         var result = await Mediator.Send(new GetMemberApplicableCustomFieldsQuery(memberId));

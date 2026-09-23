@@ -39,11 +39,11 @@ public class DocumentTypesController : BaseApiController
     }
 
     /// <summary>
-    /// Lightweight document type lookup for upload/matrix pickers. Gated on documents.view (not document_types.view)
-    /// so any document uploader can list types; output-cached as static lookup data. Requires documents.view.
+    /// Lightweight document type lookup for upload/matrix pickers + the member "Mes documents" checklist.
+    /// Auth-only reference data (the list of required document types is not member-specific), so a member with an
+    /// empty profile can see what to upload (slice 5); output-cached as static lookup data.
     /// </summary>
     [HttpGet("list")]
-    [HasPermission(Permissions.DocumentsView)]
     [OutputCache(PolicyName = "LookupData")]
     public async Task<IActionResult> GetList()
     {
