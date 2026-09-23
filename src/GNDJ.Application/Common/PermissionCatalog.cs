@@ -16,7 +16,6 @@ public static class PermissionCatalog
     [
         new("membres", "Membres"),
         new("affectations", "Affectations"),
-        new("famille", "Famille"),
         new("documents", "Documents"),
         new("cotisations", "Cotisations"),
         new("progression", "Progression"),
@@ -44,10 +43,9 @@ public static class PermissionCatalog
         new(P.AssignmentsEdit, "affectations", "Modifier une affectation"),
         new(P.AssignmentsDelete, "affectations", "Supprimer une affectation"),
 
-        new(P.RelationshipsView, "famille", "Voir la famille"),
-        new(P.RelationshipsCreate, "famille", "Ajouter un parent / tuteur"),
-        new(P.RelationshipsEdit, "famille", "Modifier la famille"),
-        new(P.RelationshipsDelete, "famille", "Retirer un parent / tuteur"),
+        // NOTE: relationships.* (the old "Famille" domain) is enforced by NO endpoint — family access rides on
+        // members.view/edit (the "Membres" domaine). Dropped from the catalog 2026-09-23 so the editor/viewer
+        // don't show unenforceable permissions. (The enum constants + any stored grants are left as harmless data.)
 
         new(P.DocumentsView, "documents", "Voir les documents"),
         new(P.DocumentsCreate, "documents", "Téléverser un document"),

@@ -414,7 +414,7 @@ export function useSaveLeaverContact() {
 // CG, resolved live) and/or a granular per-area grant (e.g. Camp BP). CG (roles.manage_group) / super-admin only.
 // Takes effect on the member's next login/refresh.
 export interface DelegationArea { key: string; label: string; level: string } // level: aucun | lecture | complet
-export interface MemberDelegation { hasDelegation: boolean; profileId: string | null; profileName: string | null; areas: DelegationArea[] }
+export interface MemberDelegation { hasDelegation: boolean; profileId: string | null; profileName: string | null; isLeader: boolean; areas: DelegationArea[] }
 // Overview row for the Membres tab: one member holding a delegation. profileName = the attached profile (null if
 // none); areas = "Label (niveau)" strings. unitCode = their current unit (null if none).
 export interface MemberDelegationSummary { memberId: string; name: string; unitCode: string | null; profileName: string | null; areas: string[] }

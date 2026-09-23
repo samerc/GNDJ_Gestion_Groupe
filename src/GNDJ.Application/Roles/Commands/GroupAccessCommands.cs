@@ -19,7 +19,8 @@ public static class GroupAccessAreas
     [
         new("membres", "Membres", [P.MembersView], [P.MembersCreate, P.MembersEdit, P.MembersDelete, P.MembersResetPassword]),
         new("affectations", "Affectations", [P.AssignmentsView], [P.AssignmentsCreate, P.AssignmentsEdit, P.AssignmentsDelete]),
-        new("famille", "Famille", [P.RelationshipsView], [P.RelationshipsCreate, P.RelationshipsEdit, P.RelationshipsDelete]),
+        // NOTE: no "Famille" area — family access is governed by members.view/edit (it rides on "Membres"); the
+        // relationships.* permissions are enforced NOWHERE, so granting them did nothing. Removed 2026-09-23.
         new("documents", "Documents", [P.DocumentsView], [P.DocumentsCreate, P.DocumentsEdit, P.DocumentsDelete, P.DocumentsApprove]),
         new("cotisations", "Cotisations", [P.CotisationsView], [P.CotisationsCreate, P.CotisationsEdit, P.CotisationsDelete]),
         new("progression", "Progression", [P.ProgressionView], [P.ProgressionManage]),

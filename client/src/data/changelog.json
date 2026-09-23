@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-23",
+        "text": "Accès & permissions — le domaine « Famille » est retiré des accès délégués et de l'édition par domaine : il n'avait aucun effet (l'accès à la famille d'un membre suit en réalité l'accès « Membres »). De plus, dans la fenêtre d'accès délégué, si la personne n'a pas de rôle de responsable, les réglages par domaine sont masqués (ils n'auraient aucun effet) : on ne propose que l'attribution d'un profil (« Agir comme »)."
+      },
+      {
+        "date": "2026-09-23",
         "text": "Accès & permissions — les rôles de la maîtrise de groupe sont désormais gérés comme tous les autres rôles : l'onglet séparé « Fonctions » (Accès maîtrise) disparaît. On modifie l'accès d'un rôle de groupe directement depuis son profil dans l'onglet « Profils » — la modification s'applique alors à TOUS ses détenteurs (par ex. changer « Assistant de Groupe » vaut pour tous les ACG). Le chef de groupe peut ajuster les profils de groupe par domaine (Aucun / Lecture / Complet) ; le super-administrateur dispose en plus d'un mode « Avancé » (permission par permission). Avant d'enregistrer, un avertissement rappelle combien de fonctions et d'accès délégués sont concernés. Pour un accès particulier à UNE personne, on utilise l'onglet « Membres » (accès délégué)."
       },
       {

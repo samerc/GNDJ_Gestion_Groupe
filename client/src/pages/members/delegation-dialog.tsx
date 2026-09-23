@@ -83,12 +83,21 @@ export function DelegationDialog({ memberId, memberName, open, onOpenChange }: {
               </Select>
             </div>
 
-            {/* Granular per-area — additive to the profile above */}
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Ou / et accès par domaine</p>
-              <AreaLevels areas={data?.areas ?? []} levels={levels} columns="sm:grid-cols-2"
-                onChange={(key, v) => setLevels(prev => ({ ...prev, [key]: v }))} />
-            </div>
+            {/* Granular per-area — additive to the profile above. Shown only for a member who already holds a
+                leadership role; for a member with no role, per-domaine grants are inert, so we offer only the
+                profile above ("Agir comme"). */}
+            {data?.isLeader ? (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Ou / et accès par domaine</p>
+                <AreaLevels areas={data?.areas ?? []} levels={levels} columns="sm:grid-cols-2"
+                  onChange={(key, v) => setLevels(prev => ({ ...prev, [key]: v }))} />
+              </div>
+            ) : (
+              <p className="rounded-md bg-muted/50 p-2.5 text-xs text-muted-foreground">
+                Cette personne n'a pas de rôle de responsable. Pour lui accorder un accès, attribuez-lui un
+                profil ci-dessus (« Agir comme »). L'accès par domaine ne s'applique qu'à un responsable existant.
+              </p>
+            )}
           </div>
         )}
 

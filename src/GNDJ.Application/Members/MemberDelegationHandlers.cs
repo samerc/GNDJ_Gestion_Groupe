@@ -68,8 +68,10 @@ public class GetMemberDelegationsQueryHandler(IApplicationDbContext context, ICu
     }
 }
 
-// Current delegation for a member (the attached profile + per-area levels), for the dialog.
-public record MemberDelegationDto(bool HasDelegation, Guid? ProfileId, string? ProfileName, IReadOnlyList<GroupAreaDto> Areas);
+// Current delegation for a member (the attached profile + per-area levels), for the dialog. IsLeader = the
+// member already holds a leadership role (a fonction whose profile grants members.edit); when false, the dialog
+// hides the per-domaine grants (they'd be inert for a non-leader) and offers only "Agir comme (profil)".
+public record MemberDelegationDto(bool HasDelegation, Guid? ProfileId, string? ProfileName, bool IsLeader, IReadOnlyList<GroupAreaDto> Areas);
 
 public record GetMemberDelegationQuery(Guid MemberId) : IRequest<Result<MemberDelegationDto>>;
 
@@ -106,8 +108,14 @@ public class GetMemberDelegationQueryHandler(IApplicationDbContext context, ICur
             .Select(a => new GroupAreaDto(a.Key, a.Label, GroupAccessAreas.LevelOf(permSet, a)))
             .ToList();
 
+        // Does the member already hold a leadership role? (a fonction whose profile grants members.edit). If not,
+        // per-domaine grants are inert — the dialog hides them and offers only "Agir comme (profil)".
+        var isLeader = await context.MemberAssignments.AnyAsync(a =>
+            a.MemberId == request.MemberId && a.EndDate == null
+            && a.FunctionalRole.SecurityProfile.Permissions.Any(p => p.Permission == P.MembersEdit), ct);
+
         return Result<MemberDelegationDto>.Success(
-            new MemberDelegationDto(profileId != null || permSet.Count > 0, profileId, profileName, areas));
+            new MemberDelegationDto(profileId != null || permSet.Count > 0, profileId, profileName, isLeader, areas));
     }
 }
 
