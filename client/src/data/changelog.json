@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-23",
+        "text": "Accès & permissions — nettoyage des profils de sécurité : trois profils inutilisés ont été retirés (« Super Admin » — le super-administrateur est un statut de compte, pas un profil ; « Admin Association » — obsolète ; « Chef d'équipe » — les chefs d'équipe utilisent « Lecture seule » + l'indicateur chef d'équipe). La liste des profils est donc plus claire."
+      },
+      {
+        "date": "2026-09-23",
         "text": "Accès délégué — au lieu d'un simple bouton « Chef de Groupe entrant », on peut désormais accorder à une personne « Agir comme (profil) » en lui attribuant un profil existant (par ex. « Chef de Groupe »). L'accès reste synchronisé : si le profil change, l'accès délégué suit automatiquement. On peut toujours y ajouter un accès par domaine (Aucun / Lecture / Complet). Utile pour un chef de groupe entrant qui doit déjà travailler avant que son rôle soit officialisé."
       },
       {
