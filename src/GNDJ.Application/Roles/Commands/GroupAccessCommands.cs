@@ -156,3 +156,64 @@ public class SetGroupFunctionAccessCommandHandler(IApplicationDbContext context,
         return Result<bool>.Success(true);
     }
 }
+
+// ── Command: edit a PROFILE's per-domaine access IN PLACE (the full-merge replacement for the per-function fork) ──
+// Group roles are now ordinary profiles: editing one applies to ALL its holders (role semantics). Only the
+// delegable AREA permissions change — every other permission on the profile (maitrise.manage, rentree.manage,
+// attendance.manage, non-delegatable perms…) is PRESERVED, so a CG tuning an area can never accidentally strip a
+// group role's manager rights. super-admin: any profile, uncapped. CG (roles.manage_group): only a group-level
+// profile that isn't chef-de-groupe, and can only grant area perms they hold themselves.
+public record SetProfileAreaAccessCommand(Guid ProfileId, Dictionary<string, string> AreaLevels) : IRequest<Result<bool>>;
+
+public class SetProfileAreaAccessCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<SetProfileAreaAccessCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(SetProfileAreaAccessCommand request, CancellationToken ct)
+    {
+        var isSuper = currentUser.IsSuperAdmin;
+        var profile = await context.SecurityProfiles
+            .Include(p => p.Permissions)
+            .FirstOrDefaultAsync(p => p.Id == request.ProfileId, ct);
+        if (profile is null) return Result<bool>.Failure("Profil introuvable.");
+
+        if (!isSuper)
+        {
+            if (!currentUser.Permissions.Contains(P.RolesManageGroup))
+                return Result<bool>.Failure("Accès non autorisé.");
+            if (!profile.IsGroupLevel)
+                return Result<bool>.Failure("Seuls les profils de la maîtrise de groupe peuvent être modifiés ici.");
+            if (profile.Code == "chef-de-groupe")
+                return Result<bool>.Failure("Le profil Chef de Groupe ne peut pas être restreint.");
+        }
+
+        var current = profile.Permissions.Select(p => p.Permission).ToHashSet();
+        // Perms the delegable areas can touch; everything else on the profile is preserved untouched.
+        var areaPerms = GroupAccessAreas.All.SelectMany(a => a.View.Concat(a.Manage)).ToHashSet();
+        var preserved = current.Where(p => !areaPerms.Contains(p)).ToHashSet();
+
+        // Apply the requested area levels to a fresh set (area perms only).
+        var applied = new HashSet<string>();
+        foreach (var (key, level) in request.AreaLevels)
+        {
+            var area = GroupAccessAreas.All.FirstOrDefault(a => a.Key == key);
+            if (area is not null) GroupAccessAreas.ApplyLevel(applied, area, level);
+        }
+        // Non-super editor can only grant area perms they hold (area perms are never non-delegatable).
+        if (!isSuper) applied.IntersectWith(currentUser.Permissions.ToHashSet());
+
+        var final = new HashSet<string>(preserved);
+        final.UnionWith(applied);
+
+        // Diff-apply via the DbSet — never mutate the tracked nav collection (avoids the DbUpdateConcurrencyException).
+        var existing = profile.Permissions.ToList();
+        var existingSet = existing.Select(p => p.Permission).ToHashSet();
+        context.SecurityProfilePermissions.RemoveRange(existing.Where(p => !final.Contains(p.Permission)));
+        foreach (var p in final.Where(p => !existingSet.Contains(p)))
+            context.SecurityProfilePermissions.Add(new SecurityProfilePermission { SecurityProfileId = profile.Id, Permission = p });
+
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("UpdateProfileAccess", "SecurityProfile", profile.Id,
+            newValues: new { profile.Code, Permissions = final.OrderBy(x => x).ToList() }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}

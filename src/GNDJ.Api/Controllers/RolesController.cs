@@ -191,7 +191,7 @@ public class SecurityProfilesController : BaseApiController
         return NoContent();
     }
 
-    /// <summary>Updates the permission set of a security profile. Requires roles.manage.</summary>
+    /// <summary>Updates the permission set of a security profile (avancé/raw editor). Requires roles.manage (super-admin).</summary>
     [HttpPut("{id:guid}/permissions")]
     [HasPermission(Permissions.RolesManage)]
     public async Task<IActionResult> UpdatePermissions(Guid id, [FromBody] UpdateSecurityProfilePermissionsCommand command)
@@ -201,6 +201,22 @@ public class SecurityProfilesController : BaseApiController
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return NoContent();
     }
+
+    /// <summary>
+    /// Sets a profile's per-domaine access (Aucun/Lecture/Complet) IN PLACE — the full-merge replacement for the
+    /// per-function "Accès maîtrise". Applies to ALL holders of the profile. Requires roles.manage_group (a Chef
+    /// de Groupe may edit a group-level profile that isn't chef-de-groupe, capped; a super-admin any profile).
+    /// </summary>
+    [HttpPut("{id:guid}/area-access")]
+    [HasPermission(Permissions.RolesManageGroup)]
+    public async Task<IActionResult> SetAreaAccess(Guid id, [FromBody] SetProfileAreaAccessBody body)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Roles.Commands.SetProfileAreaAccessCommand(id, body?.AreaLevels ?? []));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    public record SetProfileAreaAccessBody(Dictionary<string, string>? AreaLevels);
 
     /// <summary>Merges the SOURCE profile into the TARGET (repoints its fonctions, deletes the source) — for cleaning up duplicate profiles. Requires roles.manage.</summary>
     [HttpPost("merge")]

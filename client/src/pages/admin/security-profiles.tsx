@@ -5,7 +5,7 @@
 // tab read-only. System profiles (isSystem) can't be deleted. Editor edits are staged locally until "Enregistrer".
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
-import { useSecurityProfiles, useSecurityProfile, useUpdateSecurityProfilePermissions, useCreateSecurityProfile, useDeleteSecurityProfile } from '@/services/security-profile-service'
+import { useSecurityProfiles, useSecurityProfile, useUpdateSecurityProfilePermissions, useSetProfileAreaAccess, useCreateSecurityProfile, useDeleteSecurityProfile } from '@/services/security-profile-service'
 import { useSecurityProfileMembers, useMergeSecurityProfiles } from '@/services/role-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { PermissionGroups } from '@/components/admin/permission-editor'
+import { PermissionGroups, AreaLevels } from '@/components/admin/permission-editor'
 import { Shield, ChevronRight, Save, Plus, Trash2, GitMerge } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -27,7 +27,8 @@ import { toast } from 'sonner'
 export default function SecurityProfilesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { data: profiles, isLoading } = useSecurityProfiles()
   const { hasPermission } = useAuthStore()
-  const canManage = hasPermission(PERMISSIONS.ROLES_MANAGE)
+  const canManage = hasPermission(PERMISSIONS.ROLES_MANAGE)         // super-admin: edit ANY profile (raw + domaine)
+  const canGroupEdit = hasPermission(PERMISSIONS.ROLES_MANAGE_GROUP) // CG: edit group-level profiles by domaine (capped)
   const [selectedId, setSelectedId] = useState<string>('')
   const [createOpen, setCreateOpen] = useState(false)
 
@@ -76,7 +77,7 @@ export default function SecurityProfilesPage({ embedded = false }: { embedded?: 
         {selectedId ? (
           // key={selectedId} remounts the editor on profile switch so staged (unsaved) permission toggles,
           // the dirty/saved flags, error banner and active tab don't bleed from the previous profile onto the next.
-          <PermissionEditor key={selectedId} profileId={selectedId} canManage={canManage} onDeleted={() => setSelectedId('')} />
+          <PermissionEditor key={selectedId} profileId={selectedId} canManage={canManage} canGroupEdit={canGroupEdit} onDeleted={() => setSelectedId('')} />
         ) : (
           <Card>
             <CardContent className="flex items-center justify-center py-16 text-muted-foreground">
@@ -136,16 +137,21 @@ function CreateProfileDialog({ open, onOpenChange, onCreated }: { open: boolean;
   )
 }
 
-function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: string; canManage: boolean; onDeleted: () => void }) {
+function PermissionEditor({ profileId, canManage, canGroupEdit, onDeleted }: { profileId: string; canManage: boolean; canGroupEdit: boolean; onDeleted: () => void }) {
   const { data: profile, isLoading } = useSecurityProfile(profileId)
-  const updateMutation = useUpdateSecurityProfilePermissions()
+  const updateMutation = useUpdateSecurityProfilePermissions()   // avancé (raw) save — super-admin
+  const areaMutation = useSetProfileAreaAccess()                 // simple (domaine) save — CG / super-admin
   const deleteMutation = useDeleteSecurityProfile()
-  const [editedPerms, setEditedPerms] = useState<Set<string> | null>(null)
+  const [editedPerms, setEditedPerms] = useState<Set<string> | null>(null)  // avancé working copy (null = unmodified)
+  const [levels, setLevels] = useState<Record<string, string> | null>(null) // simple working copy (null = unmodified)
+  // Editor mode: super-admin defaults to avancé (full control incl. structural perms); a CG only ever gets simple.
+  const [mode, setMode] = useState<'simple' | 'avance'>(canManage ? 'avance' : 'simple')
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [mergeOpen, setMergeOpen] = useState(false)
-  const [tab, setTab] = useState<'perms' | 'members'>(canManage ? 'perms' : 'members')
+  const [confirmSaveOpen, setConfirmSaveOpen] = useState(false)
+  const [tab, setTab] = useState<'perms' | 'members'>('perms')
 
   const handleDelete = async () => {
     setError('')
@@ -164,28 +170,44 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
   if (isLoading) return <LoadingSpinner />
   if (!profile) return null
 
-  // editedPerms === null means "unmodified, mirror the server set"; once the user toggles anything it
-  // becomes a staged local copy (drives the dirty/Enregistrer state) until saved or reset.
-  const currentPerms = editedPerms ?? new Set(profile.permissions)
-  const hasChanges = editedPerms !== null
+  // Who can edit THIS profile, and how. super-admin (roles.manage) → any profile, raw or domaine. A Chef de
+  // Groupe (roles.manage_group) → only a GROUP-LEVEL profile that isn't chef-de-groupe, via the domaine editor.
+  const canRaw = canManage
+  const canAreaEdit = canManage || (canGroupEdit && profile.isGroupLevel && profile.code !== 'chef-de-groupe')
+  const canEditAny = canRaw || canAreaEdit
+  const effectiveMode: 'simple' | 'avance' = mode === 'avance' && !canRaw ? 'simple' : mode
+  const showPermsTab = canEditAny
+  const activeTab = showPermsTab ? tab : 'members'
 
-  const handleSave = async () => {
-    if (!editedPerms) return
+  // Working copies + dirty state per mode.
+  const currentPerms = editedPerms ?? new Set(profile.permissions)
+  const currentLevels = levels ?? Object.fromEntries(profile.areas.map(a => [a.key, a.level]))
+  const dirty = effectiveMode === 'avance'
+    ? editedPerms !== null
+    : levels !== null && profile.areas.some(a => (currentLevels[a.key] ?? 'aucun') !== a.level)
+
+  const switchMode = (m: 'simple' | 'avance') => { setMode(m); setEditedPerms(null); setLevels(null); setSaved(false) }
+
+  const doSave = async () => {
     setError('')
     try {
-      await updateMutation.mutateAsync({ id: profileId, permissions: [...editedPerms] })
-      setEditedPerms(null)
-      setSaved(true)
+      if (effectiveMode === 'avance') {
+        await updateMutation.mutateAsync({ id: profileId, permissions: [...currentPerms] })
+      } else {
+        await areaMutation.mutateAsync({ id: profileId, areaLevels: currentLevels })
+      }
+      setEditedPerms(null); setLevels(null); setSaved(true)
       toast.success('Permissions enregistrées')
     } catch (err) {
       setError(parseApiError(err))
     }
   }
 
-  const handleReset = () => {
-    setEditedPerms(null)
-    setSaved(false)
-  }
+  // A change to a shared profile hits every holder (+ anyone with it as an accès délégué) — warn before saving.
+  const affects = profile.roleCount + profile.delegationCount
+  const requestSave = () => { if (affects > 0) setConfirmSaveOpen(true); else doSave() }
+  const handleReset = () => { setEditedPerms(null); setLevels(null); setSaved(false) }
+  const saving = updateMutation.isPending || areaMutation.isPending
 
   return (
     <>
@@ -197,6 +219,7 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
             <p className="text-sm text-muted-foreground mt-0.5">
               {profile.description ?? profile.code}
               {profile.roleCount > 0 && <span> — {profile.roleCount} fonction{profile.roleCount > 1 ? 's' : ''}</span>}
+              {profile.delegationCount > 0 && <span> · {profile.delegationCount} accès délégué{profile.delegationCount > 1 ? 's' : ''}</span>}
             </p>
             {/* Which fonctions use this profile (not just a count) — helps decide a merge / spot duplicates. */}
             {profile.roleNames.length > 0 && (
@@ -205,23 +228,24 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
               </div>
             )}
           </div>
-          {canManage && tab === 'perms' && (
+          {canEditAny && activeTab === 'perms' && (
             <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
               {saved && <span className="text-sm text-green-600 dark:text-green-400">Enregistré</span>}
-              {hasChanges && (
+              {dirty && (
                 <>
                   <Button variant="outline" size="sm" onClick={handleReset}>Annuler</Button>
-                  <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
-                    <Save className="mr-1 h-4 w-4" />{updateMutation.isPending ? '...' : 'Enregistrer'}
+                  <Button size="sm" onClick={requestSave} disabled={saving}>
+                    <Save className="mr-1 h-4 w-4" />{saving ? '...' : 'Enregistrer'}
                   </Button>
                 </>
               )}
-              {!hasChanges && (
+              {/* Merge / delete stay super-admin-only. */}
+              {canManage && !dirty && (
                 <Button variant="outline" size="sm" onClick={() => setMergeOpen(true)}>
                   <GitMerge className="mr-1 h-4 w-4" />Fusionner
                 </Button>
               )}
-              {!hasChanges && !profile.isSystem && (
+              {canManage && !dirty && !profile.isSystem && (
                 <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
                   <Trash2 className="mr-1 h-4 w-4" />Supprimer
                 </Button>
@@ -229,16 +253,16 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
             </div>
           )}
         </div>
-        {/* Tabs: permissions (admins only) + members */}
+        {/* Tabs: permissions (editable users) + members */}
         <div className="flex gap-1 border-b mt-3 -mb-px">
-          {canManage && (
+          {showPermsTab && (
             <button onClick={() => setTab('perms')}
-              className={`px-3 py-2 text-sm font-medium border-b-2 ${tab === 'perms' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+              className={`px-3 py-2 text-sm font-medium border-b-2 ${activeTab === 'perms' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
               Permissions
             </button>
           )}
           <button onClick={() => setTab('members')}
-            className={`px-3 py-2 text-sm font-medium border-b-2 ${tab === 'members' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+            className={`px-3 py-2 text-sm font-medium border-b-2 ${activeTab === 'members' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
             Membres
           </button>
         </div>
@@ -246,13 +270,44 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
       <CardContent>
         {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive mb-4">{error}</div>}
 
-        {tab === 'members' && <ProfileMembersList profileId={profileId} />}
+        {activeTab === 'members' && <ProfileMembersList profileId={profileId} />}
 
-        {tab === 'perms' && canManage && (
-          <PermissionGroups value={currentPerms} onChange={(next) => { setEditedPerms(next); setSaved(false) }} />
+        {activeTab === 'perms' && canEditAny && (
+          <>
+            {/* Simple (domaine) ⇄ Avancé (raw) toggle — avancé only for a super-admin. */}
+            {canRaw && (
+              <div className="mb-3 inline-flex rounded-md border p-0.5 text-xs">
+                <button onClick={() => switchMode('simple')}
+                  className={`rounded px-2.5 py-1 font-medium ${effectiveMode === 'simple' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>Par domaine</button>
+                <button onClick={() => switchMode('avance')}
+                  className={`rounded px-2.5 py-1 font-medium ${effectiveMode === 'avance' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>Avancé</button>
+              </div>
+            )}
+            {effectiveMode === 'avance'
+              ? <PermissionGroups value={currentPerms} onChange={(next) => { setEditedPerms(next); setSaved(false) }} />
+              : (
+                <>
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Accès par domaine (Aucun · Lecture · Complet). Ces permissions concernent les données des
+                    autres membres / de toute l'unité — chacun voit toujours sa propre fiche.
+                  </p>
+                  <AreaLevels areas={profile.areas} levels={currentLevels}
+                    onChange={(key, v) => { setLevels(prev => ({ ...(prev ?? Object.fromEntries(profile.areas.map(a => [a.key, a.level]))), [key]: v })); setSaved(false) }} />
+                </>
+              )}
+          </>
         )}
       </CardContent>
     </Card>
+    <ConfirmDialog
+      open={confirmSaveOpen}
+      onOpenChange={setConfirmSaveOpen}
+      title="Appliquer à tous les détenteurs ?"
+      description={`Ce profil est utilisé par ${profile.roleCount} fonction${profile.roleCount > 1 ? 's' : ''}${profile.delegationCount > 0 ? ` et ${profile.delegationCount} accès délégué${profile.delegationCount > 1 ? 's' : ''}` : ''}. La modification s'applique à tous. Continuer ?`}
+      confirmLabel="Enregistrer"
+      loading={saving}
+      onConfirm={async () => { await doSave(); setConfirmSaveOpen(false) }}
+    />
     <ConfirmDialog
       open={deleteOpen}
       onOpenChange={setDeleteOpen}

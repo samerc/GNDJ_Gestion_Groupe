@@ -85,8 +85,12 @@ public class GetSecurityProfilesQueryHandler : IRequestHandler<GetSecurityProfil
     }
 }
 
-// Security profile detail (with permissions list + the names of the fonctions that use it, for the relift/merge UI)
-public record SecurityProfileDetailDto(Guid Id, string Name, string Code, string? Description, bool IsSystem, IReadOnlyList<string> Permissions, int RoleCount, IReadOnlyList<string> RoleNames);
+// Security profile detail. Carries the raw permissions (avancé editor) + the per-domaine levels (Areas, the
+// simple editor), whether it's group-level, and how many fonctions + delegations depend on it (the pre-save
+// "s'applique à N fonctions / M accès délégués" warning).
+public record SecurityProfileDetailDto(Guid Id, string Name, string Code, string? Description, bool IsSystem,
+    bool IsGroupLevel, IReadOnlyList<string> Permissions, int RoleCount, IReadOnlyList<string> RoleNames,
+    int DelegationCount, IReadOnlyList<Commands.GroupAreaDto> Areas);
 
 public record GetSecurityProfileByIdQuery(Guid Id) : IRequest<SecurityProfileDetailDto?>;
 
@@ -94,20 +98,31 @@ public class GetSecurityProfileByIdQueryHandler(IApplicationDbContext context) :
 {
     public async ValueTask<SecurityProfileDetailDto?> Handle(GetSecurityProfileByIdQuery request, CancellationToken ct)
     {
-        return await context.SecurityProfiles
-            .Where(sp => sp.Id == request.Id)
-            .Select(sp => new SecurityProfileDetailDto(
-                sp.Id, sp.Name, sp.Code, sp.Description, sp.IsSystem,
-                sp.Permissions.Select(p => p.Permission).OrderBy(p => p).ToList(),
-                sp.FunctionalRoles.Count(r => !r.IsDeleted),
-                // The fonctions bound to this profile (name + unit-type when set), so the editor shows WHO uses it,
-                // not just a count — also drives the merge dialog ("N fonctions will move to the target").
-                sp.FunctionalRoles.Where(r => !r.IsDeleted)
-                    .OrderBy(r => r.Name)
-                    .Select(r => r.UnitType != null ? r.Name + " (" + r.UnitType.Name + ")" : r.Name)
-                    .ToList()
-            ))
+        var sp = await context.SecurityProfiles
+            .Where(s => s.Id == request.Id)
+            .Select(s => new
+            {
+                s.Id, s.Name, s.Code, s.Description, s.IsSystem, s.IsGroupLevel,
+                Perms = s.Permissions.Select(p => p.Permission).ToList(),
+                RoleCount = s.FunctionalRoles.Count(r => !r.IsDeleted),
+                // The fonctions bound to this profile (name + unit-type when set), so the editor shows WHO uses it.
+                RoleNames = s.FunctionalRoles.Where(r => !r.IsDeleted).OrderBy(r => r.Name)
+                    .Select(r => r.UnitType != null ? r.Name + " (" + r.UnitType.Name + ")" : r.Name).ToList(),
+            })
             .FirstOrDefaultAsync(ct);
+        if (sp is null) return null;
+
+        // How many members have this profile as an "accès délégué" (Agir comme…) — affected by any change.
+        var delegationCount = await context.Members.CountAsync(m => m.DelegatedProfileId == request.Id && !m.IsDeleted, ct);
+
+        // Per-domaine levels for the "simple" editor (computed in memory from the perm set).
+        var permSet = sp.Perms.ToHashSet();
+        var areas = Commands.GroupAccessAreas.All
+            .Select(a => new Commands.GroupAreaDto(a.Key, a.Label, Commands.GroupAccessAreas.LevelOf(permSet, a)))
+            .ToList();
+
+        return new SecurityProfileDetailDto(sp.Id, sp.Name, sp.Code, sp.Description, sp.IsSystem, sp.IsGroupLevel,
+            sp.Perms.OrderBy(p => p).ToList(), sp.RoleCount, sp.RoleNames, delegationCount, areas);
     }
 }
 

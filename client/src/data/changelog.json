@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-23",
+        "text": "Accès & permissions — les rôles de la maîtrise de groupe sont désormais gérés comme tous les autres rôles : l'onglet séparé « Fonctions » (Accès maîtrise) disparaît. On modifie l'accès d'un rôle de groupe directement depuis son profil dans l'onglet « Profils » — la modification s'applique alors à TOUS ses détenteurs (par ex. changer « Assistant de Groupe » vaut pour tous les ACG). Le chef de groupe peut ajuster les profils de groupe par domaine (Aucun / Lecture / Complet) ; le super-administrateur dispose en plus d'un mode « Avancé » (permission par permission). Avant d'enregistrer, un avertissement rappelle combien de fonctions et d'accès délégués sont concernés. Pour un accès particulier à UNE personne, on utilise l'onglet « Membres » (accès délégué)."
+      },
+      {
+        "date": "2026-09-23",
         "text": "Accès & permissions — nettoyage des profils de sécurité : trois profils inutilisés ont été retirés (« Super Admin » — le super-administrateur est un statut de compte, pas un profil ; « Admin Association » — obsolète ; « Chef d'équipe » — les chefs d'équipe utilisent « Lecture seule » + l'indicateur chef d'équipe). La liste des profils est donc plus claire."
       },
       {
