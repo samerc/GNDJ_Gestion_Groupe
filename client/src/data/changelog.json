@@ -4,6 +4,10 @@
     "date": "2026-09-10",
     "changes": [
       {
+        "date": "2026-09-23",
+        "text": "Accès & permissions — la page « Profils & accès » devient « Accès & permissions » et regroupe tout au même endroit, avec trois onglets qui parlent le même langage : « Profils » (les profils de permissions réutilisables), « Fonctions » (le niveau d'accès par domaine de chaque fonction de la maîtrise de groupe) et « Membres » (les accès délégués accordés à une personne précise, sans rôle visible). L'éditeur de permissions d'un profil est désormais unifié et couvre TOUTES les permissions attribuables (dont certaines qui manquaient avant, comme « maîtrise », « camp », « rentrée », la délégation d'accès), et l'accès par domaine (Aucun / Lecture / Complet) utilise partout le même sélecteur."
+      },
+      {
         "date": "2026-09-22",
         "text": "Accès & permissions — nouvelle fenêtre « Voir les accès » (fiche d'un membre → Actions → Voir les accès) réservée aux gestionnaires de groupe. Elle montre, en un coup d'œil, tout ce que la personne peut faire ET d'où vient chaque accès : depuis quelle fonction, depuis un « accès délégué », ou parce qu'elle est super-administrateur. Les permissions sont regroupées par domaine (Membres, Documents, Cotisations, Passages, Demandes…), avec la portée en tête (« agit sur : telles unités » ou « toutes les unités »). Première étape d'une refonte visant à gérer toutes les permissions au même endroit et de la même façon."
       },

@@ -8,18 +8,12 @@ import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { AreaLevels } from '@/components/admin/permission-editor'
 import { useMemberDelegation, useSetMemberDelegation, type MemberDelegation } from '@/services/member-service'
 import { parseApiError } from '@/lib/error-utils'
 import { ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
-
-const LEVELS = [
-  { value: 'aucun', label: 'Aucun' },
-  { value: 'lecture', label: 'Lecture' },
-  { value: 'complet', label: 'Complet' },
-]
 
 export function DelegationDialog({ memberId, memberName, open, onOpenChange }: {
   memberId: string; memberName: string; open: boolean; onOpenChange: (v: boolean) => void
@@ -82,23 +76,12 @@ export function DelegationDialog({ memberId, memberName, open, onOpenChange }: {
               <Switch checked={fullCg} onCheckedChange={setFullCg} />
             </div>
 
-            {/* Granular per-area (hidden while the full-CG preset is on) */}
+            {/* Granular per-area (hidden while the full-CG preset is on) — same AreaLevels editor as Fonctions */}
             {!fullCg && (
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">Ou accès par domaine</p>
-                <div className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
-                  {(data?.areas ?? []).map(a => (
-                    <div key={a.key} className="flex items-center justify-between gap-2">
-                      <span className="text-sm">{a.label}</span>
-                      <Select value={levels[a.key] ?? 'aucun'} onValueChange={(v) => setLevels(prev => ({ ...prev, [a.key]: v }))}>
-                        <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {LEVELS.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ))}
-                </div>
+                <AreaLevels areas={data?.areas ?? []} levels={levels} columns="sm:grid-cols-2"
+                  onChange={(key, v) => setLevels(prev => ({ ...prev, [key]: v }))} />
               </div>
             )}
           </div>

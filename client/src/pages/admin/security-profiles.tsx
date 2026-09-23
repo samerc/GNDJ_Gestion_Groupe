@@ -1,8 +1,8 @@
-// Admin "Profils de sécurité" screen. Master/detail: a profile list on the left, and on the right
-// either the PERMISSION EDITOR (checklist grouped by category) or the MEMBERS tab (who holds this
-// profile via their active function). Permission editing + create/delete are gated by roles.manage
-// (super-admin); a Chef de Groupe with only roles.view sees the Membres tab read-only. System
-// profiles (isSystem) can't be deleted. Editor edits are staged locally until "Enregistrer".
+// Admin "Profils de sécurité" screen (a tab of the "Accès & permissions" hub). Master/detail: a profile list
+// on the left, and on the right either the PERMISSION EDITOR (the shared PermissionGroups checklist grouped by
+// domain) or the MEMBERS tab (who holds this profile via their active function). Permission editing +
+// create/delete are gated by roles.manage (super-admin); a Chef de Groupe with only roles.view sees the Membres
+// tab read-only. System profiles (isSystem) can't be deleted. Editor edits are staged locally until "Enregistrer".
 import { parseApiError } from '@/lib/error-utils'
 import { useState } from 'react'
 import { useSecurityProfiles, useSecurityProfile, useUpdateSecurityProfilePermissions, useCreateSecurityProfile, useDeleteSecurityProfile } from '@/services/security-profile-service'
@@ -18,143 +18,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { PermissionGroups } from '@/components/admin/permission-editor'
 import { Shield, ChevronRight, Save, Plus, Trash2, GitMerge } from 'lucide-react'
 import { toast } from 'sonner'
 
-// All permissions grouped by category for the editor
-const PERMISSION_GROUPS: { label: string; permissions: { value: string; label: string }[] }[] = [
-  {
-    label: 'Membres',
-    permissions: [
-      { value: 'members.view', label: 'Voir' },
-      { value: 'members.create', label: 'Créer' },
-      { value: 'members.edit', label: 'Modifier' },
-      { value: 'members.delete', label: 'Supprimer' },
-      { value: 'members.reset_password', label: 'Réinitialiser le mot de passe' },
-    ],
-  },
-  {
-    label: 'Unités',
-    permissions: [
-      { value: 'units.view', label: 'Voir' },
-      { value: 'units.create', label: 'Créer' },
-      { value: 'units.edit', label: 'Modifier' },
-      { value: 'units.delete', label: 'Supprimer' },
-    ],
-  },
-  {
-    label: 'Équipes',
-    permissions: [
-      { value: 'teams.view', label: 'Voir' },
-      { value: 'teams.create', label: 'Créer' },
-      { value: 'teams.edit', label: 'Modifier' },
-      { value: 'teams.delete', label: 'Supprimer' },
-    ],
-  },
-  {
-    label: 'Affectations',
-    permissions: [
-      { value: 'assignments.view', label: 'Voir' },
-      { value: 'assignments.create', label: 'Créer' },
-      { value: 'assignments.edit', label: 'Modifier' },
-      { value: 'assignments.delete', label: 'Supprimer' },
-    ],
-  },
-  {
-    label: 'Famille',
-    permissions: [
-      { value: 'relationships.view', label: 'Voir' },
-      { value: 'relationships.create', label: 'Créer' },
-      { value: 'relationships.edit', label: 'Modifier' },
-      { value: 'relationships.delete', label: 'Supprimer' },
-    ],
-  },
-  {
-    label: 'Documents',
-    permissions: [
-      { value: 'documents.view', label: 'Voir' },
-      { value: 'documents.create', label: 'Créer' },
-      { value: 'documents.edit', label: 'Modifier' },
-      { value: 'documents.delete', label: 'Supprimer' },
-      { value: 'documents.approve', label: 'Accepter' },
-    ],
-  },
-  {
-    label: 'Types de documents',
-    permissions: [
-      { value: 'document_types.view', label: 'Voir' },
-      { value: 'document_types.manage', label: 'Gérer' },
-    ],
-  },
-  {
-    label: 'Cotisations',
-    permissions: [
-      { value: 'cotisations.view', label: 'Voir' },
-      { value: 'cotisations.create', label: 'Créer' },
-      { value: 'cotisations.edit', label: 'Modifier' },
-      { value: 'cotisations.delete', label: 'Supprimer' },
-    ],
-  },
-  {
-    label: 'Fonctions',
-    permissions: [
-      { value: 'roles.view', label: 'Voir' },
-      { value: 'roles.manage', label: 'Gérer' },
-    ],
-  },
-  {
-    label: 'Associations',
-    permissions: [
-      { value: 'associations.view', label: 'Voir' },
-      { value: 'associations.manage', label: 'Gérer' },
-    ],
-  },
-  {
-    label: "Types d'unité",
-    permissions: [
-      { value: 'unit_types.view', label: 'Voir' },
-      { value: 'unit_types.manage', label: 'Gérer' },
-    ],
-  },
-  {
-    label: 'Progression',
-    permissions: [
-      { value: 'progression.view', label: 'Voir' },
-      { value: 'progression.manage', label: 'Gérer' },
-    ],
-  },
-  {
-    label: 'Passage',
-    permissions: [
-      { value: 'passage.view', label: 'Voir' },
-      { value: 'passage.propose', label: 'Proposer' },
-      { value: 'passage.manage', label: 'Gérer (CG)' },
-    ],
-  },
-  {
-    label: "Demandes d'inscription",
-    permissions: [
-      { value: 'demande.view', label: 'Voir' },
-      { value: 'demande.manage', label: 'Gérer' },
-    ],
-  },
-  {
-    label: 'Site public',
-    permissions: [
-      { value: 'content.manage', label: 'Gérer le contenu' },
-    ],
-  },
-  {
-    label: 'Administration',
-    permissions: [
-      { value: 'audit.view', label: 'Journal d\'audit' },
-      { value: 'admin.hard_delete', label: 'Suppression définitive' },
-    ],
-  },
-]
-
-// `embedded` = rendered inside the merged "Profils & accès" page (its title/tabs own the header), so we
-// suppress this page's standalone header/title but keep the "Nouveau profil" action.
+// `embedded` = rendered inside the "Accès & permissions" hub (its title/tabs own the header), so we suppress
+// this page's standalone header/title but keep the "Nouveau profil" action.
 export default function SecurityProfilesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { data: profiles, isLoading } = useSecurityProfiles()
   const { hasPermission } = useAuthStore()
@@ -231,15 +100,6 @@ function CreateProfileDialog({ open, onOpenChange, onCreated }: { open: boolean;
 
   const reset = () => { setName(''); setDescription(''); setPerms(new Set()); setError('') }
 
-  const togglePerm = (perm: string) => setPerms(prev => { const n = new Set(prev); if (n.has(perm)) n.delete(perm); else n.add(perm); return n })
-  // Group checkbox: if every child is on, clear them all; otherwise turn them all on.
-  const toggleGroup = (group: typeof PERMISSION_GROUPS[0]) => setPerms(prev => {
-    const n = new Set(prev)
-    const allChecked = group.permissions.every(p => n.has(p.value))
-    for (const p of group.permissions) { if (allChecked) n.delete(p.value); else n.add(p.value) }
-    return n
-  })
-
   const handleCreate = async () => {
     setError('')
     if (!name.trim()) { setError('Le nom est requis.'); return }
@@ -264,30 +124,7 @@ function CreateProfileDialog({ open, onOpenChange, onCreated }: { open: boolean;
           </div>
           <div>
             <p className="mb-2 text-sm font-medium">Permissions ({perms.size})</p>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {PERMISSION_GROUPS.map(group => {
-                const groupChecked = group.permissions.filter(p => perms.has(p.value)).length
-                const allChecked = groupChecked === group.permissions.length
-                const someChecked = groupChecked > 0 && !allChecked
-                return (
-                  <div key={group.label} className="rounded-md border p-3">
-                    <label className="flex items-center gap-2 mb-2 cursor-pointer">
-                      <input type="checkbox" checked={allChecked} ref={(el) => { if (el) el.indeterminate = someChecked }} onChange={() => toggleGroup(group)} className="rounded" />
-                      <span className="font-medium text-sm">{group.label}</span>
-                      <span className="text-xs text-muted-foreground ml-auto">{groupChecked}/{group.permissions.length}</span>
-                    </label>
-                    <div className="space-y-1 pl-5">
-                      {group.permissions.map(p => (
-                        <label key={p.value} className="flex items-center gap-2 cursor-pointer text-sm">
-                          <input type="checkbox" checked={perms.has(p.value)} onChange={() => togglePerm(p.value)} className="rounded" />
-                          {p.label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+            <PermissionGroups value={perms} onChange={setPerms} />
           </div>
         </div>
         <DialogFooter>
@@ -331,25 +168,6 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
   // becomes a staged local copy (drives the dirty/Enregistrer state) until saved or reset.
   const currentPerms = editedPerms ?? new Set(profile.permissions)
   const hasChanges = editedPerms !== null
-
-  const togglePerm = (perm: string) => {
-    const next = new Set(editedPerms ?? profile.permissions)
-    if (next.has(perm)) next.delete(perm)
-    else next.add(perm)
-    setEditedPerms(next)
-    setSaved(false)
-  }
-
-  const toggleGroup = (group: typeof PERMISSION_GROUPS[0]) => {
-    const next = new Set(editedPerms ?? profile.permissions)
-    const allChecked = group.permissions.every(p => next.has(p.value))
-    for (const p of group.permissions) {
-      if (allChecked) next.delete(p.value)
-      else next.add(p.value)
-    }
-    setEditedPerms(next)
-    setSaved(false)
-  }
 
   const handleSave = async () => {
     if (!editedPerms) return
@@ -430,43 +248,9 @@ function PermissionEditor({ profileId, canManage, onDeleted }: { profileId: stri
 
         {tab === 'members' && <ProfileMembersList profileId={profileId} />}
 
-        {tab === 'perms' && canManage &&
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {PERMISSION_GROUPS.map(group => {
-            const groupChecked = group.permissions.filter(p => currentPerms.has(p.value)).length
-            const allChecked = groupChecked === group.permissions.length
-            const someChecked = groupChecked > 0 && !allChecked // → group checkbox shows indeterminate
-
-            return (
-              <div key={group.label} className="rounded-md border p-3">
-                <label className="flex items-center gap-2 mb-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={allChecked}
-                    ref={(el) => { if (el) el.indeterminate = someChecked }}
-                    onChange={() => toggleGroup(group)}
-                    className="rounded"
-                  />
-                  <span className="font-medium text-sm">{group.label}</span>
-                  <span className="text-xs text-muted-foreground ml-auto">{groupChecked}/{group.permissions.length}</span>
-                </label>
-                <div className="space-y-1 pl-5">
-                  {group.permissions.map(p => (
-                    <label key={p.value} className="flex items-center gap-2 cursor-pointer text-sm">
-                      <input
-                        type="checkbox"
-                        checked={currentPerms.has(p.value)}
-                        onChange={() => togglePerm(p.value)}
-                        className="rounded"
-                      />
-                      {p.label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>}
+        {tab === 'perms' && canManage && (
+          <PermissionGroups value={currentPerms} onChange={(next) => { setEditedPerms(next); setSaved(false) }} />
+        )}
       </CardContent>
     </Card>
     <ConfirmDialog

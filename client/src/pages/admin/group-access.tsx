@@ -1,27 +1,20 @@
-// Admin "Accès maîtrise" screen (CG-only, perm roles.manage_group). One card per group-maîtrise
-// function (CG, ACG, AUG, SG, …); for each, the CG sets the access level (Aucun / Lecture / Complet)
-// per area (Membres, Demandes, Cotisations, …). The head Chef de Groupe is fixed at full access
-// (fn.editable === false → read-only card). Backend lazy-forks the function to its own group-level
-// profile on first save and caps grants to what the editor holds (non-delegatable perms never given).
+// Admin "Fonctions" screen (a tab of the "Accès & permissions" hub, perm roles.manage_group). One card per
+// group-maîtrise function (CG, ACG, AUG, SG, …); for each, the CG sets the access level (Aucun / Lecture /
+// Complet) per domaine (Membres, Demandes, Cotisations, …) via the shared AreaLevels editor. The head Chef de
+// Groupe is fixed at full access (fn.editable === false → read-only card). Backend lazy-forks the function to
+// its own group-level profile on first save and caps grants to what the editor holds.
 import { useState, useMemo, useEffect } from 'react'
 import { useGroupFunctionAccess, useSetGroupFunctionAccess, type GroupFunctionAccessDto } from '@/services/role-service'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { AreaLevels } from '@/components/admin/permission-editor'
 import { parseApiError } from '@/lib/error-utils'
 import { ShieldCheck, Save } from 'lucide-react'
 import { toast } from 'sonner'
-import { MemberDelegationsSection } from './member-delegations'
 
-const LEVELS = [
-  { value: 'aucun', label: 'Aucun' },
-  { value: 'lecture', label: 'Lecture' },
-  { value: 'complet', label: 'Complet' },
-]
-
-// `embedded` = rendered inside the merged "Profils & accès" page (its own title/tabs own the header), so we
+// `embedded` = rendered inside the "Accès & permissions" hub (its own title/tabs own the header), so we
 // suppress this page's standalone header.
 export default function GroupAccessPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { data: functions, isLoading } = useGroupFunctionAccess()
@@ -46,24 +39,18 @@ export default function GroupAccessPage({ embedded = false }: { embedded?: boole
   if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {!embedded && (
         <div>
-          <h1 className="text-2xl font-bold">Accès de la maîtrise de groupe</h1>
-          <p className="text-sm text-muted-foreground">
-            Définissez, pour chaque fonction de la maîtrise de groupe, le niveau d'accès par domaine
-            (Aucun · Lecture · Complet). Le Chef de Groupe garde l'accès complet.
-          </p>
+          <h1 className="text-2xl font-bold">Accès par fonction</h1>
         </div>
       )}
 
-      {/* Per-person delegations ("accès délégués") — tracked + managed here, above the per-function access. */}
-      <MemberDelegationsSection />
-
-      <div>
-        <h2 className="text-lg font-semibold">Accès par fonction</h2>
-        <p className="text-sm text-muted-foreground">Niveau d'accès par domaine pour chaque fonction de la maîtrise de groupe.</p>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Pour chaque fonction de la maîtrise de groupe, réglez le niveau d'accès par domaine
+        (Aucun · Lecture · Complet). Le Chef de Groupe garde l'accès complet. Pour accorder un accès à
+        <span className="font-medium"> une personne précise</span> (sans rôle), utilisez l'onglet « Membres ».
+      </p>
 
       {(!functions || functions.length === 0) && (
         <Card><CardContent className="py-16 text-center text-muted-foreground">Aucune fonction de maîtrise de groupe.</CardContent></Card>
@@ -116,19 +103,7 @@ function FunctionAccessCard({ fn, onDirtyChange }: { fn: GroupFunctionAccessDto;
         {!fn.editable ? (
           <p className="text-sm text-muted-foreground">Le Chef de Groupe dispose de l'accès complet à toute la gestion du groupe.</p>
         ) : (
-          <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
-            {fn.areas.map(a => (
-              <div key={a.key} className="flex items-center justify-between gap-2">
-                <span className="text-sm">{a.label}</span>
-                <Select value={levels[a.key]} onValueChange={(v) => setLevels(prev => ({ ...prev, [a.key]: v }))}>
-                  <SelectTrigger className="w-32 h-8"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {LEVELS.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
-          </div>
+          <AreaLevels areas={fn.areas} levels={levels} onChange={(key, v) => setLevels(prev => ({ ...prev, [key]: v }))} />
         )}
       </CardContent>
     </Card>

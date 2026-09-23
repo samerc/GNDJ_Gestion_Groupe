@@ -195,7 +195,7 @@ const adminGroups: AdminGroup[] = [
       // (Camp BP is NOT here — it's appended to the "Unités & maîtrise" group when no camp is active, and
       //  promoted to the main menu once a camp is active. See NavContent / AdminNav.)
       // --- Système & sécurité ---
-      { path: '/admin/roles-access', label: 'Profils & accès', icon: ShieldCheck, permission: PERMISSIONS.MAITRISE_MANAGE, section: 'Système & sécurité' },
+      { path: '/admin/roles-access', label: 'Accès & permissions', icon: ShieldCheck, permission: PERMISSIONS.MAITRISE_MANAGE, section: 'Système & sécurité' },
       // Email / SMTP → Paramètres (onglet Email / SMTP). Route still works.
       { path: '/admin/email-outbox', label: 'File d\'emails', icon: Send, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
       // Clés API → Paramètres (Clés API tab). Route still works.

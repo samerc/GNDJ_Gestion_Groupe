@@ -636,7 +636,7 @@ export default function SettingsPage() {
   // Config apps that stay their own pages (not settings) — a small launchpad at the top of Paramètres.
   const configLinks = [
     { to: '/admin/report-templates', label: 'Modèles de rapports', perm: PERMISSIONS.MEMBERS_EDIT },
-    { to: '/admin/roles-access', label: 'Profils & accès', perm: PERMISSIONS.MAITRISE_MANAGE },
+    { to: '/admin/roles-access', label: 'Accès & permissions', perm: PERMISSIONS.MAITRISE_MANAGE },
   ].filter(l => can(l.perm))
 
   const handleSave = async (key: string, value: string) => {
