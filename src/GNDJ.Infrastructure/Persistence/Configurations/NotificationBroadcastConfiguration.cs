@@ -19,6 +19,7 @@ public class NotificationBroadcastConfiguration : IEntityTypeConfiguration<Notif
         builder.Property(e => e.Body).HasMaxLength(2000);
         builder.Property(e => e.Url).HasMaxLength(500);
         builder.Property(e => e.AudienceLabel).HasMaxLength(500).IsRequired();
+        // Denormalized hand-picked members ({id,name}[] JSON) for the resend action — left as unbounded text.
 
         builder.HasIndex(e => e.SentAt).IsDescending();
     }

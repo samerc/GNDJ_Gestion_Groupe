@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentValidation;
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
@@ -38,7 +39,8 @@ public class SendPushNotificationHandler(
             return Result<int>.Failure("Accès non autorisé.");
 
         var ids = new HashSet<Guid>(request.MemberIds ?? []);
-        var explicitCount = ids.Count; // hand-picked members, for the audience label
+        var explicitIds = ids.ToList();       // the hand-picked members (for the label + resend targeting)
+        var explicitCount = explicitIds.Count;
         var labelParts = new List<string>();
 
         if (request.UnitId is Guid unitId)
@@ -76,10 +78,21 @@ public class SendPushNotificationHandler(
         // Writes the in-app notifications AND enqueues a Web Push per member (durable outbox).
         await notifications.NotifyMembersAsync(ids, "message", title, body, url, ct);
 
-        // Record the send in the broadcast history so a manager can review what was sent (who / to whom / when).
+        // Record the send in the broadcast history so a manager can review what was sent (who / to whom / when)
+        // AND resend it later. The hand-picked members are stored as {id,name}[] so the resend form can re-render
+        // the chips without a re-lookup.
         var senderName = currentUser.MemberId is Guid me
             ? await context.Members.Where(m => m.Id == me).Select(m => m.FirstName + " " + m.LastName).FirstOrDefaultAsync(ct)
             : null;
+        string? membersJson = null;
+        if (explicitIds.Count > 0)
+        {
+            var picked = await context.Members
+                .Where(m => explicitIds.Contains(m.Id))
+                .Select(m => new PickedMember(m.Id, m.FirstName + " " + m.LastName))
+                .ToListAsync(ct);
+            membersJson = JsonSerializer.Serialize(picked);
+        }
         context.NotificationBroadcasts.Add(new NotificationBroadcast
         {
             SentByMemberId = currentUser.MemberId,
@@ -91,6 +104,9 @@ public class SendPushNotificationHandler(
             Url = url,
             AudienceLabel = labelParts.Count > 0 ? string.Join(" · ", labelParts) : "—",
             RecipientCount = ids.Count,
+            UnitId = request.UnitId,
+            MemberGroupId = request.MemberGroupId,
+            MemberIdsJson = membersJson,
         });
         await context.SaveChangesAsync(ct);
 
@@ -99,11 +115,15 @@ public class SendPushNotificationHandler(
 }
 
 // ── History of manual broadcasts (the "Envoyer une notification" sends) ──
-// Group-manager only — a manager reviews what was sent, to whom, by whom and when. Newest first, paged with the
-// same "+1 to detect has-more" trick as the personal notification list (no separate count query).
+// Group-manager only — a manager reviews what was sent, to whom, by whom and when, and can RESEND (the raw
+// targeting is returned so the compose form can be re-populated). Newest first, paged with the same "+1 to
+// detect has-more" trick as the personal notification list (no separate count query).
+public record PickedMember(Guid Id, string Name); // a hand-picked recipient (stored denormalized for resend)
+
 public record NotificationBroadcastDto(
     Guid Id, string SentByName, DateTime SentAt, string Title, string? Body, string? Url,
-    string AudienceLabel, int RecipientCount);
+    string AudienceLabel, int RecipientCount,
+    Guid? UnitId, Guid? MemberGroupId, IReadOnlyList<PickedMember> Members);
 
 public record BroadcastListDto(IReadOnlyList<NotificationBroadcastDto> Items, bool HasMore);
 
@@ -120,12 +140,23 @@ public class GetNotificationBroadcastsQueryHandler(IApplicationDbContext context
         var page = Math.Max(1, request.Page);
         var size = Math.Clamp(request.PageSize, 1, 100);
 
-        var items = await context.NotificationBroadcasts
+        // Fetch raw rows, then deserialize the hand-picked members in memory (EF can't run JsonSerializer).
+        var rows = await context.NotificationBroadcasts
             .OrderByDescending(b => b.SentAt)
             .Skip((page - 1) * size).Take(size + 1)
-            .Select(b => new NotificationBroadcastDto(
-                b.Id, b.SentByName, b.SentAt, b.Title, b.Body, b.Url, b.AudienceLabel, b.RecipientCount))
+            .Select(b => new
+            {
+                b.Id, b.SentByName, b.SentAt, b.Title, b.Body, b.Url, b.AudienceLabel, b.RecipientCount,
+                b.UnitId, b.MemberGroupId, b.MemberIdsJson
+            })
             .ToListAsync(ct);
+
+        var items = rows.Select(b => new NotificationBroadcastDto(
+            b.Id, b.SentByName, b.SentAt, b.Title, b.Body, b.Url, b.AudienceLabel, b.RecipientCount,
+            b.UnitId, b.MemberGroupId,
+            string.IsNullOrWhiteSpace(b.MemberIdsJson)
+                ? []
+                : JsonSerializer.Deserialize<List<PickedMember>>(b.MemberIdsJson) ?? [])).ToList();
 
         var hasMore = items.Count > size;
         if (hasMore) items = items.Take(size).ToList();

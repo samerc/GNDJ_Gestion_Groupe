@@ -23,4 +23,12 @@ public class NotificationBroadcast
 
     public string AudienceLabel { get; set; } = string.Empty; // human description ("Unité : Meute 2 · 3 membres")
     public int RecipientCount { get; set; }             // distinct members the send reached
+
+    // The raw targeting, kept so the "Renvoyer" (resend) action can reconstruct the same audience in the compose
+    // form (the user then edits the message before sending again). UnitId / MemberGroupId are the chosen unit /
+    // member group; MemberIdsJson is the hand-picked members as a JSON array of {id, name} (denormalized names so
+    // the chips re-render without a re-lookup; hand-picked lists are small).
+    public Guid? UnitId { get; set; }
+    public Guid? MemberGroupId { get; set; }
+    public string? MemberIdsJson { get; set; }
 }

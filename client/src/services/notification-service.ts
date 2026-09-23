@@ -105,6 +105,10 @@ export interface NotificationBroadcast {
   url?: string | null
   audienceLabel: string
   recipientCount: number
+  // Raw targeting, so "Renvoyer" can re-populate the compose form (the user edits before sending again).
+  unitId?: string | null
+  memberGroupId?: string | null
+  members: { id: string; name: string }[]
 }
 export function useNotificationBroadcasts(page: number) {
   return useQuery({

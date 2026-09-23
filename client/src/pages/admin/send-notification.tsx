@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import { useUnits } from '@/services/unit-service'
 import { useMemberGroups } from '@/services/member-group-service'
-import { useSendPushNotification, useNotificationBroadcasts } from '@/services/notification-service'
+import { useSendPushNotification, useNotificationBroadcasts, type NotificationBroadcast } from '@/services/notification-service'
 import { MemberPickerDialog } from '@/components/shared/member-picker-dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
-import { Bell, Plus, X, Send, History, Users } from 'lucide-react'
+import { Bell, Plus, X, Send, History, Users, RotateCcw } from 'lucide-react'
 
 type Audience = 'unit' | 'group' | 'members'
 
@@ -44,6 +44,19 @@ export default function SendNotificationPage() {
   const addMember = (m: { id: string; name: string }) => {
     setMembers((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]))
     setPickerOpen(false)
+  }
+
+  // "Renvoyer": pre-fill the compose form from a past send (audience + message), then scroll to the top so the
+  // manager can EDIT before sending again. Nothing is sent until they press Envoyer.
+  const resend = (b: NotificationBroadcast) => {
+    if (b.unitId) { setAudience('unit'); setUnitId(b.unitId); setGroupId(''); setMembers([]) }
+    else if (b.memberGroupId) { setAudience('group'); setGroupId(b.memberGroupId); setUnitId(''); setMembers([]) }
+    else { setAudience('members'); setMembers(b.members ?? []); setUnitId(''); setGroupId('') }
+    setTitle(b.title)
+    setBody(b.body ?? '')
+    setUrl(b.url ?? '')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    toast.info('Message préparé — modifiez-le puis envoyez.')
   }
 
   const audienceReady =
@@ -175,11 +188,16 @@ export default function SendNotificationPage() {
                     <span className="shrink-0 text-xs text-muted-foreground">{formatSentAt(b.sentAt)}</span>
                   </div>
                   {b.body && <p className="mt-1 text-sm text-muted-foreground whitespace-pre-line">{b.body}</p>}
-                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{b.recipientCount} destinataire(s)</span>
-                    <span>{b.audienceLabel}</span>
-                    <span>Par {b.sentByName}</span>
-                    {b.url && <span className="font-mono">{b.url}</span>}
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{b.recipientCount} destinataire(s)</span>
+                      <span>{b.audienceLabel}</span>
+                      <span>Par {b.sentByName}</span>
+                      {b.url && <span className="font-mono">{b.url}</span>}
+                    </div>
+                    <Button variant="outline" size="sm" className="h-7" onClick={() => resend(b)}>
+                      <RotateCcw className="mr-1 h-3.5 w-3.5" />Renvoyer
+                    </Button>
                   </div>
                 </div>
               ))}
