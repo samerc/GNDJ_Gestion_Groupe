@@ -49,7 +49,6 @@ public static class PermissionCatalog
 
         new(P.DocumentsView, "documents", "Voir les documents"),
         new(P.DocumentsCreate, "documents", "Téléverser un document"),
-        new(P.DocumentsEdit, "documents", "Modifier un document"),
         new(P.DocumentsDelete, "documents", "Supprimer un document"),
         new(P.DocumentsApprove, "documents", "Valider / refuser un document"),
 
@@ -98,6 +97,5 @@ public static class PermissionCatalog
         new(P.ContentManage, "site", "Gérer le site public (actualités, pages)"),
 
         new(P.AuditView, "systeme", "Voir le journal d'audit"),
-        new(P.AdminHardDelete, "systeme", "Suppression définitive"),
     ];
 }

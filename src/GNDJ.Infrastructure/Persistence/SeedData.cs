@@ -17,8 +17,7 @@ public static class SeedData
         p != Permissions.AssociationsManage &&
         p != Permissions.UnitsCreate && p != Permissions.UnitsEdit && p != Permissions.UnitsDelete &&
         p != Permissions.UnitTypesManage &&
-        p != Permissions.RolesManage &&
-        p != Permissions.AdminHardDelete).ToArray();
+        p != Permissions.RolesManage).ToArray();
 
     // ".view" permissions that must NOT be granted to the read-only (youth/member) profile even though they
     // end in ".view": they gate leader/CG-only AGGREGATE views over the whole group. The read-only profile is
@@ -78,7 +77,7 @@ public static class SeedData
         // Security Profiles
         var superAdminProfile = CreateProfile("Super Admin", "super-admin", "Accès total au système", Permissions.All);
         var assocAdminProfile = CreateProfile("Admin Association", "association-admin", "Administration d'une association",
-            Permissions.All.Where(p => p != Permissions.AdminHardDelete).ToArray());
+            Permissions.All);
         var chefUniteProfile = CreateProfile("Chef d'unité", "chef-unite", "Gestion d'une unité",
         [
             // NOTE: no MembersCreate — only a Chef de Groupe / super-admin creates new members; a CU manages
@@ -90,7 +89,7 @@ public static class SeedData
             Permissions.AssignmentsView, Permissions.AssignmentsCreate, Permissions.AssignmentsEdit, Permissions.AssignmentsDelete,
             Permissions.RelationshipsView, Permissions.RelationshipsCreate, Permissions.RelationshipsEdit, Permissions.RelationshipsDelete,
             Permissions.RolesView,
-            Permissions.DocumentsView, Permissions.DocumentsCreate, Permissions.DocumentsEdit, Permissions.DocumentsDelete, Permissions.DocumentsApprove,
+            Permissions.DocumentsView, Permissions.DocumentsCreate, Permissions.DocumentsDelete, Permissions.DocumentsApprove,
             Permissions.CotisationsView, Permissions.CotisationsCreate, Permissions.CotisationsEdit, Permissions.CotisationsDelete,
             Permissions.PassageView, Permissions.PassagePropose,
             Permissions.CampGrade,
@@ -184,11 +183,11 @@ public static class SeedData
         var profilePermissions = new Dictionary<string, string[]>
         {
             ["super-admin"] = Permissions.All,
-            ["association-admin"] = Permissions.All.Where(p => p != Permissions.AdminHardDelete).ToArray(),
+            ["association-admin"] = Permissions.All,
             ["chef-unite"] =
             [
                 Permissions.MembersResetPassword,
-                Permissions.DocumentsView, Permissions.DocumentsCreate, Permissions.DocumentsEdit, Permissions.DocumentsDelete, Permissions.DocumentsApprove,
+                Permissions.DocumentsView, Permissions.DocumentsCreate, Permissions.DocumentsDelete, Permissions.DocumentsApprove,
                 Permissions.CotisationsView, Permissions.CotisationsCreate, Permissions.CotisationsEdit, Permissions.CotisationsDelete,
                 Permissions.DocumentTypesView,
                 Permissions.ProgressionView, Permissions.ProgressionManage,

@@ -31,7 +31,7 @@ public class PermissionsTests
     [InlineData(Permissions.MaitriseManage)]
     [InlineData(Permissions.DemandeManage)]
     [InlineData(Permissions.CotisationsDelete)]
-    [InlineData(Permissions.AdminHardDelete)]
+    [InlineData(Permissions.AttendanceManage)]
     public void All_contains_known_permissions(string permission)
     {
         Assert.Contains(permission, Permissions.All);

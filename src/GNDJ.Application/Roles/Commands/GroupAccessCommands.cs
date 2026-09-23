@@ -21,7 +21,7 @@ public static class GroupAccessAreas
         new("affectations", "Affectations", [P.AssignmentsView], [P.AssignmentsCreate, P.AssignmentsEdit, P.AssignmentsDelete]),
         // NOTE: no "Famille" area — family access is governed by members.view/edit (it rides on "Membres"); the
         // relationships.* permissions are enforced NOWHERE, so granting them did nothing. Removed 2026-09-23.
-        new("documents", "Documents", [P.DocumentsView], [P.DocumentsCreate, P.DocumentsEdit, P.DocumentsDelete, P.DocumentsApprove]),
+        new("documents", "Documents", [P.DocumentsView], [P.DocumentsCreate, P.DocumentsDelete, P.DocumentsApprove]),
         new("cotisations", "Cotisations", [P.CotisationsView], [P.CotisationsCreate, P.CotisationsEdit, P.CotisationsDelete]),
         new("progression", "Progression", [P.ProgressionView], [P.ProgressionManage]),
         new("passages", "Passages", [P.PassageView], [P.PassagePropose, P.PassageManage]),
@@ -41,7 +41,7 @@ public static class GroupAccessAreas
         // delegated profile, even if the CG editing it holds them. NOTE: maitrise.manage is NOT here — it's
         // shared with assistants, so a forked (appointed) ACG profile must keep it rather than have it stripped.
         P.RolesManage, P.RolesManageGroup, P.AssociationsManage, P.UnitTypesManage,
-        P.UnitsCreate, P.UnitsEdit, P.UnitsDelete, P.AdminHardDelete,
+        P.UnitsCreate, P.UnitsEdit, P.UnitsDelete,
     ];
 
     public static string LevelOf(HashSet<string> perms, Area a)

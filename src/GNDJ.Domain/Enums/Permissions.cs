@@ -45,8 +45,7 @@ public static class Permissions
     public const string DocumentTypesManage = "document_types.manage";
 
     public const string DocumentsView = "documents.view";
-    public const string DocumentsCreate = "documents.create";
-    public const string DocumentsEdit = "documents.edit";
+    public const string DocumentsCreate = "documents.create"; // frontend gate for the leader "upload a document" button
     public const string DocumentsDelete = "documents.delete";
     public const string DocumentsApprove = "documents.approve";
 
@@ -77,7 +76,6 @@ public static class Permissions
     public const string AttendanceManage = "attendance.manage"; // CU/CG: manage réunions + absences for their units
 
     public const string AuditView = "audit.view";
-    public const string AdminHardDelete = "admin.hard_delete";
 
     public static readonly string[] All =
     [
@@ -90,7 +88,7 @@ public static class Permissions
         AssociationsView, AssociationsManage,
         UnitTypesView, UnitTypesManage,
         DocumentTypesView, DocumentTypesManage,
-        DocumentsView, DocumentsCreate, DocumentsEdit, DocumentsDelete, DocumentsApprove,
+        DocumentsView, DocumentsCreate, DocumentsDelete, DocumentsApprove,
         CotisationsView, CotisationsCreate, CotisationsEdit, CotisationsDelete,
         ProgressionView, ProgressionManage,
         PassageView, PassagePropose, PassageManage,
@@ -100,6 +98,6 @@ public static class Permissions
         RentreeManage,
         CampManage, CampGrade,
         AttendanceManage,
-        AuditView, AdminHardDelete
+        AuditView
     ];
 }
