@@ -16,7 +16,9 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
-import { ScrollText, Eye, Trash2, Search, X, Download } from 'lucide-react'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
+import { ScrollText, Eye, Trash2, Download } from 'lucide-react'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Tip } from '@/components/ui/tooltip'
 import { ACTION_LABELS, ENTITY_LABELS, actionMeta, entityLabel, parseUserAgent, entitySummary } from '@/lib/audit-format'
@@ -81,42 +83,34 @@ export default function AuditLogsPage() {
     setEntityType(''); setAction(''); setUserId(''); setFrom(''); setTo(''); setSearch(''); setPage(1)
   }
 
+  const headerActions = (
+    <>
+      <Button variant="outline" size="sm"
+        disabled={!data || data.totalCount === 0 || exportLogs.isPending}
+        onClick={handleExport}>
+        <Download className="mr-1.5 h-4 w-4" /> Exporter (CSV)
+      </Button>
+      {isSuperAdmin && (
+        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive"
+          disabled={!data || data.totalCount === 0 || clearLogs.isPending}
+          onClick={() => setConfirmClear(true)}>
+          <Trash2 className="mr-1.5 h-4 w-4" /> Vider le journal
+        </Button>
+      )}
+    </>
+  )
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Journal d'audit</h1>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm"
-            disabled={!data || data.totalCount === 0 || exportLogs.isPending}
-            onClick={handleExport}>
-            <Download className="mr-1.5 h-4 w-4" /> Exporter (CSV)
-          </Button>
-          {isSuperAdmin && (
-            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive"
-              disabled={!data || data.totalCount === 0 || clearLogs.isPending}
-              onClick={() => setConfirmClear(true)}>
-              <Trash2 className="mr-1.5 h-4 w-4" /> Vider le journal
-            </Button>
-          )}
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader title="Journal d'audit" icon={ScrollText} actions={headerActions} />
 
       {/* Free-text search — matches user, IP, action, entity and the before/after snapshots (accent-insensitive),
           so a member/unit name finds every action touching it. */}
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          className="pl-9 pr-9"
-          placeholder="Rechercher (nom, unité, email, IP…)"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-        />
-        {search && (
-          <button type="button" onClick={() => { setSearch(''); setPage(1) }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Effacer la recherche">
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+      <SearchInput
+        value={search}
+        onChange={(v) => { setSearch(v); setPage(1) }}
+        placeholder="Rechercher (nom, unité, email, IP…)"
+      />
 
       {/* Filters */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 items-end">

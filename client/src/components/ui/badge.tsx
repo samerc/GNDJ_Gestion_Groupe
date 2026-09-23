@@ -16,6 +16,12 @@ const badgeVariants = cva(
         destructive:
           "border-transparent bg-destructive text-destructive-foreground",
         outline: "text-foreground",
+        // Soft, tinted status labels (a colored surface + matching text + border). Prefer these over
+        // hand-picked bg-emerald-*/bg-amber-* so every status reads consistently and adapts to dark mode.
+        success: "border-success-border bg-success-subtle text-success",
+        warning: "border-warning-border bg-warning-subtle text-warning",
+        info: "border-info-border bg-info-subtle text-info",
+        danger: "border-destructive-border bg-destructive-subtle text-destructive",
       },
     },
     defaultVariants: {

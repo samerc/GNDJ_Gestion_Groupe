@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-23",
+        "text": "Design — refonte visuelle de l'interface (déploiement progressif). En-têtes de page unifiés (une icône colorée, un titre et les actions présentés de la même façon sur chaque page, avec un trait de séparation), champs de saisie aux bordures plus nettes et mieux définies, cartes plus compactes qui se détachent du fond blanc grâce à une ombre douce, et un jeu de couleurs de statut cohérent (succès / attention / info / erreur) réutilisé partout au lieu de teintes choisies au cas par cas. Le mode sombre gagne des ombres et des barres de défilement adaptées. L'identité (bleu marine / turquoise) est conservée."
+      },
+      {
+        "date": "2026-09-23",
         "text": "Performance (serveur) — nettoyage automatique quotidien : les notifications déjà lues et les emails/notifications déjà envoyés sont supprimés après un délai configurable (Paramètres → Maintenance : « Conservation des notifications lues » 90 j et « Conservation des emails/notifications envoyés » 30 j par défaut, 0 = ne jamais supprimer). Évite que ces tables grossissent indéfiniment et ralentissent la base. Les envois en attente et les notifications non lues sont conservés."
       },
       {

@@ -17,8 +17,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pencil, Trash2, Search, FileText, GripVertical, X, Upload, Download, FileSignature } from 'lucide-react'
+import { Plus, Pencil, Trash2, FileText, GripVertical, X, Upload, Download, FileSignature } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -146,28 +148,22 @@ export default function DocumentTypesPage({ embedded = false }: { embedded?: boo
   // Latch so the search box survives a 0-result filter (see associations.tsx).
   const showSearch = !!search || !!(data && data.totalCount > 0)
 
+  const newTypeButton = (
+    <Button onClick={openCreate}>
+      <Plus className="mr-1.5 h-4 w-4" />
+      Nouveau type
+    </Button>
+  )
+
   return (
     <div className="space-y-6">
-      <div className={`flex items-center ${embedded ? 'justify-end' : 'justify-between'}`}>
-        {!embedded && <h1 className="text-2xl font-bold">Types de documents</h1>}
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouveau type
-        </Button>
-      </div>
-
-      {showSearch && (
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 pr-9" />
-          {search && (
-            <button type="button" onClick={() => setSearch('')} aria-label="Effacer la recherche"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+      {embedded ? (
+        <div className="flex justify-end">{newTypeButton}</div>
+      ) : (
+        <PageHeader title="Types de documents" icon={FileText} actions={newTypeButton} />
       )}
+
+      {showSearch && <SearchInput value={search} onChange={setSearch} placeholder="Rechercher..." className="max-w-sm" />}
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -336,7 +332,7 @@ function SortableTypeRow({ item, canReorder, onEdit, onDelete }: { item: Documen
           <span className="font-mono text-xs text-muted-foreground">{item.code}</span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-1">
-          {item.isActive ? <Badge className="bg-green-600">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}
+          {item.isActive ? <Badge variant="success">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}
           {/* Terse "Expiration"/"Approbation" confused users — spell out the meaning + explain on hover.
               (Badge isn't ref-forwarding, so wrap in a span for the tooltip trigger.) */}
           {item.requiresExpiry && (

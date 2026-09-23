@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { PageHeader } from '@/components/shared/page-header'
+import { Callout } from '@/components/shared/callout'
 import { parseApiError } from '@/lib/error-utils'
 import { Users, LogOut, Wifi, Info, Eye, EyeOff } from 'lucide-react'
 
@@ -55,7 +57,7 @@ function SessionTable({
           Sessions
           <Badge variant="secondary">{sessions.length}</Badge>
           {online > 0 && (
-            <Badge className="bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300">
+            <Badge variant="success">
               <Wifi className="mr-1 h-3 w-3" />{online} en ligne
             </Badge>
           )}
@@ -86,8 +88,8 @@ function SessionTable({
                     <tr key={s.id} className={`border-b align-middle ${i % 2 === 1 ? 'bg-muted/10' : ''}`}>
                       <td className="px-3 py-2">
                         {s.isOnline ? (
-                          <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                            <span className="h-2 w-2 rounded-full bg-emerald-500" />En ligne
+                          <span className="inline-flex items-center gap-1.5 font-medium text-success">
+                            <span className="h-2 w-2 rounded-full bg-success" />En ligne
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 text-muted-foreground">
@@ -163,21 +165,17 @@ export default function SessionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Sessions actives</h1>
-        <p className="text-sm text-muted-foreground">
-          {total} session(s) ouverte(s) · {online} en ligne. La liste se rafraîchit automatiquement.
-        </p>
-      </div>
+      <PageHeader
+        title="Sessions actives"
+        icon={Users}
+        description={`${total} session(s) ouverte(s) · ${online} en ligne. La liste se rafraîchit automatiquement.`}
+      />
 
-      <div className="flex items-start gap-2 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 p-3 text-sm text-blue-800 dark:text-blue-300">
-        <Info className="mt-0.5 h-4 w-4 shrink-0" />
-        <p>
-          « En ligne » correspond à une activité dans les {data.onlineWindowMinutes} dernières minutes (le compte
-          reste ouvert jusqu'à l'expiration de la session, même hors ligne). « Déconnecter » invalide la session :
-          la personne ne peut plus rester connectée et sera déconnectée dans un délai maximum de 15 minutes.
-        </p>
-      </div>
+      <Callout tone="info" icon={Info}>
+        « En ligne » correspond à une activité dans les {data.onlineWindowMinutes} dernières minutes (le compte
+        reste ouvert jusqu'à l'expiration de la session, même hors ligne). « Déconnecter » invalide la session :
+        la personne ne peut plus rester connectée et sera déconnectée dans un délai maximum de 15 minutes.
+      </Callout>
 
       {offlineCount > 0 && (
         <div className="flex justify-end">

@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
 import { Users, FileText, Building2 } from 'lucide-react'
 
 // "Trombinoscope" — a member views the photo grid (PDF) of the unit(s) they belong(ed) to, one per scout
@@ -26,14 +28,8 @@ export default function MyTrombinoscopePage() {
   if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex items-center gap-3">
-        <Users className="h-6 w-6 text-muted-foreground" />
-        <div>
-          <h1 className="text-2xl font-bold">Trombinoscope</h1>
-          <p className="text-sm text-muted-foreground">La photo de votre unité, année par année.</p>
-        </div>
-      </div>
+    <Page size="narrow">
+      <PageHeader title="Trombinoscope" icon={Users} description="La photo de votre unité, année par année." />
 
       {!years || years.length === 0 ? (
         <EmptyState icon={Users} title="Aucun trombinoscope" description="Votre trombinoscope apparaîtra ici une fois que vous serez affecté à une unité." />
@@ -65,6 +61,6 @@ export default function MyTrombinoscopePage() {
           })}
         </div>
       )}
-    </div>
+    </Page>
   )
 }
