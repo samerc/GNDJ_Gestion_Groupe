@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-23",
+        "text": "Performance (serveur) — nettoyage automatique quotidien : les notifications déjà lues et les emails/notifications déjà envoyés sont supprimés après un délai configurable (Paramètres → Maintenance : « Conservation des notifications lues » 90 j et « Conservation des emails/notifications envoyés » 30 j par défaut, 0 = ne jamais supprimer). Évite que ces tables grossissent indéfiniment et ralentissent la base. Les envois en attente et les notifications non lues sont conservés."
+      },
+      {
+        "date": "2026-09-23",
         "text": "Performance (serveur) — la détection anti-abus évite une analyse JSON superflue à chaque envoi de formulaire, et la compression dynamique d'IIS est désactivée (l'application compresse déjà elle-même). Améliorations internes, invisibles à l'usage."
       },
       {

@@ -30,7 +30,7 @@ public class OutboxSenderBackgroundService : BackgroundService
     private const int MaxAttempts = 5;         // give-up threshold → Status.Failed
     private static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(30);   // per-attempt SMTP timeout
     private static readonly TimeSpan Lease = TimeSpan.FromMinutes(2);          // claim window; a crash mid-send retries after this
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(15);  // fallback poll when no wake signal
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);  // fallback poll when no wake signal (enqueue wakes it instantly)
     // Backoff before the Nth retry (index = attempts already made − 1). After the last, the row is Failed.
     private static readonly TimeSpan[] Backoff =
         [TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(30)];

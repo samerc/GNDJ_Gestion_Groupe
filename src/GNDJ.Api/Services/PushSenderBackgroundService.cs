@@ -29,7 +29,7 @@ public class PushSenderBackgroundService : BackgroundService
     private const int BatchSize = 50;
     private const int MaxAttempts = 5;
     private static readonly TimeSpan Lease = TimeSpan.FromMinutes(2);
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30); // fallback poll; enqueue wakes it instantly
     private static readonly TimeSpan[] Backoff =
         [TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(30)];
 
