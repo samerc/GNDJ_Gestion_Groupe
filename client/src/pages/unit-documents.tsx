@@ -220,7 +220,7 @@ export default function UnitDocumentsPage() {
       pages = docs.find(d => d.id === cell.documentId)?.pages ?? []
     } catch { /* fall back below */ }
     if (pages.length === 0)
-      pages = [{ pageId: null, order: 1, fileName: cell.fileName ?? '', mimeType: cell.mimeType ?? '', fileSize: 0, isPrimary: true }]
+      pages = [{ pageId: null, order: 1, fileName: cell.fileName ?? '', mimeType: cell.mimeType ?? '', fileSize: 0, isPrimary: true, fileMissing: false }]
     setPreviewPages(pages)
     await loadPreviewPage(cell.documentId, pages, 0)
   }

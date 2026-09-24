@@ -108,7 +108,8 @@ export function AppLayout() {
               Mode maintenance actif ({maint?.site ? 'tout le site' : 'espace membres'}) — seuls les super-administrateurs ont accès. Désactivez-le dans Paramètres.
             </div>
           )}
-          <main ref={mainRef} className="flex-1 overflow-auto p-4 sm:p-6">
+          {/* pb includes the iOS home-indicator inset so the bottom of a scrolled page clears it (env() = 0 off iOS). */}
+          <main ref={mainRef} className="flex-1 overflow-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
             <Outlet />
           </main>
         </div>

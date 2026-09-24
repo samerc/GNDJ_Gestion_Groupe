@@ -132,7 +132,7 @@ export default function AdminEventsPage() {
                   <TableCell className="whitespace-nowrap text-muted-foreground">
                     {formatDateLong(ev.startDate)}{ev.endDate ? ` → ${formatDateLong(ev.endDate)}` : ''}
                   </TableCell>
-                  <TableCell><Badge variant="outline">{ev.tagLabel}</Badge></TableCell>
+                  <TableCell>{ev.tagLabel}</TableCell>
                   <TableCell><Badge variant={ev.isPublished ? 'default' : 'secondary'}>{ev.isPublished ? 'Publié' : 'Brouillon'}</Badge></TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -217,7 +217,7 @@ export default function AdminEventsPage() {
                   <Button type="button" variant="secondary" size="sm" className="absolute right-2 top-2" onClick={() => setForm(f => ({ ...f, coverImagePath: null }))}>Retirer</Button>
                 </div>
               ) : (
-                <label className="flex h-28 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed text-sm text-muted-foreground hover:bg-accent/5">
+                <label className="flex h-28 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed text-sm text-muted-foreground hover:bg-muted">
                   {coverUploading ? 'Téléversement…' : <><ImagePlus className="h-5 w-5" /><span>Ajouter une image (JPG, PNG)</span></>}
                   <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={coverUploading} onChange={handleCoverUpload} />
                 </label>

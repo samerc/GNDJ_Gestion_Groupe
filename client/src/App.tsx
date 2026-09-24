@@ -36,6 +36,7 @@ const ForgotPasswordPage = lazy(() => import('@/pages/forgot-password'))
 const ForgotUsernamePage = lazy(() => import('@/pages/forgot-username'))
 const ResetPasswordPage = lazy(() => import('@/pages/reset-password'))
 const ImpersonationHandoff = lazy(() => import('@/components/layout/impersonation-handoff'))
+const ScanUploadPage = lazy(() => import('@/pages/scan-upload'))
 const InscriptionLandingPage = lazy(() => import('@/pages/inscription/index'))
 const ApplicantLoginPage = lazy(() => import('@/pages/inscription/login'))
 const ApplicantRegisterPage = lazy(() => import('@/pages/inscription/register'))
@@ -130,6 +131,9 @@ export default function App() {
         {/* "Voir comme" new-tab landing — public: the new tab may carry no admin auth of its own, only the
             handed-off impersonation token. Consumes it, becomes the member, then redirects to the dashboard. */}
         <Route path="/voir-comme" element={<ImpersonationHandoff />} />
+        {/* Phone scan-upload landing — public: reached by scanning the desktop QR. The token in the URL is the
+            authorization (a short-lived, upload-only capability); the phone never logs in. */}
+        <Route path="/scan-upload/:token" element={<ScanUploadPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/forgot-username" element={<ForgotUsernamePage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />

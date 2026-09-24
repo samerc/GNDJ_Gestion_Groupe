@@ -2,11 +2,11 @@ using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Documents;
 using GNDJ.Api.Authorization;
 using GNDJ.Domain.Enums;
+using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
 
 namespace GNDJ.Api.Controllers;
 
@@ -69,7 +69,7 @@ public class DocumentsController : BaseApiController
             title = docType?.Name ?? "Document";
         }
 
-        var (saved, savedPaths, error) = await SaveUploadedFilesAsync(files);
+        var (saved, savedPaths, error) = await DocumentUploadFiles.SaveAsync(_context, files);
         if (error is not null) return BadRequest(new { error });
 
         var result = await Mediator.Send(new UploadMemberDocumentCommand(
@@ -77,7 +77,7 @@ public class DocumentsController : BaseApiController
 
         if (!result.IsSuccess)
         {
-            CleanupFiles(savedPaths);
+            DocumentUploadFiles.Cleanup(savedPaths);
             return BadRequest(new { error = result.Error });
         }
 
@@ -96,83 +96,16 @@ public class DocumentsController : BaseApiController
         if (files is null || files.Count == 0)
             return BadRequest(new { error = "Aucun fichier n'a été fourni." });
 
-        var (saved, savedPaths, error) = await SaveUploadedFilesAsync(files);
+        var (saved, savedPaths, error) = await DocumentUploadFiles.SaveAsync(_context, files);
         if (error is not null) return BadRequest(new { error });
 
         var result = await Mediator.Send(new AddDocumentPagesCommand(id, saved));
         if (!result.IsSuccess)
         {
-            CleanupFiles(savedPaths);
+            DocumentUploadFiles.Cleanup(savedPaths);
             return BadRequest(new { error = result.Error });
         }
         return Ok(new { id = result.Value });
-    }
-
-    // Validates (size / extension / magic bytes) and saves every uploaded file to disk. Returns the saved
-    // file descriptors + their absolute paths (for cleanup on a later failure), or the first validation error
-    // (already-saved files are removed before returning so a bad file in the batch leaves nothing behind).
-    private async Task<(List<SavedDocFile> saved, List<string> paths, string? error)> SaveUploadedFilesAsync(IFormFileCollection files)
-    {
-        var maxSizeSetting = await _context.Settings.FirstOrDefaultAsync(s => s.Key == "documents.max_file_size_mb");
-        var maxSizeMb = int.TryParse(maxSizeSetting?.Value, out var parsed) ? parsed : 5;
-        var allowedSetting = await _context.Settings.FirstOrDefaultAsync(s => s.Key == "documents.allowed_file_types");
-        var allowedTypes = new[] { "pdf", "jpg", "jpeg", "png" };
-        if (allowedSetting is not null)
-        {
-            try { allowedTypes = JsonSerializer.Deserialize<string[]>(allowedSetting.Value) ?? allowedTypes; } catch { }
-        }
-
-        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "documents");
-        Directory.CreateDirectory(uploadsDir);
-
-        var saved = new List<SavedDocFile>();
-        var paths = new List<string>();
-        foreach (var file in files)
-        {
-            if (file.Length == 0) { CleanupFiles(paths); return (saved, paths, "Un fichier fourni est vide."); }
-            if (file.Length > maxSizeMb * 1024 * 1024) { CleanupFiles(paths); return (saved, paths, $"Le fichier dépasse la taille maximale autorisée ({maxSizeMb} Mo)."); }
-
-            var ext = Path.GetExtension(file.FileName).TrimStart('.').ToLower();
-            if (!allowedTypes.Contains(ext)) { CleanupFiles(paths); return (saved, paths, $"Type de fichier non autorisé. Types acceptés : {string.Join(", ", allowedTypes)}"); }
-
-            // Magic-byte check: the content must match the extension.
-            using (var headerStream = file.OpenReadStream())
-            {
-                var header = new byte[4];
-                var bytesRead = 0;
-                while (bytesRead < 4)
-                {
-                    var read = await headerStream.ReadAsync(header.AsMemory(bytesRead, 4 - bytesRead));
-                    if (read == 0) break;
-                    bytesRead += read;
-                }
-                var isValid = ext switch
-                {
-                    "pdf" => bytesRead >= 4 && header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46, // %PDF
-                    "jpg" or "jpeg" => bytesRead >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
-                    "png" => bytesRead >= 4 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47, // .PNG
-                    _ => false
-                };
-                if (!isValid) { CleanupFiles(paths); return (saved, paths, "Le contenu du fichier ne correspond pas à son extension."); }
-            }
-
-            var safeFileName = Path.GetFileName(file.FileName); // Strip any directory components
-            var uniqueName = $"{Guid.CreateVersion7()}_{safeFileName}";
-            var fullPath = Path.Combine(uploadsDir, uniqueName);
-            using (var stream = new FileStream(fullPath, FileMode.Create))
-                await file.CopyToAsync(stream);
-
-            var relativePath = Path.Combine("uploads", "documents", uniqueName);
-            saved.Add(new SavedDocFile(relativePath, file.FileName, file.Length, file.ContentType));
-            paths.Add(fullPath);
-        }
-        return (saved, paths, null);
-    }
-
-    private static void CleanupFiles(IEnumerable<string> fullPaths)
-    {
-        foreach (var p in fullPaths)
-            try { if (System.IO.File.Exists(p)) System.IO.File.Delete(p); } catch { /* best effort */ }
     }
 
     /// <summary>
@@ -199,12 +132,20 @@ public class DocumentsController : BaseApiController
         try
         {
             var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
+            // Sensitive-access audit: record who obtained this member's file (downloads are logged, reads are not).
+            await LogDownload(new LogDocumentDownloadCommand(id));
             return File(stream, doc.MimeType, doc.FileName);
         }
         catch (IOException)
         {
             return NotFound(new { error = "Le fichier n'est pas accessible pour le moment." });
         }
+    }
+
+    // Best-effort audit of a served download — a logging hiccup must never break the download itself.
+    private async Task LogDownload(IRequest<bool> command)
+    {
+        try { await Mediator.Send(command); } catch { /* audit is best-effort */ }
     }
 
     /// <summary>Approves or rejects a document (with optional notes). Requires documents.approve.</summary>
@@ -242,7 +183,12 @@ public class DocumentsController : BaseApiController
         if (!fullPath.StartsWith(uploadsRoot) || !System.IO.File.Exists(fullPath))
             return NotFound(new { error = "Le fichier n'existe plus sur le serveur." });
 
-        try { return File(new FileStream(fullPath, FileMode.Open, FileAccess.Read), doc.MimeType, doc.FileName); }
+        try
+        {
+            var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
+            await LogDownload(new LogDocumentPageDownloadCommand(pageId));
+            return File(stream, doc.MimeType, doc.FileName);
+        }
         catch (IOException) { return NotFound(new { error = "Le fichier n'est pas accessible pour le moment." }); }
     }
 
@@ -348,6 +294,8 @@ public class DocumentsController : BaseApiController
 
         memoryStream.Position = 0;
         var zipName = docTypeId.HasValue ? $"Documents_{docTypeId}.zip" : "Documents_Unite.zip";
+        // Sensitive-access audit: a bulk export of a whole unit's documents is the highest-exposure download.
+        await LogDownload(new LogZipDownloadCommand(unitId, docTypeId, files.Count));
         return File(memoryStream.ToArray(), "application/zip", zipName);
     }
 

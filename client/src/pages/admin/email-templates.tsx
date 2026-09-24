@@ -235,9 +235,9 @@ function TemplatesTab() {
               {templates.map((tpl) => (
                 <TableRow key={tpl.id} className="even:bg-muted/30">
                   <TableCell className="font-medium">{tpl.name}</TableCell>
-                  <TableCell><code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{tpl.code}</code></TableCell>
+                  <TableCell>{tpl.code}</TableCell>
                   <TableCell>{MODULE_OPTIONS.find(m => m.value === tpl.module)?.label ?? tpl.module}</TableCell>
-                  <TableCell className="text-muted-foreground">{tpl.smtpServerName ?? 'Par defaut'}</TableCell>
+                  <TableCell>{tpl.smtpServerName ?? 'Par défaut'}</TableCell>
                   <TableCell>{tpl.isActive ? <Badge variant="success">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">

@@ -90,6 +90,16 @@ const SETTING_OPTIONS: Record<string, { value: string; label: string }[]> = {
   pinned_nationalities: NATIONALITY_OPTIONS,
   default_country_code: PHONE_COUNTRY_CODES,
   default_country: COUNTRY_OPTIONS,
+  'pwa.install_promotion': [
+    { value: 'off', label: 'Désactivé (personne)' },
+    { value: 'maitrise', label: 'Maîtrise uniquement' },
+    { value: 'all', label: 'Tous les membres' },
+  ],
+  'scan_upload.audience': [
+    { value: 'off', label: 'Désactivé (personne)' },
+    { value: 'maitrise', label: 'Maîtrise uniquement' },
+    { value: 'all', label: 'Tous les membres' },
+  ],
 }
 
 // Optional unit suffix for number settings.

@@ -78,6 +78,7 @@ public interface IApplicationDbContext
     DbSet<ContactMessage> ContactMessages { get; }
     DbSet<PushSubscription> PushSubscriptions { get; }
     DbSet<PushOutbox> PushOutbox { get; }
+    DbSet<UploadSession> UploadSessions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

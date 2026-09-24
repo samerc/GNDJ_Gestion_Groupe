@@ -102,13 +102,23 @@ public static class SeedData
             Permissions.DocumentsView,
             Permissions.CotisationsView
         ]);
-        var readOnlyProfile = CreateProfile("Lecture seule", "read-only", "Accès en lecture uniquement (membre)",
+        // The youth/member baseline: grants ZERO permissions (a member sees only their own fiche via the
+        // own-record-bypass endpoints). NOT a "read-only access to the site" profile — hence the honest label
+        // "Membre (aucun accès)". The genuine read-only viewer is the separate "observateur" profile below.
+        var readOnlyProfile = CreateProfile("Membre (aucun accès)", "read-only",
+            "Profil de base des membres — aucun accès (le membre ne voit que sa propre fiche)",
             ReadOnlyPermissions());
+        // Genuine read-only OBSERVER: a trusted non-editing viewer (auditeur/observateur). Holds every ".view"
+        // permission and nothing that mutates. Fully editable afterward in Profils & accès (e.g. trim demande.view
+        // / audit.view if the observer shouldn't see enrolment PII or the audit trail).
+        var observerProfile = CreateProfile("Lecture seule", "observateur",
+            "Consultation seule — accès en lecture aux données du groupe, sans aucune modification",
+            AllViewPermissions());
         var chefDeGroupeProfile = CreateProfile("Chef de Groupe", "chef-de-groupe",
             "Gestion du groupe entier (toutes les unités), sans administration système", ChefDeGroupePermissions);
         chefDeGroupeProfile.IsGroupLevel = true;
 
-        context.SecurityProfiles.AddRange(superAdminProfile, assocAdminProfile, chefUniteProfile, chefEquipeProfile, readOnlyProfile, chefDeGroupeProfile);
+        context.SecurityProfiles.AddRange(superAdminProfile, assocAdminProfile, chefUniteProfile, chefEquipeProfile, readOnlyProfile, observerProfile, chefDeGroupeProfile);
 
         // Functional Roles (global — no unit type restriction)
         var roleSuperAdmin = new FunctionalRole
@@ -244,6 +254,35 @@ public static class SeedData
         }
 
         await context.SaveChangesAsync();
+    }
+
+    // Renames the emptied youth/member "read-only" profile away from the misleading "Lecture seule" label
+    // (it grants ZERO perms — a member only sees their own fiche via own-record bypass), and creates a GENUINE
+    // read-only OBSERVER profile ("Lecture seule", code "observateur") carrying the .view permissions for a
+    // trusted non-editing viewer. Perms are set only on creation (not re-synced) so an admin can trim it later
+    // (e.g. remove demande.view) and it sticks. Idempotent — safe on every startup.
+    public static async Task SeedObserverProfileAsync(GndjDbContext context)
+    {
+        // Rename the youth baseline off "Lecture seule" (only if still the old default, so a manual rename or a
+        // fresh DB already named "Membre (aucun accès)" isn't clobbered) — frees that label for the observer.
+        var youth = await context.SecurityProfiles.FirstOrDefaultAsync(p => p.Code == "read-only");
+        if (youth is not null && youth.Name == "Lecture seule")
+        {
+            youth.Name = "Membre (aucun accès)";
+            youth.Description = "Profil de base des membres — aucun accès (le membre ne voit que sa propre fiche)";
+            await context.SaveChangesAsync();
+        }
+
+        // Create the genuine read-only observer if missing (one-time; not re-synced so trims persist).
+        var observer = await context.SecurityProfiles.FirstOrDefaultAsync(p => p.Code == "observateur");
+        if (observer is null)
+        {
+            observer = CreateProfile("Lecture seule", "observateur",
+                "Consultation seule — accès en lecture aux données du groupe, sans aucune modification",
+                AllViewPermissions());
+            context.SecurityProfiles.Add(observer);
+            await context.SaveChangesAsync();
+        }
     }
 
     // Creates the Chef de Groupe profile on an existing DB if missing, and keeps its permissions +
@@ -623,6 +662,15 @@ public static class SeedData
             new() { Key = "default_country_code", Value = "+961", Category = "members", Label = "Indicatif téléphonique par défaut", Description = "Indicatif pays utilisé par défaut pour les nouveaux téléphones", ValueType = "string" },
             new() { Key = "default_country", Value = "Liban", Category = "members", Label = "Pays par défaut", Description = "Pays utilisé par défaut pour les nouvelles adresses", ValueType = "string" },
             new() { Key = "user_domain", Value = "scouts.gndj", Category = "general", Label = "Domaine utilisateur", Description = "Domaine utilisé pour générer les noms d'utilisateur (ex: prenom.nom@domaine)", ValueType = "string" },
+            // Who is invited to INSTALL the mobile app (install banner/card, the desktop "installer sur mobile"
+            // QR, the account-menu entry, the welcome-tour slide, and the notifications toggle). "maitrise" =
+            // pilot for chefs only; "all" = every member/parent; "off" = hidden for everyone. Read client-side.
+            new() { Key = "pwa.install_promotion", Value = "maitrise", Category = "general", Label = "Promotion de l'application", Description = "Qui voit l'invitation à installer l'application (bannière, QR sur ordinateur, menu). « Maîtrise uniquement » = pilote pour les chefs ; « Tous les membres » = ouvert à tous ; « Désactivé » = masqué pour tout le monde.", ValueType = "string" },
+            // Who sees the "Scanner un document avec le téléphone" button (a QR the user scans with their phone to
+            // photograph a paper document → it uploads straight into the member's dossier). "maitrise" = pilot for
+            // chefs; "all" = every member/parent on their own laptop; "off" = hidden. Read client-side; the phone
+            // page itself always works with a valid token (created by an authorized desktop user).
+            new() { Key = "scan_upload.audience", Value = "maitrise", Category = "general", Label = "Scanner un document avec le téléphone", Description = "Qui voit le bouton « Scanner avec le téléphone » (un QR à scanner avec son téléphone pour photographier un document papier et l'envoyer directement dans le dossier du membre). « Maîtrise uniquement » = pilote pour les chefs ; « Tous les membres » = ouvert à tous ; « Désactivé » = masqué.", ValueType = "string" },
             // Rentrée reminders: the weekly digest email of overdue/upcoming checklist tasks to each assignee.
             new() { Key = "rentree.reminders_enabled", Value = "true", Category = "rentree", Label = "Rappels de rentrée par email", Description = "Envoie chaque semaine aux responsables un récapitulatif de leurs tâches de rentrée en retard ou à venir.", ValueType = "boolean" },
             new() { Key = "documents.max_file_size_mb", Value = "5", Category = "documents", Label = "Taille maximale de fichier (Mo)", Description = "Taille maximale autorisée pour les documents téléchargés, en mégaoctets", ValueType = "number" },

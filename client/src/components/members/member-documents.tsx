@@ -6,6 +6,8 @@ import { useMemberDocuments, useUploadDocument, useReviewDocument, useDeleteDocu
 import { useDocumentTypeList, downloadMemberTemplatePdf, type DocumentTypeListDto } from '@/services/document-type-service'
 import { useSettingValue, useSettingArray } from '@/services/settings-service'
 import { useDocumentCampaign } from '@/services/documents-campaign-service'
+import { useScanUploadEnabled } from '@/hooks/use-scan-upload-audience'
+import { ScanUploadDialog } from '@/components/members/scan-upload-dialog'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
@@ -17,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Tip } from '@/components/ui/tooltip'
-import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus, Files, Plus, Camera } from 'lucide-react'
+import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus, Files, Plus, Camera, Smartphone } from 'lucide-react'
 
 // Status badge for a doc. Expiry overrides the workflow status (an expired doc reads "Expiré"
 // regardless of approval). Workflow: upload → "En cours de vérification" → "Accepté" / "Refusé".
@@ -42,6 +44,11 @@ interface Props {
 
 export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const { hasPermission } = useAuthStore()
+  // "Scanner avec le téléphone" — gated by the setting audience. Only useful from a desktop (scanning a QR with
+  // your phone while ON the phone is pointless), so also require a fine pointer (mouse/trackpad).
+  const scanEnabled = useScanUploadEnabled()
+  const isFinePointer = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: fine)').matches
+  const [scanOpen, setScanOpen] = useState(false)
   // Campaign gate inputs (hooks must run before any early return): the member's on-hold flag + the campaign status.
   const onHold = useAuthStore((s) => s.user?.isOnHold)
   const { data: campaign } = useDocumentCampaign()
@@ -300,6 +307,16 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
         </div>
       )}
 
+      {/* Scan-with-phone: opens a QR the user scans with their phone to photograph the document → it uploads
+          straight here. Desktop-only + gated by the setting audience + the member must be uploadable. */}
+      {scanEnabled && isFinePointer && canUpload && docTypes && docTypes.length > 0 && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => setScanOpen(true)}>
+            <Smartphone className="mr-1.5 h-4 w-4" />Scanner avec le téléphone
+          </Button>
+        </div>
+      )}
+
       {/* Progress summary */}
       {docStats && docStats.total > 0 && (
         <div className="flex flex-wrap items-center gap-4 rounded-lg border bg-card p-4">
@@ -349,6 +366,13 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                     {doc ? statusBadge(doc.status, doc.isExpired) : (
                       <Badge variant="outline" className="gap-1 text-muted-foreground text-xs"><Minus className="h-3 w-3" />Manquant</Badge>
                     )}
+                    {/* The document record exists but its file is gone from disk (deleted/lost) — flag it so it's
+                        obvious the file must be re-uploaded, instead of only failing with a 404 on download. */}
+                    {doc && doc.pages.some(p => p.fileMissing) && (
+                      <Badge variant="outline" className="gap-1 border-red-300 text-red-700 dark:border-red-900 dark:text-red-300 text-xs">
+                        <AlertTriangle className="h-3 w-3" />Fichier manquant
+                      </Badge>
+                    )}
                   </div>
                   {doc && (
                     <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -393,7 +417,9 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
 
                 {/* Actions — full-width below the content on mobile (stacked), inline on the right on ≥sm. */}
                 <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                  {doc && (
+                  {/* Row download opens page 1 — hide it when page 1's file is gone (it would 404); the pages
+                      viewer still lists any downloadable extra pages. */}
+                  {doc && !doc.pages.find(p => p.isPrimary)?.fileMissing && (
                     <Tip content="Télécharger le document"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => handleDownload(doc)}>
                       <Download className="h-4 w-4" />
                     </Button></Tip>
@@ -600,13 +626,19 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
               <div className="space-y-2">
                 {openDoc?.pages.map((p) => (
                   <div key={p.pageId ?? 'primary'} className="flex items-center gap-2 rounded-md border p-2 text-sm">
-                    <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    {p.fileMissing
+                      ? <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+                      : <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />}
                     <span className="min-w-0 flex-1 truncate">
                       <span className="mr-1 text-muted-foreground">Page {p.order}</span>{p.fileName}
+                      {p.fileMissing && <span className="ml-1 text-xs font-medium text-red-600 dark:text-red-400">— fichier manquant</span>}
                     </span>
-                    <Tip content="Télécharger"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => openDoc && handleDownloadPage(openDoc, p)}>
-                      <Download className="h-4 w-4" />
-                    </Button></Tip>
+                    {/* No download for a missing file (it would 404) — hide the button. */}
+                    {!p.fileMissing && (
+                      <Tip content="Télécharger"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => openDoc && handleDownloadPage(openDoc, p)}>
+                        <Download className="h-4 w-4" />
+                      </Button></Tip>
+                    )}
                     {p.isPrimary ? (
                       <>
                         <span className="px-1 text-[10px] text-muted-foreground">page principale</span>
@@ -648,6 +680,9 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
       />
+
+      {/* Desktop QR dialog for scanning a document with the phone. */}
+      <ScanUploadDialog memberId={memberId} open={scanOpen} onOpenChange={setScanOpen} />
     </div>
   )
 }

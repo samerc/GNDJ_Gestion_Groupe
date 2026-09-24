@@ -12,7 +12,9 @@ namespace GNDJ.Application.Documents;
 // DTOs
 // A single file of a document. IsPrimary = page 1 (the inline file on MemberDocument, downloaded via
 // /documents/{docId}/download); otherwise a child page (downloaded via /documents/pages/{pageId}/download).
-public record DocumentPageDto(Guid? PageId, int Order, string FileName, string MimeType, long FileSize, bool IsPrimary);
+// FileMissing = the file no longer exists on disk (deleted/lost) so it can't be downloaded — flagged in the UI
+// instead of only surfacing as a 404 when someone tries to open it.
+public record DocumentPageDto(Guid? PageId, int Order, string FileName, string MimeType, long FileSize, bool IsPrimary, bool FileMissing);
 
 public record MemberDocumentDto(
     Guid Id, Guid MemberId, Guid DocumentTypeId, string DocumentTypeName,
@@ -30,10 +32,24 @@ static class DocumentPageMapper
 {
     public static IReadOnlyList<DocumentPageDto> Build(MemberDocument d)
     {
-        var pages = new List<DocumentPageDto> { new(null, 1, d.FileName, d.MimeType, d.FileSize, true) };
+        var pages = new List<DocumentPageDto> { new(null, 1, d.FileName, d.MimeType, d.FileSize, true, FileMissing(d.FilePath)) };
         pages.AddRange(d.Pages.OrderBy(p => p.PageOrder)
-            .Select(p => new DocumentPageDto(p.Id, p.PageOrder, p.FileName, p.MimeType, p.FileSize, false)));
+            .Select(p => new DocumentPageDto(p.Id, p.PageOrder, p.FileName, p.MimeType, p.FileSize, false, FileMissing(p.FilePath))));
         return pages;
+    }
+
+    // True when the stored file is gone from disk (deleted/lost) — same path resolution + traversal guard as the
+    // download endpoint. Best-effort: any IO error is treated as "missing" (the download would fail anyway).
+    static bool FileMissing(string? filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath)) return true;
+        try
+        {
+            var uploadsRoot = System.IO.Path.GetFullPath(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "uploads"));
+            var full = System.IO.Path.GetFullPath(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), filePath));
+            return !full.StartsWith(uploadsRoot) || !System.IO.File.Exists(full);
+        }
+        catch { return true; }
     }
 
     // Inserts extra pages onto a document by id (page 1 is the inline file, so extra pages start at 2). Adds the
@@ -47,6 +63,77 @@ static class DocumentPageMapper
         foreach (var f in files)
             context.MemberDocumentPages.Add(new MemberDocumentPage { MemberDocumentId = documentId, FilePath = f.FilePath, FileName = f.FileName, FileSize = f.FileSize, MimeType = f.MimeType, PageOrder = order++, CreatedAt = now });
         await context.SaveChangesAsync(ct);
+    }
+}
+
+// Shared WRITE path for a member document upload. Creates a new document from the first file (extra files →
+// pages 2, 3, …), OR appends the files as pages to an existing PENDING document of the same (member, type) —
+// so "send front" then "send back" build ONE reviewable document and a re-send doesn't duplicate. Used by BOTH
+// the normal upload command and the phone "scan upload" flow, so the append / auto-approve / audit behaviour
+// can never drift between them. The CALLER is responsible for authorization (this method trusts it). actingUserId
+// stamps ReviewedBy on an auto-approved (no-approval-required) doc + the audit actor; `via` tags the audit
+// (e.g. "scan mobile") when the upload didn't come through the standard path.
+static class MemberDocumentWriter
+{
+    public static async Task<Result<Guid>> WriteAsync(
+        IApplicationDbContext context, IAuditService audit,
+        Guid memberId, Guid documentTypeId, string? title,
+        DateOnly? expiryDate, DateOnly? issuedDate, IReadOnlyList<SavedDocFile> files,
+        Guid? actingUserId, string? via, CancellationToken ct)
+    {
+        if (files.Count == 0) return Result<Guid>.Failure("Aucun fichier n'a été fourni.");
+
+        var docType = await context.DocumentTypes.FindAsync([documentTypeId], ct);
+        if (docType is null) return Result<Guid>.Failure("Type de document introuvable.");
+        if (docType.RequiresExpiry && expiryDate is null)
+            return Result<Guid>.Failure("La date d'expiration est requise pour ce type de document.");
+
+        var docTitle = string.IsNullOrWhiteSpace(title) ? docType.Name : title;
+        var now = DateTime.UtcNow;
+
+        // Append to an in-progress (Pending) document of the same type if one exists. Insert the pages directly
+        // (don't load/mutate the tracked parent + its collection) so SaveChanges only does INSERTs.
+        var existingId = await context.MemberDocuments
+            .Where(d => d.MemberId == memberId && d.DocumentTypeId == documentTypeId && d.Status == DocumentStatus.Pending)
+            .OrderByDescending(d => d.CreatedAt)
+            .Select(d => (Guid?)d.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (existingId is Guid docId)
+        {
+            await DocumentPageMapper.AppendPagesAsync(context, docId, files, now, ct);
+            var appendMember = await AuditNames.MemberAsync(context, memberId, ct);
+            await audit.LogAsync("AddPages", "MemberDocument", docId, newValues: new { Member = appendMember, Document = docType.Name, added = files.Count, via }, cancellationToken: ct);
+            return Result<Guid>.Success(docId);
+        }
+
+        var status = docType.RequiresApproval ? DocumentStatus.Pending : DocumentStatus.Approved;
+        var first = files[0];
+        var entity = new MemberDocument
+        {
+            MemberId = memberId,
+            DocumentTypeId = documentTypeId,
+            Title = docTitle,
+            FilePath = first.FilePath,
+            FileName = first.FileName,
+            FileSize = first.FileSize,
+            MimeType = first.MimeType,
+            Status = status,
+            ExpiryDate = expiryDate,
+            IssuedDate = issuedDate,
+            // Auto-approve if no approval required (stamped by the acting user, if known).
+            ReviewedBy = !docType.RequiresApproval ? actingUserId : null,
+            ReviewedAt = !docType.RequiresApproval ? now : null
+        };
+        var order = 2;
+        foreach (var f in files.Skip(1))
+            entity.Pages.Add(new MemberDocumentPage { FilePath = f.FilePath, FileName = f.FileName, FileSize = f.FileSize, MimeType = f.MimeType, PageOrder = order++, CreatedAt = now });
+
+        context.MemberDocuments.Add(entity);
+        await context.SaveChangesAsync(ct);
+        var uploadMember = await AuditNames.MemberAsync(context, entity.MemberId, ct);
+        await audit.LogAsync("Create", "MemberDocument", entity.Id, newValues: new { Member = uploadMember, Document = docType.Name, entity.Title, entity.FileName, entity.Status, pages = files.Count, via }, cancellationToken: ct);
+        return Result<Guid>.Success(entity.Id);
     }
 }
 
@@ -146,64 +233,11 @@ public class UploadMemberDocumentCommandHandler(IApplicationDbContext context, I
         var block = await DocumentAccessHelper.MemberUploadBlockReasonAsync(context, currentUser, request.MemberId, ct);
         if (block is not null) return Result<Guid>.Failure(block);
 
-        var docType = await context.DocumentTypes.FindAsync([request.DocumentTypeId], ct);
-        if (docType is null)
-            return Result<Guid>.Failure("Type de document introuvable.");
-
-        if (docType.RequiresExpiry && request.ExpiryDate is null)
-            return Result<Guid>.Failure("La date d'expiration est requise pour ce type de document.");
-
-        var files = request.Files;
-        var now = DateTime.UtcNow;
-
-        // Append to an in-progress (Pending) document of the same type if one exists — front/back land together.
-        // Insert the pages directly (don't load/mutate the tracked parent + its collection) so SaveChanges only
-        // does INSERTs and never issues a spurious parent UPDATE.
-        var existingId = await context.MemberDocuments
-            .Where(d => d.MemberId == request.MemberId && d.DocumentTypeId == request.DocumentTypeId && d.Status == DocumentStatus.Pending)
-            .OrderByDescending(d => d.CreatedAt)
-            .Select(d => (Guid?)d.Id)
-            .FirstOrDefaultAsync(ct);
-
-        if (existingId is Guid docId)
-        {
-            await DocumentPageMapper.AppendPagesAsync(context, docId, files, now, ct);
-            // Record WHOSE document + which type so the audit says who added pages to what, not just a count.
-            var appendMember = await AuditNames.MemberAsync(context, request.MemberId, ct);
-            await auditService.LogAsync("AddPages", "MemberDocument", docId, newValues: new { Member = appendMember, Document = docType.Name, added = files.Count }, cancellationToken: ct);
-            return Result<Guid>.Success(docId);
-        }
-
-        var status = docType.RequiresApproval ? DocumentStatus.Pending : DocumentStatus.Approved;
-        var first = files[0];
-        var entity = new MemberDocument
-        {
-            MemberId = request.MemberId,
-            DocumentTypeId = request.DocumentTypeId,
-            Title = request.Title,
-            FilePath = first.FilePath,
-            FileName = first.FileName,
-            FileSize = first.FileSize,
-            MimeType = first.MimeType,
-            Status = status,
-            ExpiryDate = request.ExpiryDate,
-            IssuedDate = request.IssuedDate,
-            // Auto-approve if no approval required
-            ReviewedBy = !docType.RequiresApproval ? currentUser.UserId : null,
-            ReviewedAt = !docType.RequiresApproval ? now : null
-        };
-        // Remaining files become extra pages (2, 3, …).
-        var order = 2;
-        foreach (var f in files.Skip(1))
-            entity.Pages.Add(new MemberDocumentPage { FilePath = f.FilePath, FileName = f.FileName, FileSize = f.FileSize, MimeType = f.MimeType, PageOrder = order++, CreatedAt = now });
-
-        context.MemberDocuments.Add(entity);
-        await context.SaveChangesAsync(ct);
-        // Record WHOSE document + which type (docType.Name) so the audit says who uploaded what, not just a file name.
-        var uploadMember = await AuditNames.MemberAsync(context, entity.MemberId, ct);
-        await auditService.LogAsync("Create", "MemberDocument", entity.Id, newValues: new { Member = uploadMember, Document = docType.Name, entity.Title, entity.FileName, entity.Status, pages = files.Count }, cancellationToken: ct);
-
-        return Result<Guid>.Success(entity.Id);
+        // Shared write path (create-or-append + auto-approve + audit) — same as the phone scan-upload flow.
+        return await MemberDocumentWriter.WriteAsync(context, auditService,
+            request.MemberId, request.DocumentTypeId, request.Title,
+            request.ExpiryDate, request.IssuedDate, request.Files,
+            currentUser.UserId, via: null, ct);
     }
 }
 

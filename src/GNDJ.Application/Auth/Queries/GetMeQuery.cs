@@ -107,7 +107,8 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
             suggestedPhone,
             user.Member.OnboardingSeenAt != null,
             isMaitrise,
-            needsContactReview
+            needsContactReview,
+            user.Member.AppInstalledAt != null
         ));
     }
 }

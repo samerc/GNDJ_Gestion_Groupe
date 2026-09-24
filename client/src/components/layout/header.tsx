@@ -27,7 +27,10 @@ export function Header() {
     // work on ANY dark bar colour.
     <header
       style={{ backgroundColor: theme.color }}
-      className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-white/10 px-4 text-white shadow-sm sm:px-6"
+      // iOS safe area: with viewport-fit=cover + apple black-translucent status bar, the standalone app draws
+      // UNDER the notch/Dynamic Island. Grow the bar by the top inset and pad the row down below it, so the
+      // hamburger/brand stay reachable and the colour fills up to the screen edge. env() = 0 off iOS (no change).
+      className="sticky top-0 z-30 flex h-[calc(4rem+env(safe-area-inset-top))] items-center gap-3 border-b border-white/10 px-4 pt-[env(safe-area-inset-top)] text-white shadow-sm sm:px-6"
     >
       {/* Mobile: hamburger + wordmark (drawer nav lives in MobileSidebar) */}
       <Button variant="ghost" size="icon" className="shrink-0 text-white/80 hover:bg-white/10 hover:text-white lg:hidden" onClick={() => setMobileOpen(true)}>

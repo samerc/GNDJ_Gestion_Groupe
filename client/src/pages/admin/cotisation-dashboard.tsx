@@ -507,10 +507,10 @@ export default function CotisationDashboardPage() {
                                         </thead>
                                         <tbody>
                                           {paidList.map((m, i2) => (
-                                            <tr key={m.memberId} className={`border-b ${i2 % 2 === 1 ? 'bg-muted/10' : ''}`}>
+                                            <tr key={m.memberId} className={`border-b transition-colors hover:bg-muted/40 ${i2 % 2 === 1 ? 'bg-muted/10' : ''}`}>
                                               <td className="px-3 py-2">
                                                 <button
-                                                  className="group inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                                                  className="group inline-flex items-center gap-1 font-medium text-primary hover:underline dark:text-blue-400"
                                                   onClick={() => navigate(`/members/${m.memberId}`)}
                                                 >
                                                   {m.memberName}
@@ -567,10 +567,10 @@ export default function CotisationDashboardPage() {
                                         </thead>
                                         <tbody>
                                           {exemptList.map((m, i2) => (
-                                            <tr key={m.memberId} className={`border-b ${i2 % 2 === 1 ? 'bg-muted/10' : ''}`}>
+                                            <tr key={m.memberId} className={`border-b transition-colors hover:bg-muted/40 ${i2 % 2 === 1 ? 'bg-muted/10' : ''}`}>
                                               <td className="px-3 py-2">
                                                 <button
-                                                  className="group inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                                                  className="group inline-flex items-center gap-1 font-medium text-primary hover:underline dark:text-blue-400"
                                                   onClick={() => navigate(`/members/${m.memberId}`)}
                                                 >
                                                   {m.memberName}
@@ -611,11 +611,11 @@ export default function CotisationDashboardPage() {
                                     </thead>
                                     <tbody>
                                       {toRelance.map((m, i2) => (
-                                        <tr key={m.memberId} className={`border-b ${i2 % 2 === 1 ? 'bg-muted/10' : ''}`}>
+                                        <tr key={m.memberId} className={`border-b transition-colors hover:bg-muted/40 ${i2 % 2 === 1 ? 'bg-muted/10' : ''}`}>
                                           {/* Name opens the member file (Documents & cotisations tab) for the full editor. */}
                                           <td className="px-3 py-2">
                                             <button
-                                              className="group inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                                              className="group inline-flex items-center gap-1 font-medium text-primary hover:underline dark:text-blue-400"
                                               onClick={() => navigate(`/members/${m.memberId}`)}
                                             >
                                               {m.memberName}
@@ -641,13 +641,13 @@ export default function CotisationDashboardPage() {
                                           <td className="px-3 py-2">
                                             <div className="flex flex-col gap-0.5">
                                               {m.contactEmail ? (
-                                                <a href={`mailto:${m.contactEmail}`} className="inline-flex items-center gap-1.5 text-primary hover:underline">
+                                                <a href={`mailto:${m.contactEmail}`} className="inline-flex items-center gap-1.5 text-primary hover:underline dark:text-blue-400">
                                                   <Mail className="h-3.5 w-3.5" /> {m.contactEmail}
                                                 </a>
                                               ) : null}
                                               {m.contactPhone ? (
                                                 <span className="inline-flex items-center gap-1.5">
-                                                  <a href={`tel:${m.contactPhone.replace(/\s+/g, '')}`} className="inline-flex items-center gap-1.5 text-primary hover:underline">
+                                                  <a href={`tel:${m.contactPhone.replace(/\s+/g, '')}`} className="inline-flex items-center gap-1.5 text-primary hover:underline dark:text-blue-400">
                                                     <Phone className="h-3.5 w-3.5" /> {m.contactPhone}
                                                   </a>
                                                   <WhatsappTextLink phone={m.contactPhone} />
@@ -661,15 +661,15 @@ export default function CotisationDashboardPage() {
                                               {m.status === 'Partial' ? (
                                                 // A partial payer already has a cotisation row — the inline create would
                                                 // reject a duplicate, so send the CG to the member file to add a line.
-                                                <Button variant="outline" size="sm" className="h-8" onClick={() => navigate(`/members/${m.memberId}`)}>
+                                                <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500" onClick={() => navigate(`/members/${m.memberId}`)}>
                                                   <Receipt className="mr-1 h-3.5 w-3.5" /> Compléter
                                                 </Button>
                                               ) : (
                                                 <>
-                                                  <Button variant="outline" size="sm" className="h-8" onClick={() => openPayDialog(m)}>
+                                                  <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500" onClick={() => openPayDialog(m)}>
                                                     <Receipt className="mr-1 h-3.5 w-3.5" /> Paiement
                                                   </Button>
-                                                  <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => openExemptDialog(m)} disabled={setExempt.isPending}>
+                                                  <Button size="sm" className="h-8 bg-slate-500 text-white hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500" onClick={() => openExemptDialog(m)} disabled={setExempt.isPending}>
                                                     <Ban className="mr-1 h-3.5 w-3.5" /> Ne paiera pas
                                                   </Button>
                                                 </>
@@ -686,7 +686,7 @@ export default function CotisationDashboardPage() {
                                 <div className="divide-y rounded-md border bg-background md:hidden">
                                   {toRelance.map((m) => (
                                     <div key={m.memberId} className="p-2.5">
-                                      <button className="font-medium text-primary hover:underline" onClick={() => navigate(`/members/${m.memberId}`)}>{m.memberName}</button>
+                                      <button className="font-medium text-primary hover:underline dark:text-blue-400" onClick={() => navigate(`/members/${m.memberId}`)}>{m.memberName}</button>
                                       <div className="mt-1">
                                         {m.status === 'Partial' ? (
                                           <div className="flex flex-col gap-0.5">
@@ -700,10 +700,10 @@ export default function CotisationDashboardPage() {
                                       </div>
                                       <div className="mt-1 text-xs text-muted-foreground">Père : {m.parentName ?? '—'}</div>
                                       <div className="mt-1 flex flex-col gap-0.5 text-sm">
-                                        {m.contactEmail && <a href={`mailto:${m.contactEmail}`} className="inline-flex items-center gap-1.5 text-primary hover:underline"><Mail className="h-3.5 w-3.5" />{m.contactEmail}</a>}
+                                        {m.contactEmail && <a href={`mailto:${m.contactEmail}`} className="inline-flex items-center gap-1.5 text-primary hover:underline dark:text-blue-400"><Mail className="h-3.5 w-3.5" />{m.contactEmail}</a>}
                                         {m.contactPhone && (
                                           <span className="inline-flex items-center gap-1.5">
-                                            <a href={`tel:${m.contactPhone.replace(/\s+/g, '')}`} className="inline-flex items-center gap-1.5 text-primary hover:underline"><Phone className="h-3.5 w-3.5" />{m.contactPhone}</a>
+                                            <a href={`tel:${m.contactPhone.replace(/\s+/g, '')}`} className="inline-flex items-center gap-1.5 text-primary hover:underline dark:text-blue-400"><Phone className="h-3.5 w-3.5" />{m.contactPhone}</a>
                                             <WhatsappTextLink phone={m.contactPhone} />
                                           </span>
                                         )}
@@ -711,11 +711,11 @@ export default function CotisationDashboardPage() {
                                       </div>
                                       <div className="mt-2 flex flex-wrap gap-1.5 no-print">
                                         {m.status === 'Partial' ? (
-                                          <Button variant="outline" size="sm" onClick={() => navigate(`/members/${m.memberId}`)}><Receipt className="mr-1 h-3.5 w-3.5" />Compléter</Button>
+                                          <Button size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500" onClick={() => navigate(`/members/${m.memberId}`)}><Receipt className="mr-1 h-3.5 w-3.5" />Compléter</Button>
                                         ) : (
                                           <>
-                                            <Button variant="outline" size="sm" onClick={() => openPayDialog(m)}><Receipt className="mr-1 h-3.5 w-3.5" />Paiement</Button>
-                                            <Button variant="outline" size="sm" className="text-muted-foreground" onClick={() => openExemptDialog(m)} disabled={setExempt.isPending}><Ban className="mr-1 h-3.5 w-3.5" />Ne paiera pas</Button>
+                                            <Button size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500" onClick={() => openPayDialog(m)}><Receipt className="mr-1 h-3.5 w-3.5" />Paiement</Button>
+                                            <Button size="sm" className="bg-slate-500 text-white hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500" onClick={() => openExemptDialog(m)} disabled={setExempt.isPending}><Ban className="mr-1 h-3.5 w-3.5" />Ne paiera pas</Button>
                                           </>
                                         )}
                                       </div>

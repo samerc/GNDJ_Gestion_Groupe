@@ -112,9 +112,9 @@ export default function UnitsPage() {
                 {data.items.map((item) => (
                   <TableRow key={item.id} className="cursor-pointer" onClick={() => navigate(`/units/${item.id}`)}>
                     <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.code}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.associationName ?? 'Inter-associations'}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.unitTypeName}</TableCell>
+                    <TableCell>{item.code}</TableCell>
+                    <TableCell>{item.associationName ?? 'Inter-associations'}</TableCell>
+                    <TableCell>{item.unitTypeName}</TableCell>
                     <TableCell className="text-center">{item.teamCount}</TableCell>
                     <TableCell className="text-center">{item.memberCount}</TableCell>
                     <TableCell>

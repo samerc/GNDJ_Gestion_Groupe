@@ -157,7 +157,7 @@ export default function RejectionReasonsPage({ embedded = false }: { embedded?: 
             <TableBody>
               {reasons.map((r, i) => (
                 <TableRow key={i} className={`even:bg-muted/30 ${draftIndex === i ? 'bg-primary/5' : ''}`}>
-                  <TableCell className="font-mono font-medium">
+                  <TableCell className="font-medium">
                     {r.code}
                     {r.isDefault && <Badge className="ml-2 align-middle"><Star className="mr-1 h-3 w-3 fill-current" />Défaut</Badge>}
                   </TableCell>

@@ -99,12 +99,10 @@ function SessionTable({
                       </td>
                       <td className="px-3 py-2 font-medium">{s.name}</td>
                       <td className="px-3 py-2 text-muted-foreground">{s.detail}</td>
-                      <td className="px-3 py-2">
-                        <Badge variant="secondary" className={`whitespace-nowrap ${space.className}`}>{space.label}</Badge>
-                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">{space.label}</td>
                       <td className="px-3 py-2 whitespace-nowrap" title={fmt(s.loginAt)}>{timeAgo(s.loginAt)}</td>
                       <td className="px-3 py-2 whitespace-nowrap" title={fmt(s.lastActivityAt)}>{timeAgo(s.lastActivityAt)}</td>
-                      <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">{fmt(s.expiresAt)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{fmt(s.expiresAt)}</td>
                       <td className="px-3 py-2 text-right">
                         <Button
                           variant="outline" size="sm"

@@ -49,7 +49,11 @@ public record MeResponse(
     // True when the member hasn't yet confirmed their household contacts via the one-time contact-review popup
     // (ContactReviewedAt is null; super-admins excluded). The app shows a SKIPPABLE « Vérifiez vos coordonnées »
     // modal (« Confirmer » stamps it; « Plus tard » defers for the session). Replaces the leader-only prompt.
-    bool NeedsContactReview = false
+    bool NeedsContactReview = false,
+    // True once the member has opened the installed PWA at least once (Member.AppInstalledAt is set) — a
+    // CROSS-DEVICE signal, so a DESKTOP session knows the app is already installed on the member's phone and
+    // hides the desktop "install on mobile" QR nudge.
+    bool AppInstalled = false
 );
 
 public record UnitAccessDto(

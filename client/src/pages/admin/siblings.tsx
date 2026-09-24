@@ -161,7 +161,7 @@ function SuggestionRow({ suggestion, onReview, onReject }: { suggestion: Sibling
   // The raw evidence repeats one entry per matching pair ("Même email parent" ×3, etc.) → dedupe to distinct types.
   const distinctEvidence = Array.from(new Map(suggestion.evidence.map((e) => [e.split(' : ')[0], e])).values())
   return (
-    <Card className="cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/20" onClick={onReview}>
+    <Card className="cursor-pointer transition-all duration-200 hover:border-primary/40 hover:bg-muted/20 hover:shadow-lg motion-safe:hover:-translate-y-0.5" onClick={onReview}>
       <CardContent className="flex items-start gap-3 p-4">
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">

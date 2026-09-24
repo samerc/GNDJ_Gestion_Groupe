@@ -171,16 +171,8 @@ export default function ApiKeysPage() {
               {apiKeys.map((item) => (
                 <TableRow key={item.id} className="even:bg-muted/30">
                   <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell>
-                    <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{item.keyPrefix}...</code>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {item.scopes.split(',').map((scope) => (
-                        <Badge key={scope} variant="outline" className="text-xs">{scope.trim()}</Badge>
-                      ))}
-                    </div>
-                  </TableCell>
+                  <TableCell>{item.keyPrefix}...</TableCell>
+                  <TableCell>{item.scopes.split(',').map((s) => s.trim()).join(', ')}</TableCell>
                   <TableCell className="text-muted-foreground">{item.memberName ?? '\u2014'}</TableCell>
                   <TableCell>
                     {item.isActive

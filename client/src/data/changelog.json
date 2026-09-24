@@ -4,6 +4,22 @@
     "date": "2026-09-10",
     "changes": [
       {
+        "date": "2026-09-24",
+        "text": "Documents — un fichier manquant est désormais signalé. Si le fichier d'un document a été supprimé ou perdu sur le serveur (l'enregistrement existe encore mais le fichier n'est plus là), l'onglet Documents affiche un badge rouge « Fichier manquant » sur la ligne concernée et, dans la liste des pages, la page en cause est marquée « — fichier manquant ». Le bouton de téléchargement de ce fichier est masqué (il ne renverrait qu'une erreur), pour qu'il soit clair qu'il faut le renvoyer."
+      },
+      {
+        "date": "2026-09-24",
+        "text": "Sécurité / traçabilité — les téléchargements de fichiers de membres sont désormais journalisés. Chaque fois que quelqu'un télécharge le fichier d'un document (fiche médicale, pièce d'identité…), une entrée « Téléchargement » est enregistrée dans le Journal d'audit avec l'auteur, le membre concerné et le document ; elle apparaît aussi sur l'onglet « Journal » du membre. Un export groupé (zip) d'une unité est journalisé avec l'unité et le nombre de fichiers. Seuls les téléchargements sont tracés (pas les simples consultations), afin de ne pas alourdir la base."
+      },
+      {
+        "date": "2026-09-24",
+        "text": "Interface — harmonisation des derniers tableaux : les colonnes de données s'affichent partout dans le même style que la colonne « Nom » (fini les polices « machine à écrire » sur les codes/clés, les pastilles décoratives pour de simples valeurs et le grisé incohérent d'une colonne à l'autre). Concerné : la revue des demandes d'inscription (n° de demande, âge, genre, classe, école), les clés API (préfixe de clé + portées), la page des sessions actives (colonne « Où » + expiration), et les listes Champs personnalisés / Types de documents (code). Les badges de statut (Actif/Accepté/En ligne…) sont conservés."
+      },
+      {
+        "date": "2026-09-24",
+        "text": "Documents — « Scanner avec le téléphone » : depuis un ordinateur, sur l'onglet Documents d'un membre, un bouton affiche un QR code. On le scanne avec l'appareil photo de son téléphone (aucune connexion requise), on choisit le type de document, on photographie le papier — et la photo arrive directement dans le dossier du membre, au bon endroit, sans passer par « copier la photo sur l'ordinateur ». Deux photos du même type (recto/verso) forment un seul document. L'ordinateur se met à jour automatiquement dès qu'une photo arrive. Le lien est valable ~10 minutes et n'autorise que l'envoi de documents pour ce membre. Contrôlable depuis Paramètres → Général (« Scanner un document avec le téléphone » : Maîtrise uniquement par défaut, ou Tous les membres, ou Désactivé)."
+      },
+      {
         "date": "2026-09-23",
         "text": "Design — refonte visuelle de l'interface (déploiement progressif). En-têtes de page unifiés (une icône colorée, un titre et les actions présentés de la même façon sur chaque page, avec un trait de séparation), champs de saisie aux bordures plus nettes et mieux définies, cartes plus compactes qui se détachent du fond blanc grâce à une ombre douce, et un jeu de couleurs de statut cohérent (succès / attention / info / erreur) réutilisé partout au lieu de teintes choisies au cas par cas. Le mode sombre gagne des ombres et des barres de défilement adaptées. L'identité (bleu marine / turquoise) est conservée."
       },

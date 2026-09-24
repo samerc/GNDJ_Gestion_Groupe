@@ -163,9 +163,10 @@ export default function UnitTypesPage() {
                         {item.name}
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{item.code}</TableCell>
-                    <TableCell className="text-muted-foreground">{yearsLabel(item.numberOfYears)}</TableCell>
-                    <TableCell className="text-muted-foreground max-w-xs truncate">{item.description ?? '—'}</TableCell>
+                    {/* Same text style as the Nom column (no muted color) so every column reads consistently. */}
+                    <TableCell>{item.code}</TableCell>
+                    <TableCell>{yearsLabel(item.numberOfYears)}</TableCell>
+                    <TableCell className="max-w-xs truncate">{item.description ?? '—'}</TableCell>
                     <TableCell className="text-center">{item.unitCount}</TableCell>
                     <TableCell>
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>

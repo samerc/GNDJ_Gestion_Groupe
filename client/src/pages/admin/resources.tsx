@@ -127,7 +127,7 @@ export default function AdminResourcesPage() {
               {resources.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.title}</TableCell>
-                  <TableCell><Badge variant="outline">{categoryLabel(r.category)}</Badge></TableCell>
+                  <TableCell>{categoryLabel(r.category)}</TableCell>
                   <TableCell><Badge variant={r.isPublished ? 'default' : 'secondary'}>{r.isPublished ? 'Publiée' : 'Brouillon'}</Badge></TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -176,7 +176,7 @@ export default function AdminResourcesPage() {
                   <Button type="button" variant="secondary" size="sm" className="absolute right-2 top-2" onClick={() => setForm(f => ({ ...f, coverImagePath: null }))}>Retirer</Button>
                 </div>
               ) : (
-                <label className="flex h-28 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed text-sm text-muted-foreground hover:bg-accent/5">
+                <label className="flex h-28 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed text-sm text-muted-foreground hover:bg-muted">
                   {coverUploading ? 'Téléversement…' : <><ImagePlus className="h-5 w-5" /><span>Ajouter une image (JPG, PNG)</span></>}
                   <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={coverUploading} onChange={handleCoverUpload} />
                 </label>
@@ -204,7 +204,7 @@ export default function AdminResourcesPage() {
                   ))}
                 </ul>
               )}
-              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground hover:bg-accent/5">
+              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground hover:bg-muted">
                 {attachUploading ? 'Téléversement…' : <><Paperclip className="h-4 w-4" /><span>Ajouter un fichier (MP3, PDF, image)</span></>}
                 <input type="file" accept="audio/mpeg,.mp3,application/pdf,image/png,image/jpeg,image/webp,image/gif" className="hidden" disabled={attachUploading} onChange={handleAttachUpload} />
               </label>

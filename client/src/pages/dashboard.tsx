@@ -123,7 +123,7 @@ function CampaignPanel({ o }: { o: DashboardOverviewDto }) {
   const c = o.campaign
   return (
     <Link to="/admin/demandes" className="group block h-full">
-      <Card className="h-full transition-colors group-hover:border-primary/40">
+      <Card className="h-full transition-all duration-200 group-hover:border-primary/40 group-hover:shadow-lg motion-safe:group-hover:-translate-y-0.5">
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-base flex items-center gap-2"><UserPlus className="h-4 w-4 text-primary" />Campagne d'inscription</CardTitle>
           <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${c.enabled ? 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300' : 'bg-muted text-muted-foreground'}`}>{c.enabled ? 'Inscriptions ouvertes' : 'Fermées'}</span>
@@ -169,7 +169,7 @@ function EffectifPanel({ o }: { o: DashboardOverviewDto }) {
   const TrendIcon = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus
   return (
     <Link to="/members" className="group block h-full">
-      <Card className="h-full transition-colors group-hover:border-primary/40">
+      <Card className="h-full transition-all duration-200 group-hover:border-primary/40 group-hover:shadow-lg motion-safe:group-hover:-translate-y-0.5">
         <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4 text-primary" />Effectif</CardTitle></CardHeader>
         <CardContent>
           <p className="text-3xl font-bold leading-none">{o.membersThisYear}</p>
@@ -188,7 +188,7 @@ function EffectifPanel({ o }: { o: DashboardOverviewDto }) {
 function RentreePanel({ o }: { o: DashboardOverviewDto }) {
   return (
     <Link to="/rentree" className="group block h-full">
-      <Card className="h-full transition-colors group-hover:border-primary/40">
+      <Card className="h-full transition-all duration-200 group-hover:border-primary/40 group-hover:shadow-lg motion-safe:group-hover:-translate-y-0.5">
         <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4 text-primary" />Rentrée scoute</CardTitle></CardHeader>
         <CardContent>
           {o.rentree ? (
@@ -210,7 +210,7 @@ function CotisationsPanel({ o }: { o: DashboardOverviewDto }) {
   const cot = o.cotisations
   return (
     <Link to="/admin/cotisations" className="group block h-full">
-      <Card className="h-full transition-colors group-hover:border-primary/40">
+      <Card className="h-full transition-all duration-200 group-hover:border-primary/40 group-hover:shadow-lg motion-safe:group-hover:-translate-y-0.5">
         <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Receipt className="h-4 w-4 text-primary" />Cotisations</CardTitle></CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">

@@ -35,12 +35,16 @@ const sheetVariants = cva(
   {
     variants: {
       side: {
-        top: "inset-x-0 top-0 max-h-[90dvh] border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+        // iOS safe area: sheets that touch an edge get that edge's inset ADDED to the base p-6, so their
+        // in-content header/footer clear the notch (top/left/right) or the home indicator (bottom).
+        // calc keeps the normal 1.5rem padding; env() = 0 off iOS. The left drawer (MobileSidebar) overrides
+        // padding itself, so its own pt wins there.
+        top: "inset-x-0 top-0 max-h-[90dvh] border-b pt-[calc(1.5rem+env(safe-area-inset-top))] data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
         bottom:
-          "inset-x-0 bottom-0 max-h-[90dvh] border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-        left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
+          "inset-x-0 bottom-0 max-h-[90dvh] border-t pb-[calc(1.5rem+env(safe-area-inset-bottom))] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+        left: "inset-y-0 left-0 h-full w-3/4 border-r pt-[calc(1.5rem+env(safe-area-inset-top))] data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
         right:
-          "inset-y-0 right-0 h-full w-3/4  border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
+          "inset-y-0 right-0 h-full w-3/4 border-l pt-[calc(1.5rem+env(safe-area-inset-top))] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
       },
     },
     defaultVariants: {
@@ -66,7 +70,9 @@ const SheetContent = React.forwardRef<
     >
       {children}
       {/* Padded hit area (~36px) so the close target is comfortable on touch, while the glyph stays small. */}
-      <SheetPrimitive.Close className="absolute right-2 top-2 rounded-md p-2 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
+      {/* top offset includes the iOS safe-area inset so the close target isn't hidden under the notch/status bar
+          on a full-height sheet (env() = 0 off iOS). */}
+      <SheetPrimitive.Close className="absolute right-2 top-[calc(0.5rem+env(safe-area-inset-top))] rounded-md p-2 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </SheetPrimitive.Close>

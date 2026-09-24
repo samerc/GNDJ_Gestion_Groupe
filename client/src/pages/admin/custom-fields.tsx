@@ -406,7 +406,7 @@ function SortableFieldRow({ item, canReorder, onEdit, onDelete }: { item: Custom
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{item.name}</span>
-          <span className="font-mono text-xs text-muted-foreground">{item.code}</span>
+          <span className="text-xs text-muted-foreground">{item.code}</span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-1">
           <Badge variant="outline">{FIELD_TYPE_LABELS[item.fieldType] ?? item.fieldType}</Badge>

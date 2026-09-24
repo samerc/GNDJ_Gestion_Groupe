@@ -5717,3 +5717,64 @@ to roll out to everyone. Migration `AddPushNotifications` applies on prod startu
       would break `eslint`/CI. **Revisit when typescript-eslint ships TS 7 support** → then it's a 5-min bump:
       `npm i -D typescript@7 typescript-eslint@<new>` + the tsconfig edit above, no code work. (TS 7 = native/Go
       compiler; benefit is type-check speed only — Vite emits the bundle, so no runtime change either way.)
+
+### Scan a document with your phone — desktop→phone upload hand-off (2026-09-24, DEV until deploy)
+On a member's **Documents** tab (member panel / Ma fiche), a desktop user opens **"Scanner avec le téléphone"** →
+a QR encoding `{origin}/scan-upload/{token}`. The user scans it with their phone camera, opens that URL **without
+logging in** (the token IS the scoped authorization), picks the document type + photographs the paper, and it
+uploads STRAIGHT into the member's dossier at the right type — no "copy the photo to the laptop" step. The desktop
+polls the session and **live-refreshes the documents** as photos arrive. Two photos of the same type (recto/verso)
+build ONE document (the write path appends to a pending doc of that type — the existing multi-page mechanism).
+- **Entity** `UploadSession` (plain table, migration `AddUploadSessions`): `TokenHash` (SHA-256 of the raw token —
+  the raw token is NEVER stored, unique-indexed), `MemberId`, `CreatedByUserId`, `ExpiresAt` (10 min), `UploadedCount`
+  (capped at 30 — abuse bound), `LastDocumentId`. NOT a BaseEntity (ephemeral plumbing). No FK to Member (orphans
+  harmless; expired rows are tiny — no cleanup job built, `ExpiresAt` is indexed if one is ever wanted).
+- **Handlers** `Application/ScanUpload/ScanUploadHandlers.cs`: `CreateUploadSessionCommand` (authed — gated by
+  `MemberAccess.CanAccessMemberAsync` + the campaign/on-hold block, so a youth can only open one for themselves and a
+  CU only for their unit; a member whose deposit window is closed is refused at creation, so no re-check is needed in
+  the 10-min window) → returns `{id, token, expiresAt}`; `GetUploadSessionStatusQuery` (authed, creator/super-admin
+  only) → `{uploadedCount, expired}`; `GetScanUploadInfoQuery` (**anonymous** — resolves the session by token hash) →
+  `{memberLabel = "Prénom I.", docTypes, expiresAt}`; `ScanUploadDocumentCommand` (**anonymous**, token-authorized) →
+  resolves the session, routes into the **shared `MemberDocumentWriter.WriteAsync`** (create-or-append + auto-approve
+  + audit, tagged `via:"scan mobile"`, attributed to the session creator), bumps `UploadedCount`.
+- **Refactors (DRY):** extracted `MemberDocumentWriter.WriteAsync` in `DocumentHandlers.cs` (the create-or-append
+  body, now shared by the normal `UploadMemberDocumentCommand` AND the scan flow) and `DocumentUploadFiles.SaveAsync`
+  in the Api layer (the size/extension/**magic-byte** validation + save, shared by `DocumentsController` AND
+  `ScanUploadController`) — so both paths enforce identical limits/validation.
+- **Controller** `ScanUploadController` (`api/v1/scan-upload`): `[Authorize]` on the class, `[AllowAnonymous]` on the
+  two phone actions. Upload is `[EnableRateLimiting("upload")]` + 20MB cap; multipart → abuse middleware skips it.
+- **Frontend:** phone page `pages/scan-upload.tsx` (**public route `/scan-upload/:token`**, self-contained mobile UI:
+  doc-type `<select>`, camera `capture="environment"` + file fallback, upload progress, inline status; no app chrome,
+  uses `publicApi`) + desktop `components/members/scan-upload-dialog.tsx` (QR via `qrcode.react`, polls every 2.5s,
+  invalidates `['documents', memberId]` on each arrival, expiry + "Générer un nouveau code"). Button wired into
+  `member-documents.tsx`, gated by **`useScanUploadEnabled()`** + `canUpload` + a fine-pointer (desktop) check.
+- **Setting-driven like the PWA banner:** `scan_upload.audience` (Général: **off / maîtrise[default] / all**) drives
+  the hook `hooks/use-scan-upload-audience.ts` (mirrors `usePwaEnabled`); SeedMissingSettings + settings.tsx
+  SETTING_OPTIONS. The phone page always works with a valid token regardless of the audience (it only gates the
+  desktop button).
+- **Verified live end-to-end** (admin, cleaned up): create session → phone info returns "Admin S." + 3 doc types →
+  anonymous PNG upload → session count 0→1 → the document appears on the member (type + Pending) → deleted. dotnet
+  0/0, tsc + eslint + vite clean; anonymous bogus-token → friendly 400.
+
+### Document download auditing + missing-file flag (2026-09-24, DEV until deploy)
+Two related document items (all on main, DEV until deploy; migration-free — reuses the existing audit_logs table).
+- **Sensitive-access auditing = DOWNLOADS only** (a CG decision: reads are far too high-volume; a *download* hands
+      over the actual file bytes — a medical certificate, an ID scan — so it's the event worth tracing). New
+      `Application/Documents/DocumentDownloadAudit.cs`: `LogDocumentDownloadCommand` / `LogDocumentPageDownloadCommand`
+      / `LogZipDownloadCommand`, each writing an audit row via `IAuditService.LogAsync("Download", "MemberDocument", …)`.
+      For a single file/page **EntityId = the member id** (so it also shows on the member's "Journal" tab), newValues =
+      `{Member, Document (type name), FileName}`; for a bulk **zip** EntityId = the unit id, newValues =
+      `{Unit, Document (type or null=all), FileCount}`. `DocumentsController` sends the command from the 3 download
+      endpoints (`{id}/download`, `pages/{pageId}/download`, `unit/{id}/zip`) AFTER the file stream opens successfully,
+      via a **best-effort** helper (`LogDownload`, try/catch-swallow) so an audit hiccup never breaks a download; the
+      404 "file gone" path logs nothing. Frontend `lib/audit-format.ts`: action `Download` → "Téléchargement" (purple);
+      `FileCount` → "Nombre de fichiers". Live-verified: single/page/zip each write the right row (member- vs
+      unit-linked, with names/count); the 404 path writes nothing; test artifacts cleaned up.
+- **Missing-file flag** (a document record whose file was deleted/lost on disk — exactly what the prod-synced dev DB
+      shows: rows exist, files 404). `DocumentPageDto` gained **`FileMissing`**, computed in `DocumentPageMapper.Build`
+      by a disk-existence check (same path resolution + uploads-root traversal guard as the download endpoint; any IO
+      error → treated as missing). Frontend `member-documents.tsx`: a red **"Fichier manquant"** badge on the document
+      row when any page's file is gone, a per-page "— fichier manquant" marker in the pages viewer, and the download
+      buttons for a missing file are HIDDEN (they'd only 404) so it's clear the file must be re-uploaded. The
+      `unit-documents.tsx` synthetic single-page fallback sets `fileMissing:false`. Live-verified: prod-synced docs →
+      `fileMissing:true`, a fresh upload → `false`. dotnet 0/0, tsc + eslint clean.

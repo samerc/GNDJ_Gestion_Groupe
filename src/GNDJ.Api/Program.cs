@@ -353,6 +353,7 @@ using (var scope = app.Services.CreateScope())
         {
             await SeedData.SeedAsync(context, email, passwordHash);
             await SeedData.SeedMissingPermissionsAsync(context);
+            await SeedData.SeedObserverProfileAsync(context); // rename youth "read-only" → "Membre (aucun accès)" + add real "Lecture seule" observer
             await SeedData.SeedChefDeGroupeProfileAsync(context);
             await SeedData.SeedAssistantDeGroupeProfileAsync(context);
             await SeedData.SeedScoutStructureAsync(context);

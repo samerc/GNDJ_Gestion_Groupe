@@ -744,13 +744,13 @@ export default function DemandeValidationPage() {
                         {d.lastName}
                         {miss.length > 0 && <span title={`Dossier incomplet : ${miss.join(', ')}`}><AlertTriangle className="h-3.5 w-3.5 text-amber-500" /></span>}
                       </span>
-                      {d.serialNumber && <div className="font-mono text-xs font-normal text-muted-foreground">{d.serialNumber}</div>}
+                      {d.serialNumber && <div className="text-xs font-normal text-muted-foreground">{d.serialNumber}</div>}
                     </TableCell>
                     <TableCell>{d.firstName}</TableCell>
-                    <TableCell className="text-center text-muted-foreground">{d.age ?? '—'}</TableCell>
-                    <TableCell className="text-center text-muted-foreground">{genderShort(d.gender)}</TableCell>
-                    <TableCell className="text-muted-foreground">{d.classe}</TableCell>
-                    <TableCell className="hidden text-muted-foreground md:table-cell" title={d.school ?? ''}>{schoolCode(d.school)}</TableCell>
+                    <TableCell className="text-center">{d.age ?? '—'}</TableCell>
+                    <TableCell className="text-center">{genderShort(d.gender)}</TableCell>
+                    <TableCell>{d.classe}</TableCell>
+                    <TableCell className="hidden md:table-cell" title={d.school ?? ''}>{schoolCode(d.school)}</TableCell>
                     <TableCell className="hidden text-center md:table-cell">
                       <div className="flex flex-col items-center gap-1">
                         {d.scoutRelations.length > 0 && (

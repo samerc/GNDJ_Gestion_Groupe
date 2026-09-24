@@ -65,8 +65,8 @@ export default function DeletedMembersPage() {
                 return (
                   <tr key={m.id} className={i % 2 ? 'bg-muted/20' : ''}>
                     <td className="px-4 py-2.5 font-medium">{m.lastName} {m.firstName}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground">{m.cardNumber ?? '—'}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground">{formatDateLong(m.deletedAt)}</td>
+                    <td className="px-4 py-2.5">{m.cardNumber ?? '—'}</td>
+                    <td className="px-4 py-2.5">{formatDateLong(m.deletedAt)}</td>
                     <td className="px-4 py-2.5">
                       <span className={days <= 3 ? 'font-medium text-destructive' : 'text-muted-foreground'}>
                         {days <= 0 ? 'imminente' : `dans ${days} jour${days > 1 ? 's' : ''}`}

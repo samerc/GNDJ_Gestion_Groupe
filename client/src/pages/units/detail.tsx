@@ -503,8 +503,8 @@ function TeamMembers({ unitId, teamId }: { unitId: string; teamId: string }) {
           {members.map((m, idx) => (
             <tr key={m.id} className={idx % 2 === 1 ? 'bg-muted/10' : ''}>
               <td className="py-1.5 font-medium">{m.firstName} {m.lastName}</td>
-              <td className="py-1.5 text-muted-foreground">{m.roleName ?? '—'}</td>
-              <td className="py-1.5 text-muted-foreground">{m.fatherName ?? '—'}</td>
+              <td className="py-1.5">{m.roleName ?? '—'}</td>
+              <td className="py-1.5">{m.fatherName ?? '—'}</td>
             </tr>
           ))}
         </tbody>

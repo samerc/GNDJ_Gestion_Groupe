@@ -35,7 +35,7 @@ export function DocumentsCta({ memberId }: { memberId: string }) {
   return (
     <Link
       to="/my-documents"
-      className="flex items-center gap-4 rounded-xl border bg-card p-4 shadow-card transition-colors hover:border-primary/40 hover:bg-accent/5"
+      className="flex items-center gap-4 rounded-xl border bg-card p-4 shadow-card transition-colors hover:border-primary/40 hover:bg-muted/50"
     >
       <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${complete ? 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300' : 'bg-primary/10 text-primary'}`}>
         {complete ? <CheckCircle2 className="h-6 w-6" /> : <FileText className="h-6 w-6" />}

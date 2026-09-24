@@ -349,9 +349,11 @@ export default function AttendancePage() {
   // Combined scope selection: a unit ("u:<id>") or a member group ("g:<id>", e.g. Grande Maîtrise, Chefs d'unité).
   const groups = scope?.groups ?? []
   const [sel, setSel] = useState<string>('')
+  const totalScopes = unitOptions.length + groups.length
   const firstKey = unitOptions.length > 0 ? `u:${unitOptions[0].unitId}` : (groups.length > 0 ? `g:${groups[0].id}` : '')
-  // Default to the first available scope once loaded (render-phase reset — no effect).
-  if (!sel && firstKey) setSel(firstKey)
+  // Auto-select ONLY when there's a SINGLE scope (a one-unit leader gets no picker, so land on it). With
+  // several, start UNSELECTED so the user explicitly chooses — don't imply data for an arbitrary first unit.
+  if (!sel && totalScopes === 1 && firstKey) setSel(firstKey)
   const unitId = sel.startsWith('u:') ? sel.slice(2) : ''
   const groupId = sel.startsWith('g:') ? sel.slice(2) : ''
 
@@ -413,7 +415,7 @@ export default function AttendancePage() {
       <div className="flex flex-wrap items-center gap-2">
         {(unitOptions.length + groups.length) > 1 && (
           <Select value={sel} onValueChange={setSel}>
-            <SelectTrigger className="w-full sm:w-72"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-72"><SelectValue placeholder="Choisir une unité..." /></SelectTrigger>
             <SelectContent>
               {unitOptions.length > 0 && (
                 <SelectGroup>
@@ -438,7 +440,10 @@ export default function AttendancePage() {
         </Select>
       </div>
 
-      {meetingsLoading ? (
+      {!sel ? (
+        <EmptyState icon={CalendarCheck} title="Choisissez une unité"
+          description="Sélectionnez une unité ou un groupe ci-dessus pour voir et gérer ses réunions." />
+      ) : meetingsLoading ? (
         <LoadingSpinner variant="table" />
       ) : !meetings || meetings.length === 0 ? (
         <EmptyState icon={CalendarCheck} title="Aucune réunion"

@@ -13,7 +13,7 @@ export function MaintenancePage({ message }: { message?: string }) {
       </p>
       <button
         onClick={() => window.location.reload()}
-        className="mt-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
+        className="mt-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
       >
         Réessayer
       </button>

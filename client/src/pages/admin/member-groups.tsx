@@ -203,8 +203,8 @@ function GroupCard({ g, onEdit, onDelete, onView }: { g: MemberGroupDto; onEdit:
           </div>
         </div>
 
-        {/* Member count (click to see who) + visibility */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {/* Member count (click to see who) on its own line, then visibility on a second line. */}
+        <div className="flex flex-col items-start gap-2">
           <button
             type="button"
             onClick={onView}
@@ -223,20 +223,26 @@ function GroupCard({ g, onEdit, onDelete, onView }: { g: MemberGroupDto; onEdit:
           </div>
         </div>
 
-        {/* Rules — resolved names, grouped into includes and "sauf" excludes */}
+        {/* Rules — resolved names, grouped into includes and "sauf" excludes.
+            Label sits in its own left column so wrapped badges all align under the first one
+            (a single flex-wrap row would flush wrapped badges to the label, not under the badges). */}
         <div className="mt-auto space-y-1.5 rounded-md bg-muted/40 p-2.5">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Membres :</span>
-            {includes.map((r, i) => (
-              <Badge key={i} variant="secondary" className="font-normal">{ruleText(r)}</Badge>
-            ))}
+          <div className="flex items-start gap-1.5">
+            <span className="shrink-0 pt-0.5 text-xs font-medium text-muted-foreground">Membres :</span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {includes.map((r, i) => (
+                <Badge key={i} variant="secondary" className="font-normal">{ruleText(r)}</Badge>
+              ))}
+            </div>
           </div>
           {excludes.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-medium text-destructive">Sauf :</span>
-              {excludes.map((r, i) => (
-                <Badge key={i} variant="outline" className="border-destructive/30 font-normal text-destructive">{ruleText(r)}</Badge>
-              ))}
+            <div className="flex items-start gap-1.5">
+              <span className="shrink-0 pt-0.5 text-xs font-medium text-destructive">Sauf :</span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {excludes.map((r, i) => (
+                  <Badge key={i} variant="outline" className="border-destructive/30 font-normal text-destructive">{ruleText(r)}</Badge>
+                ))}
+              </div>
             </div>
           )}
         </div>

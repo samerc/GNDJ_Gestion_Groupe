@@ -436,7 +436,9 @@ export function MobileSidebar() {
       <SheetContent
         side="left"
         style={{ backgroundColor: theme.color }}
-        className="flex w-64 max-w-[85vw] flex-col gap-0 border-r border-white/10 p-0 text-white"
+        // pt = iOS safe-area top inset (after p-0 so it wins for the top edge) → brand + nav clear the
+        // notch/status bar on a standalone iPhone; env() = 0 off iOS, so no change elsewhere.
+        className="flex w-64 max-w-[85vw] flex-col gap-0 border-r border-white/10 p-0 pt-[env(safe-area-inset-top)] text-white"
       >
         <SheetTitle className="sr-only">Menu de navigation</SheetTitle>
         <div className="flex h-16 items-center border-b border-white/10 px-4">

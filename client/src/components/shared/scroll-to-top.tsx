@@ -34,7 +34,7 @@ export function ScrollToTop({ threshold = 400 }: { threshold?: number }) {
       aria-label="Retour en haut"
       title="Retour en haut"
       className={cn(
-        'fixed bottom-5 right-5 z-30 flex h-11 w-11 items-center justify-center rounded-full',
+        'fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-5 z-30 flex h-11 w-11 items-center justify-center rounded-full',
         'bg-primary text-primary-foreground shadow-lg ring-1 ring-black/5 transition hover:brightness-110',
       )}
     >

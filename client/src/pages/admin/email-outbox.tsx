@@ -38,9 +38,10 @@ function OutboxRow({ entry, idx, onRetry, onDelete, busy }: {
   return (
     <>
       <tr className={`border-b align-top ${idx % 2 === 1 ? 'bg-muted/10' : ''}`}>
-        <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">{new Date(entry.createdAt).toLocaleString('fr-FR')}</td>
+        {/* Date + Modèle unified to the Destinataire column style (text-sm, not muted) — Statut + erreur kept as-is. */}
+        <td className="px-3 py-2 whitespace-nowrap text-sm">{new Date(entry.createdAt).toLocaleString('fr-FR')}</td>
         <td className="px-3 py-2 text-sm break-all">{entry.toEmail}</td>
-        <td className="px-3 py-2 text-xs text-muted-foreground break-all">{entry.templateCode}</td>
+        <td className="px-3 py-2 text-sm break-all">{entry.templateCode}</td>
         <td className="px-3 py-2">{statusBadge(entry.status)}</td>
         <td className="px-3 py-2 text-center text-sm tabular-nums">{entry.attempts}</td>
         <td className="px-3 py-2">
@@ -170,10 +171,10 @@ export default function EmailOutboxPage() {
             </Select>
             <SearchInput className="w-full sm:w-56" placeholder="Destinataire ou modèle" value={search}
               onChange={(v) => { setSearch(v); setPage(1) }} />
-            <Button variant="outline" size="sm" disabled={!s || s.failed === 0 || retryFailed.isPending} onClick={() => setConfirmRetryAll(true)}>
+            <Button size="sm" disabled={!s || s.failed === 0 || retryFailed.isPending} onClick={() => setConfirmRetryAll(true)}>
               <RotateCw className="mr-1.5 h-4 w-4" /> Réessayer les échecs
             </Button>
-            <Button variant="outline" size="sm" className="text-muted-foreground" disabled={!s || s.sent === 0 || purge.isPending} onClick={() => setConfirmPurge(true)}>
+            <Button variant="destructive" size="sm" disabled={!s || s.sent === 0 || purge.isPending} onClick={() => setConfirmPurge(true)}>
               <Trash2 className="mr-1.5 h-4 w-4" /> Vider les envoyés
             </Button>
           </div>

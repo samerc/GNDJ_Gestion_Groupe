@@ -329,7 +329,7 @@ function SortableTypeRow({ item, canReorder, onEdit, onDelete }: { item: Documen
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{item.name}</span>
-          <span className="font-mono text-xs text-muted-foreground">{item.code}</span>
+          <span className="text-xs text-muted-foreground">{item.code}</span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-1">
           {item.isActive ? <Badge variant="success">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}

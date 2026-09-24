@@ -134,8 +134,8 @@ export default function AssociationsPage() {
                 {data.items.map((item) => (
                   <TableRow key={item.id} className="even:bg-muted/30">
                     <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.code}</TableCell>
-                    <TableCell className="text-muted-foreground max-w-xs truncate">{item.description ?? '—'}</TableCell>
+                    <TableCell>{item.code}</TableCell>
+                    <TableCell className="max-w-xs truncate">{item.description ?? '—'}</TableCell>
                     <TableCell className="text-center">{item.unitCount}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">

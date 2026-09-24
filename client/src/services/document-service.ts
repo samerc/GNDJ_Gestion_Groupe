@@ -12,6 +12,7 @@ export interface DocumentPageDto {
   mimeType: string
   fileSize: number
   isPrimary: boolean
+  fileMissing: boolean   // file no longer on disk (deleted/lost) — flagged instead of a silent 404 on download
 }
 
 export interface MemberDocumentDto {

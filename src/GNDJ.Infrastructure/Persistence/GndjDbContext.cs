@@ -81,6 +81,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
     public DbSet<PushOutbox> PushOutbox => Set<PushOutbox>();
+    public DbSet<UploadSession> UploadSessions => Set<UploadSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

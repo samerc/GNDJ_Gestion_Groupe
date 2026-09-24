@@ -117,7 +117,7 @@ export function SessionWarning() {
   if (!showWarning) return null
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 rounded-lg border bg-amber-50 dark:bg-amber-950/40 px-4 py-3 shadow-lg max-w-sm">
+    <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-50 rounded-lg border bg-amber-50 dark:bg-amber-950/40 px-4 py-3 shadow-lg max-w-sm">
       <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
         Session inactive — expire dans {minutesLeft} min
       </p>

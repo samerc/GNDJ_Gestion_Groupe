@@ -391,6 +391,14 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
                 <span className="text-xs text-muted-foreground sm:ml-auto">{visibleRoles.length} fonction{visibleRoles.length > 1 ? 's' : ''}</span>
               </div>
 
+              {/* Star legend — shown only when a default fonction is present in the current view. */}
+              {visibleRoles.some(r => r.isDefaultForNewMembers) && (
+                <p className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Star className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-400" />
+                  = fonction attribuée par défaut aux nouveaux membres de ce type d'unité
+                </p>
+              )}
+
               {visibleRoles.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Aucune fonction pour ce filtre.</p>
               ) : (
@@ -426,11 +434,13 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
                               {role.isArchived && <Badge variant="outline" className="ml-2 text-[10px]">Archivée</Badge>}
                               {role.description && <p className="text-xs text-muted-foreground mt-0.5">{role.description}</p>}
                             </td>
-                            <td className="px-3 py-2.5"><Badge variant="outline" className="text-xs font-mono">{role.code}</Badge></td>
+                            {/* Code / Type / Profil rendered as plain text (same font as the Nom column) — no
+                                mono/italic/pill — so every column reads consistently. */}
+                            <td className="px-3 py-2.5">{role.code}</td>
                             {showUnitTypeColumn && (
-                              <td className="px-3 py-2.5 text-muted-foreground">{role.unitTypeName ?? <span className="italic">Global</span>}</td>
+                              <td className="px-3 py-2.5">{role.unitTypeName ?? 'Global'}</td>
                             )}
-                            <td className="px-3 py-2.5"><Badge variant="secondary" className="text-xs">{role.securityProfileName}</Badge></td>
+                            <td className="px-3 py-2.5">{role.securityProfileName}</td>
                             <td className="px-3 py-2.5 text-center">
                               {role.assignmentCount > 0 ? <span className="font-medium">{role.assignmentCount}</span> : <span className="text-muted-foreground">—</span>}
                             </td>
