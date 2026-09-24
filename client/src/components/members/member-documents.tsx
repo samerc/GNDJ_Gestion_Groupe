@@ -49,6 +49,10 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const scanEnabled = useScanUploadEnabled()
   const isFinePointer = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: fine)').matches
   const [scanOpen, setScanOpen] = useState(false)
+  // When the scan dialog is opened from a specific document-type row, the QR pre-targets that type so the phone
+  // skips the "choose type" step; null = the generic top button (phone picks the type).
+  const [scanDocType, setScanDocType] = useState<{ id: string; name: string } | null>(null)
+  const openScan = (dt: { id: string; name: string } | null) => { setScanDocType(dt); setScanOpen(true) }
   // Campaign gate inputs (hooks must run before any early return): the member's on-hold flag + the campaign status.
   const onHold = useAuthStore((s) => s.user?.isOnHold)
   const { data: campaign } = useDocumentCampaign()
@@ -311,7 +315,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
           straight here. Desktop-only + gated by the setting audience + the member must be uploadable. */}
       {scanEnabled && isFinePointer && canUpload && docTypes && docTypes.length > 0 && (
         <div className="flex justify-end">
-          <Button variant="outline" size="sm" onClick={() => setScanOpen(true)}>
+          <Button variant="outline" size="sm" onClick={() => openScan(null)}>
             <Smartphone className="mr-1.5 h-4 w-4" />Scanner avec le téléphone
           </Button>
         </div>
@@ -417,6 +421,13 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
 
                 {/* Actions — full-width below the content on mobile (stacked), inline on the right on ≥sm. */}
                 <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                  {/* Scan THIS document type with the phone — pre-targets the type so the phone skips the picker.
+                      Desktop-only + gated by the setting audience + the member must be uploadable. */}
+                  {scanEnabled && isFinePointer && canUpload && (
+                    <Tip content="Scanner avec le téléphone"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => openScan({ id: dt.id, name: dt.name })}>
+                      <Smartphone className="h-4 w-4" />
+                    </Button></Tip>
+                  )}
                   {/* Row download opens page 1 — hide it when page 1's file is gone (it would 404); the pages
                       viewer still lists any downloadable extra pages. */}
                   {doc && !doc.pages.find(p => p.isPrimary)?.fileMissing && (
@@ -682,7 +693,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
       />
 
       {/* Desktop QR dialog for scanning a document with the phone. */}
-      <ScanUploadDialog memberId={memberId} open={scanOpen} onOpenChange={setScanOpen} />
+      <ScanUploadDialog memberId={memberId} open={scanOpen} onOpenChange={setScanOpen} documentTypeId={scanDocType?.id} documentTypeName={scanDocType?.name} />
     </div>
   )
 }

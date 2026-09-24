@@ -12,7 +12,16 @@ export default function ScanUploadPage() {
   const { token = '' } = useParams<{ token: string }>()
   const { data: info, isLoading, error } = useScanUploadInfo(token)
 
+  // The desktop may pre-target a document type (?type=…) when scanning a specific row — pre-select it so the
+  // parent just photographs (the picker stays visible/changeable in case they scanned the wrong row).
+  const preselectType = typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('type') || '') : ''
   const [docTypeId, setDocTypeId] = useState('')
+  const [preselectApplied, setPreselectApplied] = useState(false)
+  // Apply the pre-selection ONCE, when the doc-type list has loaded (render-phase adjust, not an effect).
+  if (!preselectApplied && info && preselectType) {
+    setPreselectApplied(true)
+    if (info.docTypes.some((d) => d.id === preselectType)) setDocTypeId(preselectType)
+  }
   const [expiry, setExpiry] = useState('')
   const [sending, setSending] = useState(false)
   const [progress, setProgress] = useState<number | null>(null)

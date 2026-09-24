@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-24",
+        "text": "Documents — un bouton « Scanner avec le téléphone » est désormais présent sur chaque ligne de document. En scannant depuis une ligne précise (ex. « Carte d'identité »), le téléphone ouvre directement le bon type de document — plus besoin de le choisir sur le téléphone : on photographie et c'est envoyé. Le bouton général en haut reste disponible pour choisir le type sur le téléphone."
+      },
+      {
+        "date": "2026-09-24",
         "text": "Documents — un fichier manquant est désormais signalé. Si le fichier d'un document a été supprimé ou perdu sur le serveur (l'enregistrement existe encore mais le fichier n'est plus là), l'onglet Documents affiche un badge rouge « Fichier manquant » sur la ligne concernée et, dans la liste des pages, la page en cause est marquée « — fichier manquant ». Le bouton de téléchargement de ce fichier est masqué (il ne renverrait qu'une erreur), pour qu'il soit clair qu'il faut le renvoyer."
       },
       {

@@ -16,9 +16,13 @@ interface Props {
   memberId: string
   open: boolean
   onOpenChange: (open: boolean) => void
+  // When set (opened from a specific document-type row), the QR pre-targets that type so the phone skips the
+  // "choose type" step and uploads straight into it.
+  documentTypeId?: string
+  documentTypeName?: string
 }
 
-export function ScanUploadDialog({ memberId, open, onOpenChange }: Props) {
+export function ScanUploadDialog({ memberId, open, onOpenChange, documentTypeId, documentTypeName }: Props) {
   const qc = useQueryClient()
   const createSession = useCreateUploadSession()
   const [session, setSession] = useState<{ id: string; token: string; expiresAt: string } | null>(null)
@@ -27,7 +31,9 @@ export function ScanUploadDialog({ memberId, open, onOpenChange }: Props) {
   const status = useUploadSessionStatus(open ? (session?.id ?? null) : null)
   const uploadedCount = status.data?.uploadedCount ?? 0
   const expired = status.data?.expired ?? false
-  const qrUrl = session ? `${window.location.origin}/scan-upload/${session.token}` : ''
+  // The document type (when scanning a specific row) rides in the URL — the session stays member-scoped, so no
+  // schema change; the phone reads ?type= and pre-selects it.
+  const qrUrl = session ? `${window.location.origin}/scan-upload/${session.token}${documentTypeId ? `?type=${documentTypeId}` : ''}` : ''
 
   // Create a session once when the dialog opens (async side effect — one-shot, keyed on `open`).
   useEffect(() => {
@@ -90,6 +96,11 @@ export function ScanUploadDialog({ memberId, open, onOpenChange }: Props) {
           </div>
         ) : (
           <div className="space-y-4">
+            {documentTypeName && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+                Document : <span className="font-semibold">{documentTypeName}</span>
+              </div>
+            )}
             <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
               <li>Ouvrez l'appareil photo de votre téléphone.</li>
               <li>Visez le code ci-dessous pour ouvrir la page.</li>
