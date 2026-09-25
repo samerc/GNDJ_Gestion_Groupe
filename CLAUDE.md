@@ -5830,3 +5830,10 @@ Two related document items (all on main, DEV until deploy; migration-free — re
   /rentree/tasks/due-date` (rentree.manage) sets/clears the fixed date on every listed task; a set date also clears
   `DeadlineAnchor` (an anchor would otherwise win at resolve time). Button "Date limite pour toutes les unités" in
   the expanded rollup row (warns when the task follows a settings date). Verified: 17 unit copies in one call.
+- **One-off email text per send** ("Emails aux chefs"): `SendLeaderMessageCommand` gained `SubjectOverride` /
+  `BodyHtmlOverride` (+ validator: subject NoHtml ≤300, body ≤100k). The edited text rides in each job's variables
+  under reserved keys `EmailOverride.SubjectKey/BodyKey` (`__subject`/`__bodyHtml`, Application/Common) — no outbox
+  schema change; `EmailService.SendAsync` uses them instead of the template text (routing, attachments, test
+  redirect, variable substitution unchanged) and strips the keys. Activation-token stamping keys off the EFFECTIVE
+  text. Page: switch "Modifier le texte pour cet envoi" → subject input + RichTextEditor (variables menu), preview
+  follows. Verified via smtp4dev: edited subject/body delivered, template untouched, no token stamped.

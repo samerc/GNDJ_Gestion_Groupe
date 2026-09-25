@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Emails aux chefs — « Modifier le texte pour cet envoi » : l'objet et le message du modèle peuvent être ajustés juste pour cet envoi (l'aperçu suit les changements), sans toucher au modèle enregistré. Les {{variables}} (nom, unité, lien…) restent remplies pour chaque chef."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Rentrée — « Date limite pour toutes les unités » : sur une tâche répartie par unité, une seule date s'applique d'un coup aux copies de toutes les unités (au lieu de modifier chaque unité). « Retirer la date » l'enlève partout."
       },
       {

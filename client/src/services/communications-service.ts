@@ -54,7 +54,8 @@ export function useLeaderRecipients(unitId: string | undefined, neverLoggedInOnl
 // POST /communications/send → queue the chosen template to the selected leaders (via the durable outbox).
 export function useSendLeaderMessage() {
   return useMutation({
-    mutationFn: (data: { templateCode: string; memberIds: string[] }) =>
+    // subjectOverride / bodyHtmlOverride = one-off text for THIS send (the saved template is untouched).
+    mutationFn: (data: { templateCode: string; memberIds: string[]; subjectOverride?: string | null; bodyHtmlOverride?: string | null }) =>
       apiClient.post<SendLeaderMessageResult>('/communications/send', data).then((r) => r.data),
   })
 }

@@ -56,8 +56,16 @@ public class EmailService : IEmailService
         // HTML-encoded before substitution (the admin-authored template markup is left intact) to
         // prevent any injected markup/script from landing raw in the recipient's inbox. The subject
         // is plain text, so it's substituted verbatim (encoding it would show literal &amp; etc.).
-        var subject = ReplaceVariables(resolved.Subject, variables, htmlEncode: false);
-        var body = ReplaceVariables(resolved.BodyHtml, variables, htmlEncode: true);
+        // A one-off edit for this send (EmailOverride keys) replaces the template's subject/body; the reserved keys
+        // are then dropped so they're never substituted as {{variables}}.
+        var subjectSource = variables.TryGetValue(EmailOverride.SubjectKey, out var so) && !string.IsNullOrWhiteSpace(so) ? so : resolved.Subject;
+        var bodySource = variables.TryGetValue(EmailOverride.BodyKey, out var bo) && !string.IsNullOrWhiteSpace(bo) ? bo : resolved.BodyHtml;
+        if (variables.ContainsKey(EmailOverride.SubjectKey) || variables.ContainsKey(EmailOverride.BodyKey))
+            variables = variables.Where(kv => kv.Key != EmailOverride.SubjectKey && kv.Key != EmailOverride.BodyKey)
+                .ToDictionary(kv => kv.Key, kv => kv.Value);
+
+        var subject = ReplaceVariables(subjectSource, variables, htmlEncode: false);
+        var body = ReplaceVariables(bodySource, variables, htmlEncode: true);
 
         // Safety redirect: while `email.override_recipient` is set, EVERY email is sent to that single
         // address instead of the real recipient (the intended address is shown in the subject). Lets the

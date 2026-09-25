@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { RichTextEditor } from '@/components/shared/rich-text-editor'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -52,7 +54,22 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
   const activeTemplates = templates ?? []
   const units = unitsPage?.items ?? []
   const selectedTemplate = activeTemplates.find((t) => t.code === templateCode)
-  const hasActivation = !!selectedTemplate?.bodyHtml.includes('{{activationLink}}')
+
+  // "Modifier le texte pour cet envoi": a one-off copy of the template's subject/body, edited here and sent
+  // instead of the template for THIS send only (the saved template never changes). Reset when the template changes.
+  const [custom, setCustom] = useState<{ subject: string; body: string } | null>(null)
+  const [customFor, setCustomFor] = useState(templateCode)
+  if (customFor !== templateCode) { setCustomFor(templateCode); setCustom(null) }
+  const subjectText = custom?.subject ?? selectedTemplate?.subject ?? ''
+  const bodyText = custom?.body ?? selectedTemplate?.bodyHtml ?? ''
+  const hasActivation = bodyText.includes('{{activationLink}}') || subjectText.includes('{{activationLink}}')
+  // Placeholders the CG can insert in the one-off text (the same per-recipient values the send fills in).
+  const EDIT_VARIABLES = [
+    { key: 'leaderName', label: 'Nom du chef' }, { key: 'unitName', label: 'Unité(s)' },
+    { key: 'scoutYear', label: 'Année scoute' }, { key: 'loginUrl', label: 'Adresse du site' },
+    { key: 'username', label: 'Identifiant (lien d\'activation)' }, { key: 'activationLink', label: 'Lien d\'activation' },
+    { key: 'expiryDays', label: 'Validité du lien (jours)' },
+  ]
 
   // Selection: default-select every recipient with a contact email; reset (in render, not an effect) whenever the
   // recipient list changes — the codebase's derived-state-reset pattern (avoids set-state-in-effect).
@@ -98,7 +115,10 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
 
   const doSend = async () => {
     try {
-      const res = await send.mutateAsync({ templateCode, memberIds: [...selected] })
+      const res = await send.mutateAsync({
+        templateCode, memberIds: [...selected],
+        subjectOverride: custom ? custom.subject : null, bodyHtmlOverride: custom ? custom.body : null,
+      })
       setConfirmOpen(false)
       // noAccount only applies to an activation-link template (recipients without a login can't get a set-password link).
       const extra = `${res.noEmail > 0 ? ` ${res.noEmail} sans email.` : ''}${res.noAccount > 0 ? ` ${res.noAccount} sans compte (accès non envoyé).` : ''}`
@@ -141,9 +161,17 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
                     lien pour définir son mot de passe — un seul email suffit (pas besoin d'« Envoyer les accès »).</span>
                 </div>
               )}
+              <div className="flex items-center justify-between gap-3 rounded-md bg-muted/40 px-3 py-2">
+                <div>
+                  <div className="text-sm font-medium">Modifier le texte pour cet envoi</div>
+                  <div className="text-xs text-muted-foreground">Le modèle enregistré reste inchangé</div>
+                </div>
+                <Switch checked={!!custom}
+                  onCheckedChange={(on) => setCustom(on ? { subject: selectedTemplate.subject, body: selectedTemplate.bodyHtml } : null)} />
+              </div>
               {canEditTemplates && (
                 <Link to="/admin/settings?tab=cfg:email-templates" className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
-                  <Pencil className="h-3.5 w-3.5" /> Modifier le texte du modèle
+                  <Pencil className="h-3.5 w-3.5" /> Modifier le modèle lui-même
                 </Link>
               )}
             </div>
@@ -184,6 +212,26 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
           )}
         </div>
       </div>
+
+      {/* One-off edit of the subject/body for this send */}
+      {selectedTemplate && custom && (
+        <div className="space-y-3 rounded-lg border p-4">
+          <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Texte de cet envoi</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="custom-subject">Objet</Label>
+            <Input id="custom-subject" value={custom.subject} maxLength={300}
+              onChange={(e) => setCustom((c) => c && { ...c, subject: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Message</Label>
+            <RichTextEditor key={templateCode} content={custom.body} variables={EDIT_VARIABLES}
+              onChange={(html) => setCustom((c) => c && { ...c, body: html })} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Les {'{{variables}}'} (nom, unité, lien…) sont remplies pour chaque chef. Ces changements ne valent que pour cet envoi.
+          </p>
+        </div>
+      )}
 
       {/* Send action bar — kept at the top, above the (potentially long) recipient list */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-3 shadow-card">
@@ -255,13 +303,13 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
           <div className="lg:col-span-1">
             <div className="rounded-lg border lg:sticky lg:top-4">
               <div className="border-b bg-muted/40 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Aperçu
+                Aperçu{custom && <span className="ml-1 normal-case text-amber-700 dark:text-amber-300">· texte modifié</span>}
               </div>
               <div className="max-h-[60vh] overflow-y-auto p-3">
                 <p className="text-xs text-muted-foreground">Objet</p>
-                <p className="mb-3 text-sm font-medium">{fillPreview(selectedTemplate.subject)}</p>
+                <p className="mb-3 text-sm font-medium">{fillPreview(subjectText)}</p>
                 <div className="border-t pt-3">
-                  <RichContent html={fillPreview(selectedTemplate.bodyHtml)} className="text-sm" />
+                  <RichContent html={fillPreview(bodyText)} className="text-sm" />
                 </div>
                 <p className="mt-3 border-t pt-2 text-[11px] text-muted-foreground">
                   Valeurs d'exemple — le contenu réel (nom, identifiant, lien) est personnalisé pour chaque chef.
@@ -276,7 +324,7 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Envoyer le message ?"
-        description={`Envoyer « ${selectedTemplate?.name ?? ''} » à ${willSend} chef(s) de ${audienceLabel}${selectedNoEmail > 0 ? ` (${selectedNoEmail} sans email seront ignorés)` : ''}.${hasActivation ? ' Cet email inclut un lien d\'activation du compte.' : ''}`}
+        description={`Envoyer « ${selectedTemplate?.name ?? ''} »${custom ? ' (texte modifié pour cet envoi)' : ''} à ${willSend} chef(s) de ${audienceLabel}${selectedNoEmail > 0 ? ` (${selectedNoEmail} sans email seront ignorés)` : ''}.${hasActivation ? ' Cet email inclut un lien d\'activation du compte.' : ''}`}
         confirmLabel="Envoyer"
         loading={send.isPending}
         onConfirm={doSend}

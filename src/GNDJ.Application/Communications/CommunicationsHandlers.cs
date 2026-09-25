@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
+using FluentValidation;
 using GNDJ.Application.Common;
+using GNDJ.Application.Common.Validation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Domain.Entities;
@@ -115,8 +117,22 @@ public record SendLeaderMessageResult(
 
 // Send the given template to the selected leaders (by member id). Each recipient gets their own resolved
 // contact email + per-recipient variables ({{leaderName}}, {{unitName}}, {{scoutYear}}, {{loginUrl}}).
-public record SendLeaderMessageCommand(string TemplateCode, List<Guid> MemberIds)
+// SubjectOverride / BodyHtmlOverride: optional one-off text for THIS send only (the saved template is untouched).
+public record SendLeaderMessageCommand(string TemplateCode, List<Guid> MemberIds,
+    string? SubjectOverride = null, string? BodyHtmlOverride = null)
     : IRequest<Result<SendLeaderMessageResult>>;
+
+public class SendLeaderMessageCommandValidator : AbstractValidator<SendLeaderMessageCommand>
+{
+    public SendLeaderMessageCommandValidator()
+    {
+        RuleFor(x => x.TemplateCode).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.MemberIds).Must(l => l is null || l.Count <= 1000).WithMessage("Trop de destinataires.");
+        // Subject is plain text (no markup); the body is rich text (HTML) authored in the editor, capped in size.
+        RuleFor(x => x.SubjectOverride).MaximumLength(EmailOverride.MaxSubjectLength).NoHtml();
+        RuleFor(x => x.BodyHtmlOverride).MaximumLength(EmailOverride.MaxBodyLength);
+    }
+}
 
 public class SendLeaderMessageCommandHandler(
     IApplicationDbContext context, ICurrentUserService currentUser, IEmailQueue emailQueue, IAuditService audit)
@@ -156,8 +172,13 @@ public class SendLeaderMessageCommandHandler(
         // email both onboards the chef AND lets them set their password (no separate "Envoyer les accès" pass).
         // A plain announcement template (no {{activationLink}}) behaves as before: no tokens, sent to anyone with
         // an email. A recipient with no active login account can't be given a link → reported as "no account".
-        var needsActivation = template.BodyHtml.Contains("{{activationLink}}", StringComparison.OrdinalIgnoreCase)
-            || template.Subject.Contains("{{activationLink}}", StringComparison.OrdinalIgnoreCase);
+        // The text actually sent: the one-off edit when given, else the template.
+        var subjectOverride = string.IsNullOrWhiteSpace(request.SubjectOverride) ? null : request.SubjectOverride.Trim();
+        var bodyOverride = string.IsNullOrWhiteSpace(request.BodyHtmlOverride) ? null : request.BodyHtmlOverride;
+        var effectiveSubject = subjectOverride ?? template.Subject;
+        var effectiveBody = bodyOverride ?? template.BodyHtml;
+        var needsActivation = effectiveBody.Contains("{{activationLink}}", StringComparison.OrdinalIgnoreCase)
+            || effectiveSubject.Contains("{{activationLink}}", StringComparison.OrdinalIgnoreCase);
 
         Dictionary<Guid, User> userByMember = new();
         var activationExpiryDays = 30;
@@ -203,6 +224,8 @@ public class SendLeaderMessageCommandHandler(
                 vars["expiryDays"] = activationExpiryDays.ToString();
             }
 
+            if (subjectOverride is not null) vars[EmailOverride.SubjectKey] = subjectOverride;
+            if (bodyOverride is not null) vars[EmailOverride.BodyKey] = bodyOverride;
             jobs.Add(new EmailJob(request.TemplateCode, email!, vars));
         }
 
@@ -210,7 +233,7 @@ public class SendLeaderMessageCommandHandler(
         if (needsActivation) await context.SaveChangesAsync(ct);
         await emailQueue.EnqueueManyAsync(jobs, ct);
         await audit.LogAsync("SendLeaderMessage", "EmailTemplate", template.Id,
-            newValues: new { template.Code, Sent = jobs.Count, NoEmail = noEmailNames.Count, NoAccount = noAccountNames.Count }, cancellationToken: ct);
+            newValues: new { template.Code, Sent = jobs.Count, NoEmail = noEmailNames.Count, NoAccount = noAccountNames.Count, EditedForThisSend = subjectOverride is not null || bodyOverride is not null, Subject = effectiveSubject }, cancellationToken: ct);
 
         return Result<SendLeaderMessageResult>.Success(new SendLeaderMessageResult(
             jobs.Count, noEmailNames.Count, noEmailNames, noAccountNames.Count, noAccountNames));
