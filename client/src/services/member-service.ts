@@ -269,45 +269,19 @@ export function usePurgeMember() {
   })
 }
 
-// ── "Envoyer les accès" — launch activation-email rollout (username + set-password link) ──
-export interface AccessCandidate {
-  memberId: string
-  memberName: string
-  username: string | null
-  hasAccount: boolean
-  hasEmail: boolean
-  contactEmail: string | null
-  lastLoginAt: string | null
-}
-
+// ── "Envoyer l'accès" (member file → Actions) — username + set-password link to one member ──
 export interface SendAccessResult {
   sent: number
   noEmail: number
   noAccount: number
   noAccess: number
-  skipped: number
   details: { memberId: string; memberName: string; status: string; email: string | null }[]
 }
 
-// The active members of a unit (or, with allNonMaitrise, every active non-leadership member group-wide) + their
-// login/email/last-login status, so the CG can pick who to send to.
-export function useAccessCandidates(unitId: string | undefined, allNonMaitrise = false) {
-  return useQuery({
-    queryKey: ['members', 'access-candidates', unitId, allNonMaitrise],
-    queryFn: () => apiClient.get<AccessCandidate[]>('/members/access-candidates', { params: { unitId, allNonMaitrise } }).then(r => r.data),
-    enabled: !!unitId || allNonMaitrise,
-  })
-}
-
-// Send access/re-inscription emails to a whole unit or to an explicit member list (single-member resend).
-// templateCode picks the email: "account_activation" (with the set-password link, default) or
-// "reinscription_returning" (link-free letter for members who already have an account).
 export function useSendAccess() {
-  const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { unitId?: string; memberIds?: string[]; onlyNeverLoggedIn?: boolean; templateCode?: string; allNonMaitrise?: boolean }) =>
+    mutationFn: (body: { memberIds: string[] }) =>
       apiClient.post<SendAccessResult>('/members/send-access', body).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', 'access-candidates'] }),
   })
 }
 
@@ -361,7 +335,6 @@ export function useCreateMemberLogin() {
     mutationFn: (memberId: string) => apiClient.post<CreateLoginResult>(`/members/${memberId}/create-login`).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['members', 'missing-logins'] })
-      qc.invalidateQueries({ queryKey: ['members', 'access-candidates'] })
     },
   })
 }
@@ -374,7 +347,6 @@ export function useCreateMissingLogins() {
       apiClient.post<CreateMissingLoginsResult>('/members/create-logins', body).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['members', 'missing-logins'] })
-      qc.invalidateQueries({ queryKey: ['members', 'access-candidates'] })
     },
   })
 }

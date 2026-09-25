@@ -30,6 +30,7 @@ import { Tip } from '@/components/ui/tooltip'
 import { Plus, Trash2, Pencil, FileText, Paperclip, Upload, X, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import { uploadContentFile } from '@/services/content-image-service'
+import { EMAIL_CATEGORIES, templateInfo } from '@/lib/email-template-catalog'
 
 // -- Module variables --
 // Per-module set of {{placeholders}} the backend will substitute. Keyed by template.module; selecting a
@@ -81,6 +82,12 @@ const MODULE_VARIABLES: Record<string, { key: string; label: string }[]> = {
     { key: 'activationLink', label: "Lien d'activation (définir le mot de passe)" },
     { key: 'expiryDays', label: 'Validité du lien (jours)' },
     { key: 'loginUrl', label: 'Lien de connexion' },
+    // Bienvenue dans la maîtrise (automatic, new chef) + group sends.
+    { key: 'memberName', label: 'Nom du membre' },
+    { key: 'roleName', label: 'Fonction' },
+    { key: 'aideUrl', label: "Lien vers l'aide" },
+    { key: 'rentreeUrl', label: 'Lien vers la rentrée' },
+    { key: 'groupName', label: 'Nom du groupe (envoi à un groupe)' },
   ],
 }
 
@@ -209,6 +216,15 @@ function TemplatesTab() {
     }
   }
 
+  // Templates grouped by category, in the catalog's order; empty categories are skipped.
+  const groups = useMemo(() => EMAIL_CATEGORIES
+    .map((cat) => ({
+      cat,
+      items: (templates ?? []).filter((t) => templateInfo(t.code).category === cat.key)
+        .sort((x, y) => x.name.localeCompare(y.name, 'fr')),
+    }))
+    .filter((g) => g.items.length > 0), [templates])
+
   // Variables for the selected module — fed to both the reference chips and the editor insert dropdown.
   const currentVariables = MODULE_VARIABLES[form.module] ?? []
 
@@ -217,43 +233,63 @@ function TemplatesTab() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouveau modele</Button>
+        <Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouveau modèle</Button>
       </div>
 
       {!templates || templates.length === 0 ? (
         <EmptyState icon={FileText} title="Aucun modèle d'email" description="Créez votre premier modèle d'email." action={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Créer</Button>} />
       ) : (
-        <div className="rounded-lg border">
-          {/* min-w so the columns scroll horizontally on a phone instead of squishing into unreadable stacks. */}
-          <Table className="min-w-[640px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Code</TableHead>
-                <TableHead>Module</TableHead>
-                <TableHead>Serveur SMTP</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead className="w-24" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {templates.map((tpl) => (
-                <TableRow key={tpl.id} className="even:bg-muted/30">
-                  <TableCell className="font-medium">{tpl.name}</TableCell>
-                  <TableCell>{tpl.code}</TableCell>
-                  <TableCell>{MODULE_OPTIONS.find(m => m.value === tpl.module)?.label ?? tpl.module}</TableCell>
-                  <TableCell>{tpl.smtpServerName ?? 'Par défaut'}</TableCell>
-                  <TableCell>{tpl.isActive ? <Badge variant="success">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(tpl)}><Pencil className="h-4 w-4" /></Button></Tip>
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(tpl)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        // Grouped by category (see lib/email-template-catalog): what each template is for and when it's sent.
+        <div className="space-y-6">
+          {groups.map(({ cat, items }) => (
+            <section key={cat.key} className="space-y-2">
+              <div>
+                <h3 className="text-sm font-semibold">{cat.label} <span className="font-normal text-muted-foreground">({items.length})</span></h3>
+                <p className="text-xs text-muted-foreground">{cat.description}</p>
+              </div>
+              <div className="rounded-lg border">
+                {/* min-w so the columns scroll horizontally on a phone instead of squishing into unreadable stacks. */}
+                <Table className="min-w-[640px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Modèle</TableHead>
+                      <TableHead className="w-32">Envoi</TableHead>
+                      <TableHead className="w-36">Serveur SMTP</TableHead>
+                      <TableHead className="w-24">Statut</TableHead>
+                      <TableHead className="w-24" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((tpl) => {
+                      const info = templateInfo(tpl.code)
+                      return (
+                        <TableRow key={tpl.id} className="even:bg-muted/30">
+                          <TableCell>
+                            <div className="font-medium">{tpl.name}</div>
+                            <div className="text-xs text-muted-foreground">{info.when}</div>
+                            <div className="mt-0.5 font-mono text-[11px] text-muted-foreground/70">{tpl.code}</div>
+                          </TableCell>
+                          <TableCell>
+                            {info.auto
+                              ? <Badge variant="outline" className="border-sky-300 text-sky-700 dark:border-sky-800 dark:text-sky-300">Automatique</Badge>
+                              : <Badge variant="outline">Envoi manuel</Badge>}
+                          </TableCell>
+                          <TableCell>{tpl.smtpServerName ?? 'Par défaut'}</TableCell>
+                          <TableCell>{tpl.isActive ? <Badge variant="success">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(tpl)}><Pencil className="h-4 w-4" /></Button></Tip>
+                              <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(tpl)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </section>
+          ))}
         </div>
       )}
 
@@ -261,7 +297,7 @@ function TemplatesTab() {
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Modifier le modele' : 'Nouveau modele d\'email'}</DialogTitle>
+            <DialogTitle>{editing ? 'Modifier le modele' : 'Nouveau modèle d\'email'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}

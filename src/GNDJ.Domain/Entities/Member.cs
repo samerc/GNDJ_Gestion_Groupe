@@ -73,6 +73,11 @@ public class Member : BaseEntity
     // detected (which includes members who simply use the browser — there is no reliable "not installed" signal).
     public DateTime? AppInstalledAt { get; set; }
 
+    // "Bienvenue dans la maîtrise" email: set when the member was first detected holding a leadership (maîtrise)
+    // role and the welcome email was queued (or skipped: no email / template inactive). Null = not yet welcomed.
+    // The migration back-filled it for everyone who already held a maîtrise role, so only NEW chefs get it.
+    public DateTime? LeaderWelcomeSentAt { get; set; }
+
     // Confirmed fratrie: members sharing a SiblingGroupId are brothers/sisters (set by the CG on the Fratries
     // page). Null = not (yet) grouped. See SiblingGroup.
     public Guid? SiblingGroupId { get; set; }

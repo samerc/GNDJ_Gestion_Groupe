@@ -363,29 +363,40 @@ public class SendGroupMessageCommandHandler(IApplicationDbContext context, ICurr
 
         var emails = await ContactEmailResolver.LoadAsync(context, distinct.Select(r => r.MemberId).ToList(), ct);
 
-        // One email per DISTINCT address (a parent shared by siblings gets one message). Members with no
-        // reachable email are reported so the manager can follow up another way.
-        var byEmail = new Dictionary<string, (string MemberName, string UnitName)>(StringComparer.OrdinalIgnoreCase);
+        // Free text = one email per DISTINCT address (a parent shared by siblings gets one message). A saved
+        // template usually names the member ("mettez à jour le dossier de {{memberName}}"), so it goes out once per
+        // MEMBER — siblings sharing a parent's email each get their own. Members with no reachable email are
+        // reported so the manager can follow up another way.
+        var recipients = new List<(string Email, string MemberName, string UnitName)>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var noContact = new List<string>();
         foreach (var r in distinct.OrderBy(r => r.LastName).ThenBy(r => r.FirstName))
         {
             var email = emails.Resolve(r.MemberId, r.PrimaryContactEmail);
             var name = $"{r.FirstName} {r.LastName}";
             if (string.IsNullOrWhiteSpace(email)) { noContact.Add(name); continue; }
-            byEmail.TryAdd(email.Trim(), (name, r.UnitName)); // keep the first member for that address
+            if (!useTemplate && !seen.Add(email.Trim())) continue; // free text: first member for that address
+            recipients.Add((email.Trim(), name, r.UnitName));
         }
 
+        // Shared values for templates (the "mise à jour de la fiche" letter uses the login link + the year).
+        var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct))
+            ?? "http://localhost:5173").TrimEnd('/');
+        var scoutYear = await context.Settings.Where(s => s.Key == "passage.scout_year").Select(s => s.Value).FirstOrDefaultAsync(ct) ?? "";
+
         var code = useTemplate ? request.TemplateCode!.Trim() : "adhoc_message";
-        var jobs = byEmail.Select(kv =>
+        var jobs = recipients.Select(r =>
         {
             var vars = new Dictionary<string, string>
             {
-                ["memberName"] = kv.Value.MemberName,
-                ["unitName"] = kv.Value.UnitName,
+                ["memberName"] = r.MemberName,
+                ["unitName"] = r.UnitName,
                 ["groupName"] = g.Name,
+                ["loginUrl"] = baseUrl,
+                ["scoutYear"] = scoutYear,
             };
             if (!useTemplate) { vars["subject"] = request.Subject!.Trim(); vars["body"] = request.BodyHtml!.Trim(); }
-            return new EmailJob(code, kv.Key, vars);
+            return new EmailJob(code, r.Email, vars);
         }).ToList();
 
         await emailQueue.EnqueueManyAsync(jobs, ct);

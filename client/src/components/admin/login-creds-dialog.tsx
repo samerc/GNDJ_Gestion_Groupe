@@ -1,6 +1,6 @@
 // Shows the result of creating logins: how many got an activation email, and the credentials of the no-email
 // members for the CG to relay by hand (WhatsApp/paper). Used by the "Comptes manquants" page and the inline
-// "créer les comptes manquants" action in "Envoyer les accès".
+// "créer les comptes manquants" action ("Comptes manquants" page).
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/shared/copy-button'

@@ -24,11 +24,10 @@ export const RENTREE_ACTIONS: Record<string, RentreeActionDef> = {
   'goto-photo': { label: 'Séance photo', kind: 'goto', route: '/photo-session' },
   'goto-my-unit': { label: 'Mon unité', kind: 'goto', route: '/dashboard' },
   'goto-progression': { label: 'Étapes & badges', kind: 'goto', route: '/admin/progression' },
-  'goto-communications': { label: 'Envoyer un message aux chefs', kind: 'goto', route: '/admin/communications-acces?tab=chefs' },
+  'goto-communications': { label: 'Envoyer un message aux chefs', kind: 'goto', route: '/admin/communications-acces' },
   'goto-document-reminders': { label: 'Relancer les documents manquants', kind: 'goto', route: '/admin/documents-suivi?tab=relances' },
   'goto-documents-suivi': { label: 'Campagne des documents (dates)', kind: 'goto', route: '/admin/documents-suivi' },
   'goto-email': { label: 'Modèles d\'email / pièces jointes', kind: 'goto', route: '/admin/settings?tab=cfg:email-templates' },
-  'goto-send-access': { label: 'Envoyer les accès', kind: 'goto', route: '/admin/communications-acces?tab=acces' },
   'goto-demande-archives': { label: 'Archives des demandes', kind: 'goto', route: '/admin/demande-archives' },
   'goto-document-types': { label: 'Types de documents (modèles)', kind: 'goto', route: '/admin/document-types' },
 }

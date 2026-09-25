@@ -274,6 +274,7 @@ A `services/widget-service.ts` file (`useQuery` / `useMutation` hooks, keys `['w
 | `PushSenderBackgroundService` | Continuous | Sends Web Push notifications |
 | `DocumentCampaignBackgroundService` | 12 h | Automatic steps of the document campaign |
 | `RentreeReminderBackgroundService` | 12 h | Weekly reminder of rentrée (start-of-year) tasks |
+| `LeaderWelcomeBackgroundService` | 1 h | "Bienvenue dans la maîtrise" email, once, to a member given their first leadership role |
 | `MemberPurgeBackgroundService` | 24 h | Permanent purge of the recycle bin (30 days) |
 | `ApplicationLogMaintenanceBackgroundService` | 24 h | Retention of logs, notifications, outbox rows |
 | `OpsAlertBackgroundService` | 1 h | Daily "things to check" email |

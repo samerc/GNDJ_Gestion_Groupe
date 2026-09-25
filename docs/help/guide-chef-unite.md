@@ -41,6 +41,8 @@ flowchart LR
 Vous êtes déjà membre du groupe : vous avez **déjà un compte** sur la plateforme, il n'y a **rien à activer**.
 Dès que le chef de groupe vous a donné votre fonction de CU ou d'ACU, vous vous connectez **avec le même compte
 qu'avant** et les menus de chef (Mon unité, Réunions, Passage…) apparaissent automatiquement.
+Vous recevez aussi, une seule fois, un email **« Bienvenue dans la maîtrise »** qui résume ce qui change et
+les premières choses à faire.
 
 1. Allez sur **https://gndj.org** → **Espace membres**.
 2. Saisissez votre **identifiant** (de la forme `prenom.nom@scouts.gndj`) et votre mot de passe habituel.

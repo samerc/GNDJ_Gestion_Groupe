@@ -6078,3 +6078,26 @@ Catch problems before members notice them. Migration-free (patch 028 only).
   family and restores/deletes everything). `pdf.mjs` exports every guide to `docs/help/pdf` (gitignored) from the
   app's own print view.
 - Smoke suite: +7 API checks on guide access (55 total), browser check opens a guide (20).
+
+### Email templates cleanup + new-chef welcome (2026-09-26, DEV until deploy)
+Every member got their access in 2026, and new chefs are existing members, so the activation-link mass sends are retired.
+- **Removed the bulk "Envoyer les accès"** (page `send-access.tsx`, `GetAccessCandidatesQuery`, unit / all-members modes,
+  template choice). `SendAccessEmailsCommand(MemberIds)` now only sends `account_activation` to one or a few members
+  (member file → Actions → Envoyer l'accès; `CanAccessMemberAsync` per member) — used for a member accepted without a
+  demande (created by hand) or a lost email. "Communications & accès" → **"Emails aux chefs"** (same path
+  `/admin/communications-acces`, now maitrise.manage); the "Nouveaux chefs uniquement" (never logged in) switch removed.
+  Rentrée task "Relancer les accès non activés" + action `goto-send-access` removed.
+- **"Bienvenue dans la maîtrise"** (`leader_welcome`, automatic): `Member.LeaderWelcomeSentAt` (migration
+  `AddMemberLeaderWelcome`, back-filled for everyone who ever held an IsMaitrise role) + `LeaderWelcome.RunAsync` run
+  hourly by `LeaderWelcomeBackgroundService` (job "Bienvenue aux nouveaux chefs"): a member with an active maîtrise
+  assignment and no marker gets the email once (most senior post → roleName/unitName, + loginUrl/aideUrl/rentreeUrl);
+  marker + outbox row in one save; stamped even when skipped (no email / template inactive). Periodic on purpose: a
+  leadership role can be given from many places. Turn it off by deactivating the template.
+- **Patch 029**: soft-deletes `reinscription_access` + `cu_rentree_nouveau`; strips the "Votre accès" activation block
+  from `cu_rentree` (renamed "Rentrée — chefs", other CG edits kept); `reinscription_returning` → "Mise à jour de la
+  fiche et des documents (membres)" (no username line), sent from Groupes → Envoyer un message.
+- **Group send**: a saved template now goes out one email PER MEMBER (siblings sharing a parent email each get theirs);
+  free text still one per address. Adds `loginUrl` + `scoutYear` variables.
+- **Templates page grouped by category** (`lib/email-template-catalog.ts`: category + Automatique/Envoi manuel + when it
+  is sent; unknown codes → "Autres"). Keep the catalog in sync when adding a template.
+

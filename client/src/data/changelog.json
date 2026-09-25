@@ -4,6 +4,22 @@
     "date": "2026-09-10",
     "changes": [
       {
+        "date": "2026-09-26",
+        "text": "Modèles d'email rangés par catégorie (connexion, inscriptions, documents, chefs, membres, site, système), avec pour chacun « Automatique » ou « Envoi manuel » et le moment où il part."
+      },
+      {
+        "date": "2026-09-26",
+        "text": "Nouveau : email automatique « Bienvenue dans la maîtrise » envoyé une seule fois à un membre qui reçoit sa première fonction de chef (ce qui change, quoi faire, lien vers son guide). Désactivable depuis le modèle."
+      },
+      {
+        "date": "2026-09-26",
+        "text": "La page « Envoyer les accès » est retirée (tous les membres ont leur compte) ; « Communications & accès » devient « Emails aux chefs ». L'envoi de l'accès à un seul membre reste possible depuis sa fiche (Actions → Envoyer l'accès), par exemple pour un membre accepté sans demande."
+      },
+      {
+        "date": "2026-09-26",
+        "text": "L'email de rentrée des chefs ne contient plus de lien d'activation ; l'ancien modèle « Réinscription » devient « Mise à jour de la fiche et des documents », à envoyer à un groupe quand c'est utile (un email par membre, même quand des frères et sœurs partagent l'email d'un parent)."
+      },
+      {
         "date": "2026-09-25",
         "text": "La documentation technique (réservée au super-administrateur) est maintenant rédigée en anglais."
       },

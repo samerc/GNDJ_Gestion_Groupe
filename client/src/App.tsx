@@ -209,11 +209,14 @@ export default function App() {
             <Route element={<PermissionRoute permission={PERMISSIONS.MEMBERS_DELETE} />}>
               <Route path="/admin/deleted-members" element={<DeletedMembersPage />} />
             </Route>
-            <Route element={<PermissionRoute permission={PERMISSIONS.MEMBERS_RESET_PASSWORD} />}>
+            <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>
+              {/* "Emails aux chefs" (path kept from the old "Communications & accès" page). */}
               <Route path="/admin/communications-acces" element={<CommunicationsAccesPage />} />
-              {/* Back-compat: "Envoyer les accès" + "Message aux chefs" merged into "Communications & accès". */}
-              <Route path="/admin/send-access" element={<Navigate to="/admin/communications-acces?tab=acces" replace />} />
-              <Route path="/admin/communications" element={<Navigate to="/admin/communications-acces?tab=chefs" replace />} />
+              <Route path="/admin/communications" element={<Navigate to="/admin/communications-acces" replace />} />
+              {/* The bulk "Envoyer les accès" page was removed → land on Emails aux chefs. */}
+              <Route path="/admin/send-access" element={<Navigate to="/admin/communications-acces" replace />} />
+            </Route>
+            <Route element={<PermissionRoute permission={PERMISSIONS.MEMBERS_RESET_PASSWORD} />}>
               <Route path="/admin/missing-logins" element={<MissingLoginsPage />} />
             </Route>
             <Route element={<PermissionRoute permission={PERMISSIONS.MAITRISE_MANAGE} />}>

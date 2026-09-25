@@ -96,6 +96,7 @@ builder.Services.AddHostedService<GNDJ.Api.Services.PushSenderBackgroundService>
 builder.Services.AddHostedService<GNDJ.Api.Services.MemberPurgeBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.DocumentCampaignBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.RentreeReminderBackgroundService>();
+builder.Services.AddHostedService<GNDJ.Api.Services.LeaderWelcomeBackgroundService>(); // "Bienvenue dans la maîtrise" email to new chefs
 builder.Services.AddHostedService<GNDJ.Api.Services.ApplicationLogMaintenanceBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.OpsAlertBackgroundService>(); // daily "système" problems email
 builder.Services.AddSingleton<GNDJ.Api.Help.HelpDocs>(); // in-app "Aide" guides (docs/help), role-filtered

@@ -191,7 +191,7 @@ export const FIELD_LABELS: Record<string, string> = {
   added: 'Pages ajoutées', pages: 'Pages',
   KeepOld: "Conserver l'ancienne fonction", IsSuperAdmin: 'Super-administrateur',
   AccountsDeleted: 'Comptes supprimés', Before: 'Avant le',
-  // Send-report keys (Envoyer les accès / Relance documents / Message aux chefs)
+  // Send-report keys (Envoyer l'accès / Relance documents / Emails aux chefs)
   sent: 'Envoyés', noEmail: 'Sans email', noAccount: 'Sans compte', noAccess: 'Sans accès',
   skipped: 'Ignorés', compliant: 'Dossiers complets', template: 'Modèle', unit: 'Unité',
 }

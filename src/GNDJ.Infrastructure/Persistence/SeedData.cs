@@ -485,7 +485,7 @@ public static class SeedData
         var demOpen = Add("Ouvrir les inscriptions", "Demandes", CG, false, "septembre", "open-demandes", "demandes-open", "demande.submission_start", cfgYear, cfgQuotas, demTerms);
         var demReview = Add("Réviser les demandes d'inscription (accepter/refuser + unité)", "Demandes", CG, false, "octobre", "goto-demandes", "demandes-reviewed", "demande.submission_deadline", demOpen);
         Add("Relancer les familles qui n'ont pas soumis leur demande", "Demandes", CG, false, "octobre", "goto-demandes", null, null, demOpen);
-        var demSend = Add("Envoyer les réponses aux demandes (conversion en membres)", "Demandes", CG, false, "octobre", "goto-demandes", "demandes-sent", "demande.member_start_date", demReview);
+        Add("Envoyer les réponses aux demandes (conversion en membres)", "Demandes", CG, false, "octobre", "goto-demandes", "demandes-sent", "demande.member_start_date", demReview);
         // ④ Dossiers membres — the document campaign is date-driven (upload opens/closes by the documents.* dates);
         // the two verifications are MANUAL (each with its own campaign-date deadline), not auto-tracked.
         var docOpen = Add("Ouvrir la période de réinscription (dépôt des documents)", "Dossiers membres", CG, false, "octobre", "goto-documents", null, "documents.deposit_start", pasFinalize);
@@ -494,7 +494,6 @@ public static class SeedData
         var docVerify2 = Add("Vérifier les documents — 2ème vérification", "Dossiers membres", CU, true, "novembre", "goto-documents", null, "documents.correction_deadline", docRelance);
         Add("Bloquer les membres dont les dossiers sont incomplets", "Dossiers membres", CG, false, "novembre", "goto-documents", null, "documents.final_deadline", docVerify2);
         Add("Suivre et enregistrer les cotisations", "Dossiers membres", CU, true, "octobre – novembre", "goto-documents", "cotisations-paid", "documents.deposit_deadline", pasFinalize);
-        Add("Relancer les accès non activés", "Dossiers membres", CG, false, "novembre", "goto-send-access", null, null, demSend);
         Add("Les chefs mettent à jour les membres (badges, étapes…)", "Dossiers membres", CU, true, "novembre", "goto-progression", null, null, pasFinalize);
         // ⑤ Organisation
         Add("Organiser la séance photo", "Organisation", CU, true, "octobre", "goto-photo", "photos-done", null, pasFinalize);
@@ -589,7 +588,6 @@ public static class SeedData
             ("Mettre à jour les modèles de documents (autorisation, fiche médicale…)", "Configuration", "4ᵉ sem. septembre", "goto-document-types"),
             ("Rédiger la lettre de refus (pièce jointe du modèle « demande refusée »)", "Demandes", "septembre", "goto-email"),
             ("Relancer les familles qui n'ont pas soumis leur demande", "Demandes", "octobre", "goto-demandes"),
-            ("Relancer les accès non activés", "Dossiers membres", "novembre", "goto-send-access"),
         };
 
         var existing = await context.RentreeTaskTemplates.Select(t => t.Title).ToListAsync();
@@ -1055,6 +1053,20 @@ public static class SeedData
         await context.SaveChangesAsync();
     }
 
+    // ── Texts of the member-facing templates, shared with the data patches' expectations. ──
+    private const string BtnStyle = "background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;";
+
+    public const string MemberUpdateName = "Mise à jour de la fiche et des documents (membres)";
+    public const string MemberUpdateVars = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"}]";
+    public const string MemberUpdateBody = "<h2>Bonjour,</h2><p>La nouvelle année scoute <strong>{{scoutYear}}</strong> commence. Merci de prendre quelques minutes pour mettre à jour le dossier de <strong>{{memberName}}</strong> sur la plateforme du Groupe.</p><p>Connectez-vous avec votre identifiant et votre mot de passe habituels :</p><p><a href=\"{{loginUrl}}\" style=\"" + BtnStyle + "\">Se connecter</a></p><p>Mot de passe oublié ? Utilisez « Mot de passe oublié ? » ou « Se connecter avec un code » sur la page de connexion (et « Identifiant oublié ? » si besoin).</p><h3>À faire</h3><ol><li><strong>Vérifiez la fiche</strong> et mettez à jour ce qui a changé (école, classe, coordonnées, parents…).</li><li><strong>Téléversez les documents</strong> demandés depuis « Mes documents » — certains modèles sont téléchargeables déjà pré-remplis.</li><li><strong>Réglez la cotisation</strong> selon les modalités communiquées par la maîtrise.</li></ol><p>Merci et bonne année scoute !<br>— La Maîtrise GNDJ</p>";
+
+    public const string CuRentreeVars = "[{\"key\":\"leaderName\",\"label\":\"Nom du chef\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"},{\"key\":\"username\",\"label\":\"Identifiant\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"}]";
+    public const string CuRentreeSubject = "Rentrée scoute {{scoutYear}} — les étapes pour votre unité";
+    public const string CuRentreeBody = "<h2>Bonjour {{leaderName}},</h2><p>La rentrée scoute <strong>{{scoutYear}}</strong> est lancée. Voici ce qui vous attend pour votre unité <strong>{{unitName}}</strong>.</p><p>Connectez-vous sur <a href=\"{{loginUrl}}\">{{loginUrl}}</a> avec votre compte habituel (identifiant : {{username}}). Mot de passe oublié ? « Mot de passe oublié ? » ou « Se connecter avec un code » sur la page de connexion.</p><h3>À faire pour la rentrée</h3><ol><li><strong>Vérifiez votre unité</strong> — la liste de vos membres et leurs données.</li><li><strong>Réalisez le passage</strong> — pour chaque membre : pas de changement, proposer une montée, ou quitte le groupe.</li><li><strong>Vérifiez les documents</strong> — acceptez/refusez les documents que les familles déposent, suivez les cotisations.</li></ol><p>La liste complète des tâches de la rentrée (dans l'ordre, avec les échéances) est dans l'application, rubrique « Rentrée scoute » : <a href=\"{{loginUrl}}/rentree\">{{loginUrl}}/rentree</a>. Le guide du chef d'unité est dans le menu « Aide ».</p><p>Merci pour votre engagement et bonne rentrée scoute !</p><p>— La Maîtrise de Groupe</p>";
+
+    public const string LeaderWelcomeVars = "[{\"key\":\"leaderName\",\"label\":\"Prénom du chef\"},{\"key\":\"memberName\",\"label\":\"Nom complet\"},{\"key\":\"roleName\",\"label\":\"Fonction\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"},{\"key\":\"aideUrl\",\"label\":\"Lien vers l'aide\"},{\"key\":\"rentreeUrl\",\"label\":\"Lien vers la rentrée\"}]";
+    public const string LeaderWelcomeBody = "<h2>Bonjour {{leaderName}},</h2><p>Bienvenue dans la maîtrise ! Vous êtes désormais <strong>{{roleName}}</strong> — <strong>{{unitName}}</strong>. Merci pour votre engagement.</p><h3>Votre compte</h3><p>Rien à activer : vous gardez <strong>le même compte</strong> qu'avant. Connectez-vous comme d'habitude sur <a href=\"{{loginUrl}}\">{{loginUrl}}</a> — les menus de chef (Mon unité, Réunions, Passage, Documents…) apparaissent automatiquement.</p><p>Mot de passe oublié ? « Mot de passe oublié ? » ou « Se connecter avec un code » sur la page de connexion.</p><h3>Pour bien démarrer</h3><ol><li><strong>Vérifiez votre email</strong> — ouvrez « Ma fiche → Contact & famille » et assurez-vous que le courriel de contact principal est <strong>le vôtre</strong> (et non celui d'un parent) : c'est là que la plateforme vous écrira.</li><li><strong>Lisez votre guide</strong> — il est dans le menu « Aide » : <a href=\"{{aideUrl}}\">{{aideUrl}}</a>.</li><li><strong>Suivez vos tâches</strong> — la liste « Rentrée scoute » vous indique quoi faire et quand : <a href=\"{{rentreeUrl}}\">{{rentreeUrl}}</a>.</li><li><strong>Installez l'application</strong> sur votre téléphone et activez les notifications (menu de votre nom).</li></ol><p>Une question ? Contactez votre chef de groupe.</p><p>— La Maîtrise de Groupe</p>";
+
     // Idempotent-per-code email templates added after the initial seed (member password reset + household-lookup code).
     public static async Task SeedMemberEmailTemplatesAsync(GndjDbContext context)
     {
@@ -1103,33 +1115,17 @@ public static class SeedData
                 IsActive = true
             });
 
-        // Re-inscription letter for a RETURNING member (already has an account): the SAME rentrée message as the
-        // activation email but WITHOUT a set-password link — they log in with their existing account. Picked in
-        // "Envoyer les accès" via the template selector; because it has no {{activationLink}}, the handler sends it
-        // link-free (no token stamped) and provides {{loginUrl}} instead. Used next year for returning members
-        // (new members keep the with-link account_activation). Editable in Admin → Email.
+        // "Mettre à jour sa fiche et ses documents" — an OPTIONAL yearly letter to members (not sent every year).
+        // Link-free: members already have their account and sign in as usual. Sent by the CG to a member group
+        // ("Groupes" → Envoyer un message → this template); {{memberName}}/{{unitName}}/{{loginUrl}}/{{scoutYear}}
+        // are filled by the group send. (Code kept from its first life as the re-inscription letter.)
         if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "reinscription_returning"))
             toAdd.Add(new EmailTemplate
             {
-                Name = "Réinscription — membre déjà inscrit (sans lien)", Code = "reinscription_returning", Module = "auth",
-                Subject = "Réinscription scoute {{scoutYear}} — GNDJ",
-                BodyHtml = "<h2>Bonjour,</h2><p>La réinscription scoute pour l'année <strong>{{scoutYear}}</strong> est ouverte. Pour <strong>{{memberName}}</strong>, tout se passe désormais en ligne sur la plateforme du Groupe.</p><h3>Se connecter</h3><ul><li><strong>Votre identifiant :</strong> {{username}}</li></ul><p>Connectez-vous avec votre identifiant et le mot de passe que vous avez déjà défini :</p><p><a href=\"{{loginUrl}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Se connecter</a></p><p>Mot de passe oublié ? Utilisez le lien « Mot de passe oublié ? » sur la page de connexion (ou « Identifiant oublié ? » si besoin).</p><h3>À faire pour la réinscription</h3><ol><li><strong>Vérifiez la fiche</strong> de {{memberName}} et mettez à jour ce qui a changé (école, classe, coordonnées…).</li><li><strong>Téléversez les documents</strong> demandés (autorisation, certificat médical…) depuis « Mes documents » — certains modèles pré-remplis sont téléchargeables directement.</li><li><strong>Réglez la cotisation</strong> selon les modalités communiquées par la maîtrise.</li></ol><p>Merci et bonne année scoute !<br>— La Maîtrise GNDJ</p>",
-                Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"username\",\"label\":\"Identifiant\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"}]",
-                IsActive = true
-            });
-
-        // Re-inscription LAUNCH letter (this year): the official page-1 re-inscription letter adapted to the new
-        // online system — WITH the set-password link (so imported members whose login email is the synthetic
-        // @scouts.gndj can still activate) and a "new system" mention. All dates are dynamic (from settings) and
-        // the signature is built from the actual Chef(taine) de Groupe role holders (male before female). Sent via
-        // "Envoyer les accès" (3rd choice). Editable in Admin → Email.
-        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "reinscription_access"))
-            toAdd.Add(new EmailTemplate
-            {
-                Name = "Réinscription — nouveau système (avec lien)", Code = "reinscription_access", Module = "auth",
-                Subject = "Réinscription scoute {{scoutYear}} — votre accès à la nouvelle plateforme GNDJ",
-                BodyHtml = "<p style=\"color:#666;\">Jamhour, le {{dateDuJour}}</p><h2>Chers parents, chers membres du Groupe Notre-Dame Jamhour,</h2><p>Nous entamons une nouvelle année scoute et sommes ravis de reprendre les activités.</p><p><strong>Nouveauté cette année :</strong> le Groupe s'est doté d'une <strong>nouvelle plateforme en ligne</strong> pour gérer les membres, la réinscription et les documents — elle remplace l'ancien système. La réinscription de <strong>{{memberName}}</strong> se fait désormais entièrement en ligne.</p><p>Le dernier délai pour la réinscription est fixé au <strong>{{dateLimiteReinscription}}</strong>. Toute demande reçue hors délai ne pourra pas être traitée et mènera à la suspension du membre.</p><h3>1. Activez votre compte</h3><ul><li><strong>Votre identifiant :</strong> {{username}}</li></ul><p>Comme il s'agit d'un nouveau système, commencez par choisir votre mot de passe :</p><p><a href=\"{{activationLink}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Activer mon compte</a></p><p>Ce lien est valable {{expiryDays}} jours. Conservez bien votre identifiant : il vous servira à chaque connexion sur <a href=\"{{loginUrl}}\">{{loginUrl}}</a>.</p><h3>2. Vérifiez la fiche</h3><p>Connectez-vous, ouvrez « Ma fiche » et vérifiez / complétez les informations de {{memberName}} (école, classe, coordonnées…).</p><h3>3. Préparez et téléversez les documents</h3><p>Depuis la rubrique « Mes documents », téléchargez les modèles à remplir (certains sont déjà pré-remplis avec vos informations), puis téléversez-les remplis et signés :</p><ul><li><strong>Certificat médical</strong> — rigoureusement rempli et signé par le médecin de famille ou l'un des deux parents.</li><li><strong>Autorisation des parents</strong> — à remplir et signer par les parents.</li><li><strong>Copie d'une pièce d'identité</strong> — carte d'identité, passeport ou extrait d'état-civil récent.</li></ul><h3>4. Réglez la cotisation</h3><p>La cotisation annuelle se règle auprès de la cheftaine ou du chef d'unité lors de la première réunion, le <strong>{{datePremiereReunion}}</strong>. Le montant vous sera communiqué ultérieurement et un reçu vous sera envoyé électroniquement.</p><p>Nous vous remercions pour le respect des règles et des délais fixés et vous souhaitons une bonne rentrée scoute.</p><p>Scoutement,</p><p style=\"white-space:pre-line;font-weight:bold;\">{{signatureCG}}</p>",
-                Variables = "[{\"key\":\"memberName\",\"label\":\"Nom du membre\"},{\"key\":\"username\",\"label\":\"Identifiant\"},{\"key\":\"activationLink\",\"label\":\"Lien d'activation\"},{\"key\":\"expiryDays\",\"label\":\"Validité (jours)\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"},{\"key\":\"dateDuJour\",\"label\":\"Date du jour\"},{\"key\":\"dateLimiteReinscription\",\"label\":\"Date limite de réinscription\"},{\"key\":\"datePremiereReunion\",\"label\":\"Date de la 1ère réunion\"},{\"key\":\"signatureCG\",\"label\":\"Signature (Chef/Cheftaine de Groupe)\"}]",
+                Name = MemberUpdateName, Code = "reinscription_returning", Module = "general",
+                Subject = "Année scoute {{scoutYear}} — mettez à jour la fiche et les documents",
+                BodyHtml = MemberUpdateBody,
+                Variables = MemberUpdateVars,
                 IsActive = true
             });
 
@@ -1158,29 +1154,25 @@ public static class SeedData
                 IsActive = true
             });
 
-        // Yearly rentrée onboarding emails sent to the leaders (chefs) via the Communications tool. Two audiences:
-        // a RETURNING chef gets the seasonal reminder; a NEW chef gets the same + a "prise en main" (how to log in
-        // and navigate). BOTH now embed the activation (set-password) link so ONE email onboards the chef AND lets
-        // them set their password — the Communications handler stamps the token when the body has {{activationLink}}.
-        // Editable each year in Admin → Email. Content is shared below so the "upgrade existing DBs" step matches.
-        const string onboardingVars = "[{\"key\":\"leaderName\",\"label\":\"Nom du chef\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"},{\"key\":\"username\",\"label\":\"Identifiant\"},{\"key\":\"activationLink\",\"label\":\"Lien d'activation\"},{\"key\":\"expiryDays\",\"label\":\"Validité (jours)\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"}]";
-        const string cuRentreeSubject = "Rentrée scoute {{scoutYear}} — votre accès et les étapes";
-        const string cuRentreeBody = "<h2>Bonjour {{leaderName}},</h2><p>La rentrée scoute <strong>{{scoutYear}}</strong> est lancée. Voici comment accéder à la plateforme GNDJ et ce qui vous attend pour votre unité <strong>{{unitName}}</strong>.</p><h3>Votre accès</h3><ul><li><strong>Votre identifiant :</strong> {{username}}</li></ul><p>Cliquez sur le bouton ci-dessous pour choisir votre mot de passe et activer votre compte :</p><p><a href=\"{{activationLink}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Activer mon compte</a></p><p>Ce lien est valable {{expiryDays}} jours. Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br><span style=\"font-size:12px;color:#555;\">{{activationLink}}</span></p><h3>À faire pour la rentrée</h3><ol><li><strong>Vérifiez votre unité</strong> — la liste de vos membres (présents / partis) et leurs données.</li><li><strong>Réalisez le passage</strong> — pour chaque membre : pas de changement, proposer une montée, ou quitte le groupe.</li><li><strong>Vérifiez les documents</strong> — approuvez/refusez les documents que les familles téléversent, suivez les cotisations.</li></ol><p>La liste complète des tâches de la rentrée (dans l'ordre, avec les échéances) est disponible dans l'application, rubrique « Rentrée » : <a href=\"{{loginUrl}}/rentree\">{{loginUrl}}/rentree</a>.</p><p>Vous vous connecterez ensuite sur <a href=\"{{loginUrl}}\">{{loginUrl}}</a>. En cas de souci de connexion : lien « Identifiant oublié ? » sur la page de connexion.</p><p>Merci pour votre engagement et bonne rentrée scoute !</p><p>— La Maîtrise de Groupe</p>";
-        const string cuNouveauSubject = "Bienvenue — votre accès et la rentrée scoute {{scoutYear}}";
-        const string cuNouveauBody = "<h2>Bonjour {{leaderName}},</h2><p>Bienvenue dans l'équipe de maîtrise ! Cette année, le Groupe a mis à jour sa plateforme en ligne de gestion — membres, passage, documents et inscriptions — en remplacement de l'ancien système. Voici comment démarrer pour votre unité <strong>{{unitName}}</strong>.</p><h3>1. Activez votre compte</h3><ul><li><strong>Votre identifiant :</strong> {{username}}</li></ul><p>Cliquez sur le bouton ci-dessous pour choisir votre mot de passe :</p><p><a href=\"{{activationLink}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Activer mon compte</a></p><p>Ce lien est valable {{expiryDays}} jours. Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br><span style=\"font-size:12px;color:#555;\">{{activationLink}}</span></p><p>Vous vous connecterez ensuite sur <a href=\"{{loginUrl}}\">{{loginUrl}}</a> (lien « Identifiant oublié ? » en cas de souci).</p><h3>2. Prise en main</h3><ul><li>Vous arrivez sur le tableau de bord de votre unité : <em>Mon unité</em> (vos membres), <em>Passage des membres</em>, <em>Documents</em>.</li></ul><h3>3. À faire pour la rentrée {{scoutYear}}</h3><ol><li><strong>Vérifiez votre unité</strong> — la liste de vos membres et leurs données.</li><li><strong>Réalisez le passage</strong> — une ligne par membre (pas de changement / montée / quitte le groupe).</li><li><strong>Vérifiez les documents</strong> — approuvez/refusez les documents des familles, suivez les cotisations.</li></ol><p>La liste complète des tâches de la rentrée (dans l'ordre, avec les échéances) est disponible dans l'application, rubrique « Rentrée » : <a href=\"{{loginUrl}}/rentree\">{{loginUrl}}/rentree</a>.</p><p>Une question ? Contactez votre chef de groupe. Bonne rentrée scoute !</p><p>— La Maîtrise de Groupe</p>";
-
+        // Yearly rentrée email to the chefs, sent by the CG from "Emails aux chefs". Chefs are members who already
+        // have their account, so it carries NO activation link (the 2026 launch version did). Editable each year.
         if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "cu_rentree"))
             toAdd.Add(new EmailTemplate
             {
-                Name = "Rentrée — chef (déjà en poste)", Code = "cu_rentree", Module = "general",
-                Subject = cuRentreeSubject, BodyHtml = cuRentreeBody, Variables = onboardingVars, IsActive = true
+                Name = "Rentrée — chefs", Code = "cu_rentree", Module = "general",
+                Subject = CuRentreeSubject, BodyHtml = CuRentreeBody, Variables = CuRentreeVars, IsActive = true
             });
 
-        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "cu_rentree_nouveau"))
+        // "Bienvenue dans la maîtrise": sent AUTOMATICALLY once, the first time a member holds a leadership role
+        // (see LeaderWelcome). Deactivate the template to stop it. Editable in Paramètres → Modèles d'email.
+        if (!await context.EmailTemplates.IgnoreQueryFilters().AnyAsync(t => t.Code == "leader_welcome"))
             toAdd.Add(new EmailTemplate
             {
-                Name = "Rentrée — nouveau chef", Code = "cu_rentree_nouveau", Module = "general",
-                Subject = cuNouveauSubject, BodyHtml = cuNouveauBody, Variables = onboardingVars, IsActive = true
+                Name = "Bienvenue dans la maîtrise (nouveau chef)", Code = "leader_welcome", Module = "general",
+                Subject = "Bienvenue dans la maîtrise — {{roleName}}",
+                BodyHtml = LeaderWelcomeBody,
+                Variables = LeaderWelcomeVars,
+                IsActive = true
             });
 
         // "Relance documents": a member's list of missing / to-correct / to-renew documents, sent from the CU
@@ -1249,22 +1241,6 @@ public static class SeedData
             });
 
         if (toAdd.Count > 0) { context.EmailTemplates.AddRange(toAdd); await context.SaveChangesAsync(); }
-
-        // Upgrade an EXISTING DB's onboarding templates in place to the activation-link version, so a single
-        // onboarding email also carries the set-password link (no separate "Envoyer les accès" pass). Guarded on
-        // the ORIGINAL seeded body signature ("identifiant habituel" / "qui vous a été communiqué"), so a template
-        // a CG already customized — or one already upgraded — is left untouched. Idempotent across restarts.
-        var onboardingToUpgrade = await context.EmailTemplates.IgnoreQueryFilters()
-            .Where(t => (t.Code == "cu_rentree" && t.BodyHtml.Contains("identifiant habituel"))
-                     || (t.Code == "cu_rentree_nouveau" && t.BodyHtml.Contains("qui vous a été communiqué")))
-            .ToListAsync();
-        foreach (var t in onboardingToUpgrade)
-        {
-            if (t.Code == "cu_rentree") { t.Subject = cuRentreeSubject; t.BodyHtml = cuRentreeBody; }
-            else { t.Subject = cuNouveauSubject; t.BodyHtml = cuNouveauBody; }
-            t.Variables = onboardingVars;
-        }
-        if (onboardingToUpgrade.Count > 0) await context.SaveChangesAsync();
     }
 
     // Back-fills functional-role ranks/defaults/maîtrise after a migration import (the tool creates roles at

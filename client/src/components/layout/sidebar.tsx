@@ -165,7 +165,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/member-groups', label: 'Groupes', icon: Users, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/siblings', label: 'Fratries', icon: Users, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/zero-day-assignments', label: 'Affectations à dater', icon: CalendarClock, permission: PERMISSIONS.MAITRISE_MANAGE },
-      { path: '/admin/communications-acces', label: 'Communications & accès', icon: Megaphone, permission: PERMISSIONS.MEMBERS_RESET_PASSWORD },
+      { path: '/admin/communications-acces', label: 'Emails aux chefs', icon: Megaphone, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/send-notification', label: 'Envoyer une notification', icon: BellRing, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/missing-logins', label: 'Comptes manquants', icon: UserPlus, permission: PERMISSIONS.MEMBERS_RESET_PASSWORD },
     ],

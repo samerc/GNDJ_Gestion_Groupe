@@ -239,38 +239,21 @@ public class MembersController : BaseApiController
     public record SetLoginActiveBody(bool Active);
 
     /// <summary>
-    /// Lists a unit's active members with their login/email/last-login status, so the CG can choose who to send
-    /// activation ("access") emails to. Requires members.reset_password; unit-scoped (super-admin sees any unit).
-    /// </summary>
-    [HttpGet("access-candidates")]
-    [HasPermission(Permissions.MembersResetPassword)]
-    public async Task<IActionResult> GetAccessCandidates([FromQuery] Guid? unitId, [FromQuery] bool allNonMaitrise = false)
-    {
-        var result = await Mediator.Send(new GNDJ.Application.Members.GetAccessCandidatesQuery(unitId, allNonMaitrise));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
-
-    /// <summary>
-    /// Sends activation ("access") emails: their login username + a one-click link to set a password. Target is
-    /// either a whole unit (unitId) or an explicit memberIds list (single-member resend). onlyNeverLoggedIn skips
-    /// members who have already signed in. Requires members.reset_password; unit-scoped in the handler. Returns a
-    /// sent/no-email/no-account/skipped summary (the app only knows the mail was queued, not delivered).
+    /// Sends one member (or a few) their activation email: login username + a one-click link to set a password.
+    /// Used from the member file (Actions → Envoyer l'accès) for a member created by hand, a new login, or a lost
+    /// email. Requires members.reset_password + access to each member. Returns a sent/no-email/no-account summary
+    /// (the app only knows the mail was queued, not delivered).
     /// </summary>
     [HttpPost("send-access")]
     [HasPermission(Permissions.MembersResetPassword)]
     public async Task<IActionResult> SendAccess([FromBody] SendAccessRequest body)
     {
-        var result = await Mediator.Send(new GNDJ.Application.Members.SendAccessEmailsCommand(
-            body?.UnitId, body?.MemberIds, body?.OnlyNeverLoggedIn ?? false, body?.TemplateCode, body?.AllNonMaitrise ?? false));
+        var result = await Mediator.Send(new GNDJ.Application.Members.SendAccessEmailsCommand(body?.MemberIds ?? []));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(result.Value);
     }
 
-    // TemplateCode picks the email: null/"account_activation" = with the set-password link (activation),
-    // "reinscription_returning" = the link-free re-inscription letter for members who already have an account.
-    // AllNonMaitrise = send to every active non-leadership member group-wide (group-manager only).
-    public record SendAccessRequest(Guid? UnitId, List<Guid>? MemberIds, bool OnlyNeverLoggedIn, string? TemplateCode, bool AllNonMaitrise = false);
+    public record SendAccessRequest(List<Guid>? MemberIds);
 
     /// <summary>
     /// Lists active members who have NO login account. unitId → that unit (unit-leader or group); omit unitId to

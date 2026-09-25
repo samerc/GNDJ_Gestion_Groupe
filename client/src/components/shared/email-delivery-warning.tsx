@@ -1,7 +1,7 @@
 import { AlertTriangle } from 'lucide-react'
 import { useSettingValue } from '@/services/settings-service'
 
-// Launch guardrail for the bulk email-sending pages (Envoyer les accès, Message aux chefs, Relance documents).
+// Launch guardrail for the bulk email-sending pages (Emails aux chefs, Relance documents, Groupes).
 // When `email.override_recipient` is set, EmailService REDIRECTS every outgoing email to that one test address —
 // so a mass send *looks* successful (counts + "envoyé") but no real recipient gets anything. Before go-live this
 // silently swallows leader activation links / reminders. This banner makes the test mode impossible to miss.

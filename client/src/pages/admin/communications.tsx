@@ -31,12 +31,11 @@ import { toast } from 'sonner'
 
 type Audience = 'all' | 'unit'
 
-// `embedded` = rendered as a tab inside the merged "Communications & accès" page (its title/tabs own the header).
+// `embedded` = rendered inside the "Emails aux chefs" page (which owns the header).
 export default function CommunicationsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [templateCode, setTemplateCode] = useState('')
   const [audience, setAudience] = useState<Audience>('all')
   const [unitId, setUnitId] = useState('') // only used when audience === 'unit'
-  const [newChefsOnly, setNewChefsOnly] = useState(false) // never-logged-in filter (combines with the audience)
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const scoutYear = useCurrentScoutYear()
@@ -48,7 +47,7 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
   // Hold the fetch on "une unité" until a unit is actually picked.
   const recipientsEnabled = audience !== 'unit' || !!unitId
   const effectiveUnitId = audience === 'unit' ? unitId : ''
-  const { data: recipients, isLoading } = useLeaderRecipients(effectiveUnitId || undefined, newChefsOnly, recipientsEnabled)
+  const { data: recipients, isLoading } = useLeaderRecipients(effectiveUnitId || undefined, false, recipientsEnabled)
   const send = useSendLeaderMessage()
 
   const activeTemplates = templates ?? []
@@ -91,7 +90,6 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
 
   const total = recipients?.length ?? 0
   const withEmail = (recipients ?? []).filter((r) => r.contactEmail).length
-  const neverLoggedIn = (recipients ?? []).filter((r) => !r.hasLoggedIn).length
   const selectedCount = selected.size
   const selectedNoEmail = (recipients ?? []).filter((r) => selected.has(r.memberId) && !r.contactEmail).length
   const willSend = selectedCount - selectedNoEmail // recipients that actually get an email
@@ -157,8 +155,8 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
               {hasActivation && (
                 <div className="flex items-start gap-2 rounded-md border border-sky-200 dark:border-sky-900 bg-sky-50 dark:bg-sky-950/40 p-2.5 text-xs text-sky-800 dark:text-sky-300">
                   <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
-                  <span>Ce modèle inclut un <strong>lien d'activation</strong> : chaque chef reçoit son identifiant et un
-                    lien pour définir son mot de passe — un seul email suffit (pas besoin d'« Envoyer les accès »).</span>
+                  <span>Ce modèle inclut un <strong>lien d'activation</strong> : chaque chef recevra un lien pour
+                    redéfinir son mot de passe. Les chefs ont déjà leur compte — retirez ce lien du modèle sauf besoin particulier.</span>
                 </div>
               )}
               <div className="flex items-center justify-between gap-3 rounded-md bg-muted/40 px-3 py-2">
@@ -197,17 +195,9 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
               </SelectContent>
             </Select>
           )}
-          <div className="flex items-center justify-between gap-3 rounded-md bg-muted/40 px-3 py-2">
-            <div>
-              <div className="text-sm font-medium">Nouveaux chefs uniquement</div>
-              <div className="text-xs text-muted-foreground">Seulement ceux qui ne se sont jamais connectés</div>
-            </div>
-            <Switch checked={newChefsOnly} onCheckedChange={setNewChefsOnly} />
-          </div>
           {recipientsEnabled && !isLoading && (
             <p className="text-xs text-muted-foreground">
-              {total} chef(s){newChefsOnly ? ' jamais connecté(s)' : ''} · {withEmail} avec email
-              {!newChefsOnly && neverLoggedIn > 0 ? ` · ${neverLoggedIn} jamais connecté(s)` : ''}
+              {total} chef(s) · {withEmail} avec email
             </p>
           )}
         </div>

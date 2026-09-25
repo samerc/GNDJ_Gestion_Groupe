@@ -39,7 +39,7 @@ gantt
 | Fin d'année précédente | Préparer la nouvelle année : dates, modèles, liste de rentrée | **Paramètres**, **Rentrée scoute** |
 | Changement d'année scoute | Nettoyage de nouvelle année (archives, documents, classes) | **Paramètres → Passage** |
 | Septembre | Ouvrir les inscriptions, étudier les demandes, envoyer les réponses | **Demandes** |
-| Septembre | Envoyer leurs accès aux chefs, puis aux membres | **Unités & maîtrise → Communications & accès** |
+| Septembre | Envoyer l'email de rentrée aux chefs | **Unités & maîtrise → Emails aux chefs** |
 | Septembre – octobre | Suivre la campagne de documents | **Suivi → Suivi documents** |
 | Octobre | Valider et finaliser le passage | **Suivi → Validation passages** |
 | Toute l'année | Cotisations, qualité des données, fratries, messages | Menus **Suivi** et **Unités & maîtrise** |
@@ -149,22 +149,31 @@ plusieurs fois : seules les nouvelles décisions partent.
 **supprime** tous les comptes et données du portail d'inscription. Les membres déjà créés ne sont pas touchés.
 Irréversible : à faire quand toutes les réponses sont envoyées.
 
-## Donner leurs accès aux chefs et aux membres
+## Emails aux chefs et aux membres
 
-**Unités & maîtrise → Communications & accès** :
+Tous les membres ont déjà leur compte (les accès ont été envoyés une fois, en 2026, au lancement de la
+plateforme). Il n'y a donc **plus d'envoi d'accès en masse** : chacun se connecte avec son identifiant et son mot de
+passe, ou utilise **Mot de passe oublié ?** / **Se connecter avec un code**.
 
-- **Emails aux chefs** : envoyer un message (par exemple l'email de rentrée) à toutes les maîtrises, à une unité,
-  ou aux nouveaux chefs seulement. Vous pouvez adapter le texte pour cet envoi uniquement.
+| Qui | Ce qui est envoyé | Comment |
+|---|---|---|
+| **Nouveau membre** (demande acceptée) | Son identifiant + un lien pour choisir son mot de passe | Automatique, avec la réponse à la demande (**Envoyer les réponses**) |
+| **Membre accepté sans demande** (cas rare) | Son identifiant + le lien | Créez-le (**Membres → Nouveau membre**), puis sur sa fiche **Actions → Envoyer l'accès** |
+| **Nouveau chef** (CU, ACU…) | « Bienvenue dans la maîtrise » : ce qui change et quoi faire | **Automatique**, une seule fois, dès qu'il reçoit sa première fonction de chef |
+| **Tous les chefs** | L'email de rentrée (« Rentrée — chefs ») | **Unités & maîtrise → Emails aux chefs** |
+| **Les membres** (occasionnel) | « Mise à jour de la fiche et des documents » | **Unités & maîtrise → Groupes** → le groupe voulu → **Envoyer un message** → choisir ce modèle |
 
-> 💡 Les nouveaux CU et ACU sont **déjà membres** : ils ont déjà leur compte et se connectent comme avant. Ils
-> n'ont **pas** besoin de lien d'activation — la fonction que vous leur donnez suffit à faire apparaître leurs menus
-> de chef. Le lien d'activation n'a servi qu'une fois, en 2026, au lancement de la plateforme. Si un modèle d'email
-> aux chefs contient encore le lien d'activation (`{{activationLink}}`), retirez-le avant l'envoi. Un chef qui a
-> oublié son mot de passe utilise **Mot de passe oublié ?** ou **Se connecter avec un code**.
-- **Envoyer les accès** : l'email de réinscription / d'activation aux membres, unité par unité ou à **tous les
-  membres (hors maîtrise)**, avec l'option « seulement ceux qui ne se sont jamais connectés ».
+> 💡 Les nouveaux CU et ACU sont **déjà membres** : ils gardent leur compte, et la fonction que vous leur donnez
+> suffit à faire apparaître leurs menus de chef. Pour ne plus envoyer l'email de bienvenue automatique, désactivez
+> le modèle « Bienvenue dans la maîtrise » (Paramètres → Modèles d'email).
 
-![Communications & accès](img/cg-communications.png)
+**Emails aux chefs** : choisissez un modèle, puis toutes les maîtrises ou une unité ; prévisualisez, ajustez le
+texte pour cet envoi si besoin, et envoyez.
+
+![Emails aux chefs](img/cg-communications.png)
+
+Les modèles d'email sont rangés par catégorie dans **Paramètres → Modèles d'email** ; chaque modèle indique s'il
+part **automatiquement** ou par **envoi manuel**, et à quel moment.
 
 > ⚠️ Faites d'abord un envoi test à la maîtrise de groupe. Les envois partent progressivement (limite horaire de
 > chaque fournisseur d'email) : un gros envoi peut prendre plusieurs heures. Le suivi est dans **File d'emails**
