@@ -6,8 +6,8 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Sessions;
 
 // "Sessions actives" — a super-admin view of who currently holds a live session, plus the ability to
-// force-disconnect one. Members/chefs have ONE ROW PER SIGNED-IN DEVICE (UserSession, each with its own
-// rotating refresh token); parent-portal accounts still hold a single refresh token (one row per account).
+// force-disconnect one. ONE ROW PER SIGNED-IN DEVICE, for members/chefs (UserSession) and parent-portal accounts
+// (ApplicantSession) alike: each device has its own rotating refresh token.
 // "En ligne" is derived from the last activity (stamped on login + every refresh, a ~15-min heartbeat).
 // Disconnect = delete the device session / clear the parent's token: it can no longer refresh and its access
 // token dies within ≤15 minutes (revocation is "≤15 min", never instant — inherent to stateless JWT).
@@ -15,14 +15,14 @@ namespace GNDJ.Application.Sessions;
 // One active session row (member/chef OR parent-portal account).
 public record ActiveSessionDto(
     string Kind,            // "member" | "applicant"
-    Guid Id,                // UserSession.Id (member device) or ApplicantAccount.Id: the disconnect target
+    Guid Id,                // UserSession.Id / ApplicantSession.Id: the device to disconnect
     string Name,
     string? Detail,         // login email / contact email — identifies the account
     DateTime? LoginAt,      // original sign-in (LastLoginAt)
     DateTime? LastActivityAt,
     DateTime? ExpiresAt,    // refresh-token expiry — the session's hard ceiling
     bool IsOnline,          // last activity within the online window
-    string? UserAgent = null, // member device: browser/OS, turned into a readable device name by the page
+    string? UserAgent = null, // browser/OS, turned into a readable device name by the page
     string? IpAddress = null,
     bool IsCurrent = false);  // the viewer's own current device
 
@@ -68,18 +68,22 @@ public class GetActiveSessionsQueryHandler(IApplicationDbContext context, ICurre
             .OrderByDescending(s => s.LastActivityAt ?? s.LoginAt)
             .ToList();
 
-        // Parent-portal accounts.
-        var applicantRows = await context.ApplicantAccounts
-            .Where(a => a.RefreshToken != null && a.RefreshTokenExpiry > now && a.IsActive)
-            .Select(a => new { a.Id, a.ContactName, a.Email, a.LastLoginAt, a.LastActivityAt, a.RefreshTokenExpiry })
+        // Parent-portal accounts: one row per live device session.
+        var applicantRows = await context.ApplicantSessions
+            .Where(s => s.ExpiresAt > now && s.ApplicantAccount.IsActive)
+            .Select(s => new
+            {
+                s.Id, s.ApplicantAccount.ContactName, s.ApplicantAccount.Email,
+                s.CreatedAt, s.LastActivityAt, s.ExpiresAt, s.UserAgent, s.IpAddress
+            })
             .ToListAsync(ct);
 
         var applicants = applicantRows
             .Select(a => new ActiveSessionDto(
                 "applicant", a.Id,
                 string.IsNullOrWhiteSpace(a.ContactName) ? a.Email : a.ContactName!,
-                a.Email, a.LastLoginAt, a.LastActivityAt, a.RefreshTokenExpiry,
-                (a.LastActivityAt ?? a.LastLoginAt) >= cutoff))
+                a.Email, a.CreatedAt, a.LastActivityAt, a.ExpiresAt,
+                a.LastActivityAt >= cutoff, a.UserAgent, a.IpAddress))
             .OrderByDescending(s => s.LastActivityAt ?? s.LoginAt)
             .ToList();
 
@@ -101,12 +105,12 @@ public class DisconnectSessionCommandHandler(IApplicationDbContext context, ICur
 
         if (request.Kind == "applicant")
         {
-            var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Id == request.Id, ct);
-            if (account is null) return Result<bool>.Failure("Compte introuvable.");
-            account.RefreshToken = null;
-            account.RefreshTokenExpiry = null;
+            var appSession = await context.ApplicantSessions.Include(s => s.ApplicantAccount).FirstOrDefaultAsync(s => s.Id == request.Id, ct);
+            if (appSession is null) return Result<bool>.Failure("Session introuvable.");
+            context.ApplicantSessions.Remove(appSession);
             await context.SaveChangesAsync(ct);
-            await audit.LogAsync("DisconnectSession", "ApplicantAccount", account.Id, null, new { account.Email }, ct);
+            await audit.LogAsync("DisconnectSession", "ApplicantAccount", appSession.ApplicantAccountId, null,
+                new { appSession.ApplicantAccount.Email, Device = appSession.UserAgent }, ct);
             return Result<bool>.Success(true);
         }
 

@@ -1,12 +1,12 @@
 namespace GNDJ.Domain.Entities;
 
-// One signed-in DEVICE of a login account (phone, PC, tablet...). Each device keeps its own rotating refresh
-// token, so signing in on one device no longer signs the others out (the old model stored ONE token on
-// User and every login overwrote it). Plain table, no soft delete: signing out deletes the row.
-public class UserSession
+// One signed-in DEVICE (phone, PC, tablet...). Each device keeps its own rotating refresh token, so signing in on
+// one device no longer signs the others out (the old model stored ONE token per account and every login overwrote
+// it). Plain tables, no soft delete: signing out deletes the row. Shared by member logins (UserSession) and
+// parent-portal accounts (ApplicantSession); the base class itself is not a table.
+public abstract class DeviceSession
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
-    public Guid UserId { get; set; }
     // SHA-256 of the current refresh token (the raw token only lives on the device).
     public string TokenHash { get; set; } = string.Empty;
     // The token this one replaced, still accepted for a short grace window after a rotation: if the refresh
@@ -21,6 +21,18 @@ public class UserSession
     public DateTime LastActivityAt { get; set; }
     public string? UserAgent { get; set; }
     public string? IpAddress { get; set; }
+}
 
+// A device where a member/chef login is signed in.
+public class UserSession : DeviceSession
+{
+    public Guid UserId { get; set; }
     public User User { get; set; } = null!;
+}
+
+// A device where a parent-portal (demande) account is signed in.
+public class ApplicantSession : DeviceSession
+{
+    public Guid ApplicantAccountId { get; set; }
+    public ApplicantAccount ApplicantAccount { get; set; } = null!;
 }

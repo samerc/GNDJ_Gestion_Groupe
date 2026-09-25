@@ -1,3 +1,4 @@
+using GNDJ.Application.Auth.Common;
 using System.Security.Cryptography;
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
@@ -96,9 +97,7 @@ public class StartSiblingDemandeCommandHandler(IApplicationDbContext context, IC
         }
 
         // 4. A portal session for this account.
-        var refresh = tokens.GenerateRefreshToken();
-        account.RefreshToken = hasher.HashToken(refresh);
-        account.RefreshTokenExpiry = tokens.GetRefreshTokenExpiry(true);
+        var refresh = await ApplicantSessions.StartAsync(context, tokens, hasher, currentUser, account.Id, true, ct);
         account.LastLoginAt = DateTime.UtcNow;
         await context.SaveChangesAsync(ct);
 

@@ -21,7 +21,8 @@ public class ResetMemberPasswordCommandHandler(
     ICurrentUserService currentUser,
     IPasswordHasher passwordHasher,
     IAuditService auditService,
-    IEmailQueue emailQueue
+    IEmailQueue emailQueue,
+    ILoginThrottle throttle
 ) : IRequestHandler<ResetMemberPasswordCommand, Result<ResetMemberPasswordResult>>
 {
     public async ValueTask<Result<ResetMemberPasswordResult>> Handle(ResetMemberPasswordCommand request, CancellationToken ct)
@@ -49,6 +50,7 @@ public class ResetMemberPasswordCommandHandler(
         user.PasswordHash = await passwordHasher.HashAsync(tempPassword);
         // Invalidate any active session and pending reset link.
         await UserSessions.EndAllAsync(context, user.Id, ct);
+        throttle.Reset("member", user.Email); // the member can sign in with the new password straight away
         user.PasswordResetToken = null;
         user.PasswordResetTokenExpiry = null;
         // Leader-issued temp password → force the member to set their own on next login.

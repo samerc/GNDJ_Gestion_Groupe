@@ -1,3 +1,4 @@
+using GNDJ.Application.Auth.Common;
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
@@ -78,7 +79,8 @@ public record ResetApplicantPasswordResult(string Email, string TemporaryPasswor
 public record ResetApplicantPasswordCommand(Guid AccountId) : IRequest<Result<ResetApplicantPasswordResult>>;
 
 public class ResetApplicantPasswordCommandHandler(
-    IApplicationDbContext context, ICurrentUserService currentUser, IPasswordHasher passwordHasher, IAuditService audit)
+    IApplicationDbContext context, ICurrentUserService currentUser, IPasswordHasher passwordHasher, IAuditService audit,
+    ILoginThrottle throttle)
     : IRequestHandler<ResetApplicantPasswordCommand, Result<ResetApplicantPasswordResult>>
 {
     public async ValueTask<Result<ResetApplicantPasswordResult>> Handle(ResetApplicantPasswordCommand request, CancellationToken ct)
@@ -94,9 +96,9 @@ public class ResetApplicantPasswordCommandHandler(
         // Same temp-password shape as member creation/reset.
         var tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}";
         account.PasswordHash = await passwordHasher.HashAsync(tempPassword);
-        // Invalidate any active session + pending reset link so the old credentials can't be replayed.
-        account.RefreshToken = null;
-        account.RefreshTokenExpiry = null;
+        throttle.Reset("applicant", account.Email);
+        // Sign every device out + drop any pending reset link so the old credentials can't be replayed.
+        await ApplicantSessions.EndAllAsync(context, account.Id, ct);
         account.PasswordResetToken = null;
         account.PasswordResetTokenExpiry = null;
 

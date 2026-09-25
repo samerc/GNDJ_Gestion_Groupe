@@ -24,7 +24,8 @@ public class ResetPasswordCommandValidator : AbstractValidator<ResetPasswordComm
 public class ResetPasswordCommandHandler(
     IApplicationDbContext context,
     IPasswordHasher passwordHasher,
-    IAuditService auditService
+    IAuditService auditService,
+    ILoginThrottle throttle
 ) : IRequestHandler<ResetPasswordCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(ResetPasswordCommand request, CancellationToken ct)
@@ -48,6 +49,7 @@ public class ResetPasswordCommandHandler(
         user.PasswordResetToken = null;
         user.PasswordResetTokenExpiry = null;
         await UserSessions.EndAllAsync(context, user.Id, ct); // every device signs in again
+        throttle.Reset("member", user.Email); // a lockout from earlier failed attempts is lifted
         // The user set their own password (self-service reset OR the activation link) — clear the forced-change flag.
         user.MustChangePassword = false;
 

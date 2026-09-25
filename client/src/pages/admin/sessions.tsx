@@ -1,6 +1,6 @@
 // Super-admin "Sessions actives" — who currently holds a live session, how long they've been connected, their
-// last activity, and a force-disconnect. Members/chefs have one row PER DEVICE (phone, PC…: each keeps its own
-// session); parent-portal accounts have one row per account. "Déconnecter" takes effect within ≤15 min (the
+// last activity, and a force-disconnect. One row PER DEVICE for members and parents alike (phone, PC…: each keeps its own
+// session). "Déconnecter" takes effect within ≤15 min (the
 // short-lived access token can't be revoked instantly).
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -103,7 +103,7 @@ function SessionTable({
                       <td className="px-3 py-2 text-muted-foreground">{s.detail}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{space.label}</td>
                       <td className="px-3 py-2 whitespace-nowrap" title={s.userAgent ?? undefined}>
-                        {s.kind === 'member' ? parseUserAgent(s.userAgent) : '—'}
+                        {parseUserAgent(s.userAgent)}
                         {s.isCurrent && <Badge variant="secondary" className="ml-2">Cet appareil</Badge>}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap" title={fmt(s.loginAt)}>{timeAgo(s.loginAt)}</td>
@@ -204,7 +204,7 @@ export default function SessionsPage() {
         title="Déconnecter cette session ?"
         description={
           confirm
-            ? `${confirm.name} sera déconnecté(e)${confirm.kind === 'member' && confirm.userAgent ? ` sur cet appareil (${parseUserAgent(confirm.userAgent)})` : ''}. L'accès prendra fin dans un délai maximum de 15 minutes ; ses autres appareils restent connectés.`
+            ? `${confirm.name} sera déconnecté(e)${confirm.userAgent ? ` sur cet appareil (${parseUserAgent(confirm.userAgent)})` : ''}. L'accès prendra fin dans un délai maximum de 15 minutes ; ses autres appareils restent connectés.`
             : ''
         }
         confirmLabel="Déconnecter"

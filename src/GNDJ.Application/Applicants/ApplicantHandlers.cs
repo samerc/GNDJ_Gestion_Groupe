@@ -1,3 +1,4 @@
+using GNDJ.Application.Auth.Common;
 using System.Security.Cryptography;
 using System.Text.Json;
 using FluentValidation;
@@ -371,7 +372,7 @@ public class RegisterApplicantCommandValidator : AbstractValidator<RegisterAppli
     }
 }
 
-public class RegisterApplicantCommandHandler(IApplicationDbContext context, IPasswordHasher hasher, ITokenService tokens, IEmailQueue emailQueue) : IRequestHandler<RegisterApplicantCommand, Result<ApplicantAuthDto>>
+public class RegisterApplicantCommandHandler(IApplicationDbContext context, IPasswordHasher hasher, ITokenService tokens, IEmailQueue emailQueue, ICurrentUserService device) : IRequestHandler<RegisterApplicantCommand, Result<ApplicantAuthDto>>
 {
     public async ValueTask<Result<ApplicantAuthDto>> Handle(RegisterApplicantCommand request, CancellationToken ct)
     {
@@ -423,13 +424,12 @@ public class RegisterApplicantCommandHandler(IApplicationDbContext context, IPas
             account.LateSubmissionUntil = invite.ExpiresAt;
         }
 
-        var refresh = tokens.GenerateRefreshToken();
-        account.RefreshToken = hasher.HashToken(refresh);
-        account.RefreshTokenExpiry = tokens.GetRefreshTokenExpiry();
         account.LastLoginAt = DateTime.UtcNow;
         account.LastActivityAt = DateTime.UtcNow;
 
         context.ApplicantAccounts.Add(account);
+        // This device's sign-in (each device of the account keeps its own).
+        var refresh = await ApplicantSessions.StartAsync(context, tokens, hasher, device, account.Id, false, ct);
 
         // Consume the invite (single-use) in the same save.
         if (invite is not null)
@@ -506,11 +506,14 @@ public class LoginApplicantCommandValidator : AbstractValidator<LoginApplicantCo
     }
 }
 
-public class LoginApplicantCommandHandler(IApplicationDbContext context, IPasswordHasher hasher, ITokenService tokens, IAuditService audit) : IRequestHandler<LoginApplicantCommand, Result<ApplicantAuthDto>>
+public class LoginApplicantCommandHandler(IApplicationDbContext context, IPasswordHasher hasher, ITokenService tokens, IAuditService audit, ILoginThrottle throttle, ICurrentUserService device) : IRequestHandler<LoginApplicantCommand, Result<ApplicantAuthDto>>
 {
     public async ValueTask<Result<ApplicantAuthDto>> Handle(LoginApplicantCommand request, CancellationToken ct)
     {
         var email = request.Email.Trim().ToLowerInvariant();
+        // Per-account lockout after repeated failures (see ILoginThrottle).
+        if (throttle.LockedFor("applicant", email) is TimeSpan wait)
+            return Result<ApplicantAuthDto>.Failure(LoginThrottleMessages.Locked(wait));
         var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Email == email, ct);
         // Always run exactly one bcrypt verify (dummy when the account is missing/inactive) so response time
         // doesn't leak which applicant emails are registered — see IPasswordHasher.VerifyDummyAsync.
@@ -524,12 +527,13 @@ public class LoginApplicantCommandHandler(IApplicationDbContext context, IPasswo
             await audit.LogAsync("LoginFailed", "ApplicantAccount", account?.Id,
                 newValues: new { Email = request.Email, Reason = account is null ? "Compte introuvable" : !account.IsActive ? "Compte désactivé" : "Mot de passe incorrect", Portal = "Portail des demandes" },
                 cancellationToken: ct);
+            throttle.RecordFailure("applicant", email);
             return Result<ApplicantAuthDto>.Failure("Email ou mot de passe incorrect.");
         }
+        throttle.Reset("applicant", email);
 
-        var refresh = tokens.GenerateRefreshToken();
-        account.RefreshToken = hasher.HashToken(refresh);
-        account.RefreshTokenExpiry = tokens.GetRefreshTokenExpiry(request.RememberMe);
+        // A new device sign-in: the account's other devices stay signed in.
+        var refresh = await ApplicantSessions.StartAsync(context, tokens, hasher, device, account.Id, request.RememberMe, ct);
         account.LastLoginAt = DateTime.UtcNow;
         account.LastActivityAt = DateTime.UtcNow;
         await context.SaveChangesAsync(ct);
@@ -550,18 +554,17 @@ public class RefreshApplicantTokenCommandValidator : AbstractValidator<RefreshAp
         => RuleFor(x => x.RefreshToken).NotEmpty().WithMessage("Jeton requis.").MaximumLength(500);
 }
 
-public class RefreshApplicantTokenCommandHandler(IApplicationDbContext context, IPasswordHasher hasher, ITokenService tokens) : IRequestHandler<RefreshApplicantTokenCommand, Result<ApplicantAuthDto>>
+public class RefreshApplicantTokenCommandHandler(IApplicationDbContext context, IPasswordHasher hasher, ITokenService tokens, ICurrentUserService device) : IRequestHandler<RefreshApplicantTokenCommand, Result<ApplicantAuthDto>>
 {
     public async ValueTask<Result<ApplicantAuthDto>> Handle(RefreshApplicantTokenCommand request, CancellationToken ct)
     {
-        var hash = hasher.HashToken(request.RefreshToken);
-        var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.RefreshToken == hash, ct);
-        if (account is null || account.RefreshTokenExpiry < DateTime.UtcNow || !account.IsActive)
+        var session = await ApplicantSessions.FindByTokenAsync(context, hasher, request.RefreshToken, ct);
+        var account = session?.ApplicantAccount;
+        if (session is null || account is null || !account.IsActive)
             return Result<ApplicantAuthDto>.Failure("Session expirée. Veuillez vous reconnecter.");
 
-        var refresh = tokens.GenerateRefreshToken();
-        account.RefreshToken = hasher.HashToken(refresh);
-        account.RefreshTokenExpiry = tokens.GetRefreshTokenExpiry(request.RememberMe);
+        // Rotate this device's token only (sliding expiry; a lost response is covered by the grace window).
+        var refresh = UserSessions.Rotate(session, tokens, hasher, device, request.RememberMe);
         account.LastActivityAt = DateTime.UtcNow; // ~15-min heartbeat while active
 
         await context.SaveChangesAsync(ct);
@@ -628,7 +631,7 @@ public class ResetApplicantPasswordCommandValidator : AbstractValidator<ResetApp
     }
 }
 
-public class ResetApplicantPasswordCommandHandler(IApplicationDbContext context, IPasswordHasher hasher)
+public class ResetApplicantPasswordCommandHandler(IApplicationDbContext context, IPasswordHasher hasher, ILoginThrottle throttle)
     : IRequestHandler<ResetApplicantPasswordCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(ResetApplicantPasswordCommand request, CancellationToken ct)
@@ -640,11 +643,11 @@ public class ResetApplicantPasswordCommandHandler(IApplicationDbContext context,
             return Result<bool>.Failure("Lien de réinitialisation invalide ou expiré.");
 
         account.PasswordHash = await hasher.HashAsync(request.NewPassword);
+        throttle.Reset("applicant", account.Email);
         account.PasswordResetToken = null;
         account.PasswordResetTokenExpiry = null;
-        // Changing the password invalidates any existing session (refresh token).
-        account.RefreshToken = null;
-        account.RefreshTokenExpiry = null;
+        // Changing the password signs every device out.
+        await ApplicantSessions.EndAllAsync(context, account.Id, ct);
         await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);
     }

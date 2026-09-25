@@ -29,12 +29,18 @@ public class VerifyLoginCodeCommandHandler(
     IAuditService auditService,
     IPasswordHasher passwordHasher,
     IMaintenanceProvider maintenance,
-    ICurrentUserService device
+    ICurrentUserService device,
+    ILoginThrottle throttle
 ) : IRequestHandler<VerifyLoginCodeCommand, Result<AuthResponse>>
 {
     public async ValueTask<Result<AuthResponse>> Handle(VerifyLoginCodeCommand request, CancellationToken ct)
     {
         var username = (request.Username ?? "").Trim().ToLowerInvariant();
+
+        // Same per-account lockout as the password login (also stops guessing the 6-digit code).
+        if (throttle.LockedFor("member", username) is TimeSpan wait)
+            return Result<AuthResponse>.Failure(LoginThrottleMessages.Locked(wait));
+
         var user = await context.Users
             .Include(u => u.Member)
             .FirstOrDefaultAsync(u => u.Email.ToLower() == username && u.IsActive, ct);
@@ -51,6 +57,7 @@ public class VerifyLoginCodeCommandHandler(
             await auditService.LogAsync("LoginFailed", "User", user?.Id,
                 newValues: new { Email = request.Username, Reason = "Code invalide ou expiré", Method = "Code", Portal = "Espace membres" },
                 cancellationToken: ct);
+            throttle.RecordFailure("member", username);
             return Result<AuthResponse>.Failure("Code invalide ou expiré.");
         }
 
@@ -75,6 +82,7 @@ public class VerifyLoginCodeCommandHandler(
             }
         }
 
+        throttle.Reset("member", username);
         var (permissions, unitIds) = await AuthAccess.LoadAsync(context, user.MemberId, user.IsSuperAdmin, ct);
 
         // A new device session: other devices of this account stay signed in.

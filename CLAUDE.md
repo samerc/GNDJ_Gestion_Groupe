@@ -5965,3 +5965,17 @@ entry; the app also opened on the public home page), so it never seemed to close
   Used by the Membres page and "Mon unité" (CU). Desktop (side-by-side) adds nothing. Verified 9/9 (phone CU +
   Membres, desktop unchanged).
 
+### Improvement batch (2026-09-25, DEV until deploy)
+- **Per-account login lockout:** `ILoginThrottle` / `Infrastructure/Services/LoginThrottle` (in-memory, singleton) —
+  5 failures in a row on one email → locked 1 min, then doubling (2, 4, 8…), max 30 min; forgotten after 1 h without
+  failures. Keyed by the TYPED email (normalised), so unknown emails lock the same way (no account enumeration).
+  Applied to the member password login, the email-code login and the parent-portal login; checked BEFORE the
+  password (the right password waits too). Cleared by a successful login and by every password reset (link, leader
+  reset, parent reset, CG reset of a parent). Message: `LoginThrottleMessages.Locked`.
+- **Parent-portal sessions per device:** `ApplicantSession` (table `applicant_sessions`, migration
+  `AddApplicantSessions`, copies each account's live token so nobody is signed out; dev: 149 carried over).
+  `DeviceSession` abstract base shared with `UserSession`; `ApplicantSessions` helper next to `UserSessions`
+  (start / find-by-token with the 120 s grace / end-all). `applicant_accounts.refresh_token*` dropped. Sessions
+  actives lists parent devices too (Appareil column for both).
+- Verified live 14/15 (the 15th was a wrong test assumption: a carried-over session has no device name).
+

@@ -18,8 +18,9 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
     private readonly IPasswordHasher _passwordHasher;
     private readonly IMaintenanceProvider _maintenance;
     private readonly ICurrentUserService _device;
+    private readonly ILoginThrottle _throttle;
 
-    public LoginCommandHandler(IApplicationDbContext context, ITokenService tokenService, IAuditService auditService, IPasswordHasher passwordHasher, IMaintenanceProvider maintenance, ICurrentUserService device)
+    public LoginCommandHandler(IApplicationDbContext context, ITokenService tokenService, IAuditService auditService, IPasswordHasher passwordHasher, IMaintenanceProvider maintenance, ICurrentUserService device, ILoginThrottle throttle)
     {
         _context = context;
         _tokenService = tokenService;
@@ -27,6 +28,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
         _passwordHasher = passwordHasher;
         _maintenance = maintenance;
         _device = device;
+        _throttle = throttle;
     }
 
     public async ValueTask<Result<AuthResponse>> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -36,6 +38,16 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
         // synthetic "prenom.nom@scouts.gndj" login would otherwise fail an exact match. Mirrors the
         // applicant login (which already trims + lowercases). Emails are unique, so LOWER() can't ambiguate.
         var email = (request.Email ?? "").Trim().ToLowerInvariant();
+
+        // Per-account lockout after repeated failures (checked first: even the right password waits it out).
+        if (_throttle.LockedFor("member", email) is TimeSpan wait)
+        {
+            await _auditService.LogAsync("LoginBlocked", "User", null,
+                newValues: new { Email = request.Email, Reason = "Trop de tentatives", Portal = "Espace membres" },
+                cancellationToken: cancellationToken);
+            return Result<AuthResponse>.Failure(LoginThrottleMessages.Locked(wait));
+        }
+
         var user = await _context.Users
             .Include(u => u.Member)
             .FirstOrDefaultAsync(u => u.Email.ToLower() == email && u.IsActive, cancellationToken);
@@ -55,6 +67,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
             await _auditService.LogAsync("LoginFailed", "User", user?.Id,
                 newValues: new { Email = request.Email, Reason = user is null ? "Utilisateur introuvable" : user.Member is null ? "Membre supprimé" : "Mot de passe incorrect", Portal = "Espace membres" },
                 cancellationToken: cancellationToken);
+            _throttle.RecordFailure("member", email);
             return Result<AuthResponse>.Failure("Adresse courriel ou mot de passe incorrect.");
         }
 
@@ -76,6 +89,8 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
                     : maint.Message);
             }
         }
+
+        _throttle.Reset("member", email);
 
         // Permissions + authorized units in one round-trip over the member's active assignments.
         var (permissions, unitIds) = await AuthAccess.LoadAsync(_context, user.MemberId, user.IsSuperAdmin, cancellationToken);

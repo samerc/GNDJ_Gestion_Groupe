@@ -44,3 +44,22 @@ public class UserSessionConfiguration : IEntityTypeConfiguration<UserSession>
         builder.HasQueryFilter(e => !e.User.IsDeleted);
     }
 }
+
+// One row per device signed in to a parent-portal account (same rules as UserSession). Deleted with the account.
+public class ApplicantSessionConfiguration : IEntityTypeConfiguration<ApplicantSession>
+{
+    public void Configure(EntityTypeBuilder<ApplicantSession> builder)
+    {
+        builder.ToTable("applicant_sessions");
+        builder.HasKey(e => e.Id);
+        builder.Property(e => e.TokenHash).HasMaxLength(100).IsRequired();
+        builder.Property(e => e.PreviousTokenHash).HasMaxLength(100);
+        builder.Property(e => e.UserAgent).HasMaxLength(500);
+        builder.Property(e => e.IpAddress).HasMaxLength(64);
+        builder.HasOne(e => e.ApplicantAccount).WithMany().HasForeignKey(e => e.ApplicantAccountId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(e => e.TokenHash).IsUnique();
+        builder.HasIndex(e => e.PreviousTokenHash).HasFilter("previous_token_hash IS NOT NULL");
+        builder.HasIndex(e => e.ApplicantAccountId);
+        builder.HasQueryFilter(e => !e.ApplicantAccount.IsDeleted);
+    }
+}
