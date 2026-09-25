@@ -1,169 +1,167 @@
 ---
-title: Documentation technique
+title: Technical documentation
 audience: dev
 order: 10
-summary: Architecture, modèle de données, sécurité, conventions de code et pièges connus — pour reprendre le développement de la plateforme.
+summary: Architecture, data model, security, coding conventions and known pitfalls — for taking over development of the platform.
 ---
 
-Cette documentation permet à un développeur de reprendre la plateforme. Le code est en **anglais**, l'interface en
-**français**. Le dépôt contient aussi `CLAUDE.md` (historique détaillé de chaque fonctionnalité),
-`docs/DEPLOYMENT.md` (installation d'un serveur) et `deploy/OPS.md` (exploitation).
+This documentation lets a developer take over the platform. The code is in **English**, the user interface in
+**French**. The repository also contains `CLAUDE.md` (a detailed history of every feature),
+`docs/DEPLOYMENT.md` (setting up a server) and `deploy/OPS.md` (day-to-day operations).
 
-## Vue d'ensemble
+## Overview
 
-| Couche | Technologie |
+| Layer | Technology |
 |---|---|
-| Backend | ASP.NET Core 10, Entity Framework Core 10 (Npgsql), Mediator (générateur de source), FluentValidation, Serilog, QuestPDF, ClosedXML |
-| Base de données | PostgreSQL 18, clés UUIDv7, noms en `snake_case` |
+| Backend | ASP.NET Core 10, Entity Framework Core 10 (Npgsql), Mediator (source generator), FluentValidation, Serilog, QuestPDF, ClosedXML |
+| Database | PostgreSQL 18, UUIDv7 keys, `snake_case` names |
 | Frontend | React 19 + TypeScript + Vite, Tailwind CSS v4 + shadcn/ui, TanStack Query, Zustand, React Router |
-| Authentification | JWT maison (pas d'ASP.NET Identity), BCrypt, une session par appareil (jetons de rafraîchissement tournants) |
-| Hébergement | Windows Server + IIS (in-process) derrière Cloudflare |
-| Tests | xUnit (logique), `tests/e2e` (API + navigateur, avant chaque mise en ligne) |
+| Authentication | Custom JWT (no ASP.NET Identity), BCrypt, one session per device (rotating refresh tokens) |
+| Hosting | Windows Server + IIS (in-process) behind Cloudflare |
+| Tests | xUnit (logic), `tests/e2e` (API + browser, before every deploy) |
 
 ```mermaid
 flowchart LR
     UI["client/ React (SPA)<br/>pages → services → api-client"] -->|/api/v1 + JWT| API["GNDJ.Api<br/>middlewares → controllers"]
     API -->|Mediator.Send| APP["GNDJ.Application<br/>handlers + validators"]
-    APP --> DOM["GNDJ.Domain<br/>entités, permissions"]
-    INF["GNDJ.Infrastructure<br/>DbContext, email, PDF, push"] -.->|implémente les interfaces| APP
+    APP --> DOM["GNDJ.Domain<br/>entities, permissions"]
+    INF["GNDJ.Infrastructure<br/>DbContext, email, PDF, push"] -.->|implements the interfaces| APP
     INF --> PG[(PostgreSQL)]
 ```
 
-**Règles de dépendance** (Clean Architecture) : Domain ne dépend de rien ; Application dépend de Domain ;
-Infrastructure implémente les interfaces d'Application ; Api assemble le tout.
+**Dependency rules** (Clean Architecture): Domain depends on nothing; Application depends on Domain;
+Infrastructure implements Application's interfaces; Api wires everything together.
 
-## Organisation du dépôt
+## Repository layout
 
-| Dossier | Contenu |
+| Folder | Contents |
 |---|---|
-| `src/GNDJ.Domain` | ~60 entités, enums, `Permissions` (toutes les permissions sous forme de chaînes) |
-| `src/GNDJ.Application` | Un dossier par fonctionnalité (`Members`, `Demandes`, `Passages`, `Documents`…) : commandes / requêtes + handlers + validators + DTO. `Common/` : règles partagées (`MemberAccess`, `LebanonClock`, `ScoutYearHelper`, `ValidationExtensions`…) |
-| `src/GNDJ.Infrastructure` | `Persistence/` (DbContext, configurations, migrations, `SeedData`, `DataPatchRunner`), `Services/` (email, PDF, push, purge…), `Identity/` (jetons, utilisateur courant) |
-| `src/GNDJ.Api` | Controllers (`api/v1/...`), middlewares, services d'arrière-plan, `Help/` (guides) |
-| `client/src` | `pages/`, `components/` (dont `ui/` = shadcn), `services/` (un fichier par ressource d'API), `stores/` (Zustand), `lib/`, `hooks/` |
-| `tests/` | Tests xUnit par couche + `e2e/` (suite de fumée) |
-| `deploy/` | Scripts de publication, de mise à jour, d'exploitation ; `patches/` = correctifs de données SQL |
-| `docs/help` | Ces guides (Markdown, servis dans l'application) |
-| `tools/` | `help-docs` (captures d'écran, PDF), `Migration` (import historique depuis WEBDEV) |
+| `src/GNDJ.Domain` | ~60 entities, enums, `Permissions` (every permission as a string) |
+| `src/GNDJ.Application` | One folder per feature (`Members`, `Demandes`, `Passages`, `Documents`…): commands / queries + handlers + validators + DTOs. `Common/`: shared rules (`MemberAccess`, `LebanonClock`, `ScoutYearHelper`, `ValidationExtensions`…) |
+| `src/GNDJ.Infrastructure` | `Persistence/` (DbContext, configurations, migrations, `SeedData`, `DataPatchRunner`), `Services/` (email, PDF, push, purge…), `Identity/` (tokens, current user) |
+| `src/GNDJ.Api` | Controllers (`api/v1/...`), middlewares, background services, `Help/` (guides) |
+| `client/src` | `pages/`, `components/` (including `ui/` = shadcn), `services/` (one file per API resource), `stores/` (Zustand), `lib/`, `hooks/` |
+| `tests/` | xUnit tests per layer + `e2e/` (smoke suite) |
+| `deploy/` | Publish, update and operations scripts; `patches/` = SQL data patches |
+| `docs/help` | These guides (Markdown, served inside the app) |
+| `tools/` | `help-docs` (screenshots, PDF), `Migration` (historical import from WEBDEV) |
 
-## Le chemin d'une requête
+## The path of a request
 
 ```mermaid
 sequenceDiagram
-    participant N as Navigateur
+    participant B as Browser
     participant M as Middlewares
     participant C as Controller
     participant V as ValidationBehavior
     participant H as Handler
     participant D as DbContext
-    N->>M: PUT /api/v1/members/{id} + Bearer JWT
-    M->>M: exceptions, en-têtes, auth JWT, maintenance, lecture seule "Voir comme", journal, cache, limites, anti-abus
+    B->>M: PUT /api/v1/members/{id} + Bearer JWT
+    M->>M: exceptions, headers, JWT auth, maintenance, "Voir comme" read-only, logging, cache, rate limits, abuse detection
     M->>C: [HasPermission("members.edit")]
     C->>V: Mediator.Send(UpdateMemberCommand)
-    V->>V: FluentValidation (400 si invalide)
+    V->>V: FluentValidation (400 if invalid)
     V->>H: Handle()
-    H->>H: MemberAccess.CanAccessMemberAsync (unité du membre)
-    H->>D: modifications + SaveChangesAsync
-    D->>D: intercepteurs : dates, auteur, suppression douce
-    H-->>C: Result (succès / erreur)
-    C-->>N: 204 / 400 / 403 / 404
+    H->>H: MemberAccess.CanAccessMemberAsync (member's unit)
+    H->>D: changes + SaveChangesAsync
+    D->>D: interceptors: timestamps, author, soft delete
+    H-->>C: Result (success / error)
+    C-->>B: 204 / 400 / 403 / 404
 ```
 
-**Ordre des middlewares** (`Program.cs`) : `ExceptionHandlingMiddleware` (traduit les exceptions en 400/403/409,
-alerte l'administrateur sur les 500) → en-têtes de sécurité / CSP → fichiers statiques → authentification →
-`ApiKeyMiddleware` → autorisation → `SlowRequestMiddleware` → `MaintenanceMiddleware` →
-`ImpersonationReadOnlyMiddleware` → journalisation Serilog → `PublicCacheMiddleware` → cache de sortie → limites de
-débit → `AbuseDetectionMiddleware` → controllers.
+**Middleware order** (`Program.cs`): `ExceptionHandlingMiddleware` (maps exceptions to 400/403/409, alerts the
+administrator on 500s) → security headers / CSP → static files → authentication → `ApiKeyMiddleware` →
+authorization → `SlowRequestMiddleware` → `MaintenanceMiddleware` → `ImpersonationReadOnlyMiddleware` → Serilog
+request logging → `PublicCacheMiddleware` → output cache → rate limiting → `AbuseDetectionMiddleware` → controllers.
 
-## Modèle de données
+## Data model
 
-Le cœur du modèle :
+The core of the model:
 
 ```mermaid
 erDiagram
-    UNIT_TYPE ||--o{ UNIT : "a"
-    UNIT_TYPE ||--o{ FUNCTIONAL_ROLE : "définit"
-    UNIT ||--o{ TEAM : "a"
-    SECURITY_PROFILE ||--o{ FUNCTIONAL_ROLE : "donne les droits"
-    MEMBER ||--o{ MEMBER_ASSIGNMENT : "occupe"
+    UNIT_TYPE ||--o{ UNIT : "has"
+    UNIT_TYPE ||--o{ FUNCTIONAL_ROLE : "defines"
+    UNIT ||--o{ TEAM : "has"
+    SECURITY_PROFILE ||--o{ FUNCTIONAL_ROLE : "grants rights"
+    MEMBER ||--o{ MEMBER_ASSIGNMENT : "holds"
     UNIT ||--o{ MEMBER_ASSIGNMENT : ""
     FUNCTIONAL_ROLE ||--o{ MEMBER_ASSIGNMENT : ""
     TEAM |o--o{ MEMBER_ASSIGNMENT : ""
-    MEMBER ||--o| USER : "compte de connexion"
-    USER ||--o{ USER_SESSION : "un par appareil"
+    MEMBER ||--o| USER : "login account"
+    USER ||--o{ USER_SESSION : "one per device"
     MEMBER ||--o{ GUARDIAN_LINK : ""
     GUARDIAN ||--o{ GUARDIAN_LINK : ""
-    MEMBER }o--o| SIBLING_GROUP : "fratrie"
+    MEMBER }o--o| SIBLING_GROUP : "siblings"
     MEMBER ||--o{ MEMBER_DOCUMENT : ""
     DOCUMENT_TYPE ||--o{ MEMBER_DOCUMENT : ""
     MEMBER_DOCUMENT ||--o{ MEMBER_DOCUMENT_PAGE : "pages 2+"
     MEMBER ||--o{ MEMBER_COTISATION : ""
     MEMBER_COTISATION ||--o{ COTISATION_PAYMENT : ""
     MEMBER ||--o{ MEMBER_PROGRESSION : ""
-    MEMBER ||--o{ PASSAGE : "une ligne par année"
+    MEMBER ||--o{ PASSAGE : "one line per year"
 ```
 
-Le portail d'inscription a son propre modèle, **isolé** des membres jusqu'à la conversion :
+The enrolment portal has its own model, **isolated** from members until conversion:
 
 ```mermaid
 erDiagram
-    APPLICANT_ACCOUNT ||--o{ DEMANDE : "une par enfant"
-    APPLICANT_ACCOUNT ||--o{ APPLICANT_GUARDIAN : "parents du foyer"
-    APPLICANT_ACCOUNT ||--o{ APPLICANT_SCOUT_RELATION : "proches scouts"
+    APPLICANT_ACCOUNT ||--o{ DEMANDE : "one per child"
+    APPLICANT_ACCOUNT ||--o{ APPLICANT_GUARDIAN : "household parents"
+    APPLICANT_ACCOUNT ||--o{ APPLICANT_SCOUT_RELATION : "scout relatives"
     APPLICANT_ACCOUNT ||--o{ APPLICANT_SESSION : ""
-    DEMANDE |o--o| MEMBER : "CreatedMemberId après acceptation"
+    DEMANDE |o--o| MEMBER : "CreatedMemberId once accepted"
 ```
 
-**Notions clés :**
+**Key concepts:**
 
-| Notion | Détail |
+| Concept | Detail |
 |---|---|
-| **Membre actif** | A au moins une affectation (`member_assignments`) avec `end_date IS NULL` |
-| **Année scoute** | Du 1er octobre au 30 septembre ; `ScoutYearHelper`. L'année « courante » de la configuration est le réglage `passage.scout_year` |
-| **Date du jour** | Toujours `LebanonClock.Today` (heure de Beyrouth), jamais `DateTime.UtcNow` pour une date ; les horodatages restent en UTC |
-| **Suppression douce** | Les entités `BaseEntity` ont `IsDeleted` ; un filtre global les cache ; l'intercepteur transforme `Remove` en suppression douce |
-| **Réglages** | Table clé / valeur `settings` (catégorie, type) ; créés au démarrage par `SeedMissingSettingsAsync` |
-| **Listes gérées** | Écoles, classes, villes, domaines de profession : réglages JSON ; les fiches stockent la valeur texte (renommer = répercuter sur les fiches) |
+| **Active member** | Has at least one assignment (`member_assignments`) with `end_date IS NULL` |
+| **Scout year** | October 1 to September 30; `ScoutYearHelper`. The configured "current" year is the `passage.scout_year` setting |
+| **Today's date** | Always `LebanonClock.Today` (Beirut time), never `DateTime.UtcNow` for a calendar date; timestamps stay in UTC |
+| **Soft delete** | `BaseEntity` entities have `IsDeleted`; a global query filter hides them; the interceptor turns `Remove` into a soft delete |
+| **Settings** | Key / value table `settings` (category, value type); created at startup by `SeedMissingSettingsAsync` |
+| **Managed lists** | Schools, classes, cities, profession domains: JSON settings; records store the text value (a rename cascades onto the records) |
 
-## Sécurité
+## Security
 
-### Authentification
+### Authentication
 
-- **Membres** : identifiant `prenom.nom@scouts.gndj` + mot de passe (BCrypt), ou code à 6 chiffres par email.
-  Jeton d'accès JWT de 15 minutes (permissions et unités incluses → aucune requête en base pour autoriser) +
-  jeton de rafraîchissement **par appareil** (`user_sessions`, SHA-256, rotation avec 120 s de tolérance, 7 ou 90
-  jours glissants).
-- **Familles** (portail d'inscription) : comptes séparés (`applicant_accounts`), jetons séparés, sans aucune
-  permission sur les membres.
-- **Blocage** : 5 échecs → attente croissante par identifiant saisi (`ILoginThrottle`).
+- **Members**: username `prenom.nom@scouts.gndj` + password (BCrypt), or a 6-digit code by email.
+  15-minute JWT access token (permissions and units embedded → no database query needed to authorize) +
+  a **per-device** refresh token (`user_sessions`, SHA-256, rotated with a 120 s grace window, 7 or 90 days
+  sliding).
+- **Families** (enrolment portal): separate accounts (`applicant_accounts`), separate tokens, no permission at all
+  on member data.
+- **Lockout**: 5 failures → increasing wait per typed username (`ILoginThrottle`).
 
-### Autorisation
+### Authorization
 
-Deux niveaux, **toujours les deux** :
+Two levels, **always both**:
 
-1. **Permission** sur le controller : `[HasPermission(Permissions.MembersEdit)]` (chaînes dans
-   `Domain/Enums/Permissions`, attribuées par les **profils de sécurité** liés aux fonctions).
-2. **Portée** dans le handler : quel membre / quelle unité. Les règles communes sont dans `Common/MemberAccess` :
+1. **Permission** on the controller: `[HasPermission(Permissions.MembersEdit)]` (strings in
+   `Domain/Enums/Permissions`, granted by the **security profiles** attached to functional roles).
+2. **Scope** inside the handler: which member / which unit. The shared rules live in `Common/MemberAccess`:
 
-| Méthode | Règle |
+| Method | Rule |
 |---|---|
-| `CanAccessMemberAsync` | super-admin, **ou** sa propre fiche, **ou** `members.edit` + le membre est actif dans une unité autorisée, **ou** gestionnaire de groupe |
-| `CanViewMemberAsync` | idem avec `members.view` (lecture seule) |
-| `CanLeadUnit` | super-admin, ou `members.edit` + unité autorisée |
-| `IsGroupManager` | super-admin ou `maitrise.manage` (chef de groupe, assistants) |
+| `CanAccessMemberAsync` | super-admin, **or** own record, **or** `members.edit` + the member is active in an authorized unit, **or** group manager |
+| `CanViewMemberAsync` | same, but also accepts `members.view` (read-only) |
+| `CanLeadUnit` | super-admin, or `members.edit` + authorized unit |
+| `IsGroupManager` | super-admin or `maitrise.manage` (chef de groupe, assistants) |
 
-> ⚠️ Une fonctionnalité qui lit des données de membres doit passer par `MemberAccess`, jamais recopier la règle.
-> Les endpoints « self-service » (`/my-profile/*`) résolvent le membre **côté serveur**, jamais depuis l'URL.
+> ⚠️ A feature that reads member data must go through `MemberAccess` — never copy the rule.
+> "Self-service" endpoints (`/my-profile/*`) resolve the member **server-side**, never from the URL.
 
-### Défenses
+### Defenses
 
-CSP stricte, HSTS, en-têtes de sécurité ; limites de débit par IP (vraie IP derrière Cloudflare) ; champ piège
-(honeypot) sur les formulaires publics ; `AbuseDetectionMiddleware` (XSS / SQLi / jetons géants sur les corps
-JSON, sauf contenus riches) ; validation magic-bytes des fichiers ; protection des chemins de fichiers ; « Voir
-comme » en lecture seule par construction ; journal d'audit de chaque écriture et de chaque téléchargement de
-document.
+Strict CSP, HSTS, security headers; per-IP rate limiting (real IP behind Cloudflare); honeypot field on public
+forms; `AbuseDetectionMiddleware` (XSS / SQLi / giant tokens in JSON bodies, except rich content); magic-byte file
+validation; file-path traversal protection; "Voir comme" (impersonation) read-only by construction; audit log of
+every write and every document download.
 
-## Écrire une fonctionnalité
+## Writing a feature
 
 ### Backend
 
@@ -175,7 +173,7 @@ public class CreateWidgetCommandValidator : AbstractValidator<CreateWidgetComman
 {
     public CreateWidgetCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(100).NoHtml();   // toujours : longueurs + NoHtml
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(100).NoHtml();   // always: length caps + NoHtml
     }
 }
 
@@ -194,75 +192,75 @@ public class CreateWidgetCommandHandler(IApplicationDbContext context, ICurrentU
 }
 ```
 
-Puis : le `DbSet` dans `IApplicationDbContext` + `GndjDbContext`, une configuration EF, la migration
+Then: the `DbSet` in `IApplicationDbContext` + `GndjDbContext`, an EF configuration, the migration
 (`dotnet ef migrations add AddWidgets --project src/GNDJ.Infrastructure --startup-project src/GNDJ.Api --output-dir Persistence/Migrations`),
-l'endpoint dans un controller avec `[HasPermission]`.
+and the endpoint in a controller with `[HasPermission]`.
 
 ### Frontend
 
-Un fichier `services/widget-service.ts` (hooks `useQuery` / `useMutation`, clés `['widgets', …]`,
-`invalidateQueries` après une écriture), une page dans `pages/` chargée en différé dans `App.tsx`, protégée par
-`PermissionRoute`, et l'entrée de menu dans `components/layout/sidebar.tsx`.
+A `services/widget-service.ts` file (`useQuery` / `useMutation` hooks, keys `['widgets', …]`,
+`invalidateQueries` after a write), a page in `pages/` lazy-loaded in `App.tsx`, protected by
+`PermissionRoute`, and the menu entry in `components/layout/sidebar.tsx`.
 
-### Liste de contrôle
+### Checklist
 
-| ✔ | Point |
+| ✔ | Item |
 |---|---|
-| | Validator avec longueurs max, `NoHtml()`, `RealEmail()`, listes autorisées pour les valeurs fixes |
-| | Permission sur le controller **et** portée dans le handler |
-| | Dates avec `LebanonClock`, horodatages en UTC |
-| | Toasts de succès / d'erreur (`sonner`), messages en français |
-| | Mode sombre (couleurs par jetons, `dark:` pour les couleurs fixes) et affichage téléphone |
-| | Une ligne dans `client/src/data/changelog.json` |
-| | Une vérification ajoutée à `tests/e2e` si c'est un parcours important |
-| | `dotnet build` sans avertissement, `npx tsc -b`, `npx eslint --max-warnings=0` |
+| | Validator with max lengths, `NoHtml()`, `RealEmail()`, allowed sets for fixed values |
+| | Permission on the controller **and** scope check in the handler |
+| | Dates via `LebanonClock`, timestamps in UTC |
+| | Success / error toasts (`sonner`), user-facing messages in French |
+| | Dark mode (token colors, `dark:` for fixed colors) and phone layout |
+| | An entry in `client/src/data/changelog.json` |
+| | A check added to `tests/e2e` if it's an important flow |
+| | `dotnet build` with no warnings, `npx tsc -b`, `npx eslint --max-warnings=0` |
 
-## Tâches d'arrière-plan
+## Background jobs
 
-| Service | Fréquence | Rôle |
+| Service | Frequency | Role |
 |---|---|---|
-| `OutboxSenderBackgroundService` | Continu (réveillé à chaque envoi) | Envoie la file d'emails, relances, limite horaire par serveur |
-| `PushSenderBackgroundService` | Continu | Envoie les notifications Web Push |
-| `DocumentCampaignBackgroundService` | 12 h | Étapes automatiques de la campagne de documents |
-| `RentreeReminderBackgroundService` | 12 h | Rappel hebdomadaire des tâches de rentrée |
-| `MemberPurgeBackgroundService` | 24 h | Purge définitive de la corbeille (30 jours) |
-| `ApplicationLogMaintenanceBackgroundService` | 24 h | Rétention des journaux, notifications, envois |
-| `OpsAlertBackgroundService` | 1 h | Email quotidien « points à vérifier » |
+| `OutboxSenderBackgroundService` | Continuous (woken on each enqueue) | Sends the email queue, retries, per-server hourly cap |
+| `PushSenderBackgroundService` | Continuous | Sends Web Push notifications |
+| `DocumentCampaignBackgroundService` | 12 h | Automatic steps of the document campaign |
+| `RentreeReminderBackgroundService` | 12 h | Weekly reminder of rentrée (start-of-year) tasks |
+| `MemberPurgeBackgroundService` | 24 h | Permanent purge of the recycle bin (30 days) |
+| `ApplicationLogMaintenanceBackgroundService` | 24 h | Retention of logs, notifications, outbox rows |
+| `OpsAlertBackgroundService` | 1 h | Daily "things to check" email |
 
-Chacun s'enregistre auprès de `IJobMonitor` (page Système). Au démarrage, les migrations, les données de départ et
-les **correctifs de données** (`deploy/patches/*.sql`, exécutés une seule fois, dans une transaction, suivis dans
-`data_patches`) passent sous un verrou consultatif PostgreSQL.
+Each one registers with `IJobMonitor` (Système page). At startup, migrations, seed data and **data patches**
+(`deploy/patches/*.sql`, run once each, in a transaction, tracked in `data_patches`) run under a PostgreSQL
+advisory lock.
 
-**Envois fiables :** emails et notifications sont d'abord écrits en base (`email_outbox`, `push_outbox`) puis
-envoyés par le service : ils survivent à un redémarrage (au moins une livraison).
+**Reliable delivery:** emails and push notifications are first written to the database (`email_outbox`,
+`push_outbox`) and then sent by the service: they survive a restart (at-least-once delivery).
 
 ## Tests
 
-| Commande | Ce qu'elle vérifie |
+| Command | What it checks |
 |---|---|
-| `dotnet test GNDJ.slnx` | Tests unitaires (arrêter l'API avant : elle verrouille les DLL) |
-| `powershell -ExecutionPolicy Bypass -File tests/e2e/run.ps1` | API (48 vérifications), navigateur (19), taille de l'application — **avant chaque mise en ligne** |
+| `dotnet test GNDJ.slnx` | Unit tests (stop the API first: it locks the DLLs) |
+| `powershell -ExecutionPolicy Bypass -File tests/e2e/run.ps1` | API (48 checks), browser (19), app bundle size — **before every deploy** |
 
-Les tests e2e tournent sur la base de dev copiée de la production (`deploy/dev-sync-from-prod.ps1`, qui neutralise
-les serveurs d'email) ; mot de passe de toutes les connexions de dev : `Gndj2026!`.
+The e2e tests run against the dev database copied from production (`deploy/dev-sync-from-prod.ps1`, which
+neutralizes the email servers); password for every dev login: `Gndj2026!`.
 
-## Pièges connus
+## Known pitfalls
 
-| Piège | Conséquence | Bonne pratique |
+| Pitfall | Consequence | Good practice |
 |---|---|---|
-| Modifier la collection de navigation d'un parent suivi (`parent.Pages.Add(...)`) | `DbUpdateConcurrencyException` (409) | Ajouter / supprimer les enfants via leur `DbSet` avec la clé étrangère |
-| `Include(m => m.Assignments)` puis `Remove(member)` | 500 « association severed » | Charger le parent seul, lire les enfants par une requête séparée |
-| `ExecuteSqlRaw` avec du JSON contenant `{` | `FormatException` | Correctifs SQL exécutés via `DbCommand` (déjà le cas dans `DataPatchRunner`) |
-| `DateTime` venu de l'URL comparé à une colonne `timestamptz` | 500 « Kind=Unspecified » | `.AsUtc()` (`Common/DateTimeExtensions`) |
-| `DbFns.Unaccent(variable C#)` | Exception (fonction base de données uniquement) | Appeler `Unaccent` **dans** l'expression LINQ |
-| `new DateOnly(an, mois, jour)` dans une requête pour un 29 février | 500 en année non bissextile | Comparer mois et jour séparément |
-| Nom d'espace de noms `GNDJ.Application.System` | Masque l'espace de noms .NET `System` | Choisir un autre nom (`SystemHealth`) |
-| Scripts PowerShell avec des caractères non ASCII | Erreurs d'analyse sous PowerShell 5.1 | Scripts `deploy/` en ASCII uniquement |
-| `dotnet ef migrations add` puis démarrage `--no-build` | Avertissement « modifications en attente » | Recompiler après avoir ajouté une migration |
-| Un guide ou une donnée dans le bundle JavaScript | Téléchargeable par tous (les fichiers statiques sont publics) | Contrôle d'accès côté serveur (`/api/v1/help`) |
+| Mutating a tracked parent's navigation collection (`parent.Pages.Add(...)`) | `DbUpdateConcurrencyException` (409) | Add / remove children through their `DbSet` with the foreign key |
+| `Include(m => m.Assignments)` then `Remove(member)` | 500 "association severed" | Load the parent alone, read the children with a separate query |
+| `ExecuteSqlRaw` with JSON containing `{` | `FormatException` | Run SQL patches via a `DbCommand` (already the case in `DataPatchRunner`) |
+| A `DateTime` from the URL compared with a `timestamptz` column | 500 "Kind=Unspecified" | `.AsUtc()` (`Common/DateTimeExtensions`) |
+| `DbFns.Unaccent(C# variable)` | Exception (database-only function) | Call `Unaccent` **inside** the LINQ expression |
+| `new DateOnly(year, month, day)` in a query for a February 29 | 500 in a non-leap year | Compare month and day separately |
+| Namespace named `GNDJ.Application.System` | Shadows the .NET `System` namespace | Pick another name (`SystemHealth`) |
+| PowerShell scripts with non-ASCII characters | Parse errors under PowerShell 5.1 | Keep `deploy/` scripts ASCII-only |
+| `dotnet ef migrations add` then starting with `--no-build` | "Pending model changes" warning | Rebuild after adding a migration |
+| A guide or data bundled into the JavaScript | Downloadable by anyone (static files are public) | Server-side access control (`/api/v1/help`) |
 
-## Les guides (cette aide)
+## The guides (this help)
 
-Les guides sont des fichiers Markdown dans `docs/help` (en-tête : `title`, `audience`, `order`, `summary`), servis
-par `/api/v1/help` selon le rôle. Captures d'écran : `tools/help-docs/capture.mjs` (noms, emails et téléphones
-remplacés par de faux) ; PDF : `tools/help-docs/pdf.mjs`. Voir `tools/help-docs/README.md`.
+The guides are Markdown files in `docs/help` (front matter: `title`, `audience`, `order`, `summary`), served by
+`/api/v1/help` according to the user's role. Screenshots: `tools/help-docs/capture.mjs` (names, emails and phone
+numbers replaced with fake ones); PDF: `tools/help-docs/pdf.mjs`. See `tools/help-docs/README.md`.

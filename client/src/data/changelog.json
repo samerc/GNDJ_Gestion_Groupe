@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "La documentation technique (réservée au super-administrateur) est maintenant rédigée en anglais."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Nouveau menu « Aide » : les guides d'utilisation dans l'application, chacun ne voyant que ceux de son rôle (membres et parents, chefs d'unité, chef de groupe, administration, documentation technique), avec recherche, sommaire, schémas, tableaux, captures d'écran et bouton « Imprimer / PDF »."
       },
       {

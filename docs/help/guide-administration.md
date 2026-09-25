@@ -8,7 +8,7 @@ summary: Faire tourner la plateforme — surveillance, mises à jour, sauvegarde
 Ce guide s'adresse au **super-administrateur** : la personne qui surveille le serveur, installe les mises à jour et
 règle la configuration technique. Les procédures détaillées (installation complète d'un serveur, changement de
 domaine) sont dans `docs/DEPLOYMENT.md` et `deploy/OPS.md` du dépôt ; la partie technique du code est dans la
-[Documentation technique](documentation-technique.md).
+[documentation technique (en anglais)](documentation-technique.md).
 
 ## Comment la plateforme est installée
 
