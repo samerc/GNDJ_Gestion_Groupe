@@ -20,17 +20,68 @@ This documentation lets a developer take over the platform. The code is in **Eng
 | Hosting | Windows Server + IIS (in-process) behind Cloudflare |
 | Tests | xUnit (logic), `tests/e2e` (API + browser, before every deploy) |
 
+## How the code is split into layers
+
+The backend is split into **four projects**, stacked like layers. Each layer has one job, and there is one strict
+rule about which layer is allowed to know about which. (This style is called *Clean Architecture*.)
+
+| Layer (project) | Its job, in plain words | Example |
+|---|---|---|
+| **Domain** (`GNDJ.Domain`) | *What things are.* The business vocabulary: a member, a unit, a document, a permission. Plain classes, no database, no web. | The `Member` class with its name, date of birth, gender |
+| **Application** (`GNDJ.Application`) | *What the app can do, and the rules.* Every action ("create a member", "approve a document") with its validation and its access check. It says *what* it needs (save data, send an email) without saying *how*. | `UpdateMemberCommand` + its validator + its handler |
+| **Infrastructure** (`GNDJ.Infrastructure`) | *How it is actually done.* The technical tools: talking to PostgreSQL, sending emails, generating PDFs, push notifications. | `GndjDbContext` (database), `EmailService` |
+| **Api** (`GNDJ.Api`) | *The front door.* Receives web requests, checks the login token, hands the request to Application, sends back the answer. Also plugs Infrastructure into Application at startup. | `MembersController` |
+
+The **frontend** (`client/`, React) is a separate program that runs in the browser. It only talks to the Api,
+over HTTPS (`/api/v1/...`), never to the database.
+
+### Who depends on whom
+
+In the diagram below, **an arrow means "depends on"**: the project at the start of the arrow uses code from the
+project the arrow points to. (In .NET terms: it has a project reference to it.)
+
 ```mermaid
-flowchart LR
-    UI["client/ React (SPA)<br/>pages → services → api-client"] -->|/api/v1 + JWT| API["GNDJ.Api<br/>middlewares → controllers"]
-    API -->|Mediator.Send| APP["GNDJ.Application<br/>handlers + validators"]
-    APP --> DOM["GNDJ.Domain<br/>entities, permissions"]
-    INF["GNDJ.Infrastructure<br/>DbContext, email, PDF, push"] -.->|implements the interfaces| APP
-    INF --> PG[(PostgreSQL)]
+flowchart TB
+    API["<b>Api</b><br/>front door<br/>(controllers)"]
+    INF["<b>Infrastructure</b><br/>technical tools<br/>(database, email, PDF)"]
+    APP["<b>Application</b><br/>actions and rules<br/>(handlers, validators)"]
+    DOM["<b>Domain</b><br/>business vocabulary<br/>(entities, permissions)"]
+    API -->|depends on| APP
+    API -->|"depends on (only to plug it in at startup)"| INF
+    INF -->|"depends on (implements its interfaces)"| APP
+    APP -->|depends on| DOM
+    INF -->|depends on| DOM
 ```
 
-**Dependency rules** (Clean Architecture): Domain depends on nothing; Application depends on Domain;
-Infrastructure implements Application's interfaces; Api wires everything together.
+Read it from top to bottom: **every arrow points down, towards Domain**. Domain is at the bottom with no arrow
+leaving it — it depends on nothing. That is the whole point: the heart of the app (what things are, and the rules)
+does not know or care whether data is stored in PostgreSQL or emails go through SMTP2GO. You could change those
+tools without touching the rules.
+
+> 💡 **The one surprising arrow: Infrastructure → Application.** You might expect Application to call
+> Infrastructure ("to save a member, use the database"). Instead, Application only declares what it needs, as an
+> **interface** — a contract such as `IEmailService` ("something that can send an email"). Infrastructure provides
+> the real `EmailService` that fulfils that contract, so Infrastructure is the one that depends on Application.
+> At startup, Api connects the two (this is *dependency injection*, in `DependencyInjection.cs` and `Program.cs`).
+
+The rule, in one line each:
+
+| Project | May use | Must never use |
+|---|---|---|
+| Domain | nothing | anything else |
+| Application | Domain | Infrastructure, Api |
+| Infrastructure | Application, Domain | Api |
+| Api | all of them | — |
+
+> ⚠️ If a change in Application or Domain seems to need `using GNDJ.Infrastructure...`, that's the sign something
+> is in the wrong place: declare an interface in Application instead, and implement it in Infrastructure.
+
+### What happens when someone clicks a button
+
+The arrows above show *who knows about whom*, not the order things happen in. At run time, a request flows like
+this: the browser calls the **Api** → the Api passes it to the right **Application** handler → the handler checks
+the rules and uses the database through its interface (which is really **Infrastructure** doing the work) → the
+answer goes back to the browser. The detailed version is in [The path of a request](#the-path-of-a-request) below.
 
 ## Repository layout
 
