@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Sauvegardes : les sauvegardes de la base vont dans un sous-dossier « database » (serveur et cloud) ; le nettoyage des anciennes sauvegardes ne supprime plus les archives annuelles (journal d'audit, documents) du cloud."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Nouvelle année scoute : « Nettoyage de nouvelle année » (Paramètres → Passage, et proposé dès que le chef de groupe passe à la nouvelle année) — export de tous les documents dans une archive, suppression de tous sauf les types conservés (carte d'identité par défaut, validation gardée ou non au choix), section vidée et classe avancée d'une année pour chaque membre. Une seule fois par année."
       },
       {

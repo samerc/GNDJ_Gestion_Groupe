@@ -23,7 +23,8 @@
   },
 
   "backup": {
-    "dir": "C:\\gndj-backups",
+    "_comment_dir": "dir = local folder for the nightly database dumps (gndj_*.dump). Kept in its own database subfolder, next to audit/ and documents/.",
+    "dir": "C:\\gndj-backups\\database",
     "_comment_rclone": "rcloneRemote = 'remoteName:folder' created by 'rclone config' (e.g. Box: 'gndj-cloud:GNDJ-Backups'). Leave empty to keep backups LOCAL ONLY (not recommended). rcloneConfig points the SYSTEM task at the token you created under your user. rcloneExe = FULL path to rclone.exe — set this so the SYSTEM scheduled task finds rclone even when a user-scoped winget install isn't on the machine PATH (find it with: (Get-Command rclone).Source).",
     "rcloneRemote": "gndj-cloud:GNDJ-Backups",
     "rcloneConfig": "C:\\ProgramData\\rclone\\rclone.conf",

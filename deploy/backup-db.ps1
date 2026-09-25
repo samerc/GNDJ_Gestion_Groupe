@@ -3,11 +3,12 @@
   Nightly PostgreSQL backup -> local file + off-server cloud copy (rclone) + email status.
 .DESCRIPTION
   1. pg_dump the database to a timestamped custom-format (.dump) file in the local backup dir.
-  2. Copy it OFF the server to a cloud remote (OneDrive/Google Drive) via rclone - so a full disk
-     crash does not take the backups with it.
+  2. Copy it OFF the server to a cloud remote (OneDrive/Google Drive) via rclone, into <remote>/database -
+     so a full disk crash does not take the backups with it.
   2b. Also sync the yearly audit-log archives (backup.auditArchiveDir) off-server (kept, not pruned).
   2c. And the new-year document archives (backup.documentArchiveDir) (kept, not pruned).
-  3. Prune local + remote DB dumps older than the retention window.
+  3. Prune local + remote DB dumps (gndj_*.dump ONLY) older than the retention window. The audit and
+     document archives in <remote>/audit and <remote>/documents are never pruned.
   4. Email a success/failure summary to backup.alertTo (admin + CG) - always on failure; on success
      if notifyOnSuccess.
 
@@ -67,12 +68,18 @@ try {
         # --config lets the SYSTEM-run scheduled task find the OAuth token created under your user.
         $rc = @()
         if ($bk.rcloneConfig) { $rc += @("--config", $bk.rcloneConfig) }
-        & $rcloneExe @rc copy $file $bk.rcloneRemote --no-traverse
+        # Dumps go to their own <remote>/database folder (the archives live in <remote>/audit and /documents).
+        $dbRemote = "$($bk.rcloneRemote)/database"
+        & $rcloneExe @rc copy $file $dbRemote --no-traverse
         if ($LASTEXITCODE -ne 0) { throw "rclone copy exited with code $LASTEXITCODE" }
-        $log += "Uploaded to $($bk.rcloneRemote)"
-        # Prune remote copies older than the retention window (best-effort).
-        & $rcloneExe @rc delete $bk.rcloneRemote --min-age "$($bk.retentionDays)d" 2>$null
-        $log += "Remote prune (older than $($bk.retentionDays)d) done"
+        $log += "Uploaded to $dbRemote"
+        # Prune remote DUMPS older than the retention window (best-effort). --include limits it to gndj_*.dump:
+        # 'rclone delete' is recursive, and without the filter it used to wipe the yearly audit/document
+        # archives in the subfolders after the retention window. The second call cleans dumps uploaded to the
+        # remote ROOT before the database/ folder existed (--max-depth 1 = root only).
+        & $rcloneExe @rc delete $dbRemote --include "gndj_*.dump" --min-age "$($bk.retentionDays)d" 2>$null
+        & $rcloneExe @rc delete $bk.rcloneRemote --include "gndj_*.dump" --max-depth 1 --min-age "$($bk.retentionDays)d" 2>$null
+        $log += "Remote prune of dumps (older than $($bk.retentionDays)d) done"
     } else {
         $log += "WARNING: no rcloneRemote configured - backup is LOCAL ONLY (lost if the server dies)."
     }
