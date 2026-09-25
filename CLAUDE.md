@@ -5707,8 +5707,8 @@ to roll out to everyone. Migration `AddPushNotifications` applies on prod startu
       [[SMTP Credentials Storage]]). Secrets→env-vars + httpOnly-cookies decided **won't-do**: secrets are already
       gitignored server-side (env vars = marginal gain), and httpOnly cookies would rearchitect the whole
       JS-token auth model (remember-me / sibling-switch / impersonation) for low benefit given CSP + React escaping.
-- [ ] Perf (optional later): async Serilog file sink (Serilog.Sinks.Async); DbContextCheck on /health; batch the
-      demande-send in-loop unit/role/email lookups (now indexed, so low priority)
+- [x] Perf leftovers — all DONE (checked 2026-09-25): Serilog file + DB sinks are async (Serilog.Sinks.Async), /health
+      runs a DB check (DatabaseHealthCheck), demande-send lookups batched (perf pass 2026-07-10), prod Npgsql pool set.
 - [ ] **TypeScript 6 → 7** (deferred 2026-07-19): the codebase is ALREADY TS-7-clean — trialled live, `tsc` +
       `vite build` pass with ZERO code changes; the ONLY change needed is tsconfig.app.json (remove `baseUrl` +
       `ignoreDeprecations`, make paths relative `"@/*": ["./src/*"]`). Blocker: **`typescript-eslint` hard-fails on
