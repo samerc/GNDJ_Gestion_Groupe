@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Site public — menus utilisables au clavier : Entrée ou ↓ ouvre un menu, ↑/↓ passe d'un lien à l'autre, Échap le ferme ; le menu se referme après avoir choisi une page. Sur mobile, le menu garde le focus tant qu'il est ouvert et Échap le ferme. Les lecteurs d'écran savent si un menu est ouvert."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Fiche membre — l'onglet « Journal » montre désormais TOUT l'historique du membre : les actions sur ses documents, affectations, cotisations, progressions, passages, demandes de modification et parents, en plus des modifications de sa fiche et de ses connexions (l'historique existant est rattrapé)."
       },
       {

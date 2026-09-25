@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { Toaster } from 'sonner'
-import { Compass, Menu, X, ChevronDown, MapPin, Mail, Phone, ArrowUp } from 'lucide-react'
+import { Compass, Menu, X, MapPin, Mail, Phone, ArrowUp } from 'lucide-react'
 
 // Instagram/Facebook brand glyphs (lucide dropped its brand icons) — module-scope so their identity is stable.
 function InstagramIcon() {
@@ -25,6 +25,7 @@ import { usePublicPages } from '@/services/page-service'
 import { usePublicSiteConfig } from '@/services/public-service'
 import { useMaintenance } from '@/services/maintenance-service'
 import { MaintenancePage } from '@/components/shared/maintenance-page'
+import { NavDropdown } from './nav-dropdown'
 
 const FIXED_LEFT = [{ to: '/', label: 'Accueil', end: true }]
 // A fixed nav entry is either a direct link (to) or a group with a hover dropdown (children).
@@ -92,6 +93,28 @@ export function PublicLayout() {
     return () => { document.body.style.overflow = '' }
   }, [mobileOpen])
 
+  // Mobile menu keyboard support: when it opens, focus its first link; Tab/Shift+Tab cycle INSIDE the menu + its
+  // toggle (focus trap — the page behind is scroll-locked and covered); Escape closes it and returns focus to the
+  // toggle. Closing via a link click also closes it (below).
+  const menuToggleRef = useRef<HTMLButtonElement>(null)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!mobileOpen) return
+    const focusables = () => [menuToggleRef.current, ...Array.from(mobileMenuRef.current?.querySelectorAll<HTMLElement>('a[href], button') ?? [])]
+      .filter((el): el is HTMLElement => !!el)
+    focusables()[1]?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setMobileOpen(false); menuToggleRef.current?.focus(); return }
+      if (e.key !== 'Tab') return
+      const f = focusables(); if (f.length === 0) return
+      const first = f[0], last = f[f.length - 1]
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [mobileOpen])
+
   const topPages = pages ?? []
   // Keep the bar from overflowing: show the first few top-level pages inline, collapse the rest
   // into a "Plus" dropdown. (Sub-pages always live under their parent's dropdown.)
@@ -111,57 +134,42 @@ export function PublicLayout() {
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <Brand />
 
-          <nav className="hidden items-center gap-1 lg:flex">
+          <nav aria-label="Menu principal" className="hidden items-center gap-1 lg:flex">
             {FIXED_LEFT.map((item) => (
               <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass}>{item.label}</NavLink>
             ))}
             {inlinePages.map((p) =>
               p.children.length > 0 ? (
-                <div key={p.slug} className="group relative">
-                  <button className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground hover:bg-accent/10">
-                    {p.title} <ChevronDown className="h-3.5 w-3.5" />
-                  </button>
-                  <div className="invisible absolute left-0 top-full z-50 min-w-48 rounded-xl border border-border bg-card p-1.5 opacity-0 shadow-elevated transition-all group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-                    <Link to={`/p/${p.slug}`} className="block rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent/10">{p.title}</Link>
-                    <div className="my-1 border-t border-border" />
-                    {p.children.map((c) => (
-                      <Link key={c.slug} to={`/p/${c.slug}`} className="block rounded-lg px-3 py-2 text-sm text-foreground/80 hover:bg-accent/10">{c.title}</Link>
-                    ))}
-                  </div>
-                </div>
+                <NavDropdown key={p.slug} label={p.title} panelClassName="min-w-48">
+                  <Link to={`/p/${p.slug}`} className="block rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent/10 focus-visible:bg-accent/10 focus-visible:outline-none">{p.title}</Link>
+                  <div className="my-1 border-t border-border" />
+                  {p.children.map((c) => (
+                    <Link key={c.slug} to={`/p/${c.slug}`} className="block rounded-lg px-3 py-2 text-sm text-foreground/80 hover:bg-accent/10 focus-visible:bg-accent/10 focus-visible:outline-none">{c.title}</Link>
+                  ))}
+                </NavDropdown>
               ) : (
                 <NavLink key={p.slug} to={`/p/${p.slug}`} className={navLinkClass}>{p.title}</NavLink>
               )
             )}
             {overflowPages.length > 0 && (
-              <div className="group relative">
-                <button className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground hover:bg-accent/10">
-                  Plus <ChevronDown className="h-3.5 w-3.5" />
-                </button>
-                <div className="invisible absolute right-0 top-full z-50 max-h-[70vh] min-w-56 overflow-y-auto rounded-xl border border-border bg-card p-1.5 opacity-0 shadow-elevated transition-all group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-                  {overflowPages.map((p) => (
-                    <div key={p.slug}>
-                      <Link to={`/p/${p.slug}`} className="block rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent/10">{p.title}</Link>
-                      {p.children.map((c) => (
-                        <Link key={c.slug} to={`/p/${c.slug}`} className="block rounded-lg py-1.5 pl-6 pr-3 text-sm text-foreground/70 hover:bg-accent/10">{c.title}</Link>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <NavDropdown label="Plus" align="right" panelClassName="max-h-[70vh] min-w-56 overflow-y-auto">
+                {overflowPages.map((p) => (
+                  <div key={p.slug}>
+                    <Link to={`/p/${p.slug}`} className="block rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent/10 focus-visible:bg-accent/10 focus-visible:outline-none">{p.title}</Link>
+                    {p.children.map((c) => (
+                      <Link key={c.slug} to={`/p/${c.slug}`} className="block rounded-lg py-1.5 pl-6 pr-3 text-sm text-foreground/70 hover:bg-accent/10 focus-visible:bg-accent/10 focus-visible:outline-none">{c.title}</Link>
+                    ))}
+                  </div>
+                ))}
+              </NavDropdown>
             )}
             {FIXED_RIGHT.map((item) =>
               item.children ? (
-                <div key={item.label} className="group relative">
-                  <button className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground hover:bg-accent/10">
-                    {item.label} <ChevronDown className="h-3.5 w-3.5" />
-                  </button>
-                  <div className="invisible absolute left-0 top-full z-50 min-w-44 rounded-xl border border-border bg-card p-1.5 opacity-0 shadow-elevated transition-all group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-                    {item.children.map((c) => (
-                      <NavLink key={c.to} to={c.to} className={({ isActive }) => cn('block rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent/10', isActive ? 'text-primary' : 'text-foreground/80')}>{c.label}</NavLink>
-                    ))}
-                  </div>
-                </div>
+                <NavDropdown key={item.label} label={item.label} panelClassName="min-w-44">
+                  {item.children.map((c) => (
+                    <NavLink key={c.to} to={c.to} className={({ isActive }) => cn('block rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent/10 focus-visible:bg-accent/10 focus-visible:outline-none', isActive ? 'text-primary' : 'text-foreground/80')}>{c.label}</NavLink>
+                  ))}
+                </NavDropdown>
               ) : (
                 <NavLink key={item.to} to={item.to!} className={navLinkClass}>{item.label}</NavLink>
               )
@@ -171,15 +179,16 @@ export function PublicLayout() {
           {/* Espace membres / Demande d'inscription intentionally NOT in the header — they live in the hero
               (home) + the footer's "Rejoindre" column, so the nav stays purely content. */}
 
-          <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-foreground lg:hidden"
-            onClick={() => setMobileOpen((o) => !o)} aria-label="Menu" aria-expanded={mobileOpen}>
+          <button ref={menuToggleRef} type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-foreground lg:hidden"
+            onClick={() => setMobileOpen((o) => !o)} aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={mobileOpen} aria-controls="public-mobile-menu">
             {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
 
         {mobileOpen && (
-          <div className="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-border bg-background lg:hidden">
-            <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-4 sm:px-6">
+          <div ref={mobileMenuRef} id="public-mobile-menu" className="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-border bg-background lg:hidden">
+            <nav aria-label="Menu principal" className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-4 sm:px-6">
               {FIXED_LEFT.map((item) => (
                 <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setMobileOpen(false)}
                   className={({ isActive }) => cn('rounded-lg px-3 py-2.5 text-base font-medium', isActive ? 'bg-accent/10 text-primary' : 'text-foreground/80 hover:bg-accent/10')}>{item.label}</NavLink>

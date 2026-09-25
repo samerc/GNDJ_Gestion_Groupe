@@ -5816,3 +5816,7 @@ Two related document items (all on main, DEV until deploy; migration-free — re
   `member_id` OR `entity_id` OR the member's login (actor) OR a `Guardian` row for one of the member's parents
   (shared between siblings, so matched at query time). **Patch `027`** backfills history. Verified: sample member's
   Journal 17 → 43 entries.
+- **Public nav keyboard-accessible** (`components/public/nav-dropdown.tsx` `NavDropdown`, disclosure pattern): hover
+  opens; Enter/Space/↓ open (↓ focuses first link), ↑/↓ move, Escape closes + refocuses the button, closes on
+  route change / outside click / Tab-out; `aria-expanded`/`aria-controls`. Mobile menu: focus moves in on open, Tab
+  is trapped inside (menu + toggle), Escape closes + refocuses the toggle. Verified in real Edge (playwright-core).
