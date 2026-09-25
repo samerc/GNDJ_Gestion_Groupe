@@ -5924,3 +5924,25 @@ What is reset when a scout year starts, run by the CG ONCE per scout year (marke
   approvals reset, 85 sections, 951 classes, Term→Université, Université stays), zip of 46 stand-in files with the
   expected layout + "- p2" pages, kept CI files stay, deleted files removed, CG can't download / super-admin can,
   traversal 404, second run refused. Browser 7/7 (card, confirm gate, prompt after year change).
+
+### One session per device (2026-09-25, DEV until deploy)
+Signing in on one device used to sign the others out: each account had ONE rotating refresh token
+(`users.refresh_token`) and every login/refresh overwrote it (a phone + PC user signed in ~27 times in 5 days).
+- **`UserSession`** (table `user_sessions`, migration `AddUserSessions`): one row per signed-in device with its own
+  rotating refresh token (SHA-256 `token_hash`, unique), `expires_at` (sliding), `remember_me`, created/last-activity,
+  user agent + IP. `users.refresh_token*` DROPPED; the migration COPIES every live token into a session first, so the
+  deploy signs nobody out (dev: 594 carried over). Cascade-deleted with the login account.
+- **`Auth/Common/UserSessions`** = the single place for the rules: `StartAsync` (login / login code / register;
+  prunes expired + caps 20 devices per account), `FindByTokenAsync` + `Rotate` (refresh; the PREVIOUS token stays
+  valid for a 120 s grace window so a lost refresh response on a flaky mobile network doesn't sign the device out),
+  `KeepThisDeviceOnlyAsync` (change-password + "déconnecter les autres"), `EndAllAsync` (password reset by link,
+  leader reset, disable login, delete member, merge loser).
+- The access token carries **`sid`** = the session id (`ICurrentUserService.SessionId`, + `UserAgent`/`IpAddress`),
+  so logout ends ONLY the calling device.
+- **"Mes appareils connectés"** (account menu, `my-devices-dialog.tsx`): `GET /auth/devices`, `DELETE
+  /auth/devices/{id}` (own sessions only) + "déconnecter les autres". **Sessions actives** (super-admin): one row per
+  member DEVICE with an Appareil column + "Cet appareil"; disconnect ends that device only. Parent-portal accounts
+  keep their single token (unchanged).
+- Patches 019/022 no longer reference the dropped column (a fresh DB would have failed on them).
+- Verified live: 28/28 API checks (phone survives PC login, grace window, per-device end/logout, sign-out-others,
+  password change, admin per-device disconnect, CU 403), disable-login ends all devices, browser 7/7.

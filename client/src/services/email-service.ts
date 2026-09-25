@@ -132,7 +132,7 @@ export function useChangePassword() {
   })
 }
 
-// POST /auth/sign-out-other-devices → rotate the refresh token so every OTHER device is signed out
+// POST /auth/sign-out-other-devices → end every OTHER device session (each device has its own)
 // (their session dies within ~15 min). Returns a fresh token pair to keep THIS device signed in.
 export function useSignOutOtherDevices() {
   return useMutation({

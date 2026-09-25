@@ -64,10 +64,8 @@ public class DeleteMemberCommandHandler : IRequestHandler<DeleteMemberCommand, R
         // failure — so a crash between these two writes can't leave the account usable.
         await _context.Users
             .Where(u => u.MemberId == entity.Id)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(u => u.IsActive, false)
-                .SetProperty(u => u.RefreshToken, (string?)null)
-                .SetProperty(u => u.RefreshTokenExpiry, (DateTime?)null), cancellationToken);
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.IsActive, false), cancellationToken);
+        await _context.UserSessions.Where(s => s.User.MemberId == entity.Id).ExecuteDeleteAsync(cancellationToken);
 
         _context.Members.Remove(entity); // interceptor → soft-delete (IsDeleted + DeletedAt)
         await _context.SaveChangesAsync(cancellationToken);

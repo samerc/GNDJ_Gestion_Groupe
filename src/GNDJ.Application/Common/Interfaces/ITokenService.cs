@@ -4,7 +4,9 @@ namespace GNDJ.Application.Common.Interfaces;
 
 public interface ITokenService
 {
-    string GenerateAccessToken(User user, IEnumerable<string> permissions, IEnumerable<Guid> unitIds);
+    // sessionId = the device session (UserSession.Id) this token belongs to, carried as the "sid" claim so
+    // logout and "déconnecter les autres appareils" know which device is calling.
+    string GenerateAccessToken(User user, IEnumerable<string> permissions, IEnumerable<Guid> unitIds, Guid? sessionId = null);
     // Token for a public applicant account — carries an "applicant" claim and NO member/permission
     // claims, so it can never reach the member/admin areas.
     string GenerateApplicantToken(ApplicantAccount account);

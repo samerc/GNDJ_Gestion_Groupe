@@ -1,3 +1,4 @@
+using GNDJ.Application.Auth.Common;
 using GNDJ.Application.Auth.DTOs;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
@@ -16,13 +17,15 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
     private readonly ITokenService _tokenService;
     private readonly IAuditService _auditService;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly ICurrentUserService _device;
 
-    public RegisterCommandHandler(IApplicationDbContext context, ITokenService tokenService, IAuditService auditService, IPasswordHasher passwordHasher)
+    public RegisterCommandHandler(IApplicationDbContext context, ITokenService tokenService, IAuditService auditService, IPasswordHasher passwordHasher, ICurrentUserService device)
     {
         _context = context;
         _tokenService = tokenService;
         _auditService = auditService;
         _passwordHasher = passwordHasher;
+        _device = device;
     }
 
     public async ValueTask<Result<AuthResponse>> Handle(RegisterCommand request, CancellationToken cancellationToken)
@@ -65,11 +68,9 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
         _context.Users.Add(user);
 
         // Generate tokens (new user has no permissions or unit access yet)
-        var accessToken = _tokenService.GenerateAccessToken(user, [], []);
-        var refreshToken = _tokenService.GenerateRefreshToken();
-
-        user.RefreshToken = _passwordHasher.HashToken(refreshToken);
-        user.RefreshTokenExpiry = _tokenService.GetRefreshTokenExpiry();
+        var (sessionId, refreshToken) = await UserSessions.StartAsync(
+            _context, _tokenService, _passwordHasher, _device, user.Id, false, cancellationToken);
+        var accessToken = _tokenService.GenerateAccessToken(user, [], [], sessionId);
 
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.LogAsync("Create", "User", user.Id, newValues: new { user.Email, user.MemberId }, cancellationToken: cancellationToken);

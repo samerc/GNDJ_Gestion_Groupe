@@ -11,6 +11,7 @@ using GNDJ.Application.Auth.Commands.RequestPasswordReset;
 using GNDJ.Application.Auth.Commands.ResetPassword;
 using GNDJ.Application.Auth.Commands.SignOutOtherDevices;
 using GNDJ.Application.Auth.Queries;
+using GNDJ.Application.Sessions;
 using GNDJ.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -105,7 +106,27 @@ public class AuthController : BaseApiController
         return NoContent();
     }
 
-    /// <summary>Sign out all OTHER devices: rotate the refresh token so other sessions can no longer refresh (they drop within ~15 min). This device stays signed in with a fresh token pair.</summary>
+    /// <summary>The caller's signed-in devices (one per browser/app where they are logged in), current first.</summary>
+    [Authorize]
+    [HttpGet("devices")]
+    public async Task<IActionResult> MyDevices()
+    {
+        var result = await Mediator.Send(new GetMyDevicesQuery());
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>Signs one of the caller's own devices out (its next refresh fails; access dies within 15 min).</summary>
+    [Authorize]
+    [HttpDelete("devices/{id:guid}")]
+    public async Task<IActionResult> EndMyDevice(Guid id)
+    {
+        var result = await Mediator.Send(new EndMyDeviceCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    /// <summary>Sign out all OTHER devices: delete their device sessions so they can no longer refresh (they drop within ~15 min). This device stays signed in with a fresh token pair.</summary>
     /// <response code="200">Other devices signed out; returns a new token pair for the current device.</response>
     /// <response code="401">Not authenticated.</response>
     [Authorize]

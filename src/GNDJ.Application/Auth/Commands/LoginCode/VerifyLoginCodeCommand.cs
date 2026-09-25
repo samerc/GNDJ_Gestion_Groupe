@@ -28,7 +28,8 @@ public class VerifyLoginCodeCommandHandler(
     ITokenService tokenService,
     IAuditService auditService,
     IPasswordHasher passwordHasher,
-    IMaintenanceProvider maintenance
+    IMaintenanceProvider maintenance,
+    ICurrentUserService device
 ) : IRequestHandler<VerifyLoginCodeCommand, Result<AuthResponse>>
 {
     public async ValueTask<Result<AuthResponse>> Handle(VerifyLoginCodeCommand request, CancellationToken ct)
@@ -76,11 +77,11 @@ public class VerifyLoginCodeCommandHandler(
 
         var (permissions, unitIds) = await AuthAccess.LoadAsync(context, user.MemberId, user.IsSuperAdmin, ct);
 
-        var accessToken = tokenService.GenerateAccessToken(user, permissions, unitIds);
-        var refreshToken = tokenService.GenerateRefreshToken();
+        // A new device session: other devices of this account stay signed in.
+        var (sessionId, refreshToken) = await UserSessions.StartAsync(
+            context, tokenService, passwordHasher, device, user.Id, request.RememberMe, ct);
+        var accessToken = tokenService.GenerateAccessToken(user, permissions, unitIds, sessionId);
 
-        user.RefreshToken = passwordHasher.HashToken(refreshToken);
-        user.RefreshTokenExpiry = tokenService.GetRefreshTokenExpiry(request.RememberMe);
         user.LastLoginAt = DateTime.UtcNow;
         user.LastActivityAt = DateTime.UtcNow;
 

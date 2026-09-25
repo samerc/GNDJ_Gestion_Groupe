@@ -1,3 +1,4 @@
+using GNDJ.Application.Auth.Common;
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
@@ -35,9 +36,8 @@ public class SetMemberLoginActiveCommandHandler(
         user.IsActive = request.Active;
         if (!request.Active)
         {
-            // Kill any active session so the disable takes effect (access token dies within ≤15 min).
-            user.RefreshToken = null;
-            user.RefreshTokenExpiry = null;
+            // End every device session so the disable takes effect (access token dies within ≤15 min).
+            await UserSessions.EndAllAsync(context, user.Id, ct);
         }
 
         await context.SaveChangesAsync(ct);

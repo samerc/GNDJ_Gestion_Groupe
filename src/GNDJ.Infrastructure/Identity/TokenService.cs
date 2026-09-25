@@ -21,7 +21,7 @@ public class TokenService : ITokenService
         _configuration = configuration;
     }
 
-    public string GenerateAccessToken(User user, IEnumerable<string> permissions, IEnumerable<Guid> unitIds)
+    public string GenerateAccessToken(User user, IEnumerable<string> permissions, IEnumerable<Guid> unitIds, Guid? sessionId = null)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]!));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -38,6 +38,7 @@ public class TokenService : ITokenService
             ["permissions"] = string.Join(",", permissions),
             ["unit_ids"] = string.Join(",", unitIds)
         };
+        if (sessionId is not null) claims["sid"] = sessionId.Value.ToString();
 
         var descriptor = new SecurityTokenDescriptor
         {

@@ -8,10 +8,9 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Auth.Commands.SignOutOtherDevices;
 
 // "Déconnecter les autres appareils" — for a lost/shared/public device.
-// We store a SINGLE refresh token per user, so rotating it (issuing a brand-new one) instantly orphans
-// every OTHER device: their stored token no longer matches, so their next refresh fails and their access
-// token dies within ~15 min. THIS device stays signed in because we hand it the fresh token pair back
-// (same shape as login/refresh). No password change required — the deliberate button is the point.
+// Deletes every OTHER device session of the account: their next refresh fails and their access token dies
+// within ~15 min. THIS device stays signed in: it gets a fresh token pair back (same shape as login/refresh).
+// No password change required — the deliberate button is the point.
 public record SignOutOtherDevicesCommand() : IRequest<Result<AuthResponse>>;
 
 public class SignOutOtherDevicesCommandHandler(
@@ -36,11 +35,9 @@ public class SignOutOtherDevicesCommandHandler(
         // Fresh permissions + authorized units for the re-issued access token (same as Login/Refresh).
         var (permissions, unitIds) = await AuthAccess.LoadAsync(context, user.MemberId, user.IsSuperAdmin, ct);
 
-        // Rotate: the new refresh token overwrites the single stored hash → all other devices are orphaned.
-        var accessToken = tokenService.GenerateAccessToken(user, permissions, unitIds);
-        var newRefreshToken = tokenService.GenerateRefreshToken();
-        user.RefreshToken = passwordHasher.HashToken(newRefreshToken);
-        user.RefreshTokenExpiry = tokenService.GetRefreshTokenExpiry();
+        var (sessionId, newRefreshToken) = await UserSessions.KeepThisDeviceOnlyAsync(
+            context, tokenService, passwordHasher, currentUser, user.Id, ct);
+        var accessToken = tokenService.GenerateAccessToken(user, permissions, unitIds, sessionId);
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("SignOutOtherDevices", "User", user.Id, cancellationToken: ct);

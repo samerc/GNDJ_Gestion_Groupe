@@ -1,3 +1,4 @@
+using GNDJ.Application.Auth.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Common.Validation;
@@ -46,8 +47,7 @@ public class ResetPasswordCommandHandler(
         user.PasswordHash = await passwordHasher.HashAsync(request.NewPassword);
         user.PasswordResetToken = null;
         user.PasswordResetTokenExpiry = null;
-        user.RefreshToken = null;
-        user.RefreshTokenExpiry = null;
+        await UserSessions.EndAllAsync(context, user.Id, ct); // every device signs in again
         // The user set their own password (self-service reset OR the activation link) — clear the forced-change flag.
         user.MustChangePassword = false;
 

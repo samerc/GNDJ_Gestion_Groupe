@@ -1,11 +1,12 @@
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
+using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Auth.Commands.Logout;
 
-// Invalidates the current session by nulling the stored refresh token so it can no longer be rotated.
-// The access token stays valid until it expires (~15 min) — there's no server-side access-token revocation.
+// Signs THIS device out by deleting its session (other devices stay signed in). The access token stays
+// valid until it expires (~15 min) — there's no server-side access-token revocation.
 public class LogoutCommandHandler : IRequestHandler<LogoutCommand, Result<bool>>
 {
     private readonly IApplicationDbContext _context;
@@ -28,10 +29,8 @@ public class LogoutCommandHandler : IRequestHandler<LogoutCommand, Result<bool>>
         if (user is null)
             return Result<bool>.Failure("Utilisateur introuvable.");
 
-        user.RefreshToken = null;
-        user.RefreshTokenExpiry = null;
-
-        await _context.SaveChangesAsync(cancellationToken);
+        if (_currentUser.SessionId is Guid sid)
+            await _context.UserSessions.Where(s => s.Id == sid && s.UserId == user.Id).ExecuteDeleteAsync(cancellationToken);
         await _auditService.LogAsync("Logout", "User", user.Id,
             newValues: new { user.Email },
             cancellationToken: cancellationToken);

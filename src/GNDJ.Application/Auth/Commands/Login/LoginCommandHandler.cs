@@ -17,14 +17,16 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
     private readonly IAuditService _auditService;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IMaintenanceProvider _maintenance;
+    private readonly ICurrentUserService _device;
 
-    public LoginCommandHandler(IApplicationDbContext context, ITokenService tokenService, IAuditService auditService, IPasswordHasher passwordHasher, IMaintenanceProvider maintenance)
+    public LoginCommandHandler(IApplicationDbContext context, ITokenService tokenService, IAuditService auditService, IPasswordHasher passwordHasher, IMaintenanceProvider maintenance, ICurrentUserService device)
     {
         _context = context;
         _tokenService = tokenService;
         _auditService = auditService;
         _passwordHasher = passwordHasher;
         _maintenance = maintenance;
+        _device = device;
     }
 
     public async ValueTask<Result<AuthResponse>> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -78,11 +80,11 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
         // Permissions + authorized units in one round-trip over the member's active assignments.
         var (permissions, unitIds) = await AuthAccess.LoadAsync(_context, user.MemberId, user.IsSuperAdmin, cancellationToken);
 
-        var accessToken = _tokenService.GenerateAccessToken(user, permissions, unitIds);
-        var refreshToken = _tokenService.GenerateRefreshToken();
+        // A new device session: other devices of this account stay signed in.
+        var (sessionId, refreshToken) = await UserSessions.StartAsync(
+            _context, _tokenService, _passwordHasher, _device, user.Id, request.RememberMe, cancellationToken);
+        var accessToken = _tokenService.GenerateAccessToken(user, permissions, unitIds, sessionId);
 
-        user.RefreshToken = _passwordHasher.HashToken(refreshToken);
-        user.RefreshTokenExpiry = _tokenService.GetRefreshTokenExpiry(request.RememberMe);
         user.LastLoginAt = DateTime.UtcNow;
         user.LastActivityAt = DateTime.UtcNow; // presence signal for the active-sessions view
 

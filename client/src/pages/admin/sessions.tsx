@@ -1,7 +1,7 @@
-// Super-admin "Sessions actives" — who currently holds a live session (members/chefs + parent portal),
-// how long they've been connected, their last activity, and a force-disconnect. The app uses a stateless
-// 15-min access token + one rotating 7-day refresh token per account, so this shows ONE session per account
-// (no per-device list) and "Déconnecter" takes effect within ≤15 min (access can't be revoked instantly).
+// Super-admin "Sessions actives" — who currently holds a live session, how long they've been connected, their
+// last activity, and a force-disconnect. Members/chefs have one row PER DEVICE (phone, PC…: each keeps its own
+// session); parent-portal accounts have one row per account. "Déconnecter" takes effect within ≤15 min (the
+// short-lived access token can't be revoked instantly).
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useActiveSessions, useDisconnectSession, type ActiveSession } from '@/services/session-service'
@@ -14,6 +14,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { PageHeader } from '@/components/shared/page-header'
 import { Callout } from '@/components/shared/callout'
 import { parseApiError } from '@/lib/error-utils'
+import { parseUserAgent } from '@/lib/audit-format'
 import { Users, LogOut, Wifi, Info, Eye, EyeOff } from 'lucide-react'
 
 // "il y a 3 min" / "il y a 2 h" / "il y a 1 j" — coarse relative time; '—' when null.
@@ -68,13 +69,14 @@ function SessionTable({
           <EmptyState icon={Users} title="Aucune session active" />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-sm">
+            <table className="w-full min-w-[960px] text-sm">
               <thead>
                 <tr className="border-b text-left text-xs uppercase text-muted-foreground">
                   <th className="px-3 py-2">État</th>
                   <th className="px-3 py-2">Nom</th>
                   <th className="px-3 py-2">Identifiant</th>
                   <th className="px-3 py-2">Où</th>
+                  <th className="px-3 py-2">Appareil</th>
                   <th className="px-3 py-2">Connecté depuis</th>
                   <th className="px-3 py-2">Dernière activité</th>
                   <th className="px-3 py-2">Session expire</th>
@@ -100,6 +102,10 @@ function SessionTable({
                       <td className="px-3 py-2 font-medium">{s.name}</td>
                       <td className="px-3 py-2 text-muted-foreground">{s.detail}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{space.label}</td>
+                      <td className="px-3 py-2 whitespace-nowrap" title={s.userAgent ?? undefined}>
+                        {s.kind === 'member' ? parseUserAgent(s.userAgent) : '—'}
+                        {s.isCurrent && <Badge variant="secondary" className="ml-2">Cet appareil</Badge>}
+                      </td>
                       <td className="px-3 py-2 whitespace-nowrap" title={fmt(s.loginAt)}>{timeAgo(s.loginAt)}</td>
                       <td className="px-3 py-2 whitespace-nowrap" title={fmt(s.lastActivityAt)}>{timeAgo(s.lastActivityAt)}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{fmt(s.expiresAt)}</td>
@@ -166,7 +172,7 @@ export default function SessionsPage() {
       <PageHeader
         title="Sessions actives"
         icon={Users}
-        description={`${total} session(s) ouverte(s) · ${online} en ligne. La liste se rafraîchit automatiquement.`}
+        description={`${total} session(s) ouverte(s) · ${online} en ligne. Un membre connecté sur plusieurs appareils a une ligne par appareil. La liste se rafraîchit automatiquement.`}
       />
 
       <Callout tone="info" icon={Info}>
@@ -198,7 +204,7 @@ export default function SessionsPage() {
         title="Déconnecter cette session ?"
         description={
           confirm
-            ? `${confirm.name} sera déconnecté(e). Sa session sera invalidée et son accès prendra fin dans un délai maximum de 15 minutes. Il/elle devra se reconnecter.`
+            ? `${confirm.name} sera déconnecté(e)${confirm.kind === 'member' && confirm.userAgent ? ` sur cet appareil (${parseUserAgent(confirm.userAgent)})` : ''}. L'accès prendra fin dans un délai maximum de 15 minutes ; ses autres appareils restent connectés.`
             : ''
         }
         confirmLabel="Déconnecter"

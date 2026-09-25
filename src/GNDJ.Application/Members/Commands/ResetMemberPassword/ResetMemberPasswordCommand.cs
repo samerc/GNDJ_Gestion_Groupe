@@ -1,3 +1,4 @@
+using GNDJ.Application.Auth.Common;
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
@@ -47,8 +48,7 @@ public class ResetMemberPasswordCommandHandler(
         var tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}";
         user.PasswordHash = await passwordHasher.HashAsync(tempPassword);
         // Invalidate any active session and pending reset link.
-        user.RefreshToken = null;
-        user.RefreshTokenExpiry = null;
+        await UserSessions.EndAllAsync(context, user.Id, ct);
         user.PasswordResetToken = null;
         user.PasswordResetTokenExpiry = null;
         // Leader-issued temp password → force the member to set their own on next login.

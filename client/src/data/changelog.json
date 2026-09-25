@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Connexion sur plusieurs appareils : se connecter sur l'ordinateur ne déconnecte plus le téléphone (et inversement). Chaque appareil garde sa propre session. Nouveau menu « Mes appareils connectés » pour voir ses appareils et en déconnecter un ; la page Sessions actives affiche une ligne par appareil."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Notifications push : un appareil abonné avec une ancienne clé est retiré automatiquement et se réabonne tout seul à la prochaine ouverture de l'application. Une page fermée en cours de chargement n'est plus signalée comme une erreur."
       },
       {

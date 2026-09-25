@@ -3,7 +3,8 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useIsManager, useIsRegularMember } from '@/lib/use-is-manager'
 import { useOnboardingTour } from '@/stores/onboarding-store'
 import { useNavigate } from 'react-router'
-import { useChangePassword, useSignOutOtherDevices } from '@/services/email-service'
+import { useChangePassword } from '@/services/email-service'
+import { MyDevicesDialog } from '@/components/layout/my-devices-dialog'
 import { parseApiError } from '@/lib/error-utils'
 import { PasswordRules } from '@/components/auth/password-rules'
 import { usePasswordPolicy, passwordMeetsPolicy } from '@/lib/password-policy'
@@ -90,8 +91,7 @@ export function UserMenu() {
   const setTheme = useThemeStore((s) => s.setTheme)
   const [loggingOut, setLoggingOut] = useState(false)
 
-  const signOutOthersMutation = useSignOutOtherDevices()
-  const [signOutOthersOpen, setSignOutOthersOpen] = useState(false)
+  const [devicesOpen, setDevicesOpen] = useState(false)
 
   const changePasswordMutation = useChangePassword()
   const { data: passwordPolicy } = usePasswordPolicy()
@@ -127,19 +127,6 @@ export function UserMenu() {
     setLoggingOut(true)
     await logout()
     navigate('/login')
-  }
-
-  // Rotate the refresh token: signs out every OTHER device (lost/shared/public computer) while keeping
-  // this one signed in via the fresh token pair the server returns.
-  const handleSignOutOthers = async () => {
-    try {
-      const res = await signOutOthersMutation.mutateAsync()
-      applyTokens(res.accessToken, res.refreshToken)
-      toast.success('Les autres appareils ont été déconnectés')
-      setSignOutOthersOpen(false)
-    } catch (err) {
-      toast.error(parseApiError(err))
-    }
   }
 
   return (
@@ -251,9 +238,9 @@ export function UserMenu() {
             <KeyRound className="mr-2 h-4 w-4" />
             Modifier le mot de passe
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setSignOutOthersOpen(true)}>
+          <DropdownMenuItem onClick={() => setDevicesOpen(true)}>
             <MonitorSmartphone className="mr-2 h-4 w-4" />
-            Déconnecter les autres appareils
+            Mes appareils connectés
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {/* Red at rest; on hover the row gets the accent background, so the text/icon go white for contrast. */}
@@ -316,21 +303,7 @@ export function UserMenu() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={signOutOthersOpen} onOpenChange={setSignOutOthersOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Déconnecter les autres appareils</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Toutes vos autres sessions (téléphone, ordinateur perdu ou partagé…) seront déconnectées d'ici
-            quelques minutes. Vous resterez connecté sur cet appareil.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" type="button" onClick={() => setSignOutOthersOpen(false)}>Annuler</Button>
-            <Button type="button" onClick={handleSignOutOthers} disabled={signOutOthersMutation.isPending}>
-              {signOutOthersMutation.isPending ? 'Déconnexion...' : 'Déconnecter les autres'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <MyDevicesDialog open={devicesOpen} onOpenChange={setDevicesOpen} />
     </>
   )
 }

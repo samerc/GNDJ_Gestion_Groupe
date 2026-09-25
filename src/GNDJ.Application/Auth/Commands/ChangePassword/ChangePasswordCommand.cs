@@ -48,17 +48,13 @@ public class ChangePasswordCommandHandler(
         // The user just set their own password — clear any forced-change requirement.
         user.MustChangePassword = false;
 
-        // ROTATE the single refresh token instead of nulling it: a brand-new token orphans every OTHER
-        // device (their stored token no longer matches → their next refresh fails, access dies ≤15 min),
-        // while THIS device keeps working because we hand it the fresh pair back. Nulling it used to log the
-        // CURRENT device out too — silently, ~15 min after a forced first-login user set their password (they
-        // set it via this endpoint through the ForcePasswordChange screen) — and dropped them from Sessions
-        // actives. Mirrors SignOutOtherDevices.
+        // Sign out every OTHER device (their next refresh fails, access dies within 15 min) and hand THIS
+        // device a fresh token pair so it stays signed in. Signing this device out too used to drop a forced
+        // first-login user ~15 min after setting their password. Mirrors SignOutOtherDevices.
         var (permissions, unitIds) = await AuthAccess.LoadAsync(context, user.MemberId, user.IsSuperAdmin, ct);
-        var accessToken = tokenService.GenerateAccessToken(user, permissions, unitIds);
-        var newRefreshToken = tokenService.GenerateRefreshToken();
-        user.RefreshToken = passwordHasher.HashToken(newRefreshToken);
-        user.RefreshTokenExpiry = tokenService.GetRefreshTokenExpiry();
+        var (sessionId, newRefreshToken) = await UserSessions.KeepThisDeviceOnlyAsync(
+            context, tokenService, passwordHasher, currentUser, user.Id, ct);
+        var accessToken = tokenService.GenerateAccessToken(user, permissions, unitIds, sessionId);
         user.LastActivityAt = DateTime.UtcNow; // presence signal so the session shows "en ligne"
 
         await context.SaveChangesAsync(ct);

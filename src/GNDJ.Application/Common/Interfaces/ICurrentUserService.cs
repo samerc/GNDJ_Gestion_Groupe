@@ -10,4 +10,9 @@ public interface ICurrentUserService
     bool IsSuperAdmin { get; }
     IReadOnlyList<string> Permissions { get; }
     IReadOnlyList<Guid> AuthorizedUnitIds { get; }
+    // The device session of the calling access token ("sid" claim); null for impersonation or old tokens.
+    Guid? SessionId => null;
+    // The calling device, recorded on its session so a user can tell their devices apart.
+    string? UserAgent => null;
+    string? IpAddress => null;
 }

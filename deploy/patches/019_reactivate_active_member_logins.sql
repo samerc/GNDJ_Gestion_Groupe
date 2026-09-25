@@ -6,7 +6,7 @@
 -- this is a one-off data fix, not an ongoing bug.)
 --
 -- Scope (deliberately narrow + safe): reactivate ONLY an inactive, non-deleted login that has NEVER been used
--- (no last_login_at, no refresh token) and belongs to a NON-DELETED member with an ACTIVE assignment. A
+-- (no last_login_at) and belongs to a NON-DELETED member with an ACTIVE assignment. A
 -- deliberately-disabled account can only come from deleting the member (which soft-deletes the member, excluded
 -- here) or a merge loser (also soft-deleted), so this never re-enables an account that was turned off on purpose.
 -- Idempotent (only touches is_active=false rows). NO BEGIN/COMMIT (the DataPatchRunner owns the transaction).
@@ -15,7 +15,6 @@ SET is_active = true, updated_at = now()
 WHERE u.is_active = false
   AND u.is_deleted = false
   AND u.last_login_at IS NULL
-  AND u.refresh_token IS NULL
   AND EXISTS (SELECT 1 FROM members m WHERE m.id = u.member_id AND m.is_deleted = false)
   AND EXISTS (
     SELECT 1 FROM member_assignments a

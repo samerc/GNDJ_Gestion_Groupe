@@ -95,7 +95,8 @@ public class MemberMergeService : IMemberMergeService
                 {
                     // Disable the loser's login AND free its username (prefix it) so the surviving member can reuse
                     // that username if the CG chose it. The loser is soft-deleted, so its email no longer matters.
-                    await Exec("UPDATE users SET is_active = false, refresh_token = NULL, refresh_token_expiry = NULL, " +
+                    await Exec("DELETE FROM user_sessions WHERE user_id IN (SELECT id FROM users WHERE member_id = {0})", [loser], ct);
+                    await Exec("UPDATE users SET is_active = false, " +
                                "email = left(member_id::text, 8) || '.merged.' || email WHERE member_id = {0}", [loser], ct);
                 }
 

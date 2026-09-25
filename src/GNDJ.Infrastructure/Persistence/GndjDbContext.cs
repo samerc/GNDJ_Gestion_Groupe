@@ -18,6 +18,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<Member> Members => Set<Member>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<SecurityProfile> SecurityProfiles => Set<SecurityProfile>();
     public DbSet<SecurityProfilePermission> SecurityProfilePermissions => Set<SecurityProfilePermission>();
     public DbSet<FunctionalRole> FunctionalRoles => Set<FunctionalRole>();

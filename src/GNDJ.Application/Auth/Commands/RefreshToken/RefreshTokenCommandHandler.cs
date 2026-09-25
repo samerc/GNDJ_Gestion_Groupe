@@ -13,25 +13,24 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
     private readonly ITokenService _tokenService;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IMaintenanceProvider _maintenance;
+    private readonly ICurrentUserService _device;
 
-    public RefreshTokenCommandHandler(IApplicationDbContext context, ITokenService tokenService, IPasswordHasher passwordHasher, IMaintenanceProvider maintenance)
+    public RefreshTokenCommandHandler(IApplicationDbContext context, ITokenService tokenService, IPasswordHasher passwordHasher, IMaintenanceProvider maintenance, ICurrentUserService device)
     {
         _context = context;
         _tokenService = tokenService;
         _passwordHasher = passwordHasher;
         _maintenance = maintenance;
+        _device = device;
     }
 
     public async ValueTask<Result<AuthResponse>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
-        // Refresh tokens are stored as deterministic SHA-256 hashes, so we can match directly
-        // with an indexed lookup instead of bcrypt-verifying against every user (O(1) vs O(N)).
-        var tokenHash = _passwordHasher.HashToken(request.RefreshToken);
-        var user = await _context.Users
-            .Include(u => u.Member)
-            .FirstOrDefaultAsync(u => u.RefreshToken == tokenHash && u.RefreshTokenExpiry > DateTime.UtcNow && u.IsActive, cancellationToken);
+        // Each device has its own session; tokens are stored as SHA-256 hashes, so this is an indexed lookup.
+        var session = await UserSessions.FindByTokenAsync(_context, _passwordHasher, request.RefreshToken, cancellationToken);
+        var user = session?.User;
 
-        if (user is null)
+        if (session is null || user is null || !user.IsActive || user.Member is null)
             return Result<AuthResponse>.Failure("Jeton de rafraîchissement invalide ou expiré.");
 
         // Maintenance gate: a non-super-admin's open session cannot refresh while the site/members app is in
@@ -49,12 +48,9 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
         // Permissions + authorized units in one round-trip (same as Login).
         var (permissions, unitIds) = await AuthAccess.LoadAsync(_context, user.MemberId, user.IsSuperAdmin, cancellationToken);
 
-        // Rotate tokens
-        var accessToken = _tokenService.GenerateAccessToken(user, permissions, unitIds);
-        var newRefreshToken = _tokenService.GenerateRefreshToken();
-
-        user.RefreshToken = _passwordHasher.HashToken(newRefreshToken);
-        user.RefreshTokenExpiry = _tokenService.GetRefreshTokenExpiry(request.RememberMe);
+        // Rotate this device's token (sliding expiry); the other devices are untouched.
+        var newRefreshToken = UserSessions.Rotate(session, _tokenService, _passwordHasher, _device, request.RememberMe);
+        var accessToken = _tokenService.GenerateAccessToken(user, permissions, unitIds, session.Id);
         user.LastActivityAt = DateTime.UtcNow; // ~15-min heartbeat while the user is active
 
         await _context.SaveChangesAsync(cancellationToken);

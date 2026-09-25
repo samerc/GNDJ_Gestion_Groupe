@@ -62,6 +62,19 @@ public class CurrentUserService : ICurrentUserService
         }
     }
 
+    public Guid? SessionId
+    {
+        get
+        {
+            if (IsApplicant) return null;
+            var claim = _httpContextAccessor.HttpContext?.User.FindFirst("sid");
+            return claim is not null && Guid.TryParse(claim.Value, out var id) ? id : null;
+        }
+    }
+
+    public string? UserAgent => _httpContextAccessor.HttpContext?.Request.Headers.UserAgent.ToString();
+    public string? IpAddress => _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+
     public IReadOnlyList<Guid> AuthorizedUnitIds
     {
         get
