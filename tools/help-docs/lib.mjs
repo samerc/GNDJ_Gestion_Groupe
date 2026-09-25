@@ -77,7 +77,8 @@ function anonymizeInPage(map) {
     let s = t.replace(emailRe, (m) =>
       /@gndj\.org$/i.test(m) || /^pr[ée]nom\.nom@/i.test(m) ? m
         : m.endsWith('@scouts.gndj') ? 'prenom.nom@scouts.gndj' : 'parent@exemple.com')
-    s = s.replace(phoneRe, (m) => (/^\d{4}-\d{4}$/.test(m) ? m : m.startsWith('+') ? '+961 70 123 456' : '70 123 456')) // keep scout years
+    s = s.replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, '10.0.0.1') // IP addresses (audit log, sessions)
+    s = s.replace(phoneRe,(m) => (/^\d{4}-\d{4}$/.test(m) ? m : m.startsWith('+') ? '+961 70 123 456' : '70 123 456')) // keep scout years
     return s.replace(nameRe, (m) => map[m] ?? m)
   }
   const walk = (root) => {
@@ -99,13 +100,21 @@ function anonymizeInPage(map) {
       let initials = null
       for (let box = badge.parentElement, i = 0; box && i < 8 && !initials; box = box.parentElement, i++) {
         for (const line of box.innerText.split('\n').map((l) => l.trim())) {
+          if (/GNDJ/.test(line)) continue // the logo ("GNDJ Scout") is not a person
           let m = LAST_FIRST.exec(line)
           if (m && m[1] === m[1].toUpperCase()) { initials = m[2][0] + m[1][0]; break }
           m = FIRST_LAST.exec(line)
           if (m) { initials = m[1][0] + m[2][0]; break }
         }
       }
+      // No name nearby: never leave the real initials — use fake ones (stable per real pair).
+      if (!initials && !badge.dataset.fakeInitials) {
+        let h = 0
+        for (const c of current) h = (h * 31 + c.charCodeAt(0)) >>> 0
+        initials = 'BCDEFGHJKLMNPRSTVZ'[h % 18] + 'ABCDEFGHJKLMNRST'[(h >> 5) % 16]
+      }
       if (!initials || initials === current) continue
+      badge.dataset.fakeInitials = '1'
       // Put the initials in the first text node that holds letters; blank the others (e.g. "W" + "A" nodes).
       const tw = document.createTreeWalker(badge, NodeFilter.SHOW_TEXT)
       let done = false

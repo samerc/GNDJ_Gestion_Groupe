@@ -1,5 +1,5 @@
 import { Navigate, Outlet, Link, useNavigate } from 'react-router'
-import { Compass, LogOut } from 'lucide-react'
+import { Compass, LogOut, BookOpen } from 'lucide-react'
 import { Toaster } from 'sonner'
 import { useApplicantStore } from '@/stores/applicant-store'
 import { Button } from '@/components/ui/button'
@@ -29,9 +29,15 @@ export function ApplicantProtectedRoute() {
             <span className="text-[11px] font-medium text-muted-foreground">Demande d'inscription</span>
           </div>
         </Link>
-        <Button variant="ghost" size="sm" onClick={() => { logout(); navigate('/inscription/login') }}>
-          <LogOut className="mr-2 h-4 w-4" />Déconnexion
-        </Button>
+        <div className="flex items-center gap-1">
+          {/* The public step-by-step enrolment guide (docs/help/guide-inscription.md). */}
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/guide/guide-inscription" target="_blank"><BookOpen className="mr-2 h-4 w-4" />Aide</Link>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => { logout(); navigate('/inscription/login') }}>
+            <LogOut className="mr-2 h-4 w-4" />Déconnexion
+          </Button>
+        </div>
       </header>
       <main className="mx-auto max-w-4xl p-4 sm:p-6">
         <Outlet />

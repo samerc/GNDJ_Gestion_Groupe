@@ -102,6 +102,7 @@ try {
     ['/admin/sessions', 'Sessions actives'],
     ['/admin/data-quality', 'Qualité des données'],
     ['/admin/system', 'Système'],
+    ['/aide/guide-administration', "Guide d'administration"],
     ['/admin/settings', 'Paramètres'],
     ['/members', null],
     ['/admin/audit-logs', null],

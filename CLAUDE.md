@@ -6054,3 +6054,27 @@ Catch problems before members notice them. Migration-free (patch 028 only).
   +13 unit tests (`ConfigurationChecksTests`).
 - NOTE (dev): the first stray-file run deleted 49 unreferenced files from `src/GNDJ.Api/uploads` (dev test leftovers
   orphaned by the prod DB sync); that's why the safety stop was added.
+
+### Documentation — in-app "Aide" + guides (2026-09-25, DEV until deploy)
+- **Guides = Markdown in `docs/help/*.md`** (front matter `title`, `audience` public|member|cu|cg|admin|dev,
+  `order`, `summary`; screenshots in `docs/help/img`). Six guides: `guide-inscription` (public, families),
+  `guide-membre`, `guide-chef-unite` (replaces the old docs/guides CU guide), `guide-chef-groupe`,
+  `guide-administration`, `documentation-technique`.
+- **Server-side access** (`GNDJ.Api/Help/HelpDocs` + `HelpController`, `/api/v1/help`, `[AllowAnonymous]`, gated per
+  guide): public = anyone; member = signed-in member; cu = members.edit or group manager; cg = group manager;
+  admin/dev = super-admin. Images need auth except those used by a public guide. Search = accent-insensitive per
+  section. Development reads the repo folder live (edit → refresh); prod reads `<output>/HelpDocs` (csproj copies
+  docs/help/*.md + img/*). Never bundle guides into the frontend (static chunks are public).
+- **Frontend:** `/aide` + `/aide/:slug` (list by audience, search, TOC; single guide → list hidden), print view
+  `/aide/imprimer/:slug` (no chrome, sets `body[data-help-ready]`), public `/guide/:slug` + `/guide/imprimer/:slug`.
+  `components/help/markdown-view.tsx`: marked + DOMPurify, heading anchors (`headingId`), images fetched as blobs
+  with auth, ```mermaid (lazy-loaded, GNDJ theme, securityLevel strict), callouts (💡 ⚠️ ✅ blockquotes),
+  cross-guide links `other.md#anchor`. Menu: "Aide" in the member sidebar + account menu; portal header + auth shell
+  link the public guide. mermaid 12 + marked added; `lodash-es` overridden to 4.18.1 (mermaid's chevrotain pulled a
+  vulnerable one) → 0 vulnerabilities.
+- **Tools (`tools/help-docs`, see README):** `capture.mjs [public|portal|member|cu|cg|admin]` retakes screenshots on
+  the dev app with every real name/email/phone/IP replaced by consistent FAKE ones (gender-aware first names from
+  the DB, initials badges recomputed, photos blurred; the portal group opens enrolment temporarily with a fictitious
+  family and restores/deletes everything). `pdf.mjs` exports every guide to `docs/help/pdf` (gitignored) from the
+  app's own print view.
+- Smoke suite: +7 API checks on guide access (55 total), browser check opens a guide (20).

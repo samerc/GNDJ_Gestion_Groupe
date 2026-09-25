@@ -78,6 +78,117 @@ try {
     await ctx.close()
   }
 
+  // ------------------------------------------------------------------------------------------ family portal
+  // The enrolment window is usually closed on dev: it is opened for the capture (settings restored afterwards),
+  // a FICTITIOUS family account + demande is created, screenshotted step by step, then deleted.
+  if (run('portal')) {
+    console.log('== portail des inscriptions')
+    const admin = await signIn(browser, 'admin')
+    const api = (method, path, body) => admin.page.evaluate(async ({ method, path, body }) => {
+      const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')
+      const r = await fetch('/api/v1' + path, { method, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined })
+      const t = await r.text(); return { status: r.status, body: t ? JSON.parse(t) : null }
+    }, { method, path, body })
+    const keys = ['demande.enabled', 'demande.submissions_open', 'demande.submission_start', 'demande.submission_deadline', 'demande.require_email_verification']
+    const saved = {}
+    for (const k of keys) saved[k] = (await api('GET', `/settings/${k}`)).body?.value ?? ''
+    const set = (k, v) => api('PUT', `/settings/${k}`, { key: k, value: v })
+    const today = new Date(); const iso = (d) => d.toISOString().slice(0, 10)
+    const email = `famille.exemple.${Date.now()}@exemple.com`
+    let accountId = null
+    try {
+      await set('demande.enabled', 'true'); await set('demande.submissions_open', 'true')
+      await set('demande.submission_start', iso(new Date(today.getTime() - 86400000)))
+      await set('demande.submission_deadline', iso(new Date(today.getTime() + 20 * 86400000)))
+      await set('demande.require_email_verification', 'false')
+
+      const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: 'fr-FR' })
+      const p = await ctx.newPage()
+      await safe('inscription-login', async () => { await p.goto(`${APP}/inscription/login`, { waitUntil: 'networkidle' }); await shoot(p, 'inscription-login', map) })
+      await safe('inscription-compte', async () => {
+        await p.goto(`${APP}/inscription/register`, { waitUntil: 'networkidle' })
+        const inputs = p.locator('form input:not([type=checkbox]):not([name=website])')
+        await inputs.nth(0).fill('Nadia KHOURY').catch(() => {})
+        await shoot(p, 'inscription-compte', map)
+      })
+      // Account + household + draft through the API (fast and exact), then the UI for the screenshots.
+      const reg = await p.evaluate(async (email) => {
+        const r = await fetch('/api/v1/applicant/register', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password: 'Exemple2026!', contactName: 'Nadia KHOURY', acceptedTerms: true }) })
+        return { status: r.status, body: await r.json() }
+      }, email)
+      if (reg.status !== 200) throw new Error(`register ${reg.status} ${JSON.stringify(reg.body)}`)
+      await p.goto(`${APP}/inscription/login`, { waitUntil: 'networkidle' })
+      await p.fill('input[type=email]', email); await p.fill('input[type=password]', 'Exemple2026!')
+      await p.click('button[type=submit]'); await settle(p, 2000)
+      await safe('inscription-conditions', async () => { if (p.url().includes('conditions')) await shoot(p, 'inscription-conditions', map) })
+      const demandeId = await p.evaluate(async () => {
+        const t = localStorage.getItem('applicantAccessToken') || sessionStorage.getItem('applicantAccessToken')
+        const h = { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }
+        await fetch('/api/v1/applicant/accept-terms', { method: 'POST', headers: h })
+        await fetch('/api/v1/applicant/household', { method: 'PUT', headers: h, body: JSON.stringify({
+          contactName: 'Nadia KHOURY', addressCountry: 'Liban', addressCity: 'Hazmieh', addressDetails: 'Rue des Pins, immeuble Cèdre, 2e étage',
+          parentsSituation: 'Unis', primaryContactEmail: null,
+          guardians: [
+            { id: null, relationship: 'Père', firstName: 'Karim', lastName: 'KHOURY', profession: 'Ingénieur', professionDomain: null, phoneCountryCode: '+961', phoneNumber: '70 123 456', email: 'karim.exemple@exemple.com', isDeceased: false, isPrimaryContact: false, isEmergencyContact: true },
+            { id: null, relationship: 'Mère', firstName: 'Nadia', lastName: 'KHOURY', profession: 'Pharmacienne', professionDomain: null, phoneCountryCode: '+961', phoneNumber: '71 234 567', email: 'nadia.exemple@exemple.com', isDeceased: false, isPrimaryContact: true, isEmergencyContact: true },
+          ],
+          scoutRelations: [],
+        }) })
+        const r = await fetch('/api/v1/applicant/demandes', { method: 'POST', headers: h, body: JSON.stringify({ data: {
+          firstName: 'Élie', lastName: 'KHOURY', dateOfBirth: '2017-03-14', gender: 'Masculin', nationality: 'Libanaise',
+          school: 'Collège Notre-Dame de Jamhour', classe: '4ème', section: null, bloodType: 'O+', medicalNotes: null,
+          allergies: null, phoneCountryCode: null, phoneNumber: null, email: null, parentNotes: null } }) })
+        const b = await r.json(); return typeof b === 'string' ? b : b.id
+      })
+      await safe('inscription-portail', async () => { await p.goto(`${APP}/inscription/portail`); await settle(p, 1500); await shoot(p, 'inscription-portail', map) })
+      await safe('inscription-etapes', async () => {
+        await p.goto(`${APP}/inscription/portail/demande/${demandeId}`); await settle(p, 1500)
+        await shoot(p, 'inscription-etape-enfant', map, { fullPage: true })
+        const steps = ['Parents', 'Proches', 'Récap']
+        for (const [i, s] of steps.entries()) {
+          await p.getByRole('button', { name: new RegExp(s) }).first().click(); await settle(p, 1000)
+          await shoot(p, ['inscription-etape-parents', 'inscription-etape-proches', 'inscription-etape-recap'][i], map, { fullPage: true })
+        }
+      })
+      accountId = (await api('GET', `/demandes/accounts?search=${encodeURIComponent(email)}`)).body?.items?.[0]?.id
+        ?? (await api('GET', `/demandes/accounts?search=${encodeURIComponent(email)}`)).body?.[0]?.id
+      await ctx.close()
+    } finally {
+      if (accountId) console.log('  cleanup account', (await api('DELETE', `/demandes/accounts/${accountId}`)).status)
+      else console.log(`  ⚠ could not find the test account ${email} to delete — remove it in Comptes d'inscription`)
+      for (const k of keys) await set(k, saved[k])
+    }
+  }
+
+  // ------------------------------------------------------------------------------------------ member
+  if (run('member')) {
+    console.log('== membre')
+    const { page } = await signIn(browser, 'member')
+    await safe('membre-fiche', async () => {
+      await page.goto(`${APP}/my-profile`); await settle(page, 1200); await dismissPopups(page)
+      await shoot(page, 'membre-fiche', map)
+      for (const [t, name] of [['Contact', 'membre-contact'], ['Unités', 'membre-postes'], ['Progression', 'membre-progression'], ['Médical', 'membre-medical']]) {
+        await safe(name, async () => { await tab(page, t); await shoot(page, name, map) })
+      }
+    })
+    await safe('membre-documents', async () => { await page.goto(`${APP}/my-documents`); await settle(page, 1200); await shoot(page, 'membre-documents', map, { fullPage: true }) })
+    await safe('membre-trombinoscope', async () => { await page.goto(`${APP}/my-trombinoscope`); await settle(page, 1200); await shoot(page, 'membre-trombinoscope', map) })
+    await safe('membre-menu', async () => {
+      await page.goto(`${APP}/my-profile`); await settle(page)
+      await page.locator('header button').filter({ hasText: /[A-Z]{2}/ }).last().click(); await page.waitForTimeout(600)
+      await shoot(page, 'membre-menu', map)
+      await page.keyboard.press('Escape')
+    })
+    const phone = await signIn(browser, 'member', { viewport: { width: 390, height: 844 }, mobile: true })
+    await safe('membre-mobile-fiche', async () => { await phone.page.goto(`${APP}/my-profile`); await settle(phone.page, 1200); await dismissPopups(phone.page); await shoot(phone.page, 'membre-mobile-fiche', map) })
+    await safe('membre-mobile-documents', async () => { await phone.page.goto(`${APP}/my-documents`); await settle(phone.page, 1200); await shoot(phone.page, 'membre-mobile-documents', map) })
+    await safe('membre-mobile-menu', async () => {
+      await phone.page.locator('header button:has(svg.lucide-menu)').first().click(); await phone.page.waitForTimeout(700)
+      await shoot(phone.page, 'membre-mobile-menu', map)
+    })
+  }
+
   // ------------------------------------------------------------------------------------------ chef d'unité
   if (run('cu')) {
     console.log("== chef d'unité")
@@ -155,6 +266,69 @@ try {
       await phone.page.locator('main [class*="cursor-pointer"]').filter({ hasText: /[A-Z]{2,}/ }).nth(6).click()
       await settle(phone.page); await shoot(phone.page, 'cu-mobile-fiche', map)
     })
+  }
+  // ------------------------------------------------------------------------------------------ chef de groupe
+  if (run('cg')) {
+    console.log('== chef de groupe')
+    const { page } = await signIn(browser, 'cg', { viewport: { width: 1440, height: 900 } })
+    for (const [name, path, opts] of [
+      ['cg-accueil', '/dashboard'],
+      ['cg-rentree', '/rentree'],
+      ['cg-demandes', '/admin/demandes'],
+      ['cg-demande-stats', '/admin/demande-stats'],
+      ['cg-demande-comptes', '/admin/demande-accounts'],
+      ['cg-passage', '/admin/passage-validation'],
+      ['cg-cotisations', '/admin/cotisations'],
+      ['cg-documents-suivi', '/admin/documents-suivi'],
+      ['cg-qualite', '/admin/data-quality'],
+      ['cg-membres', '/members'],
+      ['cg-maitrises', '/maitrises'],
+      ['cg-groupes', '/admin/member-groups'],
+      ['cg-fratries', '/admin/siblings'],
+      ['cg-communications', '/admin/communications-acces'],
+      ['cg-notification', '/admin/send-notification'],
+      ['cg-parametres', '/admin/settings'],
+      ['cg-acces', '/admin/roles-access'],
+      ['cg-progression', '/admin/progression'],
+      ['cg-unites', '/units'],
+      ['cg-actualites', '/admin/news'],
+    ]) {
+      await safe(name, async () => { await page.goto(`${APP}${path}`); await settle(page, 1500); await dismissPopups(page); await shoot(page, name, map, opts) })
+    }
+    await safe('cg-menu', async () => {
+      await page.goto(`${APP}/dashboard`); await settle(page)
+      await page.locator('header').getByRole('button', { name: /Suivi/ }).first().click(); await page.waitForTimeout(600)
+      await shoot(page, 'cg-menu', map)
+      await page.keyboard.press('Escape')
+    })
+    await safe('cg-passage-projection', async () => {
+      await page.goto(`${APP}/admin/passage-validation`); await settle(page, 1500)
+      await page.getByText(/Projection de l'année prochaine/).first().click(); await settle(page, 1500)
+      await page.getByText(/Projection de l'année prochaine/).first().scrollIntoViewIfNeeded()
+      await shoot(page, 'cg-passage-projection', map)
+    })
+  }
+
+  // ------------------------------------------------------------------------------------------ super-admin
+  if (run('admin')) {
+    console.log('== super-admin')
+    const { page } = await signIn(browser, 'admin', { viewport: { width: 1440, height: 900 } })
+    for (const [name, path] of [
+      ['admin-systeme', '/admin/system'],
+      ['admin-file-emails', '/admin/email-outbox'],
+      ['admin-erreurs', '/admin/error-log'],
+      ['admin-sessions', '/admin/sessions'],
+      ['admin-audit', '/admin/audit-logs'],
+      ['admin-corbeille', '/admin/deleted-members'],
+      ['admin-parametres-email', '/admin/settings?tab=email'],
+      ['admin-parametres-securite', '/admin/settings?tab=security'],
+      ['admin-parametres-maintenance', '/admin/settings?tab=maintenance'],
+      ['admin-smtp', '/admin/settings?tab=cfg:smtp'],
+      ['admin-modeles-email', '/admin/settings?tab=cfg:email-templates'],
+      ['admin-versions', '/admin/changelog'],
+    ]) {
+      await safe(name, async () => { await page.goto(`${APP}${path}`); await settle(page, 1500); await dismissPopups(page); await shoot(page, name, map) })
+    }
   }
 } finally {
   await signOutAll(browser)

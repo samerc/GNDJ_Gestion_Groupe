@@ -215,6 +215,26 @@ def main() -> int:
         s, orph = call("GET", "/system/orphan-files", token=admin)
         check("stray-file scan runs", s == 200 and "count" in orph, s)
 
+        # ---------------------------------------------------------------- in-app guides (Aide)
+        section("Guides (Aide) access")
+        def slugs(tok):
+            st, b = call("GET", "/help", token=tok)
+            return st, {d["slug"] for d in (b or [])} if st == 200 else set()
+        st, anon = slugs(None)
+        check("anonymous: only the public enrolment guide", st == 200 and anon == {"guide-inscription"}, anon)
+        st, y = slugs(youth)
+        check("member: member guide, no leader guide", "guide-membre" in y and "guide-chef-unite" not in y, y)
+        st, c = slugs(cu)
+        check("CU: CU guide, no CG / admin guide", "guide-chef-unite" in c and not c & {"guide-chef-groupe", "guide-administration"}, c)
+        st, g = slugs(cg)
+        check("CG: CG guide, no admin / technical guide", "guide-chef-groupe" in g and not g & {"guide-administration", "documentation-technique"}, g)
+        st, a = slugs(admin)
+        check("super-admin: every guide", {"guide-administration", "documentation-technique", "guide-chef-groupe"} <= a, a)
+        st, _ = call("GET", "/help/documentation-technique", token=cu)
+        check("CU refused on the technical documentation", st == 404, st)
+        st, _ = call("GET", "/help/img/cu-passage.png")
+        check("leader screenshots not served anonymously", st == 404, st)
+
         # ---------------------------------------------------------------- public site + portal
         section("Public site + enrolment portal")
         for path in ["/public/site-config", "/public/units", "/public/news", "/public/events", "/public/maintenance", "/applicant/config"]:

@@ -5,6 +5,22 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Nouveau menu « Aide » : les guides d'utilisation dans l'application, chacun ne voyant que ceux de son rôle (membres et parents, chefs d'unité, chef de groupe, administration, documentation technique), avec recherche, sommaire, schémas, tableaux, captures d'écran et bouton « Imprimer / PDF »."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Guide du chef d'unité entièrement refait pour les nouveaux chefs : connexion, Mon unité, fiche d'un membre, documents et cotisations, passage, réunions, impressions, liste de rentrée, questions fréquentes."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Nouveaux guides : membre et parents, chef de groupe (l'année scoute pas à pas), administration (surveillance, mises à jour, sauvegardes, emails, sécurité) et documentation technique."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Portail d'inscription : un guide « Inscrire son enfant » accessible sans connexion, lié depuis les pages d'inscription (« Aide » et « Le guide pas à pas »)."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Nouvelle page « Système » (Configuration, super-administrateur) : état des tâches automatiques (envoi des emails et des notifications, purge, campagne de documents, rappels…), emails ou notifications bloqués ou en échec, espace disque, pages lentes et points de configuration à corriger."
       },
       {

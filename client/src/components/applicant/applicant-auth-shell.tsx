@@ -43,6 +43,12 @@ export function ApplicantAuthShell({ children, subtitle }: { children: React.Rea
           {/* Help line for parents who hit a login/registration problem (configurable via demande.support_email). */}
           <SupportNote email={config?.supportEmail} />
 
+          {/* Step-by-step guide for families (public, no login needed). */}
+          <p className="text-center text-sm text-muted-foreground">
+            Comment s'inscrire&nbsp;?{' '}
+            <Link to="/guide/guide-inscription" target="_blank" className="font-medium text-primary underline-offset-2 hover:underline">Le guide pas à pas →</Link>
+          </p>
+
           {/* Cross-link for anyone who is actually an existing member/chef. */}
           <p className="text-center text-sm text-muted-foreground">
             Vous êtes déjà membre ou chef&nbsp;?{' '}
