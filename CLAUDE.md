@@ -5999,4 +5999,11 @@ entry; the app also opened on the public home page), so it never seemed to close
   `ValidationExtensions.IsRealEmail`), bounced emails with their owners, members with no reachable email
   (`ContactEmailResolver`), missing date of birth / gender, duplicate count (→ Fratries → Doublons). ≤500 lines per
   section. Dev: 1 invalid, 22 without email, 26 without DOB. Verified live (webhooks, suppression, report, CU 403).
+- **Backup restore test:** `deploy/restore-test.ps1` (ASCII, PS 5.1) restores the newest `gndj_*.dump` into a
+  scratch DB (`gndj_restore_test`), compares 7 key tables with live (non-empty, ≥90 %) + the latest migration,
+  fails if the newest dump is older than 36 h, drops the scratch DB, emails OK/FAILED (`-NoEmail` to just print).
+  Registered by `install-ops-tasks.ps1` as **GNDJ-RestoreTest** (every 4 weeks, Sunday 04:00). Config block
+  `restoreTest` (optional user/password if the DB user lacks CREATEDB). PS 5.1 gotchas handled: native stderr under
+  EAP=Stop (local Continue + `client_min_messages=warning`), bare `"` stripped from native args (use `\"`),
+  history table column is `migration_id` (snake_case). Verified on dev: OK run + a real FAILED run (old dump).
 

@@ -1,6 +1,7 @@
 <#
 .SYNOPSIS
-  Registers the GNDJ ops scheduled tasks (nightly DB backup + health check + self-healing watchdog) and
+  Registers the GNDJ ops scheduled tasks (nightly DB backup + health check + self-healing watchdog + a
+  restore test every 4 weeks) and
   sets PostgreSQL to auto-restart on failure.
 .DESCRIPTION
   Run ELEVATED on the prod server AFTER filling in deploy\ops-alert.config.json (and, for cloud
@@ -57,6 +58,15 @@ Register-ScheduledTask -TaskName "GNDJ-Watchdog" -Action $watchAction -Trigger $
     -RunLevel Highest -User "SYSTEM" -Force `
     -Description "GNDJ: self-heals a down app (restarts PostgreSQL + app pool), emails outcome (deploy\watchdog.ps1)" | Out-Null
 
+# Backup restore test every 4 weeks (Sunday 04:00, after the nightly backup): restores the newest dump into a
+# scratch database, checks it against live, drops it, emails the result (deploy\restore-test.ps1).
+$restoreAction = New-ScheduledTaskAction -Execute $psExe `
+    -Argument "-NonInteractive -ExecutionPolicy Bypass -File `"$scripts\restore-test.ps1`""
+$restoreTrigger = New-ScheduledTaskTrigger -Weekly -WeeksInterval 4 -DaysOfWeek Sunday -At "04:00"
+Register-ScheduledTask -TaskName "GNDJ-RestoreTest" -Action $restoreAction -Trigger $restoreTrigger `
+    -RunLevel Highest -User "SYSTEM" -Force `
+    -Description "GNDJ: proves the latest backup restores (scratch DB, checks, drop, email) (deploy\restore-test.ps1)" | Out-Null
+
 # PostgreSQL service recovery: Windows auto-restarts the DB if it crashes (1st/2nd fail = 60s, 3rd = 120s;
 # the failure counter resets after a day of health). Independent of the watchdog. Best-effort.
 try {
@@ -70,8 +80,10 @@ Write-Host "Registered scheduled tasks:" -ForegroundColor Green
 Write-Host "  GNDJ-Backup       - daily at $BackupTime"
 Write-Host "  GNDJ-HealthCheck  - every $HealthEveryMinutes min (notify)"
 Write-Host "  GNDJ-Watchdog     - every $WatchdogEveryMinutes min (self-heal)"
+Write-Host "  GNDJ-RestoreTest  - every 4 weeks, Sunday 04:00 (backup restore check)"
 Write-Host ""
 Write-Host "Test now with:"
 Write-Host "  Start-ScheduledTask -TaskName GNDJ-Backup"
 Write-Host "  Start-ScheduledTask -TaskName GNDJ-HealthCheck"
 Write-Host "  Start-ScheduledTask -TaskName GNDJ-Watchdog"
+Write-Host "  Start-ScheduledTask -TaskName GNDJ-RestoreTest"

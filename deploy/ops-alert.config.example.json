@@ -37,6 +37,14 @@
     "documentArchiveDir": "C:\\gndj-backups\\documents"
   },
 
+  "restoreTest": {
+    "_comment": "Used by restore-test.ps1 (every 4 weeks). The restore needs an account allowed to CREATE a database; leave user/password empty to use database.user, or set them to postgres if that user lacks CREATEDB. maxDumpAgeHours: fail if the newest dump is older (the nightly backup stopped).",
+    "database": "gndj_restore_test",
+    "user": "",
+    "password": "",
+    "maxDumpAgeHours": 36
+  },
+
   "health": {
     "url": "https://your-domain.example/health",
     "timeoutSec": 20

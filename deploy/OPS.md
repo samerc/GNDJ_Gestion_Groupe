@@ -143,3 +143,18 @@ The app records addresses the providers could not deliver to (or that marked our
 
 A soft bounce (mailbox full…) only blocks the address after 3 reports; a hard bounce or a spam complaint blocks it
 at once.
+
+## Backup restore test (every 4 weeks)
+
+`restore-test.ps1` proves the nightly backup can actually be restored: it restores the newest `gndj_*.dump` into a
+scratch database (`gndj_restore_test`), checks the key tables against the live database (non-empty, within 10 %),
+compares the latest migration, drops the scratch database and emails **[GNDJ Restore test OK / FAILED]** to
+`alertTo`. `install-ops-tasks.ps1` registers it as **GNDJ-RestoreTest** (every 4 weeks, Sunday 04:00).
+
+- Run it once by hand after installing: `Start-ScheduledTask -TaskName GNDJ-RestoreTest` (or
+  `powershell -ExecutionPolicy Bypass -File deploy\restore-test.ps1 -NoEmail` to see the output directly).
+- The database user needs the right to create a database. If the run fails with "permission denied to create
+  database", either `ALTER ROLE <db user> CREATEDB;` or fill `restoreTest.user/password` (e.g. postgres).
+- A FAILED email means: no recent dump (the nightly backup stopped), the dump doesn't restore, or it is missing
+  data. Look at the details in the email before the next backup overwrites anything.
+

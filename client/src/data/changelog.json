@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Sauvegardes : un test automatique toutes les 4 semaines restaure la dernière sauvegarde dans une base temporaire, la compare à la base réelle et envoie le résultat par email (script deploy/restore-test.ps1)."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Nouvelle page « Qualité des données » (Suivi) : adresses email invalides ou en échec, membres sans aucun email, date de naissance ou genre manquant, doublons — chaque ligne ouvre la fiche du membre."
       },
       {
