@@ -211,6 +211,18 @@ export function useUnlinkRelationMember() {
   })
 }
 
+// POST /demandes/relations/{id}/link-member → the CG CONFIRMS a brother/sister proche as an existing member (the
+// suggested match or one picked by hand). Only a confirmed link makes the conversion share the parents + declare
+// the fratrie. Invalidates ['demandes'].
+export function useLinkRelationMember() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ relationId, memberId }: { relationId: string; memberId: string }) =>
+      apiClient.post(`/demandes/relations/${relationId}/link-member`, { memberId }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes'] }) },
+  })
+}
+
 // PUT /demandes/{id}/unit → save the pre-selected unit WITHOUT deciding (staged); status stays as-is.
 // Lets the CG lock in / change "unité d'affectation (si accepté)" and come back later. Invalidates ['demandes'].
 export function useSetDemandeUnit() {

@@ -25,9 +25,11 @@ public class SetPrimaryContactEmailCommandHandler(IApplicationDbContext context,
         var email = request.Email?.Trim();
         if (!string.IsNullOrEmpty(email))
         {
-            // The chosen address must be one of the member's own or a linked guardian's emails.
-            var isMemberEmail = await context.MemberEmails.AnyAsync(e => e.MemberId == request.MemberId && !e.IsDeleted && e.Address == email, ct);
-            var isGuardianEmail = await context.GuardianEmails.AnyAsync(e => !e.IsDeleted && e.Address == email
+            // The chosen address must be one of the member's own or a linked guardian's emails (case-insensitive —
+            // same rule as the self-service SetMyPrimaryContactEmail, so "Marie@Gmail.com" matches the stored one).
+            var lower = email.ToLower();
+            var isMemberEmail = await context.MemberEmails.AnyAsync(e => e.MemberId == request.MemberId && !e.IsDeleted && e.Address.ToLower() == lower, ct);
+            var isGuardianEmail = await context.GuardianEmails.AnyAsync(e => !e.IsDeleted && e.Address.ToLower() == lower
                 && e.Guardian.Links.Any(l => l.MemberId == request.MemberId && !l.IsDeleted), ct);
             if (!isMemberEmail && !isGuardianEmail)
                 return Result<bool>.Failure("Ce courriel ne figure pas sur la fiche du membre.");

@@ -28,12 +28,6 @@ export interface MeResponse {
   // True when the member's dossier was put on hold at the end of the document-verification campaign — Ma fiche /
   // Mes documents show a suspended banner and disable the member's document upload until the CG reactivates them.
   isOnHold?: boolean
-  // True when the caller is a leader who hasn't confirmed their personal contact details — a one-time blocking
-  // "verify your email + phone" screen is shown (suggested* prefill it with the member's own, if any).
-  needsContactVerification?: boolean
-  suggestedEmail?: string | null
-  suggestedPhoneCountry?: string | null
-  suggestedPhone?: string | null
   // True once the member has seen the first-login welcome tour (server flag). The client shows the carousel to
   // regular members (not chefs) while this is false. Set optimistically after the tour is dismissed/finished.
   hasSeenOnboarding?: boolean

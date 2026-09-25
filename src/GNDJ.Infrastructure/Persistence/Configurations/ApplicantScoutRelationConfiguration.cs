@@ -23,5 +23,7 @@ public class ApplicantScoutRelationConfiguration : IEntityTypeConfiguration<Appl
         // Optional link to a matched existing member; null it out if that member is removed (keep the declaration).
         builder.HasOne(e => e.RelatedMember).WithMany()
             .HasForeignKey(e => e.RelatedMemberId).OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne(e => e.SuggestedMember).WithMany()
+            .HasForeignKey(e => e.SuggestedMemberId).OnDelete(DeleteBehavior.SetNull);
     }
 }

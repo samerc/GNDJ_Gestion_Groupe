@@ -43,10 +43,6 @@ public class MyProfileController : BaseApiController
         return Ok(result.Value);
     }
 
-    /// <summary>Leader first-login step: confirm/correct the caller's own PERSONAL email + phone (sets the email
-    /// as primary contact, adds the phone, marks it verified so the one-time prompt stops).</summary>
-    [HttpPost("verify-contact")]
-    public async Task<IActionResult> VerifyContact([FromBody] VerifyMyContactCommand command) => Wrap(await Mediator.Send(command));
 
     /// <summary>One-time contact-review popup « Confirmer »: applies the caller's chosen courriel/téléphone
     /// principal + parents' situation + per-parent urgence/décédé, and stamps ContactReviewedAt so it stops showing.</summary>

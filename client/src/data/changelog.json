@@ -5,6 +5,30 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Demandes — les proches « frère / sœur » ne sont plus liés automatiquement à un membre sur la seule base du nom (un homonyme pouvait hériter des parents de la famille). L'application propose désormais une « Correspondance possible » que le CG confirme avec « Lier » (ou « Lier à un membre… » pour en choisir un autre) ; seuls les frères et sœurs peuvent être liés. Un badge « À lier » signale les demandes concernées. Les liens automatiques existants des demandes non encore converties redeviennent des suggestions à confirmer."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Demandes — à la conversion, un parent déjà connu n'est réutilisé que si le prénom correspond aussi : deux parents qui partagent un même numéro ou courriel ne sont plus fusionnés en un seul — chacun garde le numéro/courriel partagé."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Passages — la validation groupée retire l'équipe d'une ligne si elle n'appartient pas à l'unité finale (comme la validation individuelle), au lieu de créer une affectation incohérente."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Rapports — l'adresse, le téléphone et le courriel ne sont plus vides quand la ville manque ou qu'aucune coordonnée n'est marquée « principale » (on prend alors la première)."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Coordonnées — le choix du courriel de contact principal par un chef ne dépend plus des majuscules/minuscules."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Nettoyage — suppression de l'ancien écran de vérification des coordonnées des chefs (remplacé par la fenêtre « Vérifiez vos coordonnées »)."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Documents — aperçu avant envoi : après avoir photographié ou choisi un document, un aperçu s'affiche pour vérifier qu'il est lisible et confirmer (ou reprendre) avant l'envoi. Utile surtout sur téléphone, où la photo partait auparavant immédiatement après la prise. Vaut pour tous les modes d'envoi (photo, choix de fichier, glisser-déposer, documents à plusieurs pages) ET pour la page « Scanner avec le téléphone »."
       },
       {

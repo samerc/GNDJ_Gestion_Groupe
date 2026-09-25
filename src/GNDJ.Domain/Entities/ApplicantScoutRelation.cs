@@ -10,7 +10,13 @@ public class ApplicantScoutRelation : BaseEntity
     public string Status { get; set; } = string.Empty; // ScoutRelationStatus: CurrentInGroup | AncienInGroup | OtherGroup
     public string? Relationship { get; set; }          // Frère, Sœur, Cousin, ...
 
-    public Guid? RelatedMemberId { get; set; }          // set when selected from our group
+    // CONFIRMED link to an existing member — set only by the CG ("Lier"), and only for a brother/sister. At
+    // conversion it shares the household's parents with that member and declares the fratrie.
+    public Guid? RelatedMemberId { get; set; }
+
+    // SUGGESTED match (name match, or a member the family added via "Retrouver mes informations"). Never acted on
+    // by itself: a name alone can point at a stranger, so the CG must confirm it into RelatedMemberId.
+    public Guid? SuggestedMemberId { get; set; }
 
     // Manual entry (when not linked to a member)
     public string? FirstName { get; set; }
@@ -22,4 +28,5 @@ public class ApplicantScoutRelation : BaseEntity
 
     public ApplicantAccount ApplicantAccount { get; set; } = null!;
     public Member? RelatedMember { get; set; }
+    public Member? SuggestedMember { get; set; }
 }

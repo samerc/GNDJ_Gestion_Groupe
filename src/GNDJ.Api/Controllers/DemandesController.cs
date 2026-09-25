@@ -113,6 +113,17 @@ public class DemandesController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Confirms a brother/sister proche as an existing member (the suggested match or one picked by the CG),
+    /// so the conversion shares the parents and declares the fratrie. Requires demande.manage.</summary>
+    [HttpPost("relations/{relationId:guid}/link-member")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> LinkRelationMember(Guid relationId, [FromBody] LinkRelationMemberBody body)
+    {
+        var result = await Mediator.Send(new LinkScoutRelationMemberCommand(relationId, body.MemberId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>Lists groups of duplicate demandes (same child submitted more than once) for the scout year, so
     /// the CG can merge them. Only mergeable demandes (not yet converted/sent). Requires demande.view.</summary>
     [HttpGet("duplicates")]
@@ -387,3 +398,5 @@ public class DemandesController : BaseApiController
         GNDJ.Application.Applicants.SaveApplicantHouseholdCommand Household);
     public record UpdateRejectionReasonsBody(IReadOnlyList<DemandeRejectionReasonDto>? Reasons);
 }
+
+public record LinkRelationMemberBody(Guid MemberId);

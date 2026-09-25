@@ -67,6 +67,11 @@ export interface ApplicantScoutRelation {
   // CG review only: the real member the relation was auto-matched to (so the CG can confirm). Null elsewhere.
   relatedMemberName?: string | null
   relatedMemberUnit?: string | null
+  // CG review only: a SUGGESTED match (same name, or added by the family via "Retrouver mes informations") that the
+  // CG must confirm with "Lier" (brothers/sisters only). Never acted on until confirmed.
+  suggestedMemberId?: string | null
+  suggestedMemberName?: string | null
+  suggestedMemberUnit?: string | null
 }
 
 export interface Demande {

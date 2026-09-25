@@ -32,14 +32,6 @@ export function useUpdateMyProfile(memberId: string) {
   })
 }
 
-// POST /my-profile/verify-contact → the leader confirms/corrects their personal email + phone (first-login prompt).
-// The caller reloads the user afterward (which clears needsContactVerification), so no query invalidation here.
-export function useVerifyMyContact() {
-  return useMutation({
-    mutationFn: (data: { email: string; countryCode: string; phone: string }) => apiClient.post('/my-profile/verify-contact', data),
-  })
-}
-
 // POST /my-profile/review-contacts → the one-time contact-review popup « Confirmer »: apply the chosen courriel/
 // téléphone principal + parents' situation + per-parent urgence/décédé and stamp ContactReviewedAt. The caller
 // reloads the user afterward (clears needsContactReview), so no query invalidation here.

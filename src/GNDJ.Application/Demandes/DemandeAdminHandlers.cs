@@ -209,10 +209,11 @@ static class DemandeReviewProjection
 
         var unitNames = await context.Units.ToDictionaryAsync(u => u.Id, u => u.Name, ct);
 
-        // Resolve the auto-matched relatives so the CG can SEE/confirm the link (name + current active unit).
-        // Only CurrentInGroup relations ever get a RelatedMemberId set (see SaveApplicantHousehold auto-match).
+        // Resolve linked AND suggested relatives so the CG can see who they are (name + current active unit) and
+        // confirm a suggestion ("Lier") or remove a link.
         var relatedMemberIds = relations.Values.SelectMany(rs => rs)
-            .Where(r => r.RelatedMemberId.HasValue).Select(r => r.RelatedMemberId!.Value).Distinct().ToList();
+            .SelectMany(r => new[] { r.RelatedMemberId, r.SuggestedMemberId })
+            .Where(x => x.HasValue).Select(x => x!.Value).Distinct().ToList();
         var relatedMembers = relatedMemberIds.Count == 0
             ? new Dictionary<Guid, (string Name, string? Unit)>()
             : await context.Members.Where(m => relatedMemberIds.Contains(m.Id))
@@ -244,8 +245,9 @@ static class DemandeReviewProjection
                 rs.Select(r =>
                 {
                     var match = r.RelatedMemberId.HasValue ? relatedMembers.GetValueOrDefault(r.RelatedMemberId.Value) : default;
+                    var sugg = r.SuggestedMemberId.HasValue ? relatedMembers.GetValueOrDefault(r.SuggestedMemberId.Value) : default;
                     return new ApplicantScoutRelationDto(r.Id, r.Status, r.Relationship, r.RelatedMemberId, r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName,
-                        r.OtherGroupIsFormer, match.Name, match.Unit);
+                        r.OtherGroupIsFormer, match.Name, match.Unit, r.SuggestedMemberId, sugg.Name, sugg.Unit);
                 }).ToList(),
                 sibs, d.HasPreviousDemande, d.PreviousDemandeYear, acc?.ParentsSituation, d.SerialNumber, d.PhoneCountryCode);
         }).ToList();
@@ -670,7 +672,7 @@ public class MergeDemandesCommandHandler(IApplicationDbContext context, ICurrent
             {
                 context.ApplicantScoutRelations.Add(new ApplicantScoutRelation
                 {
-                    ApplicantAccountId = keeperAccountId, Status = r.Status, Relationship = r.Relationship, RelatedMemberId = r.RelatedMemberId,
+                    ApplicantAccountId = keeperAccountId, Status = r.Status, Relationship = r.Relationship, RelatedMemberId = r.RelatedMemberId, SuggestedMemberId = r.SuggestedMemberId,
                     FirstName = r.FirstName, LastName = r.LastName, LastUnit = r.LastUnit, LastFunction = r.LastFunction,
                     OtherGroupName = r.OtherGroupName, OtherGroupIsFormer = r.OtherGroupIsFormer,
                 });
@@ -831,7 +833,7 @@ public class AdminEditDemandeCommandHandler(IApplicationDbContext context, ICurr
 
         ApplicantHelpers.Apply(demande, request.Child);
 
-        var ok = await ApplicantHelpers.ApplyHouseholdAsync(context, demande.ApplicantAccountId, request.Household, ct);
+        var ok = await ApplicantHelpers.ApplyHouseholdAsync(context, demande.ApplicantAccountId, request.Household, ct, trustLinks: true);
         if (!ok) return Result<bool>.Failure("Compte introuvable.");
 
         await context.SaveChangesAsync(ct);
@@ -1089,18 +1091,18 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         var guardianByEmail = (await context.GuardianEmails.Where(e => agEmails.Contains(e.Address))
                 .Select(e => new { e.Address, e.Guardian }).ToListAsync(ct))
             .GroupBy(x => x.Address, StringComparer.Ordinal)
-            .ToDictionary(x => x.Key, x => x.First().Guardian, StringComparer.Ordinal);
+            .ToDictionary(x => x.Key, x => x.Select(y => y.Guardian).Distinct().ToList(), StringComparer.Ordinal);
         // Phone match is now DIGIT-normalized ("76 123 456" ≡ "76123456"): numbers are entered formatted
         // (per-country grouping), and legacy/migrated data is unformatted, so an exact string match would
         // create duplicate guardians. The guardian_phones table is small, so load it once and key by digits.
         var agPhoneDigits = agAll.Select(a => PhoneDigits(a.PhoneNumber)).Where(d => d.Length >= 6).ToHashSet();
         var guardianByPhone = agPhoneDigits.Count == 0
-            ? new Dictionary<string, Guardian>()
+            ? new Dictionary<string, List<Guardian>>()
             : (await context.GuardianPhones.Select(p => new { p.Number, p.Guardian }).ToListAsync(ct))
                 .Select(x => new { Key = PhoneDigits(x.Number), x.Guardian })
                 .Where(x => x.Key.Length >= 6 && agPhoneDigits.Contains(x.Key))
                 .GroupBy(x => x.Key, StringComparer.Ordinal)
-                .ToDictionary(x => x.Key, x => x.First().Guardian, StringComparer.Ordinal);
+                .ToDictionary(x => x.Key, x => x.Select(y => y.Guardian).Distinct().ToList(), StringComparer.Ordinal);
 
         // (C) Usernames already taken — one read instead of an AnyAsync per member.
         var takenEmails = new HashSet<string>(await context.Users.Select(u => u.Email).ToListAsync(ct), StringComparer.OrdinalIgnoreCase);
@@ -1300,21 +1302,21 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
 
     // A proche-scout relationship that means brother/sister (so the two children share parents → siblings).
     // Cousins/other relatives are excluded (they don't share the household's guardians).
-    private static bool IsSiblingRelation(string? relationship)
-    {
-        if (string.IsNullOrWhiteSpace(relationship)) return false;
-        var r = TextNormalization.RemoveDiacritics(relationship).ToLowerInvariant();
-        return r.Contains("frere") || r.Contains("soeur") || r.Contains("broth") || r.Contains("sist")
-            || r.Contains("jumeau") || r.Contains("jumelle");
-    }
+    private static bool IsSiblingRelation(string? relationship) => ScoutRelationKind.IsSibling(relationship);
 
-    // In-memory guardian match against the batch-loaded contact dictionaries (email then phone), matching the
-    // original per-item query semantics (exact/case-sensitive) without a DB round-trip per applicant guardian.
-    private static Guardian? FindExistingGuardian(ApplicantGuardian ag, Dictionary<string, Guardian> byEmail, Dictionary<string, Guardian> byPhone)
+    // In-memory guardian match against the batch-loaded contact dictionaries (email then phone). A shared contact
+    // alone is NOT enough: two different parents often share one number/email (a couple, a family landline), so the
+    // existing guardian must ALSO have the same first name (accent/case-insensitive). No name match → null → the
+    // caller creates a NEW guardian carrying the same phone/email, so both parents keep the shared contact.
+    private static Guardian? FindExistingGuardian(ApplicantGuardian ag, Dictionary<string, List<Guardian>> byEmail, Dictionary<string, List<Guardian>> byPhone)
     {
-        if (!string.IsNullOrWhiteSpace(ag.Email) && byEmail.TryGetValue(ag.Email, out var g1)) return g1;
+        var first = TextNormalization.NormalizeKey(ag.FirstName);
+        Guardian? SameName(List<Guardian>? candidates) =>
+            candidates?.FirstOrDefault(g => TextNormalization.NormalizeKey(g.FirstName) == first);
+
+        if (!string.IsNullOrWhiteSpace(ag.Email) && SameName(byEmail.GetValueOrDefault(ag.Email)) is { } g1) return g1;
         var digits = PhoneDigits(ag.PhoneNumber);
-        if (digits.Length >= 6 && byPhone.TryGetValue(digits, out var g2)) return g2;
+        if (digits.Length >= 6 && SameName(byPhone.GetValueOrDefault(digits)) is { } g2) return g2;
         return null;
     }
 
@@ -1364,6 +1366,51 @@ public class ClearScoutRelationMatchCommandHandler(IApplicationDbContext context
         await context.SaveChangesAsync(ct);
         await audit.LogAsync("ClearScoutRelationMatch", "ApplicantScoutRelation", relation.Id, cancellationToken: ct);
         return Result<bool>.Success(true);
+    }
+}
+
+// ============================================================
+// "Lier" : the CG CONFIRMS a proche as an existing member — the suggested match, or any member picked by hand.
+// Only a brother/sister can be linked (a link makes the conversion share the parents + declare the fratrie,
+// which is wrong for a cousin). The suggestion is consumed once confirmed.
+// ============================================================
+public record LinkScoutRelationMemberCommand(Guid RelationId, Guid MemberId) : IRequest<Result<bool>>;
+
+public class LinkScoutRelationMemberCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<LinkScoutRelationMemberCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(LinkScoutRelationMemberCommand request, CancellationToken ct)
+    {
+        if (!MemberAccess.IsGroupManager(currentUser)) return Result<bool>.Failure("Accès réservé au chef de groupe.");
+
+        var relation = await context.ApplicantScoutRelations.FirstOrDefaultAsync(r => r.Id == request.RelationId, ct);
+        if (relation is null) return Result<bool>.Failure("Relation introuvable.");
+        if (!ScoutRelationKind.IsSibling(relation.Relationship))
+            return Result<bool>.Failure("Seuls les frères et sœurs peuvent être liés à un membre.");
+
+        var member = await context.Members.Where(m => m.Id == request.MemberId)
+            .Select(m => new { m.Id, Name = m.FirstName + " " + m.LastName }).FirstOrDefaultAsync(ct);
+        if (member is null) return Result<bool>.Failure("Membre introuvable.");
+
+        relation.RelatedMemberId = member.Id;
+        relation.SuggestedMemberId = null;
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("LinkScoutRelationMember", "ApplicantScoutRelation", relation.Id,
+            newValues: new { Member = member.Name, relation.Relationship }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
+// A proche-scout relationship that means brother/sister (so the two children share parents → siblings).
+// Cousins/other relatives are excluded (they don't share the household's guardians).
+public static class ScoutRelationKind
+{
+    public static bool IsSibling(string? relationship)
+    {
+        if (string.IsNullOrWhiteSpace(relationship)) return false;
+        var r = TextNormalization.RemoveDiacritics(relationship).ToLowerInvariant();
+        return r.Contains("frere") || r.Contains("soeur") || r.Contains("broth") || r.Contains("sist")
+            || r.Contains("jumeau") || r.Contains("jumelle");
     }
 }
 

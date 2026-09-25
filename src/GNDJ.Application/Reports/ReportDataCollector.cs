@@ -91,22 +91,26 @@ public static class ReportDataCollector
                 a.Member.Gender, a.Member.DateOfBirth, a.Member.BloodType, a.Member.Nationality,
                 a.Member.School, a.Member.Classe, a.Member.Section, a.Member.Profession, a.Member.ProfessionDomain,
                 a.Member.PrimaryContactEmail,
-                Phone = a.Member.Phones.Where(p => p.IsPrimary && !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault(),
-                Email = a.Member.Emails.Where(e => e.IsPrimary && !e.IsDeleted).Select(e => e.Address).FirstOrDefault(),
-                Address = a.Member.Addresses.Where(ad => ad.IsPrimary && !ad.IsDeleted)
-                    .Select(ad => (ad.Details ?? "") + (ad.Details != null && ad.City != "" ? ", " : "") + ad.City).FirstOrDefault(),
+                Phone = a.Member.Phones.Where(p => !p.IsDeleted).OrderByDescending(p => p.IsPrimary).Select(p => ((p.CountryCode ?? "") + " " + p.Number).Trim()).FirstOrDefault(),
+                Email = a.Member.Emails.Where(e => !e.IsDeleted).OrderByDescending(e => e.IsPrimary).Select(e => e.Address).FirstOrDefault(),
+                Address = a.Member.Addresses.Where(ad => !ad.IsDeleted).OrderByDescending(ad => ad.IsPrimary) // primary first, else any address
+                    // COALESCE both parts: in SQL "x || NULL" is NULL, so a missing city used to blank the whole
+                    // address. The ", " separator only when both parts are present.
+                    .Select(ad => (ad.Details ?? "")
+                        + ((ad.Details ?? "") != "" && (ad.City ?? "") != "" ? ", " : "")
+                        + (ad.City ?? "")).FirstOrDefault(),
                 FatherName = a.Member.GuardianLinks
                     .Where(gl => !gl.IsDeleted && (gl.RelationshipType == "Père" || gl.RelationshipType == "Pere"))
                     .Select(gl => gl.Guardian.FirstName + " " + gl.Guardian.LastName).FirstOrDefault(),
                 FatherPhone = a.Member.GuardianLinks
                     .Where(gl => !gl.IsDeleted && (gl.RelationshipType == "Père" || gl.RelationshipType == "Pere"))
-                    .Select(gl => gl.Guardian.Phones.Where(p => !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault()).FirstOrDefault(),
+                    .Select(gl => gl.Guardian.Phones.Where(p => !p.IsDeleted).OrderByDescending(p => p.IsPrimary).Select(p => ((p.CountryCode ?? "") + " " + p.Number).Trim()).FirstOrDefault()).FirstOrDefault(),
                 MotherName = a.Member.GuardianLinks
                     .Where(gl => !gl.IsDeleted && (gl.RelationshipType == "Mère" || gl.RelationshipType == "Mere"))
                     .Select(gl => gl.Guardian.FirstName + " " + gl.Guardian.LastName).FirstOrDefault(),
                 MotherPhone = a.Member.GuardianLinks
                     .Where(gl => !gl.IsDeleted && (gl.RelationshipType == "Mère" || gl.RelationshipType == "Mere"))
-                    .Select(gl => gl.Guardian.Phones.Where(p => !p.IsDeleted).Select(p => p.CountryCode + " " + p.Number).FirstOrDefault()).FirstOrDefault(),
+                    .Select(gl => gl.Guardian.Phones.Where(p => !p.IsDeleted).OrderByDescending(p => p.IsPrimary).Select(p => ((p.CountryCode ?? "") + " " + p.Number).Trim()).FirstOrDefault()).FirstOrDefault(),
                 GuardianEmails = a.Member.GuardianLinks.Where(gl => !gl.IsDeleted)
                     .SelectMany(gl => gl.Guardian.Emails.Where(e => !e.IsDeleted).Select(e => e.Address)).ToList(),
                 RoleName = a.FunctionalRole.Name,

@@ -5778,3 +5778,25 @@ Two related document items (all on main, DEV until deploy; migration-free — re
       buttons for a missing file are HIDDEN (they'd only 404) so it's clear the file must be re-uploaded. The
       `unit-documents.tsx` synthetic single-page fallback sets `fileMissing:false`. Live-verified: prod-synced docs →
       `fileMissing:true`, a fresh upload → `false`. dotnet 0/0, tsc + eslint clean.
+
+### Proche-scout links confirmed by the CG + conversion/report fixes (2026-09-25, DEV until deploy)
+- **Proche links are now SUGGESTIONS, confirmed by the CG.** Before, a "current member" proche was auto-linked to a
+  member by NAME alone (and a portal-sent member id was trusted) → at conversion that member inherited the family's
+  parents + a fratrie was declared — wrong on a homonym. New `ApplicantScoutRelation.SuggestedMemberId` (migration
+  `AddScoutRelationSuggestedMember`): `ApplicantHelpers.ApplyHouseholdAsync` only SUGGESTS (single name(+unit) match,
+  or a verified member id sent by the portal, e.g. the "Retrouver mes informations" siblings); it carries over a
+  CG-confirmed link / a pending suggestion across re-saves (the set is replaced on every save). The CG-admin edit
+  path passes `trustLinks: true`. New `LinkScoutRelationMemberCommand` + `POST /demandes/relations/{id}/link-member`
+  (demande.manage + IsGroupManager) — **brothers/sisters only** (`ScoutRelationKind.IsSibling`, now shared). Review
+  DTO carries `SuggestedMemberId/Name/Unit`. Drawer: amber "Correspondance possible" + **Lier** / "Choisir un autre
+  membre…" (MemberPickerDialog); table badge **À lier**. Conversion unchanged (acts only on confirmed
+  `RelatedMemberId`, siblings only). **Patch `026`** demotes existing auto-links on not-yet-converted accounts to
+  suggestions (dev: 103 demoted, 2 kept).
+- **Guardian dedup at conversion needs a first-name match** (`FindExistingGuardian`): a shared phone/email alone no
+  longer merges two different parents — no name match → a new guardian with the same phone/email copied.
+- **Bulk passage review** clears a final team that isn't in the final unit (same rule as single review).
+- **Reports:** address/phone/email fall back to the first non-primary entry and COALESCE null parts (a null city
+  blanked the whole address; 1,062 addresses / 1,309 phones / 798 emails had no primary).
+- **SetPrimaryContactEmail** (leader) now case-insensitive. **Removed** the dead leader contact screen
+  (`LeaderContactVerification`, `VerifyMyContactCommand`, `POST /my-profile/verify-contact`, MeResponse
+  `NeedsContactVerification`/`Suggested*`); `Member.ContactVerifiedAt` column kept for history.

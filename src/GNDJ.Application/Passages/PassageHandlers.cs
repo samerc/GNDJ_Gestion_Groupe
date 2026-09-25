@@ -767,6 +767,13 @@ public class BulkReviewPassageCommandHandler(IApplicationDbContext context, ICur
             .Where(p => request.PassageIds.Contains(p.Id) && p.Status != PassageStatus.Finalized)
             .ToListAsync(ct);
 
+        // Team → unit map for every team these passages reference (one query), so an approved line whose team
+        // doesn't belong to its final unit can be corrected (same rule as the single ReviewPassage).
+        var teamIds = passages.SelectMany(p => new[] { p.FinalTeamId, p.ProposedTeamId })
+            .Where(t => t.HasValue).Select(t => t!.Value).Distinct().ToList();
+        var teamUnit = await context.Teams.Where(t => teamIds.Contains(t.Id))
+            .ToDictionaryAsync(t => t.Id, t => t.UnitId, ct);
+
         int count = 0;
         foreach (var passage in passages)
         {
@@ -781,6 +788,11 @@ public class BulkReviewPassageCommandHandler(IApplicationDbContext context, ICur
                 passage.FinalUnitId ??= passage.ProposedUnitId;
                 passage.FinalTeamId ??= passage.ProposedTeamId;
                 passage.FinalRoleId ??= passage.ProposedRoleId;
+
+                // A team that isn't in the final unit would make finalize create a cross-unit assignment — clear
+                // it instead of failing the whole batch (the receiving CU assigns the team later, as on a transfer).
+                if (passage.FinalTeamId is Guid tid && teamUnit.GetValueOrDefault(tid) != passage.FinalUnitId)
+                    passage.FinalTeamId = null;
             }
 
             count++;

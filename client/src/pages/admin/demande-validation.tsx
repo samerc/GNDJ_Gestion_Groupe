@@ -11,7 +11,7 @@ import { useSearchParams } from 'react-router'
 import { useSettingValue, useSchoolCode } from '@/services/settings-service'
 import {
   useDemandesForReview, useUnitOccupancy, useDecideDemande, useDeleteDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useCloseCampaign,
-  useCampaignStatus, useSetSubmissions, useSetDemandeUnit, useUnlinkRelationMember,
+  useCampaignStatus, useSetSubmissions, useSetDemandeUnit, useUnlinkRelationMember, useLinkRelationMember,
   useExportDecisions, useImportDecisions, useUnsubmittedCount, useSendSubmissionReminders, useRejectionReasons,
   type DemandeReview, type UnitOccupancy, type ImportDecisionsResult, type RejectionReason,
 } from '@/services/demande-admin-service'
@@ -27,6 +27,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { DemandeEditForm } from '@/components/admin/demande-edit-form'
+import { MemberPickerDialog } from '@/components/shared/member-picker-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Tip } from '@/components/ui/tooltip'
@@ -114,6 +115,11 @@ function isSiblingRelation(rel?: string | null): boolean {
 }
 function siblingProche(d: DemandeReview) {
   return d.scoutRelations.find((r) => isSiblingRelation(r.relationship))
+}
+// A brother/sister proche that the app matched to a member but the CG hasn't confirmed yet ("Lier") — flagged in
+// the table so a link is never applied silently on a name match.
+function hasSiblingToLink(d: DemandeReview) {
+  return d.scoutRelations.some((r) => isSiblingRelation(r.relationship) && !r.relatedMemberId && !!r.suggestedMemberId)
 }
 
 // Distinct, non-empty, French-sorted values for a filter dropdown (module scope → stable, no hook dep).
@@ -763,6 +769,7 @@ export default function DemandeValidationPage() {
                             <Badge variant="outline" className="border-amber-400 bg-amber-50 px-1.5 text-[10px] text-amber-700 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-300">Frère/sœur</Badge>
                           </span>
                         )}
+                        {hasSiblingToLink(d) && <Badge variant="outline" className="border-orange-400 bg-orange-50 px-1.5 text-[10px] text-orange-700 dark:border-orange-700 dark:bg-orange-950/40 dark:text-orange-300" title="Correspondance à confirmer (Lier) dans la fiche">À lier</Badge>}
                       </div>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
@@ -831,6 +838,7 @@ export default function DemandeValidationPage() {
                         )}
                         {d.status === 'Declined' && d.decisionNotes && <span className="max-w-[12rem] truncate text-xs text-red-700 dark:text-red-300">{d.decisionNotes}</span>}
                         {sib && <Badge variant="outline" className="border-amber-400 bg-amber-50 px-1.5 text-[10px] text-amber-700 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-300">Frère/sœur</Badge>}
+                        {hasSiblingToLink(d) && <Badge variant="outline" className="border-orange-400 bg-orange-50 px-1.5 text-[10px] text-orange-700 dark:border-orange-700 dark:bg-orange-950/40 dark:text-orange-300" title="Correspondance à confirmer (Lier) dans la fiche">À lier</Badge>}
                         {d.scoutRelations.length > 0 && <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground"><Tent className="h-3.5 w-3.5" />{d.scoutRelations.length}</span>}
                       </div>
                     </button>
@@ -1097,7 +1105,13 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
   const [editing, setEditing] = useState(false)
   const suggested = useMemo(() => suggestUnit(d, occupancy), [d, occupancy])
   const setUnitMutation = useSetDemandeUnit()
-  const unlinkMatch = useUnlinkRelationMember() // "Retirer le lien" on an auto-matched sibling proche
+  const unlinkMatch = useUnlinkRelationMember() // "Retirer le lien" on a confirmed sibling link
+  const linkMatch = useLinkRelationMember()     // "Lier" — the CG confirms a brother/sister as an existing member
+  const [pickFor, setPickFor] = useState<string | null>(null) // relation id awaiting a manually-picked member
+  const link = async (relationId: string, memberId: string) => {
+    try { await linkMatch.mutateAsync({ relationId, memberId }); toast.success('Frère / sœur lié(e) au membre') }
+    catch (e) { toast.error(parseApiError(e)) }
+  }
   // Local decision draft: pre-fill unit with the already-decided unit, else the suggestion.
   const [unit, setUnit] = useState(d.decidedUnitId ?? suggested?.unitId ?? '')
   const [note, setNote] = useState(d.status === 'Approved' ? (d.decisionNotes ?? '') : '')
@@ -1251,9 +1265,8 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
                     {r.lastUnit && <span>Dernière unité : {r.lastUnit}. </span>}
                     {r.lastFunction && <span>Fonction : {r.lastFunction}.</span>}
                   </div>
-                  {/* Auto-matched to a real member (a "scout actuel" relation). Surfaced so the CG can confirm — on
-                      acceptance the household's guardians are shared with that member + a fratrie is declared. The
-                      CG can Retirer the link (a wrong name-match) so that sharing/declaration is skipped. */}
+                  {/* CONFIRMED link (set by the CG): on acceptance the household's parents are shared with that
+                      member + a fratrie is declared. "Retirer le lien" undoes it. */}
                   {r.relatedMemberId && r.relatedMemberName && (
                     <div className="mt-1.5 flex flex-wrap items-center gap-2">
                       <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
@@ -1272,10 +1285,42 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
                       )}
                     </div>
                   )}
+                  {/* NOT linked yet: a name match (or a family lookup) is only a SUGGESTION — a name alone can point at
+                      a stranger, so the CG confirms it. Only a brother/sister can be linked. */}
+                  {!r.relatedMemberId && (r.suggestedMemberId || (isSiblingRelation(r.relationship) && r.status === 'CurrentInGroup')) && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      {r.suggestedMemberId && r.suggestedMemberName && (
+                        <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 dark:bg-amber-950/40 px-2 py-1 text-xs font-medium text-amber-800 dark:text-amber-300">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          Correspondance possible : {r.suggestedMemberName}{r.suggestedMemberUnit ? ` (${r.suggestedMemberUnit})` : ''}
+                        </span>
+                      )}
+                      {!locked && r.id && isSiblingRelation(r.relationship) && (
+                        <>
+                          {r.suggestedMemberId && (
+                            <Button type="button" size="sm" variant="outline" className="h-7 text-xs" disabled={linkMatch.isPending}
+                              onClick={() => link(r.id!, r.suggestedMemberId!)}>
+                              <Link2 className="mr-1 h-3.5 w-3.5" />Lier
+                            </Button>
+                          )}
+                          <button type="button" className="text-xs text-muted-foreground underline hover:text-foreground"
+                            onClick={() => setPickFor(r.id!)}>
+                            {r.suggestedMemberId ? 'Choisir un autre membre…' : 'Lier à un membre…'}
+                          </button>
+                        </>
+                      )}
+                      {r.suggestedMemberId && !isSiblingRelation(r.relationship) && (
+                        <span className="text-xs text-muted-foreground">(seuls les frères et sœurs peuvent être liés)</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
+          <MemberPickerDialog open={!!pickFor} onOpenChange={(v) => { if (!v) setPickFor(null) }}
+            title="Lier à un membre" description="Choisissez le frère ou la sœur déjà membre du groupe."
+            onPick={async (m) => { const id = pickFor; setPickFor(null); if (id) await link(id, m.id) }} />
         </Section>
 
         {(d.allergies || d.medicalNotes) && (

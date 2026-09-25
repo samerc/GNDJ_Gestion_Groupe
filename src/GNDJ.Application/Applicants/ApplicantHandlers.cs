@@ -57,7 +57,9 @@ public record ApplicantScoutRelationDto(Guid? Id, string Status, string? Relatio
     bool OtherGroupIsFormer = false,
     // CG-only: when RelatedMemberId was auto-matched to a real member, these surface who, so the CG can confirm.
     // Left null in the applicant portal path (privacy — applicants must not learn who is in the group).
-    string? RelatedMemberName = null, string? RelatedMemberUnit = null);
+    string? RelatedMemberName = null, string? RelatedMemberUnit = null,
+    // CG-only: a SUGGESTED match (name match / family lookup) awaiting the CG's "Lier". Null in the portal path.
+    Guid? SuggestedMemberId = null, string? SuggestedMemberName = null, string? SuggestedMemberUnit = null);
 
 public record DemandeDto(Guid Id, string ScoutYear, string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender,
     string? Nationality, string? School, string? Classe, string? Section, string? BloodType, string? MedicalNotes, string? Allergies,
@@ -242,11 +244,13 @@ static class ApplicantHelpers
     }
 
     // Applies the shared-household data (address + situation + guardians + scout relations) onto an account:
-    // overwrites the address/situation, REPLACES the guardian + relation sets, and auto-links a "current member"
-    // relative to a real member when there's a single confident name(+unit) match. Does NOT SaveChanges and does
+    // overwrites the address/situation, REPLACES the guardian + relation sets, and SUGGESTS (never links) a
+    // "current member" relative when there's a single confident name(+unit) match — the CG confirms links. Does NOT SaveChanges and does
     // NOT gate on the submission window or the relation cap — the caller owns those (the applicant path gates +
     // caps before calling; the CG-admin edit path deliberately bypasses both). Returns false if the account is gone.
-    public static async Task<bool> ApplyHouseholdAsync(IApplicationDbContext context, Guid accountId, SaveApplicantHouseholdCommand data, CancellationToken ct)
+    // trustLinks: the CG-admin edit path passes true (a RelatedMemberId in its payload is a link the CG already
+    // confirmed); the applicant path passes false (a family can never CONFIRM a link — only suggest one).
+    public static async Task<bool> ApplyHouseholdAsync(IApplicationDbContext context, Guid accountId, SaveApplicantHouseholdCommand data, CancellationToken ct, bool trustLinks = false)
     {
         var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Id == accountId, ct);
         if (account is null) return false;
@@ -283,31 +287,50 @@ static class ApplicantHelpers
         var existingRelations = await context.ApplicantScoutRelations.Where(r => r.ApplicantAccountId == accountId).ToListAsync(ct);
         context.ApplicantScoutRelations.RemoveRange(existingRelations);
 
-        // Active members (by name + unit) — used to auto-link a "current member" relative to the real member
-        // record when there's a single confident match. Ambiguous/no match leaves RelatedMemberId null for the CG.
+        static string NormName(string? s) => string.IsNullOrWhiteSpace(s) ? "" : TextNormalization.NormalizeKey(s);
+        static string NameKey(string? f, string? l) => NormName(f) + "|" + NormName(l);
+
+        // The set is replaced on every save, so carry over what the CG already did: a CONFIRMED link survives a
+        // re-save of the same person (same name, or the same member id sent back by the portal).
+        var confirmedIds = existingRelations.Where(r => r.RelatedMemberId.HasValue).Select(r => r.RelatedMemberId!.Value).ToHashSet();
+        var confirmedByName = existingRelations.Where(r => r.RelatedMemberId.HasValue)
+            .GroupBy(r => NameKey(r.FirstName, r.LastName)).ToDictionary(g => g.Key, g => g.First().RelatedMemberId!.Value);
+        // …and a pending SUGGESTION survives too (the CG edit form / the portal don't send it back).
+        var suggestedByName = existingRelations.Where(r => r.SuggestedMemberId.HasValue)
+            .GroupBy(r => NameKey(r.FirstName, r.LastName)).ToDictionary(g => g.Key, g => g.First().SuggestedMemberId!.Value);
+
+        // Active members (by name + unit) — used to SUGGEST the matching member for a "current member" relative.
         var activeMembers = await context.MemberAssignments
             .Where(a => a.EndDate == null && !a.IsDeleted)
             .Select(a => new { a.MemberId, a.Member.FirstName, a.Member.LastName, UnitName = a.Unit.Name })
             .ToListAsync(ct);
-        static string NormName(string? s) => string.IsNullOrWhiteSpace(s) ? "" : new string(
-            s.Trim().ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD)
-             .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
-             .ToArray());
+
+        // Member ids sent by the client must be real, non-deleted members (never trust a raw GUID from the portal).
+        var sentIds = data.ScoutRelations.Where(r => r.RelatedMemberId.HasValue).Select(r => r.RelatedMemberId!.Value).Distinct().ToList();
+        var realIds = sentIds.Count == 0 ? new HashSet<Guid>()
+            : (await context.Members.Where(m => sentIds.Contains(m.Id)).Select(m => m.Id).ToListAsync(ct)).ToHashSet();
 
         foreach (var r in data.ScoutRelations.Where(r => !string.IsNullOrWhiteSpace(r.FirstName) || !string.IsNullOrWhiteSpace(r.LastName) || r.RelatedMemberId.HasValue))
         {
-            var relatedId = r.RelatedMemberId;
-            if (relatedId is null && r.Status == "CurrentInGroup" && !string.IsNullOrWhiteSpace(r.FirstName) && !string.IsNullOrWhiteSpace(r.LastName))
+            var sent = r.RelatedMemberId is Guid g && realIds.Contains(g) ? g : (Guid?)null;
+            Guid? confirmed = null, suggested = null;
+
+            if (sent.HasValue && (trustLinks || confirmedIds.Contains(sent.Value))) confirmed = sent;
+            else if (confirmedByName.TryGetValue(NameKey(r.FirstName, r.LastName), out var keep)) confirmed = keep;
+            else if (sent.HasValue) suggested = sent; // e.g. a sibling added via "Retrouver mes informations"
+            else if (suggestedByName.TryGetValue(NameKey(r.FirstName, r.LastName), out var prev)) suggested = prev;
+            else if (r.Status == "CurrentInGroup" && !string.IsNullOrWhiteSpace(r.FirstName) && !string.IsNullOrWhiteSpace(r.LastName))
             {
                 string nf = NormName(r.FirstName), nl = NormName(r.LastName);
-                var matches = activeMembers.Where(m => NormName(m.FirstName) == nf && NormName(m.LastName) == nl).ToList();
+                var matches = activeMembers.Where(m => NormName(m.FirstName) == nf && NormName(m.LastName) == nl)
+                    .DistinctBy(m => m.MemberId).ToList();
                 // Narrow by the chosen unit only when that disambiguates (keeps a single name-match otherwise).
                 if (matches.Count > 1 && !string.IsNullOrWhiteSpace(r.LastUnit))
                 {
                     var byUnit = matches.Where(m => NormName(m.UnitName) == NormName(r.LastUnit)).ToList();
                     if (byUnit.Count > 0) matches = byUnit;
                 }
-                if (matches.Count == 1) relatedId = matches[0].MemberId; // confident single match → link it
+                if (matches.Count == 1) suggested = matches[0].MemberId; // single match → suggest it to the CG
             }
 
             context.ApplicantScoutRelations.Add(new ApplicantScoutRelation
@@ -315,7 +338,8 @@ static class ApplicantHelpers
                 ApplicantAccountId = accountId,
                 Status = r.Status,
                 Relationship = r.Relationship,
-                RelatedMemberId = relatedId,
+                RelatedMemberId = confirmed,
+                SuggestedMemberId = suggested,
                 FirstName = r.FirstName,
                 LastName = r.LastName,
                 LastUnit = r.LastUnit,
