@@ -8,6 +8,7 @@
 import { parseApiError } from '@/lib/error-utils'
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { useParams, useSearchParams, useLocation, useNavigate } from 'react-router'
+import { useMobileDetail } from '@/hooks/use-mobile-detail'
 import { useDebounce } from '@/hooks/use-debounce'
 import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
@@ -174,7 +175,8 @@ export default function MembersPage() {
   const [showMoreFilters, setShowMoreFilters] = useState(false)
   const [sortBy, setSortBy] = useState('lastname')
   const [sortDir, setSortDir] = useState('asc')
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(routeMemberId ?? null)
+  // Selected member. On a phone, opening one adds a history step so the back button closes it (useMobileDetail).
+  const { selectedId: selectedMemberId, setSelectedId: setSelectedMemberId, open: openMember, close: closeMember } = useMobileDetail(routeMemberId ?? null)
   // If the URL /members/:id changes while this page stays mounted (a deep link / notification to another
   // member), follow it. Render-phase adjust (React's "reset state when a prop changes" pattern), no effect.
   const [prevRouteMemberId, setPrevRouteMemberId] = useState(routeMemberId)
@@ -458,7 +460,7 @@ export default function MembersPage() {
                       'flex items-center gap-2 px-3 py-2.5 cursor-pointer border-b border-border/40 transition-colors',
                       selectedMemberId === m.id ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-muted/60'
                     )}
-                    onClick={() => setSelectedMemberId(m.id)}
+                    onClick={() => openMember(m.id)}
                   >
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-medium shrink-0">
                       {m.firstName[0]}{m.lastName[0]}
@@ -525,13 +527,13 @@ export default function MembersPage() {
               {/* Mobile-only: back to the list */}
               <button
                 type="button"
-                onClick={() => setSelectedMemberId(null)}
+                onClick={closeMember}
                 className="flex shrink-0 items-center gap-1 border-b px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground md:hidden"
               >
                 <ArrowLeft className="h-4 w-4" /> Retour à la liste
               </button>
               <div className="min-h-0 flex-1 overflow-hidden">
-                <MemberDetailPanel key={selectedMemberId} memberId={selectedMemberId} onDeleted={() => setSelectedMemberId(null)} initialTab={selectedMemberId === routeMemberId ? initialTab : undefined} />
+                <MemberDetailPanel key={selectedMemberId} memberId={selectedMemberId} onDeleted={closeMember} initialTab={selectedMemberId === routeMemberId ? initialTab : undefined} />
               </div>
             </>
           ) : (

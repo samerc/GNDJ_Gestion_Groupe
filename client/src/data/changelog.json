@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Sur téléphone, le bouton Retour ferme la fiche du membre ouverte et revient à la liste (page Membres et « Mon unité »), au lieu de quitter la page."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Application installée : le bouton Retour du téléphone ramène à l'accueil depuis n'importe quelle page du menu, puis ferme l'application (il ne repasse plus par tous les écrans visités). L'application s'ouvre directement sur l'accueil."
       },
       {

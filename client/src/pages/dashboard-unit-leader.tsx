@@ -1,3 +1,4 @@
+import { useMobileDetail } from '@/hooks/use-mobile-detail'
 import { useState, useRef, useCallback, useMemo } from 'react'
 import { saveBlob } from '@/lib/download'
 import { useNavigate } from 'react-router'
@@ -85,7 +86,8 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
   const [teamFilter, setTeamFilter] = useState<string>('')
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
+  // Selected member. On a phone, opening one adds a history step so the back button closes it (useMobileDetail).
+  const { selectedId: selectedMemberId, open: openMember, close: closeMember } = useMobileDetail()
   const [leftWidth, setLeftWidth] = useState(320)
   const [trombiOpen, setTrombiOpen] = useState(false)
   const [rosterOpen, setRosterOpen] = useState(false)
@@ -306,7 +308,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
                         ? 'bg-primary/10 border-l-2 border-l-primary'
                         : 'hover:bg-muted/60'
                     )}
-                    onClick={() => setSelectedMemberId(m.memberId)}
+                    onClick={() => openMember(m.memberId)}
                   >
                     {prefs.row.photo && (
                       <MemberPhoto
@@ -349,7 +351,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
           )}
         >
           {selectedMemberId ? (
-            <MemberDetailPanel key={selectedMemberId} memberId={selectedMemberId} onBack={() => setSelectedMemberId(null)} onDeleted={() => setSelectedMemberId(null)} />
+            <MemberDetailPanel key={selectedMemberId} memberId={selectedMemberId} onBack={closeMember} onDeleted={closeMember} />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               <div className="text-center">

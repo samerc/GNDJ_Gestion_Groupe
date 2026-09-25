@@ -5959,4 +5959,9 @@ entry; the app also opened on the public home page), so it never seemed to close
   instead of stacking a second copy. Drill-downs inside a section still push. Browser tabs unchanged.
 - Verified in Edge with standalone emulated: 9/9 (3 menu taps → idx 1, back → dashboard idx 0, logo → idx 0,
   browser keeps normal history).
+- **Member file on a phone (same day):** `hooks/use-mobile-detail.ts` (`useMobileDetail`) — on a small screen
+  (< md) opening a member adds ONE history step (same URL, `mobileDetail` marker in the router state), so the phone's
+  back button closes the member and returns to the list; the on-screen "Retour" arrow goes through the same step.
+  Used by the Membres page and "Mon unité" (CU). Desktop (side-by-side) adds nothing. Verified 9/9 (phone CU +
+  Membres, desktop unchanged).
 
