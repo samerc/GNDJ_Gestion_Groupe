@@ -311,16 +311,6 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
         </div>
       )}
 
-      {/* Scan-with-phone: opens a QR the user scans with their phone to photograph the document → it uploads
-          straight here. Desktop-only + gated by the setting audience + the member must be uploadable. */}
-      {scanEnabled && isFinePointer && canUpload && docTypes && docTypes.length > 0 && (
-        <div className="flex justify-end">
-          <Button variant="outline" size="sm" onClick={() => openScan(null)}>
-            <Smartphone className="mr-1.5 h-4 w-4" />Scanner avec le téléphone
-          </Button>
-        </div>
-      )}
-
       {/* Progress summary */}
       {docStats && docStats.total > 0 && (
         <div className="flex flex-wrap items-center gap-4 rounded-lg border bg-card p-4">
@@ -475,7 +465,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                           types go via the date dialog first. */}
                       {!isFinePointer && (
                         <Tip content="Prendre une photo">
-                          <Button variant="outline" size="icon" className="h-9 w-9 border-primary/40 text-primary hover:bg-primary/5 sm:h-8 sm:w-8"
+                          <Button variant="outline" size="icon" className="h-9 w-9 border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 sm:h-8 sm:w-8"
                             onClick={() => {
                               if (dt.requiresExpiry) { setUploadingDocTypeId(dt.id); setExpiryDate('') }
                               else { setUploadingDocTypeId(dt.id); setTimeout(() => cameraInputRef.current?.click(), 50) }
@@ -488,7 +478,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       {/* DESKTOP ONLY: labelled "Scanner" button (a phone icon alone was unclear). Opens a QR that
                           pre-targets THIS document type; the phone photographs it. Gated by the setting audience. */}
                       {scanEnabled && isFinePointer && (
-                        <Button variant="outline" size="sm" className="border-primary/40 text-primary hover:bg-primary/5"
+                        <Button variant="default" size="sm"
                           onClick={() => openScan({ id: dt.id, name: dt.name })}>
                           <Smartphone className="mr-1.5 h-4 w-4" />Scanner
                         </Button>
