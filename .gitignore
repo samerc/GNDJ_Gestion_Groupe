@@ -33,6 +33,8 @@ pgdata/
 
 # Uploads
 uploads/
+# Yearly archives written by the app (audit CSV, new-year document zips) — personal data, never commit.
+archives/
 
 # Migration source data — contains real member PII, never commit
 reinscriptions/

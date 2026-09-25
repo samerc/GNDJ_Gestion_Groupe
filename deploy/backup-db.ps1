@@ -6,6 +6,7 @@
   2. Copy it OFF the server to a cloud remote (OneDrive/Google Drive) via rclone - so a full disk
      crash does not take the backups with it.
   2b. Also sync the yearly audit-log archives (backup.auditArchiveDir) off-server (kept, not pruned).
+  2c. And the new-year document archives (backup.documentArchiveDir) (kept, not pruned).
   3. Prune local + remote DB dumps older than the retention window.
   4. Email a success/failure summary to backup.alertTo (admin + CG) - always on failure; on success
      if notifyOnSuccess.
@@ -89,6 +90,21 @@ try {
             }
         } catch {
             $log += "WARNING: audit-archive sync failed: $($_.Exception.Message)"
+        }
+    }
+
+    # Step 2c. Same for the new-year document archives (zip of every document, written once per scout year by
+    # the app's "Nettoyage de nouvelle annee" to backup.documentArchiveDir = config DocumentArchive:Directory).
+    # Pushed to <remote>/documents, NOT pruned (they are the only copy of the deleted documents). Best-effort.
+    if ($bk.rcloneRemote -and $bk.documentArchiveDir) {
+        try {
+            if (Test-Path $bk.documentArchiveDir) {
+                & $rcloneExe @rc copy $bk.documentArchiveDir "$($bk.rcloneRemote)/documents" --no-traverse
+                if ($LASTEXITCODE -ne 0) { throw "rclone copy (documents) exited with code $LASTEXITCODE" }
+                $log += "Document archives synced to $($bk.rcloneRemote)/documents"
+            }
+        } catch {
+            $log += "WARNING: document-archive sync failed: $($_.Exception.Message)"
         }
     }
 

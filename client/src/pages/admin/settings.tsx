@@ -8,6 +8,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { Link, useSearchParams } from 'react-router'
 import { useState, useMemo, lazy, Suspense } from 'react'
 import { useSettings, useUpdateSetting, type SettingDto } from '@/services/settings-service'
+import { NewYearCleanupPanel, NewYearCleanupPrompt } from '@/components/admin/new-year-cleanup'
 import { useAssociations } from '@/services/association-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -70,7 +71,7 @@ const CONFIG_TABS: { key: string; label: string; Component: React.ComponentType<
 // The documents.* campaign dates/toggle live on "Suivi des documents → Campagne" (which validates their
 // order); their internal idempotency markers are never user-editable. Hidden here so there is ONE place
 // to set them (the generic editor would let you save the dates out of order and break the campaign phases).
-const HIDDEN_KEYS = new Set(['site.content', 'card_config', 'member.cities', 'member.schools', 'member.classes', 'member.profession_domains', 'demande.rejection_reasons', 'ui.role_colors', 'pinned_professions',
+const HIDDEN_KEYS = new Set(['newyear.keep_document_types', 'newyear.keep_id_approval', 'newyear.cleanup_done_for', 'newyear.cleanup_status', 'site.content', 'card_config', 'member.cities', 'member.schools', 'member.classes', 'member.profession_domains', 'demande.rejection_reasons', 'ui.role_colors', 'pinned_professions',
   'audit.last_archived_year', // internal marker: which scout year's audit log was last auto-archived+cleared
   'documents.campaign_enabled', 'documents.scout_year', 'documents.deposit_start', 'documents.deposit_deadline', 'documents.correction_start', 'documents.correction_deadline', 'documents.final_deadline',
   'documents.errors_sent_for', 'documents.errors_alert_for', 'documents.hold_applied_for', 'documents.hold_alert_for',
@@ -652,10 +653,16 @@ export default function SettingsPage() {
     { to: '/admin/roles-access', label: 'Accès & permissions', perm: PERMISSIONS.MAITRISE_MANAGE },
   ].filter(l => can(l.perm))
 
+  // Moving the scout year FORWARD (e.g. 2026-2027 → 2027-2028) prompts the CG to run the new-year cleanup.
+  const [newYearPrompt, setNewYearPrompt] = useState<string | null>(null)
+  const startYear = (v: string | undefined) => parseInt((v ?? '').slice(0, 4), 10) || 0
+
   const handleSave = async (key: string, value: string) => {
     setError('')
+    const before = (settings ?? []).find(s => s.key === key)?.value
     try { await updateMutation.mutateAsync({ key, value }) }
     catch (err) { setError(parseApiError(err)); throw err }
+    if (key === 'passage.scout_year' && startYear(value) > startYear(before) && can(PERMISSIONS.MAITRISE_MANAGE)) setNewYearPrompt(value)
   }
 
   // Hide dedicated-page keys + the companion "<key>.archived" lists (surfaced inside their parent editor).
@@ -684,7 +691,9 @@ export default function SettingsPage() {
   // to a specific section, if it's a valid + accessible one. Render-phase init, guarded by !tab.
   const [searchParams] = useSearchParams()
   const firstSection = categories[0] ?? configTabs[0]?.key
-  if (!tab && firstSection) {
+  // Wait for the settings to load: before that `categories` is empty, so a `?tab=<category>` (e.g. passage) looked
+  // invalid and the page locked onto the first config tab.
+  if (!tab && !isLoading && firstSection) {
     const requested = searchParams.get('tab')
     const valid = requested && (categories.includes(requested) || configTabs.some(t => t.key === requested))
     setTab(valid ? requested : firstSection)
@@ -775,6 +784,13 @@ export default function SettingsPage() {
           <div className="min-w-0 flex-1">
             {activeCategory && (
               <>
+                {/* Passage section leads with the yearly "Nettoyage de nouvelle année" (CG) — the manual shortcut. */}
+                {activeCategory === 'passage' && can(PERMISSIONS.MAITRISE_MANAGE) && (
+                  <div className="mb-6 rounded-xl border border-border bg-card p-5 shadow-card">
+                    <h2 className="mb-1 text-lg font-semibold">Nettoyage de nouvelle année</h2>
+                    <NewYearCleanupPanel />
+                  </div>
+                )}
                 {/* Cotisations section leads with the unified "Devises" editor (default currency + rates in one
                     place), above the amount/dues settings. */}
                 {activeCategory === 'cotisations' && (
@@ -831,6 +847,7 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+      <NewYearCleanupPrompt open={!!newYearPrompt} onOpenChange={(o) => { if (!o) setNewYearPrompt(null) }} year={newYearPrompt ?? ''} />
     </Page>
   )
 }

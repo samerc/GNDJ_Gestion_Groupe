@@ -44,6 +44,7 @@ notepad ops-alert.config.json     # fill in SMTP password, DB password, alertTo,
   (e.g. `C:\gndj-backups\audit`) so a deploy never wipes it. `backup-db.ps1` rclone-syncs it to
   `<rcloneRemote>/audit` (kept forever, not pruned). Leave empty to skip the off-server audit sync (the
   archive is still emailed to admin + CG by the app).
+- **backup.documentArchiveDir** — the folder the APP writes the new-year document archives to (the zip of every document made by "Nettoyage de nouvelle année", once per scout year). Must match **`DocumentArchive:Directory`** in `appsettings.Production.json` (outside the site, e.g. `C:\gndj-backups\documents`). Synced to `<remote>/documents`, never pruned — it is the only copy of the deleted documents.
 
 ### b. Install rclone + connect your cloud (for off-server backups)
 ```powershell

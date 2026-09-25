@@ -5898,3 +5898,29 @@ Two related document items (all on main, DEV until deploy; migration-free — re
 - Also found (DATA, not fixed — needs a human): 3 malformed emails that the outbox can never deliver (it retries then
   marks Failed, not blocking the rest): member `chloejohannabachaalany<chloejohannabachaalany7@`, guardians
   `a.lahoud@lahoud_lowfimcom` and `cassaf@tyanzgheibcom` (missing dot). Prod copy from 09-24, so prod has them.
+
+### New-year cleanup — "Nettoyage de nouvelle année" (2026-09-25, DEV until deploy)
+What is reset when a scout year starts, run by the CG ONCE per scout year (marker `newyear.cleanup_done_for`).
+- **Trigger:** prompted right after the CG moves `passage.scout_year` FORWARD in Paramètres (`NewYearCleanupPrompt`
+  from `handleSave`), + a manual card at the top of Paramètres → Passage (`NewYearCleanupPanel`). Both CG-only
+  (maitrise.manage). Preview first (live counts), then a confirm with an "J'ai compris" checkbox.
+- **What it does:** (1) exports EVERY document + pages to a zip `<unité>/<NOM Prénom>/<type>[ - pN].ext` (stored,
+  no compression) in `DocumentArchive:Directory` (default `<cwd>/archives/documents`; prod: outside the site, e.g.
+  `C:\gndj-backups\documents`, synced off-server by `backup-db.ps1` step 2c = `backup.documentArchiveDir`); (2) deletes
+  every document not of a kept type (`newyear.keep_document_types`, json array of CODES, default `["CI"]`) incl.
+  pages + files; (3) resets the kept documents to Pending unless `newyear.keep_id_approval` (default true); (4) clears
+  `section` on all members; (5) moves every ACTIVE member's `classe` up one step of `member.classes` (last stays),
+  skipping members created from THIS year's demandes (enrolled with the new classe).
+- **Background job** (`Infrastructure/Services/NewYearCleanupService`, singleton, own scopes) — a multi-GB zip can't be
+  built in one request (Cloudflare 100 s). Status in setting `newyear.cleanup_status` (polled every 3 s by the UI;
+  a stale "running" after a restart reads as failed). Crash-safe order: zip → ONE transaction (deletes, approvals,
+  sections, classes, marker, status) → file deletions. Audited `NettoyageNouvelleAnnee`.
+- **API** `NewYearController` (api/v1/new-year): `GET|POST /cleanup` (maitrise.manage + IsGroupManager),
+  `GET /archives/{file}` (super-admin only, path-traversal guarded). All 4 `newyear.*` keys hidden from the generic
+  settings list (edited in the card; category passage = CG-editable).
+- `.gitignore` now ignores `archives/` (the audit CSV archive was NOT ignored before — personal data).
+- Fixed: Paramètres `?tab=<category>` deep links locked onto the first config tab (tab chosen before settings loaded).
+- Verified live on dev (snapshot + exact restore): preview == SQL, CU 403, run 202 → done (1504 docs deleted, 634
+  approvals reset, 85 sections, 951 classes, Term→Université, Université stays), zip of 46 stand-in files with the
+  expected layout + "- p2" pages, kept CI files stay, deleted files removed, CG can't download / super-admin can,
+  traversal 404, second run refused. Browser 7/7 (card, confirm gate, prompt after year change).

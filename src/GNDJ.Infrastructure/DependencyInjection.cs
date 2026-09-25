@@ -68,6 +68,8 @@ public static class DependencyInjection
 
         // Writes the yearly audit-log archive CSV to a durable, non-web-served folder (stateless → singleton).
         services.AddSingleton<IAuditArchiveStorage, AuditArchiveStorage>();
+        // New-year cleanup: singleton that owns the background run (export zip + reset), opens its own scopes.
+        services.AddSingleton<GNDJ.Application.NewYear.INewYearCleanupService, NewYearCleanupService>();
 
         // Best-effort admin alerting on server/client errors (singleton: owns its own scope, never throws).
         services.AddSingleton<IErrorNotifier, ErrorNotifier>();

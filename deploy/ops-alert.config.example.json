@@ -31,7 +31,9 @@
     "retentionDays": 30,
     "notifyOnSuccess": true,
     "_comment_audit": "auditArchiveDir = the folder the APP writes the yearly audit-log CSV archives to. MUST match the app's AuditArchive:Directory in appsettings.Production.json (put it OUTSIDE the site so a deploy never wipes it). backup-db.ps1 rclone-syncs it to <rcloneRemote>/audit (kept, never pruned). Leave empty to skip the off-server audit sync.",
-    "auditArchiveDir": "C:\\gndj-backups\\audit"
+    "auditArchiveDir": "C:\\gndj-backups\\audit",
+    "_comment_documents": "documentArchiveDir = the folder the APP writes the new-year document archives (zip of every document, once per scout year) to. MUST match DocumentArchive:Directory in appsettings.Production.json (outside the site). backup-db.ps1 rclone-syncs it to <rcloneRemote>/documents (kept, never pruned). Leave empty to skip.",
+    "documentArchiveDir": "C:\\gndj-backups\\documents"
   },
 
   "health": {
