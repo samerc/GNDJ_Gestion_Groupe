@@ -39,7 +39,11 @@ public record RosterMemberDto(
     string? PrimaryPhone,
     string? PrimaryEmail,
     DateOnly? DateOfBirth,
-    string? PhotoPath
+    string? PhotoPath,
+    // Dossier compliance (same rule as the Membres list): all active document types approved / current-year
+    // cotisation paid or exempt (null = cotisation not tracked). Drives the optional roster status icon.
+    bool DocsComplete = false,
+    bool? CotisationOk = null
 );
 
 public record GetUnitDashboardQuery(Guid UnitId) : IRequest<UnitDashboardDto?>;
@@ -95,6 +99,9 @@ public class GetUnitDashboardQueryHandler : IRequestHandler<GetUnitDashboardQuer
             })
             .ToListAsync(cancellationToken);
 
+        // Dossier-compliance flags for the whole roster (3 batched queries).
+        var flags = await MemberCompliance.ComputeAsync(_context, assignments.Select(a => a.MemberId).Distinct().ToList(), cancellationToken);
+
         // Group by team
         var teamGroups = assignments
             .Where(a => a.TeamId != null)
@@ -106,14 +113,14 @@ public class GetUnitDashboardQueryHandler : IRequestHandler<GetUnitDashboardQuer
                 g.Key.TeamTotem,
                 g.Key.TeamColor1,
                 g.Key.TeamColor2,
-                g.Select(a => new RosterMemberDto(a.MemberId, a.FirstName, a.LastName, a.CardNumber, a.RoleName, a.RoleRank, a.PrimaryPhone, a.PrimaryEmail, a.DateOfBirth, a.PhotoPath))
+                g.Select(a => new RosterMemberDto(a.MemberId, a.FirstName, a.LastName, a.CardNumber, a.RoleName, a.RoleRank, a.PrimaryPhone, a.PrimaryEmail, a.DateOfBirth, a.PhotoPath, flags[a.MemberId].DocsComplete, flags[a.MemberId].CotisationOk))
                     .OrderByDescending(m => m.FunctionalRoleRank).ThenBy(m => m.LastName).ThenBy(m => m.FirstName).ToList()
             ))
             .ToList();
 
         var unassigned = assignments
             .Where(a => a.TeamId == null)
-            .Select(a => new RosterMemberDto(a.MemberId, a.FirstName, a.LastName, a.CardNumber, a.RoleName, a.RoleRank, a.PrimaryPhone, a.PrimaryEmail, a.DateOfBirth, a.PhotoPath))
+            .Select(a => new RosterMemberDto(a.MemberId, a.FirstName, a.LastName, a.CardNumber, a.RoleName, a.RoleRank, a.PrimaryPhone, a.PrimaryEmail, a.DateOfBirth, a.PhotoPath, flags[a.MemberId].DocsComplete, flags[a.MemberId].CotisationOk))
             .OrderByDescending(m => m.FunctionalRoleRank).ThenBy(m => m.LastName).ThenBy(m => m.FirstName)
             .ToList();
 

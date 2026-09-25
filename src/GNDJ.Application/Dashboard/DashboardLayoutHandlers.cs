@@ -64,3 +64,53 @@ public class UpdateDashboardLayoutCommandHandler(IApplicationDbContext context, 
         return Result<bool>.Success(true);
     }
 }
+
+// ── CU unit roster ("Mon unité") preferences: button bar order/visibility, what each roster row shows, grouping.
+// Same model as the group layout above, but a JSON OBJECT stored on User.UnitDashboardPrefsJson. Auth-only, own account.
+public record GetUnitDashboardPrefsQuery : IRequest<string?>;
+
+public class GetUnitDashboardPrefsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetUnitDashboardPrefsQuery, string?>
+{
+    public async ValueTask<string?> Handle(GetUnitDashboardPrefsQuery request, CancellationToken ct)
+    {
+        if (currentUser.UserId is not Guid userId) return null;
+        return await context.Users.Where(u => u.Id == userId).Select(u => u.UnitDashboardPrefsJson).FirstOrDefaultAsync(ct);
+    }
+}
+
+// PrefsJson empty/null = reset to the defaults.
+public record UpdateUnitDashboardPrefsCommand(string? PrefsJson) : IRequest<Result<bool>>;
+
+public class UpdateUnitDashboardPrefsCommandValidator : AbstractValidator<UpdateUnitDashboardPrefsCommand>
+{
+    public UpdateUnitDashboardPrefsCommandValidator()
+    {
+        // Private prefs parsed as JSON config on the client (never rendered as HTML): bounded size + a JSON object.
+        RuleFor(x => x.PrefsJson)
+            .MaximumLength(4000).WithMessage("Préférences trop volumineuses.")
+            .Must(BeJsonObject).WithMessage("Préférences invalides.")
+            .When(x => !string.IsNullOrWhiteSpace(x.PrefsJson));
+    }
+
+    private static bool BeJsonObject(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return true;
+        try { return JsonDocument.Parse(json).RootElement.ValueKind == JsonValueKind.Object; }
+        catch { return false; }
+    }
+}
+
+public class UpdateUnitDashboardPrefsCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<UpdateUnitDashboardPrefsCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(UpdateUnitDashboardPrefsCommand request, CancellationToken ct)
+    {
+        if (currentUser.UserId is not Guid userId) return Result<bool>.Failure("Non authentifié.");
+        var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null) return Result<bool>.Failure("Compte introuvable.");
+        user.UnitDashboardPrefsJson = string.IsNullOrWhiteSpace(request.PrefsJson) ? null : request.PrefsJson;
+        await context.SaveChangesAsync(ct);
+        return Result<bool>.Success(true);
+    }
+}

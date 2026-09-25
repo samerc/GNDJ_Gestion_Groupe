@@ -5,6 +5,14 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Mon unité (chef d'unité) : la fiche membre est maintenant la même que celle du chef de groupe (onglets regroupés, Coordonnées du foyer, fratrie, menu Actions) — seules les actions permises au chef d'unité apparaissent."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Mon unité : bouton « Personnaliser » — chaque chef d'unité choisit l'ordre et l'affichage des boutons du haut, ce que montre chaque ligne de la liste (photo, fonction, équipe, matricule, âge, absences, état du dossier) et le regroupement (par équipe ou alphabétique). Enregistré sur son compte, sur tous ses appareils."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Rapports d'erreur automatiques : ils ne sont plus bloqués par le filtre anti-attaque quand le message d'erreur contient un texte qui ressemble à une attaque."
       },
       {

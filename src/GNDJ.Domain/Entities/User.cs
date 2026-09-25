@@ -37,5 +37,9 @@ public class User : BaseEntity
     // merges against its registry on load, so adding a widget later is forward-compatible). Auth-only, own account.
     public string? DashboardLayoutJson { get; set; }
 
+    // Per-user customization of the CU unit roster ("Mon unité"): a JSON object { buttons: [{id,visible}], row: {…},
+    // grouping }. Null = defaults. Opaque here — the frontend owns the schema and merges on load.
+    public string? UnitDashboardPrefsJson { get; set; }
+
     public Member Member { get; set; } = null!;
 }

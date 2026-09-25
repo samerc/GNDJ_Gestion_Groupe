@@ -5864,3 +5864,23 @@ Two related document items (all on main, DEV until deploy; migration-free — re
   session; `useApplicantStore.adoptSession` stores it and the page navigates to `/inscription/portail/demande/new`
   (terms/verify gates + window/caps still apply). Impersonation (read-only) can't use it (POST). Verified live on a
   real family: account created on the father's email, 2 parents + address + 2 brothers (suggestions), 2nd call reuses.
+
+### CU "Mon unité" — shared member file + per-CU customization (2026-09-25, DEV until deploy)
+- **One member file for everyone:** the member detail panel was extracted from `pages/members/index.tsx` into
+  `components/members/member-detail-panel.tsx` (`MemberDetailPanel`, props memberId / onDeleted? / initialTab? /
+  onBack? [mobile back arrow]). The CU unit roster (`dashboard-unit-leader.tsx`) used an OLD private 9-tab copy
+  (no Contact & famille merge, no Actions menu, no siblings) — it now renders the shared panel. Every tab/action is
+  already permission-gated, so the CU just sees fewer actions. The CU chose NOT to customize tabs (all tabs stay).
+  `credentialsMessage` moved to `lib/credentials.ts`.
+- **Per-CU preferences** (`User.UnitDashboardPrefsJson`, migration `AddUserUnitDashboardPrefs`; `GET|PUT
+  /my-profile/unit-dashboard-prefs`, own account, JSON-object validator ≤4000): schema owned by the frontend
+  (`lib/unit-dashboard-prefs.ts`, merged against defaults on load, null when equal to defaults) = action-bar buttons
+  order/visibility (Anniversaires/Liste/Trombinoscope/Exporter/Cartes/Photos/Équipes), roster row fields (photo,
+  fonction, équipe, matricule, âge, absences, état du dossier), grouping (par équipe | A–Z). "Personnaliser" (sliders
+  icon) at the end of the button bar → `components/dashboard/unit-dashboard-customize.tsx`. Defaults = the previous
+  look exactly.
+- **Dossier flags on roster rows:** `RosterMemberDto` gained `DocsComplete` / `CotisationOk`, computed by the new
+  shared `Common/MemberCompliance.ComputeAsync` (3 batched queries) — `GetMembersQuery` now uses it too (same rule).
+- `ui/switch.tsx` gained an optional `aria-label` (was dropped → unnamed switches for screen readers).
+- Verified live as a real CU (Troupe 3): shared file with 6 tabs + Actions; hide Photos / A–Z / dossier icons saved,
+  survive reload, Réinitialiser restores defaults; no page errors. Build + tsc + eslint + vite clean.

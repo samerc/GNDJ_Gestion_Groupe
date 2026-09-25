@@ -102,6 +102,19 @@ public class MyProfileController : BaseApiController
     /// <summary>Body for PUT /my-profile/dashboard-layout.</summary>
     public record DashboardLayoutBody(string? LayoutJson);
 
+    /// <summary>Returns the caller's saved unit-roster ("Mon unité") preferences (JSON string, or null = defaults).</summary>
+    [HttpGet("unit-dashboard-prefs")]
+    public async Task<IActionResult> GetUnitDashboardPrefs()
+        => Ok(new { prefs = await Mediator.Send(new GNDJ.Application.Dashboard.GetUnitDashboardPrefsQuery()) });
+
+    /// <summary>Saves the caller's unit-roster preferences (buttons, roster row fields, grouping). Empty = reset.</summary>
+    [HttpPut("unit-dashboard-prefs")]
+    public async Task<IActionResult> UpdateUnitDashboardPrefs([FromBody] UnitDashboardPrefsBody body)
+        => Wrap(await Mediator.Send(new GNDJ.Application.Dashboard.UpdateUnitDashboardPrefsCommand(body?.PrefsJson)));
+
+    /// <summary>Body for PUT /my-profile/unit-dashboard-prefs.</summary>
+    public record UnitDashboardPrefsBody(string? PrefsJson);
+
     // ── Coordonnées: own phones / emails / addresses (add / edit / remove) ──────────────────────────
     // Each command is strictly own-scoped server-side (never a supplied member id), so no members.edit.
 

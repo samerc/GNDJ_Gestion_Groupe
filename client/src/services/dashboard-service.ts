@@ -7,6 +7,9 @@ export interface RosterMemberDto {
   memberId: string; firstName: string; lastName: string; cardNumber: string | null
   functionalRoleName: string; primaryPhone: string | null; primaryEmail: string | null
   dateOfBirth: string | null; photoPath: string | null
+  // Dossier compliance (same rule as the Membres list): all active document types approved; current-year
+  // cotisation paid or exempt (null = cotisation not tracked).
+  docsComplete: boolean; cotisationOk: boolean | null
 }
 
 export interface TeamRosterDto {
@@ -107,5 +110,23 @@ export function useUpdateDashboardLayout() {
   return useMutation({
     mutationFn: (layoutJson: string | null) => apiClient.put('/my-profile/dashboard-layout', { layoutJson }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard', 'layout'] }),
+  })
+}
+
+// GET /my-profile/unit-dashboard-prefs — the CU's saved "Mon unité" preferences (JSON string, null = defaults).
+export function useUnitDashboardPrefs() {
+  return useQuery({
+    queryKey: ['unit-dashboard-prefs'],
+    queryFn: () => apiClient.get<{ prefs: string | null }>('/my-profile/unit-dashboard-prefs').then(r => r.data.prefs),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+// PUT /my-profile/unit-dashboard-prefs — save (or clear, when null) the CU's preferences.
+export function useUpdateUnitDashboardPrefs() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (prefsJson: string | null) => apiClient.put('/my-profile/unit-dashboard-prefs', { prefsJson }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['unit-dashboard-prefs'] }),
   })
 }

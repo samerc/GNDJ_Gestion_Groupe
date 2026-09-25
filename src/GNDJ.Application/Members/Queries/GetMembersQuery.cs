@@ -210,35 +210,11 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
         if (!isAlumni && !isAll && result.Items.Count > 0)
         {
             var ids = result.Items.Select(i => i.Id).ToList();
-
-            var activeDocTypeIds = await _context.DocumentTypes
-                .Where(d => d.IsActive && !d.IsDeleted).Select(d => d.Id).ToListAsync(cancellationToken);
-            var requiredCount = activeDocTypeIds.Count;
-
-            var approvedTypeCount = requiredCount == 0
-                ? new Dictionary<Guid, int>()
-                : await _context.MemberDocuments
-                    .Where(d => ids.Contains(d.MemberId) && !d.IsDeleted
-                        && d.Status == Domain.Enums.DocumentStatus.Approved && activeDocTypeIds.Contains(d.DocumentTypeId))
-                    .GroupBy(d => d.MemberId)
-                    .Select(g => new { Id = g.Key, N = g.Select(x => x.DocumentTypeId).Distinct().Count() })
-                    .ToDictionaryAsync(x => x.Id, x => x.N, cancellationToken);
-
-            // Active scout year follows the passage year (the year the CG opens) — single source of truth.
-            var scoutYear = await _context.Settings.Where(s => s.Key == "passage.scout_year")
-                .Select(s => s.Value).FirstOrDefaultAsync(cancellationToken);
-            var cotisTracked = !string.IsNullOrWhiteSpace(scoutYear);
-            var cotisOk = cotisTracked
-                ? (await _context.MemberCotisations
-                    .Where(c => ids.Contains(c.MemberId) && !c.IsDeleted && c.ScoutYear == scoutYear
-                        && (c.WillNotPay || c.Payments.Any(p => !p.IsDeleted)))
-                    .Select(c => c.MemberId).Distinct().ToListAsync(cancellationToken)).ToHashSet()
-                : new HashSet<Guid>();
-
+            var flags = await MemberCompliance.ComputeAsync(_context, ids, cancellationToken);
             var withCompliance = result.Items.Select(i => i with
             {
-                DocsComplete = requiredCount == 0 || approvedTypeCount.GetValueOrDefault(i.Id) >= requiredCount,
-                CotisationOk = cotisTracked ? cotisOk.Contains(i.Id) : (bool?)null,
+                DocsComplete = flags[i.Id].DocsComplete,
+                CotisationOk = flags[i.Id].CotisationOk,
             }).ToList();
 
             return new PaginatedList<MemberListDto>(withCompliance, result.TotalCount, result.Page, result.PageSize);

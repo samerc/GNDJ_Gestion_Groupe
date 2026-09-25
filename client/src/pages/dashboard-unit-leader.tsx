@@ -1,190 +1,41 @@
 import { useState, useRef, useCallback, useMemo } from 'react'
 import { saveBlob } from '@/lib/download'
 import { useNavigate } from 'react-router'
-import { useUnitDashboard, type RosterMemberDto } from '@/services/dashboard-service'
-import { useMember } from '@/services/member-service'
+import { useUnitDashboard, useUnitDashboardPrefs, type RosterMemberDto } from '@/services/dashboard-service'
 import { useDebounce } from '@/hooks/use-debounce'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tooltip'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { MemberPhoto } from '@/components/shared/member-photo'
 import { TrombinoscoreDialog } from '@/components/shared/trombinoscope-dialog'
-import { MemberAssignments } from '@/components/members/member-assignments'
-import { MemberGuardians } from '@/components/members/member-guardians'
-import { MemberDocuments } from '@/components/members/member-documents'
-import { MemberCotisations } from '@/components/members/member-cotisations'
-import { MemberProgression } from '@/components/members/member-progression'
-import { MemberCustomFields } from '@/components/members/member-custom-fields'
+import { MemberDetailPanel } from '@/components/members/member-detail-panel'
+import { UnitDashboardCustomizeDialog } from '@/components/dashboard/unit-dashboard-customize'
+import { mergeUnitPrefs, type UnitButtonId } from '@/lib/unit-dashboard-prefs'
 import { RosterDialog } from '@/components/shared/roster-dialog'
 import { ExportDialog } from '@/components/shared/export-dialog'
-import { cn } from '@/lib/utils'
+import { cn, computeAge } from '@/lib/utils'
 import { generateBulkCards } from '@/services/report-service'
 import { parseBlobError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useSettingValue } from '@/services/settings-service'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
-import { Users, Search, Phone, Mail, MapPin, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, ArrowLeft, CalendarCheck, UsersRound } from 'lucide-react'
-import { WhatsappLink } from '@/components/shared/whatsapp-link'
+import { Users, Search, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, CalendarCheck, UsersRound, SlidersHorizontal, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { BirthdaysButton } from '@/components/shared/birthdays-card'
 
 interface Props { unitId: string }
 
-// Small labelled read-only value (dash placeholder when empty), used throughout the detail panel.
-function Field({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-sm font-medium">{value || '—'}</dd>
-    </div>
-  )
-}
-
-// Right-pane member file: header + tabbed sections (info/contact/family/units/medical/docs/
-// cotisations/progression/custom). `onBack` is the mobile-only return-to-list arrow.
-function MemberDetailPanel({ memberId, onBack }: { memberId: string; onBack?: () => void }) {
-  const { data: member, isLoading } = useMember(memberId)
-
-  if (isLoading) return <div className="flex items-center justify-center h-full"><LoadingSpinner /></div>
-  if (!member) return null
-
-  return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex items-center gap-3 border-b px-4 py-3 shrink-0 bg-card">
-        {onBack && (
-          <Tip content="Retour à la liste">
-            <Button variant="ghost" size="icon" className="md:hidden shrink-0 -ml-2" onClick={onBack} aria-label="Retour à la liste">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Tip>
-        )}
-        <MemberPhoto
-          memberId={memberId}
-          name={`${member.firstName} ${member.lastName}`}
-          photoPath={member.photoPath}
-          size={48}
-          editable
-        />
-        <div className="min-w-0">
-          <h3 className="font-bold text-lg truncate">{member.firstName} {member.lastName}</h3>
-          <p className="text-xs text-muted-foreground truncate">
-            {member.cardNumber && `N° ${member.cardNumber}`}
-            {member.cardNumber && member.gender && ' — '}
-            {member.gender}
-            {(member.cardNumber || member.gender) && member.dateOfBirth && ' — '}
-            {member.dateOfBirth && `Né(e) le ${new Date(member.dateOfBirth).toLocaleDateString('fr-FR')}`}
-          </p>
-        </div>
-      </div>
-
-      <Tabs defaultValue="info" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="mx-4 mt-3 shrink-0 justify-start overflow-x-auto flex-nowrap">
-          <TabsTrigger value="info">Informations</TabsTrigger>
-          <TabsTrigger value="contact">Contact</TabsTrigger>
-          <TabsTrigger value="famille">Famille</TabsTrigger>
-          <TabsTrigger value="unites">Unités / Fonctions</TabsTrigger>
-          <TabsTrigger value="medical">Médical</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="cotisations">Cotisations</TabsTrigger>
-          <TabsTrigger value="progression">Progression</TabsTrigger>
-          <TabsTrigger value="custom">Infos complémentaires</TabsTrigger>
-        </TabsList>
-
-        <div className="flex-1 overflow-auto p-4">
-          <TabsContent value="info" className="mt-0">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <Field label="Prénom" value={member.firstName} />
-              <Field label="Nom" value={member.lastName} />
-              <Field label="Date de naissance" value={member.dateOfBirth ? new Date(member.dateOfBirth).toLocaleDateString('fr-FR') : null} />
-              <Field label="Sexe" value={member.gender} />
-              <Field label="N° Carte" value={member.cardNumber} />
-              <Field label="Nationalité" value={member.nationality} />
-              <Field label="Groupe sanguin" value={member.bloodType} />
-              <Field label="École" value={member.school} />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="contact" className="mt-0">
-            <div className="grid gap-6 xl:grid-cols-3">
-              <div>
-                <h4 className="font-medium flex items-center gap-1.5 mb-2 text-sm"><Phone className="h-3.5 w-3.5" />Téléphones</h4>
-                {member.phones.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
-                  <div className="space-y-1.5">{member.phones.map(p => (
-                    <div key={p.id} className="text-sm flex items-center gap-2">
-                      <span>{p.countryCode} {p.number}</span>
-                      <WhatsappLink countryCode={p.countryCode} number={p.number} />
-                      <span className="text-muted-foreground text-xs">{p.type}</span>
-                      {p.isPrimary && <Badge variant="outline" className="text-xs h-4">P</Badge>}
-                      {p.isEmergency && <Badge variant="destructive" className="text-xs h-4">U</Badge>}
-                    </div>
-                  ))}</div>
-                )}
-              </div>
-              <div>
-                <h4 className="font-medium flex items-center gap-1.5 mb-2 text-sm"><Mail className="h-3.5 w-3.5" />Courriels</h4>
-                {member.emails.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
-                  <div className="space-y-1.5">{member.emails.map(e => (
-                    <div key={e.id} className="text-sm flex items-center gap-2">
-                      <span className="truncate">{e.address}</span>
-                      <span className="text-muted-foreground text-xs shrink-0">{e.type}</span>
-                    </div>
-                  ))}</div>
-                )}
-              </div>
-              <div>
-                <h4 className="font-medium flex items-center gap-1.5 mb-2 text-sm"><MapPin className="h-3.5 w-3.5" />Adresses</h4>
-                {member.addresses.length === 0 ? <p className="text-sm text-muted-foreground">Aucune</p> : (
-                  <div className="space-y-1.5">{member.addresses.map(a => (
-                    <div key={a.id} className="text-sm">
-                      <span>{a.city}, {a.country}</span>
-                      {a.details && <span className="text-muted-foreground"> — {a.details}</span>}
-                    </div>
-                  ))}</div>
-                )}
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="famille" className="mt-0">
-            <MemberGuardians memberId={memberId} />
-          </TabsContent>
-
-          <TabsContent value="unites" className="mt-0">
-            <MemberAssignments memberId={memberId} memberName={`${member.firstName} ${member.lastName}`} />
-          </TabsContent>
-
-          <TabsContent value="medical" className="mt-0">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Groupe sanguin" value={member.bloodType} />
-              <Field label="Allergies" value={member.allergies} />
-              <Field label="Notes médicales" value={member.medicalNotes} />
-              <Field label="Notes générales" value={member.notes} />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="documents" className="mt-0">
-            <MemberDocuments memberId={memberId} />
-          </TabsContent>
-
-          <TabsContent value="cotisations" className="mt-0">
-            <MemberCotisations memberId={memberId} />
-          </TabsContent>
-
-          <TabsContent value="progression" className="mt-0">
-            <MemberProgression memberId={memberId} />
-          </TabsContent>
-
-          <TabsContent value="custom" className="mt-0">
-            <MemberCustomFields memberId={memberId} />
-          </TabsContent>
-        </div>
-      </Tabs>
-    </div>
-  )
+// Dossier status for a roster row (optional, "État du dossier"): green check when all documents are approved AND
+// the current-year cotisation is paid/exempt, else an amber warning whose tooltip says what's missing.
+function DossierIcon({ docsComplete, cotisationOk }: { docsComplete: boolean; cotisationOk: boolean | null }) {
+  const issues: string[] = []
+  if (!docsComplete) issues.push('Documents incomplets')
+  if (cotisationOk === false) issues.push('Cotisation non payée') // null = not tracked -> not an issue
+  if (issues.length === 0)
+    return <Tip content="Dossier complet"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" /></Tip>
+  return <Tip content={issues.join(' · ')}><AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" /></Tip>
 }
 
 // Draggable divider
@@ -242,6 +93,10 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const [exportOpen, setExportOpen] = useState(false)
   // Member-card generation is a group-wide toggle (Paramètres → Rapports). Off => hide the "Cartes" button.
   const cardsEnabled = useSettingValue('reports.cards_enabled') !== 'false'
+  // The CU's own "Mon unité" preferences (button bar, roster row fields, grouping), saved on their account.
+  const { data: prefsJson } = useUnitDashboardPrefs()
+  const prefs = useMemo(() => mergeUnitPrefs(prefsJson), [prefsJson])
+  const [customizeOpen, setCustomizeOpen] = useState(false)
 
   // Per-member absence counts (the running calendar scout year, so pre-season réunions count) → roster badge.
   const { data: absenceCountsRaw } = useUnitAbsenceCounts(unitId, calendarScoutYear())
@@ -296,14 +151,79 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
     }
   }
 
-  // Re-group the filtered list back into team sections, preserving first-seen team order.
-  const grouped: { teamName: string | null; teamColor1: string | null; members: typeof filtered }[] = []
-  const seen = new Set<string | null>()
-  for (const m of filtered) {
-    if (!seen.has(m.teamName)) {
-      seen.add(m.teamName)
-      grouped.push({ teamName: m.teamName, teamColor1: m.teamColor1, members: filtered.filter(f => f.teamName === m.teamName) })
+  // Re-group the filtered list: by team (default, first-seen team order) or, per the CU's preference, one
+  // alphabetical list by family name.
+  const grouped: { key: string; label: string; teamColor1: string | null; members: typeof filtered }[] = []
+  if (prefs.grouping === 'alpha') {
+    const sorted = [...filtered].sort((a, b) => a.lastName.localeCompare(b.lastName, 'fr') || a.firstName.localeCompare(b.firstName, 'fr'))
+    if (sorted.length) grouped.push({ key: '__all', label: 'Membres (A–Z)', teamColor1: null, members: sorted })
+  } else {
+    const seen = new Set<string | null>()
+    for (const m of filtered) {
+      if (!seen.has(m.teamName)) {
+        seen.add(m.teamName)
+        grouped.push({ key: m.teamName ?? '__none', label: m.teamName ?? 'Sans équipe', teamColor1: m.teamColor1, members: filtered.filter(f => f.teamName === m.teamName) })
+      }
     }
+  }
+
+  const rowDetail = (m: (typeof filtered)[number]) => {
+    const age = prefs.row.age ? computeAge(m.dateOfBirth) : null
+    return [
+      prefs.row.fonction ? m.functionalRoleName : null,
+      prefs.row.team ? (m.teamName ?? 'Sans équipe') : null,
+      prefs.row.matricule ? m.cardNumber : null,
+      age != null ? `${age} ans` : null,
+    ].filter(Boolean).join(' · ')
+  }
+
+  // Action-bar buttons by id, rendered in the CU's chosen order (hidden ones skipped).
+  const buttonNodes: Record<UnitButtonId, React.ReactNode> = {
+    // Upcoming birthdays of this unit's members (hidden when none).
+    birthdays: <BirthdaysButton />,
+    roster: (
+      <Tip content="Liste des membres (PDF)">
+        <Button variant="outline" size="sm" className="shrink-0" onClick={() => setRosterOpen(true)}>
+          <List className="mr-1 h-4 w-4" />Liste
+        </Button>
+      </Tip>
+    ),
+    trombi: (
+      <Tip content="Trombinoscope (PDF avec photos)">
+        <Button variant="outline" size="sm" className="shrink-0" onClick={() => setTrombiOpen(true)}>
+          <FileDown className="mr-1 h-4 w-4" />Trombinoscope
+        </Button>
+      </Tip>
+    ),
+    export: (
+      <Tip content="Exporter en Excel ou CSV">
+        <Button variant="outline" size="sm" className="shrink-0" onClick={() => setExportOpen(true)}>
+          <FileSpreadsheet className="mr-1 h-4 w-4" />Exporter
+        </Button>
+      </Tip>
+    ),
+    cards: cardsEnabled ? (
+      <Tip content="Imprimer les cartes de membre">
+        <Button variant="outline" size="sm" className="shrink-0" onClick={handleBulkCards} disabled={bulkCardsLoading}>
+          <CreditCard className="mr-1 h-4 w-4" />{bulkCardsLoading ? 'Génération...' : 'Cartes'}
+        </Button>
+      </Tip>
+    ) : null,
+    photos: (
+      <Tip content="Session photo de l'unité">
+        <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate('/photo-session')}>
+          <Camera className="mr-1 h-4 w-4" />Photos
+        </Button>
+      </Tip>
+    ),
+    // Opens the unit detail page (unit info + teams), where the CU edits équipes and their foulard colours.
+    teams: (
+      <Tip content="Gérer les équipes de l'unité (noms, couleurs des foulards…)">
+        <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate(`/units/${unitId}`)}>
+          <UsersRound className="mr-1 h-4 w-4" />Équipes
+        </Button>
+      </Tip>
+    ),
   }
 
   return (
@@ -322,44 +242,10 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
         </div>
         {/* Action bar: a single horizontally-scrollable row so it never wraps into a pile on mobile. */}
         <div className="flex items-center gap-2 overflow-x-auto flex-nowrap pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {/* Upcoming birthdays of this unit's members (hidden when none). */}
-          <BirthdaysButton />
-          <Tip content="Liste des membres (PDF)">
-            <Button variant="outline" size="sm" className="shrink-0" onClick={() => setRosterOpen(true)}>
-              <List className="mr-1 h-4 w-4" />Liste
-            </Button>
-          </Tip>
-          <Tip content="Trombinoscope (PDF avec photos)">
-            <Button variant="outline" size="sm" className="shrink-0" onClick={() => setTrombiOpen(true)}>
-              <FileDown className="mr-1 h-4 w-4" />Trombinoscope
-            </Button>
-          </Tip>
-          <Tip content="Exporter en Excel ou CSV">
-            <Button variant="outline" size="sm" className="shrink-0" onClick={() => setExportOpen(true)}>
-              <FileSpreadsheet className="mr-1 h-4 w-4" />
-              Exporter
-            </Button>
-          </Tip>
-          {cardsEnabled && (
-            <Tip content="Imprimer les cartes de membre">
-              <Button variant="outline" size="sm" className="shrink-0" onClick={handleBulkCards} disabled={bulkCardsLoading}>
-                <CreditCard className="mr-1 h-4 w-4" />
-                {bulkCardsLoading ? 'Génération...' : 'Cartes'}
-              </Button>
-            </Tip>
-          )}
-          <Tip content="Session photo de l'unité">
-            <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate('/photo-session')}>
-              <Camera className="mr-1 h-4 w-4" />
-              Photos
-            </Button>
-          </Tip>
-          {/* Opens the unit detail page (unit info + teams) — where the CU edits équipes and their foulard
-              colours. The dashboard has no other path to it, so this is the CU's way in. */}
-          <Tip content="Gérer les équipes de l'unité (noms, couleurs des foulards…)">
-            <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate(`/units/${unitId}`)}>
-              <UsersRound className="mr-1 h-4 w-4" />
-              Équipes
+          {prefs.buttons.filter(b => b.visible).map(b => <span key={b.id} className="contents">{buttonNodes[b.id]}</span>)}
+          <Tip content="Personnaliser cette page (boutons, liste des membres)">
+            <Button variant="ghost" size="sm" className="shrink-0 text-muted-foreground" onClick={() => setCustomizeOpen(true)} aria-label="Personnaliser">
+              <SlidersHorizontal className="h-4 w-4" />
             </Button>
           </Tip>
           {/* Custom reports live in their own "Rapports" sidebar section now (was a dropdown here). */}
@@ -405,10 +291,10 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
             <div className="flex items-center justify-center h-full text-sm text-muted-foreground p-4">Aucun membre trouvé</div>
           ) : (
             grouped.map(group => (
-              <div key={group.teamName ?? '__none'}>
+              <div key={group.key}>
                 <div className="sticky top-0 z-10 flex items-center gap-2 bg-muted px-3 py-1.5 text-xs font-semibold text-muted-foreground border-b">
                   {group.teamColor1 && <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: group.teamColor1 }} />}
-                  <span className="truncate">{group.teamName ?? 'Sans équipe'}</span>
+                  <span className="truncate">{group.label}</span>
                   <span className="ml-auto shrink-0">{group.members.length}</span>
                 </div>
                 {group.members.map(m => (
@@ -422,18 +308,21 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
                     )}
                     onClick={() => setSelectedMemberId(m.memberId)}
                   >
-                    <MemberPhoto
-                      memberId={m.memberId}
-                      name={`${m.firstName} ${m.lastName}`}
-                      photoPath={m.photoPath}
-                      size={32}
-                      className="shrink-0"
-                    />
+                    {prefs.row.photo && (
+                      <MemberPhoto
+                        memberId={m.memberId}
+                        name={`${m.firstName} ${m.lastName}`}
+                        photoPath={m.photoPath}
+                        size={32}
+                        className="shrink-0"
+                      />
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{m.lastName} {m.firstName}</p>
-                      <p className="text-xs text-muted-foreground truncate">{m.functionalRoleName}</p>
+                      {rowDetail(m) && <p className="text-xs text-muted-foreground truncate">{rowDetail(m)}</p>}
                     </div>
-                    {absenceCounts.get(m.memberId) ? (
+                    {prefs.row.dossier && <DossierIcon docsComplete={m.docsComplete} cotisationOk={m.cotisationOk} />}
+                    {prefs.row.absences && absenceCounts.get(m.memberId) ? (
                       <Tip content="Absences aux réunions cette année">
                         <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                           <CalendarCheck className="h-3 w-3" />{absenceCounts.get(m.memberId)}
@@ -460,7 +349,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
           )}
         >
           {selectedMemberId ? (
-            <MemberDetailPanel memberId={selectedMemberId} onBack={() => setSelectedMemberId(null)} />
+            <MemberDetailPanel key={selectedMemberId} memberId={selectedMemberId} onBack={() => setSelectedMemberId(null)} onDeleted={() => setSelectedMemberId(null)} />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               <div className="text-center">
@@ -475,6 +364,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
       <TrombinoscoreDialog unitId={unitId} unitName={data?.unitName ?? ''} open={trombiOpen} onOpenChange={setTrombiOpen} />
       <RosterDialog unitId={unitId} unitName={data?.unitName ?? ''} open={rosterOpen} onOpenChange={setRosterOpen} />
       <ExportDialog unitId={unitId} unitName={data?.unitName ?? ''} open={exportOpen} onOpenChange={setExportOpen} />
+      <UnitDashboardCustomizeDialog open={customizeOpen} onOpenChange={setCustomizeOpen} prefs={prefs} cardsEnabled={cardsEnabled} />
     </div>
   )
 }
