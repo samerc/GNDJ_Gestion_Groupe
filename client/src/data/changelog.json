@@ -5,7 +5,7 @@
     "changes": [
       {
         "date": "2026-09-25",
-        "text": "Documents — aperçu avant envoi : après avoir photographié ou choisi un document, un aperçu s'affiche pour vérifier qu'il est lisible et confirmer (ou annuler) avant l'envoi. Utile surtout sur téléphone, où la photo partait auparavant immédiatement après la prise. Vaut pour tous les modes d'envoi (photo, choix de fichier, glisser-déposer), y compris les documents à plusieurs pages."
+        "text": "Documents — aperçu avant envoi : après avoir photographié ou choisi un document, un aperçu s'affiche pour vérifier qu'il est lisible et confirmer (ou reprendre) avant l'envoi. Utile surtout sur téléphone, où la photo partait auparavant immédiatement après la prise. Vaut pour tous les modes d'envoi (photo, choix de fichier, glisser-déposer, documents à plusieurs pages) ET pour la page « Scanner avec le téléphone »."
       },
       {
         "date": "2026-09-25",

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useParams } from 'react-router'
-import { Camera, ImageUp, CheckCircle2, AlertTriangle, Loader2, Compass } from 'lucide-react'
+import { Camera, ImageUp, CheckCircle2, AlertTriangle, Loader2, Compass, RotateCcw } from 'lucide-react'
 import { parseApiError } from '@/lib/error-utils'
 import { useScanUploadInfo, scanUploadFiles } from '@/services/scan-upload-service'
 
@@ -27,6 +27,9 @@ export default function ScanUploadPage() {
   const [progress, setProgress] = useState<number | null>(null)
   const [sentCount, setSentCount] = useState(0)
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  // The captured/chosen file awaiting confirmation — shown as a preview so the parent can check it's readable
+  // and confirm (or retake) BEFORE it uploads (the camera otherwise sent the instant the photo was taken).
+  const [pending, setPending] = useState<{ file: File; url: string } | null>(null)
 
   const cameraRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -35,16 +38,26 @@ export default function ScanUploadPage() {
   const needsExpiry = !!selectedType?.requiresExpiry
   const canShoot = !!docTypeId && (!needsExpiry || !!expiry) && !sending
 
-  const handleFile = async (file: File | undefined) => {
+  // Camera/file selection → show a preview instead of uploading immediately.
+  const pickFile = (file: File | undefined) => {
     if (!file || !docTypeId) return
     if (needsExpiry && !expiry) {
       setMsg({ type: 'error', text: "Ce document nécessite une date d'expiration." })
       return
     }
+    setMsg(null)
+    setPending({ file, url: file.type.startsWith('image/') ? URL.createObjectURL(file) : '' })
+  }
+
+  const cancelPending = () => setPending((p) => { if (p?.url) URL.revokeObjectURL(p.url); return null })
+
+  // Confirm → actually upload the previewed file.
+  const confirmUpload = async () => {
+    if (!pending || !docTypeId) return
     const fd = new FormData()
     fd.append('documentTypeId', docTypeId)
     if (expiry) fd.append('expiryDate', expiry)
-    fd.append('files', file)
+    fd.append('files', pending.file)
 
     setSending(true)
     setProgress(0)
@@ -53,6 +66,7 @@ export default function ScanUploadPage() {
       await scanUploadFiles(token, fd, setProgress)
       setSentCount((c) => c + 1)
       setMsg({ type: 'success', text: 'Document envoyé ! Vous pouvez en photographier un autre.' })
+      cancelPending()
     } catch (err) {
       setMsg({ type: 'error', text: parseApiError(err) })
     } finally {
@@ -135,22 +149,47 @@ export default function ScanUploadPage() {
 
             {/* Camera + file inputs (hidden) */}
             <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
-              onChange={(e) => { handleFile(e.target.files?.[0]); e.target.value = '' }} />
+              onChange={(e) => { pickFile(e.target.files?.[0]); e.target.value = '' }} />
             <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"
-              onChange={(e) => { handleFile(e.target.files?.[0]); e.target.value = '' }} />
+              onChange={(e) => { pickFile(e.target.files?.[0]); e.target.value = '' }} />
 
-            <div className="space-y-2">
-              <button type="button" disabled={!canShoot} onClick={() => cameraRef.current?.click()}
-                className="flex h-14 w-full items-center justify-center gap-2 rounded-lg bg-primary text-base font-semibold text-primary-foreground shadow-sm transition-colors disabled:opacity-50">
-                <Camera className="h-6 w-6" />Prendre une photo
-              </button>
-              <button type="button" disabled={!canShoot} onClick={() => fileRef.current?.click()}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-input bg-background text-sm font-medium transition-colors disabled:opacity-50">
-                <ImageUp className="h-4 w-4" />Choisir un fichier
-              </button>
-            </div>
+            {pending ? (
+              /* PREVIEW — check the document is readable before sending it. */
+              <div className="space-y-3">
+                <div className="rounded-lg border bg-muted/30 p-2">
+                  {pending.url ? (
+                    <img src={pending.url} alt={pending.file.name} className="mx-auto max-h-80 w-auto rounded-md object-contain" />
+                  ) : (
+                    <div className="flex items-center gap-2 p-2 text-sm">
+                      <ImageUp className="h-5 w-5 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 truncate">{pending.file.name}</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-center text-xs text-muted-foreground">Vérifiez que le document est bien lisible.</p>
+                <button type="button" disabled={sending} onClick={confirmUpload}
+                  className="flex h-14 w-full items-center justify-center gap-2 rounded-lg bg-primary text-base font-semibold text-primary-foreground shadow-sm transition-colors disabled:opacity-50">
+                  <CheckCircle2 className="h-6 w-6" />{sending ? 'Envoi…' : 'Envoyer ce document'}
+                </button>
+                <button type="button" disabled={sending} onClick={cancelPending}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-input bg-background text-sm font-medium transition-colors disabled:opacity-50">
+                  <RotateCcw className="h-4 w-4" />Reprendre
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <button type="button" disabled={!canShoot} onClick={() => cameraRef.current?.click()}
+                  className="flex h-14 w-full items-center justify-center gap-2 rounded-lg bg-primary text-base font-semibold text-primary-foreground shadow-sm transition-colors disabled:opacity-50">
+                  <Camera className="h-6 w-6" />Prendre une photo
+                </button>
+                <button type="button" disabled={!canShoot} onClick={() => fileRef.current?.click()}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-input bg-background text-sm font-medium transition-colors disabled:opacity-50">
+                  <ImageUp className="h-4 w-4" />Choisir un fichier
+                </button>
+              </div>
+            )}
 
-            {!docTypeId && <p className="text-center text-xs text-muted-foreground">Choisissez d'abord le type de document.</p>}
+            {!docTypeId && !pending && <p className="text-center text-xs text-muted-foreground">Choisissez d'abord le type de document.</p>}
             {sentCount > 0 && (
               <p className="text-center text-xs text-muted-foreground">
                 {sentCount} envoi{sentCount > 1 ? 's' : ''} — deux photos du même type (recto/verso) forment un seul document.
