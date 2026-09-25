@@ -121,6 +121,16 @@ public class RentreeController : BaseApiController
         return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
     }
 
+    /// <summary>Sets (or clears) the same fixed due date on several tasks at once — a per-unit task across all
+    /// units. Requires rentree.manage.</summary>
+    [HttpPut("tasks/due-date")]
+    [HasPermission(Permissions.RentreeManage)]
+    public async Task<IActionResult> SetTasksDueDate([FromBody] SetRentreeTasksDueDateCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return result.IsSuccess ? Ok(new { updated = result.Value }) : BadRequest(new { error = result.Error });
+    }
+
     /// <summary>Deletes a generated task. Requires rentree.manage.</summary>
     [HttpDelete("tasks/{id:guid}")]
     [HasPermission(Permissions.RentreeManage)]

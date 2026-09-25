@@ -5826,3 +5826,7 @@ Two related document items (all on main, DEV until deploy; migration-free — re
   show immediately without wiring each write endpoint. Public GET 200s get `Cache-Control: public, max-age=60,
   s-maxage=120` (not `/public/maintenance`, which is polled). Verified: header present; news create/delete visible
   at once. Cloudflare still doesn't edge-cache `/api` JSON (no cache rule); s-maxage caps staleness if one is added.
+- **Rentrée — one deadline for all units**: `SetRentreeTasksDueDateCommand(TaskIds, DueDate?)` + `PUT
+  /rentree/tasks/due-date` (rentree.manage) sets/clears the fixed date on every listed task; a set date also clears
+  `DeadlineAnchor` (an anchor would otherwise win at resolve time). Button "Date limite pour toutes les unités" in
+  the expanded rollup row (warns when the task follows a settings date). Verified: 17 unit copies in one call.

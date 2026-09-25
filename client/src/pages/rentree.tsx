@@ -5,7 +5,7 @@ import { PERMISSIONS } from '@/lib/constants'
 import {
   useRentreeYears, useRentreeTasks, useCompleteRentreeTask, useGenerateRentree,
   useUpdateRentreeTask, useDeleteRentreeTask, useRunRentreeTaskAction, useCreateRentreeTask,
-  useRefreshRentreeAssignees, type RentreeTask,
+  useRefreshRentreeAssignees, useSetRentreeTasksDueDate, type RentreeTask,
 } from '@/services/rentree-service'
 import { getRentreeAction, RENTREE_ACTION_OPTIONS } from '@/lib/rentree-actions'
 import { RENTREE_ANCHOR_OPTIONS, anchorLabel } from '@/lib/rentree-anchors'
@@ -197,9 +197,10 @@ const itemKey = (it: Item) => it.kind === 'single' ? it.task.id : it.key
 const itemOrder = (it: Item) => it.kind === 'single' ? it.task.displayOrder : it.sample.displayOrder
 
 // One collapsed row standing in for a per-unit task across all units.
-function RollupRow({ r, expanded, onExpand, canManage, runningId, onToggle, onEdit, onDelete, onRun }: {
+function RollupRow({ r, expanded, onExpand, canManage, runningId, onToggle, onEdit, onDelete, onRun, onSetDueDate }: {
   r: Rollup; expanded: boolean; onExpand: () => void; canManage: boolean; runningId: string | null
   onToggle: (t: RentreeTask) => void; onEdit: (t: RentreeTask) => void; onDelete: (t: RentreeTask) => void; onRun: (t: RentreeTask) => void
+  onSetDueDate: (r: Rollup) => void
 }) {
   const total = r.units.length
   const allDone = r.done === total
@@ -227,6 +228,14 @@ function RollupRow({ r, expanded, onExpand, canManage, runningId, onToggle, onEd
       </button>
       {expanded && (
         <div className="border-t bg-muted/20 px-2 pb-1">
+          {/* One date for every unit's copy of this task (instead of editing each unit). */}
+          {canManage && (
+            <div className="flex justify-end pt-2">
+              <Button type="button" variant="outline" size="sm" className="h-8" onClick={() => onSetDueDate(r)}>
+                <CalendarClock className="mr-1.5 h-4 w-4" />Date limite pour toutes les unités
+              </Button>
+            </div>
+          )}
           {r.units.map(u => <TaskRow key={u.id} task={u} canManage={canManage} compact running={runningId === u.id} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} onRun={onRun} />)}
         </div>
       )}
@@ -306,6 +315,17 @@ export default function RentreePage() {
   const runAction = useRunRentreeTaskAction()
   const generate = useGenerateRentree()
   const updateTask = useUpdateRentreeTask()
+  const setDueDates = useSetRentreeTasksDueDate()
+  // "Date limite pour toutes les unités" dialog: the rollup being edited + the date typed (yyyy-MM-dd or '').
+  const [bulkDue, setBulkDue] = useState<{ r: Rollup; date: string } | null>(null)
+  const saveBulkDue = async (date: string | null) => {
+    if (!bulkDue) return
+    try {
+      const res = await setDueDates.mutateAsync({ taskIds: bulkDue.r.units.map(u => u.id), dueDate: date })
+      toast.success(date ? `Date limite appliquée à ${res.updated} unité(s)` : `Date limite retirée pour ${res.updated} unité(s)`)
+      setBulkDue(null)
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
   const deleteTask = useDeleteRentreeTask()
   const createTask = useCreateRentreeTask()
   const refreshAssignees = useRefreshRentreeAssignees()
@@ -525,7 +545,8 @@ export default function RentreePage() {
                         className={cn(depth > 0 && 'border-l-2 border-muted pl-3')}>
                         {it.kind === 'single'
                           ? <TaskRow task={it.task} canManage={canManage} running={runningId === it.task.id} onToggle={toggle} onEdit={openEdit} onDelete={setDeleting} onRun={doRunAction} />
-                          : <RollupRow r={it} expanded={expandedRollups.has(it.key)} onExpand={() => toggleRollup(it.key)} canManage={canManage} runningId={runningId} onToggle={toggle} onEdit={openEdit} onDelete={setDeleting} onRun={doRunAction} />}
+                          : <RollupRow r={it} expanded={expandedRollups.has(it.key)} onExpand={() => toggleRollup(it.key)} canManage={canManage} runningId={runningId} onToggle={toggle} onEdit={openEdit} onDelete={setDeleting} onRun={doRunAction}
+                              onSetDueDate={(r) => setBulkDue({ r, date: r.units.find(u => u.dueDate)?.dueDate ?? '' })} />}
                       </div>
                     ))}
                   </div>
@@ -687,6 +708,31 @@ export default function RentreePage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>Annuler</Button>
             <Button onClick={submitAdd} disabled={createTask.isPending}>{createTask.isPending ? 'Ajout…' : 'Ajouter'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!bulkDue} onOpenChange={(o) => { if (!o) setBulkDue(null) }}>
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
+          <DialogHeader><DialogTitle>Date limite pour toutes les unités</DialogTitle></DialogHeader>
+          {bulkDue && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                « {bulkDue.r.title} » — la même date sera appliquée aux {bulkDue.r.units.length} unités.
+              </p>
+              <Input type="date" value={bulkDue.date} onChange={e => setBulkDue(b => b && { ...b, date: e.target.value })} />
+              {bulkDue.r.sample.deadlineAnchor && (
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Cette tâche suit la date « {anchorLabel(bulkDue.r.sample.deadlineAnchor)} » des paramètres. Une date saisie ici la remplace.
+                </p>
+              )}
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" disabled={setDueDates.isPending} onClick={() => saveBulkDue(null)}>Retirer la date</Button>
+            <Button disabled={!bulkDue?.date || setDueDates.isPending} onClick={() => saveBulkDue(bulkDue?.date || null)}>
+              {setDueDates.isPending ? 'Enregistrement…' : 'Appliquer'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

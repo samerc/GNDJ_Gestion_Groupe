@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Rentrée — « Date limite pour toutes les unités » : sur une tâche répartie par unité, une seule date s'applique d'un coup aux copies de toutes les unités (au lieu de modifier chaque unité). « Retirer la date » l'enlève partout."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Site public — pages plus rapides : les données publiques restent 10 minutes en cache sur le serveur et 1 minute dans le navigateur. Toute modification faite dans l'administration (actualités, pages, agenda, unités, textes du site…) vide aussitôt ce cache, donc les changements restent visibles tout de suite."
       },
       {

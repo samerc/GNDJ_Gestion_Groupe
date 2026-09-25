@@ -146,6 +146,17 @@ export function useUpdateRentreeTask() {
   })
 }
 
+// PUT /rentree/tasks/due-date → same fixed due date on several tasks (a per-unit task across all units);
+// null clears it. Invalidates ['rentree'].
+export function useSetRentreeTasksDueDate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { taskIds: string[]; dueDate: string | null }) =>
+      apiClient.put<{ updated: number }>('/rentree/tasks/due-date', data).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rentree'] }),
+  })
+}
+
 // DELETE /rentree/tasks/{id} → delete a task; invalidates ['rentree'].
 export function useDeleteRentreeTask() {
   const qc = useQueryClient()

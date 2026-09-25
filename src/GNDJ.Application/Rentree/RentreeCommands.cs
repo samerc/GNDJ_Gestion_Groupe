@@ -489,6 +489,36 @@ public class UpdateRentreeTaskCommandHandler(IApplicationDbContext context) : IR
     }
 }
 
+// ── One deadline for several tasks (a per-unit task across ALL units) ─────────
+// The checklist rolls a per-unit task up into one row; setting its date used to mean editing each unit's copy.
+// This sets (or clears, with null) the fixed due date on every listed task in one go. Only the date changes.
+public record SetRentreeTasksDueDateCommand(List<Guid> TaskIds, DateOnly? DueDate) : IRequest<Result<int>>;
+
+public class SetRentreeTasksDueDateCommandValidator : AbstractValidator<SetRentreeTasksDueDateCommand>
+{
+    public SetRentreeTasksDueDateCommandValidator()
+        => RuleFor(x => x.TaskIds).NotEmpty().Must(l => l.Count <= 500).WithMessage("Trop de tâches.");
+}
+
+public class SetRentreeTasksDueDateCommandHandler(IApplicationDbContext context) : IRequestHandler<SetRentreeTasksDueDateCommand, Result<int>>
+{
+    public async ValueTask<Result<int>> Handle(SetRentreeTasksDueDateCommand request, CancellationToken ct)
+    {
+        var ids = request.TaskIds.Distinct().ToList();
+        var tasks = await context.RentreeTasks.Where(t => ids.Contains(t.Id)).ToListAsync(ct);
+        if (tasks.Count == 0) return Result<int>.Failure("Tâches introuvables.");
+        foreach (var t in tasks)
+        {
+            t.DueDate = request.DueDate;
+            // An anchored deadline (tied to a settings date) takes precedence over DueDate when resolved, so an explicit
+            // date typed here replaces the anchor — otherwise the new date would silently have no effect.
+            if (request.DueDate is not null) t.DeadlineAnchor = null;
+        }
+        await context.SaveChangesAsync(ct);
+        return Result<int>.Success(tasks.Count);
+    }
+}
+
 // ── Refresh assignees (re-resolve role tasks from CURRENT holders) ───────────
 // Fixes the bootstrap gap: a checklist generated BEFORE the maîtrises were confirmed resolved its per-unit CU
 // tasks to whoever held the role then (often nobody / last year's CU), so a newly-confirmed CU sees an empty
