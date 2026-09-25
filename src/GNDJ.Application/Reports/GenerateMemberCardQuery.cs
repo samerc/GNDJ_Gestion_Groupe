@@ -23,7 +23,7 @@ public class GenerateMemberCardQueryHandler(
             return Result<byte[]>.Failure("La génération des cartes membres est désactivée.");
 
         // Access check: own card always; another member's card is leader-only (members.edit) + unit-scoped.
-        if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, request.MemberId, ct))
+        if (!await MemberAccess.CanViewMemberAsync(context, currentUser, request.MemberId, ct))
             return Result<byte[]>.Failure("Accès non autorisé.");
 
         var member = await context.Members

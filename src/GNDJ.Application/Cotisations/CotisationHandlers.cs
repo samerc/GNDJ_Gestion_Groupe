@@ -32,6 +32,10 @@ static class CotisationAccessHelper
 {
     public static Task<bool> CanAccessMember(IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
         => MemberAccess.CanAccessMemberAsync(context, currentUser, memberId, ct);
+
+    // READ-only (a member's cotisations / a receipt): members.view is enough.
+    public static Task<bool> CanViewMember(IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
+        => MemberAccess.CanViewMemberAsync(context, currentUser, memberId, ct);
 }
 
 // Maîtrise cotisation helpers. A "maîtrise member" = holds an active leadership (IsMaitrise) role; they pay
@@ -58,7 +62,7 @@ public class GetMemberCotisationsQueryHandler(IApplicationDbContext context, ICu
 {
     public async ValueTask<Result<IReadOnlyList<MemberCotisationDto>>> Handle(GetMemberCotisationsQuery request, CancellationToken ct)
     {
-        if (!await CotisationAccessHelper.CanAccessMember(context, currentUser, request.MemberId, ct))
+        if (!await CotisationAccessHelper.CanViewMember(context, currentUser, request.MemberId, ct))
             return Result<IReadOnlyList<MemberCotisationDto>>.Failure("Accès non autorisé à ce membre.");
 
         // Load the cotisation rows, then compute the paid-in-full status in memory (CotisationCalc, using the
@@ -363,7 +367,7 @@ public class GetReceiptDataQueryHandler(IApplicationDbContext context, ICurrentU
         if (cotisation is null)
             return Result<ReceiptData>.Failure("Cotisation introuvable.");
 
-        if (!await CotisationAccessHelper.CanAccessMember(context, currentUser, cotisation.MemberId, ct))
+        if (!await CotisationAccessHelper.CanViewMember(context, currentUser, cotisation.MemberId, ct))
             return Result<ReceiptData>.Failure("Accès non autorisé.");
 
         // Load currency settings
@@ -539,7 +543,7 @@ public class GetUnpaidCotisationsQueryHandler(IApplicationDbContext context, ICu
         {
             // Leader-only list (co-members' names + who hasn't paid). A read-only youth holds cotisations.view
             // + their own unit, so require members.edit — otherwise return nothing.
-            if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit))
+            if (!MemberAccess.HasMemberRead(currentUser))
                 return [];
             var authorizedUnitIds = currentUser.AuthorizedUnitIds;
             query = query.Where(a => authorizedUnitIds.Contains(a.UnitId));
@@ -620,7 +624,7 @@ public class GetPaidCotisationsQueryHandler(IApplicationDbContext context, ICurr
         {
             // Leader-only (shows co-members' names + amounts). A read-only youth holds cotisations.view + their
             // own unit, so require members.edit — otherwise return nothing.
-            if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit))
+            if (!MemberAccess.HasMemberRead(currentUser))
                 return [];
             var authorizedUnitIds = currentUser.AuthorizedUnitIds;
             query = query.Where(a => authorizedUnitIds.Contains(a.UnitId));
@@ -683,7 +687,7 @@ public class GetExemptCotisationsQueryHandler(IApplicationDbContext context, ICu
         {
             // Leader-only (shows co-members' names). A read-only youth holds cotisations.view + their own unit,
             // so require members.edit — otherwise return nothing.
-            if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit))
+            if (!MemberAccess.HasMemberRead(currentUser))
                 return [];
             var authorizedUnitIds = currentUser.AuthorizedUnitIds;
             query = query.Where(a => authorizedUnitIds.Contains(a.UnitId));

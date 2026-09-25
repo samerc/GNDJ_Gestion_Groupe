@@ -20,7 +20,7 @@ public class GetUpcomingBirthdaysQueryHandler(IApplicationDbContext context, ICu
     public async ValueTask<IReadOnlyList<UpcomingBirthdayDto>> Handle(GetUpcomingBirthdaysQuery request, CancellationToken ct)
     {
         // Leader-only (members.edit) — same signal as every cross-member read; a youth gets nothing.
-        if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(Permissions.MembersEdit))
+        if (!MemberAccess.HasMemberRead(currentUser))
             return [];
 
         var days = Math.Clamp(request.Days, 1, 90);

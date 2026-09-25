@@ -59,9 +59,10 @@ function guardianInitials(firstName: string, lastName: string): string {
 // detail) get the full component incl. search/link.
 // hideContacts = don't render the phone/email blocks (they live in the shared "Coordonnées du foyer" section);
 // the parent cards then show only who the people are (name, relation, profession, flags) + edit/unlink/add.
-interface MemberGuardiansProps { memberId: string; selfService?: boolean; hideContacts?: boolean }
+// readOnly = view-only viewer (members.view without members.edit): list the parents, hide every add/edit/delete.
+interface MemberGuardiansProps { memberId: string; selfService?: boolean; hideContacts?: boolean; readOnly?: boolean }
 
-export function MemberGuardians({ memberId, selfService, hideContacts }: MemberGuardiansProps) {
+export function MemberGuardians({ memberId, selfService, hideContacts, readOnly }: MemberGuardiansProps) {
   const { data: guardians } = useMemberGuardians(memberId)
   // Call BOTH hook sets unconditionally (rules of hooks), then pick per `selfService`. Mutations don't
   // fetch, so instantiating the unused set is free.
@@ -215,7 +216,7 @@ export function MemberGuardians({ memberId, selfService, hideContacts }: MemberG
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4 text-primary" />Parents / tuteurs</CardTitle>
-        <Button size="sm" variant="outline" onClick={openAdd}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>
+        {!readOnly && <Button size="sm" variant="outline" onClick={openAdd}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>}
       </CardHeader>
       <CardContent className="space-y-3">
         {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
@@ -248,14 +249,14 @@ export function MemberGuardians({ memberId, selfService, hideContacts }: MemberG
                     )}
                   </div>
                 </div>
-                <div className="flex shrink-0 gap-1">
+                {!readOnly && <div className="flex shrink-0 gap-1">
                   <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(gl)}>
                     <Pencil className="h-4 w-4" />
                   </Button></Tip>
                   <Tip content="Retirer le lien"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setUnlinking(gl)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button></Tip>
-                </div>
+                </div>}
               </div>
             {/* Contact blocks: phones + emails side by side on wider screens. Hidden when hideContacts (the
                 coordonnées live in the shared "Coordonnées du foyer" section instead). */}

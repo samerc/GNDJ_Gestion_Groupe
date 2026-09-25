@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Assignments.DTOs;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
@@ -43,7 +44,7 @@ public class GetAssignmentsQueryHandler : IRequestHandler<GetAssignmentsQuery, P
             // Only leaders (members.edit) may see OTHER members' assignments. A read-only youth holds
             // assignments.view + their own unit in AuthorizedUnitIds, so a unit-only scope would show them
             // every co-member's assignment rows — restrict non-leaders to their OWN assignments.
-            var isLeader = _currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit);
+            var isLeader = MemberAccess.HasMemberRead(_currentUser); // members.view or .edit — read of co-members' posts
             var myId = _currentUser.MemberId;
 
             var canSeeFullHistory = request.MemberId.HasValue

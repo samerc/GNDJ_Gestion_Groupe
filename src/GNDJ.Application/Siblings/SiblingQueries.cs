@@ -272,7 +272,7 @@ public class GetMemberSiblingsQueryHandler(IApplicationDbContext context, ICurre
 {
     public async ValueTask<Result<IReadOnlyList<MemberSiblingDto>>> Handle(GetMemberSiblingsQuery request, CancellationToken ct)
     {
-        if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, request.MemberId, ct))
+        if (!await MemberAccess.CanViewMemberAsync(context, currentUser, request.MemberId, ct))
             return Result<IReadOnlyList<MemberSiblingDto>>.Failure("Accès non autorisé.");
 
         var groupId = await context.Members.Where(m => m.Id == request.MemberId).Select(m => m.SiblingGroupId).FirstOrDefaultAsync(ct);

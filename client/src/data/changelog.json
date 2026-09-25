@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Permissions — accès « lecture seule » aux fiches membres : la permission « Voir les fiches » (members.view) permet désormais de consulter les membres (liste, fiche, documents, parents, cotisations, progression, rapports) SANS pouvoir rien modifier — utile pour un trésorier ou un observateur. Toute modification exige toujours « Modifier les fiches ». Dans « Accès délégué », le niveau « Lecture » du domaine Membres donne donc un vrai accès en lecture."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Emails aux chefs — « Modifier le texte pour cet envoi » : l'objet et le message du modèle peuvent être ajustés juste pour cet envoi (l'aperçu suit les changements), sans toucher au modèle enregistré. Les {{variables}} (nom, unité, lien…) restent remplies pour chaque chef."
       },
       {

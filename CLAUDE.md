@@ -5837,3 +5837,14 @@ Two related document items (all on main, DEV until deploy; migration-free — re
   redirect, variable substitution unchanged) and strips the keys. Activation-token stamping keys off the EFFECTIVE
   text. Page: switch "Modifier le texte pour cet envoi" → subject input + RichTextEditor (variables menu), preview
   follows. Verified via smtp4dev: edited subject/body delivered, template untouched, no token stamped.
+- **members.view = real READ-ONLY member access** (was unused: every member read required members.edit).
+  `MemberAccess.HasMemberRead` (super-admin | members.view | members.edit), `CanViewMemberAsync` (same reach as
+  CanAccessMemberAsync, view accepted) and `CanViewUnit`. READ handlers switched (member list/detail/unit options,
+  documents list + file/page download + unit matrix/zip, guardians list [Notes shown to a staff viewer, not own
+  fiche], cotisations list/receipt + paid/unpaid/exempt lists, custom-field reads, assignments history, unit
+  dashboard, birthdays, progression list, member card, bulk cards, report collector [led units = roles granting
+  view OR edit], template PDF, siblings, photo). EVERY write keeps CanAccessMemberAsync / members.edit or its own
+  module permission at the controller. Frontend: member panel photo upload, Postes (`readOnly`) and Parents (new
+  `readOnly` prop) hide edit controls without members.edit. No existing profile changes behaviour (only the unused
+  "observateur" profile is view-only). Verified live: a youth with a members.view-only grant reads list (58) /
+  detail / documents / parents but gets 403 on add-phone and update; a plain youth is still refused everywhere.

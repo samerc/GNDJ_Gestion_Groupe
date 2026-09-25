@@ -31,6 +31,10 @@ static class GuardianAccessHelper
     public static Task<bool> CanAccessMember(IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
         => MemberAccess.CanAccessMemberAsync(context, currentUser, memberId, ct); // a member can see their own family; else leader of the member's unit
 
+    // READ-only (list a member's parents): members.view is enough.
+    public static Task<bool> CanViewMember(IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
+        => MemberAccess.CanViewMemberAsync(context, currentUser, memberId, ct);
+
     public static async Task<bool> CanAccessGuardian(IApplicationDbContext context, ICurrentUserService currentUser, Guid guardianId, CancellationToken ct)
     {
         if (currentUser.IsSuperAdmin) return true;
@@ -55,13 +59,13 @@ public class GetMemberGuardiansQueryHandler : IRequestHandler<GetMemberGuardians
 
     public async ValueTask<Result<IReadOnlyList<GuardianLinkDto>>> Handle(GetMemberGuardiansQuery request, CancellationToken cancellationToken)
     {
-        if (!await GuardianAccessHelper.CanAccessMember(_context, _currentUser, request.MemberId, cancellationToken))
+        if (!await GuardianAccessHelper.CanViewMember(_context, _currentUser, request.MemberId, cancellationToken))
             return Result<IReadOnlyList<GuardianLinkDto>>.Failure("Accès refusé.");
 
         // Guardian Notes are a STAFF-only annotation (CG/CU). CanAccessMember also lets a member view their OWN
         // family (Ma fiche), so gate Notes on the leader signal (members.edit; super-admin holds it) — a member
         // must never receive a note written about their parent.
-        var isLeader = _currentUser.IsSuperAdmin || _currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit);
+        var isLeader = MemberAccess.HasMemberRead(_currentUser) && _currentUser.MemberId != request.MemberId; // staff viewer (not the member's own fiche)
 
         var result = await _context.GuardianLinks
             .Where(gl => gl.MemberId == request.MemberId && !gl.IsDeleted)

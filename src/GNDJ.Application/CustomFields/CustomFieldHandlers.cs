@@ -120,7 +120,7 @@ public class GetMemberCustomFieldValuesQueryHandler(IApplicationDbContext contex
         // Access check: own member, or a leader (members.edit) of the member's unit. A read-only youth
         // holds members.view + their own unit in AuthorizedUnitIds, so without this any authenticated user
         // could read another member's custom-field values. Unauthorized → empty list.
-        if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, request.MemberId, ct))
+        if (!await MemberAccess.CanViewMemberAsync(context, currentUser, request.MemberId, ct))
             return [];
 
         return await context.MemberCustomFieldValues
@@ -145,7 +145,7 @@ public class GetMemberApplicableCustomFieldsQueryHandler(IApplicationDbContext c
 {
     public async ValueTask<List<MemberCustomFieldDto>> Handle(GetMemberApplicableCustomFieldsQuery request, CancellationToken ct)
     {
-        if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, request.MemberId, ct))
+        if (!await MemberAccess.CanViewMemberAsync(context, currentUser, request.MemberId, ct))
             return [];
 
         // The member's active-assignment context drives the applicability (role / branche / unité) filter.
@@ -167,7 +167,7 @@ public class GetMemberApplicableCustomFieldsQueryHandler(IApplicationDbContext c
         // only "all" fields.
         var canViewGroup = MemberAccess.IsGroupManager(currentUser); // super-admin included
         var canViewLeaders = canViewGroup
-            || (currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit)
+            || (MemberAccess.HasMemberRead(currentUser) && currentUser.MemberId != request.MemberId
                 && active.Any(a => currentUser.AuthorizedUnitIds.Contains(a.UnitId)));
 
         var fields = await context.CustomFields.Where(cf => cf.IsActive)

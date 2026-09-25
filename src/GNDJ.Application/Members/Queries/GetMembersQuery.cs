@@ -43,7 +43,7 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
         // Only member managers (super-admin / Chef de Groupe / Chef d'unité — i.e. members.edit) may list
         // members. A read-only youth holds members.view + their own unit in AuthorizedUnitIds, so without
         // this gate they could enumerate co-members' identities and contacts. Non-managers → empty list.
-        if (!_currentUser.IsSuperAdmin && !_currentUser.Permissions.Contains(Domain.Enums.Permissions.MembersEdit))
+        if (!MemberAccess.HasMemberRead(_currentUser))
             query = query.Where(_ => false);
 
         if (isAll)
@@ -262,7 +262,7 @@ public class GetMemberUnitOptionsQueryHandler(IApplicationDbContext context, ICu
     {
         // Same manager gate as the list: only members.edit holders (CU/CG/super-admin) may enumerate units;
         // a read-only youth gets an empty dropdown.
-        if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(Domain.Enums.Permissions.MembersEdit))
+        if (!MemberAccess.HasMemberRead(currentUser))
             return [];
 
         var authorized = currentUser.AuthorizedUnitIds;
@@ -324,7 +324,7 @@ public class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQuery, Mem
         // incl. orphans) / a members.edit leader of the member's active unit. Routed through MemberAccess so it
         // stays consistent with the document/cotisation/guardian handlers (this used to be an inline copy that
         // drifted — it blocked a CG from opening a member with no active assignment).
-        if (!await MemberAccess.CanAccessMemberAsync(_context, _currentUser, request.Id, cancellationToken))
+        if (!await MemberAccess.CanViewMemberAsync(_context, _currentUser, request.Id, cancellationToken))
             return null;
 
         // Absence-count window (Oct-1 boundary) — uses the scout year that CONTAINS TODAY (the calendar year),

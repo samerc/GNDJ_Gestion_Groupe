@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using Mediator;
@@ -22,7 +23,7 @@ public class GenerateBulkCardsQueryHandler(
             return Result<byte[]>.Failure("La génération des cartes membres est désactivée.");
 
         // Leader-only report (multi-member PII): members.edit + unit scope, not bare co-unit membership.
-        if (!currentUser.IsSuperAdmin && !(currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit) && currentUser.AuthorizedUnitIds.Contains(request.UnitId)))
+        if (!MemberAccess.CanViewUnit(currentUser, request.UnitId))
             return Result<byte[]>.Failure("Accès non autorisé.");
 
         var unit = await context.Units.Where(u => u.Id == request.UnitId).Select(u => u.Name).FirstOrDefaultAsync(ct);

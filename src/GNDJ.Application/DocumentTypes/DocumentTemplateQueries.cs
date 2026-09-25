@@ -63,7 +63,7 @@ public class GenerateMemberDocumentTemplateQueryHandler(
     public async ValueTask<Result<DocumentTemplatePdf>> Handle(GenerateMemberDocumentTemplateQuery request, CancellationToken ct)
     {
         // Same access rule as the member card: own record always, else a members.edit leader of the member's unit.
-        if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, request.MemberId, ct))
+        if (!await MemberAccess.CanViewMemberAsync(context, currentUser, request.MemberId, ct))
             return Result<DocumentTemplatePdf>.Failure("Accès non autorisé.");
 
         var dt = await context.DocumentTypes

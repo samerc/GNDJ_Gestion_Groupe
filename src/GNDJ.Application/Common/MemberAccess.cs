@@ -32,6 +32,32 @@ public static class MemberAccess
             a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId), ct);
     }
 
+    // READ vs WRITE. members.edit = full leader access (read + edit). members.view = READ-ONLY access to member files
+    // (e.g. an "observateur" / trésorier profile): the same reach (own unit scope, or everyone for a group manager)
+    // but only for READ handlers — every mutation still requires members.edit (or its own module write permission,
+    // already enforced at the controller). Read-only youth hold NO permissions, so .view never leaks to them.
+    public static bool HasMemberRead(ICurrentUserService currentUser)
+        => currentUser.IsSuperAdmin
+           || currentUser.Permissions.Contains(Permissions.MembersView)
+           || currentUser.Permissions.Contains(Permissions.MembersEdit);
+
+    // May the caller READ this member's data? Same rule as CanAccessMemberAsync, with members.view accepted.
+    public static async Task<bool> CanViewMemberAsync(
+        IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
+    {
+        if (currentUser.IsSuperAdmin) return true;
+        if (currentUser.MemberId == memberId) return true;
+        if (!HasMemberRead(currentUser)) return false;
+        if (IsGroupManager(currentUser)) return true;
+        var authorizedUnitIds = currentUser.AuthorizedUnitIds;
+        return await context.MemberAssignments.AnyAsync(a =>
+            a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId), ct);
+    }
+
+    // May the caller READ a whole unit's views (roster, document matrix, reports)? CanLeadUnit with members.view.
+    public static bool CanViewUnit(ICurrentUserService currentUser, Guid unitId)
+        => currentUser.IsSuperAdmin || (HasMemberRead(currentUser) && currentUser.AuthorizedUnitIds.Contains(unitId));
+
     // Leader-level access to a whole UNIT (compliance matrices, unit-wide reports, passage, trombinoscope).
     // super-admin OR a members.edit holder with that unit in scope. A ".view"-only youth must never unlock
     // unit-wide views, hence the members.edit gate rather than bare AuthorizedUnitIds membership.

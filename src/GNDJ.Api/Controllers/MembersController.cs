@@ -687,7 +687,7 @@ public class MembersController : BaseApiController
         // fetch co-members' photos — require the leader signal for non-own access. 404 (not 403) hides existence.
         if (!currentUser.IsSuperAdmin && currentUser.MemberId != memberId)
         {
-            if (!currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.MembersEdit)) return NotFound();
+            if (!GNDJ.Application.Common.MemberAccess.HasMemberRead(currentUser)) return NotFound();
             var authorizedUnitIds = currentUser.AuthorizedUnitIds;
             var hasAccess = await _context.MemberAssignments.AnyAsync(a =>
                 a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId));

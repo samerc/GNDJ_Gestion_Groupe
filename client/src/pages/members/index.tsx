@@ -361,7 +361,7 @@ function MemberDetailPanel({ memberId, onDeleted, initialTab }: { memberId: stri
           @container so the layout responds to the DETAIL PANE width (master/detail split), not the viewport. */}
       <div className="@container shrink-0 border-b px-4 py-3">
         <div className="flex flex-wrap items-start gap-3">
-          <MemberPhoto memberId={memberId} name={`${member.firstName} ${member.lastName}`} photoPath={member.photoPath} size={48} editable />
+          <MemberPhoto memberId={memberId} name={`${member.firstName} ${member.lastName}`} photoPath={member.photoPath} size={48} editable={canEdit} />
           <div className="flex-1 min-w-0">
             <h2 className="font-bold">{member.firstName} {member.lastName}</h2>
             {/* Header focuses on the login account (card N°/genre/DOB live in the Informations tab). Line 2 =
@@ -517,7 +517,7 @@ function MemberDetailPanel({ memberId, onDeleted, initialTab }: { memberId: stri
             <Section icon={User} title="Identité">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
                 <div className="flex shrink-0 flex-col items-center gap-2 sm:items-start">
-                  <MemberPhoto memberId={memberId} name={`${member.firstName} ${member.lastName}`} photoPath={member.photoPath} size={120} height={156} rounded="rounded-xl" editable className="shadow-sm ring-1 ring-border" />
+                  <MemberPhoto memberId={memberId} name={`${member.firstName} ${member.lastName}`} photoPath={member.photoPath} size={120} height={156} rounded="rounded-xl" editable={canEdit} className="shadow-sm ring-1 ring-border" />
                   {member.absencesThisYear > 0 && (
                     <Tip content="Absences aux réunions cette année scoute">
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
@@ -653,12 +653,12 @@ function MemberDetailPanel({ memberId, onDeleted, initialTab }: { memberId: stri
               are gated on canEdit, so they're available directly here without the Informations "Modifier" mode). */}
           <TabsContent value="famille" className="mt-0 space-y-6">
             <HouseholdContacts memberId={memberId} canEdit={canEdit} />
-            <MemberGuardians memberId={memberId} hideContacts />
+            <MemberGuardians memberId={memberId} hideContacts readOnly={!canEdit} />
             <MemberSiblings memberId={memberId} canManage={canManageSiblings} linkable />
           </TabsContent>
 
           <TabsContent value="unites" className="mt-0">
-            <MemberAssignments memberId={memberId} memberName="" />
+            <MemberAssignments memberId={memberId} memberName="" readOnly={!canEdit} />
           </TabsContent>
 
           {/* Documents + Cotisations merged */}

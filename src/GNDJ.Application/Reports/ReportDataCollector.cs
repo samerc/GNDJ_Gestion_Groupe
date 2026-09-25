@@ -42,7 +42,7 @@ public static class ReportDataCollector
         var isSuper = currentUser.IsSuperAdmin;
         if (!isSuper)
         {
-            if (!currentUser.Permissions.Contains(Permissions.MembersEdit))
+            if (!MemberAccess.HasMemberRead(currentUser)) // members.view (read-only) or members.edit
                 return Result<(string, List<ReportSection>)>.Failure("Accès non autorisé.");
 
             if (MemberAccess.IsGroupManager(currentUser))
@@ -53,7 +53,7 @@ public static class ReportDataCollector
             {
                 var ledUnitIds = await context.MemberAssignments
                     .Where(a => a.MemberId == currentUser.MemberId && a.EndDate == null
-                        && a.FunctionalRole.SecurityProfile.Permissions.Any(p => p.Permission == Permissions.MembersEdit))
+                        && a.FunctionalRole.SecurityProfile.Permissions.Any(p => p.Permission == Permissions.MembersEdit || p.Permission == Permissions.MembersView))
                     .Select(a => a.UnitId).Distinct().ToListAsync(ct);
                 unitIds = unitIds.Where(id => ledUnitIds.Contains(id)).ToList();
             }

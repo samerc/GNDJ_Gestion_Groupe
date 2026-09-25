@@ -144,9 +144,13 @@ static class DocumentAccessHelper
     public static Task<bool> CanAccessMember(IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
         => MemberAccess.CanAccessMemberAsync(context, currentUser, memberId, ct);
 
+    // READ-only access (list / view / download a file): members.view is enough; changes keep CanAccessMember.
+    public static Task<bool> CanViewMember(IApplicationDbContext context, ICurrentUserService currentUser, Guid memberId, CancellationToken ct)
+        => MemberAccess.CanViewMemberAsync(context, currentUser, memberId, ct);
+
     // Leader-level access to a whole unit's document views (compliance matrix / zip export).
     public static bool IsUnitLeaderFor(ICurrentUserService currentUser, Guid unitId)
-        => MemberAccess.CanLeadUnit(currentUser, unitId);
+        => MemberAccess.CanViewUnit(currentUser, unitId); // read views (matrix / zip) — members.view accepted
 
     // Gate a MEMBER's own document upload by the campaign window + on-hold flag; returns an error message to
     // block, or null to allow. Leaders (super-admin / CU / CG — hold members.edit) always bypass, so they can
@@ -171,7 +175,7 @@ public class GetMemberDocumentsQueryHandler(IApplicationDbContext context, ICurr
 {
     public async ValueTask<Result<IReadOnlyList<MemberDocumentDto>>> Handle(GetMemberDocumentsQuery request, CancellationToken ct)
     {
-        if (!await DocumentAccessHelper.CanAccessMember(context, currentUser, request.MemberId, ct))
+        if (!await DocumentAccessHelper.CanViewMember(context, currentUser, request.MemberId, ct))
             return Result<IReadOnlyList<MemberDocumentDto>>.Failure("Accès non autorisé à ce membre.");
 
         var today = LebanonClock.Today;
@@ -341,7 +345,7 @@ public class GetDocumentFileQueryHandler(IApplicationDbContext context, ICurrent
         var doc = await context.MemberDocuments.FindAsync([request.Id], ct);
         if (doc is null) return null;
 
-        if (!await DocumentAccessHelper.CanAccessMember(context, currentUser, doc.MemberId, ct))
+        if (!await DocumentAccessHelper.CanViewMember(context, currentUser, doc.MemberId, ct))
             return null;
 
         return new DocumentFileDto(doc.FilePath, doc.FileName, doc.MimeType);
@@ -460,7 +464,7 @@ public class GetDocumentPageFileQueryHandler(IApplicationDbContext context, ICur
     {
         var page = await context.MemberDocumentPages.Include(p => p.MemberDocument).FirstOrDefaultAsync(p => p.Id == request.PageId, ct);
         if (page is null || page.MemberDocument is null) return null;
-        if (!await DocumentAccessHelper.CanAccessMember(context, currentUser, page.MemberDocument.MemberId, ct))
+        if (!await DocumentAccessHelper.CanViewMember(context, currentUser, page.MemberDocument.MemberId, ct))
             return null;
         return new DocumentFileDto(page.FilePath, page.FileName, page.MimeType);
     }
