@@ -45,26 +45,59 @@ export async function enablePush(): Promise<EnablePushResult> {
     const { data } = await apiClient.get<{ publicKey: string | null; enabled: boolean }>('/my-profile/push/vapid-key')
     if (!data.enabled || !data.publicKey) return 'disabled'
 
-    const reg = await navigator.serviceWorker.ready
-    // Reuse an existing subscription if present, else create one.
-    let sub = await reg.pushManager.getSubscription()
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true, // required: every push must show a visible notification
-        // Cast: the fresh Uint8Array is a valid BufferSource at runtime; the TS DOM lib's ArrayBufferLike
-        // generic makes the direct assignment complain.
-        applicationServerKey: urlBase64ToUint8Array(data.publicKey) as BufferSource,
-      })
-    }
-    const json = sub.toJSON()
-    await apiClient.post('/my-profile/push/subscribe', {
-      endpoint: sub.endpoint,
-      p256dh: json.keys?.p256dh,
-      auth: json.keys?.auth,
-      userAgent: navigator.userAgent,
-    })
+    await subscribeWithKey(data.publicKey)
     return 'ok'
   } catch { return 'error' }
+}
+
+// True when the subscription was created with the given VAPID public key. A subscription made with an OLD key
+// (keys rotated on the server) is rejected by the push service forever, so it must be replaced.
+function sameKey(sub: PushSubscription, publicKey: string): boolean {
+  const current = sub.options?.applicationServerKey
+  if (!current) return false
+  const a = new Uint8Array(current)
+  const b = urlBase64ToUint8Array(publicKey)
+  return a.length === b.length && a.every((v, i) => v === b[i])
+}
+
+// Reuse the device's subscription when it matches the server key, else replace it; then (re)register it
+// server-side (the server upserts by endpoint, so re-posting is harmless).
+async function subscribeWithKey(publicKey: string): Promise<void> {
+  const reg = await navigator.serviceWorker.ready
+  let sub = await reg.pushManager.getSubscription()
+  if (sub && !sameKey(sub, publicKey)) {
+    await sub.unsubscribe().catch(() => { /* replaced below anyway */ })
+    sub = null
+  }
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true, // required: every push must show a visible notification
+      // Cast: the fresh Uint8Array is a valid BufferSource at runtime; the TS DOM lib's ArrayBufferLike
+      // generic makes the direct assignment complain.
+      applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+    })
+  }
+  const json = sub.toJSON()
+  await apiClient.post('/my-profile/push/subscribe', {
+    endpoint: sub.endpoint,
+    p256dh: json.keys?.p256dh,
+    auth: json.keys?.auth,
+    userAgent: navigator.userAgent,
+  })
+}
+
+// Silent repair on app open: if this device already has notifications allowed AND a subscription, make sure
+// it uses the server's CURRENT key and is registered (the server deletes subscriptions the push service
+// rejects). No permission prompt — does nothing unless the user had already turned notifications on.
+export async function syncPush(): Promise<void> {
+  if (!pushSupported() || pushPermission() !== 'granted') return
+  try {
+    const reg = await navigator.serviceWorker.ready
+    if (!(await reg.pushManager.getSubscription())) return
+    const { data } = await apiClient.get<{ publicKey: string | null; enabled: boolean }>('/my-profile/push/vapid-key')
+    if (!data.enabled || !data.publicKey) return
+    await subscribeWithKey(data.publicKey)
+  } catch { /* best-effort */ }
 }
 
 // Unsubscribe this device (removes it server-side + at the browser).

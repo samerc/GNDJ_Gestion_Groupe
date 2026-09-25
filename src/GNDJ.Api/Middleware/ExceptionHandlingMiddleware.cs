@@ -93,6 +93,13 @@ public class ExceptionHandlingMiddleware
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsync(JsonSerializer.Serialize(new { error = "Impossible de générer le PDF — vérifiez les données ou les photos des membres." }));
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            // The client went away mid-request (closed the tab, lost network) and the request token cancelled the
+            // DB query. Not a server fault: no error reference, no admin alert. 499 = "client closed request"
+            // (nobody reads it — the connection is gone).
+            if (!context.Response.HasStarted) context.Response.StatusCode = 499;
+        }
         catch (Exception ex)
         {
             // A genuine, unexpected server fault. Mint a short REFERENCE so the user, the logs and the admin

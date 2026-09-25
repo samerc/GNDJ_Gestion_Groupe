@@ -542,6 +542,8 @@ app.UseSerilogRequestLogging(options =>
     options.GetLevel = (httpContext, _, ex) =>
     {
         if (ex is ValidationException or UnauthorizedAccessException) return LogEventLevel.Information;
+        // Client disconnected mid-request → the cancelled query is expected, not an error.
+        if (ex is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested) return LogEventLevel.Information;
         if (ex is DbUpdateException { InnerException: Npgsql.PostgresException }) return LogEventLevel.Information;
         if (ex is not null && ex.GetType().FullName?.StartsWith("QuestPDF", StringComparison.Ordinal) == true) return LogEventLevel.Information;
         if (ex is not null || httpContext.Response.StatusCode >= 500) return LogEventLevel.Error;

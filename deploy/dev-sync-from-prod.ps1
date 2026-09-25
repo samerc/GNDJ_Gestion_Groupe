@@ -117,6 +117,10 @@ try {
   $neutralizeSql = @'
 UPDATE email_templates SET smtp_server_id = NULL WHERE smtp_server_id IS NOT NULL;
 DELETE FROM email_outbox;
+-- Prod phones' push subscriptions + queued pushes: dev must never notify real devices (and dev's VAPID
+-- key does not match them anyway).
+DELETE FROM push_outbox;
+DELETE FROM push_subscriptions;
 DELETE FROM smtp_servers;
 UPDATE settings SET value = 'http://localhost:5173' WHERE key = 'app.base_url';
 UPDATE settings SET value = '' WHERE key = 'email.override_recipient';

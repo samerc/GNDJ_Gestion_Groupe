@@ -61,8 +61,12 @@ public class WebPushSender : IWebPushSender
         catch (WebPushException ex)
         {
             // 404 (Not Found) / 410 (Gone) = the subscription no longer exists → caller deletes it.
+            // 401/403 and 400 "VapidPkHashMismatch" = the subscription was created with a DIFFERENT VAPID key
+            // (keys changed since the device subscribed). It can never succeed again → also delete it; the
+            // device re-subscribes with the current key the next time the app opens (lib/push.ts syncPush).
             var code = (int)ex.StatusCode;
-            if (code == 404 || code == 410) return PushSendResult.Gone;
+            if (code == 404 || code == 410 || code == 401 || code == 403) return PushSendResult.Gone;
+            if (code == 400 && ex.Message.Contains("VapidPkHashMismatch", StringComparison.Ordinal)) return PushSendResult.Gone;
             _logger.LogWarning(ex, "Web Push send failed with status {Status}", code);
             return PushSendResult.Error;
         }

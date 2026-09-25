@@ -36,6 +36,9 @@ public class CampCommissionMemberConfiguration : IEntityTypeConfiguration<CampCo
         builder.HasIndex(e => e.MemberId);
         builder.HasOne(e => e.Camp).WithMany().HasForeignKey(e => e.CampId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne(e => e.Member).WithMany().HasForeignKey(e => e.MemberId).OnDelete(DeleteBehavior.Cascade);
+        // Plain child of two soft-deleted parents: hide the row when either is soft-deleted (matching filters —
+        // silences EF's "required end has a query filter" startup warning).
+        builder.HasQueryFilter(e => !e.Camp.IsDeleted && !e.Member.IsDeleted);
     }
 }
 

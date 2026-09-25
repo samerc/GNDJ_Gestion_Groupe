@@ -17,6 +17,7 @@ import { CurrencySymbolsSync } from '@/components/shared/currency-symbols-sync'
 import { ImpersonationBanner } from './impersonation-banner'
 import { useImpersonationStore } from '@/stores/impersonation-store'
 import { reportPwaInstall } from '@/lib/pwa'
+import { syncPush } from '@/lib/push'
 import { PwaInstallBanner } from '@/components/shared/pwa-install'
 
 // ROLE: authenticated app shell — sidebar + header around the routed <Outlet>.
@@ -44,6 +45,8 @@ export function AppLayout() {
   // standalone, once per load). A one-shot side-effect (no state) — impersonation would flag the wrong member,
   // so skip it while viewing as someone else (read the store directly to avoid ordering/stale-closure issues).
   useEffect(() => { if (!useImpersonationStore.getState().active) void reportPwaInstall() }, [])
+  // Re-subscribe this device to push if its subscription uses an old VAPID key (silent; only if already enabled).
+  useEffect(() => { if (!useImpersonationStore.getState().active) void syncPush() }, [])
 
   // Maintenance kill-switch: when the whole site or the "membres" module is off, everyone but the super-admin
   // (who needs access to turn it back off) sees the maintenance page. The super-admin sees a warning banner.
