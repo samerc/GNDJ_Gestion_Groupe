@@ -18,6 +18,7 @@ import { ImpersonationBanner } from './impersonation-banner'
 import { useImpersonationStore } from '@/stores/impersonation-store'
 import { reportPwaInstall } from '@/lib/pwa'
 import { syncPush } from '@/lib/push'
+import { OfflineBanner } from '@/components/shared/offline-banner'
 import { rememberRootEntry } from '@/hooks/use-menu-replace'
 import { PwaInstallBanner } from '@/components/shared/pwa-install'
 
@@ -109,6 +110,7 @@ export function AppLayout() {
         {!impersonating && <PwaInstallBanner />}
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header />
+          <OfflineBanner />
           {inMaintenance && !impersonating && (
             <div className="bg-amber-500 px-4 py-1.5 text-center text-xs font-medium text-amber-950">
               Mode maintenance actif ({maint?.site ? 'tout le site' : 'espace membres'}) — seuls les super-administrateurs ont accès. Désactivez-le dans Paramètres.

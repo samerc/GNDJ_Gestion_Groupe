@@ -5978,4 +5978,13 @@ entry; the app also opened on the public home page), so it never seemed to close
   (start / find-by-token with the 120 s grace / end-all). `applicant_accounts.refresh_token*` dropped. Sessions
   actives lists parent devices too (Appareil column for both).
 - Verified live 14/15 (the 15th was a wrong test assumption: a carried-over session has no device name).
+- **Lighter first load:** the rich-text editor was already lazy; the real weight was `libphonenumber-js` (~309 KB
+  raw) pulled into the ENTRY chunk by the always-mounted contact-review popup, and `qrcode.react` (~43 KB) by the
+  PWA install banner. The popup is now a tiny gate (`contact-review-popup.tsx`) that lazy-loads the dialog
+  (`contact-review-dialog.tsx`); the banner lazy-loads the QR component. Entry chunk 581 → 399 KB, first-load JS
+  1121 → 940 KB raw (286 KB gzip). Measure with `vite build --sourcemap` + the source-map breakdown.
+- **Offline:** `public/sw.js` (SW_VERSION gndj-v2) answers a failed PAGE load with a self-contained "Pas de
+  connexion" screen (auto-reloads on `online`, Réessayer button); API/assets still pass straight through (no
+  caching, on purpose). `components/shared/offline-banner.tsx` (in AppLayout under the header) shows an amber
+  banner while `navigator.onLine` is false. Browser-verified 6/6.
 

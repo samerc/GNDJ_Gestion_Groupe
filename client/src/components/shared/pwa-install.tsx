@@ -1,6 +1,5 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useLocation } from 'react-router'
-import { QRCodeSVG } from 'qrcode.react'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -13,11 +12,16 @@ import { useAuthStore } from '@/stores/auth-store'
 // DESKTOP nudge: the app's real value is mobile (home screen + push), so instead of a desktop-install prompt we
 // show a QR the user scans with their PHONE — it opens the site there, where the mobile install banner appears.
 // The QR encodes this site's origin (e.g. https://gndj.org); rendered on white so it scans on a dark card.
+// The QR library is loaded only when a QR is actually shown (not part of every page's first load).
+const QRCodeSVG = lazy(() => import('qrcode.react').then((m) => ({ default: m.QRCodeSVG })))
+
 function MobileInstallQr() {
   return (
     <div className="flex items-start gap-3">
       <div className="shrink-0 rounded-lg border bg-white p-1.5">
-        <QRCodeSVG value={window.location.origin} size={92} />
+        <Suspense fallback={<div className="h-[92px] w-[92px]" />}>
+          <QRCodeSVG value={window.location.origin} size={92} />
+        </Suspense>
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">Installez l'app sur votre téléphone</p>

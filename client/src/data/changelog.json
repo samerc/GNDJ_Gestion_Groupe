@@ -5,6 +5,14 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Hors connexion : l'application affiche un écran « Pas de connexion » (qui se recharge seul au retour du réseau) au lieu d'une page blanche, et un bandeau prévient quand la connexion est perdue en cours d'utilisation."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Application plus légère : la bibliothèque des numéros de téléphone et le générateur de QR code ne sont chargés que lorsqu'ils servent (chargement initial réduit d'environ 180 Ko)."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Sécurité : après 5 mots de passe erronés de suite sur un même compte, la connexion est bloquée quelques minutes (délai croissant, 30 min max). « Mot de passe oublié » débloque immédiatement."
       },
       {
