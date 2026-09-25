@@ -40,6 +40,13 @@
     <None Include="..\..\deploy\patches\*.sql" Link="DataPatches\%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- In-app "Aide" guides (Markdown + screenshots), served role-filtered by HelpController. -->
+    <None Include="..\..\docs\help\*.md" Link="HelpDocs\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\docs\help\img\*" Link="HelpDocs\img\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

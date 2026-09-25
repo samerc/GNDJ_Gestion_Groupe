@@ -97,6 +97,10 @@ const AuditLogsPage = lazy(() => import('@/pages/admin/audit-logs'))
 const ErrorLogPage = lazy(() => import('@/pages/admin/error-log'))
 const SessionsPage = lazy(() => import('@/pages/admin/sessions'))
 const SystemPage = lazy(() => import('@/pages/admin/system'))
+const HelpPage = lazy(() => import('@/pages/help'))
+const HelpPrintPage = lazy(() => import('@/pages/help-print'))
+const PublicHelpPrintPage = lazy(() => import('@/pages/help-print').then((m) => ({ default: m.PublicHelpPrintPage })))
+const PublicGuidePage = lazy(() => import('@/pages/public-guide'))
 const EmailOutboxPage = lazy(() => import('@/pages/admin/email-outbox'))
 const ChangelogPage = lazy(() => import('@/pages/admin/changelog'))
 const UnitTypesPage = lazy(() => import('@/pages/admin/unit-types'))
@@ -130,6 +134,9 @@ export default function App() {
         </Route>
 
         <Route path="/login" element={<LoginPage />} />
+        {/* Public guides (family enrolment) — anonymous; the API only serves "public" guides here. */}
+        <Route path="/guide/:slug" element={<PublicGuidePage />} />
+        <Route path="/guide/imprimer/:slug" element={<PublicHelpPrintPage />} />
         {/* "Voir comme" new-tab landing — public: the new tab may carry no admin auth of its own, only the
             handed-off impersonation token. Consumes it, becomes the member, then redirects to the dashboard. */}
         <Route path="/voir-comme" element={<ImpersonationHandoff />} />
@@ -175,8 +182,12 @@ export default function App() {
         </Route>
 
         <Route element={<ProtectedRoute />}>
+          {/* Print / PDF view of a guide: no app chrome. */}
+          <Route path="/aide/imprimer/:slug" element={<HelpPrintPage />} />
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/aide" element={<HelpPage />} />
+            <Route path="/aide/:slug" element={<HelpPage />} />
             <Route path="/my-profile" element={<MyProfilePage />} />
             <Route path="/my-documents" element={<MyDocumentsPage />} />
             <Route path="/my-trombinoscope" element={<MyTrombinoscopePage />} />

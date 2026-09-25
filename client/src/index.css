@@ -360,3 +360,51 @@
 .dark .gndj-spacer:hover {
   background: oklch(0.28 0.02 255);
 }
+
+/* ---- In-app "Aide" guides (components/help/markdown-view.tsx). Explicit element styling: the Tailwind
+   typography plugin isn't installed. Also used by the print / PDF view. ---- */
+.help-article { color: var(--foreground); font-size: 0.95rem; }
+.help-article h1 { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 1rem; }
+.help-article h2 { font-size: 1.45rem; font-weight: 700; letter-spacing: -0.01em; margin: 2.5rem 0 0.75rem;
+  padding-top: 1rem; border-top: 1px solid var(--border); scroll-margin-top: 5rem; }
+.help-article h3 { font-size: 1.15rem; font-weight: 600; margin: 1.75rem 0 0.5rem; scroll-margin-top: 5rem; }
+.help-article h4 { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.4rem; }
+.help-article p { margin: 0.75rem 0; }
+.help-article a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+.help-article ul { list-style: disc; padding-left: 1.5rem; margin: 0.75rem 0; }
+.help-article ol { list-style: decimal; padding-left: 1.5rem; margin: 0.75rem 0; }
+.help-article li { margin: 0.3rem 0; }
+.help-article li > ul, .help-article li > ol { margin: 0.25rem 0; }
+.help-article strong { font-weight: 600; }
+.help-article hr { border: 0; border-top: 1px solid var(--border); margin: 2rem 0; }
+.help-article code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.85em;
+  background: var(--muted); border-radius: 0.3rem; padding: 0.1rem 0.35rem; }
+.help-article pre { background: var(--muted); border-radius: 0.6rem; padding: 0.9rem 1rem; overflow-x: auto; margin: 1rem 0; }
+.help-article pre code { background: none; padding: 0; font-size: 0.82rem; }
+.help-article table { display: block; overflow-x: auto; border-collapse: collapse; margin: 1rem 0; font-size: 0.88rem; }
+.help-article th { background: var(--muted); font-weight: 600; text-align: left; }
+.help-article th, .help-article td { border: 1px solid var(--border); padding: 0.45rem 0.7rem; vertical-align: top; }
+.help-article blockquote { border-left: 4px solid var(--border); padding: 0.5rem 1rem; margin: 1rem 0; color: var(--muted-foreground); }
+.help-article blockquote p { margin: 0.25rem 0; }
+.help-article .help-callout { border-radius: 0.6rem; border-left-width: 4px; color: var(--foreground); }
+.help-article .help-tip { background: color-mix(in oklch, var(--primary) 8%, transparent); border-left-color: var(--primary); }
+.help-article .help-warn { background: color-mix(in oklch, #f59e0b 12%, transparent); border-left-color: #f59e0b; }
+.help-article .help-ok { background: color-mix(in oklch, #10b981 12%, transparent); border-left-color: #10b981; }
+.help-article figure { margin: 1.25rem 0; }
+.help-article figure img { max-width: 100%; height: auto; border: 1px solid var(--border); border-radius: 0.75rem;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.06); }
+.help-article figure img:not([src]) { min-height: 8rem; width: 100%; background: var(--muted); }
+.help-article figcaption { font-size: 0.8rem; color: var(--muted-foreground); text-align: center; margin-top: 0.4rem; }
+.help-article .help-img-missing { display: none; }
+.help-article .help-mermaid { margin: 1.25rem 0; overflow-x: auto; text-align: center; min-height: 3rem; }
+.help-article .help-mermaid svg { max-width: 100%; height: auto; }
+.dark .help-article .help-mermaid svg { background: #fff; border-radius: 0.6rem; padding: 0.5rem; }
+
+@media print {
+  .help-article { font-size: 10.5pt; }
+  .help-article h2 { margin-top: 1.6rem; }
+  .help-article h2, .help-article h3 { break-after: avoid; }
+  .help-article figure, .help-article table, .help-article .help-mermaid, .help-article pre, .help-article blockquote { break-inside: avoid; }
+  .help-article figure img { box-shadow: none; max-height: 11cm; width: auto; }
+  .help-article a { color: inherit; text-decoration: none; }
+}

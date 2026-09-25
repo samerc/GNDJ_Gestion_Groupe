@@ -1,0 +1,13 @@
+{
+  "name": "gndj-help-docs",
+  "private": true,
+  "description": "Tools for the in-app guides (docs/help): screenshots with fake names, and PDF export. See README.md.",
+  "type": "module",
+  "scripts": {
+    "shots": "node capture.mjs",
+    "pdf": "node pdf.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.63.0"
+  }
+}

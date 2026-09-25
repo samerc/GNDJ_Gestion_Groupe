@@ -23,7 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, KeyRound, IdCard, MonitorSmartphone, FileText, Image as ImageIcon, Sparkles, Globe, Sun, Moon, Monitor, Users } from 'lucide-react'
+import { LogOut, KeyRound, IdCard, MonitorSmartphone, FileText, Image as ImageIcon, Sparkles, Globe, Sun, Moon, Monitor, Users, BookOpen } from 'lucide-react'
 import { PwaInstallMenuItem } from '@/components/shared/pwa-install'
 import { PushToggleMenuItem } from '@/components/shared/push-toggle'
 import { toast } from 'sonner'
@@ -223,6 +223,11 @@ export function UserMenu() {
               <DropdownMenuSeparator />
             </>
           )}
+          {/* The in-app guides, for every role (the list is filtered by role on the server). */}
+          <DropdownMenuItem onClick={() => navigate('/aide')}>
+            <BookOpen className="mr-2 h-4 w-4" />
+            Aide
+          </DropdownMenuItem>
           {/* Members can replay the first-login welcome tour any time. Not shown to chefs (they get the guide). */}
           {isRegularMember && (
             <DropdownMenuItem onClick={() => openTour()}>

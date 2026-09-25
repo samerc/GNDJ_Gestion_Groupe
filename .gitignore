@@ -80,3 +80,4 @@ deploy/golive/import_maitrise_contacts.sql
 .claude/settings.local.json
 # end-to-end smoke tests (playwright-core)
 tests/e2e/node_modules/
+tools/help-docs/node_modules/

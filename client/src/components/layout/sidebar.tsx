@@ -51,6 +51,7 @@ import {
   CalendarClock,
   BellRing,
   Activity,
+  BookOpen,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
@@ -82,6 +83,7 @@ const personalNavItems = [
   { path: '/my-profile', label: 'Ma fiche', icon: Users, permission: null },
   { path: '/my-documents', label: 'Mes documents', icon: FileText, permission: null },
   { path: '/my-trombinoscope', label: 'Trombinoscope', icon: ImageIcon, permission: null },
+  { path: '/aide', label: 'Aide', icon: BookOpen, permission: null },
 ]
 
 // Ungrouped, pinned at the very top for managers — the handful of pages opened daily. Everything else lives
