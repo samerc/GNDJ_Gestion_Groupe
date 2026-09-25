@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useMyOverdueRentree } from '@/services/rentree-service'
+import { useAuthStore } from '@/stores/auth-store'
+import { useContactReviewStore } from '@/stores/contact-review-store'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { CalendarClock } from 'lucide-react'
@@ -19,7 +21,12 @@ export function RentreeOverduePopup() {
   const signature = signatureOf((data ?? []).map((t) => t.id))
   // Derived (no effect): dismissed only if the SAME set was already dismissed this session.
   const [seenSig, setSeenSig] = useState(() => sessionStorage.getItem(SEEN_KEY) ?? '')
-  const open = !!(data && data.length > 0) && seenSig !== signature
+  // Waits while the one-time contact-review popup is ON SCREEN (pending and not deferred this session) so the two
+  // modals never stack — it then appears once the member confirms or clicks "Plus tard" (same rule as the tour).
+  const user = useAuthStore((s) => s.user)
+  const reviewSkipped = useContactReviewStore((s) => s.skipped)
+  const reviewOnScreen = !!user?.needsContactReview && !!user?.memberId && !reviewSkipped
+  const open = !!(data && data.length > 0) && seenSig !== signature && !reviewOnScreen
 
   const dismiss = () => { sessionStorage.setItem(SEEN_KEY, signature); setSeenSig(signature) }
 

@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Connexion : la fenêtre « Tâches de rentrée en retard » attend que « Vérifiez vos coordonnées » soit fermée, au lieu de s'afficher par-dessus."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Mon unité (chef d'unité) : la fiche membre est maintenant la même que celle du chef de groupe (onglets regroupés, Coordonnées du foyer, fratrie, menu Actions) — seules les actions permises au chef d'unité apparaissent."
       },
       {
