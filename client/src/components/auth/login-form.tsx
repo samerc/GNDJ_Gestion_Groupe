@@ -49,7 +49,7 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
     e.preventDefault(); setError(''); setLoading(true)
     try {
       await login({ email, password, website }, rememberMe)
-      setFailedAttempts(0); navigate('/dashboard')
+      setFailedAttempts(0); navigate('/dashboard', { replace: true })
     } catch (err) {
       setError((err as AxiosError<ApiError>).response?.data?.error ?? 'Une erreur est survenue.')
       setFailedAttempts((n) => n + 1)
@@ -71,7 +71,7 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
   const verifyCode = async (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setLoading(true)
     try {
-      await loginWithCode(email, code, rememberMe); navigate('/dashboard')
+      await loginWithCode(email, code, rememberMe); navigate('/dashboard', { replace: true })
     } catch (err) {
       setError((err as AxiosError<ApiError>).response?.data?.error ?? 'Une erreur est survenue.')
     } finally { setLoading(false) }

@@ -23,7 +23,7 @@ export function AccountChooser({ onUseAnother, onNeedAuth }: {
     setError('')
     try {
       await switchToAccount(a.memberId) // mint a fresh session from the pooled refresh token (no password)
-      navigate('/dashboard')
+      navigate('/dashboard', { replace: true })
     } catch {
       // No live session (logged out / token expired) → re-auth with the username pre-filled.
       onNeedAuth(a.username)

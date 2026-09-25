@@ -1,5 +1,7 @@
 import { Link, useLocation } from 'react-router'
 import { cn } from '@/lib/utils'
+import { useMenuClick, useGoHomeClick } from '@/hooks/use-menu-replace'
+import { HomeLink } from './home-link'
 import { useAuthStore } from '@/stores/auth-store'
 import { useRoleTheme } from '@/lib/use-is-manager'
 import { useSidebarStore } from '@/stores/sidebar-store'
@@ -212,6 +214,8 @@ const adminGroups: AdminGroup[] = [
 // Decides which nav set to show and filters every link by the current user's permissions.
 function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const location = useLocation()
+  const menuClick = useMenuClick()
+  const goHome = useGoHomeClick()
   const { hasPermission, user } = useAuthStore()
   // Accordion open/closed state (persisted). The group containing the current route auto-expands.
   const { openGroups, toggleGroup } = useSidebarStore()
@@ -281,7 +285,7 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
       <Link
         key={item.path}
         to={item.path}
-        onClick={onNavigate}
+        onClick={(e) => { if (item.path === '/dashboard') goHome(e); else menuClick(e, item.path); onNavigate?.() }}
         className={cn(
           'group/nav relative flex items-center rounded-md text-sm transition-all duration-150',
           collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2',
@@ -380,7 +384,7 @@ export function Sidebar() {
         'flex h-16 items-center border-b border-white/10',
         collapsed ? 'justify-center px-2' : 'px-4'
       )}>
-        <Link to="/dashboard" className="flex items-center gap-2.5 overflow-hidden">
+        <HomeLink className="flex items-center gap-2.5 overflow-hidden">
           <BrandMark className="h-9 w-9 shrink-0" />
           {!collapsed && (
             <div className="flex flex-col leading-tight">
@@ -388,7 +392,7 @@ export function Sidebar() {
               <span className="text-[11px] font-medium text-white/55">Gestion de groupe</span>
             </div>
           )}
-        </Link>
+        </HomeLink>
       </div>
 
       {/* Navigation */}
@@ -443,13 +447,13 @@ export function MobileSidebar() {
         <SheetTitle className="sr-only">Menu de navigation</SheetTitle>
         <div className="flex h-16 items-center border-b border-white/10 px-4">
           {/* Brand = the "Accueil" home link (→ role-aware /dashboard); closes the drawer on navigate. */}
-          <Link to="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
+          <HomeLink onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
             <BrandMark className="h-9 w-9" />
             <div className="flex flex-col leading-tight">
               <span className="text-[15px] font-bold tracking-tight text-white">GNDJ Scout</span>
               <span className="text-[11px] font-medium text-white/55">Gestion de groupe</span>
             </div>
-          </Link>
+          </HomeLink>
         </div>
         <div className="flex-1 overflow-auto py-3">
           <NavContent collapsed={false} onNavigate={() => setMobileOpen(false)} />
@@ -465,6 +469,7 @@ export function MobileSidebar() {
 // in the header around it.
 export function AdminNav() {
   const location = useLocation()
+  const menuClick = useMenuClick()
   const { hasPermission } = useAuthStore()
   const { data: pendingDemandes } = usePendingDemandeCount(hasPermission(PERMISSIONS.DEMANDE_VIEW))
   const { data: pendingChanges } = usePendingChangeRequestsCount(hasPermission(PERMISSIONS.MEMBERS_EDIT))
@@ -507,7 +512,7 @@ export function AdminNav() {
       {pinned.map((item) => {
         const Icon = item.icon
         return (
-          <Link key={item.path} to={item.path}
+          <Link key={item.path} to={item.path} onClick={(e) => menuClick(e, item.path)}
             className={cn('flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/40',
               isActive(item.path) ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white')}>
             <Icon className="h-4 w-4" />{item.label}
@@ -542,7 +547,7 @@ export function AdminNav() {
                     {showHeading && idx > 0 && <DropdownMenuSeparator />}
                     {showHeading && <DropdownMenuLabel className="py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{item.section}</DropdownMenuLabel>}
                     <DropdownMenuItem asChild className={cn(active && 'bg-primary/10 focus:bg-primary/15')}>
-                      <Link to={item.path} className={cn('flex items-center gap-2', active ? 'font-semibold text-primary' : '')}>
+                      <Link to={item.path} onClick={(e) => menuClick(e, item.path)} className={cn('flex items-center gap-2', active ? 'font-semibold text-primary' : '')}>
                         {/* Active item gets a left accent bar + filled row so the current page stands out clearly. */}
                         <span className={cn('h-4 w-1 shrink-0 rounded-full', active ? 'bg-primary' : 'bg-transparent')} />
                         <Icon className={cn('h-4 w-4', active ? 'text-primary' : 'opacity-70')} />

@@ -4,7 +4,7 @@
   "description": "Espace membres du Groupe scout Notre-Dame de Jamhour.",
   "lang": "fr",
   "dir": "ltr",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",

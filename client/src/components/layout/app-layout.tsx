@@ -18,6 +18,7 @@ import { ImpersonationBanner } from './impersonation-banner'
 import { useImpersonationStore } from '@/stores/impersonation-store'
 import { reportPwaInstall } from '@/lib/pwa'
 import { syncPush } from '@/lib/push'
+import { rememberRootEntry } from '@/hooks/use-menu-replace'
 import { PwaInstallBanner } from '@/components/shared/pwa-install'
 
 // ROLE: authenticated app shell — sidebar + header around the routed <Outlet>.
@@ -34,6 +35,8 @@ export function AppLayout() {
   // the top — a visible "landed at the bottom" flash. Resetting pre-paint eliminates it. Also nudge the window
   // (belt-and-suspenders for any page that scrolls the document instead of <main>).
   const { pathname } = useLocation()
+  // Installed app: remember which page is at the bottom of the history (for the back-button behaviour).
+  useEffect(() => { rememberRootEntry(pathname) }, [pathname])
   const mainRef = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
     mainRef.current?.scrollTo({ top: 0, left: 0 })

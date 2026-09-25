@@ -46,7 +46,7 @@ export default function ApplicantLoginPage() {
       // If we came from a CG invite link, claim it now (grants late submission on this account). Best-effort:
       // an already-used/expired token just fails silently — the login still succeeds.
       if (inviteToken) { try { await claimInvite.mutateAsync(inviteToken) } catch { /* ignore */ } }
-      navigate('/inscription/portail')
+      navigate('/inscription/portail', { replace: true })
     } catch (err) {
       setError(parseApiError(err))
       setFailedAttempts((n) => n + 1)

@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Application installée : le bouton Retour du téléphone ramène à l'accueil depuis n'importe quelle page du menu, puis ferme l'application (il ne repasse plus par tous les écrans visités). L'application s'ouvre directement sur l'accueil."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Connexion sur plusieurs appareils : se connecter sur l'ordinateur ne déconnecte plus le téléphone (et inversement). Chaque appareil garde sa propre session. Nouveau menu « Mes appareils connectés » pour voir ses appareils et en déconnecter un ; la page Sessions actives affiche une ligne par appareil."
       },
       {

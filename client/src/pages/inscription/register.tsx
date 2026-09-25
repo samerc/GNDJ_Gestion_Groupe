@@ -41,7 +41,7 @@ export default function ApplicantRegisterPage() {
     setLoading(true)
     try {
       await register(email, password, contactName || undefined, website)
-      navigate('/inscription/portail')
+      navigate('/inscription/portail', { replace: true })
     } catch (err) {
       setError(parseApiError(err))
     } finally {

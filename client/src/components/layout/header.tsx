@@ -1,4 +1,5 @@
 import { Link } from 'react-router'
+import { HomeLink } from './home-link'
 import { useSidebarStore } from '@/stores/sidebar-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { Button } from '@/components/ui/button'
@@ -37,15 +38,15 @@ export function Header() {
         <Menu className="h-5 w-5" />
       </Button>
       {/* Mobile: the wordmark is the home link (→ role-aware /dashboard = "Accueil"). */}
-      <Link to="/dashboard" title="Accueil" className="text-lg font-bold tracking-tight text-white lg:hidden">GNDJ Scout</Link>
+      <HomeLink title="Accueil" className="text-lg font-bold tracking-tight text-white lg:hidden">GNDJ Scout</HomeLink>
 
       {/* Desktop managers: brand + horizontal nav (no left sidebar for them). The brand is the "Accueil" home
           link — clicking the logo opens the group dashboard, so it needs no dedicated menu button. */}
       {isManager && (
-        <Link to="/dashboard" title="Accueil" className="hidden shrink-0 items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-white/10 lg:flex">
+        <HomeLink title="Accueil" className="hidden shrink-0 items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-white/10 lg:flex">
           <BrandMark className="h-8 w-8" />
           <span className="text-[15px] font-bold tracking-tight text-white">GNDJ Scout</span>
-        </Link>
+        </HomeLink>
       )}
       {isManager && <AdminNav />}
 

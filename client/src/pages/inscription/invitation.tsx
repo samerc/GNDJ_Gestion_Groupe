@@ -83,7 +83,7 @@ export default function ApplicantInvitationPage() {
       try {
         await claimInvite.mutateAsync(token!)
         toast.success('Invitation activée')
-        navigate('/inscription/portail')
+        navigate('/inscription/portail', { replace: true })
       } catch (err) { setError(parseApiError(err)) } finally { setLoading(false) }
     }
     return (
@@ -114,7 +114,7 @@ export default function ApplicantInvitationPage() {
     setLoading(true)
     try {
       await register(email, password, contactName || undefined, website, undefined, token)
-      navigate('/inscription/portail')
+      navigate('/inscription/portail', { replace: true })
     } catch (err) { setError(parseApiError(err)) } finally { setLoading(false) }
   }
 

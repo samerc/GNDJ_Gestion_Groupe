@@ -5946,3 +5946,17 @@ Signing in on one device used to sign the others out: each account had ONE rotat
 - Patches 019/022 no longer reference the dropped column (a fresh DB would have failed on them).
 - Verified live: 28/28 API checks (phone survives PC login, grace window, per-device end/logout, sign-out-others,
   password change, admin per-device disconnect, CU 403), disable-login ends all devices, browser 7/7.
+
+### Installed-app back button (2026-09-25, DEV until deploy)
+In the installed PWA the phone's back button walked through EVERY screen visited (each menu tap pushed a history
+entry; the app also opened on the public home page), so it never seemed to close.
+- `manifest.webmanifest` `start_url` "/" → **"/dashboard"** (signed out → login, which then REPLACES itself).
+- Sign-in / sign-out / account switch / applicant login-register-invitation now `navigate(..., { replace: true })`.
+- `hooks/use-menu-replace.ts` (installed app only, `isStandalone()`): **`useMenuClick`** — a menu tap made away from
+  the dashboard REPLACES the current entry (decided at tap time, so fast taps can't use a stale choice), keeping the
+  history at [dashboard, section]; **`useGoHomeClick`** + `components/layout/home-link.tsx` (logo / "Accueil" /
+  "Mon unité") step BACK to the dashboard at the bottom of the history (tracked by `rememberRootEntry` in AppLayout)
+  instead of stacking a second copy. Drill-downs inside a section still push. Browser tabs unchanged.
+- Verified in Edge with standalone emulated: 9/9 (3 menu taps → idx 1, back → dashboard idx 0, logo → idx 0,
+  browser keeps normal history).
+

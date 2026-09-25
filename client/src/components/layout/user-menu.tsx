@@ -54,7 +54,7 @@ export function UserMenu() {
     try {
       await switchToAccount(acc.memberId) // instant, from the pooled token
       toast.success(`Connecté en tant que ${acc.name}`)
-      navigate('/dashboard')
+      navigate('/dashboard', { replace: true })
     } catch (e) {
       // Not remembered on this device yet → ask for the sibling's password (opens after the menu closes).
       if (e instanceof Error && e.message === 'NO_SESSION') {
@@ -75,7 +75,7 @@ export function UserMenu() {
       await addAndSwitchAccount(pwTarget.username, switchPassword)
       toast.success(`Connecté en tant que ${pwTarget.name}`)
       setPwTarget(null); setSwitchPassword('')
-      navigate('/dashboard')
+      navigate('/dashboard', { replace: true })
     } catch (err) {
       setSwitchError(parseApiError(err) || 'Mot de passe incorrect.')
     } finally {
@@ -126,7 +126,7 @@ export function UserMenu() {
   const handleLogout = async () => {
     setLoggingOut(true)
     await logout()
-    navigate('/login')
+    navigate('/login', { replace: true })
   }
 
   return (
