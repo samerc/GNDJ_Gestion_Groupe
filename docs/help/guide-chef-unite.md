@@ -16,7 +16,7 @@ vous en avez besoin (le **Sommaire** à droite vous y emmène directement).
 
 | Quand | Quoi | Où dans l'application |
 |---|---|---|
-| Dès la réception de vos accès | Vous connecter, choisir votre mot de passe, installer l'application | Page de connexion |
+| Dès votre nomination | Vous connecter avec votre compte habituel, vérifier votre email, installer l'application | Page de connexion, **Ma fiche** |
 | Début septembre | Vérifier la fiche de chaque membre (coordonnées, parents, école) | **Mon unité** |
 | Septembre | Vérifier les documents déposés par les familles, suivre les cotisations | **Documents** |
 | Septembre – octobre | Proposer le passage de chaque membre (qui reste, qui monte, qui quitte) | **Passage des membres** |
@@ -28,7 +28,7 @@ Votre **liste de rentrée** (menu **Rentrée scoute**) vous rappelle chaque tâc
 
 ```mermaid
 flowchart LR
-    A[Recevoir ses accès] --> B[Vérifier les fiches]
+    A[Se connecter comme chef] --> B[Vérifier les fiches]
     B --> C[Documents et cotisations]
     C --> D[Passage des membres]
     D --> E[Équipes]
@@ -38,12 +38,13 @@ flowchart LR
 
 ## Votre première connexion
 
-Vous avez reçu un email **« Activer mon compte »** avec votre **identifiant** (de la forme
-`prenom.nom@scouts.gndj`) et un lien.
+Vous êtes déjà membre du groupe : vous avez **déjà un compte** sur la plateforme, il n'y a **rien à activer**.
+Dès que le chef de groupe vous a donné votre fonction de CU ou d'ACU, vous vous connectez **avec le même compte
+qu'avant** et les menus de chef (Mon unité, Réunions, Passage…) apparaissent automatiquement.
 
-1. Cliquez sur **Activer mon compte** dans l'email.
-2. Choisissez votre mot de passe (la liste des exigences se coche au fur et à mesure), puis validez.
-3. Connectez-vous sur **https://gndj.org** avec votre identifiant et ce mot de passe.
+1. Allez sur **https://gndj.org** → **Espace membres**.
+2. Saisissez votre **identifiant** (de la forme `prenom.nom@scouts.gndj`) et votre mot de passe habituel.
+3. Si vous ne vous en souvenez plus, utilisez une des solutions ci-dessous.
 
 ![La page de connexion](img/login.png)
 
@@ -66,9 +67,10 @@ téléphone ou votre ordinateur. Décochez-le sur un ordinateur partagé.
 
 ### Vérifier vos coordonnées
 
-À la première connexion, une fenêtre **« Vérifiez vos coordonnées »** vous demande de confirmer votre email et
-votre téléphone **personnels**. Beaucoup de chefs ont encore sur leur fiche l'adresse d'un parent (du temps où ils
-étaient louveteaux ou éclaireurs) : corrigez-la, c'est à cette adresse que la plateforme vous écrira.
+Comme chef, c'est à **votre** adresse email et à **votre** téléphone que la plateforme écrira (rappels, tâches de
+rentrée, notifications). Beaucoup de chefs ont encore sur leur fiche l'adresse d'un parent (du temps où ils étaient
+louveteaux ou éclaireurs) : ouvrez **Ma fiche → Contact & famille** et vérifiez que le **courriel de contact
+principal** est bien le vôtre ; corrigez-le sinon.
 
 ## Installer l'application sur votre téléphone
 

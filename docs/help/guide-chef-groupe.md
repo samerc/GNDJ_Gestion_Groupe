@@ -154,8 +154,13 @@ Irréversible : à faire quand toutes les réponses sont envoyées.
 **Unités & maîtrise → Communications & accès** :
 
 - **Emails aux chefs** : envoyer un message (par exemple l'email de rentrée) à toutes les maîtrises, à une unité,
-  ou aux nouveaux chefs seulement. Si le modèle contient le lien d'activation, chaque chef reçoit son identifiant
-  et le lien pour définir son mot de passe. Vous pouvez adapter le texte pour cet envoi uniquement.
+  ou aux nouveaux chefs seulement. Vous pouvez adapter le texte pour cet envoi uniquement.
+
+> 💡 Les nouveaux CU et ACU sont **déjà membres** : ils ont déjà leur compte et se connectent comme avant. Ils
+> n'ont **pas** besoin de lien d'activation — la fonction que vous leur donnez suffit à faire apparaître leurs menus
+> de chef. Le lien d'activation n'a servi qu'une fois, en 2026, au lancement de la plateforme. Si un modèle d'email
+> aux chefs contient encore le lien d'activation (`{{activationLink}}`), retirez-le avant l'envoi. Un chef qui a
+> oublié son mot de passe utilise **Mot de passe oublié ?** ou **Se connecter avec un code**.
 - **Envoyer les accès** : l'email de réinscription / d'activation aux membres, unité par unité ou à **tous les
   membres (hors maîtrise)**, avec l'option « seulement ceux qui ne se sont jamais connectés ».
 
