@@ -1,0 +1,13 @@
+{
+  "name": "gndj-e2e",
+  "private": true,
+  "description": "End-to-end smoke tests against the local dev app (see README.md)",
+  "type": "module",
+  "scripts": {
+    "api": "python api_smoke.py",
+    "ui": "node ui_smoke.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.63.0"
+  }
+}

@@ -6006,4 +6006,11 @@ entry; the app also opened on the public home page), so it never seemed to close
   `restoreTest` (optional user/password if the DB user lacks CREATEDB). PS 5.1 gotchas handled: native stderr under
   EAP=Stop (local Continue + `client_min_messages=warning`), bare `"` stripped from native args (use `\"`),
   history table column is `migration_id` (snake_case). Verified on dev: OK run + a real FAILED run (old dump).
+- **End-to-end smoke suite (`tests/e2e/`)** — run before EVERY deploy: `powershell -ExecutionPolicy Bypass -File
+  tests/e2e/run.ps1` (`-ApiOnly` without the frontend, `-Unit` to also run `dotnet test`). `api_smoke.py` (stdlib,
+  38 checks: sign-in + lockout, per-device sessions, access control youth/CU/CG/super-admin, main endpoints, data
+  quality + bounce webhooks, public + portal) and `ui_smoke.mjs` (playwright-core driving the installed Edge, 18
+  checks: login pages, CU roster + member file, phone + installed-app back button, offline screen, admin pages, no
+  JS errors). Dev data from `dev-sync-from-prod.ps1` (password `Gndj2026!`); accounts overridable by env vars;
+  refuses non-localhost; cleans up its own sessions/bounces. README in the folder.
 

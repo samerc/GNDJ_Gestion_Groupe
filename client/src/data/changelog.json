@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Tests avant chaque mise en ligne : une suite de vérifications automatiques (connexion, sessions, droits d'accès, écrans principaux, téléphone, hors connexion) à lancer avec tests/e2e/run.ps1."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Sauvegardes : un test automatique toutes les 4 semaines restaure la dernière sauvegarde dans une base temporaire, la compare à la base réelle et envoie le résultat par email (script deploy/restore-test.ps1)."
       },
       {
