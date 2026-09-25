@@ -12,14 +12,18 @@ namespace GNDJ.Api.Services;
 // delivered at-least-once. No-ops safely when VAPID isn't configured (rows just retry until keys are set).
 public class PushSenderBackgroundService : BackgroundService
 {
+    private readonly IJobMonitor _jobs;
+    private const string JobKey = "push-outbox";
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IPushSignal _signal;
     private readonly IWebPushSender _sender;
     private readonly ILogger<PushSenderBackgroundService> _logger;
 
     public PushSenderBackgroundService(IServiceScopeFactory scopeFactory, IPushSignal signal,
-        IWebPushSender sender, ILogger<PushSenderBackgroundService> logger)
+        IWebPushSender sender, ILogger<PushSenderBackgroundService> logger, IJobMonitor jobs)
     {
+        _jobs = jobs;
+        _jobs.Register(JobKey, "Envoi des notifications push", TimeSpan.FromMinutes(1));
         _scopeFactory = scopeFactory;
         _signal = signal;
         _sender = sender;
@@ -38,9 +42,9 @@ public class PushSenderBackgroundService : BackgroundService
         while (!stoppingToken.IsCancellationRequested)
         {
             int processed;
-            try { processed = await SweepAsync(stoppingToken); }
+            try { processed = await SweepAsync(stoppingToken); _jobs.Succeeded(JobKey); }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-            catch (Exception ex) { _logger.LogWarning(ex, "Push sweep failed; backing off"); processed = 0; }
+            catch (Exception ex) { _jobs.Failed(JobKey, ex); _logger.LogWarning(ex, "Push sweep failed; backing off"); processed = 0; }
 
             if (processed < BatchSize)
                 await _signal.WaitAsync(PollInterval, stoppingToken);

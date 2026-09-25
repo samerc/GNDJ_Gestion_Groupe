@@ -97,6 +97,7 @@ builder.Services.AddHostedService<GNDJ.Api.Services.MemberPurgeBackgroundService
 builder.Services.AddHostedService<GNDJ.Api.Services.DocumentCampaignBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.RentreeReminderBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.ApplicationLogMaintenanceBackgroundService>();
+builder.Services.AddHostedService<GNDJ.Api.Services.OpsAlertBackgroundService>(); // daily "système" problems email
 
 // Performance: Response compression (gzip + brotli)
 builder.Services.AddResponseCompression(options =>
@@ -512,6 +513,10 @@ app.UseAuthentication();
 // JWT principal was set, populating an equivalent ClaimsPrincipal so [HasPermission] still applies.
 app.UseMiddleware<ApiKeyMiddleware>();
 app.UseAuthorization();
+
+// Times /api requests; slow ones (Monitoring:SlowRequestMs) are logged + listed on the Système page. After auth so
+// the caller's role is known.
+app.UseMiddleware<SlowRequestMiddleware>();
 
 // Maintenance/kill-switches — after auth (needs the super-admin claim to grant them access) so a module
 // (or the whole site) in maintenance returns 503 to everyone else. Only gates /api/*; the SPA still loads.

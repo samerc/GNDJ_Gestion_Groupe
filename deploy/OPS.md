@@ -158,3 +158,24 @@ compares the latest migration, drops the scratch database and emails **[GNDJ Res
 - A FAILED email means: no recent dump (the nightly backup stopped), the dump doesn't restore, or it is missing
   data. Look at the details in the email before the next backup overwrites anything.
 
+
+## Système page, daily alert, disk space
+
+- **Système** page (Configuration → Système, super-admin): background jobs (last success / last error), email +
+  push delivery (stuck > 2 h, failures in 24 h), disk space, the slowest pages seen since the last restart, the
+  configuration checks, and a stray-upload-files cleanup. It describes the running process: a restart starts the
+  job list and the slow-page list afresh.
+- **Daily alert**: every hour the app computes that page's problem list; if there is anything, the admin gets ONE
+  email a day (`[GNDJ] N point(s) à vérifier`). Recipient = setting `error.notify_email`, else `ErrorAlerts:Email`,
+  else the first super-admin. It goes through the dedicated alert SMTP when `ErrorAlerts:Smtp:Host` is set in
+  `appsettings.Production.json` (recommended: it then still arrives when the app's own email is what's broken),
+  otherwise through the normal email outbox.
+- **Disk**: `healthcheck.ps1` (already scheduled every few minutes) now also checks free space on the drives in
+  `disk.drives` (default C + the backup drive) and emails once when one goes under `disk.minFreePercent` (10) or
+  `disk.minFreeGb` (5), and once when it recovers. Nothing to install: the next run picks it up. Optional block in
+  `ops-alert.config.json`: `"disk": { "drives": ["C"], "minFreePercent": 10, "minFreeGb": 5 }`.
+- Optional app settings (`appsettings.Production.json`): `Monitoring:SlowRequestMs` (default 2000),
+  `Monitoring:DiskLowPercent` (10), `Monitoring:DiskLowGb` (5).
+- **Stray files**: files in `uploads/documents` and `uploads/photos` that no record (even a deleted one still in
+  the Corbeille) points to, older than a day. The delete refuses when more than half of the files look stray —
+  that means a wrong folder or a restored/other database, not real leftovers.

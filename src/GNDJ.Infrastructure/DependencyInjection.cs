@@ -73,6 +73,11 @@ public static class DependencyInjection
 
         // Best-effort admin alerting on server/client errors (singleton: owns its own scope, never throws).
         services.AddSingleton<IErrorNotifier, ErrorNotifier>();
+        services.AddSingleton<IJobMonitor, JobMonitor>();          // background-job heartbeats (Système page + ops alert)
+        services.AddSingleton<IOpsAlertSender, OpsAlertSender>();  // admin alert email (dedicated alert SMTP, else the queue)
+        services.AddSingleton<ISlowRequestLog, SlowRequestLog>();  // requests over Monitoring:SlowRequestMs (Système page)
+        services.AddSingleton<GNDJ.Application.SystemHealth.ISystemHealthService, SystemHealthService>(); // Système page + daily ops alert
+        services.AddSingleton<GNDJ.Application.SystemHealth.IUploadFileAudit, UploadFileAudit>();          // stray upload files
         services.AddSingleton<ILoginThrottle, LoginThrottle>();
 
         // Web Push notifications + durable push outbox (mirrors the email outbox). Enqueuing persists a

@@ -22,13 +22,17 @@ function Send-OpsAlert {
     )
     $s = $Config.smtp
     if (-not $s -or -not $s.host) { Write-Warning "No SMTP config - alert not sent: $Subject"; return }
-    $sec = ConvertTo-SecureString $s.password -AsPlainText -Force
-    $cred = New-Object System.Management.Automation.PSCredential ($s.username, $sec)
     $useSsl = [bool]$s.useSsl
+    # Credentials only when a username is set (a local relay / test server needs none).
+    $credArgs = @{}
+    if ($s.username) {
+        $sec = ConvertTo-SecureString $s.password -AsPlainText -Force
+        $credArgs.Credential = New-Object System.Management.Automation.PSCredential ($s.username, $sec)
+    }
     foreach ($to in $Config.alertTo) {
         try {
-            Send-MailMessage -SmtpServer $s.host -Port ([int]$s.port) -UseSsl:$useSsl `
-                -Credential $cred -From "$($s.fromName) <$($s.from)>" -To $to `
+            Send-MailMessage -SmtpServer $s.host -Port ([int]$s.port) -UseSsl:$useSsl @credArgs `
+                -From "$($s.fromName) <$($s.from)>" -To $to `
                 -Subject $Subject -Body $Body -Encoding ([System.Text.Encoding]::UTF8) -ErrorAction Stop
         } catch {
             Write-Warning "Failed to send ops alert to '$to': $($_.Exception.Message)"

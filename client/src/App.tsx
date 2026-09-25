@@ -96,6 +96,7 @@ const AdminSiteTextsPage = lazy(() => import('@/pages/admin/site-texts'))
 const AuditLogsPage = lazy(() => import('@/pages/admin/audit-logs'))
 const ErrorLogPage = lazy(() => import('@/pages/admin/error-log'))
 const SessionsPage = lazy(() => import('@/pages/admin/sessions'))
+const SystemPage = lazy(() => import('@/pages/admin/system'))
 const EmailOutboxPage = lazy(() => import('@/pages/admin/email-outbox'))
 const ChangelogPage = lazy(() => import('@/pages/admin/changelog'))
 const UnitTypesPage = lazy(() => import('@/pages/admin/unit-types'))
@@ -290,6 +291,7 @@ export default function App() {
               <Route path="/admin/appearance" element={<AppearancePage />} />
               <Route path="/admin/error-log" element={<ErrorLogPage />} />
               <Route path="/admin/sessions" element={<SessionsPage />} />
+              <Route path="/admin/system" element={<SystemPage />} />
               <Route path="/admin/email-outbox" element={<EmailOutboxPage />} />
               <Route path="/admin/changelog" element={<ChangelogPage />} />
               <Route path="/admin/progression-path" element={<ProgressionPathPage />} />

@@ -54,6 +54,7 @@ deploy/target.txt
 deploy/ops-alert.config.json
 deploy/rclone.conf
 deploy/health-state.txt
+deploy/disk-state.txt
 
 # Local build-artifact package (created by deploy/publish.ps1)
 /publish/

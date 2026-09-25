@@ -50,6 +50,7 @@ import {
   UserPlus,
   CalendarClock,
   BellRing,
+  Activity,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
@@ -204,6 +205,7 @@ const adminGroups: AdminGroup[] = [
       // Clés API → Paramètres (Clés API tab). Route still works.
       { path: '/admin/audit-logs', label: 'Journal d\'audit', icon: ScrollText, permission: PERMISSIONS.AUDIT_VIEW, section: 'Système & sécurité' },
       { path: '/admin/error-log', label: 'Journal des erreurs', icon: AlertTriangle, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
+      { path: '/admin/system', label: 'Système', icon: Activity, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
       { path: '/admin/sessions', label: 'Sessions actives', icon: MonitorSmartphone, permission: PERMISSIONS.ASSOCIATIONS_MANAGE, section: 'Système & sécurité' },
       { path: '/admin/deleted-members', label: 'Corbeille', icon: Trash2, permission: PERMISSIONS.MEMBERS_DELETE, section: 'Système & sécurité' },
       // Apparence → Paramètres (Apparence tab). Route still works.

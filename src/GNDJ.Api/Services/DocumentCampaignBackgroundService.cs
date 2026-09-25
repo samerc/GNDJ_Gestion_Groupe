@@ -16,13 +16,17 @@ namespace GNDJ.Api.Services;
 // on read (no job needed) — this service only handles the emails + on-hold. A failed run is logged and retried.
 public class DocumentCampaignBackgroundService : BackgroundService
 {
+    private readonly IJobMonitor _jobs;
+    private const string JobKey = "document-campaign";
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<DocumentCampaignBackgroundService> _logger;
     private static readonly TimeSpan Interval = TimeSpan.FromHours(12);
     private static readonly TimeSpan InitialDelay = TimeSpan.FromMinutes(3); // let startup migrations/seeding finish
 
-    public DocumentCampaignBackgroundService(IServiceScopeFactory scopeFactory, ILogger<DocumentCampaignBackgroundService> logger)
+    public DocumentCampaignBackgroundService(IServiceScopeFactory scopeFactory, ILogger<DocumentCampaignBackgroundService> logger, IJobMonitor jobs)
     {
+        _jobs = jobs;
+        _jobs.Register(JobKey, "Campagne de documents (relances, suspensions)", TimeSpan.FromHours(12));
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
@@ -40,9 +44,10 @@ public class DocumentCampaignBackgroundService : BackgroundService
                 var context = scope.ServiceProvider.GetRequiredService<GndjDbContext>();
                 var emailQueue = scope.ServiceProvider.GetRequiredService<IEmailQueue>();
                 await RunOnceAsync(context, emailQueue, stoppingToken);
+                _jobs.Succeeded(JobKey);
             }
             catch (OperationCanceledException) { break; }
-            catch (Exception ex) { _logger.LogError(ex, "Document campaign run failed; will retry next interval."); }
+            catch (Exception ex) { _jobs.Failed(JobKey, ex); _logger.LogError(ex, "Document campaign run failed; will retry next interval."); }
 
             try { await Task.Delay(Interval, stoppingToken); }
             catch (OperationCanceledException) { break; }

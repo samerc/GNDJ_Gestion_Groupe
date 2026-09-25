@@ -13,13 +13,17 @@ namespace GNDJ.Api.Services;
 // delivered at-least-once — unlike the old in-memory Channel, which lost anything queued when the process died.
 public class OutboxSenderBackgroundService : BackgroundService
 {
+    private readonly IJobMonitor _jobs;
+    private const string JobKey = "email-outbox";
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IOutboxSignal _signal;
     private readonly ILogger<OutboxSenderBackgroundService> _logger;
 
     public OutboxSenderBackgroundService(IServiceScopeFactory scopeFactory, IOutboxSignal signal,
-        ILogger<OutboxSenderBackgroundService> logger)
+        ILogger<OutboxSenderBackgroundService> logger, IJobMonitor jobs)
     {
+        _jobs = jobs;
+        _jobs.Register(JobKey, "Envoi des emails", TimeSpan.FromMinutes(1));
         _scopeFactory = scopeFactory;
         _signal = signal;
         _logger = logger;
@@ -42,7 +46,7 @@ public class OutboxSenderBackgroundService : BackgroundService
             int processed;
             try
             {
-                processed = await SweepAsync(stoppingToken);
+                processed = await SweepAsync(stoppingToken); _jobs.Succeeded(JobKey);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -51,7 +55,7 @@ public class OutboxSenderBackgroundService : BackgroundService
             catch (Exception ex)
             {
                 // A sweep-level failure (e.g. DB unreachable) must not kill the worker — log and back off.
-                _logger.LogWarning(ex, "Outbox sweep failed; backing off");
+                _jobs.Failed(JobKey, ex); _logger.LogWarning(ex, "Outbox sweep failed; backing off");
                 processed = 0;
             }
 

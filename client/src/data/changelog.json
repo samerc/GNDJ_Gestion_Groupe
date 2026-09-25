@@ -5,6 +5,38 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Nouvelle page « Système » (Configuration, super-administrateur) : état des tâches automatiques (envoi des emails et des notifications, purge, campagne de documents, rappels…), emails ou notifications bloqués ou en échec, espace disque, pages lentes et points de configuration à corriger."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Alerte quotidienne : si une tâche automatique s'arrête, si des emails restent bloqués ou échouent, si le disque se remplit ou si la configuration contient une erreur, l'administrateur reçoit un email récapitulatif (au plus un par jour), par le serveur d'alertes dédié quand il est configuré."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Espace disque surveillé sur le serveur : un email est envoyé quand un disque passe sous 10 % ou 5 Go libres, puis quand il redevient normal."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Paramètres : un encadré signale les réglages contradictoires (dates de campagne dans le désordre, date d'ouverture après la date limite, années scoutes différentes, mode test des emails actif, devise inconnue…) avec un lien pour corriger."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Modèles d'email : une variable {{…}} mal écrite ou inconnue est signalée avant qu'elle n'arrive telle quelle chez les familles."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Fichiers orphelins : la page Système retrouve les documents et photos présents sur le serveur mais rattachés à aucune fiche, et permet de les supprimer (bloqué par sécurité si la majorité des fichiers semblent orphelins)."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Pages lentes : chaque requête de plus de 2 secondes est enregistrée (page, rôle de l'utilisateur) et visible sur la page Système."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Tests avant mise en ligne : la taille de l'application au premier chargement est contrôlée, pour qu'elle ne regrossisse pas sans qu'on s'en aperçoive."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Tests avant chaque mise en ligne : une suite de vérifications automatiques (connexion, sessions, droits d'accès, écrans principaux, téléphone, hors connexion) à lancer avec tests/e2e/run.ps1."
       },
       {

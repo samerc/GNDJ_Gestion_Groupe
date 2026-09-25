@@ -871,7 +871,7 @@ public static class SeedData
                 Name = "Demande reçue (confirmation)", Code = "demande_submitted", Module = "demande",
                 Subject = "Nous avons bien reçu votre demande — GNDJ Scout",
                 BodyHtml = "<h2>Bonjour {{contactName}},</h2><p>Nous avons bien reçu la demande d'inscription de <strong>{{childName}}</strong> pour l'année {{scoutYear}}.</p><p>La Maîtrise de Groupe étudiera votre demande et vous communiquera sa réponse. Vous pouvez suivre l'état de votre demande à tout moment depuis votre espace.</p><p>— L'équipe GNDJ</p>",
-                Variables = "[{\"key\":\"contactName\",\"label\":\"Nom du contact\"},{\"key\":\"childName\",\"label\":\"Nom de l'enfant\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"}]",
+                Variables = "[{\"key\":\"contactName\",\"label\":\"Nom du contact\"},{\"key\":\"childName\",\"label\":\"Nom de l'enfant\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"},{\"key\":\"demandeNumber\",\"label\":\"N° de demande\"}]",
                 IsActive = true
             },
             new EmailTemplate
@@ -879,7 +879,7 @@ public static class SeedData
                 Name = "Demande acceptée", Code = "demande_approved", Module = "demande",
                 Subject = "Votre demande d'inscription a été acceptée — GNDJ Scout",
                 BodyHtml = "<h2>Bonjour {{contactName}},</h2><p>Nous avons le plaisir de vous informer que la demande d'inscription de <strong>{{childName}}</strong> a été acceptée.</p><p><strong>Unité :</strong> {{unitName}}</p><p>Un compte a été créé pour le nouveau membre. Voici les étapes pour accéder à l'espace membre :</p><ol><li>Cliquez sur le bouton ci-dessous pour <strong>définir votre mot de passe</strong>.</li><li>Connectez-vous à l'espace membre avec votre identifiant : <strong>{{username}}</strong>.</li><li>Téléversez les documents requis depuis « Mes documents ».</li></ol><p><a href=\"{{activationLink}}\" style=\"background-color:#1e3a5f;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">Définir mon mot de passe</a></p><p>Ce lien est valable {{expiryDays}} jours. Vous pourrez ensuite vous connecter sur <a href=\"{{loginUrl}}\">{{loginUrl}}</a>.</p><p>Bienvenue dans le mouvement !</p><p>— L'équipe GNDJ</p>",
-                Variables = "[{\"key\":\"contactName\",\"label\":\"Nom du contact\"},{\"key\":\"childName\",\"label\":\"Nom de l'enfant\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"username\",\"label\":\"Identifiant\"},{\"key\":\"activationLink\",\"label\":\"Lien pour définir le mot de passe\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"},{\"key\":\"expiryDays\",\"label\":\"Validité (jours)\"}]",
+                Variables = "[{\"key\":\"contactName\",\"label\":\"Nom du contact\"},{\"key\":\"childName\",\"label\":\"Nom de l'enfant\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"username\",\"label\":\"Identifiant\"},{\"key\":\"activationLink\",\"label\":\"Lien pour définir le mot de passe\"},{\"key\":\"loginUrl\",\"label\":\"Lien de connexion\"},{\"key\":\"expiryDays\",\"label\":\"Validité (jours)\"},{\"key\":\"demandeNumber\",\"label\":\"N° de demande\"}]",
                 IsActive = true
             },
             new EmailTemplate
@@ -887,7 +887,7 @@ public static class SeedData
                 Name = "Demande refusée", Code = "demande_declined", Module = "demande",
                 Subject = "Réponse à votre demande d'inscription — GNDJ Scout",
                 BodyHtml = "<h2>Bonjour {{contactName}},</h2><p>Concernant la demande d'inscription de <strong>{{childName}}</strong>, nous sommes au regret de ne pas pouvoir y donner une suite favorable cette année.</p><p>{{reason}}</p><p>Nous vous remercions de votre intérêt et restons à votre disposition.</p><p>— L'équipe GNDJ</p>",
-                Variables = "[{\"key\":\"contactName\",\"label\":\"Nom du contact\"},{\"key\":\"childName\",\"label\":\"Nom de l'enfant\"},{\"key\":\"reason\",\"label\":\"Motif (optionnel)\"}]",
+                Variables = "[{\"key\":\"contactName\",\"label\":\"Nom du contact\"},{\"key\":\"childName\",\"label\":\"Nom de l'enfant\"},{\"key\":\"reason\",\"label\":\"Motif (optionnel)\"},{\"key\":\"demandeNumber\",\"label\":\"N° de demande\"}]",
                 IsActive = true
             },
             new EmailTemplate

@@ -48,5 +48,12 @@
   "health": {
     "url": "https://your-domain.example/health",
     "timeoutSec": 20
+  },
+
+  "disk": {
+    "_comment": "Checked by healthcheck.ps1 on every run; emails once when a drive goes under the limit and once when it recovers. drives: letters to watch (default C + the backup drive).",
+    "drives": ["C"],
+    "minFreePercent": 10,
+    "minFreeGb": 5
   }
 }

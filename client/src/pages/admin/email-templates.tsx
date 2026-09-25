@@ -19,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { BackToSettings } from '@/components/shared/back-to-settings'
 import { PageHeader } from '@/components/shared/page-header'
+import { ConfigIssuesBanner } from '@/components/shared/config-issues-banner'
+import { useEmailTemplateCheck } from '@/services/system-service'
 import { Page } from '@/components/shared/page'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -99,6 +101,7 @@ interface TemplateForm {
 const defaultTemplateForm: TemplateForm = { name: '', code: '', module: 'auth', subject: '', bodyHtml: '', variables: '', smtpServerId: '', isActive: true, attachments: [] }
 
 export default function EmailTemplatesPage({ embedded = false }: { embedded?: boolean }) {
+  const { data: templateCheck } = useEmailTemplateCheck()
   return (
     <Page>
       {!embedded && (
@@ -107,6 +110,8 @@ export default function EmailTemplatesPage({ embedded = false }: { embedded?: bo
           <PageHeader title="Modèles d'email" icon={Mail} />
         </>
       )}
+      {/* Templates whose {{variables}} would reach recipients unfilled (unknown variable, broken braces). */}
+      <ConfigIssuesBanner issues={templateCheck} title="Modèles d'email à corriger" showFix={false} />
       <TemplatesTab />
     </Page>
   )

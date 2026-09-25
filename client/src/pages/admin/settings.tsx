@@ -8,6 +8,8 @@ import { parseApiError } from '@/lib/error-utils'
 import { Link, useSearchParams } from 'react-router'
 import { useState, useMemo, lazy, Suspense } from 'react'
 import { useSettings, useUpdateSetting, type SettingDto } from '@/services/settings-service'
+import { useSettingsCheck } from '@/services/system-service'
+import { ConfigIssuesBanner } from '@/components/shared/config-issues-banner'
 import { NewYearCleanupPanel, NewYearCleanupPrompt } from '@/components/admin/new-year-cleanup'
 import { useAssociations } from '@/services/association-service'
 import { Button } from '@/components/ui/button'
@@ -637,6 +639,7 @@ function SettingsNavGroup({ title, items, active, onSelect }: {
 
 export default function SettingsPage() {
   const { data: settings, isLoading } = useSettings()
+  const { data: settingsCheck } = useSettingsCheck()
   const updateMutation = useUpdateSetting()
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
@@ -731,6 +734,9 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Contradictory / risky settings (dates out of order, scout years that differ, test email mode…). */}
+      <ConfigIssuesBanner issues={settingsCheck} onOpenTab={(t) => { setQuery(''); setTab(t) }} />
 
       {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 

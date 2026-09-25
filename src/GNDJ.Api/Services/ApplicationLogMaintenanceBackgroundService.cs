@@ -1,3 +1,4 @@
+using GNDJ.Application.Common.Interfaces;
 using GNDJ.Domain.Entities;
 using GNDJ.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,8 @@ namespace GNDJ.Api.Services;
 //      Send records accumulate forever (only a manual "Vider les envoyés" existed); Pending rows are kept.
 public class ApplicationLogMaintenanceBackgroundService : BackgroundService
 {
+    private readonly IJobMonitor _jobs;
+    private const string JobKey = "log-maintenance";
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ApplicationLogMaintenanceBackgroundService> _logger;
     private static readonly TimeSpan Interval = TimeSpan.FromHours(24);
@@ -25,8 +28,10 @@ public class ApplicationLogMaintenanceBackgroundService : BackgroundService
     private const int DefaultNotificationRetentionDays = 90;
     private const int DefaultOutboxRetentionDays = 30;
 
-    public ApplicationLogMaintenanceBackgroundService(IServiceScopeFactory scopeFactory, ILogger<ApplicationLogMaintenanceBackgroundService> logger)
+    public ApplicationLogMaintenanceBackgroundService(IServiceScopeFactory scopeFactory, ILogger<ApplicationLogMaintenanceBackgroundService> logger, IJobMonitor jobs)
     {
+        _jobs = jobs;
+        _jobs.Register(JobKey, "Nettoyage quotidien (journaux, notifications, envois)", TimeSpan.FromHours(24));
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
@@ -85,9 +90,10 @@ END $$;";
                         .Where(p => (p.Status == PushOutboxStatus.Sent || p.Status == PushOutboxStatus.Failed) && p.CreatedAt < cutoff)
                         .ExecuteDeleteAsync(stoppingToken);
                 }
+                _jobs.Succeeded(JobKey);
             }
             catch (OperationCanceledException) { break; } // shutting down
-            catch (Exception ex) { _logger.LogError(ex, "Application-log maintenance run failed; will retry next interval."); }
+            catch (Exception ex) { _jobs.Failed(JobKey, ex); _logger.LogError(ex, "Application-log maintenance run failed; will retry next interval."); }
 
             try { await Task.Delay(Interval, stoppingToken); }
             catch (OperationCanceledException) { break; }

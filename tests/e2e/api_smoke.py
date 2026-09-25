@@ -189,6 +189,32 @@ def main() -> int:
             s, _ = call("DELETE", f"/data-quality/bounces/{bounced['bounceId']}", token=cg)
             check("Reactiver removes it", s == 204, s)
 
+        # ---------------------------------------------------------------- system health + configuration
+        section("System health + configuration")
+        s, st = call("GET", "/system/status", token=admin)
+        check("super-admin reads the Systeme page", s == 200 and isinstance(st.get("problems"), list), s)
+        if s == 200:
+            job_keys = {j["key"] for j in st["jobs"]}
+            check("every background job reports in", {"email-outbox", "push-outbox", "member-purge", "document-campaign",
+                                                      "rentree-reminders", "log-maintenance", "ops-alert"} <= job_keys, sorted(job_keys))
+            failing = [j["label"] for j in st["jobs"] if j["failing"]]
+            check("no background job failing", not failing, failing)
+            check("no email stuck in the outbox", st["email"]["stuck"] == 0, st["email"]["stuck"])
+        s, _ = call("GET", "/system/status", token=cg)
+        check("CG refused on the Systeme page", s == 403, s)
+        s, tpl = call("GET", "/system/email-templates-check", token=admin)
+        check("every email template's {{variables}} are known", s == 200 and not [i for i in tpl if i["severity"] == "error"],
+              [i["message"] for i in tpl][:3] if s == 200 else s)
+        s, cfg = call("GET", "/system/settings-check", token=admin)
+        check("settings are consistent (no error)", s == 200 and not [i for i in cfg if i["severity"] == "error"],
+              [i["message"] for i in cfg][:3] if s == 200 else s)
+        s, _ = call("GET", "/system/settings-check", token=cg)
+        check("CG sees the settings check", s == 200, s)
+        s, _ = call("GET", "/system/settings-check", token=cu)
+        check("CU refused on the settings check", s == 403, s)
+        s, orph = call("GET", "/system/orphan-files", token=admin)
+        check("stray-file scan runs", s == 200 and "count" in orph, s)
+
         # ---------------------------------------------------------------- public site + portal
         section("Public site + enrolment portal")
         for path in ["/public/site-config", "/public/units", "/public/news", "/public/events", "/public/maintenance", "/applicant/config"]:

@@ -9,14 +9,18 @@ namespace GNDJ.Api.Services;
 // logged and retried on the next interval — it can never take the app down.
 public class MemberPurgeBackgroundService : BackgroundService
 {
+    private readonly IJobMonitor _jobs;
+    private const string JobKey = "member-purge";
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<MemberPurgeBackgroundService> _logger;
     private static readonly TimeSpan Interval = TimeSpan.FromHours(24);
     private static readonly TimeSpan InitialDelay = TimeSpan.FromMinutes(2); // let startup migrations/seeding finish
     private const int DefaultRetentionDays = 30;
 
-    public MemberPurgeBackgroundService(IServiceScopeFactory scopeFactory, ILogger<MemberPurgeBackgroundService> logger)
+    public MemberPurgeBackgroundService(IServiceScopeFactory scopeFactory, ILogger<MemberPurgeBackgroundService> logger, IJobMonitor jobs)
     {
+        _jobs = jobs;
+        _jobs.Register(JobKey, "Purge de la corbeille des membres", TimeSpan.FromHours(24));
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
@@ -35,9 +39,10 @@ public class MemberPurgeBackgroundService : BackgroundService
                 var purge = scope.ServiceProvider.GetRequiredService<IMemberPurgeService>();
                 var days = await GetRetentionDaysAsync(context, stoppingToken);
                 await purge.PurgeExpiredAsync(days, stoppingToken);
+                _jobs.Succeeded(JobKey);
             }
             catch (OperationCanceledException) { break; } // shutting down
-            catch (Exception ex) { _logger.LogError(ex, "Member purge run failed; will retry next interval."); }
+            catch (Exception ex) { _jobs.Failed(JobKey, ex); _logger.LogError(ex, "Member purge run failed; will retry next interval."); }
 
             try { await Task.Delay(Interval, stoppingToken); }
             catch (OperationCanceledException) { break; }

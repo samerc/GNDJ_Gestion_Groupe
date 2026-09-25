@@ -9,13 +9,17 @@ namespace GNDJ.Api.Services;
 // enabled checks and stamps the last-sent marker, so this service just calls it. A failed run is logged + retried.
 public class RentreeReminderBackgroundService : BackgroundService
 {
+    private readonly IJobMonitor _jobs;
+    private const string JobKey = "rentree-reminders";
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<RentreeReminderBackgroundService> _logger;
     private static readonly TimeSpan Interval = TimeSpan.FromHours(12);
     private static readonly TimeSpan InitialDelay = TimeSpan.FromMinutes(4); // let startup migrations/seeding finish
 
-    public RentreeReminderBackgroundService(IServiceScopeFactory scopeFactory, ILogger<RentreeReminderBackgroundService> logger)
+    public RentreeReminderBackgroundService(IServiceScopeFactory scopeFactory, ILogger<RentreeReminderBackgroundService> logger, IJobMonitor jobs)
     {
+        _jobs = jobs;
+        _jobs.Register(JobKey, "Rappels de la rentrée", TimeSpan.FromHours(12));
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
@@ -34,9 +38,10 @@ public class RentreeReminderBackgroundService : BackgroundService
                 var emailQueue = scope.ServiceProvider.GetRequiredService<IEmailQueue>();
                 var sent = await RentreeReminders.RunIfDueAsync(context, emailQueue, stoppingToken);
                 if (sent > 0) _logger.LogInformation("Rentrée reminders: queued {Count} digest email(s).", sent);
+                _jobs.Succeeded(JobKey);
             }
             catch (OperationCanceledException) { break; }
-            catch (Exception ex) { _logger.LogError(ex, "Rentrée reminder run failed; will retry next interval."); }
+            catch (Exception ex) { _jobs.Failed(JobKey, ex); _logger.LogError(ex, "Rentrée reminder run failed; will retry next interval."); }
 
             try { await Task.Delay(Interval, stoppingToken); }
             catch (OperationCanceledException) { break; }

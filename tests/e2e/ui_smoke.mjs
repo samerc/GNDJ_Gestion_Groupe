@@ -101,6 +101,7 @@ try {
   for (const [path, heading] of [
     ['/admin/sessions', 'Sessions actives'],
     ['/admin/data-quality', 'Qualité des données'],
+    ['/admin/system', 'Système'],
     ['/admin/settings', 'Paramètres'],
     ['/members', null],
     ['/admin/audit-logs', null],

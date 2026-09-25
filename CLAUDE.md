@@ -6014,3 +6014,43 @@ entry; the app also opened on the public home page), so it never seemed to close
   JS errors). Dev data from `dev-sync-from-prod.ps1` (password `Gndj2026!`); accounts overridable by env vars;
   refuses non-localhost; cleans up its own sessions/bounces. README in the folder.
 
+
+### System health batch (2026-09-25, DEV until deploy)
+Catch problems before members notice them. Migration-free (patch 028 only).
+- **Job heartbeats:** `IJobMonitor` / `JobMonitor` (in-memory singleton). Every background service registers
+  (key, French label, expected interval) and reports each run (`Succeeded`/`Failed`). Stale = no run for
+  1.5 × interval + 15 min (from startup when never run); Failing = last run errored. Keys: email-outbox,
+  push-outbox, member-purge, document-campaign, rentree-reminders, log-maintenance, ops-alert.
+- **Slow pages:** `SlowRequestMiddleware` (after auth) times `/api` requests; ≥ `Monitoring:SlowRequestMs` (2000)
+  → `ISlowRequestLog` (bounded ring + per-route aggregates, route normalised GUID/number → {id}, coarse role) +
+  a Warning log.
+- **`ISystemHealthService` / `SystemHealthService`:** the Système snapshot — jobs, email + push outbox stats
+  (stuck = Pending > 2 h; email failures exclude bounce-suppressed rows), disk (`Monitoring:DiskLow*`), slow
+  routes, config issues — and the plain-language `Problems` list.
+- **`IOpsAlertSender` / `OpsAlertSender`:** recipient resolution (error.notify_email → ErrorAlerts:Email → oldest
+  super-admin) + delivery (dedicated `ErrorAlerts:Smtp` if set, else outbox `adhoc_message`). `ErrorNotifier` now
+  uses it (logic moved, behaviour unchanged).
+- **`OpsAlertBackgroundService`:** hourly; emails the `Problems` list at most once per Lebanon day (marker setting
+  `ops.alert_last_sent`, category maintenance). `Monitoring:OpsAlertInitialDelaySeconds` (default 20 min) for tests.
+- **`Application/SystemHealth/ConfigurationChecks`:** settings rules (scout-year format + consistency, enrolment
+  window order, the 5 document-campaign dates in order [links to /admin/documents-suivi], test email mode, excluded
+  classe in the list, cotisation currencies/amounts/rates, no alert recipient) and email-template rules (every
+  `{{var}}` declared in the template's Variables JSON; no stray braces; active templates only). Patch **028**
+  declares `demandeNumber` on the 3 demande templates (it was supplied by code but undeclared); seeds updated.
+- **Stray uploads:** `IUploadFileAudit` / `UploadFileAudit` — files in uploads/documents + uploads/photos that no
+  row points to (incl. soft-deleted; by file name), older than a day; delete re-scans server-side and REFUSES when
+  > 20 orphans and more than half of the scanned files (wrong folder / other database). uploads/content not scanned.
+- **API** `SystemController` (api/v1/system): `status` (super-admin), `settings-check` (CanViewAny; a CG sees
+  issues for categories they edit + page links), `email-templates-check` (SettingsAccess.IsAdmin), `orphan-files`
+  GET/DELETE (super-admin, delete audited).
+- **Frontend:** page `/admin/system` "Système" (sidebar Configuration → Système & sécurité, super-admin; refreshes
+  every minute). `ConfigIssuesBanner` (shared) on Paramètres (top) and Modèles d'email. Check queries keyed under
+  `['settings','check']` / `['email-templates','check']` so saving re-runs them.
+- **Server:** `deploy/healthcheck.ps1` also watches free disk (`disk` block, default C + backup drive, 10 % / 5 GB),
+  emailing on change only (`deploy/disk-state.txt`, gitignored). `ops-common.ps1` Send-OpsAlert works without SMTP
+  credentials (local relay).
+- **Smoke suite:** +10 API checks (48 total), Système page in the browser checks (19), and `bundle_budget.mjs`
+  (builds into a temp folder: entry ≤ 450 KB raw, first-load JS ≤ 320 KB gzip; `run.ps1 -SkipBundle` to skip).
+  +13 unit tests (`ConfigurationChecksTests`).
+- NOTE (dev): the first stray-file run deleted 49 unreferenced files from `src/GNDJ.Api/uploads` (dev test leftovers
+  orphaned by the prod DB sync); that's why the safety stop was added.

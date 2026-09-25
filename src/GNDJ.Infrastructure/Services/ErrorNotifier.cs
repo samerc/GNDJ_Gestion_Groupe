@@ -1,10 +1,6 @@
 using System.Net;
-using System.Net.Mail;
 using GNDJ.Application.Common.Interfaces;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GNDJ.Infrastructure.Services;
@@ -17,10 +13,9 @@ namespace GNDJ.Infrastructure.Services;
 // during testing and only actually sends once an SMTP server is active.
 public class ErrorNotifier : IErrorNotifier
 {
-    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IEmailQueue _emailQueue;
     private readonly IMemoryCache _cache;
-    private readonly IConfiguration _config;
+    private readonly IOpsAlertSender _ops;
     private readonly ILogger<ErrorNotifier> _logger;
 
     // One alert per identical (source|path|message) signature per this window — throttles an error storm.
@@ -28,13 +23,11 @@ public class ErrorNotifier : IErrorNotifier
     // Hard ceiling on alert emails per clock-hour (across all sources) — inbox-flood safety net.
     private const int MaxAlertsPerHour = 30;
 
-    public ErrorNotifier(IServiceScopeFactory scopeFactory, IEmailQueue emailQueue, IMemoryCache cache,
-        IConfiguration config, ILogger<ErrorNotifier> logger)
+    public ErrorNotifier(IEmailQueue emailQueue, IMemoryCache cache, IOpsAlertSender ops, ILogger<ErrorNotifier> logger)
     {
-        _scopeFactory = scopeFactory;
         _emailQueue = emailQueue;
         _cache = cache;
-        _config = config;
+        _ops = ops;
         _logger = logger;
     }
 
@@ -59,7 +52,7 @@ public class ErrorNotifier : IErrorNotifier
             }
             _cache.Set(bucket, sentThisHour + 1, TimeSpan.FromHours(2));
 
-            var recipient = await ResolveRecipientAsync(ct);
+            var recipient = await _ops.ResolveRecipientAsync(ct);
             if (string.IsNullOrWhiteSpace(recipient))
             {
                 // Nowhere configured to send — the error is still in the logs (application_logs). Note it once.
@@ -74,11 +67,11 @@ public class ErrorNotifier : IErrorNotifier
             // of the member-facing email system — i.e. even before email go-live, and never redirected by
             // email.override_recipient. This mirrors the always-on ops scripts (SMTP2GO). If not configured,
             // fall back to the normal templated email queue (delivers once the app's SMTP is active).
-            if (!string.IsNullOrWhiteSpace(_config["ErrorAlerts:Smtp:Host"]))
+            if (_ops.HasDedicatedSmtp)
             {
                 // Fire-and-forget: never block the (already-failing) request on an SMTP round-trip.
-                var rcpt = recipient!;
-                _ = Task.Run(() => SendDirectSafeAsync(rcpt, report, source, timestamp));
+                var html = BuildHtml(report, source, timestamp);
+                _ = Task.Run(() => _ops.SendAsync($"[GNDJ Erreur {source}] réf. {report.ErrorId}", html, report.Message));
             }
             else
             {
@@ -104,74 +97,17 @@ public class ErrorNotifier : IErrorNotifier
         }
     }
 
-    // Recipient priority: the admin-editable setting → appsettings fallback → the first active super-admin.
-    // Read in a FRESH scope so we don't touch the (possibly faulted) request DbContext.
-    private async Task<string?> ResolveRecipientAsync(CancellationToken ct)
+    // Body of the direct (alert-SMTP) error email.
+    private static string BuildHtml(ErrorReport report, string source, string timestamp)
     {
-        try
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-
-            var setting = await db.Settings.Where(s => s.Key == "error.notify_email")
-                .Select(s => s.Value).FirstOrDefaultAsync(ct);
-            if (!string.IsNullOrWhiteSpace(setting)) return setting;
-
-            var config = _config["ErrorAlerts:Email"];
-            if (!string.IsNullOrWhiteSpace(config)) return config;
-
-            // Deterministic fallback: the OLDEST active super-admin (the seeded admin account), not an arbitrary
-            // one — without an OrderBy, Postgres returns super-admins in an undefined order.
-            return await db.Users.Where(u => u.IsSuperAdmin && u.IsActive)
-                .OrderBy(u => u.CreatedAt)
-                .Select(u => u.Email).FirstOrDefaultAsync(ct);
-        }
-        catch
-        {
-            // DB unreachable (a likely cause of the very error we're reporting) → fall back to config only.
-            return _config["ErrorAlerts:Email"];
-        }
-    }
-
-    // Send the alert directly via the dedicated ErrorAlerts SMTP (independent of the app's email system).
-    // Wrapped so it never throws (fire-and-forget on the thread pool).
-    private async Task SendDirectSafeAsync(string recipient, ErrorReport report, string source, string timestamp)
-    {
-        try
-        {
-            var host = _config["ErrorAlerts:Smtp:Host"]!;
-            var port = int.TryParse(_config["ErrorAlerts:Smtp:Port"], out var p) ? p : 587;
-            var user = _config["ErrorAlerts:Smtp:Username"];
-            var pass = _config["ErrorAlerts:Smtp:Password"];
-            var from = _config["ErrorAlerts:Smtp:From"] ?? user ?? "noreply@gndj.org";
-            var useSsl = !bool.TryParse(_config["ErrorAlerts:Smtp:UseSsl"], out var s) || s; // default true (STARTTLS)
-
-            string Row(string k, string v) => $"<tr><td style='padding:4px 8px;font-weight:bold'>{k}</td><td style='padding:4px 8px'>{WebUtility.HtmlEncode(v)}</td></tr>";
-            var body =
-                "<h2>Une erreur est survenue</h2><table style='border-collapse:collapse;font-family:monospace;font-size:13px'>" +
-                Row("Référence", report.ErrorId) + Row("Origine", source) + Row("Date (UTC)", timestamp) +
-                Row("Utilisateur", report.User ?? "anonyme") + Row("Requête", $"{report.Method} {report.Path}") +
-                Row("Message", Truncate(report.Message, 500)) + "</table>" +
-                "<p><strong>Détail :</strong></p><pre style='background:#f4f4f4;padding:10px;border-radius:5px;font-size:12px;white-space:pre-wrap'>" +
-                WebUtility.HtmlEncode(Truncate(report.Detail ?? "", 3000)) + "</pre>";
-
-            using var msg = new MailMessage
-            {
-                From = new MailAddress(from, "GNDJ Alertes"),
-                Subject = $"[GNDJ Erreur {source}] réf. {report.ErrorId}",
-                Body = body,
-                IsBodyHtml = true,
-            };
-            msg.To.Add(recipient);
-
-            using var client = new SmtpClient(host, port) { EnableSsl = useSsl };
-            if (!string.IsNullOrWhiteSpace(user)) client.Credentials = new NetworkCredential(user, pass);
-            await client.SendMailAsync(msg);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Direct error-alert send failed for ErrorId={ErrorId}", report.ErrorId);
-        }
+        string Row(string k, string v) => $"<tr><td style='padding:4px 8px;font-weight:bold'>{k}</td><td style='padding:4px 8px'>{WebUtility.HtmlEncode(v)}</td></tr>";
+        return
+            "<h2>Une erreur est survenue</h2><table style='border-collapse:collapse;font-family:monospace;font-size:13px'>" +
+            Row("Référence", report.ErrorId) + Row("Origine", source) + Row("Date (UTC)", timestamp) +
+            Row("Utilisateur", report.User ?? "anonyme") + Row("Requête", $"{report.Method} {report.Path}") +
+            Row("Message", Truncate(report.Message, 500)) + "</table>" +
+            "<p><strong>Détail :</strong></p><pre style='background:#f4f4f4;padding:10px;border-radius:5px;font-size:12px;white-space:pre-wrap'>" +
+            WebUtility.HtmlEncode(Truncate(report.Detail ?? "", 3000)) + "</pre>";
     }
 
     private static string Truncate(string s, int max) =>
