@@ -421,13 +421,6 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
 
                 {/* Actions — full-width below the content on mobile (stacked), inline on the right on ≥sm. */}
                 <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                  {/* Scan THIS document type with the phone — pre-targets the type so the phone skips the picker.
-                      Desktop-only + gated by the setting audience + the member must be uploadable. */}
-                  {scanEnabled && isFinePointer && canUpload && (
-                    <Tip content="Scanner avec le téléphone"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => openScan({ id: dt.id, name: dt.name })}>
-                      <Smartphone className="h-4 w-4" />
-                    </Button></Tip>
-                  )}
                   {/* Row download opens page 1 — hide it when page 1's file is gone (it would 404); the pages
                       viewer still lists any downloadable extra pages. */}
                   {doc && !doc.pages.find(p => p.isPrimary)?.fileMissing && (
@@ -477,18 +470,29 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                         <Upload className="mr-1.5 h-4 w-4" />
                         {doc ? 'Renvoyer' : 'Envoyer'}
                       </Button>
-                      {/* Mobile: opens the camera to photograph the document (capture="environment"). On desktop
-                          it just opens an image picker — harmless. Requires-expiry types go via the date dialog. */}
-                      <Tip content="Prendre une photo">
-                        <Button variant="outline" size="icon" className="h-9 w-9 border-primary/40 text-primary hover:bg-primary/5 sm:h-8 sm:w-8"
-                          onClick={() => {
-                            if (dt.requiresExpiry) { setUploadingDocTypeId(dt.id); setExpiryDate('') }
-                            else { setUploadingDocTypeId(dt.id); setTimeout(() => cameraInputRef.current?.click(), 50) }
-                          }}
-                          disabled={uploadMutation.isPending}>
-                          <Camera className="h-4 w-4" />
+                      {/* MOBILE ONLY: opens the rear camera to photograph the document (capture="environment").
+                          Hidden on desktop, where it would just open a file picker (useless). Requires-expiry
+                          types go via the date dialog first. */}
+                      {!isFinePointer && (
+                        <Tip content="Prendre une photo">
+                          <Button variant="outline" size="icon" className="h-9 w-9 border-primary/40 text-primary hover:bg-primary/5 sm:h-8 sm:w-8"
+                            onClick={() => {
+                              if (dt.requiresExpiry) { setUploadingDocTypeId(dt.id); setExpiryDate('') }
+                              else { setUploadingDocTypeId(dt.id); setTimeout(() => cameraInputRef.current?.click(), 50) }
+                            }}
+                            disabled={uploadMutation.isPending}>
+                            <Camera className="h-4 w-4" />
+                          </Button>
+                        </Tip>
+                      )}
+                      {/* DESKTOP ONLY: labelled "Scanner" button (a phone icon alone was unclear). Opens a QR that
+                          pre-targets THIS document type; the phone photographs it. Gated by the setting audience. */}
+                      {scanEnabled && isFinePointer && (
+                        <Button variant="outline" size="sm" className="border-primary/40 text-primary hover:bg-primary/5"
+                          onClick={() => openScan({ id: dt.id, name: dt.name })}>
+                          <Smartphone className="mr-1.5 h-4 w-4" />Scanner
                         </Button>
-                      </Tip>
+                      )}
                     </>
                   )}
                 </div>
@@ -581,9 +585,12 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                 </Button>
               ) : (
                 <>
-                  <Button variant="outline" disabled={!expiryDate || uploadMutation.isPending} onClick={() => cameraInputRef.current?.click()}>
-                    <Camera className="mr-1 h-4 w-4" />Photo
-                  </Button>
+                  {/* Camera photo only makes sense on a phone — on desktop just "Choisir le fichier". */}
+                  {!isFinePointer && (
+                    <Button variant="outline" disabled={!expiryDate || uploadMutation.isPending} onClick={() => cameraInputRef.current?.click()}>
+                      <Camera className="mr-1 h-4 w-4" />Photo
+                    </Button>
+                  )}
                   <Button disabled={!expiryDate || uploadMutation.isPending} onClick={() => fileInputRef.current?.click()}>
                     <Upload className="mr-1 h-4 w-4" />Choisir le fichier
                   </Button>
