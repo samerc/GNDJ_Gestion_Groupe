@@ -65,6 +65,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<Famille> Familles => Set<Famille>();
     public DbSet<CampParticipant> CampParticipants => Set<CampParticipant>();
     public DbSet<CampGame> CampGames => Set<CampGame>();
+    public DbSet<CampCommissionMember> CampCommissionMembers => Set<CampCommissionMember>();
     public DbSet<CampGameEtapiste> CampGameEtapistes => Set<CampGameEtapiste>();
     public DbSet<TrombinoscopeArchive> TrombinoscopeArchives => Set<TrombinoscopeArchive>();
     public DbSet<OutboxEmail> OutboxEmails => Set<OutboxEmail>();

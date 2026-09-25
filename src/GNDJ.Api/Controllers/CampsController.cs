@@ -85,6 +85,17 @@ public class CampsController : BaseApiController
     /// Runs the balanced randomized draft, dealing graded participants across familles by branche and gender
     /// stratum. Requires camp.manage.
     /// </summary>
+    /// <summary>Commission BP of a camp (members who can run it). Requires camp.manage.</summary>
+    [HttpGet("{id:guid}/commission")]
+    [HasPermission(Permissions.CampManage)]
+    public async Task<IActionResult> Commission(Guid id) => Res(await Mediator.Send(new GetCampCommissionQuery(id)));
+
+    /// <summary>Replaces the Commission BP (Chef de Groupe only — checked in the handler).</summary>
+    [HttpPut("{id:guid}/commission")]
+    [HasPermission(Permissions.CampManage)]
+    public async Task<IActionResult> SetCommission(Guid id, [FromBody] CommissionBody body)
+        => Res(await Mediator.Send(new SetCampCommissionCommand(id, body.MemberIds ?? [])));
+
     [HttpPost("{id:guid}/draft")]
     [HasPermission(Permissions.CampManage)]
     public async Task<IActionResult> Draft(Guid id) => Res(await Mediator.Send(new RunCampDraftCommand(id)));
@@ -177,3 +188,5 @@ public class CampsController : BaseApiController
     [HasPermission(Permissions.CampManage)]
     public async Task<IActionResult> EtapisteCandidates(Guid id) => Res(await Mediator.Send(new GetEtapisteCandidatesQuery(id)));
 }
+
+public record CommissionBody(List<Guid>? MemberIds);

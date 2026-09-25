@@ -46,6 +46,23 @@ export const useCamps = (enabled = true) => useQuery({ queryKey: ['camps'], quer
 // GET /camps/{id} → one camp incl. note formula coefs + counts; disabled until id is set.
 export const useCamp = (id?: string) => useQuery({ queryKey: ['camp', id], queryFn: () => apiClient.get<CampDto>(`/camps/${id}`).then(r => r.data), enabled: !!id })
 
+// ── Commission BP ──
+export interface CampCommissionMemberDto { memberId: string; firstName: string; lastName: string; roles: string | null }
+// GET /camps/{id}/commission → the members named to run this camp.
+export const useCampCommission = (campId: string) => useQuery({
+  queryKey: ['camp', campId, 'commission'],
+  queryFn: () => apiClient.get<CampCommissionMemberDto[]>(`/camps/${campId}/commission`).then(r => r.data),
+  enabled: !!campId,
+})
+// PUT /camps/{id}/commission → replace the commission (Chef de Groupe only).
+export function useSetCampCommission(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (memberIds: string[]) => apiClient.put(`/camps/${campId}/commission`, { memberIds }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['camp', campId, 'commission'] }),
+  })
+}
+
 // POST /camps → create a camp edition (returns new id); invalidates ['camps'].
 export function useCreateCamp() {
   const qc = useQueryClient()

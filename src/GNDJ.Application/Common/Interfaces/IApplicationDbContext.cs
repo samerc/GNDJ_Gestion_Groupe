@@ -62,6 +62,7 @@ public interface IApplicationDbContext
     DbSet<Famille> Familles { get; }
     DbSet<CampParticipant> CampParticipants { get; }
     DbSet<CampGame> CampGames { get; }
+    DbSet<CampCommissionMember> CampCommissionMembers { get; }
     DbSet<CampGameEtapiste> CampGameEtapistes { get; }
     DbSet<TrombinoscopeArchive> TrombinoscopeArchives { get; }
     DbSet<OutboxEmail> OutboxEmails { get; }

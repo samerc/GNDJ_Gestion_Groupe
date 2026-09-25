@@ -89,6 +89,20 @@ public class CampGame : BaseEntity
     public ICollection<CampGameEtapiste> Etapistes { get; set; } = [];
 }
 
+// Commission BP: a member the CG names to run THIS camp (typically 2 ACGs + the ACUs they choose). While the camp
+// is active (not archived), membership grants camp.manage + camp.grade at sign-in (AuthAccess) — the camp screens
+// only, none of the CG's other powers. Plain table (no soft-delete): removing someone deletes the row.
+public class CampCommissionMember
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid CampId { get; set; }
+    public Guid MemberId { get; set; }
+    public DateTime AddedAt { get; set; } = DateTime.UtcNow;
+
+    public Camp Camp { get; set; } = null!;
+    public Member Member { get; set; } = null!;
+}
+
 public class CampGameEtapiste : BaseEntity
 {
     public Guid CampGameId { get; set; }

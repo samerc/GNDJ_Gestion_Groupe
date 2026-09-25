@@ -14,6 +14,7 @@ import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
+import { useIsCampCg } from '@/components/camp/use-is-camp-cg'
 import { Tent, Plus, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -22,6 +23,7 @@ const STATUS_LABEL: Record<string, string> = { Setup: 'Préparation', Assigned: 
 export default function CampsAdminPage() {
   const { data: camps, isLoading } = useCamps()
   const create = useCreateCamp()
+  const isCg = useIsCampCg() // creating a camp is Chef-de-Groupe-only (Commission BP members run existing camps)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ name: '', scoutYear: '2026-2027', famillesCount: '' })
 
@@ -39,13 +41,13 @@ export default function CampsAdminPage() {
         title="Camp BP"
         icon={Tent}
         description="Diviser le groupe en familles équilibrées."
-        actions={<Button onClick={() => setOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Nouveau camp</Button>}
+        actions={isCg ? <Button onClick={() => setOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Nouveau camp</Button> : undefined}
       />
 
       {isLoading ? <LoadingSpinner variant="table" /> :
        (camps ?? []).length === 0 ? (
          <EmptyState icon={Tent} title="Aucun camp" description="Créez-en un pour commencer."
-           action={<Button onClick={() => setOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Nouveau camp</Button>} />
+           action={isCg ? <Button onClick={() => setOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Nouveau camp</Button> : undefined} />
        ) :
        <div className="space-y-2">{camps!.map(c => <CampCard key={c.id} camp={c} />)}</div>}
 

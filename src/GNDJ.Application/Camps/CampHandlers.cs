@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentValidation;
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Application.Common.Validation;
@@ -114,6 +115,77 @@ public class GetCampQueryHandler(IApplicationDbContext context) : IRequestHandle
     }
 }
 
+// CG-only camp actions (create / archive / delete a camp, name the Commission BP). camp.manage alone isn't
+// enough: Commission BP members hold it while their camp is active. roles.manage_group is the CG's appointment
+// power (Assistants CG don't hold it), so it's the right "Chef de Groupe" signal.
+static class CampCg
+{
+    public static bool IsCg(ICurrentUserService u)
+        => u.IsSuperAdmin || u.Permissions.Contains(GNDJ.Domain.Enums.Permissions.RolesManageGroup);
+    public const string Denied = "Réservé au chef de groupe.";
+}
+
+// ─── Commission BP ───────────────────────────────────────────────────────────
+public record CampCommissionMemberDto(Guid MemberId, string FirstName, string LastName, string? Roles);
+public record GetCampCommissionQuery(Guid CampId) : IRequest<Result<IReadOnlyList<CampCommissionMemberDto>>>;
+
+public class GetCampCommissionQueryHandler(IApplicationDbContext context)
+    : IRequestHandler<GetCampCommissionQuery, Result<IReadOnlyList<CampCommissionMemberDto>>>
+{
+    public async ValueTask<Result<IReadOnlyList<CampCommissionMemberDto>>> Handle(GetCampCommissionQuery request, CancellationToken ct)
+    {
+        var rows = await context.CampCommissionMembers.Where(c => c.CampId == request.CampId)
+            .Select(c => new
+            {
+                c.MemberId, c.Member.FirstName, c.Member.LastName,
+                // Their current active function(s), for context ("Assistant(e) de Groupe", "ACU Troupe 2"…).
+                Roles = c.Member.Assignments.Where(a => a.EndDate == null && !a.IsDeleted)
+                    .Select(a => a.FunctionalRole.Name + " · " + a.Unit.Code).ToList(),
+            })
+            .OrderBy(x => x.LastName).ThenBy(x => x.FirstName).ToListAsync(ct);
+        return Result<IReadOnlyList<CampCommissionMemberDto>>.Success(rows
+            .Select(r => new CampCommissionMemberDto(r.MemberId, r.FirstName, r.LastName, r.Roles.Count == 0 ? null : string.Join(", ", r.Roles)))
+            .ToList());
+    }
+}
+
+// Replace the commission with this set of members (CG only). Takes effect for each member at their next
+// sign-in / session refresh (≤ 15 min).
+public record SetCampCommissionCommand(Guid CampId, List<Guid> MemberIds) : IRequest<Result<bool>>;
+
+public class SetCampCommissionCommandValidator : AbstractValidator<SetCampCommissionCommand>
+{
+    public SetCampCommissionCommandValidator()
+        => RuleFor(x => x.MemberIds).NotNull().Must(l => l.Count <= 50).WithMessage("Commission trop grande (50 max).");
+}
+
+public class SetCampCommissionCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<SetCampCommissionCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(SetCampCommissionCommand request, CancellationToken ct)
+    {
+        if (!CampCg.IsCg(currentUser)) return Result<bool>.Failure(CampCg.Denied);
+        var camp = await context.Camps.Where(c => c.Id == request.CampId).Select(c => new { c.Id, c.Name }).FirstOrDefaultAsync(ct);
+        if (camp is null) return Result<bool>.Failure("Camp introuvable.");
+
+        var wanted = request.MemberIds.Distinct().ToList();
+        var valid = await context.Members.Where(m => wanted.Contains(m.Id)).Select(m => m.Id).ToListAsync(ct);
+        if (valid.Count != wanted.Count) return Result<bool>.Failure("Membre introuvable.");
+
+        var existing = await context.CampCommissionMembers.Where(c => c.CampId == camp.Id).ToListAsync(ct);
+        context.CampCommissionMembers.RemoveRange(existing.Where(e => !wanted.Contains(e.MemberId)));
+        foreach (var id in wanted.Where(id => existing.All(e => e.MemberId != id)))
+            context.CampCommissionMembers.Add(new CampCommissionMember { CampId = camp.Id, MemberId = id });
+        await context.SaveChangesAsync(ct);
+
+        await audit.LogAsync("SetCommission", "Camp", camp.Id, newValues: new
+        {
+            Camp = camp.Name, Members = await AuditNames.MembersAsync(context, wanted, ct),
+        }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
 // ─── Create ──────────────────────────────────────────────────────────────────
 public record CreateCampCommand(string Name, string ScoutYear, int? FamillesCount) : IRequest<Result<Guid>>;
 
@@ -126,10 +198,11 @@ public class CreateCampCommandValidator : AbstractValidator<CreateCampCommand>
     }
 }
 
-public class CreateCampCommandHandler(IApplicationDbContext context) : IRequestHandler<CreateCampCommand, Result<Guid>>
+public class CreateCampCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<CreateCampCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(CreateCampCommand request, CancellationToken ct)
     {
+        if (!CampCg.IsCg(currentUser)) return Result<Guid>.Failure(CampCg.Denied);
         var defaultCount = await context.Settings.Where(s => s.Key == "camp.familles_count").Select(s => s.Value).FirstOrDefaultAsync(ct);
         var count = request.FamillesCount ?? (int.TryParse(defaultCount, out var d) ? d : 12);
 
@@ -178,10 +251,11 @@ public class UpdateCampCommandHandler(IApplicationDbContext context) : IRequestH
 }
 
 public record ArchiveCampCommand(Guid Id, bool Archive) : IRequest<Result<bool>>;
-public class ArchiveCampCommandHandler(IApplicationDbContext context) : IRequestHandler<ArchiveCampCommand, Result<bool>>
+public class ArchiveCampCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<ArchiveCampCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(ArchiveCampCommand request, CancellationToken ct)
     {
+        if (!CampCg.IsCg(currentUser)) return Result<bool>.Failure(CampCg.Denied);
         var camp = await context.Camps.FirstOrDefaultAsync(c => c.Id == request.Id, ct);
         if (camp is null) return Result<bool>.Failure("Camp introuvable.");
         camp.IsArchived = request.Archive;
@@ -192,10 +266,11 @@ public class ArchiveCampCommandHandler(IApplicationDbContext context) : IRequest
 }
 
 public record DeleteCampCommand(Guid Id) : IRequest<Result<bool>>;
-public class DeleteCampCommandHandler(IApplicationDbContext context) : IRequestHandler<DeleteCampCommand, Result<bool>>
+public class DeleteCampCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<DeleteCampCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteCampCommand request, CancellationToken ct)
     {
+        if (!CampCg.IsCg(currentUser)) return Result<bool>.Failure(CampCg.Denied);
         var camp = await context.Camps.FirstOrDefaultAsync(c => c.Id == request.Id, ct);
         if (camp is null) return Result<bool>.Failure("Camp introuvable.");
         context.Camps.Remove(camp);

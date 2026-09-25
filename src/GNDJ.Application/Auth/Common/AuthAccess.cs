@@ -63,6 +63,13 @@ public static class AuthAccess
             }
         }
 
+        // Commission BP: a member named on an ACTIVE camp's commission can run the camp screens (camp.manage +
+        // camp.grade) — and nothing else. Stops applying as soon as the camp is archived.
+        var onCommission = await context.CampCommissionMembers
+            .AnyAsync(c => c.MemberId == memberId && !c.Camp.IsDeleted && !c.Camp.IsArchived, ct);
+        if (onCommission)
+            permissions = permissions.Union([Domain.Enums.Permissions.CampManage, Domain.Enums.Permissions.CampGrade]).Distinct().ToList();
+
         // A group-level profile (Chef de Groupe) — or a full-CG delegation — sees ALL units, like a super-admin.
         var unitIds = groupLevel
             ? await context.Units.Select(u => u.Id).ToListAsync(ct)

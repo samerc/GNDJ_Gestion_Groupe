@@ -24,6 +24,21 @@ public class CampConfiguration : IEntityTypeConfiguration<Camp>
     }
 }
 
+// Commission BP members of a camp (one row per member per camp). Cascade both ways: deleting the camp or
+// hard-purging the member removes the membership.
+public class CampCommissionMemberConfiguration : IEntityTypeConfiguration<CampCommissionMember>
+{
+    public void Configure(EntityTypeBuilder<CampCommissionMember> builder)
+    {
+        builder.ToTable("camp_commission_members");
+        builder.HasKey(e => e.Id);
+        builder.HasIndex(e => new { e.CampId, e.MemberId }).IsUnique();
+        builder.HasIndex(e => e.MemberId);
+        builder.HasOne(e => e.Camp).WithMany().HasForeignKey(e => e.CampId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(e => e.Member).WithMany().HasForeignKey(e => e.MemberId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 // A mixed "famille" within a camp, led by a Père (male) + Mère (female) leader.
 public class FamilleConfiguration : IEntityTypeConfiguration<Famille>
 {

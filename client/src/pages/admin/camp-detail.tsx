@@ -27,6 +27,8 @@ import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
+import { CampCommissionTab } from '@/components/camp/camp-commission-tab'
+import { useIsCampCg } from '@/components/camp/use-is-camp-cg'
 import { toast } from 'sonner'
 
 export default function CampDetailPage() {
@@ -49,10 +51,12 @@ export default function CampDetailPage() {
           <TabsTrigger value="familles">Familles</TabsTrigger>
           <TabsTrigger value="jeux">Jeux</TabsTrigger>
           <TabsTrigger value="parametres">Paramètres</TabsTrigger>
+          <TabsTrigger value="commission">Commission</TabsTrigger>
         </TabsList>
         <TabsContent value="familles" className="mt-4"><FamillesTab campId={id} /></TabsContent>
         <TabsContent value="jeux" className="mt-4"><GamesTab campId={id} /></TabsContent>
         <TabsContent value="parametres" className="mt-4"><SettingsTab campId={id} /></TabsContent>
+        <TabsContent value="commission" className="mt-4"><CampCommissionTab campId={id} /></TabsContent>
       </Tabs>
     </Page>
   )
@@ -64,6 +68,7 @@ function SettingsTab({ campId }: { campId: string }) {
   const update = useUpdateCamp(campId)
   const archive = useArchiveCamp()
   const del = useDeleteCamp()
+  const isCg = useIsCampCg() // archive / delete are Chef-de-Groupe-only (not Commission BP)
   const [form, setForm] = useState({ name: '', scoutYear: '', famillesCount: 0, noteForceCoef: 1, noteOffset: -4 })
   const [deleting, setDeleting] = useState(false)
 
@@ -111,8 +116,8 @@ function SettingsTab({ campId }: { campId: string }) {
 
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={save} disabled={update.isPending}><Save className="mr-1 h-4 w-4" />Enregistrer</Button>
-        <Button variant="outline" disabled={archive.isPending} onClick={() => archive.mutateAsync({ id: campId, archive: !camp.isArchived }).then(() => toast.success(camp.isArchived ? 'Camp désarchivé' : 'Camp archivé')).catch(e => toast.error(parseApiError(e)))}>{camp.isArchived ? 'Désarchiver' : 'Archiver'}</Button>
-        <Button variant="ghost" className="text-destructive" onClick={() => setDeleting(true)}><Trash2 className="mr-1 h-4 w-4" />Supprimer</Button>
+        {isCg && <Button variant="outline" disabled={archive.isPending} onClick={() => archive.mutateAsync({ id: campId, archive: !camp.isArchived }).then(() => toast.success(camp.isArchived ? 'Camp désarchivé' : 'Camp archivé')).catch(e => toast.error(parseApiError(e)))}>{camp.isArchived ? 'Désarchiver' : 'Archiver'}</Button>}
+        {isCg && <Button variant="ghost" className="text-destructive" onClick={() => setDeleting(true)}><Trash2 className="mr-1 h-4 w-4" />Supprimer</Button>}
       </div>
 
       <ConfirmDialog open={deleting} onOpenChange={setDeleting} title="Supprimer le camp" variant="destructive"

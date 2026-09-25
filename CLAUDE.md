@@ -5848,3 +5848,11 @@ Two related document items (all on main, DEV until deploy; migration-free — re
   `readOnly` prop) hide edit controls without members.edit. No existing profile changes behaviour (only the unused
   "observateur" profile is view-only). Verified live: a youth with a members.view-only grant reads list (58) /
   detail / documents / parents but gets 403 on add-phone and update; a plain youth is still refused everywhere.
+- **Camp BP — Commission BP**: `CampCommissionMember` (CampId, MemberId, unique; migration `AddCampCommission`;
+  cascade on camp + member; merge service moves memberships). `AuthAccess.LoadAsync` adds `camp.manage` +
+  `camp.grade` for a member on the commission of a non-archived, non-deleted camp — nothing else. CG-only actions
+  (`CampCg.IsCg` = super-admin or `roles.manage_group`, since ACGs hold maitrise.manage and commission members hold
+  camp.manage): create / archive / delete a camp and `SetCampCommissionCommand`. Endpoints `GET|PUT
+  /camps/{id}/commission`. Camp page "Commission" tab (member picker; read-only for commission members); "Nouveau
+  camp" / Archiver / Supprimer hidden unless CG (`useIsCampCg`). Verified live: CU off-commission 403 → on it 200 →
+  camp archived 403; CU refused create/archive/set-commission.

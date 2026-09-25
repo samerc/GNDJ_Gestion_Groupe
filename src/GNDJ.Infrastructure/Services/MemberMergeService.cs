@@ -63,6 +63,9 @@ public class MemberMergeService : IMemberMergeService
                 // Camp game étapistes (one per game).
                 await Exec("DELETE FROM camp_game_etapistes l WHERE l.member_id = {1} AND EXISTS (SELECT 1 FROM camp_game_etapistes k WHERE k.member_id = {0} AND k.camp_game_id = l.camp_game_id)", p, ct);
                 await Exec("UPDATE camp_game_etapistes SET member_id = {0} WHERE member_id = {1}", p, ct);
+                // Commission BP memberships (one per camp).
+                await Exec("DELETE FROM camp_commission_members l WHERE l.member_id = {1} AND EXISTS (SELECT 1 FROM camp_commission_members k WHERE k.member_id = {0} AND k.camp_id = l.camp_id)", p, ct);
+                await Exec("UPDATE camp_commission_members SET member_id = {0} WHERE member_id = {1}", p, ct);
                 // Meeting absences (one per meeting).
                 await Exec("DELETE FROM meeting_absences l WHERE l.member_id = {1} AND EXISTS (SELECT 1 FROM meeting_absences k WHERE k.member_id = {0} AND k.meeting_id = l.meeting_id)", p, ct);
                 await Exec("UPDATE meeting_absences SET member_id = {0} WHERE member_id = {1}", p, ct);

@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Camp BP — onglet « Commission » : le chef de groupe nomme les membres de la Commission BP (assistants de groupe, chefs d'unité…). Tant que le camp est actif, ils gèrent ce camp (familles, jeux, paramètres, notes) sans les autres droits du chef de groupe ; l'accès s'arrête quand le camp est archivé. Créer, archiver ou supprimer un camp et choisir la commission restent réservés au chef de groupe."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Permissions — accès « lecture seule » aux fiches membres : la permission « Voir les fiches » (members.view) permet désormais de consulter les membres (liste, fiche, documents, parents, cotisations, progression, rapports) SANS pouvoir rien modifier — utile pour un trésorier ou un observateur. Toute modification exige toujours « Modifier les fiches ». Dans « Accès délégué », le niveau « Lecture » du domaine Membres donne donc un vrai accès en lecture."
       },
       {
