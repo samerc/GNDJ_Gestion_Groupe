@@ -823,6 +823,50 @@ public record HouseholdLookupDto(IReadOnlyList<ApplicantGuardianDto> Guardians,
 // member) retrieve their household using their own address, not only a parent/guardian email.
 internal static class HouseholdLookup
 {
+    // From the seed member(s) → the FULL household: their guardians, every member those guardians parent
+    // (siblings, active ones preferred), the family address. Shared by "Retrouver mes informations" (email + code)
+    // and "Inscrire un frère ou une sœur" from a member's own fiche (the logged-in member is the seed).
+    public static async Task<HouseholdLookupDto> BuildAsync(IApplicationDbContext context, List<Guid> seedMemberIds, CancellationToken ct)
+    {
+        var seedGuardianIds = await context.GuardianLinks.Where(l => seedMemberIds.Contains(l.MemberId) && !l.IsDeleted).Select(l => l.GuardianId).Distinct().ToListAsync(ct);
+        var siblingIds = await context.GuardianLinks.Where(l => seedGuardianIds.Contains(l.GuardianId) && !l.IsDeleted).Select(l => l.MemberId).Distinct().ToListAsync(ct);
+        var memberIds = seedMemberIds.Concat(siblingIds).Distinct().ToList();
+        var activeMemberIds = await context.MemberAssignments.Where(a => memberIds.Contains(a.MemberId) && a.EndDate == null && !a.IsDeleted).Select(a => a.MemberId).Distinct().ToListAsync(ct);
+        var relevant = activeMemberIds.Count > 0 ? activeMemberIds : memberIds;
+
+        var allGuardianIds = await context.GuardianLinks.Where(l => relevant.Contains(l.MemberId) && !l.IsDeleted).Select(l => l.GuardianId).Distinct().ToListAsync(ct);
+        var guardianEntities = await context.Guardians.Where(g => allGuardianIds.Contains(g.Id) && !g.IsDeleted)
+            .Include(g => g.Phones).Include(g => g.Emails).Include(g => g.Links).ToListAsync(ct);
+        var guardians = guardianEntities.Select(g =>
+        {
+            var link = g.Links.FirstOrDefault(l => relevant.Contains(l.MemberId) && !l.IsDeleted);
+            var phone = g.Phones.Where(p => !p.IsDeleted).OrderByDescending(p => p.IsPrimary).FirstOrDefault();
+            var mail = g.Emails.Where(e => !e.IsDeleted).OrderByDescending(e => e.IsPrimary).FirstOrDefault();
+            return new ApplicantGuardianDto(null, link?.RelationshipType ?? "Tuteur", g.FirstName, g.LastName, g.Profession, g.ProfessionDomain,
+                phone?.CountryCode, phone?.Number, mail?.Address, g.IsDeceased, link?.IsPrimaryContact ?? false, link?.IsEmergencyContact ?? false);
+        }).ToList();
+
+        // Collapse duplicate guardian records (the same parent imported twice → same name) so the wizard
+        // doesn't pre-fill the same person more than once. Group by accent/case-insensitive full name and keep
+        // the richest entry (has email, then phone, then profession).
+        guardians = guardians
+            .GroupBy(g => TextNormalization.NormalizeKey($"{g.FirstName} {g.LastName}"))
+            .Select(grp => grp
+                .OrderByDescending(x => !string.IsNullOrWhiteSpace(x.Email))
+                .ThenByDescending(x => !string.IsNullOrWhiteSpace(x.PhoneNumber))
+                .ThenByDescending(x => !string.IsNullOrWhiteSpace(x.Profession))
+                .First())
+            .ToList();
+
+        var addr = await context.MemberAddresses.Where(a => relevant.Contains(a.MemberId) && !a.IsDeleted).OrderByDescending(a => a.IsPrimary).FirstOrDefaultAsync(ct);
+        var members = await context.Members.Where(m => relevant.Contains(m.Id))
+            .Select(m => new HouseholdLookupMemberDto(m.Id, m.FirstName + " " + m.LastName,
+                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(), m.Gender))
+            .ToListAsync(ct);
+
+        return new HouseholdLookupDto(guardians, addr?.Country, addr?.City, addr?.Details, members);
+    }
+
     public static async Task<List<Guid>> SeedMemberIdsAsync(IApplicationDbContext context, string email, CancellationToken ct)
     {
         // Members reached through a matching guardian email (guardian must be linked to a member).
@@ -905,47 +949,12 @@ public class VerifyHouseholdLookupCommandHandler(IApplicationDbContext context, 
         // One-time: clear the code now.
         account.HouseholdLookupEmail = null; account.HouseholdLookupCodeHash = null; account.HouseholdLookupExpiry = null;
 
-        // The verified email → its member(s) (own email) and/or its guardian's children → then expand to the
-        // FULL household: the guardians of those seed members, and every member those guardians parent (siblings).
+        // The verified email → its member(s) (own email) and/or its guardian's children → the full household.
         var seedMemberIds = await HouseholdLookup.SeedMemberIdsAsync(context, email, ct);
-        var seedGuardianIds = await context.GuardianLinks.Where(l => seedMemberIds.Contains(l.MemberId) && !l.IsDeleted).Select(l => l.GuardianId).Distinct().ToListAsync(ct);
-        var siblingIds = await context.GuardianLinks.Where(l => seedGuardianIds.Contains(l.GuardianId) && !l.IsDeleted).Select(l => l.MemberId).Distinct().ToListAsync(ct);
-        var memberIds = seedMemberIds.Concat(siblingIds).Distinct().ToList();
-        var activeMemberIds = await context.MemberAssignments.Where(a => memberIds.Contains(a.MemberId) && a.EndDate == null && !a.IsDeleted).Select(a => a.MemberId).Distinct().ToListAsync(ct);
-        var relevant = activeMemberIds.Count > 0 ? activeMemberIds : memberIds;
-
-        var allGuardianIds = await context.GuardianLinks.Where(l => relevant.Contains(l.MemberId) && !l.IsDeleted).Select(l => l.GuardianId).Distinct().ToListAsync(ct);
-        var guardianEntities = await context.Guardians.Where(g => allGuardianIds.Contains(g.Id) && !g.IsDeleted)
-            .Include(g => g.Phones).Include(g => g.Emails).Include(g => g.Links).ToListAsync(ct);
-        var guardians = guardianEntities.Select(g =>
-        {
-            var link = g.Links.FirstOrDefault(l => relevant.Contains(l.MemberId) && !l.IsDeleted);
-            var phone = g.Phones.Where(p => !p.IsDeleted).OrderByDescending(p => p.IsPrimary).FirstOrDefault();
-            var mail = g.Emails.Where(e => !e.IsDeleted).OrderByDescending(e => e.IsPrimary).FirstOrDefault();
-            return new ApplicantGuardianDto(null, link?.RelationshipType ?? "Tuteur", g.FirstName, g.LastName, g.Profession, g.ProfessionDomain,
-                phone?.CountryCode, phone?.Number, mail?.Address, g.IsDeceased, link?.IsPrimaryContact ?? false, link?.IsEmergencyContact ?? false);
-        }).ToList();
-
-        // Collapse duplicate guardian records (the same parent imported twice → same name) so the wizard
-        // doesn't pre-fill the same person more than once. Group by accent/case-insensitive full name and keep
-        // the richest entry (has email, then phone, then profession).
-        guardians = guardians
-            .GroupBy(g => TextNormalization.NormalizeKey($"{g.FirstName} {g.LastName}"))
-            .Select(grp => grp
-                .OrderByDescending(x => !string.IsNullOrWhiteSpace(x.Email))
-                .ThenByDescending(x => !string.IsNullOrWhiteSpace(x.PhoneNumber))
-                .ThenByDescending(x => !string.IsNullOrWhiteSpace(x.Profession))
-                .First())
-            .ToList();
-
-        var addr = await context.MemberAddresses.Where(a => relevant.Contains(a.MemberId) && !a.IsDeleted).OrderByDescending(a => a.IsPrimary).FirstOrDefaultAsync(ct);
-        var members = await context.Members.Where(m => relevant.Contains(m.Id))
-            .Select(m => new HouseholdLookupMemberDto(m.Id, m.FirstName + " " + m.LastName,
-                m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(), m.Gender))
-            .ToListAsync(ct);
+        var household = await HouseholdLookup.BuildAsync(context, seedMemberIds, ct);
 
         await context.SaveChangesAsync(ct);
-        return Result<HouseholdLookupDto>.Success(new HouseholdLookupDto(guardians, addr?.Country, addr?.City, addr?.Details, members));
+        return Result<HouseholdLookupDto>.Success(household);
     }
 }
 

@@ -3,7 +3,7 @@ import applicantApi from '@/lib/applicant-api-client'
 import { queryClient } from '@/lib/query-client'
 import { getAccessToken, setTokens, clearTokens, setRemember } from '@/lib/token-storage'
 
-interface ApplicantAuthResponse {
+export interface ApplicantAuthResponse {
   accountId: string
   email: string
   emailVerified: boolean
@@ -22,6 +22,8 @@ interface ApplicantState {
   register: (email: string, password: string, contactName?: string, website?: string, acceptedTerms?: boolean, inviteToken?: string) => Promise<void>
   logout: () => void
   setEmailVerified: (v: boolean) => void
+  // Adopt a portal session issued elsewhere (Ma fiche → "Inscrire un frère ou une sœur"), no password step.
+  adoptSession: (data: ApplicantAuthResponse) => void
 }
 
 // Auth state for the public enrollment portal — fully isolated from the member auth store (own tokens,
@@ -54,4 +56,10 @@ export const useApplicantStore = create<ApplicantState>((set) => ({
   },
 
   setEmailVerified: (v) => set({ emailVerified: v }),
+
+  adoptSession: (data) => {
+    setRemember('applicant', true)
+    setTokens('applicant', data.accessToken, data.refreshToken)
+    set({ isAuthenticated: true, email: data.email, emailVerified: data.emailVerified })
+  },
 }))

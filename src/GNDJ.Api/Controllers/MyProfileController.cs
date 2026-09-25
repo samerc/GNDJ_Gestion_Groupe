@@ -56,6 +56,16 @@ public class MyProfileController : BaseApiController
     /// <summary>Body for PUT /my-profile/primary-email.</summary>
     public record PrimaryEmailBody(string? Email);
 
+    /// <summary>"Inscrire un frère ou une sœur": opens the family's enrollment-portal account from the member's own
+    /// fiche (created if needed, prefilled with parents/address/siblings) and returns a portal session, so the parent
+    /// lands straight in a new demande — no email code needed.</summary>
+    [HttpPost("start-sibling-demande")]
+    public async Task<IActionResult> StartSiblingDemande()
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Applicants.StartSiblingDemandeCommand());
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+    }
+
     /// <summary>Marks the caller's first-login welcome tour as seen (so the carousel doesn't show again).</summary>
     [HttpPost("onboarding-seen")]
     public async Task<IActionResult> OnboardingSeen() => Wrap(await Mediator.Send(new MarkOnboardingSeenCommand()));

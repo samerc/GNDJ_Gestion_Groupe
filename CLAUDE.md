@@ -5856,3 +5856,12 @@ Two related document items (all on main, DEV until deploy; migration-free — re
   /camps/{id}/commission`. Camp page "Commission" tab (member picker; read-only for commission members); "Nouveau
   camp" / Archiver / Supprimer hidden unless CG (`useIsCampCg`). Verified live: CU off-commission 403 → on it 200 →
   camp archived 403; CU refused create/archive/set-commission.
+- **New demande from Ma fiche** ("Inscrire un frère ou une sœur", shown while inscriptions are open):
+  `StartSiblingDemandeCommand` + `POST /my-profile/start-sibling-demande` (auth, own member). Picks the family
+  email (PrimaryContactEmail → a parent's email → own), finds or creates the family's `ApplicantAccount` (created
+  VERIFIED, random password — "mot de passe oublié" works later), prefills a new/empty account from the shared
+  `HouseholdLookup.BuildAsync` (extracted from the household-lookup verify handler): parents, address, and the
+  household members as "Frère / Sœur" proches with `SuggestedMemberId` (CG confirms with Lier). Returns an applicant
+  session; `useApplicantStore.adoptSession` stores it and the page navigates to `/inscription/portail/demande/new`
+  (terms/verify gates + window/caps still apply). Impersonation (read-only) can't use it (POST). Verified live on a
+  real family: account created on the father's email, 2 parents + address + 2 brothers (suggestions), 2nd call reuses.

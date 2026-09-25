@@ -19,6 +19,7 @@ import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberSiblings } from '@/components/members/member-siblings'
 import { HouseholdContacts } from '@/components/members/household-contacts'
 import { DocumentsCta } from '@/components/members/documents-cta'
+import { SiblingEnrollCta } from '@/components/members/sibling-enroll-cta'
 import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
 import { useSettingArray } from '@/services/settings-service'
@@ -122,6 +123,7 @@ export default function MyProfilePage() {
 
       {/* Members mostly log in to upload documents — surface their dossier + completion right on Ma fiche. */}
       <DocumentsCta memberId={memberId} />
+      <SiblingEnrollCta />
 
       {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
