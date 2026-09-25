@@ -5809,3 +5809,10 @@ Two related document items (all on main, DEV until deploy; migration-free — re
   CALLER's context; `RunSendErrorsAsync` / `RunApplyHoldAsync` commit emails + hold flags + notifications + the
   "step done" marker in ONE SaveChanges (`StageMarkerAsync`), so a crash can't cause a double send. Verified live:
   send-errors queued 353 + marker in one save; re-run → 0.
+- **Audit `member_id` — full member Journal.** `AuditLog.MemberId` (migration `AddAuditLogMemberId`, indexed) is
+  resolved AUTOMATICALLY in `AuditService.ResolveMemberIdAsync` from the entity's own member FK (Member /
+  MemberAssignment / MemberCotisation / MemberProgression / MemberChangeRequest / Passage / User / MemberDocument
+  [doc id, or the member id for single downloads]) — no call-site changes. `GetMemberAuditLogsQuery` now matches
+  `member_id` OR `entity_id` OR the member's login (actor) OR a `Guardian` row for one of the member's parents
+  (shared between siblings, so matched at query time). **Patch `027`** backfills history. Verified: sample member's
+  Journal 17 → 43 entries.

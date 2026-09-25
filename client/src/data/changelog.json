@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Fiche membre — l'onglet « Journal » montre désormais TOUT l'historique du membre : les actions sur ses documents, affectations, cotisations, progressions, passages, demandes de modification et parents, en plus des modifications de sa fiche et de ses connexions (l'historique existant est rattrapé)."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Demandes — un double-clic rapide sur « Suivant » / « Soumettre » ne peut plus créer deux demandes : un second clic réutilise l'enregistrement déjà en cours, et les étapes en haut du formulaire sont désactivées pendant l'enregistrement."
       },
       {

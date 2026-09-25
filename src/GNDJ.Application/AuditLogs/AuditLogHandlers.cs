@@ -103,9 +103,17 @@ public class GetMemberAuditLogsQueryHandler(IApplicationDbContext context) : IRe
             .Where(u => u.MemberId == request.MemberId && !u.IsDeleted)
             .Select(u => (Guid?)u.Id).FirstOrDefaultAsync(ct);
 
-        // entity_id = member (subject) OR user_id = the member's login (actor). Both columns are indexed → BitmapOr.
+        // Parents are SHARED between siblings (no single member), so their rows are matched by guardian id instead.
+        var guardianIds = await context.GuardianLinks.IgnoreQueryFilters()
+            .Where(l => l.MemberId == request.MemberId).Select(l => l.GuardianId).Distinct().ToListAsync(ct);
+
+        // member_id = the member (actions on their documents/assignments/cotisations…, resolved at write time) OR
+        // entity_id = member (subject) OR user_id = the member's login (actor) OR a row on one of their parents.
+        // All indexed columns → BitmapOr.
         var query = context.AuditLogs
-            .Where(a => a.EntityId == request.MemberId || (userId != null && a.UserId == userId));
+            .Where(a => a.MemberId == request.MemberId || a.EntityId == request.MemberId
+                || (userId != null && a.UserId == userId)
+                || (a.EntityType == "Guardian" && a.EntityId != null && guardianIds.Contains(a.EntityId.Value)));
         return await PaginatedList<AuditLogDto>.CreateAsync(AuditFilters.ToDto(query), request.Page, request.PageSize, ct);
     }
 }

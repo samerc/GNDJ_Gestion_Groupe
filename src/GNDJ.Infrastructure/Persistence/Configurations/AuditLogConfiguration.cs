@@ -36,6 +36,8 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         // entity_id alone (any type) serves the member "Journal" tab (subject = memberId), OR'd with user_id.
         builder.HasIndex(e => e.EntityId);
         builder.HasIndex(e => e.UserId);
+        // member_id serves the member "Journal" tab (actions on the member's documents/assignments/cotisations…).
+        builder.HasIndex(e => e.MemberId);
         // Descending: log viewer reads newest-first.
         builder.HasIndex(e => e.Timestamp).IsDescending();
     }
