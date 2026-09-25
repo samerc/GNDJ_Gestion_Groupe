@@ -150,6 +150,7 @@ const adminGroups: AdminGroup[] = [
       { path: '/admin/documents-suivi', label: 'Suivi documents', icon: FileWarning, permission: PERMISSIONS.MAITRISE_MANAGE },
       // Per-unit document matrix (same grid as a CU's "Documents", with a unit picker) for the CG/super-admin.
       { path: '/unit-documents', label: 'Documents par unité', icon: FileText, permission: PERMISSIONS.MAITRISE_MANAGE },
+      { path: '/admin/data-quality', label: 'Qualité des données', icon: ShieldCheck, permission: PERMISSIONS.MAITRISE_MANAGE },
     ],
   },
   {

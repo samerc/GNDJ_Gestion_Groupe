@@ -5987,4 +5987,16 @@ entry; the app also opened on the public home page), so it never seemed to close
   connexion" screen (auto-reloads on `online`, Réessayer button); API/assets still pass straight through (no
   caching, on purpose). `components/shared/offline-banner.tsx` (in AppLayout under the header) shows an amber
   banner while `navigator.onLine` is false. Browser-verified 6/6.
+- **Email bounces:** `EmailBounce` (table `email_bounces`, migration `AddEmailBounces`, one row per address: kind
+  hard/soft/complaint, count, suppressed). `EmailWebhooksController` (anonymous, authenticated): `POST
+  /email/webhooks/mailgun` (HMAC-SHA256 of timestamp+token with `EmailBounces:MailgunSigningKey`, 1 h replay window)
+  and `POST /email/webhooks/{provider}/{token}` (token = `EmailBounces:WebhookToken`; JSON object/array or form;
+  flexible field names for SMTP2GO / SendPulse). `RecordEmailBounceCommand` upserts: hard/complaint suppress at once,
+  soft after 3. The outbox sender marks rows to a suppressed address **Failed** ("Adresse en échec…") instead of
+  sending. Webhook path exempt from the abuse scan. Setup steps in `deploy/OPS.md`.
+- **"Qualité des données"** (`/admin/data-quality`, Suivi, maitrise.manage; `GET /data-quality`, `DELETE
+  /data-quality/bounces/{id}` = Réactiver): active members only — invalid emails (same rule as the forms,
+  `ValidationExtensions.IsRealEmail`), bounced emails with their owners, members with no reachable email
+  (`ContactEmailResolver`), missing date of birth / gender, duplicate count (→ Fratries → Doublons). ≤500 lines per
+  section. Dev: 1 invalid, 22 without email, 26 without DOB. Verified live (webhooks, suppression, report, CU 403).
 

@@ -121,3 +121,25 @@ the monitoring reacting to a real failure — nothing is faked.
 - Backup emails are sent on every run when `notifyOnSuccess: true` (a daily "it ran" reassurance).
   Set it to `false` to be emailed only on failure.
 - Retention prunes BOTH local and cloud copies older than `retentionDays`.
+
+## Email bounce webhooks (set once per provider)
+
+The app records addresses the providers could not deliver to (or that marked our mail as spam), lists them on
+**Suivi → Qualité des données**, and stops sending to them until a CG clicks « Réactiver ».
+
+1. In `appsettings.Production.json` add (then recycle the app pool):
+   ```json
+   "EmailBounces": {
+     "MailgunSigningKey": "<Mailgun → Sending → Webhooks → HTTP webhook signing key>",
+     "WebhookToken": "<a long random string, e.g. [guid]::NewGuid().ToString('N') twice>"
+   }
+   ```
+2. **Mailgun** (Sending → Webhooks, domain gndj.org): add `https://gndj.org/api/v1/email/webhooks/mailgun` for
+   *Permanent failure*, *Temporary failure* and *Spam complaints*.
+3. **SMTP2GO** (Settings → Webhooks): URL `https://gndj.org/api/v1/email/webhooks/smtp2go/<WebhookToken>`, events
+   *Bounce* and *Spam*.
+4. **SendPulse** (SMTP → Settings → Webhooks): URL `https://gndj.org/api/v1/email/webhooks/sendpulse/<WebhookToken>`,
+   events *hard bounce*, *soft bounce*, *spam*.
+
+A soft bounce (mailbox full…) only blocks the address after 3 reports; a hard bounce or a spam complaint blocks it
+at once.

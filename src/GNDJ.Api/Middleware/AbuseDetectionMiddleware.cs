@@ -44,7 +44,7 @@ public partial class AbuseDetectionMiddleware
     private static readonly string[] RichContentPrefixes =
     {
         "/api/v1/email/templates", "/api/v1/news", "/api/v1/pages", "/api/v1/events",
-        "/api/v1/resources", "/api/v1/content", "/api/v1/document-types",
+        "/api/v1/resources", "/api/v1/content", "/api/v1/document-types", "/api/v1/email/webhooks",
     };
 
     // The client crash report carries a raw error message + stack trace, which can legitimately contain

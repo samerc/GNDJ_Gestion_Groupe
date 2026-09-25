@@ -20,6 +20,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<ApplicantSession> ApplicantSessions => Set<ApplicantSession>();
+    public DbSet<EmailBounce> EmailBounces => Set<EmailBounce>();
     public DbSet<SecurityProfile> SecurityProfiles => Set<SecurityProfile>();
     public DbSet<SecurityProfilePermission> SecurityProfilePermissions => Set<SecurityProfilePermission>();
     public DbSet<FunctionalRole> FunctionalRoles => Set<FunctionalRole>();

@@ -17,6 +17,7 @@ public interface IApplicationDbContext
     DbSet<User> Users { get; }
     DbSet<UserSession> UserSessions { get; }
     DbSet<ApplicantSession> ApplicantSessions { get; }
+    DbSet<EmailBounce> EmailBounces { get; }
     DbSet<SecurityProfile> SecurityProfiles { get; }
     DbSet<SecurityProfilePermission> SecurityProfilePermissions { get; }
     DbSet<FunctionalRole> FunctionalRoles { get; }

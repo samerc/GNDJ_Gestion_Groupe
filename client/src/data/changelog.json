@@ -5,6 +5,14 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Nouvelle page « Qualité des données » (Suivi) : adresses email invalides ou en échec, membres sans aucun email, date de naissance ou genre manquant, doublons — chaque ligne ouvre la fiche du membre."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Emails en échec : les fournisseurs (Mailgun, SMTP2GO, SendPulse) signalent les adresses qui n'ont pas pu recevoir un email ; l'application ne leur envoie plus rien et les liste pour correction."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Hors connexion : l'application affiche un écran « Pas de connexion » (qui se recharge seul au retour du réseau) au lieu d'une page blanche, et un bandeau prévient quand la connexion est perdue en cours d'utilisation."
       },
       {

@@ -64,6 +64,7 @@ const RentreeTemplatePage = lazy(() => import('@/pages/admin/rentree-template'))
 const MaitrisesPage = lazy(() => import('@/pages/maitrises'))
 const SiblingsPage = lazy(() => import('@/pages/admin/siblings'))
 const ZeroDayAssignmentsPage = lazy(() => import('@/pages/admin/zero-day-assignments'))
+const DataQualityPage = lazy(() => import('@/pages/admin/data-quality'))
 const MemberGroupsPage = lazy(() => import('@/pages/admin/member-groups'))
 const CommunicationsAccesPage = lazy(() => import('@/pages/admin/communications-acces'))
 const SendNotificationPage = lazy(() => import('@/pages/admin/send-notification'))
@@ -219,6 +220,7 @@ export default function App() {
               <Route path="/admin/siblings" element={<SiblingsPage />} />
               <Route path="/admin/send-notification" element={<SendNotificationPage />} />
               <Route path="/admin/zero-day-assignments" element={<ZeroDayAssignmentsPage />} />
+              <Route path="/admin/data-quality" element={<DataQualityPage />} />
               <Route path="/admin/member-groups" element={<MemberGroupsPage />} />
               <Route path="/admin/lists" element={<ManagedListsPage />} />
             </Route>

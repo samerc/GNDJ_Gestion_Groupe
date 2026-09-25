@@ -28,6 +28,9 @@ public static class ValidationExtensions
     private static bool IsRealEmailOrEmpty(string? s)
         => string.IsNullOrWhiteSpace(s) || RealEmailRegex.IsMatch(s.Trim());
 
+    // True for an address that can actually receive mail (same rule as the forms). Used by the data-quality report.
+    public static bool IsRealEmail(string? s) => !string.IsNullOrWhiteSpace(s) && RealEmailRegex.IsMatch(s.Trim());
+
     public static IRuleBuilderOptions<T, string?> RealEmail<T>(this IRuleBuilder<T, string?> rule)
         => rule.Must(IsRealEmailOrEmpty).WithMessage("Adresse email invalide (exemple : prenom@domaine.com).");
 

@@ -84,7 +84,25 @@ public class OutboxSenderBackgroundService : BackgroundService
 
         var leaseUntil = now.Add(Lease);
         foreach (var row in due) row.NextAttemptAt = leaseUntil;
+
+        // Addresses the providers reported as undeliverable (hard bounce / spam complaint) are not sent to again:
+        // the row goes straight to Failed with a readable reason (protects the sending reputation). A CG clears
+        // the bounce on "Qualité des données" once the address is fixed.
+        var addresses = due.Select(r => r.ToEmail.Trim().ToLower()).Distinct().ToList();
+        var suppressed = (await context.EmailBounces
+            .Where(b => b.Suppressed && addresses.Contains(b.Address))
+            .Select(b => b.Address).ToListAsync(ct)).ToHashSet();
+        if (suppressed.Count > 0)
+        {
+            foreach (var row in due.Where(r => suppressed.Contains(r.ToEmail.Trim().ToLower())).ToList())
+            {
+                row.Status = OutboxEmailStatus.Failed;
+                row.LastError = "Adresse en échec (rebond signalé par le fournisseur) — email non envoyé. Corrigez l'adresse puis réactivez-la dans « Qualité des données ».";
+                due.Remove(row);
+            }
+        }
         await context.SaveChangesAsync(ct); // commit the claim before we start sending
+        if (due.Count == 0) return 0;
 
         // Resolve each row's delivery route (which SMTP server + its optional per-hour cap) and split the batch
         // into rows to send NOW vs rows to defer to a future rate-limit slot. Route resolution is sequential
