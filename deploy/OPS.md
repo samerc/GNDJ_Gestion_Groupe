@@ -82,7 +82,7 @@ to find `rclone` even when a manual run works. Find the path and paste it into t
 
 ### d. Test both immediately
 ```powershell
-Start-ScheduledTask -TaskName GNDJ-Backup       # check your inbox + C:\gndj-backups + the cloud folder
+Start-ScheduledTask -TaskName GNDJ-Backup       # check your inbox + C:\gndj-backups\database + the cloud folder (database/)
 Start-ScheduledTask -TaskName GNDJ-HealthCheck  # first run emails once (unknown→up is silent; a real outage alerts)
 ```
 Or run directly to see output:  `.\backup-db.ps1`  /  `.\healthcheck.ps1`
@@ -108,7 +108,7 @@ the monitoring reacting to a real failure — nothing is faked.
 ## 2. Restoring a backup
 ```powershell
 # custom-format dumps restore with pg_restore (create the empty DB first if needed)
-& "C:\Program Files\PostgreSQL\18\bin\pg_restore.exe" -h localhost -U gndj_admin -d gndj --clean --if-exists "C:\gndj-backups\gndj_YYYYMMDD_HHMM.dump"
+& "C:\Program Files\PostgreSQL\18\bin\pg_restore.exe" -h localhost -U gndj_admin -d gndj --clean --if-exists "C:\gndj-backups\database\gndj_YYYYMMDD_HHMM.dump"
 ```
 
 ---
