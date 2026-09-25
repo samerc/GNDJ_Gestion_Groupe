@@ -115,6 +115,9 @@ builder.Services.AddOutputCache(options =>
     options.AddBasePolicy(p => p.NoCache());
     options.AddPolicy("LookupData", p => p.Expire(TimeSpan.FromMinutes(10)).Tag("lookup"));
     options.AddPolicy("ShortCache", p => p.Expire(TimeSpan.FromMinutes(2)).Tag("short"));
+    // Anonymous public site: longer (10 min) — PublicCacheMiddleware clears the "public" tag after any admin write,
+    // so edits still show immediately. Also tagged "short" so the existing settings/site-text evictions clear it.
+    options.AddPolicy("PublicContent", p => p.Expire(TimeSpan.FromMinutes(10)).Tag("public", "short"));
 });
 
 // Performance: Memory cache for general use
@@ -546,6 +549,9 @@ app.UseSerilogRequestLogging(options =>
     };
 });
 
+// Public-site browser cache header + clear the public output cache after any admin write (before UseOutputCache
+// so the header also applies to cache hits).
+app.UseMiddleware<PublicCacheMiddleware>();
 app.UseOutputCache();
 app.UseRateLimiter();
 // After the rate limiter (so flooders are throttled first) and after auth (so rejections can log

@@ -21,7 +21,7 @@ public class PublicController : BaseApiController
 {
     /// <summary>Returns the public site configuration (texts, whether inscriptions are open, contact info).</summary>
     [HttpGet("site-config")]
-    [OutputCache(PolicyName = "ShortCache")]
+    [OutputCache(PolicyName = "PublicContent")]
     public async Task<IActionResult> SiteConfig()
         => Ok(await Mediator.Send(new GetPublicSiteConfigQuery()));
 
@@ -32,7 +32,7 @@ public class PublicController : BaseApiController
 
     /// <summary>Lists the published units grouped by branch, with category descriptions.</summary>
     [HttpGet("units")]
-    [OutputCache(PolicyName = "ShortCache")]
+    [OutputCache(PolicyName = "PublicContent")]
     public async Task<IActionResult> Units()
         => Ok(await Mediator.Send(new GetPublicUnitsQuery()));
 
@@ -40,7 +40,7 @@ public class PublicController : BaseApiController
     /// <response code="404">No published unit matches the slug.</response>
     [ProducesResponseType(404)]
     [HttpGet("units/{slug}")]
-    [OutputCache(PolicyName = "ShortCache")]
+    [OutputCache(PolicyName = "PublicContent")]
     public async Task<IActionResult> UnitDetail(string slug)
     {
         var result = await Mediator.Send(new GetPublicUnitDetailQuery(slug));
@@ -50,7 +50,7 @@ public class PublicController : BaseApiController
 
     /// <summary>Returns a paged list of published news posts (excerpt + tag).</summary>
     [HttpGet("news")]
-    [OutputCache(PolicyName = "ShortCache")]
+    [OutputCache(PolicyName = "PublicContent")]
     public async Task<IActionResult> News([FromQuery] int page = 1, [FromQuery] int pageSize = 12,
         [FromQuery] bool groupOnly = false, [FromQuery] Guid? unitTypeId = null)
         => Ok(await Mediator.Send(new GetPublicNewsQuery(page, pageSize, groupOnly, unitTypeId)));
@@ -59,7 +59,7 @@ public class PublicController : BaseApiController
     /// <response code="404">No published article matches the slug.</response>
     [ProducesResponseType(404)]
     [HttpGet("news/{slug}")]
-    [OutputCache(PolicyName = "ShortCache")]
+    [OutputCache(PolicyName = "PublicContent")]
     public async Task<IActionResult> NewsArticle(string slug)
     {
         var result = await Mediator.Send(new GetPublicNewsArticleQuery(slug));
@@ -69,7 +69,7 @@ public class PublicController : BaseApiController
 
     /// <summary>Returns a paged list of upcoming published events (soonest first).</summary>
     [HttpGet("events")]
-    [OutputCache(PolicyName = "ShortCache")]
+    [OutputCache(PolicyName = "PublicContent")]
     public async Task<IActionResult> Events([FromQuery] int page = 1, [FromQuery] int pageSize = 24,
         [FromQuery] bool groupOnly = false, [FromQuery] Guid? unitTypeId = null)
         => Ok(await Mediator.Send(new GetPublicEventsQuery(page, pageSize, groupOnly, unitTypeId)));
@@ -78,7 +78,7 @@ public class PublicController : BaseApiController
     /// <response code="404">No published event matches the slug.</response>
     [ProducesResponseType(404)]
     [HttpGet("events/{slug}")]
-    [OutputCache(PolicyName = "ShortCache")]
+    [OutputCache(PolicyName = "PublicContent")]
     public async Task<IActionResult> Event(string slug)
     {
         var result = await Mediator.Send(new GetPublicEventBySlugQuery(slug));
@@ -88,7 +88,7 @@ public class PublicController : BaseApiController
 
     /// <summary>Returns a paged list of published heritage resources (optional category + search).</summary>
     [HttpGet("resources")]
-    [OutputCache(PolicyName = "ShortCache")]
+    [OutputCache(PolicyName = "PublicContent")]
     public async Task<IActionResult> Resources([FromQuery] string? category = null, [FromQuery] string? search = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 24)
         => Ok(await Mediator.Send(new GetPublicResourcesQuery(category, search, page, pageSize)));
@@ -97,7 +97,7 @@ public class PublicController : BaseApiController
     /// <response code="404">No published resource matches the slug.</response>
     [ProducesResponseType(404)]
     [HttpGet("resources/{slug}")]
-    [OutputCache(PolicyName = "ShortCache")]
+    [OutputCache(PolicyName = "PublicContent")]
     public async Task<IActionResult> Resource(string slug)
     {
         var result = await Mediator.Send(new GetPublicResourceBySlugQuery(slug));
@@ -107,7 +107,7 @@ public class PublicController : BaseApiController
 
     /// <summary>Lists the published standalone CMS pages (for navigation).</summary>
     [HttpGet("pages")]
-    [OutputCache(PolicyName = "ShortCache")]
+    [OutputCache(PolicyName = "PublicContent")]
     public async Task<IActionResult> Pages()
         => Ok(await Mediator.Send(new GetPublicPagesQuery()));
 
@@ -115,7 +115,7 @@ public class PublicController : BaseApiController
     /// <response code="404">No published page matches the slug.</response>
     [ProducesResponseType(404)]
     [HttpGet("pages/{slug}")]
-    [OutputCache(PolicyName = "ShortCache")]
+    [OutputCache(PolicyName = "PublicContent")]
     public async Task<IActionResult> Page(string slug)
     {
         var result = await Mediator.Send(new GetPublicPageQuery(slug));

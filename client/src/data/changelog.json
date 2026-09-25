@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Site public — pages plus rapides : les données publiques restent 10 minutes en cache sur le serveur et 1 minute dans le navigateur. Toute modification faite dans l'administration (actualités, pages, agenda, unités, textes du site…) vide aussitôt ce cache, donc les changements restent visibles tout de suite."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Site public — menus utilisables au clavier : Entrée ou ↓ ouvre un menu, ↑/↓ passe d'un lien à l'autre, Échap le ferme ; le menu se referme après avoir choisi une page. Sur mobile, le menu garde le focus tant qu'il est ouvert et Échap le ferme. Les lecteurs d'écran savent si un menu est ouvert."
       },
       {

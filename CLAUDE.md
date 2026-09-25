@@ -5820,3 +5820,9 @@ Two related document items (all on main, DEV until deploy; migration-free — re
   opens; Enter/Space/↓ open (↓ focuses first link), ↑/↓ move, Escape closes + refocuses the button, closes on
   route change / outside click / Tab-out; `aria-expanded`/`aria-controls`. Mobile menu: focus moves in on open, Tab
   is trapped inside (menu + toggle), Escape closes + refocuses the toggle. Verified in real Edge (playwright-core).
+- **Public-site caching** (`Api/Middleware/PublicCacheMiddleware`, before `UseOutputCache`): public endpoints use the
+  new `PublicContent` output-cache policy (10 min, tags `public`+`short`, was ShortCache 2 min). ANY successful
+  non-GET under `/api/v1/` (except applicant/public/auth/errors/notifications) evicts tag `public`, so admin edits
+  show immediately without wiring each write endpoint. Public GET 200s get `Cache-Control: public, max-age=60,
+  s-maxage=120` (not `/public/maintenance`, which is polled). Verified: header present; news create/delete visible
+  at once. Cloudflare still doesn't edge-cache `/api` JSON (no cache rule); s-maxage caps staleness if one is added.
