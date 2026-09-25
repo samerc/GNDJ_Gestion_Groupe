@@ -28,27 +28,32 @@ public class DeleteMemberCommandHandler : IRequestHandler<DeleteMemberCommand, R
 
     public async ValueTask<Result<bool>> Handle(DeleteMemberCommand request, CancellationToken cancellationToken)
     {
-        // NOTE: do NOT Include(m => m.User). The User→Member FK is required (non-nullable), so if the User is
-        // tracked when we Remove the Member (principal), EF tries to sever that required relationship and throws
-        // ("association … severed … required"). We disable the login separately with a set-based update below.
-        var entity = await _context.Members
-            .Include(m => m.Assignments)
-            .FirstOrDefaultAsync(m => m.Id == request.Id, cancellationToken);
+        // NOTE: load the member ALONE — no Include(User) and no Include(Assignments). Both are REQUIRED children
+        // (non-nullable MemberId): if either is tracked when we Remove the Member (principal), EF tries to sever the
+        // required relationship and throws ("association … severed … required") → 500. That hit every member with
+        // past (ended) assignments. The assignment facts are read with separate queries; the login is disabled
+        // with a set-based update below.
+        var entity = await _context.Members.FirstOrDefaultAsync(m => m.Id == request.Id, cancellationToken);
 
         if (entity is null)
             return Result<bool>.Failure("Membre introuvable.");
+
+        var assignments = await _context.MemberAssignments
+            .Where(a => a.MemberId == entity.Id && !a.IsDeleted)
+            .Select(a => new { a.UnitId, a.EndDate })
+            .ToListAsync(cancellationToken);
 
         // Authorization: super admin can delete anyone; a unit leader may only delete a member
         // who belongs (via any assignment) to one of their authorized units.
         if (!_currentUser.IsSuperAdmin)
         {
             var authorizedUnitIds = _currentUser.AuthorizedUnitIds;
-            var hasAccess = entity.Assignments.Any(a => !a.IsDeleted && authorizedUnitIds.Contains(a.UnitId));
+            var hasAccess = assignments.Any(a => authorizedUnitIds.Contains(a.UnitId));
             if (!hasAccess)
                 return Result<bool>.Failure("Accès non autorisé à ce membre.");
         }
 
-        if (entity.Assignments.Any(a => a.EndDate == null && !a.IsDeleted))
+        if (assignments.Any(a => a.EndDate == null))
             return Result<bool>.Failure("Impossible de supprimer un membre qui a des affectations actives.");
 
         // Disable the login immediately so the removed member can't sign in during the recovery window (and clear

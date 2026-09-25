@@ -11,8 +11,10 @@ public static class DemandeSerial
     public static async Task<string> NextAsync(IApplicationDbContext context, string scoutYear, CancellationToken ct)
     {
         var startYear = string.IsNullOrWhiteSpace(scoutYear) ? "0000" : scoutYear.Split('-')[0];
-        // Existing serials for this scout year → parse the trailing sequence, take the max.
-        var serials = await context.Demandes
+        // Existing serials for this scout year → parse the trailing sequence, take the max. IgnoreQueryFilters:
+        // a DELETED demande keeps its serial and the unique index still covers it, so it must count — otherwise
+        // deleting the newest demande made every later submission re-pick its number and fail (409) forever.
+        var serials = await context.Demandes.IgnoreQueryFilters()
             .Where(d => d.ScoutYear == scoutYear && d.SerialNumber != null)
             .Select(d => d.SerialNumber!)
             .ToListAsync(ct);

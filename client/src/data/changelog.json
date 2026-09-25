@@ -5,6 +5,14 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Correctif : une nouvelle demande ne pouvait plus être soumise (« Cet enregistrement existe déjà ») après la suppression de la demande la plus récente — le numéro INS était réattribué."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Correctif : la suppression d'un membre ayant d'anciennes affectations provoquait une erreur serveur ; elle fonctionne à nouveau (membre mis à la corbeille, connexion désactivée)."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Connexion : la fenêtre « Tâches de rentrée en retard » attend que « Vérifiez vos coordonnées » soit fermée, au lieu de s'afficher par-dessus."
       },
       {

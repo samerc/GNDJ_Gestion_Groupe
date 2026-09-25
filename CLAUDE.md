@@ -5884,3 +5884,17 @@ Two related document items (all on main, DEV until deploy; migration-free — re
 - `ui/switch.tsx` gained an optional `aria-label` (was dropped → unnamed switches for screen readers).
 - Verified live as a real CU (Troupe 3): shared file with 6 tabs + Actions; hide Photos / A–Z / dossier icons saved,
   survive reload, Réinitialiser restores defaults; no page errors. Build + tsc + eslint + vite clean.
+
+### Two production bugs found by live end-to-end tests (2026-09-25, DEV until deploy)
+- **Demande submit 409 after deleting the newest demande.** `DemandeSerial.NextAsync` read the max INS number
+  through the soft-delete query filter, but `ix_demandes_serial_number` is UNFILTERED (covers deleted rows). Once the
+  highest-numbered demande was deleted, every later submission re-picked that number, the 5 retries all collided, and
+  submit returned 409 "Cet enregistrement existe déjà". PROD was affected since 2026-09-16 (INS-2026-0246 deleted →
+  late-invite submissions failed). Fix: `IgnoreQueryFilters()` so deleted serials count (a number is never reused).
+- **Deleting a member with ended assignments → 500.** `DeleteMemberCommand` did `Include(m => m.Assignments)` then
+  `Members.Remove`, so EF tried to sever the required MemberAssignment→Member FK ("association … severed"). Hit
+  practically every alumnus. Fix: load the member alone and read assignment facts with a separate query (same
+  pattern as the earlier User fix). Verified: delete 204 → soft-deleted + login disabled → restore → delete → purge.
+- Also found (DATA, not fixed — needs a human): 3 malformed emails that the outbox can never deliver (it retries then
+  marks Failed, not blocking the rest): member `chloejohannabachaalany<chloejohannabachaalany7@`, guardians
+  `a.lahoud@lahoud_lowfimcom` and `cassaf@tyanzgheibcom` (missing dot). Prod copy from 09-24, so prod has them.
