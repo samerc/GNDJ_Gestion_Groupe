@@ -23,4 +23,11 @@ public interface IEmailQueue
     // Record several emails in a single write (one round-trip) — for batch sends (demande responses,
     // "Envoyer les accès", multi-recipient reset links). No-op on an empty set.
     Task EnqueueManyAsync(IEnumerable<EmailJob> jobs, CancellationToken ct = default);
+
+    // ATOMIC variant: add the outbox rows to the CALLER's context WITHOUT saving, so they commit in the SAME
+    // SaveChanges as the caller's own state change (e.g. a campaign step's "done" marker) — both happen or
+    // neither does, so a crash can't leave "emails queued but step not marked" (→ sent twice on the re-run).
+    // Call Wake() after that SaveChanges succeeds so the sender goes now instead of at its next poll.
+    void Stage(IApplicationDbContext context, IEnumerable<EmailJob> jobs);
+    void Wake();
 }

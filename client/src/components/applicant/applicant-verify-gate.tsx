@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router'
 import { useApplicantConfig, useApplicantProfile } from '@/services/applicant-service'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { GateLoadError } from './gate-load-error'
 
 // Gate for the signed-in portal routes: when email verification is REQUIRED (demande.require_email_verification
 // is on) and the applicant hasn't verified their address yet, redirect to the /inscription/verify "check your
@@ -9,10 +10,15 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 // portal routes OUTSIDE the /verify route itself (no redirect loop). Honours the setting: when it's off, this
 // gate is a no-op so testing can proceed unverified.
 export function ApplicantVerifyGate() {
-  const { data: config, isLoading: loadingConfig } = useApplicantConfig()
-  const { data: profile, isLoading: loadingProfile } = useApplicantProfile()
+  const cfg = useApplicantConfig()
+  const prof = useApplicantProfile()
+  const { data: config, isLoading: loadingConfig } = cfg
+  const { data: profile, isLoading: loadingProfile } = prof
 
   if (loadingConfig || loadingProfile) return <div className="py-10"><LoadingSpinner /></div>
+  // Couldn't load config/profile → don't let the parent through unchecked; offer a retry instead.
+  if (!config || !profile)
+    return <GateLoadError retrying={cfg.isFetching || prof.isFetching} onRetry={() => { cfg.refetch(); prof.refetch() }} />
 
   if (config?.requireEmailVerification && profile && !profile.emailVerified)
     return <Navigate to="/inscription/verify" replace />

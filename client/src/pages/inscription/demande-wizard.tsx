@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import {
   useApplicantConfig, useApplicantProfile, useCreateDemande, useUpdateDemande,
@@ -144,6 +144,10 @@ export default function DemandeWizardPage() {
   const [step, setStep] = useState(0)
   const [errors, setErrors] = useState<Errors>({})
   const [saving, setSaving] = useState(false)
+  // Double-tap guard for persist() (see there): the in-flight save shared by concurrent calls, and the id of a
+  // demande created in THIS session (state only updates on the next render).
+  const inflightSave = useRef<Promise<string | null> | null>(null)
+  const createdIdRef = useRef<string | null>(null)
 
   const [child, setChild] = useState<DemandeInput>(emptyChild()) // step 0, per-demande
   const [guardians, setGuardians] = useState<ApplicantGuardian[]>([blankGuardian('Père'), blankGuardian('Mère')]) // shared household
@@ -266,7 +270,18 @@ export default function DemandeWizardPage() {
   // to all of the account's children), then the child demande (create on first save, else update).
   // Returns the demande id (newly created or existing) so callers can chain submit. Blank
   // guardian/relation rows are filtered out before sending.
-  async function persist(): Promise<string | null> {
+  //
+  // Double-tap guard: the buttons are disabled while `saving`, but a very fast double-tap can fire twice before
+  // React re-renders the disabled button — and the second call would still see demandeId === 'new' and CREATE a
+  // second demande (the per-account cap is only checked at create). So concurrent calls share the ONE in-flight
+  // save, and the id of a just-created demande is kept in a ref (state updates land only on the next render).
+  function persist(): Promise<string | null> {
+    if (inflightSave.current) return inflightSave.current
+    const p = doPersist().finally(() => { inflightSave.current = null })
+    inflightSave.current = p
+    return p
+  }
+  async function doPersist(): Promise<string | null> {
     // shared household
     await householdMutation.mutateAsync({
       contactName: profile?.contactName ?? null,
@@ -277,15 +292,17 @@ export default function DemandeWizardPage() {
       scoutRelations: relations.filter((r) => r.firstName?.trim() || r.lastName?.trim() || r.relatedMemberId),
     })
     // demande
-    if (demandeId === 'new') {
+    const currentId = createdIdRef.current ?? demandeId
+    if (currentId === 'new') {
       const res = await createMutation.mutateAsync(child)
+      createdIdRef.current = res.id
       setDemandeId(res.id)
       // Swap the URL to the real id without a navigation, so a refresh/back stays on this demande.
       window.history.replaceState(null, '', `/inscription/portail/demande/${res.id}`)
       return res.id
     } else {
-      await updateMutation.mutateAsync({ id: demandeId, data: child })
-      return demandeId
+      await updateMutation.mutateAsync({ id: currentId, data: child })
+      return currentId
     }
   }
 
@@ -372,7 +389,7 @@ export default function DemandeWizardPage() {
           {STEPS.map((s, i) => {
             const done = i < step
             return (
-              <button key={s} onClick={() => go(i)}
+              <button key={s} onClick={() => go(i)} disabled={saving}
                 className={cn('flex min-h-10 items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors',
                   i === step ? 'bg-primary text-primary-foreground'
                     : done ? 'text-primary hover:bg-accent'

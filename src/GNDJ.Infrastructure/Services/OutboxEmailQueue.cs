@@ -38,21 +38,7 @@ public class OutboxEmailQueue : IEmailQueue
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-            var now = DateTime.UtcNow;
-            foreach (var job in list)
-            {
-                context.OutboxEmails.Add(new OutboxEmail
-                {
-                    TemplateCode = job.TemplateCode,
-                    ToEmail = job.ToEmail,
-                    PayloadJson = JsonSerializer.Serialize(job.Variables),
-                    // Per-send attachments (usually none) → JSON array of {Name,Path}; null when empty.
-                    AttachmentsJson = job.Attachments is { Count: > 0 } ? JsonSerializer.Serialize(job.Attachments) : null,
-                    Status = OutboxEmailStatus.Pending,
-                    CreatedAt = now,
-                    NextAttemptAt = now, // due immediately
-                });
-            }
+            Stage(context, list);
             await context.SaveChangesAsync(ct);
         }
         catch (Exception ex)
@@ -66,4 +52,25 @@ public class OutboxEmailQueue : IEmailQueue
 
         _signal.Notify(); // wake the sender so it goes out now, not at the next poll
     }
+
+    public void Stage(IApplicationDbContext context, IEnumerable<EmailJob> jobs)
+    {
+        var now = DateTime.UtcNow;
+        foreach (var job in jobs)
+        {
+            context.OutboxEmails.Add(new OutboxEmail
+            {
+                TemplateCode = job.TemplateCode,
+                ToEmail = job.ToEmail,
+                PayloadJson = JsonSerializer.Serialize(job.Variables),
+                // Per-send attachments (usually none) → JSON array of {Name,Path}; null when empty.
+                AttachmentsJson = job.Attachments is { Count: > 0 } ? JsonSerializer.Serialize(job.Attachments) : null,
+                Status = OutboxEmailStatus.Pending,
+                CreatedAt = now,
+                NextAttemptAt = now, // due immediately
+            });
+        }
+    }
+
+    public void Wake() => _signal.Notify();
 }

@@ -5800,3 +5800,12 @@ Two related document items (all on main, DEV until deploy; migration-free — re
 - **SetPrimaryContactEmail** (leader) now case-insensitive. **Removed** the dead leader contact screen
   (`LeaderContactVerification`, `VerifyMyContactCommand`, `POST /my-profile/verify-contact`, MeResponse
   `NeedsContactVerification`/`Suggested*`); `Member.ContactVerifiedAt` column kept for history.
+- **Demande double-tap guard** (`demande-wizard.tsx`): `persist()` shares ONE in-flight save across concurrent calls
+  (`inflightSave` ref) and remembers a just-created id (`createdIdRef`) — a fast double-tap on Suivant/Soumettre
+  can't create a second demande (the per-account cap is only checked at create). Step headers disabled while saving.
+- **Portal gates block on load failure** (`ApplicantVerifyGate` / `ApplicantTermsGate`): if config/profile can't
+  load, show `GateLoadError` (Réessayer) instead of falling through to the portal.
+- **Document-campaign steps are atomic**: new `IEmailQueue.Stage(ctx, jobs)` + `Wake()` add outbox rows to the
+  CALLER's context; `RunSendErrorsAsync` / `RunApplyHoldAsync` commit emails + hold flags + notifications + the
+  "step done" marker in ONE SaveChanges (`StageMarkerAsync`), so a crash can't cause a double send. Verified live:
+  send-errors queued 353 + marker in one save; re-run → 0.

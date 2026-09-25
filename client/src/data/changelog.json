@@ -5,6 +5,18 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Demandes — un double-clic rapide sur « Suivant » / « Soumettre » ne peut plus créer deux demandes : un second clic réutilise l'enregistrement déjà en cours, et les étapes en haut du formulaire sont désactivées pendant l'enregistrement."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Portail des demandes — si le compte ne peut pas être chargé (coupure réseau), un écran « Impossible de charger votre compte — Réessayer » s'affiche au lieu de laisser passer le parent sans vérifier l'email / les conditions."
+      },
+      {
+        "date": "2026-09-25",
+        "text": "Suivi des documents — l'envoi des emails d'erreurs et la suspension des dossiers incomplets sont désormais enregistrés en une seule opération : une panne du serveur en plein envoi ne peut plus faire partir les emails deux fois."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Demandes — les proches « frère / sœur » ne sont plus liés automatiquement à un membre sur la seule base du nom (un homonyme pouvait hériter des parents de la famille). L'application propose désormais une « Correspondance possible » que le CG confirme avec « Lier » (ou « Lier à un membre… » pour en choisir un autre) ; seuls les frères et sœurs peuvent être liés. Un badge « À lier » signale les demandes concernées. Les liens automatiques existants des demandes non encore converties redeviennent des suggestions à confirmer."
       },
       {

@@ -121,8 +121,12 @@ public static class DocumentCampaignActions
             if (await GetSettingAsync(ctx, DocumentCampaignKeys.ErrorsSentFor, ct) == scoutYear)
                 return new CampaignSendReport(0, 0);
             var incomplete = await LoadIncompleteAsync(ctx, ct);
+            // Emails + "step done" marker are committed in ONE SaveChanges (atomic): a crash either leaves
+            // neither (the re-run sends them) or both (the re-run skips) — never "queued but not marked".
             var report = await SendGapEmailsAsync(ctx, emailQueue, incomplete, ct);
-            await SetMarkerAsync(ctx, DocumentCampaignKeys.ErrorsSentFor, scoutYear, ct);
+            await StageMarkerAsync(ctx, DocumentCampaignKeys.ErrorsSentFor, scoutYear, ct);
+            await ctx.SaveChangesAsync(ct);
+            emailQueue.Wake();
             return report;
         }
         finally { _stepGate.Release(); }
@@ -152,7 +156,7 @@ public static class DocumentCampaignActions
             }));
             sent++;
         }
-        await emailQueue.EnqueueManyAsync(jobs, ct);
+        emailQueue.Stage(ctx, jobs); // committed by the caller together with the step marker
         return new CampaignSendReport(sent, noEmail);
     }
 
@@ -184,7 +188,7 @@ public static class DocumentCampaignActions
                 LinkUrl = "/my-documents", CreatedAt = now,
             });
         }
-        await ctx.SaveChangesAsync(ct);
+        // NOT saved yet: the hold flags, notifications, emails and marker all commit together below.
 
         // Email each incomplete member.
         var resolver = await ContactEmailResolver.LoadAsync(ctx, ids, ct);
@@ -203,8 +207,12 @@ public static class DocumentCampaignActions
             }));
             emailed++;
         }
-        await emailQueue.EnqueueManyAsync(jobs, ct);
-        await SetMarkerAsync(ctx, DocumentCampaignKeys.HoldAppliedFor, scoutYear, ct);
+        // One atomic SaveChanges: hold flags + notifications + emails + "step done" marker — a crash can't
+        // leave members suspended/emailed without the marker (which made the re-run email them again).
+        emailQueue.Stage(ctx, jobs);
+        await StageMarkerAsync(ctx, DocumentCampaignKeys.HoldAppliedFor, scoutYear, ct);
+        await ctx.SaveChangesAsync(ct);
+        emailQueue.Wake();
         return new CampaignHoldReport(incomplete.Count, emailed, noEmail);
         }
         finally { _stepGate.Release(); }
@@ -252,12 +260,18 @@ public static class DocumentCampaignActions
     // Upsert a marker setting (idempotency stamp) so the automated step fires once per campaign.
     public static async Task SetMarkerAsync(IApplicationDbContext ctx, string key, string? value, CancellationToken ct)
     {
+        await StageMarkerAsync(ctx, key, value, ct);
+        await ctx.SaveChangesAsync(ct);
+    }
+
+    // Same upsert WITHOUT saving — so the marker commits in the caller's SaveChanges alongside the step's work.
+    private static async Task StageMarkerAsync(IApplicationDbContext ctx, string key, string? value, CancellationToken ct)
+    {
         var entity = await ctx.Settings.FindAsync([key], ct);
         if (entity is null)
             ctx.Settings.Add(new Domain.Entities.Setting { Key = key, Value = value ?? "", Category = "documents", Label = key, Description = "Marqueur interne de campagne documents", ValueType = "string" });
         else
             entity.Value = value ?? "";
-        await ctx.SaveChangesAsync(ct);
     }
 
     public static async Task<string?> GetSettingAsync(IApplicationDbContext ctx, string key, CancellationToken ct) =>
