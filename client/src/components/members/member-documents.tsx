@@ -101,9 +101,28 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   // Upload one or several files as a document. Several files → one document with multiple pages (e.g. an ID's
   // front + back). The server appends to an existing pending document of the same type, so this also acts as
   // "send the rest of the pages" without creating a duplicate.
-  const handleUploadForType = async (docType: DocumentTypeListDto, files: File[]) => {
+  // Before uploading, show a preview so the user can confirm (or retake/cancel) — the mobile camera otherwise
+  // uploads the moment the OS returns the photo. Every row upload path (camera, file picker, drag-drop) funnels
+  // through here; the actual upload happens only on "Confirmer" in the preview dialog. Image thumbnails are
+  // object URLs built here (a user-event side effect) and revoked in closePreview so nothing leaks.
+  const [preview, setPreview] = useState<{ docType: DocumentTypeListDto; files: File[]; urls: string[] } | null>(null)
+
+  const closePreview = () => {
+    setPreview((p) => { p?.urls.forEach((u) => u && URL.revokeObjectURL(u)); return null })
+  }
+
+  const startUpload = (docType: DocumentTypeListDto, files: File[]) => {
+    if (files.length === 0) return
     const err = validateFiles(files)
     if (err) { toast.error(err); return }
+    const urls = files.map((f) => (f.type.startsWith('image/') ? URL.createObjectURL(f) : ''))
+    setPreview({ docType, files, urls })
+  }
+
+  // Returns true on success (so the preview dialog can close only when the upload actually went through).
+  const handleUploadForType = async (docType: DocumentTypeListDto, files: File[]): Promise<boolean> => {
+    const err = validateFiles(files)
+    if (err) { toast.error(err); return false }
     const today = new Date().toISOString().split('T')[0]
     const formData = new FormData()
     formData.append('memberId', memberId)
@@ -120,9 +139,11 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
       setUploadingDocTypeId(null)
       setExpiryDate('')
       setPendingFiles([])
+      return true
     } catch (err) {
       setUploadProgress(null)
       toast.error(parseApiError(err))
+      return false
     }
   }
 
@@ -138,7 +159,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
       setExpiryDate('')
       setPendingFiles(files)
     } else {
-      handleUploadForType(dt, files)
+      startUpload(dt, files)
     }
   }
 
@@ -513,7 +534,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
           const files = e.target.files ? Array.from(e.target.files) : []
           if (files.length > 0 && uploadingDocTypeId) {
             const dt = docTypes?.find(d => d.id === uploadingDocTypeId)
-            if (dt) handleUploadForType(dt, files)
+            if (dt) startUpload(dt, files)
           }
           e.target.value = ''
         }}
@@ -529,7 +550,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
           const files = e.target.files ? Array.from(e.target.files) : []
           if (files.length > 0 && uploadingDocTypeId) {
             const dt = docTypes?.find(d => d.id === uploadingDocTypeId)
-            if (dt) handleUploadForType(dt, files)
+            if (dt) startUpload(dt, files)
           }
           e.target.value = ''
         }}
@@ -548,8 +569,8 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
         }}
       />
 
-      {/* Expiry date dialog (for doc types that require it) */}
-      <Dialog open={!!uploadingDocTypeId && !!docTypes?.find(d => d.id === uploadingDocTypeId)?.requiresExpiry}
+      {/* Expiry date dialog (for doc types that require it) — hidden while the preview is up (avoids two modals). */}
+      <Dialog open={!preview && !!uploadingDocTypeId && !!docTypes?.find(d => d.id === uploadingDocTypeId)?.requiresExpiry}
         onOpenChange={() => { setUploadingDocTypeId(null); setPendingFiles([]) }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Date d'expiration requise</DialogTitle></DialogHeader>
@@ -569,9 +590,9 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                 // Files were drag-dropped onto the row — upload them once the date is set.
                 <Button disabled={!expiryDate || uploadMutation.isPending} onClick={() => {
                   const dt = docTypes?.find(d => d.id === uploadingDocTypeId)
-                  if (dt) handleUploadForType(dt, pendingFiles)
+                  if (dt) startUpload(dt, pendingFiles)
                 }}>
-                  <Upload className="mr-1 h-4 w-4" />Envoyer
+                  <Upload className="mr-1 h-4 w-4" />Aperçu
                 </Button>
               ) : (
                 <>
@@ -588,6 +609,46 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
               )}
             </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload preview — confirm (or cancel/retake) before the file is actually sent. The mobile camera would
+          otherwise upload the instant the OS returns the photo; this shows it first. */}
+      <Dialog open={!!preview} onOpenChange={(o) => { if (!o) closePreview() }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Vérifier avant l'envoi{preview ? ` — ${preview.docType.name}` : ''}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="max-h-[60vh] space-y-2 overflow-y-auto">
+              {preview?.files.map((f, i) => (
+                <div key={i} className="rounded-lg border bg-muted/30 p-2">
+                  {preview.urls[i] ? (
+                    <img src={preview.urls[i]} alt={f.name} className="mx-auto max-h-72 w-auto rounded-md object-contain" />
+                  ) : (
+                    <div className="flex items-center gap-2 p-1 text-sm">
+                      <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 truncate">{f.name}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-xs text-muted-foreground">
+              {preview && preview.files.length > 1
+                ? `${preview.files.length} fichiers — ils formeront un seul document (plusieurs pages).`
+                : "Vérifiez que le document est bien lisible avant de l'envoyer."}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closePreview} disabled={uploadMutation.isPending}>Annuler</Button>
+            <Button disabled={uploadMutation.isPending}
+              onClick={async () => {
+                if (!preview) return
+                const ok = await handleUploadForType(preview.docType, preview.files)
+                if (ok) closePreview()
+              }}>
+              <Upload className="mr-1.5 h-4 w-4" />{uploadMutation.isPending ? 'Envoi…' : "Confirmer l'envoi"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Documents — aperçu avant envoi : après avoir photographié ou choisi un document, un aperçu s'affiche pour vérifier qu'il est lisible et confirmer (ou annuler) avant l'envoi. Utile surtout sur téléphone, où la photo partait auparavant immédiatement après la prise. Vaut pour tous les modes d'envoi (photo, choix de fichier, glisser-déposer), y compris les documents à plusieurs pages."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Documents — un bouton « Scanner » sur chaque ligne de document (sur ordinateur) : en scannant depuis une ligne précise (ex. « Carte d'identité »), le QR ouvre directement le bon type de document sur le téléphone — on photographie et c'est envoyé, sans avoir à choisir le type. Le bouton « Scanner » est bien visible (couleur pleine) à côté d'« Envoyer ». Sur téléphone, c'est l'icône « appareil photo » (prise de photo directe) qui s'affiche à la place."
       },
       {
