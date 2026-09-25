@@ -47,8 +47,15 @@ public partial class AbuseDetectionMiddleware
         "/api/v1/resources", "/api/v1/content", "/api/v1/document-types",
     };
 
+    // The client crash report carries a raw error message + stack trace, which can legitimately contain
+    // attack-looking text (e.g. "union select" from a failed query) or a very long minified token. Scanning it
+    // would reject the very report meant to tell us about the crash. The endpoint is auth-only + rate-limited,
+    // and the report is only logged (never rendered as HTML or run as SQL).
+    private const string ErrorReportPath = "/api/v1/errors/report";
+
     private static bool IsRichContentPath(PathString path) =>
-        RichContentPrefixes.Any(p => path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase));
+        RichContentPrefixes.Any(p => path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase))
+        || path.StartsWithSegments(ErrorReportPath, StringComparison.OrdinalIgnoreCase);
 
     public async Task InvokeAsync(HttpContext context)
     {

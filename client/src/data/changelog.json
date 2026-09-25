@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-25",
+        "text": "Rapports d'erreur automatiques : ils ne sont plus bloqués par le filtre anti-attaque quand le message d'erreur contient un texte qui ressemble à une attaque."
+      },
+      {
+        "date": "2026-09-25",
         "text": "Ma fiche — « Inscrire un frère ou une sœur » (pendant la période d'inscription) : un clic ouvre le compte d'inscription de la famille (créé si besoin, sans code par email) avec les parents, l'adresse et la fratrie déjà remplis, puis ouvre directement une nouvelle demande. Les frères et sœurs sont proposés au CG comme « Correspondance possible » à confirmer."
       },
       {

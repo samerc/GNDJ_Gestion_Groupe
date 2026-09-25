@@ -2049,10 +2049,9 @@ Follow-ups to the error-handling feature + a maintenance/kill-switch system. All
   rides a signed JWT claim (unforgeable), 500 responses leak only the reference (no stack/message), alert
   emails HTML-encode all values + no user-controlled headers. FIXED: added a **global 30-alerts/clock-hour
   circuit-breaker** in `ErrorNotifier` (the per-signature dedupe could be bypassed by varying the message →
-  inbox flood; over the cap the error is still logged, only email suppressed). KEPT AS-IS (revisit once using
-  the app): `AbuseDetectionMiddleware` runs before `/errors/report`, so a crash whose stack contains an attack
-  signature (e.g. `union select`) could 400 that one report — reliability edge only (the error still lands in
-  application_logs); not exempting the endpoint for now.
+  inbox flood; over the cap the error is still logged, only email suppressed). `/errors/report` is now EXEMPT
+  from the `AbuseDetectionMiddleware` content scan (2026-09-25): a crash whose stack contains attack-looking text
+  (`union select`) or a long minified token is no longer rejected (endpoint is auth-only + rate-limited, only logged).
 
 ### Sidebar/menu pass + error-log clear + app versioning (2026-07-28)
 Post-error-handling polish (all on main, pushed; DEV until deploy). Also fixed two prod log noises.
